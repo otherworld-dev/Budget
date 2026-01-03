@@ -25,3 +25,7 @@ import.qif
 # Environment
 .env
 .env.local
+
+# Claude
+.claude/
+CLAUDE.md
