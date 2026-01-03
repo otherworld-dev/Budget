@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build artifacts
+*.log
+*.tmp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+nul
+
+# Import files (user data)
+import.csv
+import.ofx
+import.qif
+
+# Environment
+.env
+.env.local

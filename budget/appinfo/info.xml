@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>budget</id>
+    <name>Budget</name>
+    <summary>Simple budget tracker and forecaster</summary>
+    <description><![CDATA[
+# Budget - Financial Tracking for Nextcloud
+
+Track your spending habits, manage savings, and forecast future account balances with intelligent analysis of your financial history.
+
+## Features
+
+* **Import Bank Statements**: Support for CSV, OFX, and QIF formats
+* **Smart Categorization**: Automatic vendor matching and transaction categorization
+* **Spending Analysis**: Track spending patterns across categories
+* **Balance Forecasting**: Predict future balances based on historical data
+* **Multi-Account Support**: Manage multiple bank accounts
+* **Custom Categories**: Create your own category hierarchy
+* **Import Rules**: Set up rules to automatically categorize transactions
+* **Reports & Charts**: Visualize your financial data with interactive charts
+
+## Requirements
+
+* Nextcloud 30 or higher
+* PHP 8.3 or higher
+    ]]></description>
+    <version>1.0.0</version>
+    <licence>AGPL-3.0-or-later</licence>
+    <author mail="admin@example.com" homepage="https://example.com">Budget Developer</author>
+    <namespace>Budget</namespace>
+    <category>office</category>
+    <category>organization</category>
+    <bugs>https://github.com/yourusername/budget/issues</bugs>
+    <repository>https://github.com/yourusername/budget</repository>
+    <dependencies>
+        <php min-version="8.1" />
+        <nextcloud min-version="30" max-version="32" />
+    </dependencies>
+    <navigations>
+        <navigation>
+            <name>Budget</name>
+            <route>budget.page.index</route>
+            <icon>app.svg</icon>
+            <order>10</order>
+        </navigation>
+    </navigations>
+</info>
