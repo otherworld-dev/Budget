@@ -134,6 +134,19 @@ class BillController extends Controller {
     }
 
     /**
+     * Get upcoming bills (next 30 days, sorted by due date)
+     * @NoAdminRequired
+     */
+    public function upcoming(int $days = 30): DataResponse {
+        try {
+            $bills = $this->service->findUpcoming($this->userId, $days);
+            return new DataResponse($bills);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
      * Get bills due this month
      * @NoAdminRequired
      */

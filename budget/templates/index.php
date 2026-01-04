@@ -62,6 +62,16 @@ style('budget', 'style');
                 Categories
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="budget">
+            <a href="#budget" class="nav-icon-budget svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                    </svg>
+                </span>
+                Budget
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="import">
             <a href="#import" class="nav-icon-upload svg">
                 <span class="app-navigation-entry-icon">
@@ -80,6 +90,16 @@ style('budget', 'style');
                     </svg>
                 </span>
                 Bills
+            </a>
+        </li>
+        <li class="app-navigation-entry" data-id="savings-goals">
+            <a href="#savings-goals" class="nav-icon-savings svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"/>
+                    </svg>
+                </span>
+                Savings Goals
             </a>
         </li>
         <li class="app-navigation-entry" data-id="forecast">
@@ -120,27 +140,156 @@ style('budget', 'style');
     <div id="app-content-wrapper">
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
-            <h2>Budget Dashboard</h2>
-            
+            <!-- Hero Section - Key Financial Metrics -->
+            <div class="dashboard-hero">
+                <div class="hero-card hero-net-worth">
+                    <div class="hero-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Net Worth</span>
+                        <span id="hero-net-worth-value" class="hero-value">--</span>
+                        <span id="hero-net-worth-change" class="hero-change"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-income">
+                    <div class="hero-icon income">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Income This Month</span>
+                        <span id="hero-income-value" class="hero-value income">--</span>
+                        <span id="hero-income-change" class="hero-change"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-expenses">
+                    <div class="hero-icon expenses">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Expenses This Month</span>
+                        <span id="hero-expenses-value" class="hero-value expenses">--</span>
+                        <span id="hero-expenses-change" class="hero-change"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-savings">
+                    <div class="hero-icon savings">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2 4.5 3.5 3 2v20l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5zM19 19.09H5V4.91h14v14.18zM6 15h12v2H6zm0-4h12v2H6zm0-4h12v2H6z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Net Savings</span>
+                        <span id="hero-savings-value" class="hero-value">--</span>
+                        <span id="hero-savings-rate" class="hero-subtext"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard Grid -->
             <div class="dashboard-grid">
-                <div class="dashboard-card">
-                    <h3>Account Balances</h3>
-                    <div id="accounts-summary"></div>
+                <!-- Left Column -->
+                <div class="dashboard-column dashboard-column-main">
+                    <!-- Income vs Expenses Chart -->
+                    <div class="dashboard-card dashboard-card-large">
+                        <div class="card-header">
+                            <h3>Income vs Expenses</h3>
+                            <div class="card-header-controls">
+                                <select id="trend-period-select" class="card-select">
+                                    <option value="6">Last 6 Months</option>
+                                    <option value="12">Last 12 Months</option>
+                                    <option value="3">Last 3 Months</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="trend-chart"></canvas>
+                        </div>
+                        <div id="trend-chart-legend" class="chart-legend"></div>
+                    </div>
+
+                    <!-- Spending by Category Chart -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Spending by Category</h3>
+                            <div class="card-header-controls">
+                                <select id="spending-period-select" class="card-select">
+                                    <option value="month">This Month</option>
+                                    <option value="3months">Last 3 Months</option>
+                                    <option value="year">This Year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="spending-chart-wrapper">
+                            <div class="chart-container chart-container-doughnut">
+                                <canvas id="spending-chart"></canvas>
+                            </div>
+                            <div id="spending-chart-legend" class="spending-legend"></div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Recent Transactions</h3>
+                            <a href="#transactions" class="card-link">View All</a>
+                        </div>
+                        <div id="recent-transactions" class="recent-transactions-list"></div>
+                    </div>
                 </div>
-                
-                <div class="dashboard-card">
-                    <h3>Recent Transactions</h3>
-                    <div id="recent-transactions"></div>
-                </div>
-                
-                <div class="dashboard-card">
-                    <h3>Spending by Category</h3>
-                    <canvas id="spending-chart"></canvas>
-                </div>
-                
-                <div class="dashboard-card">
-                    <h3>Monthly Trend</h3>
-                    <canvas id="trend-chart"></canvas>
+
+                <!-- Right Column -->
+                <div class="dashboard-column dashboard-column-side">
+                    <!-- Account Balances -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Accounts</h3>
+                            <a href="#accounts" class="card-link">Manage</a>
+                        </div>
+                        <div id="accounts-summary" class="accounts-widget"></div>
+                    </div>
+
+                    <!-- Upcoming Bills -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Upcoming Bills</h3>
+                            <a href="#bills" class="card-link">View All</a>
+                        </div>
+                        <div id="upcoming-bills" class="bills-widget">
+                            <div class="empty-state-small">No upcoming bills</div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Progress -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Budget Progress</h3>
+                            <a href="#budget" class="card-link">Details</a>
+                        </div>
+                        <div id="budget-progress" class="budget-widget">
+                            <div class="empty-state-small">No budgets configured</div>
+                        </div>
+                    </div>
+
+                    <!-- Savings Goals -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Savings Goals</h3>
+                            <a href="#savings-goals" class="card-link">Manage</a>
+                        </div>
+                        <div id="savings-goals-summary" class="savings-goals-widget">
+                            <div class="empty-state-small">No savings goals yet</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -708,33 +857,6 @@ style('budget', 'style');
                             </div>
                         </div>
 
-                        <!-- Budget Information -->
-                        <div class="budget-section" id="budget-section">
-                            <h5>Budget Tracking</h5>
-                            <div class="budget-overview">
-                                <div class="budget-item">
-                                    <label>Monthly Budget</label>
-                                    <div id="category-budget-amount" class="budget-amount">$0</div>
-                                </div>
-                                <div class="budget-item">
-                                    <label>This Month Spent</label>
-                                    <div id="category-spent-amount" class="spent-amount">$0</div>
-                                </div>
-                                <div class="budget-item">
-                                    <label>Remaining</label>
-                                    <div id="category-remaining-amount" class="remaining-amount">$0</div>
-                                </div>
-                            </div>
-                            <div class="budget-progress">
-                                <div class="progress-bar">
-                                    <div id="budget-progress-fill" class="progress-fill" style="width: 0%"></div>
-                                </div>
-                                <div class="progress-label">
-                                    <span id="budget-progress-text">0% of budget used</span>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Recent Transactions -->
                         <div class="recent-transactions-section">
                             <h5>Recent Transactions</h5>
@@ -794,7 +916,100 @@ style('budget', 'style');
                 </div>
             </div>
         </div>
-        
+
+        <!-- Budget View -->
+        <div id="budget-view" class="view">
+            <div class="view-header">
+                <h2>Budget</h2>
+                <div class="view-controls">
+                    <div class="budget-period-selector">
+                        <label for="budget-month">Period:</label>
+                        <select id="budget-month">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Summary Cards -->
+            <div class="budget-summary-cards">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="budget-total-budgeted">$0</div>
+                        <div class="summary-label">Total Budgeted</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-close" style="color: var(--color-error);" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="budget-total-spent">$0</div>
+                        <div class="summary-label">Total Spent</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-checkmark" style="color: var(--color-success);" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="budget-total-remaining">$0</div>
+                        <div class="summary-label">Remaining</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-category-integration" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="budget-categories-count">0</div>
+                        <div class="summary-label">Categories with Budget</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Type Tabs -->
+            <div class="budget-tabs">
+                <button class="tab-button active" data-budget-type="expense">
+                    <span class="icon-close" aria-hidden="true"></span>
+                    Expenses
+                </button>
+                <button class="tab-button" data-budget-type="income">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    Income
+                </button>
+            </div>
+
+            <!-- Budget Tree Container -->
+            <div class="budget-container">
+                <div class="budget-tree-header">
+                    <div class="budget-col-name">Category</div>
+                    <div class="budget-col-budget">Budget</div>
+                    <div class="budget-col-period">Period</div>
+                    <div class="budget-col-spent">Spent</div>
+                    <div class="budget-col-remaining">Remaining</div>
+                    <div class="budget-col-progress">Progress</div>
+                </div>
+                <div id="budget-tree" class="budget-tree">
+                    <!-- Budget rows rendered dynamically -->
+                </div>
+                <div class="empty-budget" id="empty-budget" style="display: none;">
+                    <div class="empty-content">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                        <h3>No categories yet</h3>
+                        <p>Create categories first to start setting up your budget.</p>
+                        <button class="primary" id="empty-budget-go-categories-btn">
+                            <span class="icon-tag" aria-hidden="true"></span>
+                            Go to Categories
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Import View -->
         <div id="import-view" class="view">
             <h2>Import Transactions</h2>
@@ -1183,339 +1398,267 @@ style('budget', 'style');
             </div>
         </div>
 
+        <!-- Savings Goals View -->
+        <div id="savings-goals-view" class="view">
+            <div class="view-header">
+                <h2>Savings Goals</h2>
+                <button id="add-goal-btn" class="primary" aria-label="Add new savings goal">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    Add Goal
+                </button>
+            </div>
+
+            <!-- Goals Summary Cards -->
+            <div class="goals-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-star" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="goals-total-count">0</div>
+                        <div class="summary-label">Active Goals</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="goals-total-saved">$0</div>
+                        <div class="summary-label">Total Saved</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-category-office" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="goals-total-target">$0</div>
+                        <div class="summary-label">Total Target</div>
+                    </div>
+                </div>
+                <div class="summary-card success">
+                    <div class="summary-icon">
+                        <span class="icon-checkmark" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="goals-completed-count">0</div>
+                        <div class="summary-label">Completed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals List -->
+            <div class="goals-container">
+                <div id="goals-list" class="goals-list">
+                    <!-- Goals will be rendered here -->
+                </div>
+
+                <div class="empty-goals" id="empty-goals" style="display: none;">
+                    <div class="empty-content">
+                        <span class="icon-star" aria-hidden="true" style="font-size: 48px;"></span>
+                        <h3>No savings goals yet</h3>
+                        <p>Set up savings goals to track your progress towards financial milestones like an emergency fund, vacation, or new car.</p>
+                        <button class="primary" id="empty-goals-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Create Your First Goal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goal Modal -->
+        <div id="goal-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-medium">
+                <div class="modal-header">
+                    <h3 id="goal-modal-title">Add Savings Goal</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="goal-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="goal-name">Goal Name *</label>
+                        <input type="text" id="goal-name" name="name" required placeholder="e.g., Emergency Fund, Vacation, New Car">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="goal-target">Target Amount *</label>
+                            <input type="number" id="goal-target" name="targetAmount" min="0" step="0.01" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="goal-current">Current Amount</label>
+                            <input type="number" id="goal-current" name="currentAmount" min="0" step="0.01" value="0" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="goal-account">Linked Account (optional)</label>
+                            <select id="goal-account" name="accountId">
+                                <option value="">No linked account</option>
+                                <!-- Account options populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="goal-target-date">Target Date (optional)</label>
+                            <input type="date" id="goal-target-date" name="targetDate">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goal-color">Color</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="goal-color" name="color" value="#0082c9">
+                            <span class="color-preview" id="goal-color-preview"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goal-notes">Notes</label>
+                        <textarea id="goal-notes" name="notes" rows="3" placeholder="Any notes about this goal..."></textarea>
+                    </div>
+
+                    <input type="hidden" id="goal-id" name="id" value="">
+
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary" id="save-goal-btn">Save Goal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Money to Goal Modal -->
+        <div id="add-to-goal-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3>Add to <span id="add-to-goal-name">Goal</span></h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="add-to-goal-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="add-amount">Amount to Add</label>
+                        <input type="number" id="add-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                    </div>
+                    <input type="hidden" id="add-to-goal-id" name="goalId" value="">
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary">Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Forecast View -->
         <div id="forecast-view" class="view">
             <div class="forecast-header">
-                <h2>Financial Forecast & Intelligence</h2>
-                <p>AI-powered financial forecasting with scenario analysis</p>
+                <h2>Financial Forecast</h2>
+                <div class="forecast-controls">
+                    <label for="forecast-horizon">Forecast Period:</label>
+                    <select id="forecast-horizon">
+                        <option value="3">3 months</option>
+                        <option value="6" selected>6 months</option>
+                        <option value="12">12 months</option>
+                        <option value="24">24 months</option>
+                    </select>
+                </div>
             </div>
 
-            <!-- Forecast Configuration Panel -->
-            <div class="forecast-config-panel">
-                <div class="config-section">
-                    <h3>Analysis Parameters</h3>
-                    <div class="config-grid">
-                        <div class="config-field">
-                            <label for="forecast-account">Account Scope</label>
-                            <select id="forecast-account">
-                                <option value="">All Accounts</option>
-                            </select>
-                        </div>
-                        <div class="config-field">
-                            <label for="forecast-period">Historical Period</label>
-                            <select id="forecast-period">
-                                <option value="3">Last 3 months</option>
-                                <option value="6" selected>Last 6 months</option>
-                                <option value="12">Last 12 months</option>
-                                <option value="24">Last 24 months</option>
-                            </select>
-                        </div>
-                        <div class="config-field">
-                            <label for="forecast-horizon">Forecast Horizon</label>
-                            <select id="forecast-horizon">
-                                <option value="3">3 months ahead</option>
-                                <option value="6" selected>6 months ahead</option>
-                                <option value="12">12 months ahead</option>
-                                <option value="24">24 months ahead</option>
-                            </select>
-                        </div>
-                        <div class="config-field">
-                            <label for="forecast-confidence">Confidence Level</label>
-                            <select id="forecast-confidence">
-                                <option value="80">80% Confidence</option>
-                                <option value="90" selected>90% Confidence</option>
-                                <option value="95">95% Confidence</option>
-                            </select>
-                        </div>
+            <!-- Loading State -->
+            <div id="forecast-loading" class="forecast-loading">
+                <div class="loading-spinner"></div>
+                <p>Calculating forecast...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="forecast-empty" class="forecast-empty" style="display: none;">
+                <div class="empty-icon">📊</div>
+                <h3>Not Enough Data</h3>
+                <p>Add more transactions to generate an accurate forecast. We need at least 1 month of transaction history.</p>
+            </div>
+
+            <!-- Balance Overview Cards -->
+            <div id="forecast-overview" class="forecast-section" style="display: none;">
+                <div class="overview-cards">
+                    <div class="overview-card current-balance">
+                        <span class="card-label">Current Balance</span>
+                        <span class="card-value" id="current-balance">--</span>
                     </div>
-                    <div class="config-actions">
-                        <button id="generate-forecast-btn" class="primary">Generate Forecast</button>
-                        <button id="export-forecast-btn" class="secondary">Export Results</button>
+                    <div class="overview-card projected-balance">
+                        <span class="card-label">Projected Balance</span>
+                        <span class="card-value" id="projected-balance">--</span>
+                        <span class="card-change" id="balance-change">--</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Intelligence Summary -->
-            <div class="forecast-intelligence" id="forecast-intelligence" style="display: none;">
-                <div class="intelligence-header">
-                    <h3>Financial Intelligence Summary</h3>
-                    <div class="intelligence-score">
-                        <span class="score-label">Forecast Confidence:</span>
-                        <span class="score-value" id="forecast-score">--</span>
+            <!-- Trends Summary -->
+            <div id="forecast-trends" class="forecast-section" style="display: none;">
+                <h3>Monthly Trends</h3>
+                <div class="trends-grid">
+                    <div class="trend-card income">
+                        <span class="trend-label">Avg Monthly Income</span>
+                        <span class="trend-value" id="avg-income">--</span>
+                        <span class="trend-direction" id="income-direction"></span>
                     </div>
-                </div>
-
-                <div class="intelligence-insights">
-                    <div class="insight-card trend-analysis">
-                        <div class="insight-icon">📈</div>
-                        <div class="insight-content">
-                            <h4>Trend Analysis</h4>
-                            <p id="trend-insight">Analyzing spending patterns...</p>
-                        </div>
+                    <div class="trend-card expenses">
+                        <span class="trend-label">Avg Monthly Expenses</span>
+                        <span class="trend-value" id="avg-expenses">--</span>
+                        <span class="trend-direction" id="expense-direction"></span>
                     </div>
-                    <div class="insight-card seasonality">
-                        <div class="insight-icon">🌙</div>
-                        <div class="insight-content">
-                            <h4>Seasonality</h4>
-                            <p id="seasonality-insight">Detecting seasonal patterns...</p>
-                        </div>
-                    </div>
-                    <div class="insight-card volatility">
-                        <div class="insight-icon">⚡</div>
-                        <div class="insight-content">
-                            <h4>Volatility</h4>
-                            <p id="volatility-insight">Assessing spending stability...</p>
-                        </div>
+                    <div class="trend-card savings">
+                        <span class="trend-label">Avg Monthly Savings</span>
+                        <span class="trend-value" id="avg-savings">--</span>
+                        <span class="trend-direction" id="savings-direction"></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Scenario Analysis -->
-            <div class="forecast-scenarios" id="forecast-scenarios" style="display: none;">
-                <div class="scenarios-header">
-                    <h3>Scenario Analysis</h3>
-                    <div class="scenario-tabs">
-                        <button class="scenario-tab active" data-scenario="conservative">Conservative</button>
-                        <button class="scenario-tab" data-scenario="base">Base Case</button>
-                        <button class="scenario-tab" data-scenario="optimistic">Optimistic</button>
-                        <button class="scenario-tab" data-scenario="custom">Custom</button>
+            <!-- Savings Projection (Chart + Numbers) -->
+            <div id="forecast-savings" class="forecast-section" style="display: none;">
+                <h3>Savings Projection</h3>
+                <div class="savings-container">
+                    <div class="savings-chart">
+                        <canvas id="savings-chart"></canvas>
                     </div>
-                </div>
-
-                <div class="scenario-content">
-                    <!-- Conservative Scenario -->
-                    <div class="scenario-panel active" id="conservative-scenario">
-                        <div class="scenario-assumptions">
-                            <h4>Conservative Assumptions</h4>
-                            <ul id="conservative-assumptions">
-                                <li>Income growth: -5% to +2%</li>
-                                <li>Expense increase: +3% to +8%</li>
-                                <li>Emergency buffer: 20%</li>
-                            </ul>
+                    <div class="savings-summary">
+                        <div class="savings-stat">
+                            <span class="stat-label">Current Monthly Savings</span>
+                            <span class="stat-value" id="current-monthly-savings">--</span>
                         </div>
-                        <div class="scenario-metrics">
-                            <div class="metric-item">
-                                <span class="metric-label">Projected Balance</span>
-                                <span class="metric-value" id="conservative-balance">$--</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Risk Level</span>
-                                <span class="metric-value risk-low">Low</span>
-                            </div>
+                        <div class="savings-stat">
+                            <span class="stat-label">Projected Total Savings</span>
+                            <span class="stat-value" id="projected-total-savings">--</span>
                         </div>
-                    </div>
-
-                    <!-- Base Case Scenario -->
-                    <div class="scenario-panel" id="base-scenario">
-                        <div class="scenario-assumptions">
-                            <h4>Base Case Assumptions</h4>
-                            <ul id="base-assumptions">
-                                <li>Income growth: Current trend</li>
-                                <li>Expense growth: Historical average</li>
-                                <li>No major changes expected</li>
-                            </ul>
-                        </div>
-                        <div class="scenario-metrics">
-                            <div class="metric-item">
-                                <span class="metric-label">Projected Balance</span>
-                                <span class="metric-value" id="base-balance">$--</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Risk Level</span>
-                                <span class="metric-value risk-medium">Medium</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Optimistic Scenario -->
-                    <div class="scenario-panel" id="optimistic-scenario">
-                        <div class="scenario-assumptions">
-                            <h4>Optimistic Assumptions</h4>
-                            <ul id="optimistic-assumptions">
-                                <li>Income growth: +5% to +15%</li>
-                                <li>Expense reduction: -2% to +3%</li>
-                                <li>Favorable market conditions</li>
-                            </ul>
-                        </div>
-                        <div class="scenario-metrics">
-                            <div class="metric-item">
-                                <span class="metric-label">Projected Balance</span>
-                                <span class="metric-value" id="optimistic-balance">$--</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Risk Level</span>
-                                <span class="metric-value risk-high">High</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Custom Scenario -->
-                    <div class="scenario-panel" id="custom-scenario">
-                        <div class="custom-inputs">
-                            <h4>Custom Parameters</h4>
-                            <div class="custom-input-grid">
-                                <div class="input-field">
-                                    <label for="custom-income-growth">Income Growth (%)</label>
-                                    <input type="number" id="custom-income-growth" value="0" step="0.1">
-                                </div>
-                                <div class="input-field">
-                                    <label for="custom-expense-growth">Expense Growth (%)</label>
-                                    <input type="number" id="custom-expense-growth" value="0" step="0.1">
-                                </div>
-                                <div class="input-field">
-                                    <label for="custom-one-time-income">One-time Income</label>
-                                    <input type="number" id="custom-one-time-income" value="0" step="100">
-                                </div>
-                                <div class="input-field">
-                                    <label for="custom-one-time-expense">One-time Expense</label>
-                                    <input type="number" id="custom-one-time-expense" value="0" step="100">
-                                </div>
-                            </div>
-                            <button id="calculate-custom-scenario" class="secondary">Calculate Custom Scenario</button>
-                        </div>
-                        <div class="scenario-metrics">
-                            <div class="metric-item">
-                                <span class="metric-label">Projected Balance</span>
-                                <span class="metric-value" id="custom-balance">$--</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Risk Level</span>
-                                <span class="metric-value" id="custom-risk">--</span>
-                            </div>
+                        <div class="savings-stat">
+                            <span class="stat-label">Savings Rate</span>
+                            <span class="stat-value" id="savings-rate">--</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Forecast Visualization Dashboard -->
-            <div class="forecast-dashboard" id="forecast-dashboard" style="display: none;">
-                <div class="dashboard-header">
-                    <h3>Forecast Visualization</h3>
-                    <div class="chart-controls">
-                        <button class="chart-toggle active" data-chart="timeline">Timeline</button>
-                        <button class="chart-toggle" data-chart="comparison">Scenario Comparison</button>
-                        <button class="chart-toggle" data-chart="breakdown">Category Breakdown</button>
-                        <button class="chart-toggle" data-chart="confidence">Confidence Bands</button>
-                    </div>
-                </div>
-
-                <div class="dashboard-content">
-                    <div class="chart-container">
-                        <canvas id="forecast-main-chart"></canvas>
-                    </div>
-
-                    <div class="forecast-metrics">
-                        <div class="metrics-grid">
-                            <div class="metric-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Monthly Avg Income</span>
-                                    <span class="metric-trend" id="income-trend">↗️</span>
-                                </div>
-                                <div class="metric-value" id="avg-income">$--</div>
-                                <div class="metric-change" id="income-change">--</div>
-                            </div>
-                            <div class="metric-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Monthly Avg Expenses</span>
-                                    <span class="metric-trend" id="expense-trend">↗️</span>
-                                </div>
-                                <div class="metric-value" id="avg-expenses">$--</div>
-                                <div class="metric-change" id="expense-change">--</div>
-                            </div>
-                            <div class="metric-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Net Cash Flow</span>
-                                    <span class="metric-trend" id="cashflow-trend">↗️</span>
-                                </div>
-                                <div class="metric-value" id="net-cashflow">$--</div>
-                                <div class="metric-change" id="cashflow-change">--</div>
-                            </div>
-                            <div class="metric-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Savings Rate</span>
-                                    <span class="metric-trend" id="savings-trend">↗️</span>
-                                </div>
-                                <div class="metric-value" id="savings-rate">--%</div>
-                                <div class="metric-change" id="savings-change">--</div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Balance Projection Chart -->
+            <div id="forecast-chart" class="forecast-section" style="display: none;">
+                <h3>Balance Projection</h3>
+                <div class="chart-container">
+                    <canvas id="balance-projection-chart"></canvas>
                 </div>
             </div>
 
-            <!-- Goal Tracking -->
-            <div class="forecast-goals" id="forecast-goals" style="display: none;">
-                <div class="goals-header">
-                    <h3>Financial Goals & Targets</h3>
-                    <button id="add-goal-btn" class="primary">Add Goal</button>
-                </div>
-
-                <div class="goals-list">
-                    <div class="goal-card template" style="display: none;">
-                        <div class="goal-header">
-                            <div class="goal-info">
-                                <h4 class="goal-name">Goal Name</h4>
-                                <span class="goal-target">Target: $0</span>
-                            </div>
-                            <div class="goal-actions">
-                                <button class="goal-edit">Edit</button>
-                                <button class="goal-delete">Delete</button>
-                            </div>
-                        </div>
-                        <div class="goal-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill"></div>
-                            </div>
-                            <div class="progress-details">
-                                <span class="progress-current">$0</span>
-                                <span class="progress-percentage">0%</span>
-                                <span class="progress-timeline">-- months to go</span>
-                            </div>
-                        </div>
-                        <div class="goal-forecast">
-                            <span class="forecast-text">Based on current forecast: </span>
-                            <span class="forecast-result">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="goals-summary">
-                    <h4>Goals Achievement Forecast</h4>
-                    <div class="achievement-timeline">
-                        <canvas id="goals-timeline-chart"></canvas>
-                    </div>
-                </div>
+            <!-- Category Spending Trends -->
+            <div id="forecast-categories" class="forecast-section" style="display: none;">
+                <h3>Spending by Category</h3>
+                <div id="category-trends-list" class="category-trends"></div>
             </div>
 
-            <!-- Recommendations -->
-            <div class="forecast-recommendations" id="forecast-recommendations" style="display: none;">
-                <div class="recommendations-header">
-                    <h3>AI Recommendations</h3>
-                    <p>Personalized insights to improve your financial outlook</p>
-                </div>
-
-                <div class="recommendations-list">
-                    <div class="recommendation-card priority-high">
-                        <div class="recommendation-icon">🚨</div>
-                        <div class="recommendation-content">
-                            <h4>High Priority</h4>
-                            <p id="high-priority-recommendation">Analyzing your financial data...</p>
-                        </div>
-                    </div>
-                    <div class="recommendation-card priority-medium">
-                        <div class="recommendation-icon">💡</div>
-                        <div class="recommendation-content">
-                            <h4>Optimization Opportunity</h4>
-                            <p id="medium-priority-recommendation">Looking for improvement areas...</p>
-                        </div>
-                    </div>
-                    <div class="recommendation-card priority-low">
-                        <div class="recommendation-icon">✨</div>
-                        <div class="recommendation-content">
-                            <h4>Enhancement Suggestion</h4>
-                            <p id="low-priority-recommendation">Finding enhancement opportunities...</p>
-                        </div>
-                    </div>
+            <!-- Data Quality Indicator -->
+            <div id="forecast-quality" class="forecast-section" style="display: none;">
+                <div class="quality-indicator">
+                    <span class="quality-label">Forecast Confidence:</span>
+                    <span class="quality-value" id="forecast-confidence">--</span>
+                    <span class="quality-info" id="data-info">--</span>
                 </div>
             </div>
         </div>
@@ -2093,23 +2236,6 @@ style('budget', 'style');
                     <option value="">None (Top Level)</option>
                 </select>
                 <small id="category-parent-help" class="form-text">Make this a subcategory (optional)</small>
-            </div>
-
-            <div class="form-group">
-                <label for="category-budget">Monthly Budget</label>
-                <input type="number" id="category-budget" step="0.01" min="0" aria-describedby="category-budget-help" placeholder="0.00">
-                <small id="category-budget-help" class="form-text">Budget limit for this category (optional)</small>
-            </div>
-
-            <div class="form-group">
-                <label for="category-budget-period">Budget Period</label>
-                <select id="category-budget-period" aria-describedby="category-budget-period-help">
-                    <option value="monthly">Monthly</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
-                </select>
-                <small id="category-budget-period-help" class="form-text">Time period for budget tracking</small>
             </div>
 
             <div class="form-group">

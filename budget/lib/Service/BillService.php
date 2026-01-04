@@ -46,6 +46,42 @@ class BillService {
         return $this->mapper->findDueInRange($userId, $startDate, $endDate);
     }
 
+    /**
+     * Find upcoming bills (including overdue) sorted by due date
+     */
+    public function findUpcoming(string $userId, int $days = 30): array {
+        // Get overdue bills first
+        $overdue = $this->mapper->findOverdue($userId);
+
+        // Get bills due in the next N days
+        $startDate = date('Y-m-d');
+        $endDate = date('Y-m-d', strtotime("+{$days} days"));
+        $upcoming = $this->mapper->findDueInRange($userId, $startDate, $endDate);
+
+        // Merge and sort by next due date
+        $allBills = array_merge($overdue, $upcoming);
+
+        // Remove duplicates (in case overdue bills are also in range)
+        $seen = [];
+        $uniqueBills = [];
+        foreach ($allBills as $bill) {
+            $id = $bill->getId();
+            if (!isset($seen[$id])) {
+                $seen[$id] = true;
+                $uniqueBills[] = $bill;
+            }
+        }
+
+        // Sort by next due date
+        usort($uniqueBills, function($a, $b) {
+            $dateA = $a->getNextDueDate() ?? '9999-12-31';
+            $dateB = $b->getNextDueDate() ?? '9999-12-31';
+            return strcmp($dateA, $dateB);
+        });
+
+        return $uniqueBills;
+    }
+
     public function create(
         string $userId,
         string $name,
@@ -202,7 +238,7 @@ class BillService {
         $startDate = date('Y-m-d', strtotime("-{$months} months"));
         $endDate = date('Y-m-d');
 
-        $transactions = $this->transactionMapper->findByDateRange($userId, $startDate, $endDate);
+        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
 
         $grouped = [];
 

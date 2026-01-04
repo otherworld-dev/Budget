@@ -349,6 +349,9 @@ class BudgetApp {
                 case 'categories':
                     this.loadCategories();
                     break;
+                case 'budget':
+                    this.loadBudgetView();
+                    break;
                 case 'forecast':
                     this.loadForecastView();
                     break;
@@ -357,6 +360,9 @@ class BudgetApp {
                     break;
                 case 'bills':
                     this.loadBillsView();
+                    break;
+                case 'savings-goals':
+                    this.loadSavingsGoalsView();
                     break;
                 case 'settings':
                     this.loadSettingsView();
@@ -401,49 +407,428 @@ class BudgetApp {
 
     async loadDashboard() {
         try {
-            // Load summary data
-            const summaryResponse = await fetch(OC.generateUrl('/apps/budget/api/reports/summary'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            // Calculate current month date range for hero stats
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+            // Calculate 6-month range for trend charts
+            const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
+
+            // Load all dashboard data in parallel for better performance
+            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse] = await Promise.all([
+                // Current month summary for hero stats
+                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}`), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                // 6-month summary for trend charts
+                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}`), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/transactions?limit=8'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/bills/upcoming'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/reports/budget'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false }))
+            ]);
+
             const summary = await summaryResponse.json();
-
-            // Update account summary
-            const accountsSummary = document.getElementById('accounts-summary');
-            if (accountsSummary && Array.isArray(summary.accounts)) {
-                accountsSummary.innerHTML = summary.accounts.map(account => `
-                    <div class="account-summary-item">
-                        <span>${account.name}</span>
-                        <span class="amount ${account.balance >= 0 ? 'credit' : 'debit'}">
-                            ${this.formatCurrency(account.balance, account.currency)}
-                        </span>
-                    </div>
-                `).join('');
-            }
-
-            // Load recent transactions
-            const transResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions?limit=10'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            const trendData = await trendResponse.json();
             const transactions = await transResponse.json();
+            const bills = billsResponse.ok ? await billsResponse.json() : [];
+            const budgetData = budgetResponse.ok ? await budgetResponse.json() : { categories: [] };
+            const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
 
-            const recentTransactions = document.getElementById('recent-transactions');
-            if (recentTransactions && Array.isArray(transactions)) {
-                recentTransactions.innerHTML = this.renderTransactionsList(transactions);
+            // Update Hero Section (current month data)
+            this.updateDashboardHero(summary);
+
+            // Update Account Widget (current balances from current month summary)
+            this.updateAccountsWidget(summary.accounts || []);
+
+            // Update Recent Transactions
+            this.updateRecentTransactions(transactions);
+
+            // Update Upcoming Bills Widget
+            this.updateUpcomingBillsWidget(bills);
+
+            // Update Budget Progress Widget
+            this.updateBudgetProgressWidget(budgetData.categories || []);
+
+            // Update Savings Goals Widget
+            this.updateSavingsGoalsWidget(savingsGoals);
+
+            // Update Charts (using 6-month trend data)
+            if (trendData.spending) {
+                this.updateSpendingChart(trendData.spending);
+            }
+            if (trendData.trends) {
+                this.updateTrendChart(trendData.trends);
             }
 
-            // Update charts
-            if (summary.spending) {
-                this.updateSpendingChart(summary.spending);
-            }
-            if (summary.trend) {
-                this.updateTrendChart(summary.trend);
-            }
+            // Setup dashboard controls
+            this.setupDashboardControls();
+
         } catch (error) {
             console.error('Failed to load dashboard:', error);
+        }
+    }
+
+    updateDashboardHero(summary) {
+        const totals = summary.totals || {};
+        const currency = this.getPrimaryCurrency();
+
+        // Net Worth (total balance across all accounts)
+        const netWorthEl = document.getElementById('hero-net-worth-value');
+        if (netWorthEl) {
+            const netWorth = totals.currentBalance || 0;
+            netWorthEl.textContent = this.formatCurrency(netWorth, currency);
+            netWorthEl.className = `hero-value ${netWorth >= 0 ? '' : 'expenses'}`;
+        }
+
+        // Income This Month
+        const incomeEl = document.getElementById('hero-income-value');
+        if (incomeEl) {
+            incomeEl.textContent = this.formatCurrency(totals.totalIncome || 0, currency);
+        }
+
+        // Calculate month-over-month change for income
+        const incomeChangeEl = document.getElementById('hero-income-change');
+        if (incomeChangeEl && summary.trends && summary.trends.income) {
+            const incomeData = summary.trends.income;
+            if (incomeData.length >= 2) {
+                const currentMonth = incomeData[incomeData.length - 1] || 0;
+                const lastMonth = incomeData[incomeData.length - 2] || 0;
+                const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
+                if (change !== 0) {
+                    incomeChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}% vs last month`;
+                    incomeChangeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
+                }
+            }
+        }
+
+        // Expenses This Month
+        const expensesEl = document.getElementById('hero-expenses-value');
+        if (expensesEl) {
+            expensesEl.textContent = this.formatCurrency(totals.totalExpenses || 0, currency);
+        }
+
+        // Calculate month-over-month change for expenses
+        const expensesChangeEl = document.getElementById('hero-expenses-change');
+        if (expensesChangeEl && summary.trends && summary.trends.expenses) {
+            const expenseData = summary.trends.expenses;
+            if (expenseData.length >= 2) {
+                const currentMonth = expenseData[expenseData.length - 1] || 0;
+                const lastMonth = expenseData[expenseData.length - 2] || 0;
+                const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
+                if (change !== 0) {
+                    // For expenses, down is good
+                    expensesChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}% vs last month`;
+                    expensesChangeEl.className = `hero-change ${change <= 0 ? 'positive' : 'negative'}`;
+                }
+            }
+        }
+
+        // Net Savings
+        const savingsEl = document.getElementById('hero-savings-value');
+        const savingsRateEl = document.getElementById('hero-savings-rate');
+        if (savingsEl) {
+            const netSavings = (totals.totalIncome || 0) - (totals.totalExpenses || 0);
+            savingsEl.textContent = this.formatCurrency(netSavings, currency);
+            savingsEl.className = `hero-value ${netSavings >= 0 ? 'income' : 'expenses'}`;
+
+            // Savings rate
+            if (savingsRateEl && totals.totalIncome > 0) {
+                const savingsRate = (netSavings / totals.totalIncome * 100);
+                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${Math.abs(savingsRate).toFixed(1)}% savings rate`;
+            }
+        }
+    }
+
+    updateAccountsWidget(accounts) {
+        const container = document.getElementById('accounts-summary');
+        if (!container || !Array.isArray(accounts)) return;
+
+        if (accounts.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No accounts yet</div>';
+            return;
+        }
+
+        const accountTypeIcons = {
+            checking: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>',
+            savings: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14H3v3c0 1.11.89 2 2 2h14c1.11 0 2-.89 2-2v-3h-3V2l-1.5 1.5zM19 19H5v-1h14v1z"/></svg>',
+            credit_card: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
+            investment: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>',
+            cash: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>',
+            loan: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 14V6c0-1.1-.9-2-2-2H3C1.9 4 1 4.9 1 6v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-2 0H3V6h14v8zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm13 0v11c0 1.1-.9 2-2 2H4v-2h17V7h2z"/></svg>'
+        };
+
+        container.innerHTML = accounts.slice(0, 5).map(account => {
+            const type = account.type || 'checking';
+            const balance = parseFloat(account.balance) || 0;
+            const currency = account.currency || this.getPrimaryCurrency();
+            const icon = accountTypeIcons[type] || accountTypeIcons.checking;
+
+            return `
+                <div class="account-widget-item" data-account-id="${account.id}">
+                    <div class="account-widget-info">
+                        <div class="account-widget-icon">${icon}</div>
+                        <div>
+                            <div class="account-widget-name">${this.escapeHtml(account.name)}</div>
+                            <div class="account-widget-type">${type.replace('_', ' ')}</div>
+                        </div>
+                    </div>
+                    <div class="account-widget-balance">
+                        <div class="account-widget-amount ${balance >= 0 ? 'positive' : 'negative'}">
+                            ${this.formatCurrency(balance, currency)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateRecentTransactions(transactions) {
+        const container = document.getElementById('recent-transactions');
+        if (!container) return;
+
+        if (!Array.isArray(transactions) || transactions.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No recent transactions</div>';
+            return;
+        }
+
+        container.innerHTML = transactions.slice(0, 8).map(tx => {
+            const isCredit = tx.type === 'credit';
+            const amount = parseFloat(tx.amount) || 0;
+            const category = this.categories.find(c => c.id === tx.categoryId || c.id === tx.category_id);
+            const categoryName = category ? category.name : 'Uncategorized';
+            const categoryColor = category ? category.color : '#999';
+            const date = tx.date ? new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+            return `
+                <div class="recent-transaction-item">
+                    <div class="recent-transaction-info">
+                        <div class="recent-transaction-icon ${isCredit ? 'income' : 'expense'}">
+                            ${isCredit ?
+                                '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>' :
+                                '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/></svg>'
+                            }
+                        </div>
+                        <div class="recent-transaction-details">
+                            <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || 'Transaction')}</div>
+                            <div class="recent-transaction-meta">
+                                <span>${date}</span>
+                                <span class="recent-transaction-category">
+                                    <span class="recent-transaction-category-dot" style="background: ${categoryColor}"></span>
+                                    ${this.escapeHtml(categoryName)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="recent-transaction-amount ${isCredit ? 'credit' : 'debit'}">
+                        ${isCredit ? '+' : '-'}${this.formatCurrency(amount)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateUpcomingBillsWidget(bills) {
+        const container = document.getElementById('upcoming-bills');
+        if (!container) return;
+
+        if (!Array.isArray(bills) || bills.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No upcoming bills</div>';
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        container.innerHTML = bills.slice(0, 5).map(bill => {
+            const dueDate = new Date(bill.nextDueDate || bill.next_due_date);
+            const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+
+            let statusClass = '';
+            let dueText = '';
+
+            if (daysUntilDue < 0) {
+                statusClass = 'overdue';
+                dueText = `Overdue by ${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? 's' : ''}`;
+            } else if (daysUntilDue === 0) {
+                statusClass = 'due-soon';
+                dueText = 'Due today';
+            } else if (daysUntilDue <= 7) {
+                statusClass = 'due-soon';
+                dueText = `Due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`;
+            } else {
+                dueText = `Due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+            }
+
+            return `
+                <div class="bill-widget-item ${statusClass}">
+                    <div class="bill-widget-info">
+                        <div class="bill-widget-name">${this.escapeHtml(bill.name)}</div>
+                        <div class="bill-widget-due ${statusClass}">${dueText}</div>
+                    </div>
+                    <div class="bill-widget-amount">${this.formatCurrency(bill.amount)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateBudgetProgressWidget(categories) {
+        const container = document.getElementById('budget-progress');
+        if (!container) return;
+
+        // Filter to only categories with budgets
+        const budgetedCategories = categories.filter(c => c.budgeted > 0 || c.budget > 0);
+
+        if (budgetedCategories.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No budgets configured</div>';
+            return;
+        }
+
+        container.innerHTML = budgetedCategories.slice(0, 5).map(cat => {
+            const budgeted = cat.budgeted || cat.budget || 0;
+            const spent = cat.spent || 0;
+            const percentage = budgeted > 0 ? Math.min((spent / budgeted) * 100, 100) : 0;
+            const actualPercentage = budgeted > 0 ? (spent / budgeted) * 100 : 0;
+
+            let statusClass = 'good';
+            if (actualPercentage > 100) statusClass = 'over';
+            else if (actualPercentage > 80) statusClass = 'danger';
+            else if (actualPercentage > 50) statusClass = 'warning';
+
+            const color = cat.color || '#0082c9';
+
+            return `
+                <div class="budget-widget-item">
+                    <div class="budget-widget-header">
+                        <div class="budget-widget-name">
+                            <span class="budget-widget-color" style="background: ${color}"></span>
+                            ${this.escapeHtml(cat.categoryName || cat.name)}
+                        </div>
+                        <div class="budget-widget-amounts">
+                            ${this.formatCurrency(spent)} / ${this.formatCurrency(budgeted)}
+                        </div>
+                    </div>
+                    <div class="budget-progress-bar">
+                        <div class="budget-progress-fill ${statusClass}" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateSavingsGoalsWidget(goals) {
+        const container = document.getElementById('savings-goals-summary');
+        if (!container) return;
+
+        if (!Array.isArray(goals) || goals.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No savings goals yet</div>';
+            return;
+        }
+
+        container.innerHTML = goals.slice(0, 3).map(goal => {
+            const target = goal.targetAmount || goal.target_amount || 0;
+            const current = goal.currentAmount || goal.current_amount || 0;
+            const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            const remaining = Math.max(target - current, 0);
+
+            return `
+                <div class="savings-goal-item">
+                    <div class="savings-goal-header">
+                        <div class="savings-goal-name">${this.escapeHtml(goal.name)}</div>
+                        <div class="savings-goal-target">Target: ${this.formatCurrency(target)}</div>
+                    </div>
+                    <div class="savings-goal-progress">
+                        <div class="savings-goal-fill" style="width: ${percentage}%"></div>
+                    </div>
+                    <div class="savings-goal-footer">
+                        <span class="savings-goal-current">${this.formatCurrency(current)} saved</span>
+                        <span>${percentage.toFixed(0)}%</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    setupDashboardControls() {
+        // Trend period selector
+        const trendPeriodSelect = document.getElementById('trend-period-select');
+        if (trendPeriodSelect && !trendPeriodSelect.hasAttribute('data-initialized')) {
+            trendPeriodSelect.setAttribute('data-initialized', 'true');
+            trendPeriodSelect.addEventListener('change', async (e) => {
+                const months = parseInt(e.target.value);
+                await this.refreshTrendChart(months);
+            });
+        }
+
+        // Spending period selector
+        const spendingPeriodSelect = document.getElementById('spending-period-select');
+        if (spendingPeriodSelect && !spendingPeriodSelect.hasAttribute('data-initialized')) {
+            spendingPeriodSelect.setAttribute('data-initialized', 'true');
+            spendingPeriodSelect.addEventListener('change', async (e) => {
+                const period = e.target.value;
+                await this.refreshSpendingChart(period);
+            });
+        }
+    }
+
+    async refreshTrendChart(months) {
+        try {
+            const startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - months);
+
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startDate.toISOString().split('T')[0]}`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            const data = await response.json();
+
+            if (data.trends) {
+                this.updateTrendChart(data.trends);
+            }
+        } catch (error) {
+            console.error('Failed to refresh trend chart:', error);
+        }
+    }
+
+    async refreshSpendingChart(period) {
+        try {
+            let startDate = new Date();
+            const endDate = new Date();
+
+            switch (period) {
+                case 'month':
+                    startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+                    break;
+                case '3months':
+                    startDate.setMonth(startDate.getMonth() - 3);
+                    break;
+                case 'year':
+                    startDate = new Date(endDate.getFullYear(), 0, 1);
+                    break;
+            }
+
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/reports/spending?startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            const data = await response.json();
+
+            if (data.data) {
+                this.updateSpendingChart(data.data);
+            }
+        } catch (error) {
+            console.error('Failed to refresh spending chart:', error);
         }
     }
 
@@ -489,7 +874,7 @@ class BudgetApp {
                     const accountType = getField(account, 'type') || 'unknown';
                     const accountName = getField(account, 'name') || 'Unnamed Account';
                     const accountBalance = parseFloat(getField(account, 'balance')) || 0;
-                    const accountCurrency = getField(account, 'currency') || 'USD';
+                    const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
                     const accountId = getField(account, 'id') || 0;
                     const institution = getField(account, 'institution') || '';
                     const accountNumber = getField(account, 'accountNumber', 'account_number') || '';
@@ -647,7 +1032,7 @@ class BudgetApp {
 
         // Update balance information
         const currentBalance = account.balance || 0;
-        const currency = account.currency || 'USD';
+        const currency = account.currency || this.getPrimaryCurrency();
 
         document.getElementById('account-current-balance').textContent = this.formatCurrency(currentBalance, currency);
         document.getElementById('account-current-balance').className = `balance-amount ${currentBalance >= 0 ? 'positive' : 'negative'}`;
@@ -765,7 +1150,7 @@ class BudgetApp {
 
         tbody.innerHTML = transactionsWithBalance.map(transaction => {
             const amount = parseFloat(transaction.amount) || 0;
-            const currency = this.currentAccount?.currency || 'USD';
+            const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
             const category = this.categories?.find(c => c.id === transaction.categoryId);
 
             return `
@@ -859,7 +1244,7 @@ class BudgetApp {
                 ? this.accountTransactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0) / totalTransactions
                 : 0;
 
-            const currency = this.currentAccount?.currency || 'USD';
+            const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
             // Update metrics display
             document.getElementById('total-transactions').textContent = totalTransactions.toLocaleString();
@@ -871,9 +1256,9 @@ class BudgetApp {
             console.error('Failed to calculate account metrics:', error);
             // Show zeros on error
             document.getElementById('total-transactions').textContent = '0';
-            document.getElementById('total-income').textContent = '$0';
-            document.getElementById('total-expenses').textContent = '$0';
-            document.getElementById('avg-transaction').textContent = '$0';
+            document.getElementById('total-income').textContent = this.formatCurrency(0);
+            document.getElementById('total-expenses').textContent = this.formatCurrency(0);
+            document.getElementById('avg-transaction').textContent = this.formatCurrency(0);
         }
     }
 
@@ -1073,7 +1458,7 @@ class BudgetApp {
         tbody.innerHTML = this.transactions.map(transaction => {
             const account = this.accounts?.find(a => a.id === transaction.accountId);
             const category = this.categories?.find(c => c.id === transaction.categoryId);
-            const currency = transaction.accountCurrency || account?.currency || 'USD';
+            const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
 
             const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
             const formattedAmount = this.formatCurrency(transaction.amount, currency);
@@ -1224,11 +1609,11 @@ class BudgetApp {
             // Determine most common currency from displayed transactions
             const currencyCounts = {};
             this.transactions.forEach(t => {
-                const currency = t.accountCurrency || 'USD';
+                const currency = t.accountCurrency || this.getPrimaryCurrency();
                 currencyCounts[currency] = (currencyCounts[currency] || 0) + 1;
             });
             const mostCommonCurrency = Object.entries(currencyCounts)
-                .sort((a, b) => b[1] - a[1])[0]?.[0] || 'USD';
+                .sort((a, b) => b[1] - a[1])[0]?.[0] || this.getPrimaryCurrency();
 
             totalElement.textContent = `Total: ${this.formatCurrency(total, mostCommonCurrency)}`;
         }
@@ -3399,284 +3784,209 @@ class BudgetApp {
     }
 
     // ============================================
-    // Enhanced Forecast System Methods
+    // Live Forecast Dashboard Methods
     // ============================================
 
     setupForecastEventListeners() {
-        // Main forecast generation
-        const generateBtn = document.getElementById('generate-forecast-btn');
-        if (generateBtn) {
-            generateBtn.addEventListener('click', () => this.generateEnhancedForecast());
-        }
-
-        // Export forecast
-        const exportBtn = document.getElementById('export-forecast-btn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.exportForecast());
-        }
-
-        // Scenario tabs
-        const scenarioTabs = document.querySelectorAll('.scenario-tab');
-        scenarioTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const scenario = e.target.dataset.scenario;
-                this.switchScenario(scenario);
-            });
-        });
-
-        // Custom scenario calculation
-        const customBtn = document.getElementById('calculate-custom-scenario');
-        if (customBtn) {
-            customBtn.addEventListener('click', () => this.calculateCustomScenario());
-        }
-
-        // Chart controls
-        const chartToggles = document.querySelectorAll('.chart-toggle');
-        chartToggles.forEach(toggle => {
-            toggle.addEventListener('click', (e) => {
-                const chartType = e.target.dataset.chart;
-                this.switchChart(chartType);
-            });
-        });
-
-        // Goal management
-        const addGoalBtn = document.getElementById('add-goal-btn');
-        if (addGoalBtn) {
-            addGoalBtn.addEventListener('click', () => this.showGoalDialog());
+        // Forecast horizon change - reload forecast
+        const horizonSelect = document.getElementById('forecast-horizon');
+        if (horizonSelect) {
+            horizonSelect.addEventListener('change', () => this.loadForecastView());
         }
 
         // Initialize forecast state
         this.forecastData = null;
-        this.currentChart = 'timeline';
-        this.currentScenario = 'conservative';
-        this.financialGoals = [];
+        this.balanceChart = null;
+        this.savingsChart = null;
     }
 
-    async generateEnhancedForecast() {
-        const accountId = document.getElementById('forecast-account').value;
-        const period = document.getElementById('forecast-period').value;
-        const horizon = document.getElementById('forecast-horizon').value;
-        const confidence = document.getElementById('forecast-confidence').value;
+    async loadForecastView() {
+        const loadingEl = document.getElementById('forecast-loading');
+        const emptyEl = document.getElementById('forecast-empty');
+        const sections = [
+            'forecast-overview',
+            'forecast-trends',
+            'forecast-savings',
+            'forecast-chart',
+            'forecast-categories',
+            'forecast-quality'
+        ];
+
+        // Show loading, hide everything else
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (emptyEl) emptyEl.style.display = 'none';
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
 
         try {
-            // Show loading states
-            this.showForecastLoading();
-
-            const response = await fetch(OC.generateUrl('/apps/budget/api/forecast/enhanced'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    accountId: accountId || null,
-                    historicalPeriod: parseInt(period),
-                    forecastHorizon: parseInt(horizon),
-                    confidenceLevel: parseInt(confidence)
-                })
+            const horizon = document.getElementById('forecast-horizon')?.value || 6;
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${horizon}`), {
+                headers: { 'requesttoken': OC.requestToken }
             });
 
-            if (response.ok) {
-                const forecastData = await response.json();
-                this.forecastData = forecastData;
-
-                // Display all forecast components
-                this.displayIntelligenceSummary(forecastData.intelligence);
-                this.displayScenarioAnalysis(forecastData.scenarios);
-                this.displayForecastDashboard(forecastData);
-                this.displayGoalTracking(forecastData.goalProjections);
-                this.displayRecommendations(forecastData.recommendations);
-
-                // Show all sections
-                this.showForecastSections();
-            } else {
-                throw new Error('Forecast generation failed');
+            if (!response.ok) {
+                throw new Error('Failed to fetch forecast');
             }
+
+            const data = await response.json();
+            this.forecastData = data;
+            this.forecastCurrency = data.currency || this.getPrimaryCurrency();
+
+            // Hide loading
+            if (loadingEl) loadingEl.style.display = 'none';
+
+            // Check if we have enough data
+            if (!data.dataQuality.isReliable && data.dataQuality.monthsOfData < 1) {
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+
+            // Display all sections (currency is accessed via this.forecastCurrency)
+            this.displayBalanceOverview(data);
+            this.displayTrendsSummary(data.trends);
+            this.displaySavingsProjection(data.savingsProjection, data.monthlyProjections);
+            this.displayBalanceProjectionChart(data.monthlyProjections);
+            this.displayCategoryTrends(data.categoryBreakdown);
+            this.displayDataQuality(data);
+
+            // Show all sections
+            sections.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'block';
+            });
+
         } catch (error) {
-            console.error('Failed to generate enhanced forecast:', error);
-            OC.Notification.showTemporary('Failed to generate forecast');
+            console.error('Failed to load forecast:', error);
+            if (loadingEl) loadingEl.style.display = 'none';
+            OC.Notification.showTemporary('Failed to load forecast data');
         }
     }
 
-    showForecastLoading() {
-        // Hide all sections and show loading
-        const sections = [
-            'forecast-intelligence',
-            'forecast-scenarios',
-            'forecast-dashboard',
-            'forecast-goals',
-            'forecast-recommendations'
-        ];
+    displayBalanceOverview(data) {
+        const currentBalanceEl = document.getElementById('current-balance');
+        const projectedBalanceEl = document.getElementById('projected-balance');
+        const balanceChangeEl = document.getElementById('balance-change');
+        const currency = this.forecastCurrency;
 
-        sections.forEach(sectionId => {
-            const section = document.getElementById(sectionId);
-            if (section) {
-                section.style.display = 'none';
-            }
-        });
-    }
-
-    showForecastSections() {
-        // Show all forecast sections
-        const sections = [
-            'forecast-intelligence',
-            'forecast-scenarios',
-            'forecast-dashboard',
-            'forecast-goals',
-            'forecast-recommendations'
-        ];
-
-        sections.forEach(sectionId => {
-            const section = document.getElementById(sectionId);
-            if (section) {
-                section.style.display = 'block';
-            }
-        });
-    }
-
-    displayIntelligenceSummary(intelligence) {
-        // Update confidence score
-        document.getElementById('forecast-score').textContent = `${intelligence.confidence}%`;
-
-        // Update insights
-        document.getElementById('trend-insight').textContent = intelligence.trendAnalysis;
-        document.getElementById('seasonality-insight').textContent = intelligence.seasonalityInsight;
-        document.getElementById('volatility-insight').textContent = intelligence.volatilityAssessment;
-    }
-
-    displayScenarioAnalysis(scenarios) {
-        // Update scenario assumptions and metrics
-        this.updateScenarioData('conservative', scenarios.conservative);
-        this.updateScenarioData('base', scenarios.base);
-        this.updateScenarioData('optimistic', scenarios.optimistic);
-
-        // Store scenarios for later use
-        this.scenarios = scenarios;
-    }
-
-    updateScenarioData(scenarioType, data) {
-        // Update assumptions
-        const assumptionsList = document.getElementById(`${scenarioType}-assumptions`);
-        if (assumptionsList && data.assumptions) {
-            assumptionsList.innerHTML = data.assumptions.map(assumption =>
-                `<li>${assumption}</li>`
-            ).join('');
+        if (currentBalanceEl) {
+            currentBalanceEl.textContent = this.formatCurrency(data.currentBalance, currency);
         }
 
-        // Update metrics
-        const balanceElement = document.getElementById(`${scenarioType}-balance`);
-        if (balanceElement) {
-            balanceElement.textContent = this.formatCurrency(data.projectedBalance);
+        if (projectedBalanceEl) {
+            projectedBalanceEl.textContent = this.formatCurrency(data.projectedBalance, currency);
+        }
+
+        if (balanceChangeEl) {
+            const change = data.projectedBalance - data.currentBalance;
+            const changePercent = data.currentBalance !== 0
+                ? ((change / Math.abs(data.currentBalance)) * 100).toFixed(1)
+                : 0;
+            const sign = change >= 0 ? '+' : '';
+            balanceChangeEl.textContent = `${sign}${this.formatCurrency(change, currency)} (${sign}${changePercent}%)`;
+            balanceChangeEl.className = `card-change ${change >= 0 ? 'positive' : 'negative'}`;
         }
     }
 
-    displayForecastDashboard(forecastData) {
-        // Update metrics
-        this.updateDashboardMetrics(forecastData.metrics);
+    displayTrendsSummary(trends) {
+        const avgIncomeEl = document.getElementById('avg-income');
+        const avgExpensesEl = document.getElementById('avg-expenses');
+        const avgSavingsEl = document.getElementById('avg-savings');
+        const incomeDirectionEl = document.getElementById('income-direction');
+        const expenseDirectionEl = document.getElementById('expense-direction');
+        const savingsDirectionEl = document.getElementById('savings-direction');
+        const currency = this.forecastCurrency;
 
-        // Initialize main chart
-        this.renderForecastChart(forecastData.chartData);
+        if (avgIncomeEl) avgIncomeEl.textContent = this.formatCurrency(trends.avgMonthlyIncome, currency);
+        if (avgExpensesEl) avgExpensesEl.textContent = this.formatCurrency(trends.avgMonthlyExpenses, currency);
+        if (avgSavingsEl) avgSavingsEl.textContent = this.formatCurrency(trends.avgMonthlySavings, currency);
+
+        this.setDirectionIndicator(incomeDirectionEl, trends.incomeDirection);
+        this.setDirectionIndicator(expenseDirectionEl, trends.expenseDirection, true);
+        this.setDirectionIndicator(savingsDirectionEl, trends.savingsDirection);
     }
 
-    updateDashboardMetrics(metrics) {
-        // Update metric values and trends
-        document.getElementById('avg-income').textContent = this.formatCurrency(metrics.avgIncome);
-        document.getElementById('avg-expenses').textContent = this.formatCurrency(metrics.avgExpenses);
-        document.getElementById('net-cashflow').textContent = this.formatCurrency(metrics.netCashflow);
-        document.getElementById('savings-rate').textContent = `${metrics.savingsRate}%`;
+    setDirectionIndicator(element, direction, invertColors = false) {
+        if (!element) return;
 
-        // Update trends
-        this.updateTrendIndicator('income-trend', metrics.incomeTrend);
-        this.updateTrendIndicator('expense-trend', metrics.expenseTrend);
-        this.updateTrendIndicator('cashflow-trend', metrics.cashflowTrend);
-        this.updateTrendIndicator('savings-trend', metrics.savingsTrend);
+        const arrows = { up: '↑', down: '↓', stable: '→' };
+        element.textContent = arrows[direction] || '→';
 
-        // Update changes
-        document.getElementById('income-change').textContent = metrics.incomeChange;
-        document.getElementById('expense-change').textContent = metrics.expenseChange;
-        document.getElementById('cashflow-change').textContent = metrics.cashflowChange;
-        document.getElementById('savings-change').textContent = metrics.savingsChange;
-    }
-
-    updateTrendIndicator(elementId, trend) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            if (trend > 0) {
-                element.textContent = '↗️';
-            } else if (trend < 0) {
-                element.textContent = '↘️';
-            } else {
-                element.textContent = '➡️';
-            }
+        // For expenses, down is good (green) and up is bad (red)
+        let colorClass;
+        if (direction === 'up') {
+            colorClass = invertColors ? 'negative' : 'positive';
+        } else if (direction === 'down') {
+            colorClass = invertColors ? 'positive' : 'negative';
+        } else {
+            colorClass = 'neutral';
         }
+        element.className = `trend-direction ${colorClass}`;
     }
 
-    renderForecastChart(chartData) {
-        const canvas = document.getElementById('forecast-main-chart');
+    displaySavingsProjection(savings, monthlyProjections) {
+        const monthlySavingsEl = document.getElementById('current-monthly-savings');
+        const projectedTotalEl = document.getElementById('projected-total-savings');
+        const savingsRateEl = document.getElementById('savings-rate');
+        const currency = this.forecastCurrency;
+
+        if (monthlySavingsEl) monthlySavingsEl.textContent = this.formatCurrency(savings.currentMonthlySavings, currency);
+        if (projectedTotalEl) projectedTotalEl.textContent = this.formatCurrency(savings.projectedTotalSavings, currency);
+        if (savingsRateEl) savingsRateEl.textContent = `${savings.savingsRate}%`;
+
+        // Render savings chart
+        this.renderSavingsChart(monthlyProjections);
+    }
+
+    renderSavingsChart(monthlyProjections) {
+        const canvas = document.getElementById('savings-chart');
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        const currency = this.forecastCurrency;
 
-        // Destroy existing chart if it exists
-        if (this.forecastChart) {
-            this.forecastChart.destroy();
+        if (this.savingsChart) {
+            this.savingsChart.destroy();
         }
 
-        this.forecastChart = new Chart(ctx, {
+        const labels = monthlyProjections.map(p => p.month);
+        const savingsData = [];
+        let cumulative = 0;
+        monthlyProjections.forEach(p => {
+            cumulative += p.savings;
+            savingsData.push(cumulative);
+        });
+
+        this.savingsChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: chartData.labels,
-                datasets: [
-                    {
-                        label: 'Historical Balance',
-                        data: chartData.historical,
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                        fill: false
-                    },
-                    {
-                        label: 'Forecast (Base)',
-                        data: chartData.forecast.base,
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        backgroundColor: 'rgba(255, 159, 64, 0.1)',
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'Conservative',
-                        data: chartData.forecast.conservative,
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.05)',
-                        borderDash: [2, 2]
-                    },
-                    {
-                        label: 'Optimistic',
-                        data: chartData.forecast.optimistic,
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.05)',
-                        borderDash: [2, 2]
-                    }
-                ]
+                labels: labels,
+                datasets: [{
+                    label: 'Cumulative Savings',
+                    data: savingsData,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        beginAtZero: false,
+                        beginAtZero: true,
                         ticks: {
-                            callback: (value) => this.formatCurrency(value)
+                            callback: (value) => this.formatCurrency(value, currency)
                         }
                     }
                 },
                 plugins: {
-                    legend: {
-                        position: 'top'
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (context) => {
-                                return `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`;
-                            }
+                            label: (context) => `Savings: ${this.formatCurrency(context.parsed.y, currency)}`
                         }
                     }
                 }
@@ -3684,233 +3994,144 @@ class BudgetApp {
         });
     }
 
-    switchChart(chartType) {
-        // Update active toggle
-        document.querySelectorAll('.chart-toggle').forEach(toggle => {
-            toggle.classList.remove('active');
-        });
-        document.querySelector(`[data-chart="${chartType}"]`).classList.add('active');
+    displayBalanceProjectionChart(monthlyProjections) {
+        const canvas = document.getElementById('balance-projection-chart');
+        if (!canvas) return;
 
-        this.currentChart = chartType;
+        const ctx = canvas.getContext('2d');
+        const currency = this.forecastCurrency;
 
-        // Render different chart based on type
-        if (this.forecastData) {
-            switch (chartType) {
-                case 'timeline':
-                    this.renderForecastChart(this.forecastData.chartData);
-                    break;
-                case 'comparison':
-                    this.renderScenarioComparisonChart();
-                    break;
-                case 'breakdown':
-                    this.renderCategoryBreakdownChart();
-                    break;
-                case 'confidence':
-                    this.renderConfidenceBandsChart();
-                    break;
+        if (this.balanceChart) {
+            this.balanceChart.destroy();
+        }
+
+        const labels = monthlyProjections.map(p => p.month);
+        const balanceData = monthlyProjections.map(p => p.balance);
+        const incomeData = monthlyProjections.map(p => p.income);
+        const expenseData = monthlyProjections.map(p => p.expenses);
+
+        this.balanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Projected Balance',
+                        data: balanceData,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Projected Income',
+                        data: incomeData,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Projected Expenses',
+                        data: expenseData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Balance' },
+                        ticks: {
+                            callback: (value) => this.formatCurrency(value, currency)
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Income/Expenses' },
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            callback: (value) => this.formatCurrency(value, currency)
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y, currency)}`
+                        }
+                    }
+                }
             }
-        }
-    }
-
-    switchScenario(scenario) {
-        // Update active tab
-        document.querySelectorAll('.scenario-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelector(`[data-scenario="${scenario}"]`).classList.add('active');
-
-        // Update active panel
-        document.querySelectorAll('.scenario-panel').forEach(panel => {
-            panel.classList.remove('active');
-        });
-        document.getElementById(`${scenario}-scenario`).classList.add('active');
-
-        this.currentScenario = scenario;
-    }
-
-    calculateCustomScenario() {
-        const params = {
-            incomeGrowth: parseFloat(document.getElementById('custom-income-growth').value) / 100,
-            expenseGrowth: parseFloat(document.getElementById('custom-expense-growth').value) / 100,
-            oneTimeIncome: parseFloat(document.getElementById('custom-one-time-income').value),
-            oneTimeExpense: parseFloat(document.getElementById('custom-one-time-expense').value)
-        };
-
-        // Calculate custom scenario based on base case
-        if (this.scenarios && this.scenarios.base) {
-            const customResult = this.calculateScenarioProjection(this.scenarios.base, params);
-
-            document.getElementById('custom-balance').textContent = this.formatCurrency(customResult.projectedBalance);
-
-            // Determine risk level
-            const riskElement = document.getElementById('custom-risk');
-            const riskLevel = this.assessRiskLevel(customResult.projectedBalance, this.scenarios.base.projectedBalance);
-            riskElement.textContent = riskLevel;
-            riskElement.className = `metric-value risk-${riskLevel.toLowerCase()}`;
-        }
-    }
-
-    calculateScenarioProjection(baseScenario, customParams) {
-        // Simplified calculation - in real implementation, this would be more sophisticated
-        let adjustedBalance = baseScenario.projectedBalance;
-
-        // Apply income growth adjustment
-        adjustedBalance += (baseScenario.avgIncome * customParams.incomeGrowth * 12);
-
-        // Apply expense growth adjustment
-        adjustedBalance -= (baseScenario.avgExpenses * customParams.expenseGrowth * 12);
-
-        // Apply one-time adjustments
-        adjustedBalance += customParams.oneTimeIncome - customParams.oneTimeExpense;
-
-        return {
-            projectedBalance: adjustedBalance
-        };
-    }
-
-    assessRiskLevel(customBalance, baseBalance) {
-        const difference = (customBalance - baseBalance) / baseBalance;
-
-        if (difference < -0.2) return 'High';
-        if (difference < -0.1) return 'Medium';
-        if (difference > 0.2) return 'High';
-        if (difference > 0.1) return 'Medium';
-        return 'Low';
-    }
-
-    displayGoalTracking(goalProjections) {
-        // Load and display financial goals
-        this.loadFinancialGoals(goalProjections);
-    }
-
-    async loadFinancialGoals(projections = null) {
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/goals'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            const goals = await response.json();
-            this.financialGoals = goals;
-            this.renderGoalsList(goals, projections);
-        } catch (error) {
-            console.error('Failed to load financial goals:', error);
-        }
-    }
-
-    renderGoalsList(goals, projections) {
-        const goalsList = document.querySelector('.goals-list');
-        const template = document.querySelector('.goal-card.template');
-
-        // Clear existing goals (except template)
-        goalsList.querySelectorAll('.goal-card:not(.template)').forEach(card => card.remove());
-
-        goals.forEach(goal => {
-            const goalCard = template.cloneNode(true);
-            goalCard.classList.remove('template');
-            goalCard.style.display = 'block';
-
-            // Update goal information
-            goalCard.querySelector('.goal-name').textContent = goal.name;
-            goalCard.querySelector('.goal-target').textContent = `Target: ${this.formatCurrency(goal.targetAmount)}`;
-
-            // Calculate progress
-            const progress = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
-            goalCard.querySelector('.progress-fill').style.width = `${progress}%`;
-            goalCard.querySelector('.progress-current').textContent = this.formatCurrency(goal.currentAmount);
-            goalCard.querySelector('.progress-percentage').textContent = `${Math.round(progress)}%`;
-
-            // Calculate timeline
-            const monthsRemaining = this.calculateGoalTimeline(goal, projections);
-            goalCard.querySelector('.progress-timeline').textContent = `${monthsRemaining} months to go`;
-
-            // Update forecast result
-            const forecastResult = this.getGoalForecastResult(goal, projections);
-            goalCard.querySelector('.forecast-result').textContent = forecastResult;
-
-            goalsList.appendChild(goalCard);
         });
     }
 
-    calculateGoalTimeline(goal, projections) {
-        if (!projections || !projections.monthlySavings) {
-            return '--';
-        }
+    displayCategoryTrends(categoryBreakdown) {
+        const container = document.getElementById('category-trends-list');
+        if (!container) return;
 
-        const remaining = goal.targetAmount - goal.currentAmount;
-        const monthsNeeded = Math.ceil(remaining / projections.monthlySavings);
-        return monthsNeeded > 0 ? monthsNeeded : 0;
-    }
+        container.innerHTML = '';
+        const currency = this.forecastCurrency;
 
-    getGoalForecastResult(goal, projections) {
-        if (!projections) {
-            return 'Unable to forecast';
-        }
-
-        const timeline = this.calculateGoalTimeline(goal, projections);
-        if (timeline === '--') {
-            return 'Insufficient data';
-        }
-
-        if (timeline <= goal.targetMonths) {
-            return '✅ On track to achieve goal';
-        } else if (timeline <= goal.targetMonths * 1.5) {
-            return '⚠️ Slightly behind schedule';
-        } else {
-            return '❌ Significantly behind schedule';
-        }
-    }
-
-    displayRecommendations(recommendations) {
-        // Update AI recommendations
-        document.getElementById('high-priority-recommendation').textContent =
-            recommendations.high || 'No high priority recommendations at this time.';
-
-        document.getElementById('medium-priority-recommendation').textContent =
-            recommendations.medium || 'Your spending patterns look stable.';
-
-        document.getElementById('low-priority-recommendation').textContent =
-            recommendations.low || 'Consider setting up automated savings goals.';
-    }
-
-    async exportForecast() {
-        if (!this.forecastData) {
-            OC.Notification.showTemporary('Please generate a forecast first');
+        if (!categoryBreakdown || categoryBreakdown.length === 0) {
+            container.innerHTML = '<p class="empty-message">No category data available</p>';
             return;
         }
 
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/forecast/export'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(this.forecastData)
-            });
+        categoryBreakdown.forEach(category => {
+            const trendArrow = { up: '↑', down: '↓', stable: '→' }[category.trend] || '→';
+            const trendClass = category.trend === 'up' ? 'negative' : (category.trend === 'down' ? 'positive' : 'neutral');
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `financial-forecast-${new Date().toISOString().split('T')[0]}.pdf`;
-                a.click();
-                window.URL.revokeObjectURL(url);
+            const item = document.createElement('div');
+            item.className = 'category-trend-item';
+            item.innerHTML = `
+                <span class="category-name">${category.name}</span>
+                <span class="category-amount">${this.formatCurrency(category.avgMonthly, currency)}/mo</span>
+                <span class="category-trend ${trendClass}">${trendArrow}</span>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    displayDataQuality(data) {
+        const confidenceEl = document.getElementById('forecast-confidence');
+        const dataInfoEl = document.getElementById('data-info');
+
+        if (confidenceEl) {
+            confidenceEl.textContent = `${data.confidence}%`;
+            // Add color class based on confidence
+            confidenceEl.className = 'quality-value';
+            if (data.confidence >= 75) {
+                confidenceEl.classList.add('high');
+            } else if (data.confidence >= 50) {
+                confidenceEl.classList.add('medium');
+            } else {
+                confidenceEl.classList.add('low');
             }
-        } catch (error) {
-            console.error('Failed to export forecast:', error);
-            OC.Notification.showTemporary('Failed to export forecast');
         }
-    }
 
-    showGoalDialog() {
-        // Implementation for goal creation dialog
-        console.log('Show goal dialog - to be implemented');
-    }
-
-    // Legacy method for compatibility
-    async generateForecast() {
-        return this.generateEnhancedForecast();
+        if (dataInfoEl) {
+            const quality = data.dataQuality;
+            dataInfoEl.textContent = `Based on ${quality.monthsOfData} month(s) of data (${quality.transactionCount} transactions)`;
+        }
     }
 
     // ============================================
@@ -4505,11 +4726,63 @@ class BudgetApp {
     }
 
     // Helper methods
-    formatCurrency(amount, currency = 'USD') {
+    formatCurrency(amount, currency = null) {
+        const currencyCode = currency || this.getPrimaryCurrency();
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: currency
+            currency: currencyCode
         }).format(amount);
+    }
+
+    getPrimaryCurrency() {
+        // Return cached value if accounts haven't changed
+        if (this._primaryCurrencyCache && this._accountsHash === this._getAccountsHash()) {
+            return this._primaryCurrencyCache;
+        }
+
+        // Default fallback
+        if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
+            return 'USD';
+        }
+
+        // Weight currencies by absolute balance (same logic as backend ForecastService)
+        const currencyWeights = {};
+        this.accounts.forEach(account => {
+            const currency = account.currency || 'USD';
+            const balance = Math.abs(parseFloat(account.balance) || 0);
+            currencyWeights[currency] = (currencyWeights[currency] || 0) + balance;
+        });
+
+        // Find currency with highest weight
+        let primaryCurrency = 'USD';
+        let maxWeight = 0;
+        for (const [currency, weight] of Object.entries(currencyWeights)) {
+            if (weight > maxWeight) {
+                maxWeight = weight;
+                primaryCurrency = currency;
+            }
+        }
+
+        // Cache the result
+        this._primaryCurrencyCache = primaryCurrency;
+        this._accountsHash = this._getAccountsHash();
+
+        return primaryCurrency;
+    }
+
+    _getAccountsHash() {
+        if (!Array.isArray(this.accounts)) return '';
+        return this.accounts.map(a => `${a.id}:${a.currency}:${a.balance}`).join('|');
+    }
+
+    formatDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
     }
 
     renderTransactionsList(transactions) {
@@ -4517,7 +4790,7 @@ class BudgetApp {
             <div class="transaction-item">
                 <span class="transaction-date">${new Date(t.date).toLocaleDateString()}</span>
                 <span class="transaction-description">${t.description}</span>
-                <span class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency || 'USD')}</span>
+                <span class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</span>
             </div>
         `).join('');
     }
@@ -4531,7 +4804,7 @@ class BudgetApp {
                 <td>${new Date(t.date).toLocaleDateString()}</td>
                 <td>${t.description}</td>
                 <td>${t.categoryName || '-'}</td>
-                <td class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency || 'USD')}</td>
+                <td class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</td>
                 <td>${t.accountName}</td>
                 <td class="reconcile-column"></td>
                 <td>
@@ -4665,9 +4938,8 @@ class BudgetApp {
             const isSelected = this.selectedCategory?.id === category.id;
             const isChecked = this.selectedCategoryIds && this.selectedCategoryIds.has(category.id);
 
-            // Calculate transaction count and budget status
+            // Calculate transaction count
             const transactionCount = this.getCategoryTransactionCount(category.id);
-            const budgetStatus = this.getCategoryBudgetStatus(category);
 
             return `
                 <div class="category-node" data-level="${level}">
@@ -4693,7 +4965,6 @@ class BudgetApp {
                             <span class="category-name">${category.name}</span>
                             <div class="category-meta">
                                 ${transactionCount > 0 ? `<span class="transaction-count">${transactionCount}</span>` : ''}
-                                ${category.budgetAmount ? `<div class="budget-indicator ${budgetStatus}"></div>` : ''}
                             </div>
                         </div>
 
@@ -4935,72 +5206,11 @@ class BudgetApp {
 
     async loadCategoryAnalytics(categoryId) {
         try {
-            // Calculate date range for this month
-            const now = new Date();
-            const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-            const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-            // Get spending data if endpoint exists
-            try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}/spending?startDate=${startDate}&endDate=${endDate}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    this.updateBudgetDisplay(data.spending || 0);
-                } else {
-                    // Fallback to client-side calculation
-                    this.updateBudgetDisplay(0);
-                }
-            } catch (error) {
-                // Fallback to client-side calculation
-                this.updateBudgetDisplay(0);
-            }
-
             this.updateAnalyticsDisplay(categoryId);
-
         } catch (error) {
             console.error('Failed to load category analytics:', error);
-            this.updateBudgetDisplay(0);
             this.updateAnalyticsDisplay(categoryId);
         }
-    }
-
-    updateBudgetDisplay(spent) {
-        const category = this.selectedCategory;
-        const budget = category?.budgetAmount || 0;
-        const remaining = budget - spent;
-        const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
-
-        // Update amounts with null safety
-        const budgetEl = document.getElementById('category-budget-amount');
-        if (budgetEl) budgetEl.textContent = this.formatCurrency(budget);
-
-        const spentEl = document.getElementById('category-spent-amount');
-        if (spentEl) spentEl.textContent = this.formatCurrency(spent);
-
-        const remainingEl = document.getElementById('category-remaining-amount');
-        if (remainingEl) {
-            remainingEl.textContent = this.formatCurrency(remaining);
-            remainingEl.className = `remaining-amount ${remaining >= 0 ? 'positive' : 'negative'}`;
-        }
-
-        // Update progress bar
-        const progressFill = document.getElementById('budget-progress-fill');
-        if (progressFill) {
-            progressFill.style.width = `${percentage}%`;
-
-            let progressClass = '';
-            if (percentage >= 100) progressClass = 'over';
-            else if (percentage >= 80) progressClass = 'warning';
-
-            progressFill.className = `progress-fill ${progressClass}`;
-        }
-
-        // Update progress text
-        const progressText = document.getElementById('budget-progress-text');
-        if (progressText) progressText.textContent = `${Math.round(percentage)}% of budget used`;
     }
 
     updateAnalyticsDisplay(categoryId) {
@@ -5140,19 +5350,6 @@ class BudgetApp {
     getCategoryTransactions(categoryId, limit = null) {
         const transactions = (this.transactions || []).filter(t => t.categoryId === categoryId);
         return limit ? transactions.slice(0, limit) : transactions;
-    }
-
-    getCategoryBudgetStatus(category) {
-        if (!category.budgetAmount) return '';
-
-        const spent = this.getCategoryTransactions(category.id)
-            .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
-
-        const percentage = (spent / category.budgetAmount) * 100;
-
-        if (percentage >= 100) return 'over';
-        if (percentage >= 80) return 'warning';
-        return 'good';
     }
 
     calculateCategoryTrend(transactions) {
@@ -5403,9 +5600,6 @@ class BudgetApp {
 
         const colorInput = document.getElementById('category-color');
         if (colorInput) colorInput.value = '#3b82f6';
-
-        const budgetPeriod = document.getElementById('category-budget-period');
-        if (budgetPeriod) budgetPeriod.value = 'monthly';
     }
 
     loadCategoryData(category) {
@@ -5413,8 +5607,6 @@ class BudgetApp {
         document.getElementById('category-name').value = category.name;
         document.getElementById('category-type').value = category.type;
         document.getElementById('category-parent').value = category.parentId || '';
-        document.getElementById('category-budget').value = category.budgetAmount || '';
-        document.getElementById('category-budget-period').value = category.budgetPeriod || 'monthly';
         document.getElementById('category-color').value = category.color || '#3b82f6';
     }
 
@@ -5449,8 +5641,6 @@ class BudgetApp {
         const name = document.getElementById('category-name').value.trim();
         const type = document.getElementById('category-type').value;
         const parentId = document.getElementById('category-parent').value || null;
-        const budgetAmount = document.getElementById('category-budget').value || null;
-        const budgetPeriod = document.getElementById('category-budget-period').value;
         const color = document.getElementById('category-color').value;
 
         if (!name) {
@@ -5462,8 +5652,6 @@ class BudgetApp {
             name,
             type,
             parentId: parentId ? parseInt(parentId) : null,
-            budgetAmount: budgetAmount ? parseFloat(budgetAmount) : null,
-            budgetPeriod,
             color
         };
 
@@ -5531,21 +5719,79 @@ class BudgetApp {
             this.charts.spending.destroy();
         }
 
+        // Sort data by total descending and take top categories
+        const sortedData = [...data].sort((a, b) => b.total - a.total);
+        const totalSpending = sortedData.reduce((sum, d) => sum + d.total, 0);
+
+        // Default color palette for categories without colors
+        const defaultColors = [
+            '#0082c9', '#2e7d32', '#c62828', '#f57c00', '#7b1fa2',
+            '#1976d2', '#388e3c', '#d32f2f', '#ffa000', '#8e24aa',
+            '#0288d1', '#43a047', '#e53935', '#ffb300', '#9c27b0'
+        ];
+
+        const chartData = sortedData.map((d, i) => ({
+            ...d,
+            color: d.color || defaultColors[i % defaultColors.length]
+        }));
+
         this.charts.spending = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: data.map(d => d.name),
+                labels: chartData.map(d => d.name),
                 datasets: [{
-                    data: data.map(d => d.total),
-                    backgroundColor: data.map(d => d.color || this.generateColor())
+                    data: chartData.map(d => d.total),
+                    backgroundColor: chartData.map(d => d.color),
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    hoverBorderWidth: 3,
+                    hoverOffset: 8
                 }]
             },
             options: {
-                responsive: false,
-                maintainAspectRatio: false,
-                aspectRatio: 1
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        display: false // We'll use custom legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.raw;
+                                const percentage = ((value / totalSpending) * 100).toFixed(1);
+                                return `${this.formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
             }
         });
+
+        // Update custom legend
+        this.updateSpendingLegend(chartData, totalSpending);
+    }
+
+    updateSpendingLegend(data, total) {
+        const legendContainer = document.getElementById('spending-chart-legend');
+        if (!legendContainer) return;
+
+        legendContainer.innerHTML = data.slice(0, 8).map(item => {
+            const percentage = total > 0 ? ((item.total / total) * 100).toFixed(1) : 0;
+            return `
+                <div class="spending-legend-item">
+                    <div class="spending-legend-label">
+                        <span class="spending-legend-color" style="background: ${item.color}"></span>
+                        <span class="spending-legend-name">${this.escapeHtml(item.name)}</span>
+                    </div>
+                    <div>
+                        <span class="spending-legend-value">${this.formatCurrency(item.total)}</span>
+                        <span class="spending-legend-percent">${percentage}%</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     updateTrendChart(data) {
@@ -5556,33 +5802,118 @@ class BudgetApp {
             this.charts.trend.destroy();
         }
 
+        // Calculate net savings for each period
+        const netSavings = data.income.map((inc, i) => inc - (data.expenses[i] || 0));
+
         this.charts.trend = new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: data.labels,
-                datasets: [{
-                    label: 'Income',
-                    data: data.income,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)'
-                }, {
-                    label: 'Expenses',
-                    data: data.expenses,
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)'
-                }]
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: data.income,
+                        backgroundColor: 'rgba(46, 125, 50, 0.8)',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        order: 2
+                    },
+                    {
+                        label: 'Expenses',
+                        data: data.expenses,
+                        backgroundColor: 'rgba(198, 40, 40, 0.8)',
+                        borderColor: '#c62828',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        order: 2
+                    },
+                    {
+                        label: 'Net',
+                        data: netSavings,
+                        type: 'line',
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#1976d2',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        order: 1
+                    }
+                ]
             },
             options: {
-                responsive: false,
+                responsive: true,
                 maintainAspectRatio: false,
-                aspectRatio: 2,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: false // We'll use custom legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.dataset.label}: ${this.formatCurrency(context.raw)}`;
+                            }
+                        }
+                    }
+                },
                 scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: (value) => this.formatCurrencyCompact(value)
+                        }
                     }
                 }
             }
         });
+
+        // Update custom legend
+        this.updateTrendLegend();
+    }
+
+    updateTrendLegend() {
+        const legendContainer = document.getElementById('trend-chart-legend');
+        if (!legendContainer) return;
+
+        legendContainer.innerHTML = `
+            <div class="chart-legend-item">
+                <span class="chart-legend-color" style="background: #2e7d32"></span>
+                <span>Income</span>
+            </div>
+            <div class="chart-legend-item">
+                <span class="chart-legend-color" style="background: #c62828"></span>
+                <span>Expenses</span>
+            </div>
+            <div class="chart-legend-item">
+                <span class="chart-legend-color" style="background: #1976d2"></span>
+                <span>Net Savings</span>
+            </div>
+        `;
+    }
+
+    formatCurrencyCompact(value) {
+        if (Math.abs(value) >= 1000000) {
+            return (value / 1000000).toFixed(1) + 'M';
+        } else if (Math.abs(value) >= 1000) {
+            return (value / 1000).toFixed(1) + 'K';
+        }
+        return value.toString();
     }
 
     populateAccountDropdowns() {
@@ -5616,12 +5947,331 @@ class BudgetApp {
     renderCategoryOptions(categories, prefix = '') {
         return categories.map(cat => {
             const option = `<option value="${cat.id}">${prefix}${cat.name}</option>`;
-            const childOptions = cat.children 
-                ? this.renderCategoryOptions(cat.children, prefix + '  ') 
+            const childOptions = cat.children
+                ? this.renderCategoryOptions(cat.children, prefix + '  ')
                 : '';
             return option + childOptions;
         }).join('');
     }
+
+    // ===================================
+    // Budget View Methods
+    // ===================================
+
+    async loadBudgetView() {
+        // Initialize budget state
+        this.budgetType = this.budgetType || 'expense';
+        this.budgetMonth = this.budgetMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+
+        // Setup event listeners on first load
+        if (!this.budgetEventListenersSetup) {
+            this.setupBudgetEventListeners();
+            this.budgetEventListenersSetup = true;
+        }
+
+        // Populate month selector
+        this.populateBudgetMonthSelector();
+
+        // Fetch categories if not already loaded
+        if (!this.allCategories || this.allCategories.length === 0) {
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'));
+                if (response.ok) {
+                    this.categoryTree = await response.json();
+                    this.allCategories = this.flattenCategories(this.categoryTree);
+                }
+            } catch (error) {
+                console.error('Failed to load categories for budget:', error);
+            }
+        }
+
+        // Calculate spending for each category
+        await this.calculateCategorySpending();
+
+        // Render the budget tree
+        this.renderBudgetTree();
+
+        // Update summary
+        this.updateBudgetSummary();
+    }
+
+    setupBudgetEventListeners() {
+        // Budget type tabs
+        document.querySelectorAll('.budget-tabs .tab-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.budget-tabs .tab-button').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                this.budgetType = e.currentTarget.dataset.budgetType;
+                this.renderBudgetTree();
+                this.updateBudgetSummary();
+            });
+        });
+
+        // Month selector
+        const monthSelect = document.getElementById('budget-month');
+        if (monthSelect) {
+            monthSelect.addEventListener('change', async (e) => {
+                this.budgetMonth = e.target.value;
+                await this.calculateCategorySpending();
+                this.renderBudgetTree();
+                this.updateBudgetSummary();
+            });
+        }
+
+        // Go to categories button (empty state)
+        const goToCategoriesBtn = document.getElementById('empty-budget-go-categories-btn');
+        if (goToCategoriesBtn) {
+            goToCategoriesBtn.addEventListener('click', () => {
+                this.navigateTo('categories');
+            });
+        }
+    }
+
+    populateBudgetMonthSelector() {
+        const monthSelect = document.getElementById('budget-month');
+        if (!monthSelect) return;
+
+        // Generate last 12 months + next 3 months
+        const options = [];
+        const now = new Date();
+
+        for (let i = -12; i <= 3; i++) {
+            const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const value = date.toISOString().slice(0, 7);
+            const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            options.push({ value, label });
+        }
+
+        monthSelect.innerHTML = options.map(opt =>
+            `<option value="${opt.value}" ${opt.value === this.budgetMonth ? 'selected' : ''}>${opt.label}</option>`
+        ).join('');
+    }
+
+    async calculateCategorySpending() {
+        // Get date range for selected month
+        const [year, month] = this.budgetMonth.split('-').map(Number);
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0); // Last day of month
+
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+
+        // Fetch spending data from API
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startStr}&endDate=${endStr}`));
+            if (response.ok) {
+                const spendingData = await response.json();
+                // Map spending to categories
+                this.categorySpending = {};
+                spendingData.forEach(item => {
+                    this.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch category spending:', error);
+            this.categorySpending = {};
+        }
+
+        // Also calculate from local transactions as fallback
+        if (!this.categorySpending || Object.keys(this.categorySpending).length === 0) {
+            this.categorySpending = {};
+            (this.transactions || []).forEach(t => {
+                if (!t.categoryId) return;
+                const txDate = new Date(t.date);
+                if (txDate >= startDate && txDate <= endDate) {
+                    const amount = Math.abs(parseFloat(t.amount) || 0);
+                    this.categorySpending[t.categoryId] = (this.categorySpending[t.categoryId] || 0) + amount;
+                }
+            });
+        }
+    }
+
+    renderBudgetTree() {
+        const treeContainer = document.getElementById('budget-tree');
+        const emptyState = document.getElementById('empty-budget');
+        const headerEl = document.querySelector('.budget-tree-header');
+
+        if (!treeContainer) return;
+
+        // Filter categories by type
+        const filteredCategories = (this.categoryTree || []).filter(cat => cat.type === this.budgetType);
+
+        if (filteredCategories.length === 0) {
+            treeContainer.innerHTML = '';
+            if (headerEl) headerEl.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
+
+        if (headerEl) headerEl.style.display = 'grid';
+        if (emptyState) emptyState.style.display = 'none';
+
+        treeContainer.innerHTML = this.renderBudgetCategoryNodes(filteredCategories, 0);
+
+        // Setup inline editing listeners
+        this.setupBudgetInlineEditing();
+    }
+
+    renderBudgetCategoryNodes(categories, level = 0) {
+        return categories.map(category => {
+            const hasChildren = category.children && category.children.length > 0;
+            const spent = this.categorySpending[category.id] || 0;
+            const budget = parseFloat(category.budgetAmount) || 0;
+            const remaining = budget - spent;
+            const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+
+            let progressStatus = 'good';
+            if (percentage >= 100) progressStatus = 'over';
+            else if (percentage >= 80) progressStatus = 'danger';
+            else if (percentage >= 60) progressStatus = 'warning';
+
+            const remainingClass = remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero');
+
+            return `
+                <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
+                    <div class="budget-category-name level-${level}" data-label="">
+                        <span class="category-color" style="background-color: ${category.color || '#3b82f6'}"></span>
+                        <span class="category-label">${category.name}</span>
+                    </div>
+                    <div class="budget-input-wrapper" data-label="Budget">
+                        <input type="number"
+                               class="budget-input"
+                               data-category-id="${category.id}"
+                               value="${budget || ''}"
+                               placeholder="0.00"
+                               step="0.01"
+                               min="0">
+                    </div>
+                    <div data-label="Period">
+                        <select class="budget-period-select" data-category-id="${category.id}">
+                            <option value="monthly" ${category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : ''}>Monthly</option>
+                            <option value="weekly" ${category.budgetPeriod === 'weekly' ? 'selected' : ''}>Weekly</option>
+                            <option value="quarterly" ${category.budgetPeriod === 'quarterly' ? 'selected' : ''}>Quarterly</option>
+                            <option value="yearly" ${category.budgetPeriod === 'yearly' ? 'selected' : ''}>Yearly</option>
+                        </select>
+                    </div>
+                    <div class="budget-spent" data-label="Spent">
+                        ${this.formatCurrency(spent)}
+                    </div>
+                    <div class="budget-remaining ${remainingClass}" data-label="Remaining">
+                        ${budget > 0 ? this.formatCurrency(remaining) : '<span class="no-budget">—</span>'}
+                    </div>
+                    <div class="budget-progress-wrapper" data-label="Progress">
+                        ${budget > 0 ? `
+                            <div class="budget-progress-bar">
+                                <div class="budget-progress-fill ${progressStatus}" style="width: ${percentage}%"></div>
+                            </div>
+                            <span class="budget-progress-text">${Math.round(percentage)}%</span>
+                        ` : '<span class="no-budget">No budget set</span>'}
+                    </div>
+                </div>
+                ${hasChildren ? this.renderBudgetCategoryNodes(category.children, level + 1) : ''}
+            `;
+        }).join('');
+    }
+
+    setupBudgetInlineEditing() {
+        // Budget amount inputs
+        document.querySelectorAll('.budget-input').forEach(input => {
+            let debounceTimer;
+            input.addEventListener('change', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    this.saveCategoryBudget(e.target.dataset.categoryId, {
+                        budgetAmount: e.target.value || null
+                    });
+                }, 300);
+            });
+        });
+
+        // Period selects
+        document.querySelectorAll('.budget-period-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                this.saveCategoryBudget(e.target.dataset.categoryId, {
+                    budgetPeriod: e.target.value
+                });
+            });
+        });
+    }
+
+    async saveCategoryBudget(categoryId, updates) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(updates)
+            });
+
+            if (response.ok) {
+                // Update local data
+                const category = this.findCategoryById(parseInt(categoryId));
+                if (category) {
+                    Object.assign(category, updates);
+                }
+
+                // Re-render to update calculations
+                this.renderBudgetTree();
+                this.updateBudgetSummary();
+
+                OC.Notification.showTemporary('Budget updated');
+            } else {
+                throw new Error('Failed to update budget');
+            }
+        } catch (error) {
+            console.error('Failed to save budget:', error);
+            OC.Notification.showTemporary('Failed to update budget');
+        }
+    }
+
+    updateBudgetSummary() {
+        const categories = this.flattenCategories(this.categoryTree || [])
+            .filter(cat => cat.type === this.budgetType);
+
+        let totalBudgeted = 0;
+        let totalSpent = 0;
+        let categoriesWithBudget = 0;
+
+        categories.forEach(cat => {
+            const budget = parseFloat(cat.budgetAmount) || 0;
+            const spent = this.categorySpending[cat.id] || 0;
+
+            if (budget > 0) {
+                totalBudgeted += budget;
+                categoriesWithBudget++;
+            }
+            totalSpent += spent;
+        });
+
+        const totalRemaining = totalBudgeted - totalSpent;
+
+        // Update DOM
+        const budgetedEl = document.getElementById('budget-total-budgeted');
+        const spentEl = document.getElementById('budget-total-spent');
+        const remainingEl = document.getElementById('budget-total-remaining');
+        const countEl = document.getElementById('budget-categories-count');
+
+        if (budgetedEl) budgetedEl.textContent = this.formatCurrency(totalBudgeted);
+        if (spentEl) spentEl.textContent = this.formatCurrency(totalSpent);
+        if (remainingEl) remainingEl.textContent = this.formatCurrency(totalRemaining);
+        if (countEl) countEl.textContent = categoriesWithBudget;
+    }
+
+    flattenCategories(categories, result = []) {
+        categories.forEach(cat => {
+            result.push(cat);
+            if (cat.children && cat.children.length > 0) {
+                this.flattenCategories(cat.children, result);
+            }
+        });
+        return result;
+    }
+
+    // ===================================
+    // End Budget View Methods
+    // ===================================
 
     showTransactionModal(transaction = null, preSelectedAccountId = null) {
         const modal = document.getElementById('transaction-modal');
@@ -6821,7 +7471,7 @@ class BudgetApp {
             }
 
             this.renderDetectedBills(detected);
-            document.getElementById('detected-bills-panel').style.display = 'block';
+            document.getElementById('detected-bills-panel').style.display = 'flex';
         } catch (error) {
             console.error('Failed to detect bills:', error);
             OC.Notification.showTemporary('Failed to detect recurring bills');
@@ -6889,6 +7539,331 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to add bills:', error);
             OC.Notification.showTemporary('Failed to add selected bills');
+        }
+    }
+
+    // ============================================
+    // SAVINGS GOALS METHODS
+    // ============================================
+
+    async loadSavingsGoalsView() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            this.savingsGoals = await response.json();
+            this.updateGoalsSummary();
+            this.renderGoals(this.savingsGoals);
+
+            // Setup event listeners (only once)
+            if (!this._goalsEventsSetup) {
+                this.setupGoalsEventListeners();
+                this._goalsEventsSetup = true;
+            }
+
+            // Populate account dropdown in modal
+            this.populateGoalAccountDropdown();
+        } catch (error) {
+            console.error('Failed to load savings goals:', error);
+            OC.Notification.showTemporary('Failed to load savings goals');
+        }
+    }
+
+    updateGoalsSummary() {
+        const goals = this.savingsGoals || [];
+        const activeGoals = goals.filter(g => !g.completed);
+        const completedGoals = goals.filter(g => g.completed);
+
+        const totalSaved = goals.reduce((sum, g) => sum + (parseFloat(g.currentAmount || g.current_amount) || 0), 0);
+        const totalTarget = goals.reduce((sum, g) => sum + (parseFloat(g.targetAmount || g.target_amount) || 0), 0);
+
+        document.getElementById('goals-total-count').textContent = activeGoals.length;
+        document.getElementById('goals-total-saved').textContent = this.formatCurrency(totalSaved);
+        document.getElementById('goals-total-target').textContent = this.formatCurrency(totalTarget);
+        document.getElementById('goals-completed-count').textContent = completedGoals.length;
+    }
+
+    renderGoals(goals) {
+        const goalsList = document.getElementById('goals-list');
+        const emptyGoals = document.getElementById('empty-goals');
+
+        if (!goals || goals.length === 0) {
+            goalsList.innerHTML = '';
+            emptyGoals.style.display = 'block';
+            return;
+        }
+
+        emptyGoals.style.display = 'none';
+
+        goalsList.innerHTML = goals.map(goal => {
+            const current = parseFloat(goal.currentAmount || goal.current_amount) || 0;
+            const target = parseFloat(goal.targetAmount || goal.target_amount) || 0;
+            const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            const isCompleted = current >= target;
+            const color = goal.color || '#0082c9';
+            const targetDate = goal.targetDate || goal.target_date;
+
+            let targetDateText = '';
+            if (targetDate) {
+                const date = new Date(targetDate);
+                const today = new Date();
+                const daysLeft = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+
+                if (daysLeft < 0) {
+                    targetDateText = `Target date passed`;
+                } else if (daysLeft === 0) {
+                    targetDateText = 'Target date: Today';
+                } else if (daysLeft <= 30) {
+                    targetDateText = `${daysLeft} days left`;
+                } else {
+                    targetDateText = `Target: ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                }
+            }
+
+            return `
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" data-goal-id="${goal.id}">
+                    <div class="goal-card-header">
+                        <div class="goal-card-title">
+                            <span class="goal-color-indicator" style="background: ${color}"></span>
+                            <h3 class="goal-name">${this.escapeHtml(goal.name)}</h3>
+                        </div>
+                        <div class="goal-card-actions">
+                            <button class="edit-goal-btn" title="Edit" data-goal-id="${goal.id}">
+                                <span class="icon-rename"></span>
+                            </button>
+                            <button class="delete-goal-btn delete-btn" title="Delete" data-goal-id="${goal.id}">
+                                <span class="icon-delete"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-section">
+                        <div class="goal-progress-bar">
+                            <div class="goal-progress-fill" style="width: ${percentage}%; background: ${isCompleted ? 'linear-gradient(90deg, #2e7d32, #43a047)' : `linear-gradient(90deg, ${color}, ${color}dd)`}"></div>
+                        </div>
+                        <div class="goal-amounts">
+                            <span class="goal-current-amount">${this.formatCurrency(current)}</span>
+                            <span class="goal-percentage">${percentage.toFixed(0)}%</span>
+                            <span class="goal-target-amount">of ${this.formatCurrency(target)}</span>
+                        </div>
+                    </div>
+
+                    <div class="goal-footer">
+                        ${targetDateText ? `<span class="goal-target-date"><span class="icon-calendar"></span> ${targetDateText}</span>` : '<span></span>'}
+                        ${isCompleted ?
+                            '<span class="goal-completed-badge"><span class="icon-checkmark"></span> Goal reached!</span>' :
+                            `<button class="goal-add-money-btn" data-goal-id="${goal.id}">+ Add money</button>`
+                        }
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    setupGoalsEventListeners() {
+        // Add goal button
+        document.getElementById('add-goal-btn')?.addEventListener('click', () => {
+            this.showGoalModal();
+        });
+
+        // Empty state add button
+        document.getElementById('empty-goals-add-btn')?.addEventListener('click', () => {
+            this.showGoalModal();
+        });
+
+        // Goal form submission
+        document.getElementById('goal-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.saveGoal();
+        });
+
+        // Add money form
+        document.getElementById('add-to-goal-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.addMoneyToGoal();
+        });
+
+        // Event delegation for goal cards
+        document.getElementById('goals-list')?.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.edit-goal-btn');
+            const deleteBtn = e.target.closest('.delete-goal-btn');
+            const addMoneyBtn = e.target.closest('.goal-add-money-btn');
+
+            if (editBtn) {
+                const goalId = parseInt(editBtn.dataset.goalId);
+                this.editGoal(goalId);
+            } else if (deleteBtn) {
+                const goalId = parseInt(deleteBtn.dataset.goalId);
+                this.deleteGoal(goalId);
+            } else if (addMoneyBtn) {
+                const goalId = parseInt(addMoneyBtn.dataset.goalId);
+                this.showAddMoneyModal(goalId);
+            }
+        });
+
+        // Color preview
+        document.getElementById('goal-color')?.addEventListener('input', (e) => {
+            const preview = document.getElementById('goal-color-preview');
+            if (preview) {
+                preview.style.backgroundColor = e.target.value;
+            }
+        });
+    }
+
+    populateGoalAccountDropdown() {
+        const dropdown = document.getElementById('goal-account');
+        if (!dropdown) return;
+
+        dropdown.innerHTML = '<option value="">No linked account</option>' +
+            (Array.isArray(this.accounts) ? this.accounts.map(a =>
+                `<option value="${a.id}">${this.escapeHtml(a.name)}</option>`
+            ).join('') : '');
+    }
+
+    showGoalModal(goal = null) {
+        const modal = document.getElementById('goal-modal');
+        const title = document.getElementById('goal-modal-title');
+        const form = document.getElementById('goal-form');
+
+        if (!modal || !form) return;
+
+        title.textContent = goal ? 'Edit Savings Goal' : 'Add Savings Goal';
+
+        // Reset form
+        form.reset();
+        document.getElementById('goal-id').value = '';
+        document.getElementById('goal-color').value = '#0082c9';
+
+        // Populate if editing
+        if (goal) {
+            document.getElementById('goal-id').value = goal.id;
+            document.getElementById('goal-name').value = goal.name;
+            document.getElementById('goal-target').value = goal.targetAmount || goal.target_amount || '';
+            document.getElementById('goal-current').value = goal.currentAmount || goal.current_amount || 0;
+            document.getElementById('goal-account').value = goal.accountId || goal.account_id || '';
+            document.getElementById('goal-target-date').value = goal.targetDate || goal.target_date || '';
+            document.getElementById('goal-color').value = goal.color || '#0082c9';
+            document.getElementById('goal-notes').value = goal.notes || '';
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    async saveGoal() {
+        const form = document.getElementById('goal-form');
+        const goalId = document.getElementById('goal-id').value;
+
+        const data = {
+            name: document.getElementById('goal-name').value,
+            targetAmount: parseFloat(document.getElementById('goal-target').value) || 0,
+            currentAmount: parseFloat(document.getElementById('goal-current').value) || 0,
+            accountId: document.getElementById('goal-account').value || null,
+            targetDate: document.getElementById('goal-target-date').value || null,
+            color: document.getElementById('goal-color').value,
+            notes: document.getElementById('goal-notes').value
+        };
+
+        try {
+            const url = goalId
+                ? OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`)
+                : OC.generateUrl('/apps/budget/api/savings-goals');
+
+            const response = await fetch(url, {
+                method: goalId ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            document.getElementById('goal-modal').style.display = 'none';
+            OC.Notification.showTemporary(goalId ? 'Goal updated' : 'Goal created');
+            await this.loadSavingsGoalsView();
+        } catch (error) {
+            console.error('Failed to save goal:', error);
+            OC.Notification.showTemporary('Failed to save goal');
+        }
+    }
+
+    editGoal(goalId) {
+        const goal = this.savingsGoals?.find(g => g.id === goalId);
+        if (goal) {
+            this.showGoalModal(goal);
+        }
+    }
+
+    async deleteGoal(goalId) {
+        if (!confirm('Are you sure you want to delete this savings goal?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            OC.Notification.showTemporary('Goal deleted');
+            await this.loadSavingsGoalsView();
+        } catch (error) {
+            console.error('Failed to delete goal:', error);
+            OC.Notification.showTemporary('Failed to delete goal');
+        }
+    }
+
+    showAddMoneyModal(goalId) {
+        const goal = this.savingsGoals?.find(g => g.id === goalId);
+        if (!goal) return;
+
+        const modal = document.getElementById('add-to-goal-modal');
+        document.getElementById('add-to-goal-name').textContent = goal.name;
+        document.getElementById('add-to-goal-id').value = goalId;
+        document.getElementById('add-amount').value = '';
+
+        modal.style.display = 'flex';
+    }
+
+    async addMoneyToGoal() {
+        const goalId = document.getElementById('add-to-goal-id').value;
+        const amount = parseFloat(document.getElementById('add-amount').value) || 0;
+
+        if (amount <= 0) {
+            OC.Notification.showTemporary('Please enter a valid amount');
+            return;
+        }
+
+        const goal = this.savingsGoals?.find(g => g.id === parseInt(goalId));
+        if (!goal) return;
+
+        const currentAmount = parseFloat(goal.currentAmount || goal.current_amount) || 0;
+        const newAmount = currentAmount + amount;
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ currentAmount: newAmount })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            document.getElementById('add-to-goal-modal').style.display = 'none';
+            OC.Notification.showTemporary(`Added ${this.formatCurrency(amount)} to goal`);
+            await this.loadSavingsGoalsView();
+        } catch (error) {
+            console.error('Failed to add money to goal:', error);
+            OC.Notification.showTemporary('Failed to add money to goal');
         }
     }
 }

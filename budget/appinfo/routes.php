@@ -61,6 +61,7 @@ return [
         ['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
         
         // Forecast routes
+        ['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
         ['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
         ['name' => 'forecast#enhanced', 'url' => '/api/forecast/enhanced', 'verb' => 'POST'],
         ['name' => 'forecast#export', 'url' => '/api/forecast/export', 'verb' => 'POST'],
@@ -70,6 +71,7 @@ return [
         // Bills routes - specific paths before {id} wildcard
         ['name' => 'bill#index', 'url' => '/api/bills', 'verb' => 'GET'],
         ['name' => 'bill#create', 'url' => '/api/bills', 'verb' => 'POST'],
+        ['name' => 'bill#upcoming', 'url' => '/api/bills/upcoming', 'verb' => 'GET'],
         ['name' => 'bill#dueThisMonth', 'url' => '/api/bills/due-this-month', 'verb' => 'GET'],
         ['name' => 'bill#overdue', 'url' => '/api/bills/overdue', 'verb' => 'GET'],
         ['name' => 'bill#summary', 'url' => '/api/bills/summary', 'verb' => 'GET'],
@@ -81,12 +83,17 @@ return [
         ['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
         ['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
 
-        // Goals routes
+        // Goals routes (Savings Goals)
         ['name' => 'goals#index', 'url' => '/api/goals', 'verb' => 'GET'],
+        ['name' => 'goals#index', 'url' => '/api/savings-goals', 'verb' => 'GET'],
         ['name' => 'goals#show', 'url' => '/api/goals/{id}', 'verb' => 'GET'],
+        ['name' => 'goals#show', 'url' => '/api/savings-goals/{id}', 'verb' => 'GET'],
         ['name' => 'goals#create', 'url' => '/api/goals', 'verb' => 'POST'],
+        ['name' => 'goals#create', 'url' => '/api/savings-goals', 'verb' => 'POST'],
         ['name' => 'goals#update', 'url' => '/api/goals/{id}', 'verb' => 'PUT'],
+        ['name' => 'goals#update', 'url' => '/api/savings-goals/{id}', 'verb' => 'PUT'],
         ['name' => 'goals#destroy', 'url' => '/api/goals/{id}', 'verb' => 'DELETE'],
+        ['name' => 'goals#destroy', 'url' => '/api/savings-goals/{id}', 'verb' => 'DELETE'],
         ['name' => 'goals#progress', 'url' => '/api/goals/{id}/progress', 'verb' => 'GET'],
         ['name' => 'goals#forecast', 'url' => '/api/goals/{id}/forecast', 'verb' => 'GET'],
 
