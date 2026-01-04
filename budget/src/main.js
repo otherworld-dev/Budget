@@ -76,6 +76,23 @@ class BudgetApp {
             });
         }
 
+        // Category form
+        const categoryForm = document.getElementById('category-form');
+        if (categoryForm) {
+            categoryForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCategory();
+            });
+        }
+
+        // Update parent dropdown when category type changes
+        const categoryType = document.getElementById('category-type');
+        if (categoryType) {
+            categoryType.addEventListener('change', () => {
+                this.populateCategoryParentDropdown();
+            });
+        }
+
         // Add account button
         const addAccountBtn = document.getElementById('add-account-btn');
         if (addAccountBtn) {
@@ -136,11 +153,10 @@ class BudgetApp {
             } else if (e.target.classList.contains('autocomplete-item')) {
                 const bankName = e.target.getAttribute('data-bank-name');
                 this.selectInstitution(bankName);
-            } else if (e.target.id === 'empty-categories-add-btn') {
-                const addCategoryBtn = document.getElementById('add-category-btn');
-                if (addCategoryBtn) {
-                    addCategoryBtn.click();
-                }
+            } else if (e.target.id === 'empty-categories-add-btn' || e.target.closest('#empty-categories-add-btn')) {
+                this.showAddCategoryModal();
+            } else if (e.target.id === 'create-default-categories-btn' || e.target.closest('#create-default-categories-btn')) {
+                this.createDefaultCategories();
             }
         });
 
@@ -186,6 +202,7 @@ class BudgetApp {
 
         // Enhanced Transaction Features
         this.setupTransactionEventListeners();
+        this.setupInlineEditingListeners();
 
         // Enhanced Import System
         this.setupImportEventListeners();
@@ -1031,14 +1048,8 @@ class BudgetApp {
             // Update UI with transaction data
             const tbody = document.querySelector('#transactions-table tbody');
             if (tbody) {
-                if (document.getElementById('transactions-filters')?.style.display !== 'none' &&
-                    this.renderEnhancedTransactionsTable) {
-                    // Use enhanced rendering if filters are active
-                    this.renderEnhancedTransactionsTable();
-                } else {
-                    // Use original rendering for compatibility
-                    tbody.innerHTML = this.renderTransactionsTable(this.transactions);
-                }
+                // Always use enhanced rendering for inline editing support
+                this.renderEnhancedTransactionsTable();
             }
 
             // Update enhanced UI elements if they exist
@@ -1067,6 +1078,15 @@ class BudgetApp {
             const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
             const formattedAmount = this.formatCurrency(transaction.amount, currency);
 
+            // Escape HTML to prevent XSS
+            const escapeHtml = (str) => {
+                if (!str) return '';
+                return str.replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;')
+                          .replace(/"/g, '&quot;');
+            };
+
             return `
                 <tr class="transaction-row" data-transaction-id="${transaction.id}">
                     <td class="select-column">
@@ -1074,31 +1094,47 @@ class BudgetApp {
                                data-transaction-id="${transaction.id}"
                                ${this.selectedTransactions?.has(transaction.id) ? 'checked' : ''}>
                     </td>
-                    <td class="date-column">
-                        <span class="transaction-date">${new Date(transaction.date).toLocaleDateString()}</span>
+                    <td class="date-column editable-cell"
+                        data-field="date"
+                        data-value="${transaction.date}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="cell-display">${new Date(transaction.date).toLocaleDateString()}</span>
                     </td>
-                    <td class="description-column">
+                    <td class="description-column editable-cell"
+                        data-field="description"
+                        data-value="${escapeHtml(transaction.description)}"
+                        data-transaction-id="${transaction.id}">
                         <div class="transaction-description">
-                            <span class="primary-text">${transaction.description || 'No description'}</span>
-                            ${transaction.reference ? `<span class="secondary-text">${transaction.reference}</span>` : ''}
+                            <span class="primary-text cell-display">${escapeHtml(transaction.description) || 'No description'}</span>
+                            ${transaction.reference ? `<span class="secondary-text">${escapeHtml(transaction.reference)}</span>` : ''}
                         </div>
                     </td>
-                    <td class="category-column">
-                        <span class="category-badge ${category ? 'categorized' : 'uncategorized'}">
-                            ${category ? category.name : 'Uncategorized'}
+                    <td class="category-column editable-cell"
+                        data-field="categoryId"
+                        data-value="${transaction.categoryId || ''}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
+                            ${category ? escapeHtml(category.name) : 'Uncategorized'}
                         </span>
                     </td>
-                    <td class="amount-column">
-                        <span class="amount ${typeClass}">${formattedAmount}</span>
+                    <td class="amount-column editable-cell"
+                        data-field="amount"
+                        data-value="${transaction.amount}"
+                        data-type="${transaction.type}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="amount cell-display ${typeClass}">${formattedAmount}</span>
                     </td>
-                    <td class="account-column">
-                        <span class="account-name">${account ? account.name : 'Unknown Account'}</span>
+                    <td class="account-column editable-cell"
+                        data-field="accountId"
+                        data-value="${transaction.accountId}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="account-name cell-display">${account ? escapeHtml(account.name) : 'Unknown Account'}</span>
                     </td>
                     <td class="actions-column">
                         <div class="transaction-actions">
                             <button class="action-btn edit-btn transaction-edit-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="Edit transaction">
+                                    title="Edit transaction (modal)">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
                             <button class="action-btn delete-btn transaction-delete-btn"
@@ -1237,6 +1273,13 @@ class BudgetApp {
     }
 
     async loadCategories() {
+        // Initialize category state with defaults
+        this.categoryTree = [];
+        this.allCategories = [];
+        this.currentCategoryType = this.currentCategoryType || 'expense';
+        this.selectedCategory = null;
+        this.expandedCategories = this.expandedCategories || new Set();
+
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: {
@@ -1245,21 +1288,18 @@ class BudgetApp {
             });
             const categories = await response.json();
 
-            // Initialize category state
-            this.categoryTree = categories;
-            this.allCategories = categories;
-            this.currentCategoryType = 'expense';
-            this.selectedCategory = null;
-            this.expandedCategories = new Set();
-
-            // Setup event listeners for enhanced categories functionality
-            this.setupCategoriesEventListeners();
-
-            // Render the categories tree with enhanced functionality
-            this.renderCategoriesTree();
+            // Update category state with fetched data
+            if (Array.isArray(categories)) {
+                this.categoryTree = categories;
+                this.allCategories = categories;
+            }
         } catch (error) {
             console.error('Failed to load categories:', error);
         }
+
+        // Always setup event listeners and render (even if fetch failed)
+        this.setupCategoriesEventListeners();
+        this.renderCategoriesTree();
     }
 
     async saveTransaction() {
@@ -4565,7 +4605,14 @@ class BudgetApp {
         const treeContainer = document.getElementById('categories-tree');
         const emptyState = document.getElementById('empty-categories');
 
-        if (!treeContainer || !this.categoryTree) return;
+        if (!treeContainer) return;
+
+        // Handle case where categoryTree is not loaded or empty
+        if (!this.categoryTree || !Array.isArray(this.categoryTree) || this.categoryTree.length === 0) {
+            treeContainer.innerHTML = '';
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
 
         // Filter categories by current type
         const typedCategories = this.categoryTree.filter(cat => cat.type === this.currentCategoryType);
@@ -5068,23 +5115,222 @@ class BudgetApp {
         return ids;
     }
 
-    // Placeholder methods for modal functionality
     showAddCategoryModal() {
-        // TODO: Implement add category modal
-        console.log('Add category modal');
-    }
+        const modal = document.getElementById('category-modal');
+        const title = document.getElementById('category-modal-title');
 
-    editSelectedCategory() {
-        if (this.selectedCategory) {
-            // TODO: Implement edit category modal
-            console.log('Edit category:', this.selectedCategory);
+        if (!modal || !title) {
+            console.error('Category modal not found');
+            return;
+        }
+
+        title.textContent = 'Add Category';
+        this.resetCategoryForm();
+        this.populateCategoryParentDropdown();
+
+        // Pre-select the current category type tab
+        const typeSelect = document.getElementById('category-type');
+        if (typeSelect && this.currentCategoryType) {
+            typeSelect.value = this.currentCategoryType;
+        }
+
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+
+        const nameField = document.getElementById('category-name');
+        if (nameField) {
+            nameField.focus();
         }
     }
 
-    deleteSelectedCategory() {
-        if (this.selectedCategory) {
-            // TODO: Implement delete confirmation
-            console.log('Delete category:', this.selectedCategory);
+    editSelectedCategory() {
+        if (!this.selectedCategory) {
+            return;
+        }
+
+        const modal = document.getElementById('category-modal');
+        const title = document.getElementById('category-modal-title');
+
+        if (!modal || !title) {
+            console.error('Category modal not found');
+            return;
+        }
+
+        title.textContent = 'Edit Category';
+        this.loadCategoryData(this.selectedCategory);
+        this.populateCategoryParentDropdown(this.selectedCategory.id);
+
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+
+        const nameField = document.getElementById('category-name');
+        if (nameField) {
+            nameField.focus();
+        }
+    }
+
+    async deleteSelectedCategory() {
+        if (!this.selectedCategory) {
+            return;
+        }
+
+        const categoryName = this.selectedCategory.name;
+        if (!confirm(`Are you sure you want to delete the category "${categoryName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${this.selectedCategory.id}`), {
+                method: 'DELETE',
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Category deleted successfully');
+                this.selectedCategory = null;
+                await this.loadCategories();
+                await this.loadInitialData();
+                this.showCategoryDetailsEmpty();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete category');
+            }
+        } catch (error) {
+            console.error('Failed to delete category:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to delete category');
+        }
+    }
+
+    resetCategoryForm() {
+        const form = document.getElementById('category-form');
+        if (form) {
+            form.reset();
+        }
+
+        const categoryId = document.getElementById('category-id');
+        if (categoryId) categoryId.value = '';
+
+        const colorInput = document.getElementById('category-color');
+        if (colorInput) colorInput.value = '#3b82f6';
+
+        const budgetPeriod = document.getElementById('category-budget-period');
+        if (budgetPeriod) budgetPeriod.value = 'monthly';
+    }
+
+    loadCategoryData(category) {
+        document.getElementById('category-id').value = category.id;
+        document.getElementById('category-name').value = category.name;
+        document.getElementById('category-type').value = category.type;
+        document.getElementById('category-parent').value = category.parentId || '';
+        document.getElementById('category-budget').value = category.budgetAmount || '';
+        document.getElementById('category-budget-period').value = category.budgetPeriod || 'monthly';
+        document.getElementById('category-color').value = category.color || '#3b82f6';
+    }
+
+    populateCategoryParentDropdown(excludeId = null) {
+        const parentSelect = document.getElementById('category-parent');
+        if (!parentSelect) return;
+
+        const typeSelect = document.getElementById('category-type');
+        const currentType = typeSelect ? typeSelect.value : 'expense';
+
+        parentSelect.innerHTML = '<option value="">None (Top Level)</option>';
+
+        const addOptions = (categories, prefix = '') => {
+            categories.forEach(cat => {
+                // Only show categories of the same type, and exclude the current category and its children
+                if (cat.type === currentType && cat.id !== excludeId) {
+                    parentSelect.innerHTML += `<option value="${cat.id}">${prefix}${this.escapeHtml(cat.name)}</option>`;
+                }
+                if (cat.children && cat.children.length > 0) {
+                    addOptions(cat.children, prefix + '  ');
+                }
+            });
+        };
+
+        if (this.allCategories) {
+            addOptions(this.allCategories);
+        }
+    }
+
+    async saveCategory() {
+        const categoryId = document.getElementById('category-id').value;
+        const name = document.getElementById('category-name').value.trim();
+        const type = document.getElementById('category-type').value;
+        const parentId = document.getElementById('category-parent').value || null;
+        const budgetAmount = document.getElementById('category-budget').value || null;
+        const budgetPeriod = document.getElementById('category-budget-period').value;
+        const color = document.getElementById('category-color').value;
+
+        if (!name) {
+            OC.Notification.showTemporary('Category name is required');
+            return;
+        }
+
+        const categoryData = {
+            name,
+            type,
+            parentId: parentId ? parseInt(parentId) : null,
+            budgetAmount: budgetAmount ? parseFloat(budgetAmount) : null,
+            budgetPeriod,
+            color
+        };
+
+        try {
+            const isEdit = !!categoryId;
+            const url = isEdit
+                ? `/apps/budget/api/categories/${categoryId}`
+                : '/apps/budget/api/categories';
+            const method = isEdit ? 'PUT' : 'POST';
+
+            const response = await fetch(OC.generateUrl(url), {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(categoryData)
+            });
+
+            if (response.ok) {
+                OC.Notification.showTemporary(isEdit ? 'Category updated successfully' : 'Category created successfully');
+                this.hideModals();
+                await this.loadCategories();
+                await this.loadInitialData();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to save category');
+            }
+        } catch (error) {
+            console.error('Failed to save category:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to save category');
+        }
+    }
+
+    async createDefaultCategories() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/initialize'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({})
+            });
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Default categories created successfully');
+                await this.loadCategories();
+                await this.loadInitialData();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create default categories');
+            }
+        } catch (error) {
+            console.error('Failed to create default categories:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to create default categories');
         }
     }
 
@@ -5275,6 +5521,461 @@ class BudgetApp {
         if (tbody) {
             tbody.innerHTML = this.renderTransactionsTable(filtered);
         }
+    }
+
+    // ===========================
+    // Inline Editing
+    // ===========================
+
+    setupInlineEditingListeners() {
+        const transactionsTable = document.getElementById('transactions-table');
+        if (!transactionsTable) return;
+
+        // Handle click on editable cells
+        transactionsTable.addEventListener('click', (e) => {
+            const cell = e.target.closest('.editable-cell');
+            if (cell && !cell.classList.contains('editing')) {
+                // Don't trigger if clicking on checkbox
+                if (e.target.type === 'checkbox') return;
+                this.startInlineEdit(cell);
+            }
+        });
+
+        // Close any open inline editors when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.editable-cell') && !e.target.closest('.category-autocomplete-dropdown')) {
+                this.closeAllInlineEditors();
+            }
+        });
+    }
+
+    startInlineEdit(cell) {
+        // Close any other open editors first
+        this.closeAllInlineEditors();
+
+        const field = cell.dataset.field;
+        const value = cell.dataset.value;
+        const transactionId = parseInt(cell.dataset.transactionId);
+        const transaction = this.transactions.find(t => t.id === transactionId);
+
+        if (!transaction) return;
+
+        cell.classList.add('editing');
+        this.currentEditingCell = cell;
+        this.originalValue = value;
+
+        switch (field) {
+            case 'date':
+                this.createDateEditor(cell, value);
+                break;
+            case 'description':
+                this.createTextEditor(cell, value, 'description');
+                break;
+            case 'categoryId':
+                this.createCategoryEditor(cell, value);
+                break;
+            case 'amount':
+                this.createAmountEditor(cell, transaction);
+                break;
+            case 'accountId':
+                this.createAccountEditor(cell, value);
+                break;
+            default:
+                this.createTextEditor(cell, value, field);
+        }
+    }
+
+    createDateEditor(cell, value) {
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.className = 'inline-edit-input';
+        input.value = value;
+
+        this.setupEditorEvents(input, cell, 'date');
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+    }
+
+    createTextEditor(cell, value, field) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'inline-edit-input';
+        input.value = value || '';
+        input.placeholder = field === 'description' ? 'Enter description...' : '';
+
+        this.setupEditorEvents(input, cell, field);
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+    }
+
+    createAmountEditor(cell, transaction) {
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '4px';
+
+        // Type toggle
+        const typeToggle = document.createElement('div');
+        typeToggle.className = 'inline-type-toggle';
+
+        const creditBtn = document.createElement('button');
+        creditBtn.type = 'button';
+        creditBtn.className = `inline-type-btn ${transaction.type === 'credit' ? 'active' : ''}`;
+        creditBtn.textContent = '+';
+        creditBtn.title = 'Income';
+
+        const debitBtn = document.createElement('button');
+        debitBtn.type = 'button';
+        debitBtn.className = `inline-type-btn ${transaction.type === 'debit' ? 'active' : ''}`;
+        debitBtn.textContent = '-';
+        debitBtn.title = 'Expense';
+
+        typeToggle.appendChild(creditBtn);
+        typeToggle.appendChild(debitBtn);
+
+        // Amount input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'inline-edit-input';
+        input.value = transaction.amount;
+        input.step = '0.01';
+        input.min = '0';
+        input.dataset.type = transaction.type;
+
+        // Type toggle events
+        creditBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            creditBtn.classList.add('active');
+            debitBtn.classList.remove('active');
+            input.dataset.type = 'credit';
+        });
+
+        debitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            debitBtn.classList.add('active');
+            creditBtn.classList.remove('active');
+            input.dataset.type = 'debit';
+        });
+
+        this.setupEditorEvents(input, cell, 'amount');
+
+        container.appendChild(typeToggle);
+        container.appendChild(input);
+        cell.innerHTML = '';
+        cell.appendChild(container);
+        input.focus();
+        input.select();
+    }
+
+    createCategoryEditor(cell, currentCategoryId) {
+        const container = document.createElement('div');
+        container.className = 'category-autocomplete';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'category-autocomplete-input';
+        input.placeholder = 'Type to search...';
+
+        // Set current category name as value
+        const currentCategory = this.categories?.find(c => c.id === parseInt(currentCategoryId));
+        input.value = currentCategory ? currentCategory.name : '';
+        input.dataset.categoryId = currentCategoryId || '';
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'category-autocomplete-dropdown';
+        dropdown.style.display = 'none';
+
+        container.appendChild(input);
+        container.appendChild(dropdown);
+
+        // Build flat list of categories for search
+        const flatCategories = this.getFlatCategoryList();
+
+        const showDropdown = (filter = '') => {
+            const filtered = filter
+                ? flatCategories.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
+                : flatCategories;
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="category-autocomplete-empty">No categories found</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(c => `
+                    <div class="category-autocomplete-item ${c.id === parseInt(input.dataset.categoryId) ? 'selected' : ''}"
+                         data-category-id="${c.id}"
+                         data-category-name="${c.name}">
+                        ${c.prefix}${c.name}
+                    </div>
+                `).join('');
+            }
+
+            // Add "Uncategorized" option
+            dropdown.innerHTML = `
+                <div class="category-autocomplete-item ${!input.dataset.categoryId ? 'selected' : ''}"
+                     data-category-id=""
+                     data-category-name="">
+                    Uncategorized
+                </div>
+            ` + dropdown.innerHTML;
+
+            dropdown.style.display = 'block';
+        };
+
+        input.addEventListener('focus', () => showDropdown(input.value));
+        input.addEventListener('input', () => showDropdown(input.value));
+
+        dropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.category-autocomplete-item');
+            if (item) {
+                input.dataset.categoryId = item.dataset.categoryId;
+                input.value = item.dataset.categoryName;
+                dropdown.style.display = 'none';
+                this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                dropdown.style.display = 'none';
+                this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.navigateCategoryDropdown(dropdown, e.key === 'ArrowDown' ? 1 : -1, input);
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            // Delay to allow click on dropdown item
+            setTimeout(() => {
+                if (!container.contains(document.activeElement)) {
+                    dropdown.style.display = 'none';
+                    // Save if value changed
+                    if (input.dataset.categoryId !== (currentCategoryId || '')) {
+                        this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+                    } else {
+                        this.cancelInlineEdit(cell);
+                    }
+                }
+            }, 200);
+        });
+
+        cell.innerHTML = '';
+        cell.appendChild(container);
+        input.focus();
+        input.select();
+        showDropdown();
+    }
+
+    getFlatCategoryList(categories = null, prefix = '') {
+        const cats = categories || this.categories || [];
+        let result = [];
+
+        for (const cat of cats) {
+            result.push({ id: cat.id, name: cat.name, prefix });
+            if (cat.children && cat.children.length > 0) {
+                result = result.concat(this.getFlatCategoryList(cat.children, prefix + '  '));
+            }
+        }
+
+        return result;
+    }
+
+    navigateCategoryDropdown(dropdown, direction, input) {
+        const items = dropdown.querySelectorAll('.category-autocomplete-item');
+        if (items.length === 0) return;
+
+        const currentHighlighted = dropdown.querySelector('.category-autocomplete-item.highlighted');
+        let nextIndex = 0;
+
+        if (currentHighlighted) {
+            currentHighlighted.classList.remove('highlighted');
+            const currentIndex = Array.from(items).indexOf(currentHighlighted);
+            nextIndex = currentIndex + direction;
+            if (nextIndex < 0) nextIndex = items.length - 1;
+            if (nextIndex >= items.length) nextIndex = 0;
+        } else {
+            nextIndex = direction === 1 ? 0 : items.length - 1;
+        }
+
+        items[nextIndex].classList.add('highlighted');
+        items[nextIndex].scrollIntoView({ block: 'nearest' });
+        input.dataset.categoryId = items[nextIndex].dataset.categoryId;
+    }
+
+    createAccountEditor(cell, currentAccountId) {
+        const select = document.createElement('select');
+        select.className = 'inline-edit-select';
+
+        this.accounts?.forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            option.textContent = account.name;
+            option.selected = account.id === parseInt(currentAccountId);
+            select.appendChild(option);
+        });
+
+        select.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                this.saveInlineEdit(cell, 'accountId', select.value);
+            }
+        });
+
+        select.addEventListener('change', () => {
+            this.saveInlineEdit(cell, 'accountId', select.value);
+        });
+
+        select.addEventListener('blur', () => {
+            // Small delay to prevent race condition with change event
+            setTimeout(() => {
+                if (cell.classList.contains('editing')) {
+                    this.cancelInlineEdit(cell);
+                }
+            }, 100);
+        });
+
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+    }
+
+    setupEditorEvents(input, cell, field) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (field === 'amount') {
+                    const type = input.dataset.type;
+                    this.saveInlineEdit(cell, field, input.value, { type });
+                } else {
+                    this.saveInlineEdit(cell, field, input.value);
+                }
+            }
+        });
+
+        input.addEventListener('blur', (e) => {
+            // Don't save if clicking on type toggle buttons
+            if (e.relatedTarget?.closest('.inline-type-toggle')) {
+                return;
+            }
+
+            // Small delay to prevent race with Enter key
+            setTimeout(() => {
+                if (cell.classList.contains('editing')) {
+                    if (field === 'amount') {
+                        const type = input.dataset.type;
+                        this.saveInlineEdit(cell, field, input.value, { type });
+                    } else {
+                        this.saveInlineEdit(cell, field, input.value);
+                    }
+                }
+            }, 100);
+        });
+    }
+
+    async saveInlineEdit(cell, field, value, extra = {}) {
+        const transactionId = parseInt(cell.dataset.transactionId);
+        const transaction = this.transactions.find(t => t.id === transactionId);
+
+        if (!transaction) {
+            this.cancelInlineEdit(cell);
+            return;
+        }
+
+        // Check if value actually changed
+        let hasChanged = false;
+        if (field === 'amount') {
+            const newAmount = parseFloat(value);
+            const newType = extra.type || transaction.type;
+            hasChanged = newAmount !== transaction.amount || newType !== transaction.type;
+        } else if (field === 'categoryId') {
+            const newCatId = value === '' ? null : parseInt(value);
+            hasChanged = newCatId !== transaction.categoryId;
+        } else if (field === 'accountId') {
+            hasChanged = parseInt(value) !== transaction.accountId;
+        } else {
+            hasChanged = value !== (transaction[field] || '');
+        }
+
+        if (!hasChanged) {
+            this.cancelInlineEdit(cell);
+            return;
+        }
+
+        // Show saving state
+        cell.classList.add('cell-saving');
+
+        // Prepare update data
+        const updateData = {};
+        if (field === 'amount') {
+            updateData.amount = parseFloat(value);
+            if (extra.type) {
+                updateData.type = extra.type;
+            }
+        } else if (field === 'categoryId') {
+            updateData.categoryId = value === '' ? null : parseInt(value);
+        } else if (field === 'accountId') {
+            updateData.accountId = parseInt(value);
+        } else {
+            updateData[field] = value;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+
+                // Update local transaction data
+                Object.assign(transaction, result);
+
+                // If account changed, reload accounts to update balances
+                if (field === 'accountId') {
+                    await this.loadAccounts();
+                }
+
+                // Re-render the table to show updated values
+                this.renderEnhancedTransactionsTable();
+                OC.Notification.showTemporary('Transaction updated');
+            } else {
+                throw new Error('Update failed');
+            }
+        } catch (error) {
+            console.error('Failed to save inline edit:', error);
+            OC.Notification.showTemporary('Failed to update transaction');
+            this.cancelInlineEdit(cell);
+        }
+    }
+
+    cancelInlineEdit(cell) {
+        if (!cell || !cell.classList.contains('editing')) return;
+
+        // Re-render the table to restore original display
+        this.renderEnhancedTransactionsTable();
+        this.currentEditingCell = null;
+        this.originalValue = null;
+    }
+
+    closeAllInlineEditors() {
+        const editingCells = document.querySelectorAll('.editable-cell.editing');
+        editingCells.forEach(cell => {
+            this.cancelInlineEdit(cell);
+        });
     }
 
     // ===========================
