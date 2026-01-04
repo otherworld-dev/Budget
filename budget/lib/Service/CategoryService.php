@@ -353,6 +353,79 @@ class CategoryService {
     }
 
     /**
+     * Remove duplicate categories, keeping only the first occurrence of each name/type/parent combination
+     */
+    public function removeDuplicates(string $userId): array {
+        $categories = $this->findAll($userId);
+        $seen = [];
+        $deleted = [];
+
+        foreach ($categories as $category) {
+            // Create a unique key based on name, type, and parent
+            $key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? 'null');
+
+            if (isset($seen[$key])) {
+                // This is a duplicate - check if it has transactions
+                $transactions = $this->transactionMapper->findByCategory($category->getId(), 1);
+                if (empty($transactions)) {
+                    // Check for children
+                    $children = $this->mapper->findChildren($userId, $category->getId());
+                    if (empty($children)) {
+                        // Safe to delete
+                        $this->mapper->delete($category);
+                        $deleted[] = $category->getName();
+                    }
+                }
+            } else {
+                $seen[$key] = $category->getId();
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Delete all categories for a user
+     */
+    public function deleteAll(string $userId): int {
+        $categories = $this->findAll($userId);
+        $count = 0;
+
+        // Delete children first, then parents
+        $parents = [];
+        $children = [];
+
+        foreach ($categories as $category) {
+            if ($category->getParentId() === null) {
+                $parents[] = $category;
+            } else {
+                $children[] = $category;
+            }
+        }
+
+        // Delete children first
+        foreach ($children as $category) {
+            $transactions = $this->transactionMapper->findByCategory($category->getId(), 1);
+            if (empty($transactions)) {
+                $this->mapper->delete($category);
+                $count++;
+            }
+        }
+
+        // Then delete parents
+        foreach ($parents as $category) {
+            $remainingChildren = $this->mapper->findChildren($userId, $category->getId());
+            $transactions = $this->transactionMapper->findByCategory($category->getId(), 1);
+            if (empty($remainingChildren) && empty($transactions)) {
+                $this->mapper->delete($category);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * Get suggested budget percentages
      */
     public function getSuggestedBudgetPercentages(): array {

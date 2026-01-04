@@ -2784,6 +2784,81 @@ button.danger:hover {
     border: 2px dashed var(--color-primary);
 }
 
+.category-item.checked {
+    background: var(--color-primary-element-light);
+}
+
+.category-checkbox {
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.category-delete-btn {
+    background: none;
+    border: none;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    margin-left: auto;
+    color: var(--color-error);
+    flex-shrink: 0;
+}
+
+.category-item:hover .category-delete-btn {
+    opacity: 1;
+}
+
+.category-delete-btn:hover {
+    background: var(--color-error);
+    color: white;
+}
+
+.category-bulk-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--color-primary-element-light);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    gap: 12px;
+}
+
+.category-bulk-toolbar .bulk-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.category-bulk-toolbar button.small {
+    padding: 4px 10px;
+    font-size: 12px;
+    min-height: 28px;
+}
+
+.category-bulk-toolbar button.error {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: white;
+}
+
+.category-bulk-toolbar button.error:hover {
+    background: var(--color-error-hover, #c82333);
+}
+
+#category-bulk-count {
+    font-weight: 500;
+    color: var(--color-main-text);
+}
+
 .category-toggle {
     background: none;
     border: none;

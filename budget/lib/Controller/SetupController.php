@@ -59,11 +59,46 @@ class SetupController extends Controller {
         try {
             $categories = $this->categoryService->findAll($this->userId);
             $rules = $this->importRuleService->findAll($this->userId);
-            
+
             return new DataResponse([
                 'initialized' => count($categories) > 0,
                 'categoriesCount' => count($categories),
                 'rulesCount' => count($rules)
+            ]);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function removeDuplicateCategories(): DataResponse {
+        try {
+            $deleted = $this->categoryService->removeDuplicates($this->userId);
+
+            return new DataResponse([
+                'deleted' => $deleted,
+                'count' => count($deleted),
+                'message' => count($deleted) . ' duplicate categories removed'
+            ]);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function resetCategories(): DataResponse {
+        try {
+            $deletedCount = $this->categoryService->deleteAll($this->userId);
+            $categories = $this->categoryService->createDefaultCategories($this->userId);
+
+            return new DataResponse([
+                'deleted' => $deletedCount,
+                'created' => count($categories),
+                'message' => "Reset complete: deleted $deletedCount, created " . count($categories)
             ]);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
