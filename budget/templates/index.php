@@ -644,11 +644,17 @@ style('budget', 'style');
                             <div class="empty-content">
                                 <span class="icon-tag" aria-hidden="true"></span>
                                 <h3>No categories yet</h3>
-                                <p>Create your first category to start organizing your transactions.</p>
-                                <button class="primary" id="empty-categories-add-btn">
-                                    <span class="icon-add" aria-hidden="true"></span>
-                                    Add Category
-                                </button>
+                                <p>Create your first category to start organizing your transactions, or use our recommended defaults.</p>
+                                <div class="empty-buttons">
+                                    <button class="primary" id="empty-categories-add-btn">
+                                        <span class="icon-add" aria-hidden="true"></span>
+                                        Add Category
+                                    </button>
+                                    <button class="secondary" id="create-default-categories-btn">
+                                        <span class="icon-template" aria-hidden="true"></span>
+                                        Use Default Categories
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

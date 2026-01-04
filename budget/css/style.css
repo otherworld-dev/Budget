@@ -1918,6 +1918,201 @@ button.danger:hover {
     color: #f44336;
 }
 
+/* Inline Editing */
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+}
+
+/* Invisible overlay to capture clicks on the entire cell */
+.editable-cell::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.editable-cell:hover:not(.editing) {
+    background: var(--color-background-hover);
+    outline: 1px dashed var(--color-border);
+    outline-offset: -1px;
+}
+
+.editable-cell.editing::after {
+    display: none;
+}
+
+.editable-cell.editing {
+    padding: 0 !important;
+    background: var(--color-main-background);
+}
+
+.inline-edit-input {
+    width: 100%;
+    height: 100%;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 2px solid var(--color-primary);
+    border-radius: 3px;
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    font-size: inherit;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.inline-edit-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-element-light);
+}
+
+.inline-edit-input[type="date"] {
+    width: 130px;
+}
+
+.inline-edit-input[type="number"] {
+    width: 100px;
+    text-align: right;
+}
+
+.inline-edit-select {
+    width: 100%;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 2px solid var(--color-primary);
+    border-radius: 3px;
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.inline-edit-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-element-light);
+}
+
+/* Category autocomplete dropdown */
+.category-autocomplete {
+    position: relative;
+    width: 100%;
+}
+
+.category-autocomplete-input {
+    width: 100%;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 2px solid var(--color-primary);
+    border-radius: 3px;
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    font-size: inherit;
+    box-sizing: border-box;
+}
+
+.category-autocomplete-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-element-light);
+}
+
+.category-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+}
+
+.category-autocomplete-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border-dark);
+}
+
+.category-autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.category-autocomplete-item:hover,
+.category-autocomplete-item.highlighted {
+    background: var(--color-background-hover);
+}
+
+.category-autocomplete-item.selected {
+    background: var(--color-primary-element-light);
+}
+
+.category-autocomplete-empty {
+    padding: 8px 12px;
+    color: var(--color-text-lighter);
+    font-style: italic;
+}
+
+/* Type toggle for inline edit */
+.inline-type-toggle {
+    display: flex;
+    gap: 2px;
+}
+
+.inline-type-btn {
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-main-background);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s ease;
+}
+
+.inline-type-btn:first-child {
+    border-radius: 3px 0 0 3px;
+}
+
+.inline-type-btn:last-child {
+    border-radius: 0 3px 3px 0;
+}
+
+.inline-type-btn.active {
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    border-color: var(--color-primary);
+}
+
+.inline-type-btn:hover:not(.active) {
+    background: var(--color-background-hover);
+}
+
+/* Saving indicator */
+.cell-saving {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.cell-saving::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* View Controls */
 .view-controls {
     display: flex;
@@ -2997,6 +3192,19 @@ button.danger:hover {
     margin: 0 0 20px 0;
     font-size: 14px;
     line-height: 1.5;
+}
+
+.empty-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.empty-buttons button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* Drag and Drop */
