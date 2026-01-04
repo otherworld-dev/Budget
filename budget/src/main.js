@@ -858,86 +858,8 @@ class BudgetApp {
             // Update the instance accounts array
             this.accounts = accounts;
 
-            const accountsList = document.getElementById('accounts-list');
-            if (accountsList) {
-                const accountsHTML = accounts.map(account => {
-                    // Helper function to get field with both camelCase and snake_case support
-                    const getField = (obj, camelName, snakeName = null) => {
-                        if (!snakeName) {
-                            // Convert camelCase to snake_case automatically
-                            snakeName = camelName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-                        }
-                        return obj[camelName] || obj[snakeName] || null;
-                    };
-
-                    // Handle missing or undefined fields with both naming conventions
-                    const accountType = getField(account, 'type') || 'unknown';
-                    const accountName = getField(account, 'name') || 'Unnamed Account';
-                    const accountBalance = parseFloat(getField(account, 'balance')) || 0;
-                    const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
-                    const accountId = getField(account, 'id') || 0;
-                    const institution = getField(account, 'institution') || '';
-                    const accountNumber = getField(account, 'accountNumber', 'account_number') || '';
-
-                    // Get account type icon and color
-                    const typeInfo = this.getAccountTypeInfo(accountType);
-
-                    // Format account number for display
-                    const maskedAccountNumber = accountNumber ?
-                        '***' + accountNumber.slice(-4) : '';
-
-                    // Calculate health status based on balance and limits
-                    const healthStatus = this.getAccountHealthStatus(account);
-
-                    return `
-                        <div class="account-card" data-type="${accountType}" data-account-id="${accountId}">
-                            <div class="account-card-header">
-                                <div class="account-icon" style="background-color: ${typeInfo.color};">
-                                    <span class="${typeInfo.icon}" aria-hidden="true"></span>
-                                </div>
-                                <div class="account-details">
-                                    <h3 class="account-name">${accountName}</h3>
-                                    <div class="account-meta">
-                                        <span class="account-type">${typeInfo.label}</span>
-                                        ${institution ? `<span class="account-institution">• ${institution}</span>` : ''}
-                                        ${maskedAccountNumber ? `<span class="account-number">• ${maskedAccountNumber}</span>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="account-balance-section">
-                                <div class="balance-main">
-                                    <span class="balance-label">Balance</span>
-                                    <span class="balance-amount ${accountBalance >= 0 ? 'positive' : 'negative'}">
-                                        ${this.formatCurrency(accountBalance, accountCurrency)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="account-status ${healthStatus.class}">
-                                <span class="${healthStatus.icon}" aria-hidden="true" title="${healthStatus.tooltip}"></span>
-                            </div>
-
-                            <div class="account-actions">
-                                <button class="account-action-btn view-btn view-transactions-btn" data-account-id="${accountId}" title="View Transactions">
-                                    <span class="icon-menu" aria-hidden="true"></span>
-                                    <span class="btn-text">Transactions</span>
-                                </button>
-                                <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="Edit Account">
-                                    <span class="icon-rename" aria-hidden="true"></span>
-                                    <span class="btn-text">Edit</span>
-                                </button>
-                                <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="Delete Account">
-                                    <span class="icon-delete" aria-hidden="true"></span>
-                                    <span class="btn-text">Delete</span>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                accountsList.innerHTML = accountsHTML;
-            }
+            // Render the accounts page with new layout
+            this.renderAccountsPage(accounts);
 
             // Also update account dropdowns
             this.populateAccountDropdowns();
@@ -946,6 +868,248 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to load accounts:', error);
         }
+    }
+
+    renderAccountsPage(accounts) {
+        // Helper function to get field with both camelCase and snake_case support
+        const getField = (obj, camelName, snakeName = null) => {
+            if (!snakeName) {
+                snakeName = camelName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            }
+            return obj[camelName] || obj[snakeName] || null;
+        };
+
+        // Categorize accounts into assets and liabilities
+        const assetTypes = ['checking', 'savings', 'investment', 'cash'];
+        const liabilityTypes = ['credit_card', 'loan'];
+
+        const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
+        const liabilities = accounts.filter(acc => liabilityTypes.includes(getField(acc, 'type')));
+
+        // Calculate totals
+        const primaryCurrency = this.getPrimaryCurrency();
+        let totalAssets = 0;
+        let totalLiabilities = 0;
+
+        assets.forEach(acc => {
+            totalAssets += parseFloat(getField(acc, 'balance')) || 0;
+        });
+
+        liabilities.forEach(acc => {
+            // Liabilities are typically negative or represent debt
+            const balance = parseFloat(getField(acc, 'balance')) || 0;
+            totalLiabilities += Math.abs(balance);
+        });
+
+        const netWorth = totalAssets - totalLiabilities;
+
+        // Update summary cards
+        const totalAssetsEl = document.getElementById('summary-total-assets');
+        const totalLiabilitiesEl = document.getElementById('summary-total-liabilities');
+        const netWorthEl = document.getElementById('summary-net-worth');
+        const assetsSubtotalEl = document.getElementById('assets-subtotal');
+        const liabilitiesSubtotalEl = document.getElementById('liabilities-subtotal');
+
+        if (totalAssetsEl) totalAssetsEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+        if (totalLiabilitiesEl) totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+        if (netWorthEl) {
+            netWorthEl.textContent = this.formatCurrency(netWorth, primaryCurrency);
+            netWorthEl.classList.toggle('positive', netWorth >= 0);
+            netWorthEl.classList.toggle('negative', netWorth < 0);
+        }
+        if (assetsSubtotalEl) assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+        if (liabilitiesSubtotalEl) liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+
+        // Render account cards for each section
+        const assetsGrid = document.getElementById('accounts-assets-grid');
+        const liabilitiesGrid = document.getElementById('accounts-liabilities-grid');
+        const assetsSection = document.getElementById('accounts-assets-section');
+        const liabilitiesSection = document.getElementById('accounts-liabilities-section');
+
+        if (assetsGrid) {
+            if (assets.length > 0) {
+                assetsGrid.innerHTML = assets.map(account => this.renderAccountCard(account, getField)).join('');
+                assetsSection.style.display = 'block';
+            } else {
+                assetsGrid.innerHTML = '<div class="accounts-empty-state">No asset accounts yet</div>';
+            }
+        }
+
+        if (liabilitiesGrid) {
+            if (liabilities.length > 0) {
+                liabilitiesGrid.innerHTML = liabilities.map(account => this.renderAccountCard(account, getField)).join('');
+                liabilitiesSection.style.display = 'block';
+            } else {
+                liabilitiesSection.style.display = 'none';
+            }
+        }
+
+        // Load sparklines asynchronously
+        this.loadAccountSparklines(accounts);
+    }
+
+    renderAccountCard(account, getField) {
+        const accountType = getField(account, 'type') || 'unknown';
+        const accountName = getField(account, 'name') || 'Unnamed Account';
+        const accountBalance = parseFloat(getField(account, 'balance')) || 0;
+        const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
+        const accountId = getField(account, 'id') || 0;
+        const institution = getField(account, 'institution') || '';
+
+        const typeInfo = this.getAccountTypeInfo(accountType);
+        const healthStatus = this.getAccountHealthStatus(account);
+
+        // For liabilities (credit cards, loans), display balance differently
+        const isLiability = ['credit_card', 'loan'].includes(accountType);
+        const displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
+        const balanceClass = isLiability ? 'negative' : (accountBalance >= 0 ? 'positive' : 'negative');
+
+        return `
+            <div class="account-card" data-type="${accountType}" data-account-id="${accountId}">
+                <div class="account-card-header">
+                    <div class="account-icon" style="background-color: ${typeInfo.color};">
+                        <span class="${typeInfo.icon}" aria-hidden="true"></span>
+                    </div>
+                    <div class="account-details">
+                        <h3 class="account-name">${accountName}</h3>
+                        <div class="account-meta">
+                            <span class="account-type-badge">${typeInfo.label}</span>
+                            ${institution ? `<span class="account-institution">${institution}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="account-card-balance">
+                    <div class="balance-info">
+                        <span class="balance-label">${isLiability ? 'Owed' : 'Balance'}</span>
+                        <span class="balance-amount ${balanceClass}">
+                            ${isLiability ? '-' : ''}${this.formatCurrency(displayBalance, accountCurrency)}
+                        </span>
+                    </div>
+                    <div class="account-sparkline" data-account-id="${accountId}">
+                        <svg viewBox="0 0 80 32" preserveAspectRatio="none">
+                            <path class="sparkline-path neutral" d="M0,16 L80,16"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="account-card-footer">
+                    <div class="account-status">
+                        <span class="account-status-dot ${healthStatus.class}"></span>
+                        <span>${healthStatus.tooltip}</span>
+                    </div>
+                    <div class="account-actions">
+                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="Edit Account">
+                            <span class="icon-rename" aria-hidden="true"></span>
+                        </button>
+                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="Delete Account">
+                            <span class="icon-delete" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async loadAccountSparklines(accounts) {
+        // Load balance history for each account and render sparklines
+        for (const account of accounts) {
+            try {
+                const accountId = account.id || account.Id;
+                if (!accountId) continue;
+
+                // Get transactions for this account from the last 7 days
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 7);
+
+                const response = await fetch(
+                    OC.generateUrl(`/apps/budget/api/transactions?account=${accountId}&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`),
+                    { headers: { 'requesttoken': OC.requestToken } }
+                );
+
+                if (!response.ok) continue;
+
+                const transactions = await response.json();
+                if (!Array.isArray(transactions)) continue;
+
+                // Calculate daily balances
+                const balanceHistory = this.calculateBalanceHistory(account, transactions, 7);
+
+                // Render sparkline
+                this.renderSparkline(accountId, balanceHistory);
+            } catch (error) {
+                console.error(`Failed to load sparkline for account ${account.id}:`, error);
+            }
+        }
+    }
+
+    calculateBalanceHistory(account, transactions, days) {
+        const currentBalance = parseFloat(account.balance) || 0;
+        const balances = [];
+
+        // Sort transactions by date descending
+        const sortedTxns = [...transactions].sort((a, b) =>
+            new Date(b.date || b.Date) - new Date(a.date || a.Date)
+        );
+
+        // Start with current balance and work backwards
+        let runningBalance = currentBalance;
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+
+        for (let i = 0; i < days; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            date.setHours(0, 0, 0, 0);
+
+            // Find transactions on this day and reverse their effect
+            const dayTxns = sortedTxns.filter(t => {
+                const txnDate = new Date(t.date || t.Date);
+                txnDate.setHours(0, 0, 0, 0);
+                return txnDate.getTime() === date.getTime();
+            });
+
+            // Store the balance at end of this day
+            balances.unshift(runningBalance);
+
+            // Reverse transactions to get previous day's balance
+            dayTxns.forEach(t => {
+                const amount = parseFloat(t.amount || t.Amount) || 0;
+                runningBalance -= amount;
+            });
+        }
+
+        return balances;
+    }
+
+    renderSparkline(accountId, balances) {
+        const sparklineEl = document.querySelector(`.account-sparkline[data-account-id="${accountId}"] svg`);
+        if (!sparklineEl || balances.length < 2) return;
+
+        const width = 80;
+        const height = 32;
+        const padding = 2;
+
+        // Find min and max for scaling
+        const min = Math.min(...balances);
+        const max = Math.max(...balances);
+        const range = max - min || 1;
+
+        // Generate path points
+        const points = balances.map((val, i) => {
+            const x = padding + (i / (balances.length - 1)) * (width - padding * 2);
+            const y = padding + (1 - (val - min) / range) * (height - padding * 2);
+            return `${x},${y}`;
+        });
+
+        const pathD = `M${points.join(' L')}`;
+
+        // Determine trend color
+        const trend = balances[balances.length - 1] - balances[0];
+        const trendClass = trend > 0 ? 'positive' : (trend < 0 ? 'negative' : 'neutral');
+
+        sparklineEl.innerHTML = `<path class="sparkline-path ${trendClass}" d="${pathD}"></path>`;
     }
 
     setupAccountCardClickHandlers() {

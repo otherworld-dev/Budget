@@ -303,8 +303,61 @@ style('budget', 'style');
                     Add Account
                 </button>
             </div>
-            
-            <div id="accounts-list"></div>
+
+            <!-- Account Summary Cards -->
+            <div class="accounts-summary-header">
+                <div class="summary-card summary-card-assets">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M5 6h14v2H5zm0 4h14v2H5zm0 4h14v2H5zm0 4h14v2H5z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Total Assets</span>
+                        <span id="summary-total-assets" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-liabilities">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Total Liabilities</span>
+                        <span id="summary-total-liabilities" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-networth">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Net Worth</span>
+                        <span id="summary-net-worth" class="summary-value">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assets Section -->
+            <div id="accounts-assets-section" class="accounts-section">
+                <div class="section-header-row">
+                    <h3 class="section-title">Assets</h3>
+                    <span id="assets-subtotal" class="section-subtotal">--</span>
+                </div>
+                <div id="accounts-assets-grid" class="accounts-grid"></div>
+            </div>
+
+            <!-- Liabilities Section -->
+            <div id="accounts-liabilities-section" class="accounts-section">
+                <div class="section-header-row">
+                    <h3 class="section-title">Liabilities</h3>
+                    <span id="liabilities-subtotal" class="section-subtotal">--</span>
+                </div>
+                <div id="accounts-liabilities-grid" class="accounts-grid"></div>
+            </div>
         </div>
 
         <!-- Account Details View -->
