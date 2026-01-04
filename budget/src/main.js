@@ -1220,7 +1220,17 @@ class BudgetApp {
             const total = this.transactions.reduce((sum, t) => {
                 return sum + (t.type === 'credit' ? t.amount : -t.amount);
             }, 0);
-            totalElement.textContent = `Total: ${this.formatCurrency(total)}`;
+
+            // Determine most common currency from displayed transactions
+            const currencyCounts = {};
+            this.transactions.forEach(t => {
+                const currency = t.accountCurrency || 'USD';
+                currencyCounts[currency] = (currencyCounts[currency] || 0) + 1;
+            });
+            const mostCommonCurrency = Object.entries(currencyCounts)
+                .sort((a, b) => b[1] - a[1])[0]?.[0] || 'USD';
+
+            totalElement.textContent = `Total: ${this.formatCurrency(total, mostCommonCurrency)}`;
         }
     }
 
@@ -4587,6 +4597,23 @@ class BudgetApp {
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => this.deleteSelectedCategory());
         }
+
+        // Bulk action buttons
+        const selectAllBtn = document.getElementById('category-select-all-btn');
+        const clearSelectionBtn = document.getElementById('category-clear-selection-btn');
+        const bulkDeleteBtn = document.getElementById('category-bulk-delete-btn');
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => this.selectAllCategories());
+        }
+
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', () => this.clearCategorySelection());
+        }
+
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', () => this.bulkDeleteCategories());
+        }
     }
 
     switchCategoryType(type) {
@@ -4636,6 +4663,7 @@ class BudgetApp {
             const hasChildren = category.children && category.children.length > 0;
             const isExpanded = this.expandedCategories && this.expandedCategories.has(category.id);
             const isSelected = this.selectedCategory?.id === category.id;
+            const isChecked = this.selectedCategoryIds && this.selectedCategoryIds.has(category.id);
 
             // Calculate transaction count and budget status
             const transactionCount = this.getCategoryTransactionCount(category.id);
@@ -4643,9 +4671,13 @@ class BudgetApp {
 
             return `
                 <div class="category-node" data-level="${level}">
-                    <div class="category-item ${isSelected ? 'selected' : ''}"
+                    <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''}"
                          data-category-id="${category.id}"
                          draggable="true">
+                        <input type="checkbox"
+                               class="category-checkbox"
+                               data-category-id="${category.id}"
+                               ${isChecked ? 'checked' : ''}>
                         ${hasChildren ? `
                             <button class="category-toggle ${isExpanded ? 'expanded' : ''}"
                                     data-category-id="${category.id}">
@@ -4664,6 +4696,12 @@ class BudgetApp {
                                 ${category.budgetAmount ? `<div class="budget-indicator ${budgetStatus}"></div>` : ''}
                             </div>
                         </div>
+
+                        <button class="category-delete-btn"
+                                data-category-id="${category.id}"
+                                title="Delete ${category.name}">
+                            <span class="icon-delete" aria-hidden="true"></span>
+                        </button>
                     </div>
 
                     ${hasChildren ? `
@@ -4677,10 +4715,17 @@ class BudgetApp {
     }
 
     setupCategoryItemListeners() {
+        // Initialize selectedCategoryIds if not exists
+        if (!this.selectedCategoryIds) {
+            this.selectedCategoryIds = new Set();
+        }
+
         // Category selection
         document.querySelectorAll('.category-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 if (e.target.closest('.category-toggle')) return;
+                if (e.target.closest('.category-checkbox')) return;
+                if (e.target.closest('.category-delete-btn')) return;
 
                 const categoryId = parseInt(item.dataset.categoryId);
                 this.selectCategory(categoryId);
@@ -4693,6 +4738,30 @@ class BudgetApp {
                 e.stopPropagation();
                 const categoryId = parseInt(toggle.dataset.categoryId);
                 this.toggleCategoryExpanded(categoryId);
+            });
+        });
+
+        // Checkbox selection for bulk actions
+        document.querySelectorAll('.category-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const categoryId = parseInt(checkbox.dataset.categoryId);
+                if (checkbox.checked) {
+                    this.selectedCategoryIds.add(categoryId);
+                } else {
+                    this.selectedCategoryIds.delete(categoryId);
+                }
+                checkbox.closest('.category-item').classList.toggle('checked', checkbox.checked);
+                this.updateBulkCategoryActions();
+            });
+        });
+
+        // Inline delete buttons
+        document.querySelectorAll('.category-delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const categoryId = parseInt(btn.dataset.categoryId);
+                this.deleteCategoryById(categoryId);
             });
         });
     }
@@ -5201,6 +5270,126 @@ class BudgetApp {
             console.error('Failed to delete category:', error);
             OC.Notification.showTemporary(error.message || 'Failed to delete category');
         }
+    }
+
+    async deleteCategoryById(categoryId) {
+        const category = this.findCategoryById(categoryId);
+        const categoryName = category ? category.name : 'this category';
+
+        if (!confirm(`Are you sure you want to delete "${categoryName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                method: 'DELETE',
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Category deleted successfully');
+                if (this.selectedCategory?.id === categoryId) {
+                    this.selectedCategory = null;
+                    this.showCategoryDetailsEmpty();
+                }
+                this.selectedCategoryIds.delete(categoryId);
+                await this.loadCategories();
+                await this.loadInitialData();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete category');
+            }
+        } catch (error) {
+            console.error('Failed to delete category:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to delete category');
+        }
+    }
+
+    updateBulkCategoryActions() {
+        const toolbar = document.getElementById('category-bulk-toolbar');
+        const countSpan = document.getElementById('category-bulk-count');
+        const selectedCount = this.selectedCategoryIds ? this.selectedCategoryIds.size : 0;
+
+        if (toolbar) {
+            toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
+        }
+        if (countSpan) {
+            countSpan.textContent = `${selectedCount} selected`;
+        }
+    }
+
+    async bulkDeleteCategories() {
+        const count = this.selectedCategoryIds.size;
+        if (count === 0) return;
+
+        if (!confirm(`Are you sure you want to delete ${count} categor${count === 1 ? 'y' : 'ies'}? This action cannot be undone.`)) {
+            return;
+        }
+
+        const categoryIds = [...this.selectedCategoryIds];
+        let deleted = 0;
+        let errors = [];
+
+        for (const categoryId of categoryIds) {
+            try {
+                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                    method: 'DELETE',
+                    headers: {
+                        'requesttoken': OC.requestToken
+                    }
+                });
+
+                if (response.ok) {
+                    deleted++;
+                    this.selectedCategoryIds.delete(categoryId);
+                } else {
+                    const error = await response.json();
+                    const category = this.findCategoryById(categoryId);
+                    errors.push(`${category?.name || categoryId}: ${error.error || 'Failed to delete'}`);
+                }
+            } catch (error) {
+                const category = this.findCategoryById(categoryId);
+                errors.push(`${category?.name || categoryId}: ${error.message}`);
+            }
+        }
+
+        if (deleted > 0) {
+            OC.Notification.showTemporary(`${deleted} categor${deleted === 1 ? 'y' : 'ies'} deleted successfully`);
+            this.selectedCategory = null;
+            this.showCategoryDetailsEmpty();
+            await this.loadCategories();
+            await this.loadInitialData();
+        }
+
+        if (errors.length > 0) {
+            OC.Notification.showTemporary(`Failed to delete: ${errors.join(', ')}`);
+        }
+
+        this.updateBulkCategoryActions();
+    }
+
+    clearCategorySelection() {
+        this.selectedCategoryIds.clear();
+        document.querySelectorAll('.category-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        document.querySelectorAll('.category-item.checked').forEach(item => {
+            item.classList.remove('checked');
+        });
+        this.updateBulkCategoryActions();
+    }
+
+    selectAllCategories() {
+        const checkboxes = document.querySelectorAll('.category-checkbox');
+        checkboxes.forEach(cb => {
+            const categoryId = parseInt(cb.dataset.categoryId);
+            cb.checked = true;
+            this.selectedCategoryIds.add(categoryId);
+            cb.closest('.category-item').classList.add('checked');
+        });
+        this.updateBulkCategoryActions();
     }
 
     resetCategoryForm() {

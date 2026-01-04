@@ -35,13 +35,13 @@ return [
         ['name' => 'transaction#uncategorized', 'url' => '/api/transactions/uncategorized', 'verb' => 'GET'],
         ['name' => 'transaction#bulkCategorize', 'url' => '/api/transactions/bulk-categorize', 'verb' => 'POST'],
         
-        // Category routes
+        // Category routes - specific paths before {id} wildcard
         ['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
-        ['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],
+        ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
         ['name' => 'category#create', 'url' => '/api/categories', 'verb' => 'POST'],
+        ['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],
         ['name' => 'category#update', 'url' => '/api/categories/{id}', 'verb' => 'PUT'],
         ['name' => 'category#destroy', 'url' => '/api/categories/{id}', 'verb' => 'DELETE'],
-        ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
         
         // Import routes
         ['name' => 'import#upload', 'url' => '/api/import/upload', 'verb' => 'POST'],
@@ -100,6 +100,8 @@ return [
         // Setup routes
         ['name' => 'setup#initialize', 'url' => '/api/setup/initialize', 'verb' => 'POST'],
         ['name' => 'setup#status', 'url' => '/api/setup/status', 'verb' => 'GET'],
+        ['name' => 'setup#removeDuplicateCategories', 'url' => '/api/setup/remove-duplicate-categories', 'verb' => 'POST'],
+        ['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
 
         // Settings routes
         ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],

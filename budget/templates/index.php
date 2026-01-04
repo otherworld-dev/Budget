@@ -637,6 +637,23 @@ style('budget', 'style');
                         </div>
                     </div>
 
+                    <!-- Bulk Actions Toolbar -->
+                    <div id="category-bulk-toolbar" class="category-bulk-toolbar" style="display: none;">
+                        <span id="category-bulk-count">0 selected</span>
+                        <div class="bulk-actions">
+                            <button id="category-select-all-btn" class="secondary small">
+                                Select All
+                            </button>
+                            <button id="category-clear-selection-btn" class="secondary small">
+                                Clear
+                            </button>
+                            <button id="category-bulk-delete-btn" class="error small">
+                                <span class="icon-delete" aria-hidden="true"></span>
+                                Delete Selected
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Categories Tree -->
                     <div class="categories-tree-container">
                         <div id="categories-tree" class="categories-tree sortable-tree"></div>
