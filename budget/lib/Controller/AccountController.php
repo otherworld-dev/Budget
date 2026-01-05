@@ -6,26 +6,32 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AccountService;
+use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
 
 class AccountController extends Controller {
     private AccountService $service;
     private ValidationService $validationService;
+    private AuditService $auditService;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         AccountService $service,
         ValidationService $validationService,
+        AuditService $auditService,
         string $userId
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->auditService = $auditService;
         $this->userId = $userId;
     }
 
@@ -56,6 +62,7 @@ class AccountController extends Controller {
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function create(): DataResponse {
         try {
             // Get JSON data from request body
@@ -175,6 +182,9 @@ class AccountController extends Controller {
                 $overdraftLimit
             );
 
+            // Audit log the account creation
+            $this->auditService->logAccountCreated($this->userId, $account->getId(), $name);
+
             return new DataResponse($account, Http::STATUS_CREATED);
 
         } catch (\Exception $e) {
@@ -185,6 +195,7 @@ class AccountController extends Controller {
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function update(int $id): DataResponse {
         try {
             // Get JSON data from request body
@@ -214,6 +225,10 @@ class AccountController extends Controller {
             ], fn($value) => $value !== null);
 
             $account = $this->service->update($id, $this->userId, $updates);
+
+            // Audit log the update
+            $this->auditService->logAccountUpdated($this->userId, $id, $updates);
+
             return new DataResponse($account);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
@@ -223,10 +238,52 @@ class AccountController extends Controller {
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 10, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
+            // Get account name before deletion for audit log
+            $account = $this->service->find($id, $this->userId);
+            $accountName = $account->getName();
+
             $this->service->delete($id, $this->userId);
+
+            // Audit log the deletion
+            $this->auditService->logAccountDeleted($this->userId, $id, $accountName);
+
             return new DataResponse(['status' => 'success']);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_NOT_FOUND);
+        }
+    }
+
+    /**
+     * Reveal full (unmasked) sensitive account details.
+     * Requires password confirmation and logs the access.
+     *
+     * @NoAdminRequired
+     */
+    #[PasswordConfirmationRequired]
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function reveal(int $id): DataResponse {
+        try {
+            $account = $this->service->find($id, $this->userId);
+
+            // Check if account has sensitive data to reveal
+            if (!$account->hasSensitiveData()) {
+                return new DataResponse([
+                    'error' => 'This account has no sensitive banking data to reveal'
+                ], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Audit log the reveal action
+            $this->auditService->logAccountRevealed(
+                $this->userId,
+                $id,
+                $account->getPopulatedSensitiveFields()
+            );
+
+            // Return full unmasked data
+            return new DataResponse($account->toArrayFull());
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_NOT_FOUND);
         }

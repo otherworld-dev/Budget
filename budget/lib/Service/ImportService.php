@@ -38,8 +38,8 @@ class ImportService {
         $tmpPath = $uploadedFile['tmp_name'];
         $fileSize = $uploadedFile['size'];
 
-        // Validate file
-        $this->validateUploadedFile($fileName, $fileSize);
+        // Validate file (extension, size, MIME type, and content)
+        $this->validateUploadedFile($fileName, $fileSize, $tmpPath);
 
         // Parse file to detect format and columns
         $format = $this->detectFileFormat($fileName);
@@ -492,17 +492,147 @@ class ImportService {
         ];
     }
 
-    private function validateUploadedFile(string $fileName, int $fileSize): void {
+    private function validateUploadedFile(string $fileName, int $fileSize, ?string $tmpPath = null): void {
         $maxSize = 10 * 1024 * 1024; // 10MB
         if ($fileSize > $maxSize) {
             throw new \Exception('File too large. Maximum size is 10MB.');
         }
-        
+
         $allowedExtensions = ['csv', 'ofx', 'qif', 'txt'];
         $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        
+
         if (!in_array($extension, $allowedExtensions)) {
             throw new \Exception('Unsupported file format. Supported formats: ' . implode(', ', $allowedExtensions));
+        }
+
+        // Validate MIME type and content if file path is provided
+        if ($tmpPath !== null && file_exists($tmpPath)) {
+            $this->validateMimeType($tmpPath, $extension);
+            $this->validateFileContent($tmpPath, $extension);
+        }
+    }
+
+    /**
+     * Validate MIME type matches expected type for extension.
+     */
+    private function validateMimeType(string $filePath, string $extension): void {
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($filePath);
+
+        $allowedMimes = [
+            'csv' => ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'],
+            'txt' => ['text/plain'],
+            'ofx' => ['text/plain', 'application/x-ofx', 'application/xml', 'text/xml', 'application/sgml'],
+            'qif' => ['text/plain', 'application/qif', 'application/x-qif'],
+        ];
+
+        $allowed = $allowedMimes[$extension] ?? ['text/plain'];
+
+        if (!in_array($mimeType, $allowed)) {
+            throw new \Exception(
+                "Invalid file type. Expected " . implode(' or ', $allowed) .
+                " for .$extension file, got: $mimeType"
+            );
+        }
+    }
+
+    /**
+     * Validate file content matches expected format.
+     * This prevents disguised malicious files.
+     */
+    private function validateFileContent(string $filePath, string $extension): void {
+        $content = file_get_contents($filePath, false, null, 0, 4096); // Read first 4KB
+
+        if ($content === false || strlen($content) === 0) {
+            throw new \Exception('File is empty or unreadable.');
+        }
+
+        // Check for binary content (non-text files)
+        if ($this->containsBinaryData($content)) {
+            throw new \Exception('File appears to be binary. Only text-based financial files are supported.');
+        }
+
+        switch ($extension) {
+            case 'csv':
+            case 'txt':
+                $this->validateCsvContent($content);
+                break;
+            case 'ofx':
+                $this->validateOfxContent($content);
+                break;
+            case 'qif':
+                $this->validateQifContent($content);
+                break;
+        }
+    }
+
+    /**
+     * Check if content contains binary (non-printable) data.
+     */
+    private function containsBinaryData(string $content): bool {
+        // Reject null bytes (common in binary files)
+        if (strpos($content, "\x00") !== false) {
+            return true;
+        }
+
+        // Check for high ratio of non-printable characters
+        $nonPrintable = preg_match_all('/[^\x20-\x7E\x09\x0A\x0D\xC0-\xFF]/', $content);
+        $ratio = $nonPrintable / max(1, strlen($content));
+
+        return $ratio > 0.1; // More than 10% non-printable = likely binary
+    }
+
+    /**
+     * Validate CSV content structure.
+     */
+    private function validateCsvContent(string $content): void {
+        $lines = explode("\n", $content);
+        $nonEmptyLines = array_filter($lines, fn($line) => trim($line) !== '');
+
+        if (count($nonEmptyLines) < 2) {
+            throw new \Exception('CSV file must contain at least a header row and one data row.');
+        }
+
+        // Check that it looks like CSV (has delimiters)
+        $firstLine = array_values($nonEmptyLines)[0] ?? '';
+        $hasComma = strpos($firstLine, ',') !== false;
+        $hasSemicolon = strpos($firstLine, ';') !== false;
+        $hasTab = strpos($firstLine, "\t") !== false;
+
+        if (!$hasComma && !$hasSemicolon && !$hasTab) {
+            throw new \Exception('CSV file does not appear to have valid delimiters (comma, semicolon, or tab).');
+        }
+    }
+
+    /**
+     * Validate OFX content structure.
+     */
+    private function validateOfxContent(string $content): void {
+        // OFX files can be SGML or XML format
+        $hasOfxHeader = stripos($content, 'OFXHEADER:') !== false;
+        $hasOfxTag = stripos($content, '<OFX>') !== false || stripos($content, '<ofx>') !== false;
+        $hasXmlOfx = stripos($content, '<?OFX') !== false;
+
+        if (!$hasOfxHeader && !$hasOfxTag && !$hasXmlOfx) {
+            throw new \Exception('File does not appear to be a valid OFX file. Missing OFX header or tags.');
+        }
+    }
+
+    /**
+     * Validate QIF content structure.
+     */
+    private function validateQifContent(string $content): void {
+        // QIF files should start with !Type: or have transaction markers
+        $hasTypeHeader = stripos($content, '!Type:') !== false;
+        $hasAccountHeader = stripos($content, '!Account') !== false;
+        $hasTransactionMarker = strpos($content, '^') !== false;
+
+        if (!$hasTypeHeader && !$hasAccountHeader) {
+            throw new \Exception('File does not appear to be a valid QIF file. Missing !Type: or !Account header.');
+        }
+
+        if (!$hasTransactionMarker) {
+            throw new \Exception('File does not appear to be a valid QIF file. Missing transaction end markers (^).');
         }
     }
 

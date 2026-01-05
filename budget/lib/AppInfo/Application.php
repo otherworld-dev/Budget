@@ -22,9 +22,32 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\GoalsService();
         });
 
+        // Security services - Encryption and Audit
+        $context->registerService(\OCA\Budget\Service\EncryptionService::class, function($c) {
+            return new \OCA\Budget\Service\EncryptionService(
+                $c->get(\OCP\Security\ICrypto::class)
+            );
+        });
+
+        $context->registerService(\OCA\Budget\Db\AuditLogMapper::class, function($c) {
+            return new \OCA\Budget\Db\AuditLogMapper(
+                $c->get(\OCP\IDBConnection::class)
+            );
+        });
+
+        $context->registerService(\OCA\Budget\Service\AuditService::class, function($c) {
+            return new \OCA\Budget\Service\AuditService(
+                $c->get(\OCA\Budget\Db\AuditLogMapper::class),
+                $c->get(\OCP\IRequest::class)
+            );
+        });
+
         // Register core services and mappers for account functionality
         $context->registerService('AccountMapper', function($c) {
-            return new \OCA\Budget\Db\AccountMapper($c->get(\OCP\IDBConnection::class));
+            return new \OCA\Budget\Db\AccountMapper(
+                $c->get(\OCP\IDBConnection::class),
+                $c->get(\OCA\Budget\Service\EncryptionService::class)
+            );
         });
 
         $context->registerService('TransactionMapper', function($c) {

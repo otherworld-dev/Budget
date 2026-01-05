@@ -2013,11 +2013,11 @@ class BudgetApp {
                 balance: getFormValue('account-balance', 0, true),
                 currency: getFormValue('account-currency', 'USD'),
                 institution: getFormValue('account-institution'),
-                accountNumber: getFormValue('account-number'),
-                routingNumber: getFormValue('account-routing-number'),
-                sortCode: getFormValue('account-sort-code'),
-                iban: getFormValue('account-iban'),
-                swiftBic: getFormValue('account-swift-bic'),
+                accountNumber: getFormValue('form-account-number'),
+                routingNumber: getFormValue('form-routing-number'),
+                sortCode: getFormValue('form-sort-code'),
+                iban: getFormValue('form-iban'),
+                swiftBic: getFormValue('form-swift-bic'),
                 accountHolderName: getFormValue('account-holder-name'),
                 openingDate: getFormValue('account-opening-date'),
                 interestRate: getFormValue('account-interest-rate', null, true),
@@ -2087,6 +2087,16 @@ class BudgetApp {
                 this.hideModals();
                 await this.loadAccounts();
                 await this.loadInitialData(); // Refresh dropdowns
+
+                // Refresh account details view if it's currently visible
+                const detailsView = document.getElementById('account-details-view');
+                if (detailsView && detailsView.style.display !== 'none' && accountId) {
+                    const updatedAccount = this.accounts.find(a => a.id === parseInt(accountId));
+                    if (updatedAccount) {
+                        this.currentAccount = updatedAccount;
+                        this.populateAccountOverview(updatedAccount);
+                    }
+                }
             } else {
                 // Handle error responses more safely
                 let errorMessage = 'Failed to save account';
@@ -2167,11 +2177,11 @@ class BudgetApp {
             document.getElementById('account-balance').value = account.balance;
             document.getElementById('account-currency').value = account.currency;
             document.getElementById('account-institution').value = account.institution || '';
-            document.getElementById('account-number').value = account.accountNumber || '';
-            document.getElementById('account-routing-number').value = account.routingNumber || '';
-            document.getElementById('account-sort-code').value = account.sortCode || '';
-            document.getElementById('account-iban').value = account.iban || '';
-            document.getElementById('account-swift-bic').value = account.swiftBic || '';
+            document.getElementById('form-account-number').value = account.accountNumber || '';
+            document.getElementById('form-routing-number').value = account.routingNumber || '';
+            document.getElementById('form-sort-code').value = account.sortCode || '';
+            document.getElementById('form-iban').value = account.iban || '';
+            document.getElementById('form-swift-bic').value = account.swiftBic || '';
             document.getElementById('account-holder-name').value = account.accountHolderName || '';
             document.getElementById('account-opening-date').value = account.openingDate || '';
             document.getElementById('account-interest-rate').value = account.interestRate || '';
@@ -2416,34 +2426,34 @@ class BudgetApp {
 
     setupBankingFieldValidation() {
         // IBAN validation
-        const ibanField = document.getElementById('account-iban');
+        const ibanField = document.getElementById('form-iban');
         if (ibanField) {
             ibanField.addEventListener('blur', () => {
-                this.validateBankingField('iban', ibanField.value, 'account-iban');
+                this.validateBankingField('iban', ibanField.value, 'form-iban');
             });
         }
 
         // Routing number validation
-        const routingField = document.getElementById('account-routing-number');
+        const routingField = document.getElementById('form-routing-number');
         if (routingField) {
             routingField.addEventListener('blur', () => {
-                this.validateBankingField('routing-number', routingField.value, 'account-routing-number');
+                this.validateBankingField('routing-number', routingField.value, 'form-routing-number');
             });
         }
 
         // Sort code validation
-        const sortCodeField = document.getElementById('account-sort-code');
+        const sortCodeField = document.getElementById('form-sort-code');
         if (sortCodeField) {
             sortCodeField.addEventListener('blur', () => {
-                this.validateBankingField('sort-code', sortCodeField.value, 'account-sort-code');
+                this.validateBankingField('sort-code', sortCodeField.value, 'form-sort-code');
             });
         }
 
         // SWIFT/BIC validation
-        const swiftField = document.getElementById('account-swift-bic');
+        const swiftField = document.getElementById('form-swift-bic');
         if (swiftField) {
             swiftField.addEventListener('blur', () => {
-                this.validateBankingField('swift-bic', swiftField.value, 'account-swift-bic');
+                this.validateBankingField('swift-bic', swiftField.value, 'form-swift-bic');
             });
         }
 

@@ -2340,9 +2340,9 @@ style('budget', 'style');
                 </div>
 
                 <div class="form-group">
-                    <label for="account-number">Account Number</label>
-                    <input type="text" id="account-number" aria-describedby="account-number-help" maxlength="100">
-                    <small id="account-number-help" class="form-text">Your account number</small>
+                    <label for="form-account-number">Account Number</label>
+                    <input type="text" id="form-account-number" aria-describedby="form-account-number-help" maxlength="100">
+                    <small id="form-account-number-help" class="form-text">Your account number</small>
                 </div>
 
                 <div class="form-group">
@@ -2357,27 +2357,27 @@ style('budget', 'style');
                 <h4>Banking Details</h4>
 
                 <div class="form-group conditional" id="routing-number-group">
-                    <label for="account-routing-number">Routing Number</label>
-                    <input type="text" id="account-routing-number" aria-describedby="account-routing-number-help" maxlength="20">
-                    <small id="account-routing-number-help" class="form-text">9-digit routing number (US banks)</small>
+                    <label for="form-routing-number">Routing Number</label>
+                    <input type="text" id="form-routing-number" aria-describedby="form-routing-number-help" maxlength="20">
+                    <small id="form-routing-number-help" class="form-text">9-digit routing number (US banks)</small>
                 </div>
 
                 <div class="form-group conditional" id="sort-code-group">
-                    <label for="account-sort-code">Sort Code</label>
-                    <input type="text" id="account-sort-code" aria-describedby="account-sort-code-help" maxlength="10">
-                    <small id="account-sort-code-help" class="form-text">6-digit sort code (UK banks)</small>
+                    <label for="form-sort-code">Sort Code</label>
+                    <input type="text" id="form-sort-code" aria-describedby="form-sort-code-help" maxlength="10">
+                    <small id="form-sort-code-help" class="form-text">6-digit sort code (UK banks)</small>
                 </div>
 
                 <div class="form-group conditional" id="iban-group">
-                    <label for="account-iban">IBAN</label>
-                    <input type="text" id="account-iban" aria-describedby="account-iban-help" maxlength="34">
-                    <small id="account-iban-help" class="form-text">International Bank Account Number</small>
+                    <label for="form-iban">IBAN</label>
+                    <input type="text" id="form-iban" aria-describedby="form-iban-help" maxlength="34">
+                    <small id="form-iban-help" class="form-text">International Bank Account Number</small>
                 </div>
 
                 <div class="form-group conditional" id="swift-bic-group">
-                    <label for="account-swift-bic">SWIFT/BIC Code</label>
-                    <input type="text" id="account-swift-bic" aria-describedby="account-swift-bic-help" maxlength="11">
-                    <small id="account-swift-bic-help" class="form-text">SWIFT/BIC code for international transfers</small>
+                    <label for="form-swift-bic">SWIFT/BIC Code</label>
+                    <input type="text" id="form-swift-bic" aria-describedby="form-swift-bic-help" maxlength="11">
+                    <small id="form-swift-bic-help" class="form-text">SWIFT/BIC code for international transfers</small>
                 </div>
             </div>
 
