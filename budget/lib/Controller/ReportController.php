@@ -8,8 +8,8 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\ReportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\AppFramework\Http\StreamResponse;
 use OCP\IRequest;
 
 class ReportController extends Controller {
@@ -123,7 +123,7 @@ class ReportController extends Controller {
         ?int $accountId = null,
         string $startDate = null,
         string $endDate = null
-    ): StreamResponse {
+    ): DataDownloadResponse|DataResponse {
         try {
             if (!$startDate) {
                 $startDate = date('Y-m-01', strtotime('-12 months'));
@@ -141,13 +141,13 @@ class ReportController extends Controller {
                 $endDate
             );
 
-            $response = new StreamResponse($export['stream']);
-            $response->addHeader('Content-Type', $export['contentType']);
-            $response->addHeader('Content-Disposition', 'attachment; filename="' . $export['filename'] . '"');
-            
-            return $response;
+            return new DataDownloadResponse(
+                $export['stream'],
+                $export['filename'],
+                $export['contentType']
+            );
         } catch (\Exception $e) {
-            return new StreamResponse('');
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
 
@@ -172,6 +172,62 @@ class ReportController extends Controller {
                 $endDate
             );
             return new DataResponse($budget);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function summaryWithComparison(
+        ?int $accountId = null,
+        string $startDate = null,
+        string $endDate = null
+    ): DataResponse {
+        try {
+            if (!$startDate) {
+                $startDate = date('Y-m-01');
+            }
+            if (!$endDate) {
+                $endDate = date('Y-m-d');
+            }
+
+            $summary = $this->service->generateSummaryWithComparison(
+                $this->userId,
+                $accountId,
+                $startDate,
+                $endDate
+            );
+            return new DataResponse($summary);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function cashflow(
+        ?int $accountId = null,
+        string $startDate = null,
+        string $endDate = null
+    ): DataResponse {
+        try {
+            if (!$startDate) {
+                $startDate = date('Y-m-01', strtotime('-12 months'));
+            }
+            if (!$endDate) {
+                $endDate = date('Y-m-d');
+            }
+
+            $cashflow = $this->service->getCashFlowReport(
+                $this->userId,
+                $accountId,
+                $startDate,
+                $endDate
+            );
+            return new DataResponse($cashflow);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }

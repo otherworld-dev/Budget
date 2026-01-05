@@ -7344,3 +7344,407 @@ button.danger:hover {
         justify-content: center;
     }
 }
+
+/* ==========================================
+   Reports Page Styles
+   ========================================== */
+
+.reports-controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    background: var(--color-main-background);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.reports-controls .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reports-controls .control-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-lighter);
+}
+
+.reports-controls .report-select,
+.reports-controls input[type="date"] {
+    min-width: 140px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-main-background);
+    font-size: 14px;
+    height: 36px;
+}
+
+.reports-controls .report-select:focus,
+.reports-controls input[type="date"]:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
+}
+
+.reports-controls .date-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reports-controls .date-separator {
+    color: var(--color-text-lighter);
+    font-size: 13px;
+}
+
+.reports-controls .custom-range {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.reports-controls .custom-range label {
+    display: none;
+}
+
+#generate-report-btn {
+    height: 36px;
+    padding: 0 20px;
+}
+
+/* Report Summary Cards */
+.report-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.report-summary-cards-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.report-summary-cards .summary-card {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.report-summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.report-summary-cards .summary-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.report-summary-cards .summary-label {
+    font-size: 12px;
+    color: var(--color-text-lighter);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.report-summary-cards .summary-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.summary-change {
+    display: block;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.summary-change.positive {
+    color: #2e7d32;
+}
+
+.summary-change.negative {
+    color: #c62828;
+}
+
+.summary-card-income .summary-icon {
+    background: rgba(46, 125, 50, 0.1);
+    color: #2e7d32;
+}
+
+.summary-card-expenses .summary-icon {
+    background: rgba(198, 40, 40, 0.1);
+    color: #c62828;
+}
+
+.summary-card-net .summary-icon {
+    background: rgba(33, 150, 243, 0.1);
+    color: #2196f3;
+}
+
+.summary-card-savings .summary-icon {
+    background: rgba(156, 39, 176, 0.1);
+    color: #9c27b0;
+}
+
+/* Report Sections */
+.report-section {
+    margin-bottom: 24px;
+}
+
+/* Report Grid Layout */
+.report-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+/* Spending Chart Wrapper */
+.spending-chart-wrapper {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.chart-container-doughnut {
+    width: 280px;
+    height: 280px;
+    flex-shrink: 0;
+}
+
+.spending-legend {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.spending-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.spending-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.spending-legend-name {
+    flex: 1;
+    color: var(--color-main-text);
+}
+
+.spending-legend-value {
+    font-weight: 500;
+    color: var(--color-main-text);
+}
+
+.spending-legend-pct {
+    color: var(--color-text-lighter);
+    font-size: 12px;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Data Tables */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--color-text-lighter);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--color-background-hover);
+}
+
+.data-table tbody tr:hover {
+    background: var(--color-background-hover);
+}
+
+.data-table .text-right {
+    text-align: right;
+}
+
+.data-table .positive {
+    color: #2e7d32;
+}
+
+.data-table .negative {
+    color: #c62828;
+}
+
+.category-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: var(--color-text-lighter);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Reports View Header */
+#reports-view .view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#reports-view .view-header h2 {
+    margin: 0;
+}
+
+#reports-view .view-controls {
+    display: flex;
+    gap: 8px;
+}
+
+#reports-view .view-controls button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Report Content */
+.report-content {
+    min-height: 400px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .report-summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .report-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .spending-chart-wrapper {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .spending-legend {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .report-summary-cards,
+    .report-summary-cards-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .reports-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .reports-controls .control-group {
+        width: 100%;
+    }
+
+    .reports-controls .report-select,
+    .reports-controls input[type="date"] {
+        width: 100%;
+    }
+
+    .reports-controls .date-range-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .reports-controls .date-separator {
+        display: none;
+    }
+
+    #generate-report-btn {
+        width: 100%;
+    }
+
+    .chart-container-doughnut {
+        width: 220px;
+        height: 220px;
+    }
+}
+
+@media (max-width: 480px) {
+    .report-summary-cards .summary-card {
+        padding: 16px;
+    }
+
+    .report-summary-cards .summary-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .report-summary-cards .summary-value {
+        font-size: 18px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 8px;
+        font-size: 13px;
+    }
+}

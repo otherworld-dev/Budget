@@ -59,7 +59,25 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($endDate)))
             ->orderBy('date', 'DESC')
             ->addOrderBy('id', 'DESC');
-        
+
+        return $this->findEntities($qb);
+    }
+
+    /**
+     * Find all transactions for a user within a date range (across all accounts)
+     * @return Transaction[]
+     */
+    public function findAllByUserAndDateRange(string $userId, string $startDate, string $endDate): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.*')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->orderBy('t.date', 'DESC')
+            ->addOrderBy('t.id', 'DESC');
+
         return $this->findEntities($qb);
     }
 
@@ -322,11 +340,180 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->groupBy('c.id', 'c.name', 'c.color', 'c.icon')
             ->orderBy('total', 'DESC');
-        
+
         $result = $qb->executeQuery();
         $summary = $result->fetchAll();
         $result->closeCursor();
-        
+
         return $summary;
+    }
+
+    /**
+     * Get spending grouped by month
+     */
+    public function getSpendingByMonth(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+        $qb = $this->db->getQueryBuilder();
+
+        // Use SUBSTR for month extraction (compatible with SQLite, MySQL, PostgreSQL)
+        $qb->select($qb->createFunction('SUBSTR(t.date, 1, 7) as month'))
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy($qb->createFunction('SUBSTR(t.date, 1, 7)'))
+            ->orderBy($qb->createFunction('SUBSTR(t.date, 1, 7)'), 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return $data;
+    }
+
+    /**
+     * Get spending grouped by vendor
+     */
+    public function getSpendingByVendor(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.vendor')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->isNotNull('t.vendor'))
+            ->andWhere($qb->expr()->neq('t.vendor', $qb->createNamedParameter('')));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy('t.vendor')
+            ->orderBy('total', 'DESC')
+            ->setMaxResults($limit);
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'name' => $row['vendor'] ?: 'Unknown',
+            'total' => (float)$row['total'],
+            'count' => (int)$row['count']
+        ], $data);
+    }
+
+    /**
+     * Get income grouped by month
+     */
+    public function getIncomeByMonth(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select($qb->createFunction('SUBSTR(t.date, 1, 7) as month'))
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy($qb->createFunction('SUBSTR(t.date, 1, 7)'))
+            ->orderBy($qb->createFunction('SUBSTR(t.date, 1, 7)'), 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return $data;
+    }
+
+    /**
+     * Get income grouped by source (vendor)
+     */
+    public function getIncomeBySource(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.vendor')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy('t.vendor')
+            ->orderBy('total', 'DESC')
+            ->setMaxResults($limit);
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'name' => $row['vendor'] ?: 'Unknown Source',
+            'total' => (float)$row['total'],
+            'count' => (int)$row['count']
+        ], $data);
+    }
+
+    /**
+     * Get cash flow data by month (income and expenses combined)
+     */
+    public function getCashFlowByMonth(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+        // Get income by month
+        $incomeData = $this->getIncomeByMonth($userId, $accountId, $startDate, $endDate);
+        $expenseData = $this->getSpendingByMonth($userId, $accountId, $startDate, $endDate);
+
+        // Merge into cash flow data
+        $months = [];
+
+        foreach ($incomeData as $row) {
+            $months[$row['month']] = ['income' => (float)$row['total'], 'expenses' => 0];
+        }
+        foreach ($expenseData as $row) {
+            if (!isset($months[$row['month']])) {
+                $months[$row['month']] = ['income' => 0, 'expenses' => 0];
+            }
+            $months[$row['month']]['expenses'] = (float)$row['total'];
+        }
+
+        ksort($months);
+
+        $cashFlow = [];
+        foreach ($months as $month => $data) {
+            $cashFlow[] = [
+                'month' => $month,
+                'income' => $data['income'],
+                'expenses' => $data['expenses'],
+                'net' => $data['income'] - $data['expenses']
+            ];
+        }
+
+        return $cashFlow;
     }
 }

@@ -1718,22 +1718,265 @@ style('budget', 'style');
         
         <!-- Reports View -->
         <div id="reports-view" class="view">
-            <h2>Financial Reports</h2>
-
-            <div class="reports-controls">
-                <input type="date" id="report-start-date" aria-label="Report start date">
-                <input type="date" id="report-end-date" aria-label="Report end date">
-                <select id="report-type" aria-label="Select report type">
-                    <option value="summary">Summary</option>
-                    <option value="spending">Spending Analysis</option>
-                    <option value="income">Income Analysis</option>
-                    <option value="cashflow">Cash Flow</option>
-                </select>
-                <button id="generate-report-btn" class="primary" aria-label="Generate selected report">Generate Report</button>
-                <button id="export-report-btn" class="secondary" aria-label="Export report data">Export</button>
+            <div class="view-header">
+                <h2>Financial Reports</h2>
+                <div class="view-controls">
+                    <button id="export-csv-btn" class="secondary" title="Export as CSV">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>
+                        CSV
+                    </button>
+                    <button id="export-pdf-btn" class="secondary" title="Export as PDF">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>
+                        PDF
+                    </button>
+                </div>
             </div>
 
-            <div id="report-content"></div>
+            <!-- Report Controls -->
+            <div class="reports-controls">
+                <div class="control-group">
+                    <label for="report-type">Report Type</label>
+                    <select id="report-type" class="report-select">
+                        <option value="summary">Summary Dashboard</option>
+                        <option value="spending">Spending by Category</option>
+                        <option value="cashflow">Cash Flow</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="report-period-preset">Period</label>
+                    <select id="report-period-preset" class="report-select">
+                        <option value="this-month">This Month</option>
+                        <option value="last-3-months" selected>Last 3 Months</option>
+                        <option value="ytd">Year to Date</option>
+                        <option value="last-year">Last Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+
+                <div id="custom-date-range" class="control-group custom-range" style="display: none;">
+                    <label>Custom Range</label>
+                    <div class="date-range-inputs">
+                        <input type="date" id="report-start-date" aria-label="Start date">
+                        <span class="date-separator">to</span>
+                        <input type="date" id="report-end-date" aria-label="End date">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="report-account">Account</label>
+                    <select id="report-account" class="report-select">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+
+                <button id="generate-report-btn" class="primary">Generate Report</button>
+            </div>
+
+            <!-- Report Loading State -->
+            <div id="report-loading" class="loading-state" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Generating report...</p>
+            </div>
+
+            <!-- Report Content Area -->
+            <div id="report-content" class="report-content">
+                <!-- Summary Dashboard Report -->
+                <div id="report-summary" class="report-section" style="display: none;">
+                    <!-- Summary Cards -->
+                    <div class="report-summary-cards">
+                        <div class="summary-card summary-card-income">
+                            <div class="summary-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                                </svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-label">Total Income</span>
+                                <span id="report-total-income" class="summary-value">--</span>
+                                <span id="report-income-change" class="summary-change"></span>
+                            </div>
+                        </div>
+                        <div class="summary-card summary-card-expenses">
+                            <div class="summary-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/>
+                                </svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-label">Total Expenses</span>
+                                <span id="report-total-expenses" class="summary-value">--</span>
+                                <span id="report-expenses-change" class="summary-change"></span>
+                            </div>
+                        </div>
+                        <div class="summary-card summary-card-net">
+                            <div class="summary-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                                </svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-label">Net Income</span>
+                                <span id="report-net-income" class="summary-value">--</span>
+                                <span id="report-net-change" class="summary-change"></span>
+                            </div>
+                        </div>
+                        <div class="summary-card summary-card-savings">
+                            <div class="summary-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"/>
+                                </svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-label">Savings Rate</span>
+                                <span id="report-savings-rate" class="summary-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trend Chart -->
+                    <div class="dashboard-card dashboard-card-large">
+                        <div class="card-header">
+                            <h3>Income vs Expenses Trend</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="report-trend-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Account Breakdown Table -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Account Breakdown</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="report-accounts-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Account</th>
+                                        <th class="text-right">Income</th>
+                                        <th class="text-right">Expenses</th>
+                                        <th class="text-right">Net</th>
+                                        <th class="text-right">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spending by Category Report -->
+                <div id="report-spending" class="report-section" style="display: none;">
+                    <div class="report-grid">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3>Spending by Category</h3>
+                            </div>
+                            <div class="spending-chart-wrapper">
+                                <div class="chart-container chart-container-doughnut">
+                                    <canvas id="report-spending-chart"></canvas>
+                                </div>
+                                <div id="report-spending-legend" class="spending-legend"></div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3>Category Breakdown</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="report-categories-table" class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th class="text-right">Amount</th>
+                                            <th class="text-right">% of Total</th>
+                                            <th class="text-right">Transactions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Vendors -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Top Vendors</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="report-vendors-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Vendor</th>
+                                        <th class="text-right">Amount</th>
+                                        <th class="text-right">Transactions</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cash Flow Report -->
+                <div id="report-cashflow" class="report-section" style="display: none;">
+                    <!-- Cash Flow Summary Cards -->
+                    <div class="report-summary-cards report-summary-cards-3">
+                        <div class="summary-card summary-card-income">
+                            <div class="summary-content">
+                                <span class="summary-label">Avg Monthly Income</span>
+                                <span id="report-avg-income" class="summary-value">--</span>
+                            </div>
+                        </div>
+                        <div class="summary-card summary-card-expenses">
+                            <div class="summary-content">
+                                <span class="summary-label">Avg Monthly Expenses</span>
+                                <span id="report-avg-expenses" class="summary-value">--</span>
+                            </div>
+                        </div>
+                        <div class="summary-card summary-card-net">
+                            <div class="summary-content">
+                                <span class="summary-label">Avg Monthly Savings</span>
+                                <span id="report-avg-net" class="summary-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cash Flow Chart -->
+                    <div class="dashboard-card dashboard-card-large">
+                        <div class="card-header">
+                            <h3>Monthly Cash Flow</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="report-cashflow-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Cash Flow Table -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Monthly Breakdown</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="report-cashflow-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-right">Income</th>
+                                        <th class="text-right">Expenses</th>
+                                        <th class="text-right">Net</th>
+                                        <th class="text-right">Cumulative</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Settings View -->

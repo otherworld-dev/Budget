@@ -9,7 +9,8 @@
         }
     ],
     "require": {
-        "php": "^8.3"
+        "php": "^8.3",
+        "tecnickcom/tcpdf": "^6.6"
     },
     "require-dev": {
         "nextcloud/ocp": "dev-stable30",

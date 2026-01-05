@@ -99,8 +99,10 @@ return [
 
         // Report routes
         ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
+        ['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],
         ['name' => 'report#spending', 'url' => '/api/reports/spending', 'verb' => 'GET'],
         ['name' => 'report#income', 'url' => '/api/reports/income', 'verb' => 'GET'],
+        ['name' => 'report#cashflow', 'url' => '/api/reports/cashflow', 'verb' => 'GET'],
         ['name' => 'report#budget', 'url' => '/api/reports/budget', 'verb' => 'GET'],
         ['name' => 'report#export', 'url' => '/api/reports/export', 'verb' => 'POST'],
         

@@ -65,8 +65,251 @@ class ForecastService {
         
         // Generate scenarios
         $forecast['scenarios'] = $this->generateScenarios($userId, $accounts, $forecastMonths);
-        
+
         return $forecast;
+    }
+
+    /**
+     * Get live forecast data for dashboard display
+     * Calculates real data from transactions and accounts
+     */
+    public function getLiveForecast(string $userId, int $forecastMonths = 6): array {
+        // Get all accounts and calculate current total balance
+        $accounts = $this->accountMapper->findAll($userId);
+        $currentBalance = 0.0;
+        $currencyCounts = [];
+
+        foreach ($accounts as $account) {
+            $currentBalance += $account->getBalance();
+            // Track currency usage by balance weight
+            $currency = $account->getCurrency() ?? 'USD';
+            if (!isset($currencyCounts[$currency])) {
+                $currencyCounts[$currency] = 0;
+            }
+            $currencyCounts[$currency] += abs($account->getBalance());
+        }
+
+        // Determine primary currency (most used by balance)
+        $primaryCurrency = 'USD';
+        if (!empty($currencyCounts)) {
+            arsort($currencyCounts);
+            $primaryCurrency = array_key_first($currencyCounts);
+        }
+
+        // Get historical transactions (last 12 months for trend analysis)
+        $endDate = date('Y-m-d');
+        $startDate = date('Y-m-d', strtotime('-12 months'));
+        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
+
+        // Analyze patterns from historical data
+        $monthlyData = $this->aggregateMonthlyData($transactions);
+        $months = count($monthlyData);
+
+        // Calculate averages and trends
+        $incomeValues = array_column($monthlyData, 'income');
+        $expenseValues = array_column($monthlyData, 'expenses');
+        $savingsValues = array_map(fn($m) => $m['income'] - $m['expenses'], $monthlyData);
+
+        $avgIncome = $months > 0 ? array_sum($incomeValues) / $months : 0;
+        $avgExpenses = $months > 0 ? array_sum($expenseValues) / $months : 0;
+        $avgSavings = $avgIncome - $avgExpenses;
+
+        $incomeTrend = $this->calculateTrend($incomeValues);
+        $expenseTrend = $this->calculateTrend($expenseValues);
+        $savingsTrend = $this->calculateTrend($savingsValues);
+
+        // Generate monthly projections
+        $monthlyProjections = [];
+        $projectedBalance = $currentBalance;
+        $cumulativeSavings = 0;
+        $savingsMonthlyData = [];
+
+        for ($i = 1; $i <= $forecastMonths; $i++) {
+            $projectionDate = strtotime("+{$i} months");
+            $monthLabel = date('M Y', $projectionDate);
+
+            // Project income and expenses with trend
+            $projectedIncome = max(0, $avgIncome + ($incomeTrend * $i));
+            $projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
+            $monthlySavings = $projectedIncome - $projectedExpenses;
+
+            $projectedBalance += $monthlySavings;
+            $cumulativeSavings += $monthlySavings;
+            $savingsMonthlyData[] = $cumulativeSavings;
+
+            $monthlyProjections[] = [
+                'month' => $monthLabel,
+                'balance' => round($projectedBalance, 2),
+                'income' => round($projectedIncome, 2),
+                'expenses' => round($projectedExpenses, 2),
+                'savings' => round($monthlySavings, 2)
+            ];
+        }
+
+        // Calculate savings rate
+        $savingsRate = $avgIncome > 0 ? ($avgSavings / $avgIncome) * 100 : 0;
+
+        // Get category breakdown
+        $categoryBreakdown = $this->getCategoryBreakdown($userId, $transactions);
+
+        // Calculate confidence based on data quality
+        $transactionCount = count($transactions);
+        $confidence = $this->calculateDataConfidence($months, $transactionCount, $incomeValues, $expenseValues);
+
+        return [
+            'currency' => $primaryCurrency,
+            'currentBalance' => round($currentBalance, 2),
+            'projectedBalance' => round($projectedBalance, 2),
+            'monthlyProjections' => $monthlyProjections,
+            'trends' => [
+                'avgMonthlyIncome' => round($avgIncome, 2),
+                'avgMonthlyExpenses' => round($avgExpenses, 2),
+                'avgMonthlySavings' => round($avgSavings, 2),
+                'incomeDirection' => $this->getTrendDirection($incomeTrend, $avgIncome),
+                'expenseDirection' => $this->getTrendDirection($expenseTrend, $avgExpenses),
+                'savingsDirection' => $this->getTrendDirection($savingsTrend, $avgSavings),
+            ],
+            'savingsProjection' => [
+                'currentMonthlySavings' => round($avgSavings, 2),
+                'projectedTotalSavings' => round($cumulativeSavings, 2),
+                'savingsRate' => round($savingsRate, 1),
+                'monthlyData' => $savingsMonthlyData
+            ],
+            'categoryBreakdown' => $categoryBreakdown,
+            'confidence' => round($confidence, 0),
+            'dataQuality' => [
+                'monthsOfData' => $months,
+                'transactionCount' => $transactionCount,
+                'isReliable' => $months >= 3 && $transactionCount >= 10
+            ]
+        ];
+    }
+
+    /**
+     * Aggregate transactions into monthly totals
+     */
+    private function aggregateMonthlyData(array $transactions): array {
+        $monthlyData = [];
+
+        foreach ($transactions as $transaction) {
+            $month = date('Y-m', strtotime($transaction->getDate()));
+
+            if (!isset($monthlyData[$month])) {
+                $monthlyData[$month] = ['income' => 0.0, 'expenses' => 0.0];
+            }
+
+            if ($transaction->getType() === 'credit') {
+                $monthlyData[$month]['income'] += $transaction->getAmount();
+            } else {
+                $monthlyData[$month]['expenses'] += $transaction->getAmount();
+            }
+        }
+
+        // Sort by month and return as indexed array
+        ksort($monthlyData);
+        return array_values($monthlyData);
+    }
+
+    /**
+     * Get trend direction as string
+     */
+    private function getTrendDirection(float $trend, float $average): string {
+        if ($average == 0) {
+            return 'stable';
+        }
+
+        // Consider significant if trend is > 1% of average per month
+        $threshold = abs($average) * 0.01;
+
+        if ($trend > $threshold) {
+            return 'up';
+        } elseif ($trend < -$threshold) {
+            return 'down';
+        }
+        return 'stable';
+    }
+
+    /**
+     * Get spending breakdown by category
+     */
+    private function getCategoryBreakdown(string $userId, array $transactions): array {
+        $categoryTotals = [];
+        $categoryMonths = [];
+
+        foreach ($transactions as $transaction) {
+            if ($transaction->getType() !== 'debit') {
+                continue;
+            }
+
+            $categoryId = $transaction->getCategoryId();
+            if (!$categoryId) {
+                $categoryId = 0; // Uncategorized
+            }
+
+            $month = date('Y-m', strtotime($transaction->getDate()));
+
+            if (!isset($categoryTotals[$categoryId])) {
+                $categoryTotals[$categoryId] = [];
+            }
+            if (!isset($categoryTotals[$categoryId][$month])) {
+                $categoryTotals[$categoryId][$month] = 0;
+            }
+            $categoryTotals[$categoryId][$month] += $transaction->getAmount();
+        }
+
+        $breakdown = [];
+        foreach ($categoryTotals as $categoryId => $monthlyAmounts) {
+            $values = array_values($monthlyAmounts);
+            $avgMonthly = count($values) > 0 ? array_sum($values) / count($values) : 0;
+            $trend = $this->calculateTrend($values);
+
+            $categoryName = 'Uncategorized';
+            if ($categoryId > 0) {
+                try {
+                    $category = $this->categoryMapper->find($categoryId, $userId);
+                    $categoryName = $category->getName();
+                } catch (\Exception $e) {
+                    $categoryName = 'Unknown';
+                }
+            }
+
+            $breakdown[] = [
+                'categoryId' => $categoryId,
+                'name' => $categoryName,
+                'avgMonthly' => round($avgMonthly, 2),
+                'trend' => $this->getTrendDirection($trend, $avgMonthly)
+            ];
+        }
+
+        // Sort by average monthly spending (highest first)
+        usort($breakdown, fn($a, $b) => $b['avgMonthly'] <=> $a['avgMonthly']);
+
+        return $breakdown;
+    }
+
+    /**
+     * Calculate confidence score based on data quality
+     */
+    private function calculateDataConfidence(int $months, int $transactionCount, array $incomeValues, array $expenseValues): float {
+        $confidence = 50.0; // Base confidence
+
+        // More months = higher confidence (up to +25)
+        $confidence += min($months * 2, 25);
+
+        // More transactions = higher confidence (up to +15)
+        $confidence += min($transactionCount / 10, 15);
+
+        // Lower volatility = higher confidence (up to +10)
+        if (count($incomeValues) > 1) {
+            $incomeVolatility = $this->calculateVolatility($incomeValues);
+            $avgIncome = array_sum($incomeValues) / count($incomeValues);
+            if ($avgIncome > 0) {
+                $relativeVolatility = $incomeVolatility / $avgIncome;
+                $confidence += max(0, 10 - ($relativeVolatility * 20));
+            }
+        }
+
+        return min(100, max(0, $confidence));
     }
 
     private function generateAccountForecast(
@@ -417,9 +660,9 @@ class ForecastService {
 
     public function getCashFlowForecast(
         string $userId,
-        ?int $accountId = null,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?int $accountId = null
     ): array {
         // Implementation for cash flow forecasting
         return [

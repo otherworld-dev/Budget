@@ -64,9 +64,9 @@ class ForecastController extends Controller {
 
             $cashflow = $this->service->getCashFlowForecast(
                 $this->userId,
-                $accountId,
                 $startDate,
-                $endDate
+                $endDate,
+                $accountId
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
@@ -130,6 +130,22 @@ class ForecastController extends Controller {
                 $confidenceLevel
             );
             return new DataResponse($enhancedForecast);
+        } catch (\Exception $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     * Get live forecast data for dashboard
+     */
+    public function live(int $forecastMonths = 6): DataResponse {
+        try {
+            $forecast = $this->service->getLiveForecast(
+                $this->userId,
+                $forecastMonths
+            );
+            return new DataResponse($forecast);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
