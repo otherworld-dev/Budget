@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Budget\AppInfo;
 
+use OCA\Budget\BackgroundJob\CleanupAuditLogsJob;
+use OCA\Budget\BackgroundJob\CleanupImportFilesJob;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -17,6 +19,22 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
+        // Register background jobs
+        $context->registerService(CleanupImportFilesJob::class, function($c) {
+            return new CleanupImportFilesJob(
+                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
+                $c->get(\OCP\Files\IAppData::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+
+        $context->registerService(CleanupAuditLogsJob::class, function($c) {
+            return new CleanupAuditLogsJob(
+                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
+                $c->get(\OCA\Budget\Db\AuditLogMapper::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
         // Service registrations for dependency injection
         $context->registerService('GoalsService', function() {
             return new \OCA\Budget\Service\GoalsService();

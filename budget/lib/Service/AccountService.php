@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\DoesNotExistException;
 
 class AccountService {
@@ -103,23 +104,30 @@ class AccountService {
 
     public function getSummary(string $userId): array {
         $accounts = $this->findAll($userId);
-        $totalBalance = 0;
+        $totalBalance = '0.00';
         $currencyBreakdown = [];
-        
+
         foreach ($accounts as $account) {
-            $totalBalance += $account->getBalance();
+            $balance = (string) $account->getBalance();
+            $totalBalance = MoneyCalculator::add($totalBalance, $balance);
             $currency = $account->getCurrency();
-            
+
             if (!isset($currencyBreakdown[$currency])) {
-                $currencyBreakdown[$currency] = 0;
+                $currencyBreakdown[$currency] = '0.00';
             }
-            $currencyBreakdown[$currency] += $account->getBalance();
+            $currencyBreakdown[$currency] = MoneyCalculator::add($currencyBreakdown[$currency], $balance);
         }
-        
+
+        // Convert back to float for API response compatibility
+        $currencyBreakdownFloat = [];
+        foreach ($currencyBreakdown as $currency => $amount) {
+            $currencyBreakdownFloat[$currency] = MoneyCalculator::toFloat($amount);
+        }
+
         return [
             'accounts' => $accounts,
-            'totalBalance' => $totalBalance,
-            'currencyBreakdown' => $currencyBreakdown,
+            'totalBalance' => MoneyCalculator::toFloat($totalBalance),
+            'currencyBreakdown' => $currencyBreakdownFloat,
             'accountCount' => count($accounts)
         ];
     }
@@ -128,50 +136,52 @@ class AccountService {
         $account = $this->find($accountId, $userId);
         $endDate = date('Y-m-d');
         $startDate = date('Y-m-d', strtotime("-{$days} days"));
-        
+
         $transactions = $this->transactionMapper->findByDateRange(
             $accountId,
             $startDate,
             $endDate
         );
-        
-        $balance = $account->getBalance();
+
+        $balance = (string) $account->getBalance();
         $history = [];
-        
+
         // Work backwards from current balance
         for ($i = 0; $i < $days; $i++) {
             $date = date('Y-m-d', strtotime("-{$i} days"));
             $dayTransactions = array_filter($transactions, function($t) use ($date) {
                 return $t->getDate() === $date;
             });
-            
+
             foreach ($dayTransactions as $transaction) {
+                $amount = (string) $transaction->getAmount();
                 if ($transaction->getType() === 'credit') {
-                    $balance -= $transaction->getAmount();
+                    $balance = MoneyCalculator::subtract($balance, $amount);
                 } else {
-                    $balance += $transaction->getAmount();
+                    $balance = MoneyCalculator::add($balance, $amount);
                 }
             }
-            
+
             $history[] = [
                 'date' => $date,
-                'balance' => $balance
+                'balance' => MoneyCalculator::toFloat($balance)
             ];
         }
-        
+
         return array_reverse($history);
     }
 
     public function reconcile(int $accountId, string $userId, float $statementBalance): array {
         $account = $this->find($accountId, $userId);
-        $currentBalance = $account->getBalance();
-        $difference = $statementBalance - $currentBalance;
-        
+        $currentBalance = (string) $account->getBalance();
+        $statementBalanceStr = (string) $statementBalance;
+        $difference = MoneyCalculator::subtract($statementBalanceStr, $currentBalance);
+
         return [
-            'currentBalance' => $currentBalance,
+            'currentBalance' => MoneyCalculator::toFloat($currentBalance),
             'statementBalance' => $statementBalance,
-            'difference' => $difference,
-            'isBalanced' => abs($difference) < 0.01
+            'difference' => MoneyCalculator::toFloat($difference),
+            'isBalanced' => MoneyCalculator::equals($currentBalance, $statementBalanceStr, '0.01')
         ];
     }
 }

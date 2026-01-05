@@ -7,14 +7,18 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
+use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\IAppData;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class ImportController extends Controller {
+    use ApiErrorHandlerTrait;
+
     private ImportService $service;
     private AuditService $auditService;
     private IAppData $appData;
@@ -25,13 +29,15 @@ class ImportController extends Controller {
         ImportService $service,
         AuditService $auditService,
         IAppData $appData,
-        string $userId
+        string $userId,
+        LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->auditService = $auditService;
         $this->appData = $appData;
         $this->userId = $userId;
+        $this->setLogger($logger);
     }
 
     /**
@@ -65,7 +71,7 @@ class ImportController extends Controller {
                 $uploadedFile['name'] ?? 'unknown',
                 $e->getMessage()
             );
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to upload file');
         }
     }
 
@@ -90,7 +96,7 @@ class ImportController extends Controller {
             );
             return new DataResponse($preview);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to preview import');
         }
     }
 
@@ -134,7 +140,7 @@ class ImportController extends Controller {
             return new DataResponse($result);
         } catch (\Exception $e) {
             $this->auditService->logImportFailed($this->userId, $fileId, $e->getMessage());
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to process import');
         }
     }
 
@@ -146,7 +152,7 @@ class ImportController extends Controller {
             $templates = $this->service->getImportTemplates();
             return new DataResponse($templates);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to retrieve import templates');
         }
     }
 
@@ -158,7 +164,7 @@ class ImportController extends Controller {
             $history = $this->service->getImportHistory($this->userId, $limit);
             return new DataResponse($history);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to retrieve import history');
         }
     }
 
@@ -170,13 +176,14 @@ class ImportController extends Controller {
             $validation = $this->service->validateFile($this->userId, $fileId);
             return new DataResponse($validation);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to validate file');
         }
     }
 
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 10, period: 60)]
     public function execute(
         string $importId,
         int $accountId,
@@ -191,19 +198,20 @@ class ImportController extends Controller {
             );
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to execute import');
         }
     }
 
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 5, period: 60)]
     public function rollback(int $importId): DataResponse {
         try {
             $result = $this->service->rollbackImport($this->userId, $importId);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to rollback import', Http::STATUS_BAD_REQUEST, ['importId' => $importId]);
         }
     }
 }

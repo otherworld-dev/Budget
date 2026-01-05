@@ -45,4 +45,8 @@ Track your spending habits, manage savings, and forecast future account balances
             <order>10</order>
         </navigation>
     </navigations>
+    <background-jobs>
+        <job>OCA\Budget\BackgroundJob\CleanupImportFilesJob</job>
+        <job>OCA\Budget\BackgroundJob\CleanupAuditLogsJob</job>
+    </background-jobs>
 </info>

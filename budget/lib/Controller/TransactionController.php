@@ -6,23 +6,37 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\ValidationService;
+use OCA\Budget\Traits\ApiErrorHandlerTrait;
+use OCA\Budget\Traits\InputValidationTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class TransactionController extends Controller {
+    use ApiErrorHandlerTrait;
+    use InputValidationTrait;
+
     private TransactionService $service;
+    private ValidationService $validationService;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         TransactionService $service,
-        string $userId
+        ValidationService $validationService,
+        string $userId,
+        LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->validationService = $validationService;
         $this->userId = $userId;
+        $this->setLogger($logger);
+        $this->setInputValidator($validationService);
     }
 
     /**
@@ -67,7 +81,7 @@ class TransactionController extends Controller {
                 'totalPages' => ceil($result['total'] / $limit)
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to retrieve transactions');
         }
     }
 
@@ -79,13 +93,14 @@ class TransactionController extends Controller {
             $transaction = $this->service->find($id, $this->userId);
             return new DataResponse($transaction);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_NOT_FOUND);
+            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
         }
     }
 
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 60, period: 60)]
     public function create(
         int $accountId,
         string $date,
@@ -98,6 +113,50 @@ class TransactionController extends Controller {
         ?string $notes = null
     ): DataResponse {
         try {
+            // Validate description (required)
+            $descValidation = $this->validationService->validateDescription($description, true);
+            if (!$descValidation['valid']) {
+                return new DataResponse(['error' => $descValidation['error']], Http::STATUS_BAD_REQUEST);
+            }
+            $description = $descValidation['sanitized'];
+
+            // Validate date
+            $dateValidation = $this->validationService->validateDate($date, 'Date', true);
+            if (!$dateValidation['valid']) {
+                return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Validate type
+            $validTypes = ['credit', 'debit'];
+            if (!in_array($type, $validTypes, true)) {
+                return new DataResponse(['error' => 'Invalid transaction type. Must be credit or debit'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Validate optional fields
+            if ($vendor !== null) {
+                $vendorValidation = $this->validationService->validateVendor($vendor);
+                if (!$vendorValidation['valid']) {
+                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $vendor = $vendorValidation['sanitized'];
+            }
+
+            if ($reference !== null) {
+                $refValidation = $this->validationService->validateReference($reference);
+                if (!$refValidation['valid']) {
+                    return new DataResponse(['error' => $refValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $reference = $refValidation['sanitized'];
+            }
+
+            if ($notes !== null) {
+                $notesValidation = $this->validationService->validateNotes($notes);
+                if (!$notesValidation['valid']) {
+                    return new DataResponse(['error' => $notesValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $notes = $notesValidation['sanitized'];
+            }
+
             $transaction = $this->service->create(
                 $this->userId,
                 $accountId,
@@ -112,13 +171,14 @@ class TransactionController extends Controller {
             );
             return new DataResponse($transaction, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to create transaction');
         }
     }
 
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 60, period: 60)]
     public function update(
         int $id,
         ?string $date = null,
@@ -132,34 +192,92 @@ class TransactionController extends Controller {
         ?bool $reconciled = null
     ): DataResponse {
         try {
-            $updates = array_filter([
-                'date' => $date,
-                'description' => $description,
-                'amount' => $amount,
-                'type' => $type,
-                'categoryId' => $categoryId,
-                'vendor' => $vendor,
-                'reference' => $reference,
-                'notes' => $notes,
-                'reconciled' => $reconciled,
-            ], fn($value) => $value !== null);
-            
+            $updates = [];
+
+            // Validate description if provided
+            if ($description !== null) {
+                $descValidation = $this->validationService->validateDescription($description, false);
+                if (!$descValidation['valid']) {
+                    return new DataResponse(['error' => $descValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['description'] = $descValidation['sanitized'];
+            }
+
+            // Validate date if provided
+            if ($date !== null) {
+                $dateValidation = $this->validationService->validateDate($date, 'Date', false);
+                if (!$dateValidation['valid']) {
+                    return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['date'] = $date;
+            }
+
+            // Validate type if provided
+            if ($type !== null) {
+                $validTypes = ['credit', 'debit'];
+                if (!in_array($type, $validTypes, true)) {
+                    return new DataResponse(['error' => 'Invalid transaction type. Must be credit or debit'], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['type'] = $type;
+            }
+
+            // Validate optional string fields
+            if ($vendor !== null) {
+                $vendorValidation = $this->validationService->validateVendor($vendor);
+                if (!$vendorValidation['valid']) {
+                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['vendor'] = $vendorValidation['sanitized'];
+            }
+
+            if ($reference !== null) {
+                $refValidation = $this->validationService->validateReference($reference);
+                if (!$refValidation['valid']) {
+                    return new DataResponse(['error' => $refValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['reference'] = $refValidation['sanitized'];
+            }
+
+            if ($notes !== null) {
+                $notesValidation = $this->validationService->validateNotes($notes);
+                if (!$notesValidation['valid']) {
+                    return new DataResponse(['error' => $notesValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['notes'] = $notesValidation['sanitized'];
+            }
+
+            // Handle non-string fields
+            if ($amount !== null) {
+                $updates['amount'] = $amount;
+            }
+            if ($categoryId !== null) {
+                $updates['categoryId'] = $categoryId;
+            }
+            if ($reconciled !== null) {
+                $updates['reconciled'] = $reconciled;
+            }
+
+            if (empty($updates)) {
+                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+            }
+
             $transaction = $this->service->update($id, $this->userId, $updates);
             return new DataResponse($transaction);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to update transaction', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
     }
 
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_NOT_FOUND);
+            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
         }
     }
 
@@ -171,7 +289,7 @@ class TransactionController extends Controller {
             $transactions = $this->service->search($this->userId, $query, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to search transactions');
         }
     }
 
@@ -183,19 +301,20 @@ class TransactionController extends Controller {
             $transactions = $this->service->findUncategorized($this->userId, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to retrieve uncategorized transactions');
         }
     }
 
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 10, period: 60)]
     public function bulkCategorize(array $updates): DataResponse {
         try {
             $results = $this->service->bulkCategorize($this->userId, $updates);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to categorize transactions');
         }
     }
 }

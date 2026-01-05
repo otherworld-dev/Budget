@@ -7,13 +7,18 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class SettingController extends Controller {
+    use ApiErrorHandlerTrait;
+
     private $userId;
     private $mapper;
 
@@ -37,11 +42,13 @@ class SettingController extends Controller {
     public function __construct(
         IRequest $request,
         SettingMapper $mapper,
-        ?string $userId
+        ?string $userId,
+        LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->userId = $userId;
         $this->mapper = $mapper;
+        $this->setLogger($logger);
     }
 
     /**
@@ -64,10 +71,7 @@ class SettingController extends Controller {
 
             return new DataResponse($settingsArray);
         } catch (\Exception $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
+            return $this->handleError($e, 'Failed to retrieve settings', Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -96,10 +100,7 @@ class SettingController extends Controller {
                 Http::STATUS_NOT_FOUND
             );
         } catch (\Exception $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
+            return $this->handleError($e, 'Failed to retrieve setting', Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
         }
     }
 
@@ -108,6 +109,7 @@ class SettingController extends Controller {
      *
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function update(): DataResponse {
         try {
             $data = $this->request->getParams();
@@ -145,10 +147,7 @@ class SettingController extends Controller {
                 'settings' => $updated
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
+            return $this->handleError($e, 'Failed to update settings', Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -157,6 +156,7 @@ class SettingController extends Controller {
      *
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function updateKey(string $key): DataResponse {
         try {
             $value = $this->request->getParam('value');
@@ -193,10 +193,7 @@ class SettingController extends Controller {
                 'value' => $value
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
+            return $this->handleError($e, 'Failed to update setting', Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
         }
     }
 
@@ -205,6 +202,7 @@ class SettingController extends Controller {
      *
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(string $key): DataResponse {
         try {
             $deleted = $this->mapper->deleteByKey($this->userId, $key);
@@ -222,10 +220,7 @@ class SettingController extends Controller {
                 'default_value' => self::DEFAULTS[$key] ?? null
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
+            return $this->handleError($e, 'Failed to reset setting', Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
         }
     }
 
@@ -234,6 +229,7 @@ class SettingController extends Controller {
      *
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 5, period: 60)]
     public function reset(): DataResponse {
         try {
             $deleted = $this->mapper->deleteAll($this->userId);
@@ -244,10 +240,7 @@ class SettingController extends Controller {
                 'defaults' => self::DEFAULTS
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
+            return $this->handleError($e, 'Failed to reset settings', Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 

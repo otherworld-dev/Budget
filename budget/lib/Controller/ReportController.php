@@ -6,24 +6,30 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\ReportService;
+use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class ReportController extends Controller {
+    use ApiErrorHandlerTrait;
+
     private ReportService $service;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         ReportService $service,
-        string $userId
+        string $userId,
+        LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->userId = $userId;
+        $this->setLogger($logger);
     }
 
     /**
@@ -50,7 +56,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to generate summary report');
         }
     }
 
@@ -80,7 +86,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($spending);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to generate spending report');
         }
     }
 
@@ -110,7 +116,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($income);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to generate income report');
         }
     }
 
@@ -147,7 +153,7 @@ class ReportController extends Controller {
                 $export['contentType']
             );
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to export report');
         }
     }
 
@@ -173,7 +179,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($budget);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to generate budget report');
         }
     }
 
@@ -201,7 +207,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to generate comparison report');
         }
     }
 
@@ -229,7 +235,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, 'Failed to generate cash flow report');
         }
     }
 }
