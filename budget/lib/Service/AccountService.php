@@ -78,7 +78,9 @@ class AccountService {
 
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);
-            if (method_exists($account, $setter)) {
+            // Use is_callable() instead of method_exists() to support magic methods
+            // The Entity parent class uses __call() for getters/setters
+            if (is_callable([$account, $setter])) {
                 $account->$setter($value);
             }
         }

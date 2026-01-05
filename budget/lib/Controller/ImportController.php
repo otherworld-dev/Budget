@@ -5,26 +5,31 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\IAppData;
 use OCP\IRequest;
 
 class ImportController extends Controller {
     private ImportService $service;
+    private AuditService $auditService;
     private IAppData $appData;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         ImportService $service,
+        AuditService $auditService,
         IAppData $appData,
         string $userId
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->auditService = $auditService;
         $this->appData = $appData;
         $this->userId = $userId;
     }
@@ -32,6 +37,7 @@ class ImportController extends Controller {
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 5, period: 60)]
     public function upload(): DataResponse {
         try {
             $uploadedFile = $this->request->getUploadedFile('file');
@@ -43,9 +49,22 @@ class ImportController extends Controller {
                 return new DataResponse(['error' => 'File upload failed'], Http::STATUS_BAD_REQUEST);
             }
 
+            // Log import start
+            $this->auditService->logImportStarted(
+                $this->userId,
+                $uploadedFile['name'],
+                pathinfo($uploadedFile['name'], PATHINFO_EXTENSION)
+            );
+
             $result = $this->service->processUpload($this->userId, $uploadedFile);
             return new DataResponse($result);
         } catch (\Exception $e) {
+            // Log import failure
+            $this->auditService->logImportFailed(
+                $this->userId,
+                $uploadedFile['name'] ?? 'unknown',
+                $e->getMessage()
+            );
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
@@ -78,6 +97,7 @@ class ImportController extends Controller {
     /**
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 10, period: 60)]
     public function process(
         string $fileId,
         array $mapping = [],
@@ -96,8 +116,24 @@ class ImportController extends Controller {
                 $skipDuplicates,
                 $applyRules
             );
+
+            // Log completed imports for each account
+            if (!empty($result['accountResults'])) {
+                foreach ($result['accountResults'] as $accountResult) {
+                    if (!empty($accountResult['destinationAccountId']) && $accountResult['imported'] > 0) {
+                        $this->auditService->logImportCompleted(
+                            $this->userId,
+                            (int) $accountResult['destinationAccountId'],
+                            $accountResult['imported'],
+                            $accountResult['skipped'] ?? 0
+                        );
+                    }
+                }
+            }
+
             return new DataResponse($result);
         } catch (\Exception $e) {
+            $this->auditService->logImportFailed($this->userId, $fileId, $e->getMessage());
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
