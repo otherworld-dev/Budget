@@ -4916,7 +4916,7 @@ class BudgetApp {
         const currencyCode = currency || this.getPrimaryCurrency();
         const decimals = parseInt(this.settings.number_format_decimals) || 2;
         const decimalSep = this.settings.number_format_decimal_sep || '.';
-        const thousandsSep = this.settings.number_format_thousands_sep || ',';
+        const thousandsSep = this.settings.number_format_thousands_sep ?? ',';
 
         // Format the number manually using user settings
         const absAmount = Math.abs(amount);
@@ -7766,7 +7766,7 @@ class BudgetApp {
     updateNumberFormatPreview() {
         const decimals = parseInt(document.getElementById('setting-number-format-decimals')?.value || '2');
         const decimalSep = document.getElementById('setting-number-format-decimal-sep')?.value || '.';
-        const thousandsSep = document.getElementById('setting-number-format-thousands-sep')?.value || ',';
+        const thousandsSep = document.getElementById('setting-number-format-thousands-sep')?.value ?? ',';
         const defaultCurrency = document.getElementById('setting-default-currency')?.value || 'USD';
 
         // Get currency symbol
