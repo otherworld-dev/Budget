@@ -10,17 +10,24 @@ use OCA\Budget\Service\Forecast\PatternAnalyzer;
 use OCA\Budget\Service\Forecast\TrendCalculator;
 use OCA\Budget\Service\Forecast\ScenarioBuilder;
 use OCA\Budget\Service\Forecast\ForecastProjector;
+use OCP\ICacheFactory;
+use OCP\ICache;
 
 /**
  * Orchestrates forecast generation by delegating to specialized services.
+ * OPTIMIZED: Includes caching layer for expensive calculations.
  */
 class ForecastService {
+    private const CACHE_PREFIX = 'budget_forecast_';
+    private const CACHE_TTL = 300; // 5 minutes
+
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
     private PatternAnalyzer $patternAnalyzer;
     private TrendCalculator $trendCalculator;
     private ScenarioBuilder $scenarioBuilder;
     private ForecastProjector $projector;
+    private ?ICache $cache = null;
 
     public function __construct(
         AccountMapper $accountMapper,
@@ -28,7 +35,8 @@ class ForecastService {
         PatternAnalyzer $patternAnalyzer,
         TrendCalculator $trendCalculator,
         ScenarioBuilder $scenarioBuilder,
-        ForecastProjector $projector
+        ForecastProjector $projector,
+        ?ICacheFactory $cacheFactory = null
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
@@ -36,6 +44,25 @@ class ForecastService {
         $this->trendCalculator = $trendCalculator;
         $this->scenarioBuilder = $scenarioBuilder;
         $this->projector = $projector;
+
+        // Initialize cache if available
+        if ($cacheFactory !== null) {
+            $this->cache = $cacheFactory->createDistributed(self::CACHE_PREFIX);
+        }
+    }
+
+    /**
+     * Invalidate all forecast cache entries for a user.
+     * Call this when transactions are modified.
+     */
+    public function invalidateCache(string $userId): void {
+        if ($this->cache === null) {
+            return;
+        }
+
+        // Clear known cache keys for this user
+        $this->cache->remove("live_{$userId}");
+        $this->cache->remove("forecast_{$userId}_all");
     }
 
     /**
@@ -88,8 +115,19 @@ class ForecastService {
 
     /**
      * Get live forecast data for dashboard display.
+     * OPTIMIZED: Results are cached for 5 minutes.
      */
     public function getLiveForecast(string $userId, int $forecastMonths = 6): array {
+        $cacheKey = "live_{$userId}_{$forecastMonths}";
+
+        // Try to get from cache
+        if ($this->cache !== null) {
+            $cached = $this->cache->get($cacheKey);
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
         $accounts = $this->accountMapper->findAll($userId);
         $currentBalance = 0.0;
         $currencyCounts = [];
@@ -161,7 +199,7 @@ class ForecastService {
         $transactionCount = count($transactions);
         $confidence = $this->projector->calculateDataConfidence($months, $transactionCount, $incomeValues, $expenseValues);
 
-        return [
+        $result = [
             'currency' => $primaryCurrency,
             'currentBalance' => round($currentBalance, 2),
             'projectedBalance' => round($projectedBalance, 2),
@@ -188,6 +226,13 @@ class ForecastService {
                 'isReliable' => $months >= 3 && $transactionCount >= 10
             ]
         ];
+
+        // Store in cache
+        if ($this->cache !== null) {
+            $this->cache->set($cacheKey, $result, self::CACHE_TTL);
+        }
+
+        return $result;
     }
 
     /**

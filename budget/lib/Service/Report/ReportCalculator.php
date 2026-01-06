@@ -66,43 +66,14 @@ class ReportCalculator {
 
     /**
      * Get spending grouped by account.
+     * OPTIMIZED: Uses single aggregated SQL query instead of N+1 pattern.
      */
     public function getSpendingByAccount(
         string $userId,
         string $startDate,
         string $endDate
     ): array {
-        $accounts = $this->accountMapper->findAll($userId);
-        $data = [];
-
-        foreach ($accounts as $account) {
-            $transactions = $this->transactionMapper->findByDateRange(
-                $account->getId(),
-                $startDate,
-                $endDate
-            );
-
-            $total = 0;
-            $count = 0;
-
-            foreach ($transactions as $transaction) {
-                if ($transaction->getType() === 'debit') {
-                    $total += $transaction->getAmount();
-                    $count++;
-                }
-            }
-
-            if ($count > 0) {
-                $data[] = [
-                    'name' => $account->getName(),
-                    'total' => $total,
-                    'count' => $count,
-                    'average' => $total / $count
-                ];
-            }
-        }
-
-        return $data;
+        return $this->transactionMapper->getSpendingByAccountAggregated($userId, $startDate, $endDate);
     }
 
     /**

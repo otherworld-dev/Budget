@@ -156,6 +156,7 @@ class PatternAnalyzer {
 
     /**
      * Get spending breakdown by category.
+     * OPTIMIZED: Uses batch category lookup instead of N+1 pattern.
      *
      * @param string $userId User ID
      * @param array $transactions List of transactions
@@ -181,6 +182,12 @@ class PatternAnalyzer {
             $categoryTotals[$categoryId][$month] += $transaction->getAmount();
         }
 
+        // Batch load all categories at once (replaces N+1 pattern)
+        $categoryIds = array_filter(array_keys($categoryTotals), fn($id) => $id > 0);
+        $categories = !empty($categoryIds)
+            ? $this->categoryMapper->findByIds($categoryIds, $userId)
+            : [];
+
         $breakdown = [];
         foreach ($categoryTotals as $categoryId => $monthlyAmounts) {
             $values = array_values($monthlyAmounts);
@@ -189,12 +196,9 @@ class PatternAnalyzer {
 
             $categoryName = 'Uncategorized';
             if ($categoryId > 0) {
-                try {
-                    $category = $this->categoryMapper->find($categoryId, $userId);
-                    $categoryName = $category->getName();
-                } catch (\Exception $e) {
-                    $categoryName = 'Unknown';
-                }
+                $categoryName = isset($categories[$categoryId])
+                    ? $categories[$categoryId]->getName()
+                    : 'Unknown';
             }
 
             $breakdown[] = [

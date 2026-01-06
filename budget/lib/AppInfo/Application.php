@@ -110,6 +110,11 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('ImportRuleMapper', \OCA\Budget\Db\ImportRuleMapper::class);
 
+        $context->registerService(\OCA\Budget\Db\SettingMapper::class, function($c) {
+            return new \OCA\Budget\Db\SettingMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('SettingMapper', \OCA\Budget\Db\SettingMapper::class);
+
         // ==========================================
         // Validation Service
         // ==========================================
@@ -279,7 +284,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Service\Forecast\PatternAnalyzer::class),
                 $c->get(\OCA\Budget\Service\Forecast\TrendCalculator::class),
                 $c->get(\OCA\Budget\Service\Forecast\ScenarioBuilder::class),
-                $c->get(\OCA\Budget\Service\Forecast\ForecastProjector::class)
+                $c->get(\OCA\Budget\Service\Forecast\ForecastProjector::class),
+                $c->get(\OCP\ICacheFactory::class)
             );
         });
         $context->registerServiceAlias('ForecastService', \OCA\Budget\Service\ForecastService::class);
@@ -297,6 +303,19 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('ImportService', \OCA\Budget\Service\ImportService::class);
+
+        $context->registerService(\OCA\Budget\Service\MigrationService::class, function($c) {
+            return new \OCA\Budget\Service\MigrationService(
+                $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\BillMapper::class),
+                $c->get(\OCA\Budget\Db\ImportRuleMapper::class),
+                $c->get(\OCA\Budget\Db\SettingMapper::class),
+                $c->get(\OCP\IDBConnection::class)
+            );
+        });
+        $context->registerServiceAlias('MigrationService', \OCA\Budget\Service\MigrationService::class);
     }
 
     public function boot(IBootContext $context): void {

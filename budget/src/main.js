@@ -7648,6 +7648,292 @@ class BudgetApp {
                 element.addEventListener('change', () => this.updateNumberFormatPreview());
             }
         });
+
+        // Migration event listeners
+        this.setupMigrationEventListeners();
+    }
+
+    setupMigrationEventListeners() {
+        // Export button
+        const exportBtn = document.getElementById('migration-export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.handleMigrationExport());
+        }
+
+        // Import dropzone
+        const dropzone = document.getElementById('migration-import-dropzone');
+        const fileInput = document.getElementById('migration-file-input');
+        const browseBtn = document.getElementById('migration-browse-btn');
+
+        if (dropzone) {
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.handleMigrationFileSelect(files[0]);
+                }
+            });
+        }
+
+        if (browseBtn && fileInput) {
+            browseBtn.addEventListener('click', () => fileInput.click());
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    this.handleMigrationFileSelect(file);
+                }
+            });
+        }
+
+        // Import action buttons
+        const cancelBtn = document.getElementById('migration-cancel-btn');
+        const confirmBtn = document.getElementById('migration-confirm-btn');
+        const doneBtn = document.getElementById('migration-done-btn');
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.cancelMigrationImport());
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => this.confirmMigrationImport());
+        }
+
+        if (doneBtn) {
+            doneBtn.addEventListener('click', () => this.resetMigrationUI());
+        }
+    }
+
+    async handleMigrationExport() {
+        const exportBtn = document.getElementById('migration-export-btn');
+        const originalText = exportBtn.innerHTML;
+
+        try {
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '<span class="icon-loading-small"></span> Exporting...';
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/migration/export'), {
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Export failed');
+            }
+
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'budget_export.zip';
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="?(.+)"?/);
+                if (match) {
+                    filename = match[1];
+                }
+            }
+
+            // Download the file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            OC.Notification.showTemporary('Export completed successfully');
+        } catch (error) {
+            console.error('Export error:', error);
+            OC.Notification.showTemporary('Failed to export data: ' + error.message);
+        } finally {
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = originalText;
+        }
+    }
+
+    async handleMigrationFileSelect(file) {
+        if (!file.name.endsWith('.zip')) {
+            OC.Notification.showTemporary('Please select a ZIP file');
+            return;
+        }
+
+        this.migrationFile = file;
+
+        // Show preview
+        const dropzone = document.getElementById('migration-import-dropzone');
+        const preview = document.getElementById('migration-preview');
+        const progress = document.getElementById('migration-progress');
+
+        dropzone.style.display = 'none';
+        progress.style.display = 'block';
+        document.getElementById('migration-progress-text').textContent = 'Validating file...';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/migration/preview'), {
+                method: 'POST',
+                headers: {
+                    'requesttoken': OC.requestToken
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.valid) {
+                throw new Error(result.error || 'Invalid export file');
+            }
+
+            // Populate preview
+            document.getElementById('preview-version').textContent = result.manifest?.version || 'Unknown';
+            document.getElementById('preview-date').textContent = result.manifest?.exportedAt
+                ? new Date(result.manifest.exportedAt).toLocaleString()
+                : 'Unknown';
+
+            document.getElementById('preview-categories').textContent = result.counts?.categories || 0;
+            document.getElementById('preview-accounts').textContent = result.counts?.accounts || 0;
+            document.getElementById('preview-transactions').textContent = result.counts?.transactions || 0;
+            document.getElementById('preview-bills').textContent = result.counts?.bills || 0;
+            document.getElementById('preview-rules').textContent = result.counts?.importRules || 0;
+            document.getElementById('preview-settings').textContent = result.counts?.settings || 0;
+
+            // Show warnings if any
+            const warningsDiv = document.getElementById('migration-warnings');
+            if (result.warnings && result.warnings.length > 0) {
+                warningsDiv.innerHTML = result.warnings.map(w =>
+                    `<div class="warning-item"><span class="icon-info"></span> ${w}</div>`
+                ).join('');
+                warningsDiv.style.display = 'block';
+            } else {
+                warningsDiv.style.display = 'none';
+            }
+
+            progress.style.display = 'none';
+            preview.style.display = 'block';
+        } catch (error) {
+            console.error('Preview error:', error);
+            OC.Notification.showTemporary('Failed to preview file: ' + error.message);
+            this.resetMigrationUI();
+        }
+    }
+
+    cancelMigrationImport() {
+        this.migrationFile = null;
+        this.resetMigrationUI();
+    }
+
+    async confirmMigrationImport() {
+        if (!this.migrationFile) {
+            OC.Notification.showTemporary('No file selected');
+            return;
+        }
+
+        // Double confirmation
+        if (!confirm('This will PERMANENTLY DELETE all your existing data and replace it with the imported data.\n\nAre you absolutely sure you want to continue?')) {
+            return;
+        }
+
+        const preview = document.getElementById('migration-preview');
+        const progress = document.getElementById('migration-progress');
+        const result = document.getElementById('migration-result');
+
+        preview.style.display = 'none';
+        progress.style.display = 'block';
+        document.getElementById('migration-progress-text').textContent = 'Importing data... This may take a moment.';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', this.migrationFile);
+            formData.append('confirmed', 'true');
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/migration/import'), {
+                method: 'POST',
+                headers: {
+                    'requesttoken': OC.requestToken
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            progress.style.display = 'none';
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Import failed');
+            }
+
+            // Show success result
+            const resultContent = document.getElementById('migration-result-content');
+            resultContent.innerHTML = `
+                <div class="result-success">
+                    <span class="icon-checkmark-color"></span>
+                    <h5>Import Successful!</h5>
+                    <p>Your data has been imported successfully.</p>
+                    <div class="result-counts">
+                        <div class="result-count"><strong>${data.counts.categories}</strong> categories</div>
+                        <div class="result-count"><strong>${data.counts.accounts}</strong> accounts</div>
+                        <div class="result-count"><strong>${data.counts.transactions}</strong> transactions</div>
+                        <div class="result-count"><strong>${data.counts.bills}</strong> bills</div>
+                        <div class="result-count"><strong>${data.counts.importRules}</strong> import rules</div>
+                        <div class="result-count"><strong>${data.counts.settings}</strong> settings</div>
+                    </div>
+                </div>
+            `;
+            result.style.display = 'block';
+
+            // Reload application data
+            this.loadInitialData();
+            OC.Notification.showTemporary('Import completed successfully');
+        } catch (error) {
+            console.error('Import error:', error);
+
+            const resultContent = document.getElementById('migration-result-content');
+            resultContent.innerHTML = `
+                <div class="result-error">
+                    <span class="icon-error-color"></span>
+                    <h5>Import Failed</h5>
+                    <p>${error.message}</p>
+                    <p class="result-hint">Your existing data has not been modified.</p>
+                </div>
+            `;
+            result.style.display = 'block';
+            progress.style.display = 'none';
+        }
+    }
+
+    resetMigrationUI() {
+        this.migrationFile = null;
+
+        const dropzone = document.getElementById('migration-import-dropzone');
+        const preview = document.getElementById('migration-preview');
+        const progress = document.getElementById('migration-progress');
+        const result = document.getElementById('migration-result');
+        const fileInput = document.getElementById('migration-file-input');
+
+        dropzone.style.display = 'block';
+        preview.style.display = 'none';
+        progress.style.display = 'none';
+        result.style.display = 'none';
+
+        if (fileInput) {
+            fileInput.value = '';
+        }
     }
 
     async loadSettingsView() {

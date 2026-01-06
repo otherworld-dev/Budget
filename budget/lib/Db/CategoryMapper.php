@@ -100,11 +100,38 @@ class CategoryMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')));
-        
+
         $result = $qb->executeQuery();
         $sum = $result->fetchOne();
         $result->closeCursor();
-        
+
         return (float) ($sum ?? 0);
+    }
+
+    /**
+     * Find multiple categories by IDs in a single query (avoids N+1)
+     * @param int[] $ids
+     * @return array<int, Category> categoryId => Category
+     */
+    public function findByIds(array $ids, string $userId): array {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        $entities = $this->findEntities($qb);
+
+        // Index by ID for quick lookup
+        $result = [];
+        foreach ($entities as $entity) {
+            $result[$entity->getId()] = $entity;
+        }
+
+        return $result;
     }
 }

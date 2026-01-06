@@ -73,6 +73,7 @@ class ForecastProjector {
 
     /**
      * Generate category-level forecasts.
+     * OPTIMIZED: Uses batch category lookup instead of N+1 pattern.
      *
      * @param string $userId User ID
      * @param array $patterns Analyzed patterns
@@ -80,31 +81,41 @@ class ForecastProjector {
      * @return array Category forecasts
      */
     public function generateCategoryForecasts(string $userId, array $patterns, int $forecastMonths): array {
+        $categoryPatterns = $patterns['categories'] ?? [];
+
+        if (empty($categoryPatterns)) {
+            return [];
+        }
+
+        // Batch load all categories at once (replaces N+1 pattern)
+        $categoryIds = array_keys($categoryPatterns);
+        $categories = $this->categoryMapper->findByIds($categoryIds, $userId);
+
         $forecasts = [];
 
-        foreach ($patterns['categories'] ?? [] as $categoryId => $categoryPattern) {
-            try {
-                $category = $this->categoryMapper->find($categoryId, $userId);
-
-                $monthlyForecasts = [];
-                for ($i = 1; $i <= $forecastMonths; $i++) {
-                    $projected = $categoryPattern['average'] + ($categoryPattern['trend'] * $i);
-                    $monthlyForecasts[] = max(0, $projected);
-                }
-
-                $forecasts[] = [
-                    'categoryId' => $categoryId,
-                    'categoryName' => $category->getName(),
-                    'currentMonthlyAverage' => $categoryPattern['average'],
-                    'projectedMonthly' => $monthlyForecasts,
-                    'trend' => $this->trendCalculator->getTrendLabel($categoryPattern['trend']),
-                    'volatility' => $categoryPattern['volatility'],
-                    'confidence' => $this->calculateCategoryConfidence($categoryPattern)
-                ];
-            } catch (\Exception $e) {
-                // Category not found, skip
+        foreach ($categoryPatterns as $categoryId => $categoryPattern) {
+            // Skip if category not found
+            if (!isset($categories[$categoryId])) {
                 continue;
             }
+
+            $category = $categories[$categoryId];
+
+            $monthlyForecasts = [];
+            for ($i = 1; $i <= $forecastMonths; $i++) {
+                $projected = $categoryPattern['average'] + ($categoryPattern['trend'] * $i);
+                $monthlyForecasts[] = max(0, $projected);
+            }
+
+            $forecasts[] = [
+                'categoryId' => $categoryId,
+                'categoryName' => $category->getName(),
+                'currentMonthlyAverage' => $categoryPattern['average'],
+                'projectedMonthly' => $monthlyForecasts,
+                'trend' => $this->trendCalculator->getTrendLabel($categoryPattern['trend']),
+                'volatility' => $categoryPattern['volatility'],
+                'confidence' => $this->calculateCategoryConfidence($categoryPattern)
+            ];
         }
 
         return $forecasts;

@@ -2193,6 +2193,112 @@ style('budget', 'style');
                     </div>
                 </div>
 
+                <!-- Data Migration Section -->
+                <div class="settings-section">
+                    <h3>Data Migration</h3>
+                    <p class="settings-description">Export all your data for backup or migration to another Nextcloud instance. Import to restore or migrate data.</p>
+
+                    <div class="settings-group">
+                        <!-- Export -->
+                        <div class="migration-subsection">
+                            <h4>Export Data</h4>
+                            <p class="migration-info">Download all your accounts, transactions, categories, bills, import rules, and settings as a ZIP file.</p>
+                            <div class="migration-warning">
+                                <span class="icon-password" aria-hidden="true"></span>
+                                <strong>Security Notice:</strong> The export file contains sensitive data including decrypted banking details. Store it securely and delete after use.
+                            </div>
+                            <button id="migration-export-btn" class="primary">
+                                <span class="icon-download" aria-hidden="true"></span>
+                                Export All Data
+                            </button>
+                        </div>
+
+                        <!-- Import -->
+                        <div class="migration-subsection">
+                            <h4>Import Data</h4>
+                            <p class="migration-info">Import data from a previously exported ZIP file. This will <strong>replace all existing data</strong>.</p>
+                            <div class="migration-warning warning-danger">
+                                <span class="icon-error" aria-hidden="true"></span>
+                                <strong>Warning:</strong> Importing will permanently delete all your current data and replace it with the imported data. This cannot be undone.
+                            </div>
+
+                            <div id="migration-import-dropzone" class="migration-dropzone">
+                                <div class="dropzone-content">
+                                    <span class="icon-upload" aria-hidden="true"></span>
+                                    <p>Drag and drop your export file here</p>
+                                    <p class="dropzone-hint">or</p>
+                                    <button type="button" id="migration-browse-btn" class="secondary">Browse Files</button>
+                                    <input type="file" id="migration-file-input" accept=".zip" style="display: none;">
+                                    <p class="dropzone-formats">Supported format: ZIP (exported from Budget app)</p>
+                                </div>
+                            </div>
+
+                            <!-- Preview Section (hidden by default) -->
+                            <div id="migration-preview" class="migration-preview" style="display: none;">
+                                <h5>Import Preview</h5>
+                                <div id="migration-preview-content">
+                                    <div class="preview-info">
+                                        <div class="preview-row">
+                                            <span class="preview-label">Export Version:</span>
+                                            <span id="preview-version">-</span>
+                                        </div>
+                                        <div class="preview-row">
+                                            <span class="preview-label">Exported At:</span>
+                                            <span id="preview-date">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="preview-counts">
+                                        <div class="preview-count-item">
+                                            <span class="count-value" id="preview-categories">0</span>
+                                            <span class="count-label">Categories</span>
+                                        </div>
+                                        <div class="preview-count-item">
+                                            <span class="count-value" id="preview-accounts">0</span>
+                                            <span class="count-label">Accounts</span>
+                                        </div>
+                                        <div class="preview-count-item">
+                                            <span class="count-value" id="preview-transactions">0</span>
+                                            <span class="count-label">Transactions</span>
+                                        </div>
+                                        <div class="preview-count-item">
+                                            <span class="count-value" id="preview-bills">0</span>
+                                            <span class="count-label">Bills</span>
+                                        </div>
+                                        <div class="preview-count-item">
+                                            <span class="count-value" id="preview-rules">0</span>
+                                            <span class="count-label">Import Rules</span>
+                                        </div>
+                                        <div class="preview-count-item">
+                                            <span class="count-value" id="preview-settings">0</span>
+                                            <span class="count-label">Settings</span>
+                                        </div>
+                                    </div>
+                                    <div id="migration-warnings" class="migration-warnings" style="display: none;"></div>
+                                </div>
+                                <div class="preview-actions">
+                                    <button type="button" id="migration-cancel-btn" class="secondary">Cancel</button>
+                                    <button type="button" id="migration-confirm-btn" class="primary danger">
+                                        <span class="icon-confirm" aria-hidden="true"></span>
+                                        Confirm Import
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Progress Section (hidden by default) -->
+                            <div id="migration-progress" class="migration-progress" style="display: none;">
+                                <div class="progress-spinner"></div>
+                                <p id="migration-progress-text">Processing import...</p>
+                            </div>
+
+                            <!-- Result Section (hidden by default) -->
+                            <div id="migration-result" class="migration-result" style="display: none;">
+                                <div id="migration-result-content"></div>
+                                <button type="button" id="migration-done-btn" class="primary">Done</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Settings Actions -->
                 <div class="settings-actions">
                     <button id="save-settings-btn-bottom" class="primary">

@@ -104,34 +104,29 @@ class AccountService extends AbstractCrudService {
         ];
     }
 
+    /**
+     * Get balance history for an account over a number of days.
+     * OPTIMIZED: Uses aggregated SQL query instead of O(days × transactions) algorithm.
+     */
     public function getBalanceHistory(int $accountId, string $userId, int $days = 30): array {
         $account = $this->find($accountId, $userId);
         $endDate = date('Y-m-d');
         $startDate = date('Y-m-d', strtotime("-{$days} days"));
 
-        $transactions = $this->transactionMapper->findByDateRange(
-            $accountId,
-            $startDate,
-            $endDate
-        );
+        // Single aggregated query for daily balance changes
+        $dailyChanges = $this->transactionMapper->getDailyBalanceChanges($accountId, $startDate, $endDate);
 
         $balance = (string) $account->getBalance();
         $history = [];
 
-        // Work backwards from current balance
+        // Work backwards from current balance - O(days) instead of O(days × transactions)
         for ($i = 0; $i < $days; $i++) {
             $date = date('Y-m-d', strtotime("-{$i} days"));
-            $dayTransactions = array_filter($transactions, function($t) use ($date) {
-                return $t->getDate() === $date;
-            });
 
-            foreach ($dayTransactions as $transaction) {
-                $amount = (string) $transaction->getAmount();
-                if ($transaction->getType() === 'credit') {
-                    $balance = MoneyCalculator::subtract($balance, $amount);
-                } else {
-                    $balance = MoneyCalculator::add($balance, $amount);
-                }
+            // Reverse the day's net change to get the balance at start of day
+            if (isset($dailyChanges[$date])) {
+                $netChange = (string) $dailyChanges[$date];
+                $balance = MoneyCalculator::subtract($balance, $netChange);
             }
 
             $history[] = [

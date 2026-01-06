@@ -121,5 +121,10 @@ return [
         ['name' => 'setting#destroy', 'url' => '/api/settings/{key}', 'verb' => 'DELETE'],
         ['name' => 'setting#reset', 'url' => '/api/settings/reset', 'verb' => 'POST'],
         ['name' => 'setting#options', 'url' => '/api/settings/options', 'verb' => 'GET'],
+
+        // Migration routes (data export/import)
+        ['name' => 'migration#export', 'url' => '/api/migration/export', 'verb' => 'GET'],
+        ['name' => 'migration#preview', 'url' => '/api/migration/preview', 'verb' => 'POST'],
+        ['name' => 'migration#import', 'url' => '/api/migration/import', 'verb' => 'POST'],
     ],
 ];

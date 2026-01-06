@@ -31,6 +31,7 @@ class ReportAggregator {
 
     /**
      * Generate a comprehensive financial summary.
+     * OPTIMIZED: Uses single aggregated query instead of N+1 pattern.
      */
     public function generateSummary(
         string $userId,
@@ -63,36 +64,28 @@ class ReportAggregator {
             'trends' => []
         ];
 
+        // Single aggregated query for all account summaries (replaces N+1 pattern)
+        $accountSummaries = $this->transactionMapper->getAccountSummaries($userId, $startDate, $endDate);
+
         $totalIncome = 0;
         $totalExpenses = 0;
 
         foreach ($accounts as $account) {
-            $accountTransactions = $this->transactionMapper->findByDateRange(
-                $account->getId(),
-                $startDate,
-                $endDate
-            );
+            $accountId = $account->getId();
+            $accountData = $accountSummaries[$accountId] ?? ['income' => 0, 'expenses' => 0, 'count' => 0];
 
-            $accountIncome = 0;
-            $accountExpenses = 0;
-
-            foreach ($accountTransactions as $transaction) {
-                if ($transaction->getType() === 'credit') {
-                    $accountIncome += $transaction->getAmount();
-                } else {
-                    $accountExpenses += $transaction->getAmount();
-                }
-            }
+            $accountIncome = $accountData['income'];
+            $accountExpenses = $accountData['expenses'];
 
             $summary['accounts'][] = [
-                'id' => $account->getId(),
+                'id' => $accountId,
                 'name' => $account->getName(),
                 'balance' => $account->getBalance(),
                 'currency' => $account->getCurrency(),
                 'income' => $accountIncome,
                 'expenses' => $accountExpenses,
                 'net' => $accountIncome - $accountExpenses,
-                'transactionCount' => count($accountTransactions)
+                'transactionCount' => $accountData['count']
             ];
 
             $summary['totals']['currentBalance'] += $account->getBalance();
@@ -180,6 +173,7 @@ class ReportAggregator {
 
     /**
      * Generate budget report with category-by-category breakdown.
+     * OPTIMIZED: Uses single batch query instead of N queries for N categories.
      */
     public function getBudgetReport(string $userId, string $startDate, string $endDate): array {
         $categories = $this->categoryMapper->findAll($userId);
@@ -190,20 +184,28 @@ class ReportAggregator {
             'remaining' => 0
         ];
 
+        // Collect category IDs that have budgets
+        $categoryIds = [];
         foreach ($categories as $category) {
             if ($category->getBudgetAmount() > 0) {
-                $spent = $this->categoryMapper->getCategorySpending(
-                    $category->getId(),
-                    $startDate,
-                    $endDate
-                );
+                $categoryIds[] = $category->getId();
+            }
+        }
+
+        // Single batch query for all category spending (replaces N+1 pattern)
+        $categorySpending = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $startDate, $endDate);
+
+        foreach ($categories as $category) {
+            if ($category->getBudgetAmount() > 0) {
+                $categoryId = $category->getId();
+                $spent = $categorySpending[$categoryId] ?? 0;
 
                 $budgeted = $category->getBudgetAmount();
                 $remaining = $budgeted - $spent;
                 $percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : 0;
 
                 $budgetReport[] = [
-                    'categoryId' => $category->getId(),
+                    'categoryId' => $categoryId,
                     'categoryName' => $category->getName(),
                     'budgeted' => $budgeted,
                     'spent' => $spent,
@@ -266,6 +268,7 @@ class ReportAggregator {
 
     /**
      * Generate monthly trend data for charts.
+     * OPTIMIZED: Uses single aggregated query instead of N×M queries (months × accounts).
      */
     public function generateTrendData(
         string $userId,
@@ -273,6 +276,15 @@ class ReportAggregator {
         string $startDate,
         string $endDate
     ): array {
+        // Single query to get all monthly data at once
+        $monthlyData = $this->transactionMapper->getMonthlyTrendData($userId, $accountId, $startDate, $endDate);
+
+        // Index by month for quick lookup
+        $dataByMonth = [];
+        foreach ($monthlyData as $row) {
+            $dataByMonth[$row['month']] = $row;
+        }
+
         $trends = [
             'labels' => [],
             'income' => [],
@@ -285,37 +297,12 @@ class ReportAggregator {
 
         $current = clone $start;
         while ($current <= $end) {
-            $monthStart = $current->format('Y-m-01');
-            $monthEnd = $current->format('Y-m-t');
-
+            $month = $current->format('Y-m');
             $trends['labels'][] = $current->format('M Y');
 
-            // Get transactions for this month
-            $monthIncome = 0;
-            $monthExpenses = 0;
-
-            $accounts = $accountId
-                ? [$this->accountMapper->find($accountId, $userId)]
-                : $this->accountMapper->findAll($userId);
-
-            foreach ($accounts as $account) {
-                $transactions = $this->transactionMapper->findByDateRange(
-                    $account->getId(),
-                    $monthStart,
-                    $monthEnd
-                );
-
-                foreach ($transactions as $transaction) {
-                    if ($transaction->getType() === 'credit') {
-                        $monthIncome += $transaction->getAmount();
-                    } else {
-                        $monthExpenses += $transaction->getAmount();
-                    }
-                }
-            }
-
-            $trends['income'][] = $monthIncome;
-            $trends['expenses'][] = $monthExpenses;
+            $monthData = $dataByMonth[$month] ?? ['income' => 0, 'expenses' => 0];
+            $trends['income'][] = $monthData['income'];
+            $trends['expenses'][] = $monthData['expenses'];
 
             $current->add($interval);
         }
