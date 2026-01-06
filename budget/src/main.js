@@ -11,7 +11,8 @@ class BudgetApp {
         this.categories = [];
         this.transactions = [];
         this.charts = {};
-        
+        this.settings = {};
+
         this.init();
     }
 
@@ -374,6 +375,16 @@ class BudgetApp {
 
     async loadInitialData() {
         try {
+            // Load settings first (needed for formatting)
+            const settingsResponse = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+            if (settingsResponse.ok) {
+                this.settings = await settingsResponse.json();
+            }
+
             // Load accounts
             const accountsResponse = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
                 headers: {
@@ -4903,10 +4914,28 @@ class BudgetApp {
     // Helper methods
     formatCurrency(amount, currency = null) {
         const currencyCode = currency || this.getPrimaryCurrency();
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: currencyCode
-        }).format(amount);
+        const decimals = parseInt(this.settings.number_format_decimals) || 2;
+        const decimalSep = this.settings.number_format_decimal_sep || '.';
+        const thousandsSep = this.settings.number_format_thousands_sep || ',';
+
+        // Format the number manually using user settings
+        const absAmount = Math.abs(amount);
+        const parts = absAmount.toFixed(decimals).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
+        const decPart = parts[1] || '';
+
+        // Get currency symbol
+        const symbols = {
+            'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$', 'AUD': 'A$',
+            'JPY': '¥', 'CHF': 'CHF', 'CNY': '¥', 'INR': '₹', 'MXN': '$',
+            'BRL': 'R$', 'KRW': '₩', 'SGD': 'S$', 'HKD': 'HK$', 'NOK': 'kr',
+            'SEK': 'kr', 'DKK': 'kr', 'NZD': 'NZ$', 'ZAR': 'R', 'RUB': '₽'
+        };
+        const symbol = symbols[currencyCode] || currencyCode;
+
+        const formattedNumber = decimals > 0 ? `${intPart}${decimalSep}${decPart}` : intPart;
+        const sign = amount < 0 ? '-' : '';
+        return `${sign}${symbol}${formattedNumber}`;
     }
 
     getPrimaryCurrency() {
@@ -7678,6 +7707,9 @@ class BudgetApp {
 
             const result = await response.json();
             OC.Notification.showTemporary('Settings saved successfully');
+
+            // Update stored settings to apply immediately
+            Object.assign(this.settings, settings);
 
             // Update account form currency default if needed
             this.updateAccountFormDefaults(settings);
