@@ -23,16 +23,16 @@ Track your spending habits, manage savings, and forecast future account balances
 ## Requirements
 
 * Nextcloud 30 or higher
-* PHP 8.3 or higher
+* PHP 8.1 or higher
     ]]></description>
     <version>1.0.0</version>
     <licence>AGPL-3.0-or-later</licence>
-    <author mail="admin@example.com" homepage="https://example.com">Budget Developer</author>
+    <author mail="adam@otherworld.dev" homepage="https://otherworld.dev">Adam Morgan</author>
     <namespace>Budget</namespace>
     <category>office</category>
     <category>organization</category>
-    <bugs>https://github.com/yourusername/budget/issues</bugs>
-    <repository>https://github.com/yourusername/budget</repository>
+    <bugs>https://github.com/otherworld-dev/budget/issues</bugs>
+    <repository>https://github.com/otherworld-dev/budget</repository>
     <dependencies>
         <php min-version="8.1" />
         <nextcloud min-version="30" max-version="32" />

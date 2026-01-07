@@ -4,117 +4,162 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
-class GoalsService {
+use OCA\Budget\Db\SavingsGoal;
+use OCA\Budget\Db\SavingsGoalMapper;
+use OCP\AppFramework\Db\DoesNotExistException;
 
-    public function findAll(string $userId): array {
-        // Mock data - replace with actual database queries
-        return [
-            [
-                'id' => 1,
-                'name' => 'Emergency Fund',
-                'targetAmount' => 10000.0,
-                'currentAmount' => 7500.0,
-                'targetMonths' => 12,
-                'description' => 'Build emergency fund for 6 months expenses',
-                'targetDate' => '2024-12-31'
-            ],
-            [
-                'id' => 2,
-                'name' => 'Vacation Fund',
-                'targetAmount' => 5000.0,
-                'currentAmount' => 2000.0,
-                'targetMonths' => 8,
-                'description' => 'Save for European vacation',
-                'targetDate' => '2024-08-15'
-            ]
-        ];
+class GoalsService {
+    private SavingsGoalMapper $mapper;
+
+    public function __construct(SavingsGoalMapper $mapper) {
+        $this->mapper = $mapper;
     }
 
-    public function find(int $id, string $userId): array {
-        // Mock data - replace with actual database query
-        return [
-            'id' => $id,
-            'name' => 'Emergency Fund',
-            'targetAmount' => 10000.0,
-            'currentAmount' => 7500.0,
-            'targetMonths' => 12,
-            'description' => 'Build emergency fund for 6 months expenses',
-            'targetDate' => '2024-12-31'
-        ];
+    /**
+     * @return SavingsGoal[]
+     */
+    public function findAll(string $userId): array {
+        return $this->mapper->findAll($userId);
+    }
+
+    /**
+     * @throws DoesNotExistException
+     */
+    public function find(int $id, string $userId): SavingsGoal {
+        return $this->mapper->find($id, $userId);
     }
 
     public function create(
         string $userId,
         string $name,
         float $targetAmount,
-        int $targetMonths,
+        ?int $targetMonths = null,
         float $currentAmount = 0.0,
-        string $description = '',
-        string $targetDate = null
-    ): array {
-        // Mock implementation - replace with actual database insert
-        return [
-            'id' => rand(1000, 9999),
-            'name' => $name,
-            'targetAmount' => $targetAmount,
-            'currentAmount' => $currentAmount,
-            'targetMonths' => $targetMonths,
-            'description' => $description,
-            'targetDate' => $targetDate
-        ];
+        ?string $description = null,
+        ?string $targetDate = null
+    ): SavingsGoal {
+        $goal = new SavingsGoal();
+        $goal->setUserId($userId);
+        $goal->setName($name);
+        $goal->setTargetAmount($targetAmount);
+        $goal->setCurrentAmount($currentAmount);
+        $goal->setTargetMonths($targetMonths);
+        $goal->setDescription($description);
+        $goal->setTargetDate($targetDate);
+        $goal->setCreatedAt(date('Y-m-d H:i:s'));
+
+        return $this->mapper->insert($goal);
     }
 
+    /**
+     * @throws DoesNotExistException
+     */
     public function update(
         int $id,
         string $userId,
-        string $name = null,
-        float $targetAmount = null,
-        int $targetMonths = null,
-        float $currentAmount = null,
-        string $description = null,
-        string $targetDate = null
-    ): array {
-        // Mock implementation - replace with actual database update
-        return [
-            'id' => $id,
-            'name' => $name ?? 'Updated Goal',
-            'targetAmount' => $targetAmount ?? 10000.0,
-            'currentAmount' => $currentAmount ?? 5000.0,
-            'targetMonths' => $targetMonths ?? 12,
-            'description' => $description ?? 'Updated description',
-            'targetDate' => $targetDate ?? '2024-12-31'
-        ];
+        ?string $name = null,
+        ?float $targetAmount = null,
+        ?int $targetMonths = null,
+        ?float $currentAmount = null,
+        ?string $description = null,
+        ?string $targetDate = null
+    ): SavingsGoal {
+        $goal = $this->mapper->find($id, $userId);
+
+        if ($name !== null) {
+            $goal->setName($name);
+        }
+        if ($targetAmount !== null) {
+            $goal->setTargetAmount($targetAmount);
+        }
+        if ($targetMonths !== null) {
+            $goal->setTargetMonths($targetMonths);
+        }
+        if ($currentAmount !== null) {
+            $goal->setCurrentAmount($currentAmount);
+        }
+        if ($description !== null) {
+            $goal->setDescription($description);
+        }
+        if ($targetDate !== null) {
+            $goal->setTargetDate($targetDate);
+        }
+
+        return $this->mapper->update($goal);
     }
 
+    /**
+     * @throws DoesNotExistException
+     */
     public function delete(int $id, string $userId): void {
-        // Mock implementation - replace with actual database delete
-        // return true;
+        $goal = $this->mapper->find($id, $userId);
+        $this->mapper->delete($goal);
     }
 
+    /**
+     * @throws DoesNotExistException
+     */
     public function getProgress(int $id, string $userId): array {
-        // Mock implementation - replace with actual calculation
+        $goal = $this->mapper->find($id, $userId);
+
+        $targetAmount = $goal->getTargetAmount();
+        $currentAmount = $goal->getCurrentAmount();
+        $remaining = $targetAmount - $currentAmount;
+        $percentage = $targetAmount > 0 ? ($currentAmount / $targetAmount) * 100 : 0;
+
+        $monthlyRequired = 0.0;
+        $onTrack = true;
+        $projectedCompletion = null;
+
+        if ($goal->getTargetDate() && $remaining > 0) {
+            $targetDate = new \DateTime($goal->getTargetDate());
+            $now = new \DateTime();
+            $monthsRemaining = max(1, (int) $now->diff($targetDate)->format('%m') + ((int) $now->diff($targetDate)->format('%y') * 12));
+
+            if ($targetDate > $now) {
+                $monthlyRequired = $remaining / $monthsRemaining;
+            } else {
+                $onTrack = false;
+            }
+        } elseif ($goal->getTargetMonths() && $remaining > 0) {
+            $monthlyRequired = $remaining / $goal->getTargetMonths();
+        }
+
         return [
             'goalId' => $id,
-            'percentage' => 75.0,
-            'remaining' => 2500.0,
-            'monthlyRequired' => 416.67,
-            'onTrack' => true,
-            'projectedCompletion' => '2024-11-15'
+            'percentage' => round($percentage, 2),
+            'remaining' => $remaining,
+            'monthlyRequired' => round($monthlyRequired, 2),
+            'onTrack' => $onTrack,
+            'projectedCompletion' => $projectedCompletion,
         ];
     }
 
+    /**
+     * @throws DoesNotExistException
+     */
     public function getForecast(int $id, string $userId): array {
-        // Mock implementation - replace with actual forecast calculation
+        $goal = $this->mapper->find($id, $userId);
+        $progress = $this->getProgress($id, $userId);
+
+        $recommendations = [];
+        if (!$progress['onTrack']) {
+            $recommendations[] = 'Increase monthly savings to meet target date';
+        }
+        if ($progress['percentage'] < 25) {
+            $recommendations[] = 'Consider automating transfers to build momentum';
+        }
+        if ($progress['percentage'] >= 75) {
+            $recommendations[] = 'Great progress! Keep up the current savings rate';
+        }
+
         return [
             'goalId' => $id,
-            'currentProjection' => 'On track to complete by target date',
-            'estimatedCompletion' => '2024-11-15',
-            'monthlyContribution' => 416.67,
-            'probabilityOfSuccess' => 85.0,
-            'recommendations' => [
-                'Continue current savings rate',
-                'Consider automating transfers'
-            ]
+            'currentProjection' => $progress['onTrack'] ? 'On track to complete by target date' : 'Behind schedule',
+            'estimatedCompletion' => $goal->getTargetDate(),
+            'monthlyContribution' => $progress['monthlyRequired'],
+            'probabilityOfSuccess' => $progress['onTrack'] ? 85.0 : 50.0,
+            'recommendations' => $recommendations,
         ];
     }
 }

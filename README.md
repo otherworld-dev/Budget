@@ -19,7 +19,7 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 ## Requirements
 
 - Nextcloud 30 - 32
-- PHP 8.1+ (8.3+ recommended)
+- PHP 8.1+
 - MySQL/MariaDB, PostgreSQL, or SQLite
 
 ## Installation
@@ -35,7 +35,7 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ```bash
 cd /path/to/nextcloud/apps
-git clone https://github.com/yourusername/budget.git
+git clone https://github.com/otherworld-dev/budget.git
 cd budget
 
 # Install dependencies
@@ -58,7 +58,7 @@ php occ app:enable budget
 
 ```bash
 cd /path/to/nextcloud/apps
-git clone https://github.com/yourusername/budget.git
+git clone https://github.com/otherworld-dev/budget.git
 cd budget
 
 # Install all dependencies
@@ -215,5 +215,5 @@ This project is licensed under the **AGPL-3.0-or-later** license.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/budget/issues)
+- **Issues**: [GitHub Issues](https://github.com/otherworld-dev/budget/issues)
 - **Forum**: [Nextcloud Community](https://help.nextcloud.com)

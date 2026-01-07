@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/budget"
+    "url": "https://github.com/otherworld-dev/budget"
   },
   "keywords": [
     "nextcloud",
     "budget",
     "finance"
   ],
-  "author": "Budget Developer",
+  "author": "Adam Morgan",
   "license": "AGPL-3.0-or-later",
   "devDependencies": {
     "@babel/core": "^7.23.0",

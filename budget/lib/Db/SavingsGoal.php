@@ -1,0 +1,60 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\Budget\Db;
+
+use JsonSerializable;
+use OCP\AppFramework\Db\Entity;
+
+/**
+ * @method int getId()
+ * @method void setId(int $id)
+ * @method string getUserId()
+ * @method void setUserId(string $userId)
+ * @method string getName()
+ * @method void setName(string $name)
+ * @method float getTargetAmount()
+ * @method void setTargetAmount(float $targetAmount)
+ * @method float getCurrentAmount()
+ * @method void setCurrentAmount(float $currentAmount)
+ * @method int|null getTargetMonths()
+ * @method void setTargetMonths(?int $targetMonths)
+ * @method string|null getDescription()
+ * @method void setDescription(?string $description)
+ * @method string|null getTargetDate()
+ * @method void setTargetDate(?string $targetDate)
+ * @method string getCreatedAt()
+ * @method void setCreatedAt(string $createdAt)
+ */
+class SavingsGoal extends Entity implements JsonSerializable {
+    protected $userId;
+    protected $name;
+    protected $targetAmount;
+    protected $currentAmount;
+    protected $targetMonths;
+    protected $description;
+    protected $targetDate;
+    protected $createdAt;
+
+    public function __construct() {
+        $this->addType('id', 'integer');
+        $this->addType('targetAmount', 'float');
+        $this->addType('currentAmount', 'float');
+        $this->addType('targetMonths', 'integer');
+    }
+
+    public function jsonSerialize(): array {
+        return [
+            'id' => $this->getId(),
+            'userId' => $this->getUserId(),
+            'name' => $this->getName(),
+            'targetAmount' => $this->getTargetAmount(),
+            'currentAmount' => $this->getCurrentAmount(),
+            'targetMonths' => $this->getTargetMonths(),
+            'description' => $this->getDescription(),
+            'targetDate' => $this->getTargetDate(),
+            'createdAt' => $this->getCreatedAt(),
+        ];
+    }
+}

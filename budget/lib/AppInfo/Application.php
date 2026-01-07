@@ -48,9 +48,17 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Db\QueryFilterBuilder();
         });
 
-        $context->registerService('GoalsService', function() {
-            return new \OCA\Budget\Service\GoalsService();
+        $context->registerService(\OCA\Budget\Db\SavingsGoalMapper::class, function($c) {
+            return new \OCA\Budget\Db\SavingsGoalMapper($c->get(\OCP\IDBConnection::class));
         });
+        $context->registerServiceAlias('SavingsGoalMapper', \OCA\Budget\Db\SavingsGoalMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\GoalsService::class, function($c) {
+            return new \OCA\Budget\Service\GoalsService(
+                $c->get(\OCA\Budget\Db\SavingsGoalMapper::class)
+            );
+        });
+        $context->registerServiceAlias('GoalsService', \OCA\Budget\Service\GoalsService::class);
 
         // ==========================================
         // Security Services
