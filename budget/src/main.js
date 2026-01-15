@@ -2051,23 +2051,41 @@ class BudgetApp {
                 return value;
             };
 
+            const accountId = getFormValue('account-id');
+            const isEdit = !!accountId;
+
             const formData = {
                 name: getFormValue('account-name', ''),
                 type: getFormValue('account-type', ''),
                 balance: getFormValue('account-balance', 0, true),
                 currency: getFormValue('account-currency', 'USD'),
                 institution: getFormValue('account-institution'),
-                accountNumber: getFormValue('form-account-number'),
-                routingNumber: getFormValue('form-routing-number'),
-                sortCode: getFormValue('form-sort-code'),
-                iban: getFormValue('form-iban'),
-                swiftBic: getFormValue('form-swift-bic'),
                 accountHolderName: getFormValue('account-holder-name'),
                 openingDate: getFormValue('account-opening-date'),
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true)
             };
+
+            // Sensitive fields: only include if user entered a value
+            // For edits, empty means "keep existing" - don't send to avoid overwriting
+            const sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic'];
+            const sensitiveFieldIds = {
+                accountNumber: 'form-account-number',
+                routingNumber: 'form-routing-number',
+                sortCode: 'form-sort-code',
+                iban: 'form-iban',
+                swiftBic: 'form-swift-bic'
+            };
+
+            sensitiveFields.forEach(field => {
+                const value = getFormValue(sensitiveFieldIds[field]);
+                // For new accounts: include all fields (null for empty)
+                // For edits: only include if user entered a value
+                if (!isEdit || value !== null) {
+                    formData[field] = value;
+                }
+            });
 
             // Validate required fields on frontend
             if (!formData.name || formData.name === '') {
@@ -2098,9 +2116,7 @@ class BudgetApp {
                 return;
             }
 
-            const accountId = getFormValue('account-id');
-
-            // Make API request
+            // Make API request (accountId already defined above for isEdit check)
             const url = accountId
                 ? `/apps/budget/api/accounts/${accountId}`
                 : '/apps/budget/api/accounts';
@@ -2221,11 +2237,29 @@ class BudgetApp {
             document.getElementById('account-balance').value = account.balance;
             document.getElementById('account-currency').value = account.currency;
             document.getElementById('account-institution').value = account.institution || '';
-            document.getElementById('form-account-number').value = account.accountNumber || '';
-            document.getElementById('form-routing-number').value = account.routingNumber || '';
-            document.getElementById('form-sort-code').value = account.sortCode || '';
-            document.getElementById('form-iban').value = account.iban || '';
-            document.getElementById('form-swift-bic').value = account.swiftBic || '';
+
+            // Sensitive fields: don't populate with masked values, use placeholder instead
+            // This prevents the masked value from being saved back and corrupting the data
+            const sensitiveFields = [
+                { id: 'form-account-number', hasValue: !!account.accountNumber },
+                { id: 'form-routing-number', hasValue: !!account.routingNumber },
+                { id: 'form-sort-code', hasValue: !!account.sortCode },
+                { id: 'form-iban', hasValue: !!account.iban },
+                { id: 'form-swift-bic', hasValue: !!account.swiftBic }
+            ];
+
+            sensitiveFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    element.value = ''; // Don't populate with masked value
+                    if (field.hasValue) {
+                        element.placeholder = '••••••••  (leave blank to keep current)';
+                    } else {
+                        element.placeholder = '';
+                    }
+                }
+            });
+
             document.getElementById('account-holder-name').value = account.accountHolderName || '';
             document.getElementById('account-opening-date').value = account.openingDate || '';
             document.getElementById('account-interest-rate').value = account.interestRate || '';
@@ -3705,7 +3739,8 @@ class BudgetApp {
                     accounts.forEach(account => {
                         const option = document.createElement('option');
                         option.value = account.id;
-                        option.textContent = `${account.name} (${account.type})`;
+                        const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
+                        option.textContent = `${account.name} (${account.type}${accountNum})`;
                         select.appendChild(option);
                     });
                 }
@@ -3738,7 +3773,8 @@ class BudgetApp {
             // Build account options HTML
             let optionsHtml = '<option value="">Skip this account</option>';
             accounts.forEach(account => {
-                optionsHtml += `<option value="${account.id}">${account.name} (${account.type})</option>`;
+                const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
+                optionsHtml += `<option value="${account.id}">${account.name} (${account.type}${accountNum})</option>`;
             });
 
             row.innerHTML = `
