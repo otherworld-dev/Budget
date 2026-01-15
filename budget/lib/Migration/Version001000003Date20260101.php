@@ -73,8 +73,7 @@ class Version001000003Date20260101 extends SimpleMigrationStep {
             ]);
 
             $table->addColumn('is_active', Types::BOOLEAN, [
-                'notnull' => true,
-                'default' => true,
+                'notnull' => false,
             ]);
 
             $table->addColumn('last_paid_date', Types::DATE, [

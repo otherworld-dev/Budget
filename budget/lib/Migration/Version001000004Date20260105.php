@@ -65,11 +65,11 @@ class Version001000004Date20260105 extends SimpleMigrationStep {
             ]);
 
             $table->setPrimaryKey(['id']);
-            $table->addIndex(['user_id'], 'budget_audit_user_id');
-            $table->addIndex(['action'], 'budget_audit_action');
-            $table->addIndex(['entity_type', 'entity_id'], 'budget_audit_entity');
-            $table->addIndex(['created_at'], 'budget_audit_created');
-            $table->addIndex(['user_id', 'action', 'created_at'], 'budget_audit_user_action');
+            $table->addIndex(['user_id'], 'bgt_auditlog_uid');
+            $table->addIndex(['action'], 'bgt_auditlog_act');
+            $table->addIndex(['entity_type', 'entity_id'], 'bgt_auditlog_ent');
+            $table->addIndex(['created_at'], 'bgt_auditlog_crt');
+            $table->addIndex(['user_id', 'action', 'created_at'], 'bgt_auditlog_ua');
         }
 
         return $schema;
