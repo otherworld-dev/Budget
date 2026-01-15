@@ -31,9 +31,9 @@ class ReportService {
      */
     public function generateSummary(
         string $userId,
-        ?int $accountId = null,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?int $accountId = null
     ): array {
         return $this->aggregator->generateSummary($userId, $accountId, $startDate, $endDate);
     }
@@ -43,9 +43,9 @@ class ReportService {
      */
     public function generateSummaryWithComparison(
         string $userId,
-        ?int $accountId = null,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?int $accountId = null
     ): array {
         return $this->aggregator->generateSummaryWithComparison($userId, $accountId, $startDate, $endDate);
     }
@@ -55,9 +55,9 @@ class ReportService {
      */
     public function getSpendingReport(
         string $userId,
-        ?int $accountId = null,
         string $startDate,
         string $endDate,
+        ?int $accountId = null,
         string $groupBy = 'category'
     ): array {
         $report = [
@@ -91,9 +91,9 @@ class ReportService {
      */
     public function getIncomeReport(
         string $userId,
-        ?int $accountId = null,
         string $startDate,
         string $endDate,
+        ?int $accountId = null,
         string $groupBy = 'month'
     ): array {
         $report = [
@@ -133,9 +133,9 @@ class ReportService {
      */
     public function getCashFlowReport(
         string $userId,
-        ?int $accountId = null,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?int $accountId = null
     ): array {
         return $this->aggregator->getCashFlowReport($userId, $accountId, $startDate, $endDate);
     }
@@ -155,16 +155,16 @@ class ReportService {
         string $userId,
         string $type,
         string $format,
-        ?int $accountId = null,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?int $accountId = null
     ): array {
         // Generate the report data
         $data = match ($type) {
-            'summary' => $this->generateSummaryWithComparison($userId, $accountId, $startDate, $endDate),
-            'spending' => $this->getSpendingReport($userId, $accountId, $startDate, $endDate),
-            'income' => $this->getIncomeReport($userId, $accountId, $startDate, $endDate),
-            'cashflow' => $this->getCashFlowReport($userId, $accountId, $startDate, $endDate),
+            'summary' => $this->generateSummaryWithComparison($userId, $startDate, $endDate, $accountId),
+            'spending' => $this->getSpendingReport($userId, $startDate, $endDate, $accountId),
+            'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId),
+            'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId),
             'budget' => $this->getBudgetReport($userId, $startDate, $endDate),
             default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
         };
