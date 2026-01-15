@@ -50,9 +50,9 @@ class ReportController extends Controller {
 
             $summary = $this->service->generateSummary(
                 $this->userId,
-                $accountId,
                 $startDate,
-                $endDate
+                $endDate,
+                $accountId
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
@@ -79,9 +79,9 @@ class ReportController extends Controller {
 
             $spending = $this->service->getSpendingReport(
                 $this->userId,
-                $accountId,
                 $startDate,
                 $endDate,
+                $accountId,
                 $groupBy
             );
             return new DataResponse($spending);
@@ -109,9 +109,9 @@ class ReportController extends Controller {
 
             $income = $this->service->getIncomeReport(
                 $this->userId,
-                $accountId,
                 $startDate,
                 $endDate,
+                $accountId,
                 $groupBy
             );
             return new DataResponse($income);
@@ -142,9 +142,9 @@ class ReportController extends Controller {
                 $this->userId,
                 $type,
                 $format,
-                $accountId,
                 $startDate,
-                $endDate
+                $endDate,
+                $accountId
             );
 
             return new DataDownloadResponse(
@@ -201,9 +201,9 @@ class ReportController extends Controller {
 
             $summary = $this->service->generateSummaryWithComparison(
                 $this->userId,
-                $accountId,
                 $startDate,
-                $endDate
+                $endDate,
+                $accountId
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
@@ -229,9 +229,9 @@ class ReportController extends Controller {
 
             $cashflow = $this->service->getCashFlowReport(
                 $this->userId,
-                $accountId,
                 $startDate,
-                $endDate
+                $endDate,
+                $accountId
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
