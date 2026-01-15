@@ -232,6 +232,7 @@ class TransactionMapper extends QBMapper {
                 'reconciled' => (bool)$row['reconciled'],
                 'createdAt' => $row['created_at'],
                 'updatedAt' => $row['updated_at'],
+                'linkedTransactionId' => $row['linked_transaction_id'] ? (int)$row['linked_transaction_id'] : null,
                 'accountName' => $row['account_name'],
                 'accountCurrency' => $row['account_currency'] ?? 'USD',
                 'categoryName' => $row['category_name'],
@@ -613,5 +614,109 @@ class TransactionMapper extends QBMapper {
             'income' => (float)$row['income'],
             'expenses' => (float)$row['expenses']
         ], $data);
+    }
+
+    /**
+     * Find potential transfer matches for a transaction
+     * Matches on: same amount, opposite type, different account, within date window
+     *
+     * @return Transaction[]
+     */
+    public function findPotentialMatches(
+        string $userId,
+        int $transactionId,
+        int $accountId,
+        float $amount,
+        string $type,
+        string $date,
+        int $dateWindowDays = 3
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        // Calculate date window
+        $dateObj = new \DateTime($date);
+        $startDate = (clone $dateObj)->modify("-{$dateWindowDays} days")->format('Y-m-d');
+        $endDate = (clone $dateObj)->modify("+{$dateWindowDays} days")->format('Y-m-d');
+
+        // Opposite type for transfer matching
+        $oppositeType = $type === 'credit' ? 'debit' : 'credit';
+
+        $qb->select('t.*')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            // Different account
+            ->andWhere($qb->expr()->neq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            // Same amount
+            ->andWhere($qb->expr()->eq('t.amount', $qb->createNamedParameter($amount)))
+            // Opposite type (debit in one account, credit in another)
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($oppositeType)))
+            // Within date window
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            // Not already linked
+            ->andWhere($qb->expr()->isNull('t.linked_transaction_id'))
+            // Not the same transaction
+            ->andWhere($qb->expr()->neq('t.id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)))
+            ->orderBy('t.date', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
+     * Link two transactions together
+     */
+    public function linkTransactions(int $transactionId1, int $transactionId2): void {
+        // Update first transaction
+        $qb1 = $this->db->getQueryBuilder();
+        $qb1->update($this->getTableName())
+            ->set('linked_transaction_id', $qb1->createNamedParameter($transactionId2, IQueryBuilder::PARAM_INT))
+            ->set('updated_at', $qb1->createNamedParameter(date('Y-m-d H:i:s')))
+            ->where($qb1->expr()->eq('id', $qb1->createNamedParameter($transactionId1, IQueryBuilder::PARAM_INT)));
+        $qb1->executeStatement();
+
+        // Update second transaction
+        $qb2 = $this->db->getQueryBuilder();
+        $qb2->update($this->getTableName())
+            ->set('linked_transaction_id', $qb2->createNamedParameter($transactionId1, IQueryBuilder::PARAM_INT))
+            ->set('updated_at', $qb2->createNamedParameter(date('Y-m-d H:i:s')))
+            ->where($qb2->expr()->eq('id', $qb2->createNamedParameter($transactionId2, IQueryBuilder::PARAM_INT)));
+        $qb2->executeStatement();
+    }
+
+    /**
+     * Unlink a transaction from its linked partner
+     */
+    public function unlinkTransaction(int $transactionId): ?int {
+        // First get the linked transaction ID
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('linked_transaction_id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)));
+
+        $result = $qb->executeQuery();
+        $linkedId = $result->fetchOne();
+        $result->closeCursor();
+
+        if (!$linkedId) {
+            return null;
+        }
+
+        // Clear both links
+        $qb1 = $this->db->getQueryBuilder();
+        $qb1->update($this->getTableName())
+            ->set('linked_transaction_id', $qb1->createNamedParameter(null))
+            ->set('updated_at', $qb1->createNamedParameter(date('Y-m-d H:i:s')))
+            ->where($qb1->expr()->eq('id', $qb1->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)));
+        $qb1->executeStatement();
+
+        $qb2 = $this->db->getQueryBuilder();
+        $qb2->update($this->getTableName())
+            ->set('linked_transaction_id', $qb2->createNamedParameter(null))
+            ->set('updated_at', $qb2->createNamedParameter(date('Y-m-d H:i:s')))
+            ->where($qb2->expr()->eq('id', $qb2->createNamedParameter((int)$linkedId, IQueryBuilder::PARAM_INT)));
+        $qb2->executeStatement();
+
+        return (int)$linkedId;
     }
 }

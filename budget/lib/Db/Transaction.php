@@ -36,6 +36,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  * @method string getUpdatedAt()
  * @method void setUpdatedAt(string $updatedAt)
+ * @method int|null getLinkedTransactionId()
+ * @method void setLinkedTransactionId(?int $linkedTransactionId)
  */
 class Transaction extends Entity implements JsonSerializable {
     protected $accountId;
@@ -51,6 +53,7 @@ class Transaction extends Entity implements JsonSerializable {
     protected $reconciled;
     protected $createdAt;
     protected $updatedAt;
+    protected $linkedTransactionId;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -58,6 +61,7 @@ class Transaction extends Entity implements JsonSerializable {
         $this->addType('categoryId', 'integer');
         $this->addType('amount', 'float');
         $this->addType('reconciled', 'boolean');
+        $this->addType('linkedTransactionId', 'integer');
     }
 
     /**
@@ -80,6 +84,7 @@ class Transaction extends Entity implements JsonSerializable {
             'reconciled' => $this->getReconciled(),
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
+            'linkedTransactionId' => $this->getLinkedTransactionId(),
         ];
     }
 }

@@ -2007,9 +2007,9 @@ style('budget', 'style');
                                 <small>Default currency for new accounts and transactions</small>
                             </label>
                             <select id="setting-default-currency" class="setting-input">
+                                <option value="GBP">GBP - British Pound (£)</option>
                                 <option value="USD">USD - US Dollar ($)</option>
                                 <option value="EUR">EUR - Euro (€)</option>
-                                <option value="GBP">GBP - British Pound (£)</option>
                                 <option value="CAD">CAD - Canadian Dollar (C$)</option>
                                 <option value="AUD">AUD - Australian Dollar (A$)</option>
                                 <option value="JPY">JPY - Japanese Yen (¥)</option>
@@ -2417,9 +2417,9 @@ style('budget', 'style');
                 <div class="form-group">
                     <label for="account-currency">Currency</label>
                     <select id="account-currency" aria-describedby="account-currency-help">
+                        <option value="GBP">GBP - British Pound</option>
                         <option value="USD">USD - US Dollar</option>
                         <option value="EUR">EUR - Euro</option>
-                        <option value="GBP">GBP - British Pound</option>
                         <option value="CAD">CAD - Canadian Dollar</option>
                         <option value="AUD">AUD - Australian Dollar</option>
                         <option value="JPY">JPY - Japanese Yen</option>
@@ -2651,5 +2651,35 @@ style('budget', 'style');
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Transaction Matching Modal -->
+<div id="matching-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="matching-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="matching-modal-title">Find Transfer Matches</h3>
+        <div id="matching-source-transaction" class="matching-source">
+            <h4>Source Transaction</h4>
+            <div class="source-details">
+                <span class="source-date"></span>
+                <span class="source-description"></span>
+                <span class="source-amount"></span>
+                <span class="source-account"></span>
+            </div>
+        </div>
+        <div id="matching-results" class="matching-results">
+            <div id="matching-loading" class="matching-loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Searching for matches...</p>
+            </div>
+            <div id="matching-empty" class="matching-empty" style="display: none;">
+                <p>No matching transactions found within the date range.</p>
+                <p class="hint">Matches must have the same amount, opposite type (income/expense), and be within 3 days.</p>
+            </div>
+            <div id="matching-list" class="matching-list"></div>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="secondary cancel-btn" aria-label="Close dialog">Close</button>
+        </div>
     </div>
 </div>
