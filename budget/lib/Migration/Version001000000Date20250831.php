@@ -165,8 +165,7 @@ class Version001000000Date20250831 extends SimpleMigrationStep {
                 'length' => 255,
             ]);
             $table->addColumn('reconciled', Types::BOOLEAN, [
-                'notnull' => true,
-                'default' => false,
+                'notnull' => false,
             ]);
             $table->addColumn('created_at', Types::DATETIME, [
                 'notnull' => true,
@@ -226,8 +225,7 @@ class Version001000000Date20250831 extends SimpleMigrationStep {
                 'default' => 0,
             ]);
             $table->addColumn('active', Types::BOOLEAN, [
-                'notnull' => true,
-                'default' => true,
+                'notnull' => false,
             ]);
             $table->addColumn('created_at', Types::DATETIME, [
                 'notnull' => true,
