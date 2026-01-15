@@ -317,4 +317,51 @@ class TransactionController extends Controller {
             return $this->handleError($e, 'Failed to categorize transactions');
         }
     }
+
+    /**
+     * Get potential transfer matches for a transaction
+     *
+     * @NoAdminRequired
+     */
+    public function getMatches(int $id, int $dateWindow = 3): DataResponse {
+        try {
+            $matches = $this->service->findPotentialMatches($id, $this->userId, $dateWindow);
+            return new DataResponse([
+                'matches' => $matches,
+                'count' => count($matches)
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
+        }
+    }
+
+    /**
+     * Link two transactions as a transfer pair
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function link(int $id, int $targetId): DataResponse {
+        try {
+            $result = $this->service->linkTransactions($id, $targetId, $this->userId);
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to link transactions', Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * Unlink a transaction from its transfer partner
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function unlink(int $id): DataResponse {
+        try {
+            $result = $this->service->unlinkTransaction($id, $this->userId);
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to unlink transaction', Http::STATUS_BAD_REQUEST);
+        }
+    }
 }

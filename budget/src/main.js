@@ -151,6 +151,21 @@ class BudgetApp {
             } else if (e.target.classList.contains('transaction-delete-btn')) {
                 const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
                 this.deleteTransaction(transactionId);
+            } else if (e.target.classList.contains('transaction-match-btn') || e.target.closest('.transaction-match-btn')) {
+                const button = e.target.classList.contains('transaction-match-btn') ? e.target : e.target.closest('.transaction-match-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
+                this.showMatchingModal(transactionId);
+            } else if (e.target.classList.contains('transaction-unlink-btn') || e.target.closest('.transaction-unlink-btn')) {
+                const button = e.target.classList.contains('transaction-unlink-btn') ? e.target : e.target.closest('.transaction-unlink-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
+                this.handleUnlinkTransaction(transactionId);
+            } else if (e.target.classList.contains('linked-indicator')) {
+                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
+                this.handleUnlinkTransaction(transactionId);
+            } else if (e.target.classList.contains('link-match-btn')) {
+                const sourceId = parseInt(e.target.getAttribute('data-source-id'));
+                const targetId = parseInt(e.target.getAttribute('data-target-id'));
+                this.handleLinkMatch(sourceId, targetId);
             } else if (e.target.classList.contains('autocomplete-item')) {
                 const bankName = e.target.getAttribute('data-bank-name');
                 this.selectInstitution(bankName);
@@ -1648,8 +1663,24 @@ class BudgetApp {
                           .replace(/"/g, '&quot;');
             };
 
+            const isLinked = transaction.linkedTransactionId != null;
+            const linkedBadge = isLinked
+                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" title="Linked transfer - click to unlink">&#x1F517; Transfer</span>`
+                : '';
+            const matchButton = !isLinked
+                ? `<button class="action-btn match-btn transaction-match-btn"
+                          data-transaction-id="${transaction.id}"
+                          title="Find transfer matches">
+                      <span class="icon-external" aria-hidden="true"></span>
+                  </button>`
+                : `<button class="action-btn unlink-btn transaction-unlink-btn"
+                          data-transaction-id="${transaction.id}"
+                          title="Unlink transfer">
+                      &#x2716;
+                  </button>`;
+
             return `
-                <tr class="transaction-row" data-transaction-id="${transaction.id}">
+                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}" data-transaction-id="${transaction.id}">
                     <td class="select-column">
                         <input type="checkbox" class="transaction-checkbox"
                                data-transaction-id="${transaction.id}"
@@ -1668,6 +1699,7 @@ class BudgetApp {
                         <div class="transaction-description">
                             <span class="primary-text cell-display">${escapeHtml(transaction.description) || 'No description'}</span>
                             ${transaction.reference ? `<span class="secondary-text">${escapeHtml(transaction.reference)}</span>` : ''}
+                            ${linkedBadge}
                         </div>
                     </td>
                     <td class="category-column editable-cell"
@@ -1693,6 +1725,7 @@ class BudgetApp {
                     </td>
                     <td class="actions-column">
                         <div class="transaction-actions">
+                            ${matchButton}
                             <button class="action-btn edit-btn transaction-edit-btn"
                                     data-transaction-id="${transaction.id}"
                                     title="Edit transaction (modal)">
@@ -8943,6 +8976,185 @@ class BudgetApp {
             console.error('Failed to add money to goal:', error);
             OC.Notification.showTemporary('Failed to add money to goal');
         }
+    }
+
+    // ===== Transaction Matching Methods =====
+
+    /**
+     * Find potential transfer matches for a transaction
+     */
+    async findTransactionMatches(transactionId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/matches`), {
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to find matches:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Link two transactions as a transfer pair
+     */
+    async linkTransactions(transactionId, targetId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`), {
+                method: 'POST',
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to link transactions:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Unlink a transaction from its transfer partner
+     */
+    async unlinkTransaction(transactionId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link`), {
+                method: 'DELETE',
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to unlink transaction:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Show the matching modal for a transaction
+     */
+    async showMatchingModal(transactionId) {
+        const transaction = this.transactions?.find(t => t.id === transactionId);
+        if (!transaction) {
+            OC.Notification.showTemporary('Transaction not found');
+            return;
+        }
+
+        const modal = document.getElementById('matching-modal');
+        const sourceDetails = modal.querySelector('.source-details');
+        const loadingEl = document.getElementById('matching-loading');
+        const emptyEl = document.getElementById('matching-empty');
+        const listEl = document.getElementById('matching-list');
+
+        // Populate source transaction info
+        const account = this.accounts?.find(a => a.id === transaction.accountId);
+        const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
+        const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
+
+        sourceDetails.querySelector('.source-date').textContent = new Date(transaction.date).toLocaleDateString();
+        sourceDetails.querySelector('.source-description').textContent = transaction.description;
+        sourceDetails.querySelector('.source-amount').textContent = this.formatCurrency(transaction.amount, currency);
+        sourceDetails.querySelector('.source-amount').className = `source-amount ${typeClass}`;
+        sourceDetails.querySelector('.source-account').textContent = account?.name || 'Unknown Account';
+
+        // Show modal and loading state
+        modal.style.display = 'flex';
+        loadingEl.style.display = 'flex';
+        emptyEl.style.display = 'none';
+        listEl.innerHTML = '';
+
+        try {
+            const result = await this.findTransactionMatches(transactionId);
+            loadingEl.style.display = 'none';
+
+            if (!result.matches || result.matches.length === 0) {
+                emptyEl.style.display = 'flex';
+                return;
+            }
+
+            // Render matches
+            listEl.innerHTML = result.matches.map(match => {
+                const matchAccount = this.accounts?.find(a => a.id === match.accountId);
+                const matchCurrency = match.accountCurrency || matchAccount?.currency || this.getPrimaryCurrency();
+                const matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
+
+                return `
+                    <div class="match-item" data-match-id="${match.id}">
+                        <span class="match-date">${new Date(match.date).toLocaleDateString()}</span>
+                        <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
+                        <span class="match-account">${matchAccount?.name || 'Unknown'}</span>
+                        <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
+                            Link as Transfer
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (error) {
+            loadingEl.style.display = 'none';
+            emptyEl.style.display = 'flex';
+            emptyEl.querySelector('p').textContent = 'Failed to search for matches. Please try again.';
+        }
+    }
+
+    /**
+     * Handle linking a match from the modal
+     */
+    async handleLinkMatch(sourceId, targetId) {
+        try {
+            await this.linkTransactions(sourceId, targetId);
+            OC.Notification.showTemporary('Transactions linked as transfer');
+
+            // Close modal and refresh transactions
+            document.getElementById('matching-modal').style.display = 'none';
+            await this.loadTransactions();
+        } catch (error) {
+            OC.Notification.showTemporary(error.message || 'Failed to link transactions');
+        }
+    }
+
+    /**
+     * Handle unlinking a transaction
+     */
+    async handleUnlinkTransaction(transactionId) {
+        if (!confirm('Are you sure you want to unlink this transaction from its transfer pair?')) {
+            return;
+        }
+
+        try {
+            await this.unlinkTransaction(transactionId);
+            OC.Notification.showTemporary('Transaction unlinked');
+            await this.loadTransactions();
+        } catch (error) {
+            OC.Notification.showTemporary(error.message || 'Failed to unlink transaction');
+        }
+    }
+
+    /**
+     * Escape HTML to prevent XSS (utility method)
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;');
     }
 }
 

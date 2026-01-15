@@ -155,6 +155,89 @@ class TransactionService {
         return $this->mapper->existsByImportId($accountId, $importId);
     }
 
+    /**
+     * Find potential transfer matches for a transaction
+     *
+     * @return Transaction[]
+     */
+    public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3): array {
+        $transaction = $this->find($transactionId, $userId);
+
+        // Don't find matches if already linked
+        if ($transaction->getLinkedTransactionId() !== null) {
+            return [];
+        }
+
+        return $this->mapper->findPotentialMatches(
+            $userId,
+            $transactionId,
+            $transaction->getAccountId(),
+            $transaction->getAmount(),
+            $transaction->getType(),
+            $transaction->getDate(),
+            $dateWindowDays
+        );
+    }
+
+    /**
+     * Link two transactions as a transfer pair
+     *
+     * @throws \Exception if transactions cannot be linked
+     */
+    public function linkTransactions(int $transactionId, int $targetId, string $userId): array {
+        $transaction = $this->find($transactionId, $userId);
+        $target = $this->find($targetId, $userId);
+
+        // Validation: must be different accounts
+        if ($transaction->getAccountId() === $target->getAccountId()) {
+            throw new \Exception('Cannot link transactions from the same account');
+        }
+
+        // Validation: must be same amount
+        if ($transaction->getAmount() !== $target->getAmount()) {
+            throw new \Exception('Cannot link transactions with different amounts');
+        }
+
+        // Validation: must be opposite types
+        if ($transaction->getType() === $target->getType()) {
+            throw new \Exception('Cannot link transactions of the same type');
+        }
+
+        // Validation: neither should already be linked
+        if ($transaction->getLinkedTransactionId() !== null) {
+            throw new \Exception('Transaction is already linked to another transaction');
+        }
+        if ($target->getLinkedTransactionId() !== null) {
+            throw new \Exception('Target transaction is already linked to another transaction');
+        }
+
+        $this->mapper->linkTransactions($transactionId, $targetId);
+
+        // Return updated transactions
+        return [
+            'transaction' => $this->find($transactionId, $userId),
+            'linkedTransaction' => $this->find($targetId, $userId)
+        ];
+    }
+
+    /**
+     * Unlink a transaction from its transfer partner
+     */
+    public function unlinkTransaction(int $transactionId, string $userId): array {
+        $transaction = $this->find($transactionId, $userId);
+
+        if ($transaction->getLinkedTransactionId() === null) {
+            throw new \Exception('Transaction is not linked');
+        }
+
+        $linkedId = $this->mapper->unlinkTransaction($transactionId);
+
+        return [
+            'transaction' => $this->find($transactionId, $userId),
+            'unlinkedTransactionId' => $linkedId
+        ];
+    }
+
     private function updateAccountBalance($account, float $amount, string $type, string $userId): void {
         $currentBalance = $account->getBalance();
         $newBalance = $type === 'credit'
