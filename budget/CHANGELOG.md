@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - PHP 8 deprecation warning: optional parameter declared before required parameters in ReportService
 - Transaction page pagination not loading subsequent pages (page parameter was missing from API requests)
+- Category creation failing with "updatedAt is not a valid attribute" error (added missing column)
 
 ## [1.0.5] - 2026-01-14
 
