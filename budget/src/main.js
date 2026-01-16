@@ -1603,7 +1603,7 @@ class BudgetApp {
             this.currentSort = this.currentSort || { field: 'date', direction: 'desc' };
 
             // Build query parameters - start with basic compatibility
-            let url = '/apps/budget/api/transactions?limit=' + this.rowsPerPage;
+            let url = '/apps/budget/api/transactions?limit=' + this.rowsPerPage + '&page=' + this.currentPage;
 
             // Add account filter if provided
             if (accountId) {
