@@ -3770,11 +3770,13 @@ class BudgetApp {
                 details.push(`Balance: ${this.formatCurrency(sourceAccount.ledgerBalance)}`);
             }
 
-            // Build account options HTML
+            // Build account options HTML with auto-match selection
+            const suggestedMatch = sourceAccount.suggestedMatch;
             let optionsHtml = '<option value="">Skip this account</option>';
             accounts.forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
-                optionsHtml += `<option value="${account.id}">${account.name} (${account.type}${accountNum})</option>`;
+                const selected = suggestedMatch === account.id ? ' selected' : '';
+                optionsHtml += `<option value="${account.id}"${selected}>${account.name} (${account.type}${accountNum})</option>`;
             });
 
             row.innerHTML = `
@@ -3799,6 +3801,11 @@ class BudgetApp {
                 }
             });
         });
+
+        // Auto-trigger preview if any accounts were auto-matched
+        if (this.hasAnyAccountMapping()) {
+            this.processImportData();
+        }
     }
 
     hasAnyAccountMapping() {
@@ -3849,6 +3856,12 @@ class BudgetApp {
             requestBody.accountId = parseInt(accountId);
         }
 
+        // Show loading state on import button
+        const importBtn = document.getElementById('import-btn');
+        const originalText = importBtn.textContent;
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing...';
+
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/import/process'), {
                 method: 'POST',
@@ -3878,6 +3891,10 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to execute import:', error);
             OC.Notification.showTemporary('Failed to import transactions: ' + error.message);
+        } finally {
+            // Restore button state
+            importBtn.disabled = false;
+            importBtn.textContent = originalText;
         }
     }
 

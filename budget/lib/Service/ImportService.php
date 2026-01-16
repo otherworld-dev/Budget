@@ -75,7 +75,7 @@ class ImportService {
             $preview = $this->parserFactory->parse($content, $format, 5);
 
             // Build response based on format
-            return $this->buildUploadResponse($fileId, $fileName, $format, $content, $preview, $fileSize);
+            return $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize);
 
         } catch (\Exception $e) {
             throw new \Exception('Failed to process upload: ' . $e->getMessage());
@@ -241,7 +241,7 @@ class ImportService {
         }
     }
 
-    private function buildUploadResponse(string $fileId, string $fileName, string $format, string $content, array $preview, int $fileSize): array {
+    private function buildUploadResponse(string $userId, string $fileId, string $fileName, string $format, string $content, array $preview, int $fileSize): array {
         $columns = [];
         $rawPreview = [];
         $sourceAccounts = [];
@@ -273,6 +273,14 @@ class ImportService {
                     'ledgerBalance' => $account['ledgerBalance'],
                 ];
             }
+
+            // Auto-match source accounts to existing user accounts
+            $accountMatches = $this->matchSourceAccounts($userId, $sourceAccounts);
+            foreach ($sourceAccounts as &$sourceAccount) {
+                $sourceAccount['suggestedMatch'] = $accountMatches[$sourceAccount['accountId']] ?? null;
+            }
+            unset($sourceAccount);
+
             $columns = ['date', 'amount', 'description', 'memo', 'type', 'reference'];
             $rawPreview = [$columns];
             foreach ($preview as $row) {
@@ -555,5 +563,64 @@ class ImportService {
                 'skipped' => $skipped,
             ]],
         ];
+    }
+
+    /**
+     * Match source accounts from import file to existing user accounts.
+     * Compares account numbers, routing numbers, and IBANs.
+     *
+     * @param string $userId The user ID
+     * @param array $sourceAccounts Source accounts from the import file
+     * @return array Map of sourceAccountId => destinationAccountId
+     */
+    private function matchSourceAccounts(string $userId, array $sourceAccounts): array {
+        $userAccounts = $this->accountMapper->findAll($userId);
+        $matches = [];
+
+        foreach ($sourceAccounts as $source) {
+            $sourceAccountId = $source['accountId'] ?? null;
+            $sourceBankId = $source['bankId'] ?? null;
+
+            if (!$sourceAccountId) {
+                continue;
+            }
+
+            foreach ($userAccounts as $account) {
+                $matched = false;
+
+                // Match by account number
+                $accountNumber = $account->getAccountNumber();
+                if ($accountNumber && $sourceAccountId === $accountNumber) {
+                    $matched = true;
+                }
+
+                // Match by routing number (bankId in OFX)
+                if (!$matched && $sourceBankId) {
+                    $routingNumber = $account->getRoutingNumber();
+                    if ($routingNumber && $sourceBankId === $routingNumber) {
+                        // Routing number alone isn't enough - need account number too
+                        // But if routing matches and we have partial account match, use it
+                        if ($accountNumber && str_ends_with($accountNumber, substr($sourceAccountId, -4))) {
+                            $matched = true;
+                        }
+                    }
+                }
+
+                // Match by IBAN (source accountId might be an IBAN)
+                if (!$matched) {
+                    $iban = $account->getIban();
+                    if ($iban && $sourceAccountId === $iban) {
+                        $matched = true;
+                    }
+                }
+
+                if ($matched) {
+                    $matches[$sourceAccountId] = $account->getId();
+                    break;
+                }
+            }
+        }
+
+        return $matches;
     }
 }
