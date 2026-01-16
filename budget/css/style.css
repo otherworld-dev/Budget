@@ -8587,3 +8587,322 @@ button.danger:hover {
         width: 100%;
     }
 }
+
+/* =====================
+   Pensions Styles
+   ===================== */
+
+/* Dashboard Hero - Pension Card */
+.hero-icon.pension {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.hero-icon.pension svg {
+    color: #6366f1;
+}
+
+/* Pensions Summary */
+.pensions-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+/* Pensions Container */
+.pensions-container {
+    position: relative;
+}
+
+/* Pensions List */
+.pensions-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+/* Pension Card */
+.pension-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.pension-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.pension-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.pension-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.pension-type-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.pension-type-workplace {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.pension-type-personal {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.pension-type-sipp {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.pension-type-defined_benefit {
+    background-color: #f3e8ff;
+    color: #7c3aed;
+}
+
+.pension-type-state {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.pension-card-body {
+    margin-bottom: 12px;
+}
+
+.pension-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-main-text);
+    margin-bottom: 4px;
+}
+
+.pension-provider {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+
+.pension-contribution {
+    font-size: 13px;
+    color: var(--color-success);
+    margin-top: 4px;
+}
+
+.pension-card-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+    margin-top: 8px;
+}
+
+.pension-card-actions .icon-button {
+    padding: 6px;
+    border-radius: 4px;
+    opacity: 0.7;
+}
+
+.pension-card-actions .icon-button:hover {
+    opacity: 1;
+    background-color: var(--color-background-hover);
+}
+
+/* Empty Pensions State */
+.empty-pensions {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-pensions .empty-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.empty-pensions h3 {
+    margin: 16px 0 8px;
+    color: var(--color-main-text);
+}
+
+.empty-pensions p {
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 20px;
+}
+
+/* Pension Detail Panel */
+.pension-detail-panel {
+    position: fixed;
+    right: 0;
+    top: 50px;
+    width: 450px;
+    height: calc(100vh - 50px);
+    background: var(--color-main-background);
+    border-left: 1px solid var(--color-border);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.pension-detail-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    background: var(--color-main-background);
+}
+
+.pension-detail-panel .panel-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.pension-detail-panel .panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.pension-detail-panel .panel-content {
+    padding: 20px;
+}
+
+.pension-detail-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-item {
+    background: var(--color-background-dark);
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.detail-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 4px;
+}
+
+.detail-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.pension-detail-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.pension-detail-actions button {
+    flex: 1;
+}
+
+.pension-chart-section {
+    margin-bottom: 24px;
+}
+
+.pension-chart-section h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pension-chart-section .chart-container {
+    height: 200px;
+}
+
+.pension-activity-section h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    background: var(--color-background-dark);
+    border-radius: 6px;
+}
+
+.activity-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.activity-text {
+    flex: 1;
+    font-size: 13px;
+}
+
+.activity-date {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.no-data {
+    text-align: center;
+    color: var(--color-text-maxcontrast);
+    padding: 20px;
+    font-size: 13px;
+}
+
+/* Pension Modal Fields */
+#dc-pension-fields,
+#db-pension-fields {
+    transition: opacity 0.2s;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .pension-detail-panel {
+        width: 100%;
+        left: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .pensions-list {
+        grid-template-columns: 1fr;
+    }
+
+    .pension-detail-summary {
+        grid-template-columns: 1fr;
+    }
+}

@@ -10,6 +10,8 @@ class BudgetApp {
         this.accounts = [];
         this.categories = [];
         this.transactions = [];
+        this.pensions = [];
+        this.currentPension = null;
         this.charts = {};
         this.settings = {};
 
@@ -406,6 +408,9 @@ class BudgetApp {
                 case 'savings-goals':
                     this.loadSavingsGoalsView();
                     break;
+                case 'pensions':
+                    this.loadPensionsView();
+                    break;
                 case 'settings':
                     this.loadSettingsView();
                     break;
@@ -468,7 +473,7 @@ class BudgetApp {
             const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
 
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse] = await Promise.all([
+            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse] = await Promise.all([
                 // Current month summary for hero stats
                 fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}`), {
                     headers: { 'requesttoken': OC.requestToken }
@@ -488,6 +493,9 @@ class BudgetApp {
                 }).catch(() => ({ ok: false })),
                 fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
                     headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
+                    headers: { 'requesttoken': OC.requestToken }
                 }).catch(() => ({ ok: false }))
             ]);
 
@@ -497,6 +505,7 @@ class BudgetApp {
             const bills = billsResponse.ok ? await billsResponse.json() : [];
             const budgetData = budgetResponse.ok ? await budgetResponse.json() : { categories: [] };
             const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
+            const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
 
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary);
@@ -515,6 +524,9 @@ class BudgetApp {
 
             // Update Savings Goals Widget
             this.updateSavingsGoalsWidget(savingsGoals);
+
+            // Update Pension Dashboard Card
+            this.updatePensionsSummary(pensionSummary);
 
             // Update Charts (using 6-month trend data)
             if (trendData.spending) {
@@ -9506,6 +9518,730 @@ class BudgetApp {
                   .replace(/</g, '&lt;')
                   .replace(/>/g, '&gt;')
                   .replace(/"/g, '&quot;');
+    }
+
+    // =====================
+    // Pensions Methods
+    // =====================
+
+    async loadPensionsView() {
+        try {
+            await this.loadPensions();
+            this.renderPensions();
+            this.setupPensionEventListeners();
+        } catch (error) {
+            console.error('Failed to load pensions view:', error);
+            OC.Notification.showTemporary('Failed to load pensions');
+        }
+    }
+
+    async loadPensions() {
+        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions'), {
+            headers: { 'requesttoken': OC.requestToken }
+        });
+        if (!response.ok) throw new Error('Failed to fetch pensions');
+        this.pensions = await response.json();
+    }
+
+    async loadPensionSummary() {
+        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
+            headers: { 'requesttoken': OC.requestToken }
+        });
+        if (!response.ok) throw new Error('Failed to fetch pension summary');
+        return await response.json();
+    }
+
+    async loadPensionProjection() {
+        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions/projection'), {
+            headers: { 'requesttoken': OC.requestToken }
+        });
+        if (!response.ok) throw new Error('Failed to fetch pension projection');
+        return await response.json();
+    }
+
+    renderPensions() {
+        const list = document.getElementById('pensions-list');
+        const emptyState = document.getElementById('empty-pensions');
+
+        if (!this.pensions || this.pensions.length === 0) {
+            list.innerHTML = '';
+            emptyState.style.display = 'block';
+            this.updatePensionsSummary({ totalPensionWorth: 0, pensionCount: 0 });
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        list.innerHTML = this.pensions.map(pension => this.renderPensionCard(pension)).join('');
+
+        // Load and update summary
+        this.loadPensionSummary().then(summary => {
+            this.updatePensionsSummary(summary);
+        });
+
+        // Load and update projections
+        this.loadPensionProjection().then(projection => {
+            this.updatePensionsProjection(projection);
+        });
+    }
+
+    renderPensionCard(pension) {
+        const currency = pension.currency || 'GBP';
+        const typeLabels = {
+            workplace: 'Workplace',
+            personal: 'Personal',
+            sipp: 'SIPP',
+            defined_benefit: 'Defined Benefit',
+            state: 'State Pension'
+        };
+        const typeLabel = typeLabels[pension.type] || pension.type;
+
+        let valueDisplay = '--';
+        if (pension.isDefinedContribution && pension.currentBalance !== null) {
+            valueDisplay = this.formatCurrency(pension.currentBalance, currency);
+        } else if (pension.annualIncome !== null) {
+            valueDisplay = this.formatCurrency(pension.annualIncome, currency) + '/year';
+        }
+
+        return `
+            <div class="pension-card" data-id="${pension.id}">
+                <div class="pension-card-header">
+                    <h4 class="pension-name">${this.escapeHtml(pension.name)}</h4>
+                    <span class="pension-type-badge pension-type-${pension.type}">${typeLabel}</span>
+                </div>
+                <div class="pension-card-body">
+                    <div class="pension-value">${valueDisplay}</div>
+                    ${pension.provider ? `<div class="pension-provider">${this.escapeHtml(pension.provider)}</div>` : ''}
+                    ${pension.monthlyContribution ? `<div class="pension-contribution">${this.formatCurrency(pension.monthlyContribution, currency)}/month</div>` : ''}
+                </div>
+                <div class="pension-card-actions">
+                    <button class="pension-view-btn icon-button" title="View details" data-id="${pension.id}">
+                        <span class="icon-info" aria-hidden="true"></span>
+                    </button>
+                    <button class="pension-edit-btn icon-button" title="Edit" data-id="${pension.id}">
+                        <span class="icon-rename" aria-hidden="true"></span>
+                    </button>
+                    <button class="pension-delete-btn icon-button" title="Delete" data-id="${pension.id}">
+                        <span class="icon-delete" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    updatePensionsSummary(summary) {
+        const currency = this.getPrimaryCurrency();
+        const pensionWorth = summary.totalPensionWorth || 0;
+        const projectedIncome = summary.totalProjectedIncome || 0;
+        const count = summary.pensionCount || 0;
+
+        const worthEl = document.getElementById('pensions-total-worth');
+        const countEl = document.getElementById('pensions-count');
+
+        if (worthEl) {
+            worthEl.textContent = this.formatCurrency(pensionWorth, currency);
+        }
+        if (countEl) {
+            countEl.textContent = count;
+        }
+
+        // Update dashboard hero card
+        const heroPensionValue = document.getElementById('hero-pension-value');
+        const heroPensionCount = document.getElementById('hero-pension-count');
+        const heroPensionLabel = document.querySelector('.hero-pension .hero-label');
+
+        if (heroPensionValue) {
+            // Show pension worth if available, otherwise show projected income
+            if (pensionWorth > 0) {
+                heroPensionValue.textContent = this.formatCurrency(pensionWorth, currency);
+                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Worth';
+            } else if (projectedIncome > 0) {
+                heroPensionValue.textContent = this.formatCurrency(projectedIncome, currency) + '/yr';
+                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Income';
+            } else {
+                heroPensionValue.textContent = this.formatCurrency(0, currency);
+                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Worth';
+            }
+        }
+        if (heroPensionCount) {
+            let subtext = count === 1 ? '1 pension' : `${count} pensions`;
+            // If showing income but also have some pot value, mention it
+            if (pensionWorth > 0 && projectedIncome > 0) {
+                subtext += ` · ${this.formatCurrency(projectedIncome, currency)}/yr income`;
+            }
+            heroPensionCount.textContent = subtext;
+        }
+    }
+
+    updatePensionsProjection(projection) {
+        const currency = this.getPrimaryCurrency();
+
+        const projectedValueEl = document.getElementById('pensions-projected-value');
+        const projectedIncomeEl = document.getElementById('pensions-projected-income');
+
+        if (projectedValueEl) {
+            projectedValueEl.textContent = this.formatCurrency(projection.totalProjectedValue || 0, currency);
+        }
+        if (projectedIncomeEl) {
+            projectedIncomeEl.textContent = this.formatCurrency(projection.totalProjectedAnnualIncome || 0, currency);
+        }
+    }
+
+    setupPensionEventListeners() {
+        // Add pension button
+        const addBtn = document.getElementById('add-pension-btn');
+        const emptyAddBtn = document.getElementById('empty-pensions-add-btn');
+
+        if (addBtn) {
+            addBtn.onclick = () => this.showPensionModal();
+        }
+        if (emptyAddBtn) {
+            emptyAddBtn.onclick = () => this.showPensionModal();
+        }
+
+        // Pension form
+        const pensionForm = document.getElementById('pension-form');
+        if (pensionForm) {
+            pensionForm.onsubmit = (e) => {
+                e.preventDefault();
+                this.savePension();
+            };
+        }
+
+        // Pension type change (toggle DC/DB fields)
+        const pensionType = document.getElementById('pension-type');
+        if (pensionType) {
+            pensionType.onchange = () => this.togglePensionFields();
+        }
+
+        // Modal close buttons
+        document.querySelectorAll('#pension-modal .cancel-btn').forEach(btn => {
+            btn.onclick = () => this.closePensionModal();
+        });
+
+        // Balance form
+        const balanceForm = document.getElementById('pension-balance-form');
+        if (balanceForm) {
+            balanceForm.onsubmit = (e) => {
+                e.preventDefault();
+                this.saveSnapshot();
+            };
+        }
+        document.querySelectorAll('#pension-balance-modal .cancel-btn').forEach(btn => {
+            btn.onclick = () => this.closeBalanceModal();
+        });
+
+        // Contribution form
+        const contributionForm = document.getElementById('pension-contribution-form');
+        if (contributionForm) {
+            contributionForm.onsubmit = (e) => {
+                e.preventDefault();
+                this.saveContribution();
+            };
+        }
+        document.querySelectorAll('#pension-contribution-modal .cancel-btn').forEach(btn => {
+            btn.onclick = () => this.closeContributionModal();
+        });
+
+        // Pension card actions (delegated)
+        const pensionsList = document.getElementById('pensions-list');
+        if (pensionsList) {
+            pensionsList.onclick = (e) => {
+                const viewBtn = e.target.closest('.pension-view-btn');
+                const editBtn = e.target.closest('.pension-edit-btn');
+                const deleteBtn = e.target.closest('.pension-delete-btn');
+                const card = e.target.closest('.pension-card');
+
+                if (viewBtn) {
+                    this.showPensionDetails(parseInt(viewBtn.dataset.id));
+                } else if (editBtn) {
+                    this.showPensionModal(parseInt(editBtn.dataset.id));
+                } else if (deleteBtn) {
+                    this.deletePension(parseInt(deleteBtn.dataset.id));
+                } else if (card) {
+                    this.showPensionDetails(parseInt(card.dataset.id));
+                }
+            };
+        }
+
+        // Detail panel buttons
+        const closeDetailBtn = document.getElementById('pension-close-btn');
+        if (closeDetailBtn) {
+            closeDetailBtn.onclick = () => this.closePensionDetails();
+        }
+
+        const editDetailBtn = document.getElementById('pension-edit-btn');
+        if (editDetailBtn) {
+            editDetailBtn.onclick = () => {
+                if (this.currentPension) {
+                    this.showPensionModal(this.currentPension.id);
+                }
+            };
+        }
+
+        const updateBalanceBtn = document.getElementById('update-balance-btn');
+        if (updateBalanceBtn) {
+            updateBalanceBtn.onclick = () => this.showBalanceModal();
+        }
+
+        const addContributionBtn = document.getElementById('add-contribution-btn');
+        if (addContributionBtn) {
+            addContributionBtn.onclick = () => this.showContributionModal();
+        }
+    }
+
+    togglePensionFields() {
+        const type = document.getElementById('pension-type').value;
+        const dcFields = document.getElementById('dc-pension-fields');
+        const dbFields = document.getElementById('db-pension-fields');
+
+        const isDC = ['workplace', 'personal', 'sipp'].includes(type);
+
+        if (dcFields) dcFields.style.display = isDC ? 'block' : 'none';
+        if (dbFields) dbFields.style.display = isDC ? 'none' : 'block';
+    }
+
+    showPensionModal(pensionId = null) {
+        const modal = document.getElementById('pension-modal');
+        const title = document.getElementById('pension-modal-title');
+        const form = document.getElementById('pension-form');
+
+        form.reset();
+        document.getElementById('pension-id').value = '';
+
+        if (pensionId) {
+            title.textContent = 'Edit Pension';
+            const pension = this.pensions.find(p => p.id === pensionId);
+            if (pension) {
+                document.getElementById('pension-id').value = pension.id;
+                document.getElementById('pension-name').value = pension.name || '';
+                document.getElementById('pension-type').value = pension.type || 'workplace';
+                document.getElementById('pension-provider').value = pension.provider || '';
+                document.getElementById('pension-currency').value = pension.currency || 'GBP';
+
+                if (pension.isDefinedContribution) {
+                    document.getElementById('pension-balance').value = pension.currentBalance || '';
+                    document.getElementById('pension-monthly').value = pension.monthlyContribution || '';
+                    document.getElementById('pension-return').value = pension.expectedReturnRate ? (pension.expectedReturnRate * 100) : '';
+                    document.getElementById('pension-retirement-age').value = pension.retirementAge || '';
+                } else {
+                    document.getElementById('pension-income').value = pension.annualIncome || '';
+                    document.getElementById('pension-transfer').value = pension.transferValue || '';
+                    document.getElementById('pension-db-retirement-age').value = pension.retirementAge || '';
+                }
+
+                this.togglePensionFields();
+            }
+        } else {
+            title.textContent = 'Add Pension';
+            this.togglePensionFields();
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    closePensionModal() {
+        document.getElementById('pension-modal').style.display = 'none';
+    }
+
+    async savePension() {
+        const form = document.getElementById('pension-form');
+        const formData = new FormData(form);
+        const pensionId = formData.get('id');
+
+        const type = formData.get('type');
+        const isDC = ['workplace', 'personal', 'sipp'].includes(type);
+
+        const data = {
+            name: formData.get('name'),
+            type: type,
+            provider: formData.get('provider') || null,
+            currency: formData.get('currency') || 'GBP',
+        };
+
+        if (isDC) {
+            data.currentBalance = formData.get('currentBalance') ? parseFloat(formData.get('currentBalance')) : null;
+            data.monthlyContribution = formData.get('monthlyContribution') ? parseFloat(formData.get('monthlyContribution')) : null;
+            data.expectedReturnRate = formData.get('expectedReturnRate') ? parseFloat(formData.get('expectedReturnRate')) / 100 : null;
+            data.retirementAge = formData.get('retirementAge') ? parseInt(formData.get('retirementAge')) : null;
+        } else {
+            data.annualIncome = formData.get('annualIncome') ? parseFloat(formData.get('annualIncome')) : null;
+            data.transferValue = formData.get('transferValue') ? parseFloat(formData.get('transferValue')) : null;
+            data.retirementAge = document.getElementById('pension-db-retirement-age').value ? parseInt(document.getElementById('pension-db-retirement-age').value) : null;
+        }
+
+        try {
+            const url = pensionId
+                ? OC.generateUrl(`/apps/budget/api/pensions/${pensionId}`)
+                : OC.generateUrl('/apps/budget/api/pensions');
+            const method = pensionId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to save pension');
+            }
+
+            this.closePensionModal();
+            await this.loadPensions();
+            this.renderPensions();
+            OC.Notification.showTemporary(pensionId ? 'Pension updated' : 'Pension created');
+        } catch (error) {
+            OC.Notification.showTemporary(error.message);
+        }
+    }
+
+    async deletePension(pensionId) {
+        if (!confirm('Are you sure you want to delete this pension? This will also delete all balance history and contributions.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}`), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error('Failed to delete pension');
+
+            await this.loadPensions();
+            this.renderPensions();
+            this.closePensionDetails();
+            OC.Notification.showTemporary('Pension deleted');
+        } catch (error) {
+            OC.Notification.showTemporary(error.message);
+        }
+    }
+
+    async showPensionDetails(pensionId) {
+        const pension = this.pensions.find(p => p.id === pensionId);
+        if (!pension) return;
+
+        this.currentPension = pension;
+
+        const panel = document.getElementById('pension-detail-panel');
+        const currency = pension.currency || 'GBP';
+
+        document.getElementById('pension-detail-name').textContent = pension.name;
+
+        if (pension.isDefinedContribution) {
+            document.getElementById('pension-detail-balance').textContent = pension.currentBalance !== null
+                ? this.formatCurrency(pension.currentBalance, currency)
+                : '--';
+            document.getElementById('pension-detail-contribution').textContent = pension.monthlyContribution
+                ? this.formatCurrency(pension.monthlyContribution, currency) + '/month'
+                : '--';
+            document.getElementById('pension-detail-return').textContent = pension.expectedReturnRate
+                ? (pension.expectedReturnRate * 100).toFixed(1) + '%'
+                : '--';
+        } else {
+            document.getElementById('pension-detail-balance').textContent = pension.annualIncome !== null
+                ? this.formatCurrency(pension.annualIncome, currency) + '/year'
+                : '--';
+            document.getElementById('pension-detail-contribution').textContent = pension.transferValue
+                ? this.formatCurrency(pension.transferValue, currency)
+                : '--';
+            document.getElementById('pension-detail-return').textContent = 'N/A';
+        }
+
+        document.getElementById('pension-detail-age').textContent = pension.retirementAge || '--';
+
+        panel.style.display = 'block';
+
+        // Load snapshots and render chart
+        await this.loadPensionBalanceChart(pensionId);
+
+        // Load projection and render chart
+        await this.loadPensionProjectionChart(pensionId);
+
+        // Load activity
+        await this.loadPensionActivity(pensionId);
+    }
+
+    closePensionDetails() {
+        document.getElementById('pension-detail-panel').style.display = 'none';
+        this.currentPension = null;
+    }
+
+    async loadPensionBalanceChart(pensionId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/snapshots`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to load snapshots');
+            const snapshots = await response.json();
+
+            const canvas = document.getElementById('pension-balance-chart');
+            if (!canvas) return;
+
+            // Destroy existing chart
+            if (this.charts.pensionBalance) {
+                this.charts.pensionBalance.destroy();
+            }
+
+            if (!snapshots || snapshots.length === 0) {
+                canvas.parentElement.innerHTML = '<p class="no-data">No balance history yet</p>';
+                return;
+            }
+
+            const labels = snapshots.reverse().map(s => s.date);
+            const data = snapshots.map(s => s.balance);
+
+            this.charts.pensionBalance = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Balance',
+                        data,
+                        borderColor: '#0082c9',
+                        backgroundColor: 'rgba(0, 130, 201, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => this.formatCurrency(value, this.currentPension?.currency || 'GBP')
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to load balance chart:', error);
+        }
+    }
+
+    async loadPensionProjectionChart(pensionId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/projection`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to load projection');
+            const projection = await response.json();
+
+            const canvas = document.getElementById('pension-projection-chart');
+            if (!canvas) return;
+
+            // Destroy existing chart
+            if (this.charts.pensionProjection) {
+                this.charts.pensionProjection.destroy();
+            }
+
+            if (!projection.growthProjection || projection.growthProjection.length === 0) {
+                canvas.parentElement.innerHTML = '<p class="no-data">No projection available</p>';
+                return;
+            }
+
+            const labels = projection.growthProjection.map(p => p.year);
+            const data = projection.growthProjection.map(p => p.value);
+
+            this.charts.pensionProjection = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Projected Value',
+                        data,
+                        borderColor: '#46ba61',
+                        backgroundColor: 'rgba(70, 186, 97, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => this.formatCurrency(value, this.currentPension?.currency || 'GBP')
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to load projection chart:', error);
+        }
+    }
+
+    async loadPensionActivity(pensionId) {
+        try {
+            const [snapshotsRes, contributionsRes] = await Promise.all([
+                fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/snapshots`), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/contributions`), {
+                    headers: { 'requesttoken': OC.requestToken }
+                })
+            ]);
+
+            const snapshots = snapshotsRes.ok ? await snapshotsRes.json() : [];
+            const contributions = contributionsRes.ok ? await contributionsRes.json() : [];
+
+            const currency = this.currentPension?.currency || 'GBP';
+
+            // Combine and sort by date
+            const activities = [
+                ...snapshots.map(s => ({ type: 'snapshot', date: s.date, value: s.balance, ...s })),
+                ...contributions.map(c => ({ type: 'contribution', date: c.date, value: c.amount, ...c }))
+            ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+
+            const list = document.getElementById('pension-activity-list');
+            if (!list) return;
+
+            if (activities.length === 0) {
+                list.innerHTML = '<p class="no-data">No recent activity</p>';
+                return;
+            }
+
+            list.innerHTML = activities.map(a => {
+                if (a.type === 'snapshot') {
+                    return `<div class="activity-item">
+                        <span class="activity-icon icon-history"></span>
+                        <span class="activity-text">Balance updated to ${this.formatCurrency(a.value, currency)}</span>
+                        <span class="activity-date">${a.date}</span>
+                    </div>`;
+                } else {
+                    return `<div class="activity-item">
+                        <span class="activity-icon icon-add"></span>
+                        <span class="activity-text">Contributed ${this.formatCurrency(a.value, currency)}${a.note ? ` - ${this.escapeHtml(a.note)}` : ''}</span>
+                        <span class="activity-date">${a.date}</span>
+                    </div>`;
+                }
+            }).join('');
+        } catch (error) {
+            console.error('Failed to load activity:', error);
+        }
+    }
+
+    showBalanceModal() {
+        if (!this.currentPension) return;
+
+        const modal = document.getElementById('pension-balance-modal');
+        document.getElementById('pension-balance-form').reset();
+        document.getElementById('snapshot-pension-id').value = this.currentPension.id;
+        document.getElementById('snapshot-date').value = new Date().toISOString().split('T')[0];
+
+        if (this.currentPension.currentBalance) {
+            document.getElementById('snapshot-balance').value = this.currentPension.currentBalance;
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    closeBalanceModal() {
+        document.getElementById('pension-balance-modal').style.display = 'none';
+    }
+
+    async saveSnapshot() {
+        const form = document.getElementById('pension-balance-form');
+        const formData = new FormData(form);
+        const pensionId = formData.get('pensionId');
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/snapshots`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    balance: parseFloat(formData.get('balance')),
+                    date: formData.get('date')
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update balance');
+            }
+
+            this.closeBalanceModal();
+            await this.loadPensions();
+            this.renderPensions();
+            await this.showPensionDetails(parseInt(pensionId));
+            OC.Notification.showTemporary('Balance updated');
+        } catch (error) {
+            OC.Notification.showTemporary(error.message);
+        }
+    }
+
+    showContributionModal() {
+        if (!this.currentPension) return;
+
+        const modal = document.getElementById('pension-contribution-modal');
+        document.getElementById('pension-contribution-form').reset();
+        document.getElementById('contribution-pension-id').value = this.currentPension.id;
+        document.getElementById('contribution-date').value = new Date().toISOString().split('T')[0];
+
+        modal.style.display = 'flex';
+    }
+
+    closeContributionModal() {
+        document.getElementById('pension-contribution-modal').style.display = 'none';
+    }
+
+    async saveContribution() {
+        const form = document.getElementById('pension-contribution-form');
+        const formData = new FormData(form);
+        const pensionId = formData.get('pensionId');
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/contributions`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    amount: parseFloat(formData.get('amount')),
+                    date: formData.get('date'),
+                    note: formData.get('note') || null
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to log contribution');
+            }
+
+            this.closeContributionModal();
+            await this.showPensionDetails(parseInt(pensionId));
+            OC.Notification.showTemporary('Contribution logged');
+        } catch (error) {
+            OC.Notification.showTemporary(error.message);
+        }
+    }
+
+    async loadDashboardPensionSummary() {
+        try {
+            const summary = await this.loadPensionSummary();
+            this.updatePensionsSummary(summary);
+        } catch (error) {
+            console.error('Failed to load pension summary for dashboard:', error);
+        }
     }
 }
 

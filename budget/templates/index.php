@@ -102,6 +102,16 @@ style('budget', 'style');
                 Savings Goals
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="pensions">
+            <a href="#pensions" class="nav-icon-pensions svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                    </svg>
+                </span>
+                Pensions
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="forecast">
             <a href="#forecast" class="nav-icon-trending svg">
                 <span class="app-navigation-entry-icon">
@@ -191,6 +201,19 @@ style('budget', 'style');
                         <span class="hero-label">Net Savings</span>
                         <span id="hero-savings-value" class="hero-value">--</span>
                         <span id="hero-savings-rate" class="hero-subtext"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-pension">
+                    <div class="hero-icon pension">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Pension Worth</span>
+                        <span id="hero-pension-value" class="hero-value">--</span>
+                        <span id="hero-pension-count" class="hero-subtext"></span>
                     </div>
                 </div>
             </div>
@@ -1986,6 +2009,304 @@ style('budget', 'style');
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Pensions View -->
+        <div id="pensions-view" class="view">
+            <div class="view-header">
+                <h2>Pensions</h2>
+                <button id="add-pension-btn" class="primary" aria-label="Add new pension">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    Add Pension
+                </button>
+            </div>
+
+            <!-- Pensions Summary Cards -->
+            <div class="pensions-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-total-worth">--</div>
+                        <div class="summary-label">Total Pension Worth</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-projected-value">--</div>
+                        <div class="summary-label">Projected at Retirement</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-projected-income">--</div>
+                        <div class="summary-label">Projected Annual Income</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-count">0</div>
+                        <div class="summary-label">Pension Accounts</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pensions List -->
+            <div class="pensions-container">
+                <div id="pensions-list" class="pensions-list">
+                    <!-- Pension cards will be rendered here -->
+                </div>
+
+                <div class="empty-pensions" id="empty-pensions" style="display: none;">
+                    <div class="empty-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5;">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                        </svg>
+                        <h3>No pensions yet</h3>
+                        <p>Track your pension accounts to visualize your retirement savings and projections.</p>
+                        <button class="primary" id="empty-pensions-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Add Your First Pension
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pension Detail Panel (shown when a pension is selected) -->
+            <div id="pension-detail-panel" class="pension-detail-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3 id="pension-detail-name">Pension Details</h3>
+                    <div class="panel-actions">
+                        <button id="pension-edit-btn" class="icon-button" title="Edit pension">
+                            <span class="icon-rename" aria-hidden="true"></span>
+                        </button>
+                        <button id="pension-close-btn" class="icon-button" title="Close">
+                            <span class="icon-close" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="pension-detail-summary">
+                        <div class="detail-item">
+                            <span class="detail-label">Current Balance</span>
+                            <span class="detail-value" id="pension-detail-balance">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Monthly Contribution</span>
+                            <span class="detail-value" id="pension-detail-contribution">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Expected Return</span>
+                            <span class="detail-value" id="pension-detail-return">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Retirement Age</span>
+                            <span class="detail-value" id="pension-detail-age">--</span>
+                        </div>
+                    </div>
+
+                    <div class="pension-detail-actions">
+                        <button id="update-balance-btn" class="secondary">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Update Balance
+                        </button>
+                        <button id="add-contribution-btn" class="secondary">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Log Contribution
+                        </button>
+                    </div>
+
+                    <!-- Balance History Chart -->
+                    <div class="pension-chart-section">
+                        <h4>Balance History</h4>
+                        <div class="chart-container">
+                            <canvas id="pension-balance-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Projection Chart -->
+                    <div class="pension-chart-section">
+                        <h4>Projected Growth</h4>
+                        <div class="chart-container">
+                            <canvas id="pension-projection-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="pension-activity-section">
+                        <h4>Recent Activity</h4>
+                        <div id="pension-activity-list" class="activity-list">
+                            <!-- Activity items rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pension Modal (Add/Edit) -->
+        <div id="pension-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-medium">
+                <div class="modal-header">
+                    <h3 id="pension-modal-title">Add Pension</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="pension-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="pension-name">Pension Name *</label>
+                        <input type="text" id="pension-name" name="name" required placeholder="e.g., Company Pension, Vanguard SIPP">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pension-type">Pension Type *</label>
+                            <select id="pension-type" name="type" required>
+                                <option value="workplace">Workplace Pension</option>
+                                <option value="personal">Personal Pension</option>
+                                <option value="sipp">SIPP</option>
+                                <option value="defined_benefit">Defined Benefit</option>
+                                <option value="state">State Pension</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pension-provider">Provider</label>
+                            <input type="text" id="pension-provider" name="provider" placeholder="e.g., Scottish Widows">
+                        </div>
+                    </div>
+
+                    <!-- DC Pension Fields -->
+                    <div id="dc-pension-fields">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pension-balance">Current Balance</label>
+                                <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="pension-monthly">Monthly Contribution</label>
+                                <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pension-return">Expected Annual Return (%)</label>
+                                <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
+                            </div>
+                            <div class="form-group">
+                                <label for="pension-retirement-age">Retirement Age</label>
+                                <input type="number" id="pension-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DB/State Pension Fields -->
+                    <div id="db-pension-fields" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pension-income">Projected Annual Income</label>
+                                <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="pension-transfer">Transfer Value</label>
+                                <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pension-db-retirement-age">Retirement Age</label>
+                            <input type="number" id="pension-db-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pension-currency">Currency</label>
+                            <select id="pension-currency" name="currency">
+                                <option value="GBP">GBP</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="pension-id" name="id" value="">
+
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary" id="save-pension-btn">Save Pension</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Update Balance Modal -->
+        <div id="pension-balance-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3>Update Balance</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="pension-balance-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="snapshot-balance">Current Balance *</label>
+                        <input type="number" id="snapshot-balance" name="balance" min="0" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="snapshot-date">Date *</label>
+                        <input type="date" id="snapshot-date" name="date" required>
+                    </div>
+                    <input type="hidden" id="snapshot-pension-id" name="pensionId" value="">
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Log Contribution Modal -->
+        <div id="pension-contribution-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3>Log Contribution</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="pension-contribution-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="contribution-amount">Amount *</label>
+                        <input type="number" id="contribution-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="contribution-date">Date *</label>
+                        <input type="date" id="contribution-date" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contribution-note">Note</label>
+                        <input type="text" id="contribution-note" name="note" placeholder="e.g., Bonus top-up">
+                    </div>
+                    <input type="hidden" id="contribution-pension-id" name="pensionId" value="">
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary">Log</button>
+                    </div>
+                </form>
             </div>
         </div>
 
