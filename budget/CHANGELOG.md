@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Auto-links transactions with exactly one match
   - Manual review modal for transactions with multiple potential matches
   - Undo option for auto-matched pairs
+- Pagination controls at bottom of transaction table for easier navigation
+
+### Fixed
+- Transaction page pagination not loading subsequent pages (page parameter was missing from API requests)
 
 ## [1.0.5] - 2026-01-14
 
