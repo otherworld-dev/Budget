@@ -1854,32 +1854,41 @@ class BudgetApp {
     }
 
     updatePagination(result) {
+        // Top pagination controls
         const pageInfo = document.getElementById('page-info');
         const prevBtn = document.getElementById('prev-page-btn');
         const nextBtn = document.getElementById('next-page-btn');
+        // Bottom pagination controls
+        const pageInfoBottom = document.getElementById('page-info-bottom');
+        const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
+        const nextBtnBottom = document.getElementById('next-page-btn-bottom');
 
-        // Only update pagination if elements exist
-        if (!pageInfo && !prevBtn && !nextBtn) return;
+        // Only update pagination if at least one set of elements exist
+        if (!pageInfo && !prevBtn && !nextBtn && !pageInfoBottom && !prevBtnBottom && !nextBtnBottom) return;
 
         if (result && result.total && result.totalPages) {
-            if (pageInfo) {
-                pageInfo.textContent = `Page ${this.currentPage || 1} of ${result.totalPages}`;
-            }
+            const currentPage = this.currentPage || 1;
+            const pageText = `Page ${currentPage} of ${result.totalPages}`;
+            const atFirstPage = currentPage <= 1;
+            const atLastPage = currentPage >= result.totalPages;
 
-            if (prevBtn) {
-                prevBtn.disabled = (this.currentPage || 1) <= 1;
-            }
+            // Update top controls
+            if (pageInfo) pageInfo.textContent = pageText;
+            if (prevBtn) prevBtn.disabled = atFirstPage;
+            if (nextBtn) nextBtn.disabled = atLastPage;
 
-            if (nextBtn) {
-                nextBtn.disabled = (this.currentPage || 1) >= result.totalPages;
-            }
+            // Update bottom controls
+            if (pageInfoBottom) pageInfoBottom.textContent = pageText;
+            if (prevBtnBottom) prevBtnBottom.disabled = atFirstPage;
+            if (nextBtnBottom) nextBtnBottom.disabled = atLastPage;
         } else {
             // Hide pagination if not needed or not supported
-            if (pageInfo) {
-                pageInfo.textContent = '';
-            }
+            if (pageInfo) pageInfo.textContent = '';
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
+            if (pageInfoBottom) pageInfoBottom.textContent = '';
+            if (prevBtnBottom) prevBtnBottom.disabled = true;
+            if (nextBtnBottom) nextBtnBottom.disabled = true;
         }
     }
 
@@ -2815,6 +2824,25 @@ class BudgetApp {
         const nextPageBtn = document.getElementById('next-page-btn');
         if (nextPageBtn) {
             nextPageBtn.addEventListener('click', () => {
+                this.currentPage++;
+                this.loadTransactions();
+            });
+        }
+
+        // Bottom pagination buttons
+        const prevPageBtnBottom = document.getElementById('prev-page-btn-bottom');
+        if (prevPageBtnBottom) {
+            prevPageBtnBottom.addEventListener('click', () => {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.loadTransactions();
+                }
+            });
+        }
+
+        const nextPageBtnBottom = document.getElementById('next-page-btn-bottom');
+        if (nextPageBtnBottom) {
+            nextPageBtnBottom.addEventListener('click', () => {
                 this.currentPage++;
                 this.loadTransactions();
             });

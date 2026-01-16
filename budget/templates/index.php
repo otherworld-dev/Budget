@@ -795,9 +795,15 @@ style('budget', 'style');
                     </thead>
                     <tbody></tbody>
                 </table>
+
+                <div class="pagination-controls pagination-bottom">
+                    <button id="prev-page-btn-bottom" class="secondary" disabled>←</button>
+                    <span id="page-info-bottom">Page 1 of 1</span>
+                    <button id="next-page-btn-bottom" class="secondary" disabled>→</button>
+                </div>
             </div>
         </div>
-        
+
         <!-- Categories View -->
         <div id="categories-view" class="view">
             <div class="view-header">
