@@ -5280,26 +5280,32 @@ class BudgetApp {
     }
 
     getPrimaryCurrency() {
-        // Return cached value if accounts haven't changed
-        if (this._primaryCurrencyCache && this._accountsHash === this._getAccountsHash()) {
+        // Get default currency from settings (matches backend SettingController default of 'GBP')
+        const defaultCurrency = this.settings?.default_currency || 'GBP';
+
+        // Return cached value if accounts and settings haven't changed
+        const currentHash = this._getAccountsHash();
+        if (this._primaryCurrencyCache &&
+            this._accountsHash === currentHash &&
+            this._settingsCurrencyCache === defaultCurrency) {
             return this._primaryCurrencyCache;
         }
 
-        // Default fallback
+        // Default fallback to user's setting
         if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
-            return 'USD';
+            return defaultCurrency;
         }
 
         // Weight currencies by absolute balance (same logic as backend ForecastService)
         const currencyWeights = {};
         this.accounts.forEach(account => {
-            const currency = account.currency || 'USD';
+            const currency = account.currency || defaultCurrency;
             const balance = Math.abs(parseFloat(account.balance) || 0);
             currencyWeights[currency] = (currencyWeights[currency] || 0) + balance;
         });
 
         // Find currency with highest weight
-        let primaryCurrency = 'USD';
+        let primaryCurrency = defaultCurrency;
         let maxWeight = 0;
         for (const [currency, weight] of Object.entries(currencyWeights)) {
             if (weight > maxWeight) {
@@ -5310,7 +5316,8 @@ class BudgetApp {
 
         // Cache the result
         this._primaryCurrencyCache = primaryCurrency;
-        this._accountsHash = this._getAccountsHash();
+        this._accountsHash = currentHash;
+        this._settingsCurrencyCache = defaultCurrency;
 
         return primaryCurrency;
     }
