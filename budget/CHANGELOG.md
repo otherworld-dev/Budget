@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-01-16
+
+### Added
+- Pension tracker for retirement planning
+  - Track multiple pension accounts (workplace, personal, SIPP, defined benefit, state)
+  - Balance history tracking via manual snapshots
+  - One-off contribution tracking with notes
+  - Per-pension settings: growth rate, retirement age, currency
+  - Projections showing pot value at retirement using compound interest formula
+  - Combined projection across all pensions
+  - Dashboard card showing total pension worth or projected income
+  - Separate "Pensions" section in navigation
+- Pension types with different display logic:
+  - DC pensions (workplace, personal, SIPP): show pot value with growth projections
+  - DB pensions: show annual income at retirement with optional transfer value
+  - State pension: show annual amount
+
 ## [1.0.6] - 2026-01-15
 
 ### Added

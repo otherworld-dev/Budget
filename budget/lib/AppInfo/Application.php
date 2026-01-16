@@ -324,6 +324,42 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('MigrationService', \OCA\Budget\Service\MigrationService::class);
+
+        // ==========================================
+        // Pension Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\PensionAccountMapper::class, function($c) {
+            return new \OCA\Budget\Db\PensionAccountMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('PensionAccountMapper', \OCA\Budget\Db\PensionAccountMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\PensionSnapshotMapper::class, function($c) {
+            return new \OCA\Budget\Db\PensionSnapshotMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('PensionSnapshotMapper', \OCA\Budget\Db\PensionSnapshotMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\PensionContributionMapper::class, function($c) {
+            return new \OCA\Budget\Db\PensionContributionMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('PensionContributionMapper', \OCA\Budget\Db\PensionContributionMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\PensionService::class, function($c) {
+            return new \OCA\Budget\Service\PensionService(
+                $c->get(\OCA\Budget\Db\PensionAccountMapper::class),
+                $c->get(\OCA\Budget\Db\PensionSnapshotMapper::class),
+                $c->get(\OCA\Budget\Db\PensionContributionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('PensionService', \OCA\Budget\Service\PensionService::class);
+
+        $context->registerService(\OCA\Budget\Service\PensionProjector::class, function($c) {
+            return new \OCA\Budget\Service\PensionProjector(
+                $c->get(\OCA\Budget\Db\PensionAccountMapper::class),
+                $c->get(\OCA\Budget\Service\PensionService::class)
+            );
+        });
+        $context->registerServiceAlias('PensionProjector', \OCA\Budget\Service\PensionProjector::class);
     }
 
     public function boot(IBootContext $context): void {

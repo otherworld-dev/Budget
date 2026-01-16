@@ -102,6 +102,22 @@ return [
         ['name' => 'goals#progress', 'url' => '/api/goals/{id}/progress', 'verb' => 'GET'],
         ['name' => 'goals#forecast', 'url' => '/api/goals/{id}/forecast', 'verb' => 'GET'],
 
+        // Pension routes - specific paths before {id} wildcard
+        ['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],
+        ['name' => 'pension#create', 'url' => '/api/pensions', 'verb' => 'POST'],
+        ['name' => 'pension#summary', 'url' => '/api/pensions/summary', 'verb' => 'GET'],
+        ['name' => 'pension#combinedProjection', 'url' => '/api/pensions/projection', 'verb' => 'GET'],
+        ['name' => 'pension#show', 'url' => '/api/pensions/{id}', 'verb' => 'GET'],
+        ['name' => 'pension#update', 'url' => '/api/pensions/{id}', 'verb' => 'PUT'],
+        ['name' => 'pension#destroy', 'url' => '/api/pensions/{id}', 'verb' => 'DELETE'],
+        ['name' => 'pension#snapshots', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'GET'],
+        ['name' => 'pension#createSnapshot', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'POST'],
+        ['name' => 'pension#contributions', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'GET'],
+        ['name' => 'pension#createContribution', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'POST'],
+        ['name' => 'pension#projection', 'url' => '/api/pensions/{id}/projection', 'verb' => 'GET'],
+        ['name' => 'pension#destroySnapshot', 'url' => '/api/pensions/snapshots/{snapshotId}', 'verb' => 'DELETE'],
+        ['name' => 'pension#destroyContribution', 'url' => '/api/pensions/contributions/{contributionId}', 'verb' => 'DELETE'],
+
         // Report routes
         ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
         ['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],
