@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.6] - 2026-01-15
 
+### Added
+- Transaction matching for transfer detection between accounts
+- Automatic detection of potential transfer matches (same amount, opposite type, within 3 days)
+- Link/unlink transactions as transfer pairs
+- Visual indicator for linked transactions in transaction list
+- Bulk "Match All" feature for batch transaction matching
+  - Auto-links transactions with exactly one match
+  - Manual review modal for transactions with multiple potential matches
+  - Undo option for auto-matched pairs
+- Pagination controls at bottom of transaction table for easier navigation
+
 ### Changed
 - App icon updated to piggy bank design for better theme compatibility
 
 ### Fixed
 - PHP 8 deprecation warning: optional parameter declared before required parameters in ReportService
+- Transaction page pagination not loading subsequent pages (page parameter was missing from API requests)
 
 ## [1.0.5] - 2026-01-14
 

@@ -24,7 +24,7 @@ class SettingController extends Controller {
 
     // Default settings
     private const DEFAULTS = [
-        'default_currency' => 'USD',
+        'default_currency' => 'GBP',
         'date_format' => 'Y-m-d',
         'first_day_of_week' => '0', // Sunday
         'number_format_decimals' => '2',

@@ -126,8 +126,15 @@ class BudgetApp {
 
         // Modal cancel button
         document.querySelectorAll('.cancel-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.hideModals();
+            btn.addEventListener('click', (e) => {
+                // Check if closing bulk match modal - refresh transactions
+                const bulkMatchModal = document.getElementById('bulk-match-modal');
+                if (bulkMatchModal && bulkMatchModal.style.display !== 'none' && bulkMatchModal.contains(e.target)) {
+                    this.hideModals();
+                    this.loadTransactions();
+                } else {
+                    this.hideModals();
+                }
             });
         });
 
@@ -151,6 +158,28 @@ class BudgetApp {
             } else if (e.target.classList.contains('transaction-delete-btn')) {
                 const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
                 this.deleteTransaction(transactionId);
+            } else if (e.target.classList.contains('transaction-match-btn') || e.target.closest('.transaction-match-btn')) {
+                const button = e.target.classList.contains('transaction-match-btn') ? e.target : e.target.closest('.transaction-match-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
+                this.showMatchingModal(transactionId);
+            } else if (e.target.classList.contains('transaction-unlink-btn') || e.target.closest('.transaction-unlink-btn')) {
+                const button = e.target.classList.contains('transaction-unlink-btn') ? e.target : e.target.closest('.transaction-unlink-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
+                this.handleUnlinkTransaction(transactionId);
+            } else if (e.target.classList.contains('linked-indicator')) {
+                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
+                this.handleUnlinkTransaction(transactionId);
+            } else if (e.target.classList.contains('link-match-btn')) {
+                const sourceId = parseInt(e.target.getAttribute('data-source-id'));
+                const targetId = parseInt(e.target.getAttribute('data-target-id'));
+                this.handleLinkMatch(sourceId, targetId);
+            } else if (e.target.classList.contains('undo-match-btn')) {
+                const transactionId = parseInt(e.target.getAttribute('data-tx-id'));
+                this.handleBulkMatchUndo(transactionId);
+            } else if (e.target.classList.contains('link-selected-btn')) {
+                const transactionId = parseInt(e.target.getAttribute('data-tx-id'));
+                const index = parseInt(e.target.getAttribute('data-index'));
+                this.handleBulkMatchLink(transactionId, index);
             } else if (e.target.classList.contains('autocomplete-item')) {
                 const bankName = e.target.getAttribute('data-bank-name');
                 this.selectInstitution(bankName);
@@ -158,6 +187,17 @@ class BudgetApp {
                 this.showAddCategoryModal();
             } else if (e.target.id === 'create-default-categories-btn' || e.target.closest('#create-default-categories-btn')) {
                 this.createDefaultCategories();
+            }
+        });
+
+        // Bulk match radio button change handler (enable/disable link button)
+        document.addEventListener('change', (e) => {
+            if (e.target.type === 'radio' && e.target.name && e.target.name.startsWith('review-match-')) {
+                const index = e.target.name.replace('review-match-', '');
+                const linkBtn = document.querySelector(`.link-selected-btn[data-index="${index}"]`);
+                if (linkBtn) {
+                    linkBtn.disabled = false;
+                }
             }
         });
 
@@ -1563,7 +1603,7 @@ class BudgetApp {
             this.currentSort = this.currentSort || { field: 'date', direction: 'desc' };
 
             // Build query parameters - start with basic compatibility
-            let url = '/apps/budget/api/transactions?limit=' + this.rowsPerPage;
+            let url = '/apps/budget/api/transactions?limit=' + this.rowsPerPage + '&page=' + this.currentPage;
 
             // Add account filter if provided
             if (accountId) {
@@ -1648,8 +1688,24 @@ class BudgetApp {
                           .replace(/"/g, '&quot;');
             };
 
+            const isLinked = transaction.linkedTransactionId != null;
+            const linkedBadge = isLinked
+                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" title="Linked transfer - click to unlink">&#x1F517; Transfer</span>`
+                : '';
+            const matchButton = !isLinked
+                ? `<button class="action-btn match-btn transaction-match-btn"
+                          data-transaction-id="${transaction.id}"
+                          title="Find transfer matches">
+                      <span class="icon-external" aria-hidden="true"></span>
+                  </button>`
+                : `<button class="action-btn unlink-btn transaction-unlink-btn"
+                          data-transaction-id="${transaction.id}"
+                          title="Unlink transfer">
+                      &#x2716;
+                  </button>`;
+
             return `
-                <tr class="transaction-row" data-transaction-id="${transaction.id}">
+                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}" data-transaction-id="${transaction.id}">
                     <td class="select-column">
                         <input type="checkbox" class="transaction-checkbox"
                                data-transaction-id="${transaction.id}"
@@ -1668,6 +1724,7 @@ class BudgetApp {
                         <div class="transaction-description">
                             <span class="primary-text cell-display">${escapeHtml(transaction.description) || 'No description'}</span>
                             ${transaction.reference ? `<span class="secondary-text">${escapeHtml(transaction.reference)}</span>` : ''}
+                            ${linkedBadge}
                         </div>
                     </td>
                     <td class="category-column editable-cell"
@@ -1693,6 +1750,7 @@ class BudgetApp {
                     </td>
                     <td class="actions-column">
                         <div class="transaction-actions">
+                            ${matchButton}
                             <button class="action-btn edit-btn transaction-edit-btn"
                                     data-transaction-id="${transaction.id}"
                                     title="Edit transaction (modal)">
@@ -1796,32 +1854,41 @@ class BudgetApp {
     }
 
     updatePagination(result) {
+        // Top pagination controls
         const pageInfo = document.getElementById('page-info');
         const prevBtn = document.getElementById('prev-page-btn');
         const nextBtn = document.getElementById('next-page-btn');
+        // Bottom pagination controls
+        const pageInfoBottom = document.getElementById('page-info-bottom');
+        const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
+        const nextBtnBottom = document.getElementById('next-page-btn-bottom');
 
-        // Only update pagination if elements exist
-        if (!pageInfo && !prevBtn && !nextBtn) return;
+        // Only update pagination if at least one set of elements exist
+        if (!pageInfo && !prevBtn && !nextBtn && !pageInfoBottom && !prevBtnBottom && !nextBtnBottom) return;
 
         if (result && result.total && result.totalPages) {
-            if (pageInfo) {
-                pageInfo.textContent = `Page ${this.currentPage || 1} of ${result.totalPages}`;
-            }
+            const currentPage = this.currentPage || 1;
+            const pageText = `Page ${currentPage} of ${result.totalPages}`;
+            const atFirstPage = currentPage <= 1;
+            const atLastPage = currentPage >= result.totalPages;
 
-            if (prevBtn) {
-                prevBtn.disabled = (this.currentPage || 1) <= 1;
-            }
+            // Update top controls
+            if (pageInfo) pageInfo.textContent = pageText;
+            if (prevBtn) prevBtn.disabled = atFirstPage;
+            if (nextBtn) nextBtn.disabled = atLastPage;
 
-            if (nextBtn) {
-                nextBtn.disabled = (this.currentPage || 1) >= result.totalPages;
-            }
+            // Update bottom controls
+            if (pageInfoBottom) pageInfoBottom.textContent = pageText;
+            if (prevBtnBottom) prevBtnBottom.disabled = atFirstPage;
+            if (nextBtnBottom) nextBtnBottom.disabled = atLastPage;
         } else {
             // Hide pagination if not needed or not supported
-            if (pageInfo) {
-                pageInfo.textContent = '';
-            }
+            if (pageInfo) pageInfo.textContent = '';
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
+            if (pageInfoBottom) pageInfoBottom.textContent = '';
+            if (prevBtnBottom) prevBtnBottom.disabled = true;
+            if (nextBtnBottom) nextBtnBottom.disabled = true;
         }
     }
 
@@ -2018,23 +2085,41 @@ class BudgetApp {
                 return value;
             };
 
+            const accountId = getFormValue('account-id');
+            const isEdit = !!accountId;
+
             const formData = {
                 name: getFormValue('account-name', ''),
                 type: getFormValue('account-type', ''),
                 balance: getFormValue('account-balance', 0, true),
                 currency: getFormValue('account-currency', 'USD'),
                 institution: getFormValue('account-institution'),
-                accountNumber: getFormValue('form-account-number'),
-                routingNumber: getFormValue('form-routing-number'),
-                sortCode: getFormValue('form-sort-code'),
-                iban: getFormValue('form-iban'),
-                swiftBic: getFormValue('form-swift-bic'),
                 accountHolderName: getFormValue('account-holder-name'),
                 openingDate: getFormValue('account-opening-date'),
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true)
             };
+
+            // Sensitive fields: only include if user entered a value
+            // For edits, empty means "keep existing" - don't send to avoid overwriting
+            const sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic'];
+            const sensitiveFieldIds = {
+                accountNumber: 'form-account-number',
+                routingNumber: 'form-routing-number',
+                sortCode: 'form-sort-code',
+                iban: 'form-iban',
+                swiftBic: 'form-swift-bic'
+            };
+
+            sensitiveFields.forEach(field => {
+                const value = getFormValue(sensitiveFieldIds[field]);
+                // For new accounts: include all fields (null for empty)
+                // For edits: only include if user entered a value
+                if (!isEdit || value !== null) {
+                    formData[field] = value;
+                }
+            });
 
             // Validate required fields on frontend
             if (!formData.name || formData.name === '') {
@@ -2065,9 +2150,7 @@ class BudgetApp {
                 return;
             }
 
-            const accountId = getFormValue('account-id');
-
-            // Make API request
+            // Make API request (accountId already defined above for isEdit check)
             const url = accountId
                 ? `/apps/budget/api/accounts/${accountId}`
                 : '/apps/budget/api/accounts';
@@ -2188,11 +2271,29 @@ class BudgetApp {
             document.getElementById('account-balance').value = account.balance;
             document.getElementById('account-currency').value = account.currency;
             document.getElementById('account-institution').value = account.institution || '';
-            document.getElementById('form-account-number').value = account.accountNumber || '';
-            document.getElementById('form-routing-number').value = account.routingNumber || '';
-            document.getElementById('form-sort-code').value = account.sortCode || '';
-            document.getElementById('form-iban').value = account.iban || '';
-            document.getElementById('form-swift-bic').value = account.swiftBic || '';
+
+            // Sensitive fields: don't populate with masked values, use placeholder instead
+            // This prevents the masked value from being saved back and corrupting the data
+            const sensitiveFields = [
+                { id: 'form-account-number', hasValue: !!account.accountNumber },
+                { id: 'form-routing-number', hasValue: !!account.routingNumber },
+                { id: 'form-sort-code', hasValue: !!account.sortCode },
+                { id: 'form-iban', hasValue: !!account.iban },
+                { id: 'form-swift-bic', hasValue: !!account.swiftBic }
+            ];
+
+            sensitiveFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    element.value = ''; // Don't populate with masked value
+                    if (field.hasValue) {
+                        element.placeholder = '••••••••  (leave blank to keep current)';
+                    } else {
+                        element.placeholder = '';
+                    }
+                }
+            });
+
             document.getElementById('account-holder-name').value = account.accountHolderName || '';
             document.getElementById('account-opening-date').value = account.openingDate || '';
             document.getElementById('account-interest-rate').value = account.interestRate || '';
@@ -2678,6 +2779,14 @@ class BudgetApp {
             });
         }
 
+        // Bulk Match All
+        const bulkMatchBtn = document.getElementById('bulk-match-btn');
+        if (bulkMatchBtn) {
+            bulkMatchBtn.addEventListener('click', () => {
+                this.showBulkMatchModal();
+            });
+        }
+
         const startReconcileBtn = document.getElementById('start-reconcile-btn');
         if (startReconcileBtn) {
             startReconcileBtn.addEventListener('click', () => {
@@ -2715,6 +2824,25 @@ class BudgetApp {
         const nextPageBtn = document.getElementById('next-page-btn');
         if (nextPageBtn) {
             nextPageBtn.addEventListener('click', () => {
+                this.currentPage++;
+                this.loadTransactions();
+            });
+        }
+
+        // Bottom pagination buttons
+        const prevPageBtnBottom = document.getElementById('prev-page-btn-bottom');
+        if (prevPageBtnBottom) {
+            prevPageBtnBottom.addEventListener('click', () => {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.loadTransactions();
+                }
+            });
+        }
+
+        const nextPageBtnBottom = document.getElementById('next-page-btn-bottom');
+        if (nextPageBtnBottom) {
+            nextPageBtnBottom.addEventListener('click', () => {
                 this.currentPage++;
                 this.loadTransactions();
             });
@@ -3672,7 +3800,8 @@ class BudgetApp {
                     accounts.forEach(account => {
                         const option = document.createElement('option');
                         option.value = account.id;
-                        option.textContent = `${account.name} (${account.type})`;
+                        const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
+                        option.textContent = `${account.name} (${account.type}${accountNum})`;
                         select.appendChild(option);
                     });
                 }
@@ -3702,10 +3831,13 @@ class BudgetApp {
                 details.push(`Balance: ${this.formatCurrency(sourceAccount.ledgerBalance)}`);
             }
 
-            // Build account options HTML
+            // Build account options HTML with auto-match selection
+            const suggestedMatch = sourceAccount.suggestedMatch;
             let optionsHtml = '<option value="">Skip this account</option>';
             accounts.forEach(account => {
-                optionsHtml += `<option value="${account.id}">${account.name} (${account.type})</option>`;
+                const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
+                const selected = suggestedMatch === account.id ? ' selected' : '';
+                optionsHtml += `<option value="${account.id}"${selected}>${account.name} (${account.type}${accountNum})</option>`;
             });
 
             row.innerHTML = `
@@ -3730,6 +3862,11 @@ class BudgetApp {
                 }
             });
         });
+
+        // Auto-trigger preview if any accounts were auto-matched
+        if (this.hasAnyAccountMapping()) {
+            this.processImportData();
+        }
     }
 
     hasAnyAccountMapping() {
@@ -3780,6 +3917,12 @@ class BudgetApp {
             requestBody.accountId = parseInt(accountId);
         }
 
+        // Show loading state on import button
+        const importBtn = document.getElementById('import-btn');
+        const originalText = importBtn.textContent;
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing...';
+
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/import/process'), {
                 method: 'POST',
@@ -3809,6 +3952,10 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to execute import:', error);
             OC.Notification.showTemporary('Failed to import transactions: ' + error.message);
+        } finally {
+            // Restore button state
+            importBtn.disabled = false;
+            importBtn.textContent = originalText;
         }
     }
 
@@ -8943,6 +9090,422 @@ class BudgetApp {
             console.error('Failed to add money to goal:', error);
             OC.Notification.showTemporary('Failed to add money to goal');
         }
+    }
+
+    // ===== Transaction Matching Methods =====
+
+    /**
+     * Find potential transfer matches for a transaction
+     */
+    async findTransactionMatches(transactionId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/matches`), {
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to find matches:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Link two transactions as a transfer pair
+     */
+    async linkTransactions(transactionId, targetId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`), {
+                method: 'POST',
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to link transactions:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Unlink a transaction from its transfer partner
+     */
+    async unlinkTransaction(transactionId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link`), {
+                method: 'DELETE',
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to unlink transaction:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Show the matching modal for a transaction
+     */
+    async showMatchingModal(transactionId) {
+        const transaction = this.transactions?.find(t => t.id === transactionId);
+        if (!transaction) {
+            OC.Notification.showTemporary('Transaction not found');
+            return;
+        }
+
+        const modal = document.getElementById('matching-modal');
+        const sourceDetails = modal.querySelector('.source-details');
+        const loadingEl = document.getElementById('matching-loading');
+        const emptyEl = document.getElementById('matching-empty');
+        const listEl = document.getElementById('matching-list');
+
+        // Populate source transaction info
+        const account = this.accounts?.find(a => a.id === transaction.accountId);
+        const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
+        const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
+
+        sourceDetails.querySelector('.source-date').textContent = new Date(transaction.date).toLocaleDateString();
+        sourceDetails.querySelector('.source-description').textContent = transaction.description;
+        sourceDetails.querySelector('.source-amount').textContent = this.formatCurrency(transaction.amount, currency);
+        sourceDetails.querySelector('.source-amount').className = `source-amount ${typeClass}`;
+        sourceDetails.querySelector('.source-account').textContent = account?.name || 'Unknown Account';
+
+        // Show modal and loading state
+        modal.style.display = 'flex';
+        loadingEl.style.display = 'flex';
+        emptyEl.style.display = 'none';
+        listEl.innerHTML = '';
+
+        try {
+            const result = await this.findTransactionMatches(transactionId);
+            loadingEl.style.display = 'none';
+
+            if (!result.matches || result.matches.length === 0) {
+                emptyEl.style.display = 'flex';
+                return;
+            }
+
+            // Render matches
+            listEl.innerHTML = result.matches.map(match => {
+                const matchAccount = this.accounts?.find(a => a.id === match.accountId);
+                const matchCurrency = match.accountCurrency || matchAccount?.currency || this.getPrimaryCurrency();
+                const matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
+
+                return `
+                    <div class="match-item" data-match-id="${match.id}">
+                        <span class="match-date">${new Date(match.date).toLocaleDateString()}</span>
+                        <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
+                        <span class="match-account">${matchAccount?.name || 'Unknown'}</span>
+                        <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
+                            Link as Transfer
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (error) {
+            loadingEl.style.display = 'none';
+            emptyEl.style.display = 'flex';
+            emptyEl.querySelector('p').textContent = 'Failed to search for matches. Please try again.';
+        }
+    }
+
+    /**
+     * Handle linking a match from the modal
+     */
+    async handleLinkMatch(sourceId, targetId) {
+        try {
+            await this.linkTransactions(sourceId, targetId);
+            OC.Notification.showTemporary('Transactions linked as transfer');
+
+            // Close modal and refresh transactions
+            document.getElementById('matching-modal').style.display = 'none';
+            await this.loadTransactions();
+        } catch (error) {
+            OC.Notification.showTemporary(error.message || 'Failed to link transactions');
+        }
+    }
+
+    /**
+     * Handle unlinking a transaction
+     */
+    async handleUnlinkTransaction(transactionId) {
+        if (!confirm('Are you sure you want to unlink this transaction from its transfer pair?')) {
+            return;
+        }
+
+        try {
+            await this.unlinkTransaction(transactionId);
+            OC.Notification.showTemporary('Transaction unlinked');
+            await this.loadTransactions();
+        } catch (error) {
+            OC.Notification.showTemporary(error.message || 'Failed to unlink transaction');
+        }
+    }
+
+    // ===== Bulk Transaction Matching Methods =====
+
+    /**
+     * API call to bulk match transactions
+     */
+    async bulkMatchTransactions() {
+        const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
+            method: 'POST',
+            headers: {
+                'requesttoken': OC.requestToken,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP ${response.status}`);
+        }
+        return await response.json();
+    }
+
+    /**
+     * Show the bulk match modal and execute bulk matching
+     */
+    async showBulkMatchModal() {
+        const modal = document.getElementById('bulk-match-modal');
+        const loadingEl = document.getElementById('bulk-match-loading');
+        const resultsEl = document.getElementById('bulk-match-results');
+        const emptyEl = document.getElementById('bulk-match-empty');
+        const autoMatchedSection = document.getElementById('auto-matched-section');
+        const needsReviewSection = document.getElementById('needs-review-section');
+        const autoMatchedList = document.getElementById('auto-matched-list');
+        const needsReviewList = document.getElementById('needs-review-list');
+
+        // Reset state
+        loadingEl.style.display = 'flex';
+        resultsEl.style.display = 'none';
+        emptyEl.style.display = 'none';
+        autoMatchedSection.style.display = 'none';
+        needsReviewSection.style.display = 'none';
+        autoMatchedList.innerHTML = '';
+        needsReviewList.innerHTML = '';
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        try {
+            const result = await this.bulkMatchTransactions();
+            loadingEl.style.display = 'none';
+            resultsEl.style.display = 'block';
+
+            // Update summary counts
+            document.getElementById('auto-matched-count').textContent = result.stats.autoMatchedCount;
+            document.getElementById('needs-review-count').textContent = result.stats.needsReviewCount;
+
+            // Check if no results
+            if (result.stats.autoMatchedCount === 0 && result.stats.needsReviewCount === 0) {
+                emptyEl.style.display = 'flex';
+                return;
+            }
+
+            // Render auto-matched pairs
+            if (result.autoMatched && result.autoMatched.length > 0) {
+                autoMatchedSection.style.display = 'block';
+                autoMatchedList.innerHTML = result.autoMatched.map(pair => this.renderAutoMatchedPair(pair)).join('');
+            }
+
+            // Render needs review items
+            if (result.needsReview && result.needsReview.length > 0) {
+                needsReviewSection.style.display = 'block';
+                needsReviewList.innerHTML = result.needsReview.map((item, index) => this.renderNeedsReviewItem(item, index)).join('');
+            }
+
+        } catch (error) {
+            loadingEl.style.display = 'none';
+            resultsEl.style.display = 'block';
+            emptyEl.style.display = 'flex';
+            emptyEl.querySelector('p').textContent = error.message || 'Failed to match transactions. Please try again.';
+        }
+    }
+
+    /**
+     * Render an auto-matched pair in the bulk match modal
+     */
+    renderAutoMatchedPair(pair) {
+        const tx = pair.transaction;
+        const linked = pair.linkedTo;
+
+        const txCurrency = tx.account_currency || this.getPrimaryCurrency();
+        const linkedCurrency = linked.accountCurrency || this.getPrimaryCurrency();
+
+        const txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
+        const linkedTypeClass = linked.type === 'credit' ? 'positive' : 'negative';
+
+        return `
+            <div class="bulk-match-pair" data-tx-id="${tx.id}" data-linked-id="${linked.id}">
+                <div class="pair-transaction">
+                    <span class="pair-date">${new Date(tx.date).toLocaleDateString()}</span>
+                    <span class="pair-description">${this.escapeHtml(tx.description)}</span>
+                    <div class="pair-details">
+                        <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
+                        <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                    </div>
+                </div>
+                <span class="pair-arrow">↔</span>
+                <div class="pair-transaction">
+                    <span class="pair-date">${new Date(linked.date).toLocaleDateString()}</span>
+                    <span class="pair-description">${this.escapeHtml(linked.description)}</span>
+                    <div class="pair-details">
+                        <span class="pair-amount ${linkedTypeClass}">${this.formatCurrency(linked.amount, linkedCurrency)}</span>
+                        <span class="pair-account">${this.escapeHtml(linked.accountName)}</span>
+                    </div>
+                </div>
+                <button class="undo-match-btn" data-tx-id="${tx.id}">Undo</button>
+            </div>
+        `;
+    }
+
+    /**
+     * Render a needs-review item in the bulk match modal
+     */
+    renderNeedsReviewItem(item, index) {
+        const tx = item.transaction;
+        const txCurrency = tx.account_currency || this.getPrimaryCurrency();
+        const txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
+
+        const matchesHtml = item.matches.map((match) => {
+            const matchCurrency = match.accountCurrency || this.getPrimaryCurrency();
+            const matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
+
+            return `
+                <label class="review-match-option">
+                    <input type="radio" name="review-match-${index}" value="${match.id}">
+                    <div class="match-info">
+                        <div class="match-info-main">
+                            <span class="match-date">${new Date(match.date).toLocaleDateString()}</span>
+                            <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        </div>
+                        <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
+                        <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
+                    </div>
+                </label>
+            `;
+        }).join('');
+
+        return `
+            <div class="bulk-review-item" data-tx-id="${tx.id}" data-index="${index}">
+                <div class="review-source">
+                    <div class="review-source-info">
+                        <span class="review-source-date">${new Date(tx.date).toLocaleDateString()}</span>
+                        <span class="review-source-description">${this.escapeHtml(tx.description)}</span>
+                        <div class="review-source-details">
+                            <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
+                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="review-matches-label">Select a match (${item.matchCount} options):</div>
+                <div class="review-matches">
+                    ${matchesHtml}
+                </div>
+                <button class="link-selected-btn" data-tx-id="${tx.id}" data-index="${index}" disabled>Link Selected</button>
+            </div>
+        `;
+    }
+
+    /**
+     * Handle undo of an auto-matched pair from bulk match modal
+     */
+    async handleBulkMatchUndo(transactionId) {
+        try {
+            await this.unlinkTransaction(transactionId);
+
+            // Remove the pair from the UI
+            const pairEl = document.querySelector(`.bulk-match-pair[data-tx-id="${transactionId}"]`);
+            if (pairEl) {
+                pairEl.remove();
+            }
+
+            // Update count
+            const countEl = document.getElementById('auto-matched-count');
+            const currentCount = parseInt(countEl.textContent);
+            countEl.textContent = currentCount - 1;
+
+            // Check if section is now empty
+            const autoMatchedList = document.getElementById('auto-matched-list');
+            if (autoMatchedList.children.length === 0) {
+                document.getElementById('auto-matched-section').style.display = 'none';
+            }
+
+            OC.Notification.showTemporary('Match undone');
+        } catch (error) {
+            OC.Notification.showTemporary(error.message || 'Failed to undo match');
+        }
+    }
+
+    /**
+     * Handle linking a selected match from review section
+     */
+    async handleBulkMatchLink(transactionId, index) {
+        const reviewItem = document.querySelector(`.bulk-review-item[data-index="${index}"]`);
+        const selectedRadio = reviewItem.querySelector(`input[name="review-match-${index}"]:checked`);
+
+        if (!selectedRadio) {
+            OC.Notification.showTemporary('Please select a match first');
+            return;
+        }
+
+        const targetId = parseInt(selectedRadio.value);
+
+        try {
+            await this.linkTransactions(transactionId, targetId);
+
+            // Remove the review item from the UI
+            reviewItem.remove();
+
+            // Update counts
+            const reviewCountEl = document.getElementById('needs-review-count');
+            const autoCountEl = document.getElementById('auto-matched-count');
+            const currentReviewCount = parseInt(reviewCountEl.textContent);
+            const currentAutoCount = parseInt(autoCountEl.textContent);
+
+            reviewCountEl.textContent = currentReviewCount - 1;
+            autoCountEl.textContent = currentAutoCount + 1;
+
+            // Check if review section is now empty
+            const needsReviewList = document.getElementById('needs-review-list');
+            if (needsReviewList.children.length === 0) {
+                document.getElementById('needs-review-section').style.display = 'none';
+            }
+
+            OC.Notification.showTemporary('Transactions linked');
+        } catch (error) {
+            OC.Notification.showTemporary(error.message || 'Failed to link transactions');
+        }
+    }
+
+    /**
+     * Escape HTML to prevent XSS (utility method)
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;');
     }
 }
 
