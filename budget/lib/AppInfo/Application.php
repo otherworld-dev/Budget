@@ -360,6 +360,32 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('PensionProjector', \OCA\Budget\Service\PensionProjector::class);
+
+        // ==========================================
+        // Net Worth Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\NetWorthSnapshotMapper::class, function($c) {
+            return new \OCA\Budget\Db\NetWorthSnapshotMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('NetWorthSnapshotMapper', \OCA\Budget\Db\NetWorthSnapshotMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\NetWorthService::class, function($c) {
+            return new \OCA\Budget\Service\NetWorthService(
+                $c->get(\OCA\Budget\Db\NetWorthSnapshotMapper::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class)
+            );
+        });
+        $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);
+
+        $context->registerService(\OCA\Budget\BackgroundJob\NetWorthSnapshotJob::class, function($c) {
+            return new \OCA\Budget\BackgroundJob\NetWorthSnapshotJob(
+                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
+                $c->get(\OCA\Budget\Service\NetWorthService::class),
+                $c->get(\OCP\IDBConnection::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
     }
 
     public function boot(IBootContext $context): void {

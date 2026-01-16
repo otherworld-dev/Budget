@@ -473,7 +473,7 @@ class BudgetApp {
             const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
 
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse] = await Promise.all([
+            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse] = await Promise.all([
                 // Current month summary for hero stats
                 fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}`), {
                     headers: { 'requesttoken': OC.requestToken }
@@ -496,6 +496,9 @@ class BudgetApp {
                 }).catch(() => ({ ok: false })),
                 fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
                     headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/net-worth/snapshots?days=30'), {
+                    headers: { 'requesttoken': OC.requestToken }
                 }).catch(() => ({ ok: false }))
             ]);
 
@@ -506,6 +509,7 @@ class BudgetApp {
             const budgetData = budgetResponse.ok ? await budgetResponse.json() : { categories: [] };
             const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
             const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
+            const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
 
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary);
@@ -535,6 +539,9 @@ class BudgetApp {
             if (trendData.trends) {
                 this.updateTrendChart(trendData.trends);
             }
+
+            // Update Net Worth History Chart
+            this.updateNetWorthHistoryChart(netWorthSnapshots);
 
             // Setup dashboard controls
             this.setupDashboardControls();
@@ -844,6 +851,31 @@ class BudgetApp {
                 await this.refreshSpendingChart(period);
             });
         }
+
+        // Net Worth period selector
+        const netWorthPeriodSelector = document.getElementById('net-worth-period-selector');
+        if (netWorthPeriodSelector && !netWorthPeriodSelector.hasAttribute('data-initialized')) {
+            netWorthPeriodSelector.setAttribute('data-initialized', 'true');
+            netWorthPeriodSelector.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('period-btn')) {
+                    // Update active button
+                    netWorthPeriodSelector.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    // Refresh chart with new period
+                    const days = parseInt(e.target.dataset.days);
+                    await this.refreshNetWorthChart(days);
+                }
+            });
+        }
+
+        // Record Net Worth Snapshot button
+        const recordNetWorthBtn = document.getElementById('record-net-worth-btn');
+        if (recordNetWorthBtn && !recordNetWorthBtn.hasAttribute('data-initialized')) {
+            recordNetWorthBtn.setAttribute('data-initialized', 'true');
+            recordNetWorthBtn.addEventListener('click', async () => {
+                await this.recordNetWorthSnapshot();
+            });
+        }
     }
 
     async refreshTrendChart(months) {
@@ -893,6 +925,156 @@ class BudgetApp {
             }
         } catch (error) {
             console.error('Failed to refresh spending chart:', error);
+        }
+    }
+
+    /**
+     * Update the net worth history chart with snapshot data.
+     */
+    updateNetWorthHistoryChart(snapshots) {
+        const canvas = document.getElementById('net-worth-chart');
+        const emptyState = document.getElementById('net-worth-chart-empty');
+        if (!canvas) return;
+
+        // Destroy existing chart
+        if (this.charts.netWorth) {
+            this.charts.netWorth.destroy();
+        }
+
+        // Handle empty state
+        if (!snapshots || snapshots.length === 0) {
+            canvas.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
+
+        // Show canvas, hide empty state
+        canvas.style.display = 'block';
+        if (emptyState) emptyState.style.display = 'none';
+
+        const currency = this.getPrimaryCurrency();
+        const labels = snapshots.map(s => s.date);
+        const netWorthData = snapshots.map(s => s.netWorth);
+        const assetsData = snapshots.map(s => s.totalAssets);
+        const liabilitiesData = snapshots.map(s => s.totalLiabilities);
+
+        this.charts.netWorth = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Net Worth',
+                        data: netWorthData,
+                        borderColor: '#46ba61',
+                        backgroundColor: 'rgba(70, 186, 97, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Assets',
+                        data: assetsData,
+                        borderColor: '#0082c9',
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.3,
+                        borderWidth: 1.5
+                    },
+                    {
+                        label: 'Liabilities',
+                        data: liabilitiesData,
+                        borderColor: '#e9322d',
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.3,
+                        borderWidth: 1.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.dataset.label}: ${this.formatCurrency(context.raw, currency)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (value) => this.formatCurrency(value, currency)
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 8
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Refresh the net worth chart with a new time period.
+     */
+    async refreshNetWorthChart(days) {
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/net-worth/snapshots?days=${days}`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) throw new Error('Failed to fetch net worth snapshots');
+            const snapshots = await response.json();
+            this.updateNetWorthHistoryChart(snapshots);
+        } catch (error) {
+            console.error('Failed to refresh net worth chart:', error);
+        }
+    }
+
+    /**
+     * Record a manual net worth snapshot.
+     */
+    async recordNetWorthSnapshot() {
+        try {
+            const response = await fetch(
+                OC.generateUrl('/apps/budget/api/net-worth/snapshots'),
+                {
+                    method: 'POST',
+                    headers: {
+                        'requesttoken': OC.requestToken,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            if (!response.ok) throw new Error('Failed to record snapshot');
+
+            OC.Notification.showTemporary('Net worth snapshot recorded');
+
+            // Refresh the chart with current period
+            const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
+            const days = activeBtn ? parseInt(activeBtn.dataset.days) : 30;
+            await this.refreshNetWorthChart(days);
+        } catch (error) {
+            console.error('Failed to record net worth snapshot:', error);
+            OC.Notification.showTemporary('Failed to record snapshot');
         }
     }
 

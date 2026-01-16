@@ -260,6 +260,27 @@ style('budget', 'style');
                         </div>
                     </div>
 
+                    <!-- Net Worth History Chart -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Net Worth History</h3>
+                            <div class="card-controls">
+                                <div class="period-selector" id="net-worth-period-selector">
+                                    <button class="period-btn active" data-days="30">30D</button>
+                                    <button class="period-btn" data-days="90">90D</button>
+                                    <button class="period-btn" data-days="365">1Y</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container chart-container-medium">
+                            <canvas id="net-worth-chart"></canvas>
+                        </div>
+                        <div id="net-worth-chart-empty" class="chart-empty-state" style="display: none;">
+                            <p>No history yet. Snapshots are recorded daily.</p>
+                            <button id="record-net-worth-btn" class="btn btn-secondary btn-small">Record Snapshot Now</button>
+                        </div>
+                    </div>
+
                     <!-- Recent Transactions -->
                     <div class="dashboard-card">
                         <div class="card-header">

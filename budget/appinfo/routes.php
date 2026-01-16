@@ -102,6 +102,12 @@ return [
         ['name' => 'goals#progress', 'url' => '/api/goals/{id}/progress', 'verb' => 'GET'],
         ['name' => 'goals#forecast', 'url' => '/api/goals/{id}/forecast', 'verb' => 'GET'],
 
+        // Net Worth routes
+        ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
+        ['name' => 'netWorth#snapshots', 'url' => '/api/net-worth/snapshots', 'verb' => 'GET'],
+        ['name' => 'netWorth#createSnapshot', 'url' => '/api/net-worth/snapshots', 'verb' => 'POST'],
+        ['name' => 'netWorth#destroySnapshot', 'url' => '/api/net-worth/snapshots/{id}', 'verb' => 'DELETE'],
+
         // Pension routes - specific paths before {id} wildcard
         ['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],
         ['name' => 'pension#create', 'url' => '/api/pensions', 'verb' => 'POST'],

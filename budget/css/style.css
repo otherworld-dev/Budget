@@ -467,6 +467,64 @@
     height: 250px !important;
 }
 
+.chart-container-medium {
+    height: 220px;
+}
+
+.chart-container-medium canvas {
+    max-height: 220px !important;
+    height: 220px !important;
+    width: 100% !important;
+}
+
+/* Period Selector Buttons */
+.period-selector {
+    display: flex;
+    gap: 4px;
+}
+
+.period-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    color: var(--color-text-maxcontrast);
+    transition: all 0.15s ease;
+}
+
+.period-btn:hover {
+    background: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
+.period-btn.active {
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    border-color: var(--color-primary);
+}
+
+/* Chart Empty State */
+.chart-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-text-maxcontrast);
+}
+
+.chart-empty-state p {
+    margin-bottom: 16px;
+}
+
+.chart-empty-state .btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
 .spending-chart-wrapper {
     display: flex;
     gap: 24px;
