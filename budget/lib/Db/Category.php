@@ -30,6 +30,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setSortOrder(int $sortOrder)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
+ * @method string|null getUpdatedAt()
+ * @method void setUpdatedAt(string $updatedAt)
  */
 class Category extends Entity implements JsonSerializable {
     protected $userId;
@@ -42,6 +44,7 @@ class Category extends Entity implements JsonSerializable {
     protected $budgetPeriod;  // monthly, weekly, yearly, quarterly
     protected $sortOrder;
     protected $createdAt;
+    protected $updatedAt;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -67,6 +70,7 @@ class Category extends Entity implements JsonSerializable {
             'budgetPeriod' => $this->getBudgetPeriod() ?? 'monthly',
             'sortOrder' => $this->getSortOrder(),
             'createdAt' => $this->getCreatedAt(),
+            'updatedAt' => $this->getUpdatedAt(),
         ];
     }
 }
