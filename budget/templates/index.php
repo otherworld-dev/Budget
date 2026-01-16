@@ -627,6 +627,10 @@ style('budget', 'style');
                         <span class="icon-history" aria-hidden="true"></span>
                         Reconcile
                     </button>
+                    <button id="bulk-match-btn" class="secondary" title="Auto-match transfer transactions">
+                        <span class="icon-link" aria-hidden="true"></span>
+                        Match All
+                    </button>
                     <button id="add-transaction-btn" class="primary" aria-label="Add new transaction">
                         <span class="icon-add" aria-hidden="true"></span>
                         Add Transaction
@@ -791,9 +795,15 @@ style('budget', 'style');
                     </thead>
                     <tbody></tbody>
                 </table>
+
+                <div class="pagination-controls pagination-bottom">
+                    <button id="prev-page-btn-bottom" class="secondary" disabled>←</button>
+                    <span id="page-info-bottom">Page 1 of 1</span>
+                    <button id="next-page-btn-bottom" class="secondary" disabled>→</button>
+                </div>
             </div>
         </div>
-        
+
         <!-- Categories View -->
         <div id="categories-view" class="view">
             <div class="view-header">
@@ -2007,9 +2017,9 @@ style('budget', 'style');
                                 <small>Default currency for new accounts and transactions</small>
                             </label>
                             <select id="setting-default-currency" class="setting-input">
+                                <option value="GBP">GBP - British Pound (£)</option>
                                 <option value="USD">USD - US Dollar ($)</option>
                                 <option value="EUR">EUR - Euro (€)</option>
-                                <option value="GBP">GBP - British Pound (£)</option>
                                 <option value="CAD">CAD - Canadian Dollar (C$)</option>
                                 <option value="AUD">AUD - Australian Dollar (A$)</option>
                                 <option value="JPY">JPY - Japanese Yen (¥)</option>
@@ -2417,9 +2427,9 @@ style('budget', 'style');
                 <div class="form-group">
                     <label for="account-currency">Currency</label>
                     <select id="account-currency" aria-describedby="account-currency-help">
+                        <option value="GBP">GBP - British Pound</option>
                         <option value="USD">USD - US Dollar</option>
                         <option value="EUR">EUR - Euro</option>
-                        <option value="GBP">GBP - British Pound</option>
                         <option value="CAD">CAD - Canadian Dollar</option>
                         <option value="AUD">AUD - Australian Dollar</option>
                         <option value="JPY">JPY - Japanese Yen</option>
@@ -2651,5 +2661,87 @@ style('budget', 'style');
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Transaction Matching Modal -->
+<div id="matching-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="matching-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="matching-modal-title">Find Transfer Matches</h3>
+        <div id="matching-source-transaction" class="matching-source">
+            <h4>Source Transaction</h4>
+            <div class="source-details">
+                <span class="source-date"></span>
+                <span class="source-description"></span>
+                <span class="source-amount"></span>
+                <span class="source-account"></span>
+            </div>
+        </div>
+        <div id="matching-results" class="matching-results">
+            <div id="matching-loading" class="matching-loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Searching for matches...</p>
+            </div>
+            <div id="matching-empty" class="matching-empty" style="display: none;">
+                <p>No matching transactions found within the date range.</p>
+                <p class="hint">Matches must have the same amount, opposite type (income/expense), and be within 3 days.</p>
+            </div>
+            <div id="matching-list" class="matching-list"></div>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="secondary cancel-btn" aria-label="Close dialog">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Match Results Modal -->
+<div id="bulk-match-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="bulk-match-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="bulk-match-modal-title">Bulk Match Results</h3>
+
+        <!-- Loading State -->
+        <div id="bulk-match-loading" class="bulk-match-loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Searching and matching transactions...</p>
+        </div>
+
+        <!-- Results Content -->
+        <div id="bulk-match-results" style="display: none;">
+            <!-- Summary Stats -->
+            <div id="bulk-match-summary" class="bulk-match-summary">
+                <div class="summary-item success">
+                    <span class="summary-count" id="auto-matched-count">0</span>
+                    <span class="summary-label">Pairs Auto-Matched</span>
+                </div>
+                <div class="summary-item warning">
+                    <span class="summary-count" id="needs-review-count">0</span>
+                    <span class="summary-label">Need Manual Review</span>
+                </div>
+            </div>
+
+            <!-- Auto-Matched Section -->
+            <div id="auto-matched-section" class="bulk-match-section" style="display: none;">
+                <h4>Auto-Matched Pairs</h4>
+                <p class="section-hint">These transactions were automatically linked. Click undo to unlink a pair.</p>
+                <div id="auto-matched-list" class="bulk-match-list"></div>
+            </div>
+
+            <!-- Needs Review Section -->
+            <div id="needs-review-section" class="bulk-match-section" style="display: none;">
+                <h4>Needs Manual Review</h4>
+                <p class="section-hint">These transactions have multiple potential matches. Select the correct match for each.</p>
+                <div id="needs-review-list" class="bulk-match-list"></div>
+            </div>
+
+            <!-- No Results State -->
+            <div id="bulk-match-empty" class="bulk-match-empty" style="display: none;">
+                <p>No transactions found that can be matched.</p>
+                <p class="hint">Matches require: same amount, opposite type (income/expense), different accounts, within 3 days.</p>
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" class="secondary cancel-btn" aria-label="Close dialog">Close</button>
+        </div>
     </div>
 </div>
