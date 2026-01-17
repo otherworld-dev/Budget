@@ -7853,6 +7853,9 @@ class BudgetApp {
                 case 'cashflow':
                     await this.generateCashFlowReport(params);
                     break;
+                case 'yoy':
+                    this.showYoYReport();
+                    break;
             }
         } catch (error) {
             console.error('Failed to generate report:', error);
@@ -8262,6 +8265,242 @@ class BudgetApp {
             return this.formatCurrency(value / 1000, currency).replace(/[\d,.]+/, (m) => parseFloat(m).toFixed(1)) + 'K';
         }
         return this.formatCurrency(value, currency);
+    }
+
+    // ==========================================
+    // Year over Year Report Functions
+    // ==========================================
+
+    showYoYReport() {
+        const section = document.getElementById('report-yoy');
+        if (section) section.style.display = 'block';
+
+        // Setup YoY controls if not already done
+        if (!this.yoyControlsSetup) {
+            this.setupYoYControls();
+            this.yoyControlsSetup = true;
+        }
+
+        // Set default month to current month
+        const monthSelect = document.getElementById('yoy-month');
+        if (monthSelect) {
+            monthSelect.value = new Date().getMonth() + 1;
+        }
+    }
+
+    setupYoYControls() {
+        const comparisonType = document.getElementById('yoy-comparison-type');
+        const generateBtn = document.getElementById('generate-yoy-btn');
+        const monthSelect = document.querySelector('.yoy-month-select');
+
+        if (comparisonType) {
+            comparisonType.addEventListener('change', (e) => {
+                if (monthSelect) {
+                    monthSelect.style.display = e.target.value === 'month' ? '' : 'none';
+                }
+            });
+        }
+
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateYoYComparison());
+        }
+    }
+
+    async generateYoYComparison() {
+        const comparisonType = document.getElementById('yoy-comparison-type')?.value || 'years';
+        const years = document.getElementById('yoy-years')?.value || 3;
+        const month = document.getElementById('yoy-month')?.value || new Date().getMonth() + 1;
+
+        // Show loading
+        const loadingEl = document.getElementById('report-loading');
+        if (loadingEl) loadingEl.style.display = 'flex';
+
+        // Hide all YoY sections
+        document.getElementById('yoy-summary')?.style.setProperty('display', 'none');
+        document.getElementById('yoy-chart-container')?.style.setProperty('display', 'none');
+        document.getElementById('yoy-category-table-container')?.style.setProperty('display', 'none');
+
+        try {
+            let endpoint;
+            switch (comparisonType) {
+                case 'month':
+                    endpoint = `/apps/budget/api/yoy/month?month=${month}&years=${years}`;
+                    break;
+                case 'categories':
+                    endpoint = `/apps/budget/api/yoy/categories?years=${years}`;
+                    break;
+                default:
+                    endpoint = `/apps/budget/api/yoy/years?years=${years}`;
+            }
+
+            const response = await fetch(OC.generateUrl(endpoint), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch YoY data');
+            const data = await response.json();
+
+            if (comparisonType === 'categories') {
+                this.displayYoYCategories(data);
+            } else {
+                this.displayYoYComparison(data);
+            }
+
+        } catch (error) {
+            console.error('Failed to generate YoY comparison:', error);
+            OC.Notification.showTemporary('Failed to generate comparison');
+        } finally {
+            if (loadingEl) loadingEl.style.display = 'none';
+        }
+    }
+
+    displayYoYComparison(data) {
+        const currency = this.getPrimaryCurrency();
+        const summaryEl = document.getElementById('yoy-summary');
+        const cardsEl = document.getElementById('yoy-year-cards');
+        const chartContainer = document.getElementById('yoy-chart-container');
+        const chartTitle = document.getElementById('yoy-chart-title');
+
+        if (!summaryEl || !cardsEl) return;
+
+        summaryEl.style.display = '';
+        if (chartContainer) chartContainer.style.display = '';
+
+        // Build year cards
+        cardsEl.innerHTML = data.years.map(year => {
+            const changeHtml = year.incomeChange !== undefined ? `
+                <div class="yoy-change-indicators">
+                    <span class="yoy-change ${year.incomeChange >= 0 ? 'positive' : 'negative'}">
+                        Income: ${year.incomeChange >= 0 ? '+' : ''}${year.incomeChange?.toFixed(1) || '0'}%
+                    </span>
+                    <span class="yoy-change ${year.expenseChange <= 0 ? 'positive' : 'negative'}">
+                        Expenses: ${year.expenseChange >= 0 ? '+' : ''}${year.expenseChange?.toFixed(1) || '0'}%
+                    </span>
+                </div>
+            ` : '';
+
+            return `
+                <div class="yoy-year-card ${year.isCurrent ? 'current-year' : ''}">
+                    <div class="yoy-year-header">
+                        <span class="yoy-year-label">${year.year}${year.isCurrent ? ' (YTD)' : ''}</span>
+                        ${year.monthName ? `<span class="yoy-month-label">${year.monthName}</span>` : ''}
+                    </div>
+                    <div class="yoy-year-stats">
+                        <div class="yoy-stat">
+                            <span class="yoy-stat-label">Income</span>
+                            <span class="yoy-stat-value positive">${this.formatCurrency(year.income, currency)}</span>
+                        </div>
+                        <div class="yoy-stat">
+                            <span class="yoy-stat-label">Expenses</span>
+                            <span class="yoy-stat-value negative">${this.formatCurrency(year.expenses, currency)}</span>
+                        </div>
+                        <div class="yoy-stat">
+                            <span class="yoy-stat-label">Savings</span>
+                            <span class="yoy-stat-value ${year.savings >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(year.savings, currency)}</span>
+                        </div>
+                    </div>
+                    ${changeHtml}
+                </div>
+            `;
+        }).join('');
+
+        // Update chart title
+        if (chartTitle) {
+            chartTitle.textContent = data.type === 'month'
+                ? `${data.monthName} - Year over Year Comparison`
+                : 'Annual Income & Expenses';
+        }
+
+        // Render chart
+        this.renderYoYChart(data.years);
+    }
+
+    renderYoYChart(years) {
+        const canvas = document.getElementById('yoy-chart');
+        if (!canvas) return;
+
+        if (this.reportCharts.yoy) {
+            this.reportCharts.yoy.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const currency = this.getPrimaryCurrency();
+
+        this.reportCharts.yoy = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: years.map(y => y.year.toString()),
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: years.map(y => y.income),
+                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
+                        borderColor: 'rgba(46, 125, 50, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Expenses',
+                        data: years.map(y => y.expenses),
+                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
+                        borderColor: 'rgba(198, 40, 40, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.dataset.label}: ${this.formatCurrency(context.raw, currency)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => this.formatCurrencyCompact(value, currency)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    displayYoYCategories(data) {
+        const tableContainer = document.getElementById('yoy-category-table-container');
+        const headerRow = document.getElementById('yoy-category-header');
+        const tbody = document.getElementById('yoy-category-body');
+
+        if (!tableContainer || !headerRow || !tbody) return;
+
+        tableContainer.style.display = '';
+        const currency = this.getPrimaryCurrency();
+
+        // Build header with year columns
+        const years = data.categories[0]?.years || [];
+        headerRow.innerHTML = '<th>Category</th>' +
+            years.map(y => `<th class="text-right">${y.year}</th>`).join('') +
+            '<th class="text-right">Change</th>';
+
+        // Build table rows
+        tbody.innerHTML = data.categories.map(cat => {
+            const changeHtml = cat.change !== null
+                ? `<span class="${cat.change <= 0 ? 'positive' : 'negative'}">${cat.change >= 0 ? '+' : ''}${cat.change.toFixed(1)}%</span>`
+                : 'N/A';
+
+            return `
+                <tr>
+                    <td>${this.escapeHtml(cat.name)}</td>
+                    ${cat.years.map(y => `<td class="text-right">${this.formatCurrency(y.spending, currency)}</td>`).join('')}
+                    <td class="text-right">${changeHtml}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async exportReport(format) {

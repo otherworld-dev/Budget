@@ -447,6 +447,18 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('DebtPayoffService', \OCA\Budget\Service\DebtPayoffService::class);
 
         // ==========================================
+        // Year-over-Year Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\YearOverYearService::class, function($c) {
+            return new \OCA\Budget\Service\YearOverYearService(
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+            );
+        });
+        $context->registerServiceAlias('YearOverYearService', \OCA\Budget\Service\YearOverYearService::class);
+
+        // ==========================================
         // Bill Reminder Background Job
         // ==========================================
 

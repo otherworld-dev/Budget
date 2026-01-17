@@ -10011,3 +10011,245 @@ button.danger:hover {
 .detail-value.debt-balance {
     color: var(--color-error);
 }
+
+/* ==========================================
+   Year-over-Year Comparisons
+   ========================================== */
+
+.yoy-controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.yoy-controls .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.yoy-controls label {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.yoy-controls select {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-main-background);
+    min-width: 150px;
+}
+
+#generate-yoy {
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+#generate-yoy:hover {
+    background: var(--color-primary-hover);
+}
+
+.yoy-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.yoy-summary-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.yoy-summary-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    font-weight: 500;
+}
+
+.yoy-summary-card .summary-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.yoy-year-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.yoy-year-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.yoy-year-card h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 8px;
+}
+
+.yoy-year-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.yoy-stat {
+    text-align: center;
+}
+
+.yoy-stat .stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 4px;
+}
+
+.yoy-stat .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.yoy-stat .stat-value.positive {
+    color: var(--color-success);
+}
+
+.yoy-stat .stat-value.negative {
+    color: var(--color-error);
+}
+
+.yoy-change {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+}
+
+.yoy-change .change-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.yoy-change .change-indicator.increase {
+    color: var(--color-error);
+}
+
+.yoy-change .change-indicator.decrease {
+    color: var(--color-success);
+}
+
+.yoy-change .change-indicator.neutral {
+    color: var(--color-text-maxcontrast);
+}
+
+.yoy-chart-container {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.yoy-chart-container h4 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#yoy-chart {
+    max-height: 300px;
+}
+
+.yoy-categories {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.yoy-categories h4 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.yoy-category-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.yoy-category-item {
+    display: grid;
+    grid-template-columns: 1fr repeat(var(--year-count, 2), 100px) 80px;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--color-background-hover);
+    border-radius: 6px;
+    align-items: center;
+}
+
+.yoy-category-item.header {
+    background: var(--color-background-dark);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.yoy-category-name {
+    font-weight: 500;
+}
+
+.yoy-category-year {
+    text-align: right;
+    font-size: 13px;
+}
+
+.yoy-category-change {
+    text-align: right;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.yoy-category-change.positive {
+    color: var(--color-error);
+}
+
+.yoy-category-change.negative {
+    color: var(--color-success);
+}
+
+.yoy-no-data {
+    text-align: center;
+    padding: 40px;
+    color: var(--color-text-maxcontrast);
+}
+
+.yoy-no-data p {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+}

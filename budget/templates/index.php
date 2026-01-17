@@ -1929,6 +1929,7 @@ style('budget', 'style');
                         <option value="summary">Summary Dashboard</option>
                         <option value="spending">Spending by Category</option>
                         <option value="cashflow">Cash Flow</option>
+                        <option value="yoy">Year over Year</option>
                     </select>
                 </div>
 
@@ -2161,6 +2162,82 @@ style('budget', 'style');
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Year over Year Report -->
+                <div id="report-yoy" class="report-section" style="display: none;">
+                    <!-- YoY Controls -->
+                    <div class="yoy-controls">
+                        <div class="control-group">
+                            <label for="yoy-comparison-type">Comparison Type</label>
+                            <select id="yoy-comparison-type" class="report-select">
+                                <option value="years">Full Year Comparison</option>
+                                <option value="month">Same Month Comparison</option>
+                                <option value="categories">Category Spending</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="yoy-years">Years to Compare</label>
+                            <select id="yoy-years" class="report-select">
+                                <option value="2">2 Years</option>
+                                <option value="3" selected>3 Years</option>
+                                <option value="5">5 Years</option>
+                            </select>
+                        </div>
+                        <div class="control-group yoy-month-select" style="display: none;">
+                            <label for="yoy-month">Month</label>
+                            <select id="yoy-month" class="report-select">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <button id="generate-yoy-btn" class="primary">Compare</button>
+                    </div>
+
+                    <!-- YoY Summary Cards -->
+                    <div id="yoy-summary" class="yoy-summary" style="display: none;">
+                        <div class="yoy-year-cards" id="yoy-year-cards">
+                            <!-- Year comparison cards will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- YoY Chart -->
+                    <div id="yoy-chart-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3 id="yoy-chart-title">Income & Expenses by Year</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="yoy-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- YoY Category Table -->
+                    <div id="yoy-category-table-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Category Spending by Year</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="yoy-category-table" class="data-table">
+                                <thead>
+                                    <tr id="yoy-category-header">
+                                        <th>Category</th>
+                                        <!-- Year columns will be added dynamically -->
+                                    </tr>
+                                </thead>
+                                <tbody id="yoy-category-body"></tbody>
                             </table>
                         </div>
                     </div>
