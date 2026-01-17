@@ -122,6 +122,16 @@ style('budget', 'style');
                 Debt Payoff
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="split-expenses">
+            <a href="#split-expenses" class="nav-icon-split svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z"/>
+                    </svg>
+                </span>
+                Split Expenses
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="pensions">
             <a href="#pensions" class="nav-icon-pensions svg">
                 <span class="app-navigation-entry-icon">
@@ -2689,6 +2699,79 @@ style('budget', 'style');
             </div>
         </div>
 
+        <!-- Split Expenses View -->
+        <div id="split-expenses-view" class="view">
+            <div class="view-header">
+                <h2>Split Expenses</h2>
+                <div class="view-controls">
+                    <button id="add-contact-btn" class="primary">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        Add Contact
+                    </button>
+                </div>
+            </div>
+
+            <!-- Balance Summary Cards -->
+            <div class="split-summary-header">
+                <div class="summary-card summary-card-owed">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Others Owe You</span>
+                        <span id="split-total-owed" class="summary-value">£0.00</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-owing">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">You Owe Others</span>
+                        <span id="split-total-owing" class="summary-value">£0.00</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-net">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Net Balance</span>
+                        <span id="split-net-balance" class="summary-value">£0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Balances List -->
+            <div class="contacts-section">
+                <h3>Contacts</h3>
+                <div id="contacts-list" class="contacts-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                                <path d="M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z"/>
+                            </svg>
+                        </div>
+                        <p>Add contacts to start splitting expenses</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Shared Expenses -->
+            <div class="recent-shares-section">
+                <h3>Recent Shared Expenses</h3>
+                <div id="recent-shares-list" class="recent-shares-list">
+                    <div class="empty-state-small">No shared expenses yet</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Settings View -->
         <div id="settings-view" class="view">
             <div class="view-header">
@@ -3612,6 +3695,157 @@ style('budget', 'style');
                 <button type="button" id="split-save-btn" class="primary">Save Splits</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Modal -->
+<div id="contact-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="contact-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="contact-modal-title">Add Contact</h3>
+        <form id="contact-form" aria-label="Contact form">
+            <input type="hidden" id="contact-id" name="id">
+
+            <div class="form-group">
+                <label for="contact-name">Name <span class="required">*</span></label>
+                <input type="text" id="contact-name" name="name" required maxlength="255" placeholder="e.g., John, Roommate, Partner">
+            </div>
+
+            <div class="form-group">
+                <label for="contact-email">Email</label>
+                <input type="email" id="contact-email" name="email" maxlength="255" placeholder="Optional email address">
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary">Save</button>
+                <button type="button" class="secondary cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Share Expense Modal -->
+<div id="share-expense-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="share-expense-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="share-expense-modal-title">Share Expense</h3>
+        <form id="share-expense-form" aria-label="Share expense form">
+            <input type="hidden" id="share-transaction-id" name="transactionId">
+
+            <div class="share-transaction-info">
+                <span id="share-transaction-date" class="share-date"></span>
+                <span id="share-transaction-desc" class="share-desc"></span>
+                <span id="share-transaction-amount" class="share-amount"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="share-contact">Split with <span class="required">*</span></label>
+                <select id="share-contact" name="contactId" required>
+                    <option value="">Select a contact...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="share-split-type">Split Method</label>
+                <select id="share-split-type" name="splitType">
+                    <option value="50-50">50/50 Split</option>
+                    <option value="custom">Custom Amount</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="share-custom-amount-group" style="display: none;">
+                <label for="share-amount">Amount They Owe You</label>
+                <input type="number" id="share-amount" name="amount" step="0.01" placeholder="0.00">
+                <small class="form-text">Positive = they owe you, negative = you owe them</small>
+            </div>
+
+            <div class="form-group">
+                <label for="share-notes">Notes</label>
+                <input type="text" id="share-notes" name="notes" maxlength="255" placeholder="Optional notes about this split">
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary">Share Expense</button>
+                <button type="button" class="secondary cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Settlement Modal -->
+<div id="settlement-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="settlement-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="settlement-modal-title">Record Settlement</h3>
+        <form id="settlement-form" aria-label="Settlement form">
+            <input type="hidden" id="settlement-contact-id" name="contactId">
+
+            <div class="settlement-contact-info">
+                <span id="settlement-contact-name" class="contact-name"></span>
+                <span id="settlement-balance" class="balance-amount"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="settlement-amount">Settlement Amount <span class="required">*</span></label>
+                <input type="number" id="settlement-amount" name="amount" step="0.01" required placeholder="0.00">
+                <small class="form-text">Positive = they paid you, negative = you paid them</small>
+            </div>
+
+            <div class="form-group">
+                <label for="settlement-date">Date <span class="required">*</span></label>
+                <input type="date" id="settlement-date" name="date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="settlement-notes">Notes</label>
+                <input type="text" id="settlement-notes" name="notes" maxlength="255" placeholder="Optional notes">
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary">Record Settlement</button>
+                <button type="button" class="secondary cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Contact Details Modal -->
+<div id="contact-details-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="contact-details-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="contact-details-modal-title">Contact Details</h3>
+        <div class="contact-details-header">
+            <div class="contact-info">
+                <span id="contact-details-name" class="contact-name"></span>
+                <span id="contact-details-email" class="contact-email"></span>
+            </div>
+            <div class="contact-balance">
+                <span class="balance-label">Balance:</span>
+                <span id="contact-details-balance" class="balance-value"></span>
+            </div>
+        </div>
+
+        <div class="contact-actions">
+            <button id="settle-all-btn" class="primary">Settle All</button>
+            <button id="record-settlement-btn" class="secondary">Record Payment</button>
+        </div>
+
+        <div class="contact-tabs">
+            <button class="tab-button active" data-tab="shares">Shared Expenses</button>
+            <button class="tab-button" data-tab="settlements">Settlement History</button>
+        </div>
+
+        <div id="contact-shares-tab" class="tab-content active">
+            <div id="contact-shares-list" class="shares-list">
+                <div class="empty-state-small">No shared expenses</div>
+            </div>
+        </div>
+
+        <div id="contact-settlements-tab" class="tab-content" style="display: none;">
+            <div id="contact-settlements-list" class="settlements-list">
+                <div class="empty-state-small">No settlements yet</div>
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" class="secondary close-btn">Close</button>
         </div>
     </div>
 </div>

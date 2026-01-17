@@ -10253,3 +10253,391 @@ button.danger:hover {
     margin: 8px 0 0 0;
     font-size: 13px;
 }
+
+/* ==========================================
+   Split Expenses / Shared Budgeting
+   ========================================== */
+
+.split-summary-header {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.split-summary-header .summary-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.split-summary-header .summary-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.split-summary-header .summary-card-owed .summary-icon {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.split-summary-header .summary-card-owing .summary-icon {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.split-summary-header .summary-card-net .summary-icon {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.split-summary-header .summary-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.split-summary-header .summary-label {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.split-summary-header .summary-value {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.split-summary-header .summary-value.positive {
+    color: var(--color-success);
+}
+
+.split-summary-header .summary-value.negative {
+    color: var(--color-error);
+}
+
+.contacts-section,
+.recent-shares-section {
+    margin-bottom: 24px;
+}
+
+.contacts-section h3,
+.recent-shares-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.contacts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.contact-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.contact-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.contact-card-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.contact-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.contact-card .contact-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.contact-card .contact-name {
+    font-weight: 500;
+    font-size: 15px;
+}
+
+.contact-card .contact-email {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.contact-card .contact-balance {
+    font-weight: 500;
+    font-size: 14px;
+    text-align: right;
+}
+
+.contact-card .contact-balance.owed {
+    color: var(--color-success);
+}
+
+.contact-card .contact-balance.owing {
+    color: var(--color-error);
+}
+
+.contact-card .contact-balance.settled {
+    color: var(--color-text-maxcontrast);
+}
+
+.contact-card .contact-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+    justify-content: flex-end;
+}
+
+/* Contact Details Modal */
+.contact-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 16px;
+}
+
+.contact-details-header .contact-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.contact-details-header .contact-name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.contact-details-header .contact-email {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+
+.contact-details-header .contact-balance {
+    text-align: right;
+}
+
+.contact-details-header .balance-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.contact-details-header .balance-value {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.contact-details-header .balance-value.owed {
+    color: var(--color-success);
+}
+
+.contact-details-header .balance-value.owing {
+    color: var(--color-error);
+}
+
+.contact-details-header .balance-value.settled {
+    color: var(--color-text-maxcontrast);
+}
+
+#contact-details-modal .contact-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.contact-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.contact-tabs .tab-button {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--color-text-maxcontrast);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.contact-tabs .tab-button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.shares-list,
+.settlements-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.share-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 100px 80px;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--color-background-hover);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.share-item .share-date {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.share-item .share-desc {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.share-item .share-amount {
+    text-align: right;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.share-item .share-amount.positive {
+    color: var(--color-success);
+}
+
+.share-item .share-amount.negative {
+    color: var(--color-error);
+}
+
+.share-item .share-status {
+    text-align: right;
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.share-item.settled .share-status {
+    background: #e8f5e8;
+    color: var(--color-success);
+}
+
+.share-item.owed .share-status,
+.share-item.owing .share-status {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.settlement-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--color-background-hover);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.settlement-item .settlement-date {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.settlement-item .settlement-amount {
+    font-weight: 500;
+}
+
+.settlement-item .settlement-amount.received {
+    color: var(--color-success);
+}
+
+.settlement-item .settlement-amount.paid {
+    color: var(--color-error);
+}
+
+.settlement-item .settlement-notes {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
+}
+
+/* Share Expense Modal */
+.share-transaction-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--color-background-hover);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.share-transaction-info .share-date {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.share-transaction-info .share-desc {
+    flex: 1;
+    margin: 0 12px;
+    font-weight: 500;
+}
+
+.share-transaction-info .share-amount {
+    font-weight: 600;
+}
+
+/* Settlement Modal */
+.settlement-contact-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--color-background-hover);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.settlement-contact-info .contact-name {
+    font-weight: 500;
+    font-size: 15px;
+}
+
+.settlement-contact-info .balance-amount {
+    font-weight: 500;
+}

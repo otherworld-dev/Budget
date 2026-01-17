@@ -459,6 +459,35 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('YearOverYearService', \OCA\Budget\Service\YearOverYearService::class);
 
         // ==========================================
+        // Shared Expense Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\ContactMapper::class, function($c) {
+            return new \OCA\Budget\Db\ContactMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('ContactMapper', \OCA\Budget\Db\ContactMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\ExpenseShareMapper::class, function($c) {
+            return new \OCA\Budget\Db\ExpenseShareMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('ExpenseShareMapper', \OCA\Budget\Db\ExpenseShareMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\SettlementMapper::class, function($c) {
+            return new \OCA\Budget\Db\SettlementMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('SettlementMapper', \OCA\Budget\Db\SettlementMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\SharedExpenseService::class, function($c) {
+            return new \OCA\Budget\Service\SharedExpenseService(
+                $c->get(\OCA\Budget\Db\ContactMapper::class),
+                $c->get(\OCA\Budget\Db\ExpenseShareMapper::class),
+                $c->get(\OCA\Budget\Db\SettlementMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('SharedExpenseService', \OCA\Budget\Service\SharedExpenseService::class);
+
+        // ==========================================
         // Bill Reminder Background Job
         // ==========================================
 

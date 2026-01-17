@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2026-01-17
+
+### Added
+- Split expenses / shared budgeting feature
+  - Add contacts to share expenses with (roommates, partners, friends)
+  - Track who owes whom with real-time balance updates
+  - Split transactions 50/50 or with custom amounts
+  - Record settlement payments when debts are paid
+  - View detailed history of shared expenses per contact
+  - See total owed and owing summary cards
+  - Navigate to dedicated Split Expenses section
+
 ## [1.0.14] - 2026-01-17
 
 ### Added
