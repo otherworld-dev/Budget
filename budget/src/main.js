@@ -4673,7 +4673,10 @@ class BudgetApp {
                     <td class="rules-col-priority">${rule.priority}</td>
                     <td class="rules-col-name">${this.escapeHtml(rule.name)}</td>
                     <td class="rules-col-status">
-                        <span class="status-badge ${rule.active ? 'active' : 'inactive'}">${rule.active ? 'Active' : 'Inactive'}</span>
+                        <label class="rule-toggle" title="${rule.active ? 'Click to disable' : 'Click to enable'}">
+                            <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''}>
+                            <span class="rule-toggle-slider"></span>
+                        </label>
                         ${rule.applyOnImport ? '<span class="status-badge import">Import</span>' : ''}
                     </td>
                     <td class="rules-col-criteria"><code>${criteriaText}</code></td>
@@ -4803,6 +4806,16 @@ class BudgetApp {
                     this.deleteRule(ruleId);
                 }
             });
+
+            // Toggle active state
+            rulesList.addEventListener('change', (e) => {
+                if (e.target.classList.contains('rule-active-toggle')) {
+                    const ruleId = parseInt(e.target.dataset.ruleId);
+                    const active = e.target.checked;
+                    this.toggleRuleActive(ruleId, active);
+                }
+            });
+
             rulesList.dataset.listenerAttached = 'true';
         }
     }
@@ -4965,6 +4978,47 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to delete rule:', error);
             OC.Notification.showTemporary('Failed to delete rule');
+        }
+    }
+
+    async toggleRuleActive(ruleId, active) {
+        try {
+            // Find the rule data
+            const rule = this.rules.find(r => r.id === ruleId);
+            if (!rule) throw new Error('Rule not found');
+
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ...rule,
+                    active: active
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update rule');
+            }
+
+            // Update local state
+            rule.active = active;
+
+            // Update the row styling
+            const row = document.querySelector(`.rule-row[data-rule-id="${ruleId}"]`);
+            if (row) {
+                row.classList.toggle('inactive', !active);
+            }
+
+            OC.Notification.showTemporary(active ? 'Rule enabled' : 'Rule disabled');
+        } catch (error) {
+            console.error('Failed to toggle rule:', error);
+            OC.Notification.showTemporary('Failed to update rule: ' + error.message);
+            // Revert the checkbox
+            await this.loadRules();
         }
     }
 

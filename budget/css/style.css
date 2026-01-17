@@ -10787,15 +10787,18 @@ button.danger:hover {
     width: 28px;
     border-radius: 4px;
     border: none;
-    background: transparent;
+    background-color: transparent;
+    background-size: 16px;
+    background-position: center;
+    background-repeat: no-repeat;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.15s, background 0.15s;
+    opacity: 0.7;
+    transition: opacity 0.15s, background-color 0.15s;
 }
 
 .rules-col-buttons button:hover {
     opacity: 1;
-    background: var(--color-background-dark);
+    background-color: var(--color-background-dark);
 }
 
 .rules-col-buttons .rule-delete-btn:hover {
@@ -10827,6 +10830,68 @@ button.danger:hover {
     background: rgba(var(--color-primary-element-rgb, 0, 130, 201), 0.15);
     color: var(--color-primary-element);
     margin-left: 4px;
+}
+
+/* Rule Toggle Switch */
+.rule-toggle {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.rule-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.rule-toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--color-background-dark);
+    border: 1px solid var(--color-border-dark);
+    border-radius: 20px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.rule-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--color-main-text);
+    border-radius: 50%;
+    transition: transform 0.2s;
+    opacity: 0.6;
+}
+
+.rule-toggle input:checked + .rule-toggle-slider {
+    background-color: var(--color-success);
+    border-color: var(--color-success);
+}
+
+.rule-toggle input:checked + .rule-toggle-slider:before {
+    transform: translateX(16px);
+    background-color: white;
+    opacity: 1;
+}
+
+.rule-toggle:hover .rule-toggle-slider {
+    border-color: var(--color-primary-element);
+}
+
+.rules-col-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 /* Action Badges */
@@ -11146,6 +11211,33 @@ button.danger:hover {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Checkbox groups in rule modal */
+#rule-modal .form-group.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#rule-modal .form-group.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+#rule-modal .form-group.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--color-primary-element);
+}
+
+#rule-modal .form-group.checkbox-group .form-text {
+    margin-left: 28px;
 }
 
 /* Responsive adjustments for Rules */
