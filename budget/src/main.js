@@ -2859,7 +2859,7 @@ class BudgetApp {
         const balance = document.getElementById('account-balance');
 
         if (accountId) accountId.value = '';
-        if (currency) currency.value = 'USD';
+        if (currency) currency.value = this.settings?.default_currency || 'GBP';
         if (balance) balance.value = '0';
     }
 
