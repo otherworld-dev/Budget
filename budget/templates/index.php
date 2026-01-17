@@ -112,6 +112,16 @@ style('budget', 'style');
                 Savings Goals
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="debt-payoff">
+            <a href="#debt-payoff" class="nav-icon-debt svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </span>
+                Debt Payoff
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="pensions">
             <a href="#pensions" class="nav-icon-pensions svg">
                 <span class="app-navigation-entry-icon">
@@ -353,6 +363,31 @@ style('budget', 'style');
                         </div>
                         <div id="savings-goals-summary" class="savings-goals-widget">
                             <div class="empty-state-small">No savings goals yet</div>
+                        </div>
+                    </div>
+
+                    <!-- Debt Payoff Summary -->
+                    <div id="debt-payoff-card" class="dashboard-card debt-payoff-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Debt Payoff</h3>
+                            <a href="#debt-payoff" class="card-link">Plan</a>
+                        </div>
+                        <div id="debt-payoff-summary" class="debt-payoff-widget">
+                            <div class="debt-summary-stats">
+                                <div class="debt-stat">
+                                    <span class="debt-stat-label">Total Debt</span>
+                                    <span id="debt-total-balance" class="debt-stat-value">--</span>
+                                </div>
+                                <div class="debt-stat">
+                                    <span class="debt-stat-label">Accounts</span>
+                                    <span id="debt-account-count" class="debt-stat-value">--</span>
+                                </div>
+                                <div class="debt-stat">
+                                    <span class="debt-stat-label">Monthly Min</span>
+                                    <span id="debt-minimum-payment" class="debt-stat-value">--</span>
+                                </div>
+                            </div>
+                            <div id="debt-payoff-estimate" class="debt-payoff-estimate"></div>
                         </div>
                     </div>
                 </div>
@@ -2428,6 +2463,152 @@ style('budget', 'style');
                         <button type="submit" class="primary">Log</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Debt Payoff View -->
+        <div id="debt-payoff-view" class="view">
+            <div class="view-header">
+                <h2>Debt Payoff Planner</h2>
+            </div>
+
+            <!-- Debt Summary Cards -->
+            <div class="debt-summary-header">
+                <div class="summary-card summary-card-debt">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Total Debt</span>
+                        <span id="debt-view-total" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-rate">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.36 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Highest Rate</span>
+                        <span id="debt-view-highest-rate" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-payment">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 14V6c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-2 0H3V6h14v8zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm13 0v11c0 1.1-.9 2-2 2H4v-2h17V7h2z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Monthly Minimum</span>
+                        <span id="debt-view-minimum" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-count">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Debt Accounts</span>
+                        <span id="debt-view-count" class="summary-value">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strategy Selection -->
+            <div class="debt-strategy-section">
+                <div class="debt-controls">
+                    <div class="debt-control-group">
+                        <label for="debt-strategy-select">Payoff Strategy</label>
+                        <select id="debt-strategy-select" class="debt-select">
+                            <option value="avalanche">Avalanche (Highest Interest First)</option>
+                            <option value="snowball">Snowball (Smallest Balance First)</option>
+                        </select>
+                    </div>
+                    <div class="debt-control-group">
+                        <label for="debt-extra-payment">Extra Monthly Payment</label>
+                        <div class="input-with-prefix">
+                            <span class="input-prefix">£</span>
+                            <input type="number" id="debt-extra-payment" min="0" step="10" value="0" placeholder="0">
+                        </div>
+                    </div>
+                    <button id="calculate-payoff-btn" class="primary">Calculate Plan</button>
+                    <button id="compare-strategies-btn" class="secondary">Compare Strategies</button>
+                </div>
+            </div>
+
+            <!-- Payoff Plan Results -->
+            <div id="debt-payoff-results" class="debt-payoff-results" style="display: none;">
+                <div class="payoff-summary-cards">
+                    <div class="payoff-card payoff-months">
+                        <span class="payoff-card-label">Time to Debt Free</span>
+                        <span id="payoff-months" class="payoff-card-value">--</span>
+                        <span id="payoff-date" class="payoff-card-date"></span>
+                    </div>
+                    <div class="payoff-card payoff-interest">
+                        <span class="payoff-card-label">Total Interest</span>
+                        <span id="payoff-total-interest" class="payoff-card-value">--</span>
+                    </div>
+                    <div class="payoff-card payoff-total">
+                        <span class="payoff-card-label">Total Paid</span>
+                        <span id="payoff-total-paid" class="payoff-card-value">--</span>
+                    </div>
+                </div>
+
+                <div class="payoff-details">
+                    <h3>Payoff Order</h3>
+                    <div id="debt-payoff-order" class="debt-payoff-order"></div>
+                </div>
+            </div>
+
+            <!-- Strategy Comparison -->
+            <div id="debt-comparison-results" class="debt-comparison-results" style="display: none;">
+                <h3>Strategy Comparison</h3>
+                <div class="comparison-cards">
+                    <div class="comparison-card" id="avalanche-comparison">
+                        <h4>Debt Avalanche</h4>
+                        <p class="strategy-desc">Pay highest interest rates first</p>
+                        <div class="comparison-stats">
+                            <div class="comparison-stat">
+                                <span class="stat-label">Months</span>
+                                <span id="avalanche-months" class="stat-value">--</span>
+                            </div>
+                            <div class="comparison-stat">
+                                <span class="stat-label">Interest</span>
+                                <span id="avalanche-interest" class="stat-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="comparison-card" id="snowball-comparison">
+                        <h4>Debt Snowball</h4>
+                        <p class="strategy-desc">Pay smallest balances first</p>
+                        <div class="comparison-stats">
+                            <div class="comparison-stat">
+                                <span class="stat-label">Months</span>
+                                <span id="snowball-months" class="stat-value">--</span>
+                            </div>
+                            <div class="comparison-stat">
+                                <span class="stat-label">Interest</span>
+                                <span id="snowball-interest" class="stat-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="comparison-recommendation" class="comparison-recommendation"></div>
+            </div>
+
+            <!-- Debt List -->
+            <div class="debt-list-section">
+                <h3>Your Debts</h3>
+                <p class="section-hint">Debts are pulled from your liability accounts. Edit minimum payments in account settings.</p>
+                <div id="debt-list" class="debt-list">
+                    <div class="empty-state">No debt accounts found</div>
+                </div>
             </div>
         </div>
 

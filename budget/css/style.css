@@ -9591,3 +9591,423 @@ button.danger:hover {
 .alert-budget {
     opacity: 0.8;
 }
+
+/* ================================
+   Debt Payoff Styles
+   ================================ */
+
+/* Dashboard widget */
+.debt-payoff-card .debt-payoff-widget {
+    padding: 8px 0;
+}
+
+.debt-summary-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.debt-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.debt-stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 2px;
+}
+
+.debt-stat-value {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.debt-payoff-estimate .debt-hint {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+/* Debt Payoff View */
+.debt-summary-header {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card-debt .summary-icon {
+    background: var(--color-error-hover, rgba(224, 102, 102, 0.15));
+    color: var(--color-error);
+}
+
+.summary-card-rate .summary-icon {
+    background: rgba(255, 193, 7, 0.15);
+    color: #856404;
+}
+
+.summary-card-payment .summary-icon {
+    background: rgba(0, 123, 255, 0.15);
+    color: #0056b3;
+}
+
+.summary-card-count .summary-icon {
+    background: rgba(108, 117, 125, 0.15);
+    color: #495057;
+}
+
+/* Strategy Section */
+.debt-strategy-section {
+    background: var(--color-background-dark);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.debt-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+}
+
+.debt-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.debt-control-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-maxcontrast);
+}
+
+.debt-select {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-main-background);
+    font-size: 14px;
+    min-width: 250px;
+}
+
+.input-with-prefix {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-main-background);
+    overflow: hidden;
+}
+
+.input-prefix {
+    padding: 8px 10px;
+    background: var(--color-background-dark);
+    color: var(--color-text-maxcontrast);
+    font-size: 14px;
+}
+
+.input-with-prefix input {
+    border: none;
+    padding: 8px 12px;
+    font-size: 14px;
+    width: 100px;
+}
+
+.input-with-prefix input:focus {
+    outline: none;
+}
+
+/* Payoff Results */
+.debt-payoff-results {
+    margin-bottom: 24px;
+}
+
+.payoff-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.payoff-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.payoff-card-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 8px;
+}
+
+.payoff-card-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.payoff-card.payoff-months .payoff-card-value {
+    color: var(--color-success);
+}
+
+.payoff-card.payoff-interest .payoff-card-value {
+    color: var(--color-error);
+}
+
+.payoff-card-date {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 4px;
+}
+
+/* Payoff Order */
+.payoff-details h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+}
+
+.debt-payoff-order {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.payoff-order-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.payoff-order-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.payoff-order-details {
+    flex: 1;
+}
+
+.payoff-order-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.payoff-order-meta {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.meta-separator {
+    margin: 0 6px;
+    opacity: 0.5;
+}
+
+.payoff-order-interest {
+    text-align: right;
+}
+
+.interest-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.interest-value {
+    font-weight: 500;
+    color: var(--color-error);
+}
+
+/* Comparison Results */
+.debt-comparison-results h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+}
+
+.comparison-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.comparison-card {
+    background: var(--color-main-background);
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px;
+    transition: border-color 0.2s ease;
+}
+
+.comparison-card.recommended {
+    border-color: var(--color-success);
+}
+
+.comparison-card h4 {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.strategy-desc {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 16px;
+}
+
+.comparison-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.comparison-stat {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.comparison-recommendation {
+    margin-top: 16px;
+}
+
+.recommendation-box {
+    padding: 16px;
+    border-radius: 8px;
+    background: var(--color-background-dark);
+}
+
+.recommendation-box.recommend-avalanche {
+    border-left: 4px solid var(--color-success);
+}
+
+.recommendation-box.recommend-snowball {
+    border-left: 4px solid var(--color-primary);
+}
+
+.recommendation-box.recommend-either {
+    border-left: 4px solid var(--color-warning);
+}
+
+.recommendation-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.recommendation-text {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 8px;
+}
+
+.recommendation-savings {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-success);
+}
+
+/* Debt List */
+.debt-list-section {
+    margin-top: 32px;
+}
+
+.debt-list-section h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.section-hint {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 16px;
+}
+
+.debt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.debt-item {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.debt-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.debt-item-name {
+    font-weight: 500;
+    font-size: 15px;
+}
+
+.debt-item-type {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    padding: 2px 8px;
+    background: var(--color-background-dark);
+    border-radius: 4px;
+}
+
+.debt-item-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.debt-detail {
+    text-align: center;
+}
+
+.detail-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 4px;
+}
+
+.detail-value {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.detail-value.debt-balance {
+    color: var(--color-error);
+}

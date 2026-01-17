@@ -414,6 +414,9 @@ class BudgetApp {
                 case 'savings-goals':
                     this.loadSavingsGoalsView();
                     break;
+                case 'debt-payoff':
+                    this.loadDebtPayoffView();
+                    break;
                 case 'pensions':
                     this.loadPensionsView();
                     break;
@@ -479,7 +482,7 @@ class BudgetApp {
             const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
 
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse, alertsResponse] = await Promise.all([
+            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse, alertsResponse, debtResponse] = await Promise.all([
                 // Current month summary for hero stats
                 fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}`), {
                     headers: { 'requesttoken': OC.requestToken }
@@ -508,6 +511,9 @@ class BudgetApp {
                 }).catch(() => ({ ok: false })),
                 fetch(OC.generateUrl('/apps/budget/api/alerts'), {
                     headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
+                    headers: { 'requesttoken': OC.requestToken }
                 }).catch(() => ({ ok: false }))
             ]);
 
@@ -520,6 +526,7 @@ class BudgetApp {
             const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
             const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
             const budgetAlerts = alertsResponse.ok ? await alertsResponse.json() : [];
+            const debtSummary = debtResponse.ok ? await debtResponse.json() : null;
 
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary);
@@ -544,6 +551,9 @@ class BudgetApp {
 
             // Update Pension Dashboard Card
             this.updatePensionsSummary(pensionSummary);
+
+            // Update Debt Payoff Dashboard Card
+            this.updateDebtPayoffWidget(debtSummary);
 
             // Update Charts (using 6-month trend data)
             if (trendData.spending) {
@@ -769,6 +779,279 @@ class BudgetApp {
                 </div>
             `;
         }).join('');
+    }
+
+    updateDebtPayoffWidget(summary) {
+        const card = document.getElementById('debt-payoff-card');
+        if (!card) return;
+
+        // Hide the card if no debt
+        if (!summary || summary.debtCount === 0) {
+            card.style.display = 'none';
+            return;
+        }
+
+        card.style.display = '';
+        const currency = this.getPrimaryCurrency();
+
+        // Update summary stats
+        const totalEl = document.getElementById('debt-total-balance');
+        const countEl = document.getElementById('debt-account-count');
+        const minEl = document.getElementById('debt-minimum-payment');
+        const estimateEl = document.getElementById('debt-payoff-estimate');
+
+        if (totalEl) totalEl.textContent = this.formatCurrency(summary.totalBalance, currency);
+        if (countEl) countEl.textContent = summary.debtCount.toString();
+        if (minEl) minEl.textContent = this.formatCurrency(summary.totalMinimumPayment, currency);
+
+        // Show payoff estimate if available
+        if (estimateEl) {
+            if (summary.highestInterestRate > 0) {
+                estimateEl.innerHTML = `<span class="debt-hint">Highest rate: ${summary.highestInterestRate.toFixed(1)}% APR</span>`;
+            } else {
+                estimateEl.innerHTML = '';
+            }
+        }
+    }
+
+    async loadDebtPayoffView() {
+        try {
+            // Load debt summary
+            const summaryResponse = await fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            const summary = summaryResponse.ok ? await summaryResponse.json() : null;
+
+            // Load debt list
+            const debtsResponse = await fetch(OC.generateUrl('/apps/budget/api/debts'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            const debts = debtsResponse.ok ? await debtsResponse.json() : [];
+
+            // Update summary cards
+            const currency = this.getPrimaryCurrency();
+            if (summary) {
+                const totalEl = document.getElementById('debt-view-total');
+                const rateEl = document.getElementById('debt-view-highest-rate');
+                const minEl = document.getElementById('debt-view-minimum');
+                const countEl = document.getElementById('debt-view-count');
+
+                if (totalEl) totalEl.textContent = this.formatCurrency(summary.totalBalance, currency);
+                if (rateEl) rateEl.textContent = summary.highestInterestRate > 0 ? `${summary.highestInterestRate.toFixed(1)}%` : 'N/A';
+                if (minEl) minEl.textContent = this.formatCurrency(summary.totalMinimumPayment, currency);
+                if (countEl) countEl.textContent = summary.debtCount.toString();
+            }
+
+            // Update debt list
+            this.renderDebtList(debts);
+
+            // Setup event listeners
+            this.setupDebtPayoffControls();
+
+        } catch (error) {
+            console.error('Failed to load debt payoff view:', error);
+        }
+    }
+
+    renderDebtList(debts) {
+        const container = document.getElementById('debt-list');
+        if (!container) return;
+
+        if (!Array.isArray(debts) || debts.length === 0) {
+            container.innerHTML = '<div class="empty-state">No debt accounts found. Debts are pulled from liability accounts (credit cards, loans, mortgages).</div>';
+            return;
+        }
+
+        const currency = this.getPrimaryCurrency();
+        container.innerHTML = debts.map(debt => {
+            const balance = Math.abs(parseFloat(debt.balance) || 0);
+            const rate = parseFloat(debt.interestRate) || 0;
+            const minPayment = parseFloat(debt.minimumPayment) || 0;
+
+            return `
+                <div class="debt-item" data-id="${debt.id}">
+                    <div class="debt-item-header">
+                        <div class="debt-item-name">${this.escapeHtml(debt.name)}</div>
+                        <div class="debt-item-type">${this.formatAccountType(debt.type)}</div>
+                    </div>
+                    <div class="debt-item-details">
+                        <div class="debt-detail">
+                            <span class="detail-label">Balance</span>
+                            <span class="detail-value debt-balance">${this.formatCurrency(balance, currency)}</span>
+                        </div>
+                        <div class="debt-detail">
+                            <span class="detail-label">Interest Rate</span>
+                            <span class="detail-value">${rate > 0 ? rate.toFixed(1) + '%' : 'N/A'}</span>
+                        </div>
+                        <div class="debt-detail">
+                            <span class="detail-label">Min Payment</span>
+                            <span class="detail-value">${minPayment > 0 ? this.formatCurrency(minPayment, currency) : 'Not set'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    setupDebtPayoffControls() {
+        const calculateBtn = document.getElementById('calculate-payoff-btn');
+        const compareBtn = document.getElementById('compare-strategies-btn');
+
+        if (calculateBtn) {
+            calculateBtn.onclick = () => this.calculatePayoffPlan();
+        }
+
+        if (compareBtn) {
+            compareBtn.onclick = () => this.compareStrategies();
+        }
+    }
+
+    async calculatePayoffPlan() {
+        const strategy = document.getElementById('debt-strategy-select')?.value || 'avalanche';
+        const extraPayment = parseFloat(document.getElementById('debt-extra-payment')?.value) || 0;
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/debts/payoff-plan?strategy=${strategy}&extraPayment=${extraPayment}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error('Failed to calculate payoff plan');
+
+            const plan = await response.json();
+            this.displayPayoffPlan(plan);
+
+            // Hide comparison results when showing plan
+            const comparisonEl = document.getElementById('debt-comparison-results');
+            if (comparisonEl) comparisonEl.style.display = 'none';
+
+        } catch (error) {
+            console.error('Failed to calculate payoff plan:', error);
+            OC.Notification.showTemporary('Failed to calculate payoff plan');
+        }
+    }
+
+    displayPayoffPlan(plan) {
+        const resultsEl = document.getElementById('debt-payoff-results');
+        if (!resultsEl) return;
+
+        resultsEl.style.display = '';
+        const currency = this.getPrimaryCurrency();
+
+        // Update summary cards
+        const monthsEl = document.getElementById('payoff-months');
+        const dateEl = document.getElementById('payoff-date');
+        const interestEl = document.getElementById('payoff-total-interest');
+        const totalEl = document.getElementById('payoff-total-paid');
+
+        if (monthsEl) {
+            const years = Math.floor(plan.totalMonths / 12);
+            const months = plan.totalMonths % 12;
+            if (years > 0) {
+                monthsEl.textContent = `${years}y ${months}m`;
+            } else {
+                monthsEl.textContent = `${months} months`;
+            }
+        }
+
+        if (dateEl && plan.payoffDate) {
+            const date = new Date(plan.payoffDate);
+            dateEl.textContent = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
+
+        if (interestEl) interestEl.textContent = this.formatCurrency(plan.totalInterest, currency);
+        if (totalEl) totalEl.textContent = this.formatCurrency(plan.totalPaid, currency);
+
+        // Update payoff order
+        const orderEl = document.getElementById('debt-payoff-order');
+        if (orderEl && plan.debts) {
+            orderEl.innerHTML = plan.debts.map((debt, index) => `
+                <div class="payoff-order-item">
+                    <span class="payoff-order-number">${index + 1}</span>
+                    <div class="payoff-order-details">
+                        <div class="payoff-order-name">${this.escapeHtml(debt.name)}</div>
+                        <div class="payoff-order-meta">
+                            <span>${this.formatCurrency(debt.originalBalance, currency)}</span>
+                            <span class="meta-separator">•</span>
+                            <span>${debt.interestRate}% APR</span>
+                            <span class="meta-separator">•</span>
+                            <span>Paid off month ${debt.payoffMonth}</span>
+                        </div>
+                    </div>
+                    <div class="payoff-order-interest">
+                        <span class="interest-label">Interest</span>
+                        <span class="interest-value">${this.formatCurrency(debt.interestPaid, currency)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    async compareStrategies() {
+        const extraPayment = parseFloat(document.getElementById('debt-extra-payment')?.value) || 0;
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/debts/compare?extraPayment=${extraPayment}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error('Failed to compare strategies');
+
+            const comparison = await response.json();
+            this.displayComparison(comparison);
+
+            // Hide plan results when showing comparison
+            const planEl = document.getElementById('debt-payoff-results');
+            if (planEl) planEl.style.display = 'none';
+
+        } catch (error) {
+            console.error('Failed to compare strategies:', error);
+            OC.Notification.showTemporary('Failed to compare strategies');
+        }
+    }
+
+    displayComparison(comparison) {
+        const resultsEl = document.getElementById('debt-comparison-results');
+        if (!resultsEl) return;
+
+        resultsEl.style.display = '';
+        const currency = this.getPrimaryCurrency();
+
+        // Update avalanche stats
+        const avalancheMonths = document.getElementById('avalanche-months');
+        const avalancheInterest = document.getElementById('avalanche-interest');
+        if (avalancheMonths) avalancheMonths.textContent = `${comparison.avalanche.totalMonths} months`;
+        if (avalancheInterest) avalancheInterest.textContent = this.formatCurrency(comparison.avalanche.totalInterest, currency);
+
+        // Update snowball stats
+        const snowballMonths = document.getElementById('snowball-months');
+        const snowballInterest = document.getElementById('snowball-interest');
+        if (snowballMonths) snowballMonths.textContent = `${comparison.snowball.totalMonths} months`;
+        if (snowballInterest) snowballInterest.textContent = this.formatCurrency(comparison.snowball.totalInterest, currency);
+
+        // Update recommendation
+        const recommendationEl = document.getElementById('comparison-recommendation');
+        if (recommendationEl && comparison.comparison) {
+            const c = comparison.comparison;
+            let recClass = c.recommendation === 'avalanche' ? 'recommend-avalanche' :
+                           c.recommendation === 'snowball' ? 'recommend-snowball' : 'recommend-either';
+
+            recommendationEl.innerHTML = `
+                <div class="recommendation-box ${recClass}">
+                    <div class="recommendation-title">
+                        ${c.recommendation === 'avalanche' ? 'Avalanche Recommended' :
+                          c.recommendation === 'snowball' ? 'Snowball Recommended' : 'Either Works'}
+                    </div>
+                    <div class="recommendation-text">${this.escapeHtml(c.explanation)}</div>
+                    ${c.interestSavedByAvalanche > 0 ? `<div class="recommendation-savings">Avalanche saves ${this.formatCurrency(c.interestSavedByAvalanche, currency)} in interest</div>` : ''}
+                </div>
+            `;
+        }
+
+        // Highlight recommended card
+        const avalancheCard = document.getElementById('avalanche-comparison');
+        const snowballCard = document.getElementById('snowball-comparison');
+        if (avalancheCard) avalancheCard.classList.toggle('recommended', comparison.comparison?.recommendation === 'avalanche');
+        if (snowballCard) snowballCard.classList.toggle('recommended', comparison.comparison?.recommendation === 'snowball');
     }
 
     updateUpcomingBillsWidget(bills) {

@@ -39,7 +39,8 @@ class AccountService extends AbstractCrudService {
         ?string $openingDate = null,
         ?float $interestRate = null,
         ?float $creditLimit = null,
-        ?float $overdraftLimit = null
+        ?float $overdraftLimit = null,
+        ?float $minimumPayment = null
     ): Account {
         $account = new Account();
         $account->setUserId($userId);
@@ -58,6 +59,7 @@ class AccountService extends AbstractCrudService {
         $account->setInterestRate($interestRate);
         $account->setCreditLimit($creditLimit);
         $account->setOverdraftLimit($overdraftLimit);
+        $account->setMinimumPayment($minimumPayment);
         $this->setTimestamps($account, true);
 
         return $this->mapper->insert($account);

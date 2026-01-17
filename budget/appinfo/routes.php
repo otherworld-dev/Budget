@@ -144,6 +144,12 @@ return [
         ['name' => 'alert#status', 'url' => '/api/alerts/status', 'verb' => 'GET'],
         ['name' => 'alert#summary', 'url' => '/api/alerts/summary', 'verb' => 'GET'],
 
+        // Debt Payoff routes
+        ['name' => 'debt#index', 'url' => '/api/debts', 'verb' => 'GET'],
+        ['name' => 'debt#summary', 'url' => '/api/debts/summary', 'verb' => 'GET'],
+        ['name' => 'debt#payoffPlan', 'url' => '/api/debts/payoff-plan', 'verb' => 'GET'],
+        ['name' => 'debt#compare', 'url' => '/api/debts/compare', 'verb' => 'GET'],
+
         // Report routes
         ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
         ['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],

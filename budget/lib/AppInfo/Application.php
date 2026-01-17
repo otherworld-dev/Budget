@@ -436,6 +436,17 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('BudgetAlertService', \OCA\Budget\Service\BudgetAlertService::class);
 
         // ==========================================
+        // Debt Payoff Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\DebtPayoffService::class, function($c) {
+            return new \OCA\Budget\Service\DebtPayoffService(
+                $c->get(\OCA\Budget\Db\AccountMapper::class)
+            );
+        });
+        $context->registerServiceAlias('DebtPayoffService', \OCA\Budget\Service\DebtPayoffService::class);
+
+        // ==========================================
         // Bill Reminder Background Job
         // ==========================================
 
