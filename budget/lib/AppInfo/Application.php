@@ -386,6 +386,23 @@ class Application extends App implements IBootstrap {
                 $c->get(\Psr\Log\LoggerInterface::class)
             );
         });
+
+        // ==========================================
+        // Recurring Income Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\RecurringIncomeMapper::class, function($c) {
+            return new \OCA\Budget\Db\RecurringIncomeMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('RecurringIncomeMapper', \OCA\Budget\Db\RecurringIncomeMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\RecurringIncomeService::class, function($c) {
+            return new \OCA\Budget\Service\RecurringIncomeService(
+                $c->get(\OCA\Budget\Db\RecurringIncomeMapper::class),
+                $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class)
+            );
+        });
+        $context->registerServiceAlias('RecurringIncomeService', \OCA\Budget\Service\RecurringIncomeService::class);
     }
 
     public function boot(IBootContext $context): void {

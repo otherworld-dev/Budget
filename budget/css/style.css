@@ -6541,6 +6541,278 @@ button.danger:hover {
     color: var(--color-text-maxcontrast);
 }
 
+/* ==========================================
+   Recurring Income View Styles
+   ========================================== */
+
+/* Income Summary */
+.income-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.income-summary .summary-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.income-summary .summary-card.success {
+    border-left: 4px solid var(--color-success);
+}
+
+.income-summary .summary-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-background-hover);
+    border-radius: 50%;
+}
+
+.income-summary .summary-icon span {
+    font-size: 20px;
+}
+
+.income-summary .summary-content {
+    flex: 1;
+}
+
+.income-summary .summary-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.income-summary .summary-label {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 2px;
+}
+
+/* Income Tabs */
+.income-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 8px;
+}
+
+.income-tabs .tab-button {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--color-text-maxcontrast);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.income-tabs .tab-button:hover {
+    background: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
+.income-tabs .tab-button.active {
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element);
+}
+
+/* Income List */
+.income-container {
+    position: relative;
+}
+
+.income-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.income-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.income-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.income-card.received {
+    border-left: 4px solid var(--color-success);
+    opacity: 0.8;
+}
+
+.income-card.expected-soon {
+    border-left: 4px solid var(--color-warning);
+}
+
+.income-card.upcoming {
+    border-left: 4px solid var(--color-primary-element);
+}
+
+.income-header {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.income-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.income-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.income-frequency {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    text-transform: capitalize;
+}
+
+.income-source {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
+}
+
+.income-amount {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-success);
+    white-space: nowrap;
+}
+
+.income-details {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.income-next-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--color-text-maxcontrast);
+}
+
+.income-next-date span {
+    font-size: 14px;
+}
+
+.income-status .status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.income-status.received .status-badge {
+    background: var(--color-success);
+    color: white;
+}
+
+.income-status.expected-soon .status-badge {
+    background: var(--color-warning);
+    color: white;
+}
+
+.income-status.upcoming .status-badge {
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+}
+
+.income-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.income-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-main-background);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.income-action-btn:hover {
+    background: var(--color-background-hover);
+}
+
+.income-action-btn.income-received-btn {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: white;
+}
+
+.income-action-btn.income-received-btn:hover {
+    background: var(--color-success-hover, #1a9b4f);
+}
+
+/* Empty Income State */
+.empty-income {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-income .empty-content {
+    max-width: 400px;
+}
+
+.empty-income .empty-content span {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    opacity: 0.5;
+}
+
+.empty-income .empty-content h3 {
+    margin: 0 0 8px;
+    font-size: 20px;
+}
+
+.empty-income .empty-content p {
+    margin: 0 0 20px;
+    color: var(--color-text-maxcontrast);
+}
+
 /* ============================================
    SAVINGS GOALS PAGE STYLES
    ============================================ */

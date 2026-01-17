@@ -92,6 +92,16 @@ style('budget', 'style');
                 Bills
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="income">
+            <a href="#income" class="nav-icon-income svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                    </svg>
+                </span>
+                Income
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="savings-goals">
             <a href="#savings-goals" class="nav-icon-savings svg">
                 <span class="app-navigation-entry-icon">
@@ -1501,6 +1511,85 @@ style('budget', 'style');
                 <div class="panel-actions">
                     <button id="add-selected-bills-btn" class="primary">Add Selected Bills</button>
                     <button id="cancel-detected-btn" class="secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recurring Income View -->
+        <div id="income-view" class="view">
+            <div class="view-header">
+                <h2>Recurring Income</h2>
+                <div class="view-controls">
+                    <button id="add-income-btn" class="primary" aria-label="Add recurring income">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        Add Income
+                    </button>
+                </div>
+            </div>
+
+            <!-- Income Summary Cards -->
+            <div class="income-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-calendar" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-expected-count">0</div>
+                        <div class="summary-label">Expected This Month</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-monthly-total">£0</div>
+                        <div class="summary-label">Monthly Total</div>
+                    </div>
+                </div>
+                <div class="summary-card success">
+                    <div class="summary-icon">
+                        <span class="icon-checkmark" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-received-count">0</div>
+                        <div class="summary-label">Received This Month</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-history" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-active-count">0</div>
+                        <div class="summary-label">Active Sources</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Income Filter Tabs -->
+            <div class="income-tabs">
+                <button class="tab-button active" data-filter="all">All Income</button>
+                <button class="tab-button" data-filter="expected">Expected Soon</button>
+                <button class="tab-button" data-filter="received">Received</button>
+            </div>
+
+            <!-- Income List -->
+            <div class="income-container">
+                <div id="income-list" class="income-list">
+                    <!-- Income entries will be rendered here -->
+                </div>
+
+                <div class="empty-income" id="empty-income" style="display: none;">
+                    <div class="empty-content">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                        <h3>No recurring income yet</h3>
+                        <p>Track your expected income sources like salary, dividends, or rental income.</p>
+                        <button class="primary" id="empty-income-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Add Your First Income Source
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2956,6 +3045,104 @@ style('budget', 'style');
 
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save bill">Save</button>
+                <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Recurring Income Modal -->
+<div id="income-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="income-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="income-modal-title">Add/Edit Recurring Income</h3>
+        <form id="income-form">
+            <input type="hidden" id="income-id">
+
+            <div class="form-group">
+                <label for="income-name">Income Name <span class="required">*</span></label>
+                <input type="text" id="income-name" required aria-describedby="income-name-help" maxlength="255" placeholder="e.g., Salary, Dividends, Rental Income">
+                <small id="income-name-help" class="form-text">Name of the recurring income</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-amount">Expected Amount <span class="required">*</span></label>
+                <input type="number" id="income-amount" step="0.01" required min="0" aria-describedby="income-amount-help" placeholder="0.00">
+                <small id="income-amount-help" class="form-text">Expected amount each period</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-source">Source</label>
+                <input type="text" id="income-source" aria-describedby="income-source-help" maxlength="255" placeholder="e.g., Employer Name, Company">
+                <small id="income-source-help" class="form-text">Who pays this income (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-frequency">Frequency <span class="required">*</span></label>
+                <select id="income-frequency" required aria-describedby="income-frequency-help">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly" selected>Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+                <small id="income-frequency-help" class="form-text">How often you receive this income</small>
+            </div>
+
+            <div class="form-group" id="expected-day-group">
+                <label for="income-expected-day">Expected Day</label>
+                <input type="number" id="income-expected-day" min="1" max="31" aria-describedby="income-expected-day-help" placeholder="1-31">
+                <small id="income-expected-day-help" class="form-text">Day of the month when income is expected</small>
+            </div>
+
+            <div class="form-group" id="expected-month-group" style="display: none;">
+                <label for="income-expected-month">Expected Month</label>
+                <select id="income-expected-month" aria-describedby="income-expected-month-help">
+                    <option value="">Select month...</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+                <small id="income-expected-month-help" class="form-text">Month when yearly income is expected</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-category">Category</label>
+                <select id="income-category" aria-describedby="income-category-help">
+                    <option value="">No category</option>
+                </select>
+                <small id="income-category-help" class="form-text">Categorize this income (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-account">Receive To Account</label>
+                <select id="income-account" aria-describedby="income-account-help">
+                    <option value="">No specific account</option>
+                </select>
+                <small id="income-account-help" class="form-text">Account where income is received (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-auto-pattern">Auto-detect Pattern</label>
+                <input type="text" id="income-auto-pattern" aria-describedby="income-auto-pattern-help" maxlength="255" placeholder="e.g., PAYROLL, DIVIDEND">
+                <small id="income-auto-pattern-help" class="form-text">Pattern to match in transaction descriptions for auto-linking</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-notes">Notes</label>
+                <textarea id="income-notes" aria-describedby="income-notes-help" maxlength="500" rows="2" placeholder="Additional notes..."></textarea>
+                <small id="income-notes-help" class="form-text">Any additional notes (optional)</small>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary" aria-label="Save income">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
         </form>

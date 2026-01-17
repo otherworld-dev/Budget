@@ -108,6 +108,17 @@ return [
         ['name' => 'netWorth#createSnapshot', 'url' => '/api/net-worth/snapshots', 'verb' => 'POST'],
         ['name' => 'netWorth#destroySnapshot', 'url' => '/api/net-worth/snapshots/{id}', 'verb' => 'DELETE'],
 
+        // Recurring Income routes - specific paths before {id} wildcard
+        ['name' => 'recurringIncome#index', 'url' => '/api/recurring-income', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#create', 'url' => '/api/recurring-income', 'verb' => 'POST'],
+        ['name' => 'recurringIncome#upcoming', 'url' => '/api/recurring-income/upcoming', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#expectedThisMonth', 'url' => '/api/recurring-income/this-month', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#summary', 'url' => '/api/recurring-income/summary', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#show', 'url' => '/api/recurring-income/{id}', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#update', 'url' => '/api/recurring-income/{id}', 'verb' => 'PUT'],
+        ['name' => 'recurringIncome#destroy', 'url' => '/api/recurring-income/{id}', 'verb' => 'DELETE'],
+        ['name' => 'recurringIncome#markReceived', 'url' => '/api/recurring-income/{id}/received', 'verb' => 'POST'],
+
         // Pension routes - specific paths before {id} wildcard
         ['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],
         ['name' => 'pension#create', 'url' => '/api/pensions', 'verb' => 'POST'],
