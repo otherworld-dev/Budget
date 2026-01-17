@@ -1200,7 +1200,6 @@ style('budget', 'style');
             <!-- Import Navigation Tabs -->
             <div class="import-nav-tabs">
                 <button class="import-tab-btn active" data-tab="wizard">Import Wizard</button>
-                <button class="import-tab-btn" data-tab="rules">Import Rules</button>
                 <button class="import-tab-btn" data-tab="history">Import History</button>
             </div>
 
@@ -1413,42 +1412,6 @@ style('budget', 'style');
                         <button id="import-btn" class="primary" style="display: none;">Import Transactions</button>
                         <button id="cancel-import-btn" class="secondary">Cancel</button>
                     </div>
-                </div>
-            </div>
-
-            <!-- Import Rules Tab -->
-            <div id="import-rules-tab" class="import-tab-content">
-                <div class="rules-header">
-                    <h3>Import Rules</h3>
-                    <p>Create rules to automatically categorize imported transactions</p>
-                    <button id="add-rule-btn" class="primary">Add Rule</button>
-                </div>
-
-                <div class="rules-list">
-                    <div class="rules-table-container">
-                        <table id="rules-table">
-                            <thead>
-                                <tr>
-                                    <th>Priority</th>
-                                    <th>Field</th>
-                                    <th>Condition</th>
-                                    <th>Pattern</th>
-                                    <th>Category</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="rule-tester">
-                    <h4>Test Rules</h4>
-                    <div class="test-input">
-                        <input type="text" id="test-description" placeholder="Enter transaction description to test">
-                        <button id="test-rules-btn" class="secondary">Test</button>
-                    </div>
-                    <div id="test-results"></div>
                 </div>
             </div>
 

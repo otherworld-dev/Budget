@@ -3918,21 +3918,9 @@ class BudgetApp {
             select.addEventListener('change', () => this.updatePreviewMapping());
         });
 
-        // Import rules
-        const addRuleBtn = document.getElementById('add-rule-btn');
-        const testRulesBtn = document.getElementById('test-rules-btn');
-
-        if (addRuleBtn) {
-            addRuleBtn.addEventListener('click', () => this.showRuleDialog());
-        }
-        if (testRulesBtn) {
-            testRulesBtn.addEventListener('click', () => this.testImportRules());
-        }
-
         // Initialize import state
         this.currentImportStep = 1;
         this.currentImportData = null;
-        this.importRules = [];
         this.importHistory = [];
     }
 
@@ -3950,9 +3938,7 @@ class BudgetApp {
         document.getElementById(`import-${tabName}-tab`).classList.add('active');
 
         // Load tab-specific data
-        if (tabName === 'rules') {
-            this.loadImportRules();
-        } else if (tabName === 'history') {
+        if (tabName === 'history') {
             this.loadImportHistory();
         }
     }
@@ -4535,79 +4521,6 @@ class BudgetApp {
         if (mappingPreviewBody) mappingPreviewBody.innerHTML = '';
         if (previewTableBody) previewTableBody.innerHTML = '';
         if (accountMappingList) accountMappingList.innerHTML = '';
-    }
-
-    // Import Rules Management (for import tab - uses shared rules API)
-    async loadImportRules() {
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            const rules = await response.json();
-            this.importRules = rules;
-            this.renderImportRules(rules);
-        } catch (error) {
-            console.error('Failed to load import rules:', error);
-        }
-    }
-
-    renderImportRules(rules) {
-        const tbody = document.querySelector('#rules-table tbody');
-        if (!tbody) return;
-
-        tbody.innerHTML = '';
-
-        rules.forEach(rule => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${rule.priority}</td>
-                <td>${rule.field}</td>
-                <td>${rule.matchType}</td>
-                <td>${rule.pattern}</td>
-                <td>${rule.categoryName}</td>
-                <td>
-                    <button class="icon-edit" onclick="budgetApp.editRule(${rule.id})" title="Edit rule"></button>
-                    <button class="icon-delete" onclick="budgetApp.deleteRule(${rule.id})" title="Delete rule"></button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    async testImportRules() {
-        const testInput = document.getElementById('test-description').value;
-        if (!testInput) return;
-
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/test'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ description: testInput })
-            });
-
-            const result = await response.json();
-            const resultsDiv = document.getElementById('test-results');
-
-            if (result.match) {
-                resultsDiv.innerHTML = `
-                    <div class="test-results-match">
-                        ✓ Matched rule: "${result.rule.pattern}" → ${result.categoryName}
-                    </div>
-                `;
-            } else {
-                resultsDiv.innerHTML = `
-                    <div class="test-results-no-match">
-                        No matching rules found
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Failed to test rules:', error);
-        }
     }
 
     // ==================== RULES VIEW METHODS ====================
