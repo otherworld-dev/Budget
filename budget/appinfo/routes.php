@@ -61,13 +61,15 @@ return [
         ['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
         ['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
         
-        // Import rules routes
+        // Import rules routes (also used as general categorization rules)
         ['name' => 'importRule#index', 'url' => '/api/import-rules', 'verb' => 'GET'],
         ['name' => 'importRule#show', 'url' => '/api/import-rules/{id}', 'verb' => 'GET'],
         ['name' => 'importRule#create', 'url' => '/api/import-rules', 'verb' => 'POST'],
         ['name' => 'importRule#update', 'url' => '/api/import-rules/{id}', 'verb' => 'PUT'],
         ['name' => 'importRule#destroy', 'url' => '/api/import-rules/{id}', 'verb' => 'DELETE'],
         ['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
+        ['name' => 'importRule#preview', 'url' => '/api/import-rules/preview', 'verb' => 'POST'],
+        ['name' => 'importRule#apply', 'url' => '/api/import-rules/apply', 'verb' => 'POST'],
         
         // Forecast routes
         ['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],

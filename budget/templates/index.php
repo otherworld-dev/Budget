@@ -92,6 +92,16 @@ style('budget', 'style');
                 Bills
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="rules">
+            <a href="#rules" class="nav-icon-rules svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10,18h4v-2h-4V18z M3,6v2h18V6H3z M6,13h12v-2H6V13z"/>
+                    </svg>
+                </span>
+                Rules
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="income">
             <a href="#income" class="nav-icon-income svg">
                 <span class="app-navigation-entry-icon">
@@ -1567,6 +1577,64 @@ style('budget', 'style');
                 <div class="panel-actions">
                     <button id="add-selected-bills-btn" class="primary">Add Selected Bills</button>
                     <button id="cancel-detected-btn" class="secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules View -->
+        <div id="rules-view" class="view">
+            <div class="view-header">
+                <h2>Rules</h2>
+                <div class="view-controls">
+                    <button id="apply-rules-btn" class="secondary" aria-label="Apply rules to transactions">
+                        <span class="icon-play" aria-hidden="true"></span>
+                        Apply Rules
+                    </button>
+                    <button id="rules-add-btn" class="primary" aria-label="Add new rule">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        Add Rule
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rules Summary Cards -->
+            <div class="rules-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-category-monitoring" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="rules-total-count">0</div>
+                        <div class="summary-label">Total Rules</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-checkmark" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="rules-active-count">0</div>
+                        <div class="summary-label">Active</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rules List -->
+            <div class="rules-container">
+                <div id="rules-list" class="rules-list">
+                    <!-- Rules rendered here by JavaScript -->
+                </div>
+
+                <div class="empty-rules" id="empty-rules" style="display: none;">
+                    <div class="empty-content">
+                        <span class="icon-category-monitoring empty-icon" aria-hidden="true"></span>
+                        <h3>No rules yet</h3>
+                        <p>Create rules to automatically categorize your transactions based on description, vendor, or other fields.</p>
+                        <button class="primary" id="empty-rules-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Create Your First Rule
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3415,6 +3483,206 @@ style('budget', 'style');
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Rule Modal -->
+<div id="rule-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="rule-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="rule-modal-title">Add/Edit Rule</h3>
+        <form id="rule-form">
+            <input type="hidden" id="rule-id">
+
+            <div class="form-group">
+                <label for="rule-name">Rule Name <span class="required">*</span></label>
+                <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
+                <small class="form-text">A descriptive name for this rule</small>
+            </div>
+
+            <!-- Matching Criteria Section -->
+            <fieldset class="form-section">
+                <legend>Matching Criteria</legend>
+                <small class="section-help">Define when this rule should apply</small>
+
+                <div class="form-group">
+                    <label for="rule-field">Match Field <span class="required">*</span></label>
+                    <select id="rule-field" required>
+                        <option value="description">Description</option>
+                        <option value="vendor">Vendor</option>
+                        <option value="reference">Reference</option>
+                        <option value="notes">Notes</option>
+                        <option value="amount">Amount</option>
+                    </select>
+                    <small class="form-text">Which transaction field to match against</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-match-type">Match Type <span class="required">*</span></label>
+                    <select id="rule-match-type" required>
+                        <option value="contains">Contains</option>
+                        <option value="exact">Exact Match</option>
+                        <option value="starts_with">Starts With</option>
+                        <option value="ends_with">Ends With</option>
+                        <option value="regex">Regex</option>
+                    </select>
+                    <small class="form-text">How to match the pattern</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-pattern">Pattern <span class="required">*</span></label>
+                    <input type="text" id="rule-pattern" required maxlength="500" placeholder="e.g., AMAZON, grocery|supermarket">
+                    <small class="form-text">Text or pattern to match (case-insensitive)</small>
+                </div>
+            </fieldset>
+
+            <!-- Actions Section -->
+            <fieldset class="form-section">
+                <legend>Actions</legend>
+                <small class="section-help">What to set when a transaction matches</small>
+
+                <div class="form-group">
+                    <label for="rule-action-category">Set Category</label>
+                    <select id="rule-action-category">
+                        <option value="">-- Don't change --</option>
+                    </select>
+                    <small class="form-text">Category to assign to matching transactions</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-action-vendor">Set Vendor</label>
+                    <input type="text" id="rule-action-vendor" maxlength="255" placeholder="Leave empty to not change">
+                    <small class="form-text">Override vendor name (optional)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-action-notes">Set Notes</label>
+                    <textarea id="rule-action-notes" maxlength="500" rows="2" placeholder="Leave empty to not change"></textarea>
+                    <small class="form-text">Set transaction notes (optional)</small>
+                </div>
+            </fieldset>
+
+            <!-- Options -->
+            <div class="form-group">
+                <label for="rule-priority">Priority</label>
+                <input type="number" id="rule-priority" min="0" max="100" value="0">
+                <small class="form-text">Higher priority rules are checked first (0-100)</small>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="rule-active" checked>
+                    Active
+                </label>
+                <small class="form-text">Only active rules are applied</small>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="rule-apply-on-import" checked>
+                    Apply during import
+                </label>
+                <small class="form-text">Automatically apply this rule when importing transactions</small>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary" aria-label="Save rule">Save</button>
+                <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Apply Rules Modal -->
+<div id="apply-rules-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="apply-rules-modal-title" aria-hidden="true">
+    <div class="modal-content modal-large">
+        <h3 id="apply-rules-modal-title">Apply Rules to Transactions</h3>
+
+        <!-- Filters Section -->
+        <div class="apply-rules-filters">
+            <h4>Filter Transactions</h4>
+
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="apply-account-filter">Account</label>
+                    <select id="apply-account-filter">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="apply-date-start">From Date</label>
+                    <input type="date" id="apply-date-start">
+                </div>
+
+                <div class="form-group">
+                    <label for="apply-date-end">To Date</label>
+                    <input type="date" id="apply-date-end">
+                </div>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="apply-uncategorized-only" checked>
+                    Uncategorized transactions only
+                </label>
+                <small class="form-text">Only apply rules to transactions without a category</small>
+            </div>
+        </div>
+
+        <!-- Rules Selection -->
+        <div class="apply-rules-selection">
+            <h4>Rules to Apply</h4>
+            <div class="rules-select-actions">
+                <button type="button" class="text-btn" id="select-all-rules">Select All</button>
+                <button type="button" class="text-btn" id="deselect-all-rules">Deselect All</button>
+            </div>
+            <div id="rules-selection-list" class="rules-selection-list">
+                <!-- Rule checkboxes rendered here -->
+            </div>
+        </div>
+
+        <!-- Preview Results -->
+        <div id="apply-rules-preview" class="apply-rules-preview" style="display: none;">
+            <h4>Preview: <span id="preview-match-count">0</span> transactions will be updated</h4>
+            <div class="preview-table-container">
+                <table id="apply-rules-preview-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Matching Rule</th>
+                            <th>Changes</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Results (shown after apply) -->
+        <div id="apply-rules-results" class="apply-rules-results" style="display: none;">
+            <div class="results-summary">
+                <div class="result-item success">
+                    <span class="result-count" id="result-success-count">0</span>
+                    <span class="result-label">Updated</span>
+                </div>
+                <div class="result-item skipped">
+                    <span class="result-count" id="result-skipped-count">0</span>
+                    <span class="result-label">Skipped</span>
+                </div>
+                <div class="result-item failed">
+                    <span class="result-count" id="result-failed-count">0</span>
+                    <span class="result-label">Failed</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" id="preview-rules-btn" class="secondary">Preview Changes</button>
+            <button type="button" id="execute-apply-rules-btn" class="primary" disabled>Apply Rules</button>
+            <button type="button" class="secondary cancel-btn">Close</button>
+        </div>
     </div>
 </div>
 

@@ -280,7 +280,9 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\ImportRuleService::class, function($c) {
             return new \OCA\Budget\Service\ImportRuleService(
                 $c->get(\OCA\Budget\Db\ImportRuleMapper::class),
-                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCP\IDBConnection::class)
             );
         });
         $context->registerServiceAlias('ImportRuleService', \OCA\Budget\Service\ImportRuleService::class);

@@ -10641,3 +10641,546 @@ button.danger:hover {
 .settlement-contact-info .balance-amount {
     font-weight: 500;
 }
+
+/* ==========================================
+   Rules Feature Styles
+   ========================================== */
+
+/* Rules View */
+#rules-view {
+    padding: 20px;
+}
+
+/* Rules Summary Cards */
+.rules-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.rules-summary .summary-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.rules-summary .summary-card h3 {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rules-summary .summary-card .value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+/* Rules List - Compact */
+.rules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Rule Card - Compact row layout */
+.rule-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 12px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    border-left: 3px solid var(--color-primary-element);
+    transition: background 0.15s;
+}
+
+.rule-card:hover {
+    background: var(--color-background-hover);
+}
+
+.rule-card.inactive {
+    border-left-color: var(--color-text-maxcontrast);
+    opacity: 0.65;
+}
+
+.rule-card.inactive:hover {
+    opacity: 0.85;
+}
+
+/* Rule Card Info - Single line */
+.rule-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rule-info .rule-name {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--color-main-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 120px;
+    max-width: 180px;
+}
+
+.rule-info .rule-status {
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+.rule-info .rule-status.active {
+    background: #e8f5e9;
+    color: var(--color-success);
+}
+
+.rule-info .rule-status.inactive {
+    background: var(--color-background-hover);
+    color: var(--color-text-maxcontrast);
+}
+
+/* Rule Criteria Display - Inline */
+.rule-criteria {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+.rule-criteria code {
+    background: var(--color-background-dark);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
+}
+
+/* Rule Actions Display - Compact inline */
+.rule-actions-display {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Action Badges - Compact */
+.action-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.action-badge.category {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.action-badge.vendor {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.action-badge.notes {
+    background: #fff8e1;
+    color: #f57f17;
+}
+
+.action-badge.none {
+    background: var(--color-background-hover);
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
+}
+
+/* Rule Card Actions (buttons) - Compact */
+.rule-card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.rule-card-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.rule-card-actions button:hover {
+    background: var(--color-background-hover);
+}
+
+.rule-card-actions button.delete-btn {
+    color: var(--color-error);
+    border-color: var(--color-error);
+}
+
+.rule-card-actions button.delete-btn:hover {
+    background: rgba(var(--color-error-rgb), 0.1);
+}
+
+/* Rule Priority Badge - Compact */
+.rule-priority {
+    font-size: 10px;
+    color: var(--color-text-maxcontrast);
+    background: var(--color-background-dark);
+    padding: 1px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/* Empty Rules State */
+.empty-rules-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-text-maxcontrast);
+}
+
+.empty-rules-state .icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-rules-state p {
+    margin-bottom: 20px;
+    font-size: 15px;
+}
+
+/* ==========================================
+   Apply Rules Modal Styles
+   ========================================== */
+
+/* Apply Rules Filters */
+.apply-rules-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 16px;
+    background: var(--color-background-hover);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.apply-rules-filters .form-group {
+    margin-bottom: 0;
+}
+
+.apply-rules-filters .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--color-main-text);
+}
+
+.apply-rules-filters .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 24px;
+}
+
+.apply-rules-filters .checkbox-group label {
+    margin-bottom: 0;
+    font-weight: normal;
+}
+
+/* Rules Selection List */
+.rules-selection-section {
+    margin-bottom: 20px;
+}
+
+.rules-selection-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rules-selection-section h4 .select-all-btn {
+    font-size: 12px;
+    color: var(--color-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 8px;
+}
+
+.rules-selection-section h4 .select-all-btn:hover {
+    text-decoration: underline;
+}
+
+.rules-selection-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.rules-selection-list .rule-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.rules-selection-list .rule-checkbox:hover {
+    background: var(--color-background-hover);
+}
+
+.rules-selection-list .rule-checkbox input[type="checkbox"] {
+    margin: 0;
+}
+
+.rules-selection-list .rule-checkbox .rule-name {
+    flex: 1;
+    font-size: 13px;
+}
+
+.rules-selection-list .rule-checkbox .rule-priority {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+/* Apply Rules Preview */
+.apply-rules-preview {
+    margin-top: 20px;
+}
+
+.apply-rules-preview h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.preview-table-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.preview-table th {
+    background: var(--color-background-hover);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+
+.preview-table tr:last-child td {
+    border-bottom: none;
+}
+
+.preview-table tr:hover td {
+    background: var(--color-background-hover);
+}
+
+.preview-table .change-arrow {
+    color: var(--color-text-maxcontrast);
+    margin: 0 6px;
+}
+
+.preview-table .old-value {
+    color: var(--color-text-maxcontrast);
+    text-decoration: line-through;
+}
+
+.preview-table .new-value {
+    color: var(--color-success);
+    font-weight: 500;
+}
+
+/* Results Summary */
+.results-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 12px;
+    padding: 16px;
+    background: var(--color-background-hover);
+    border-radius: 8px;
+    margin-top: 16px;
+}
+
+.results-summary .result-item {
+    text-align: center;
+}
+
+.results-summary .result-item .count {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.results-summary .result-item .label {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    text-transform: uppercase;
+}
+
+.results-summary .result-item.success .count {
+    color: var(--color-success);
+}
+
+.results-summary .result-item.failed .count {
+    color: var(--color-error);
+}
+
+.results-summary .result-item.skipped .count {
+    color: var(--color-warning);
+}
+
+/* Preview/Results Empty State */
+.preview-empty,
+.results-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
+}
+
+/* Rule Modal Specifics */
+#rule-modal .modal-content {
+    max-width: 600px;
+}
+
+#rule-modal .form-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+#rule-modal .form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+#rule-modal .form-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--color-main-text);
+}
+
+#rule-modal .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+#rule-modal .options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+#rule-modal .options-row .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Responsive adjustments for Rules */
+@media (max-width: 768px) {
+    .rules-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .rule-card {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .rule-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .rule-info .rule-name {
+        max-width: 100%;
+    }
+
+    .rule-criteria {
+        max-width: 100%;
+    }
+
+    .rule-card-actions {
+        margin-left: auto;
+    }
+
+    .apply-rules-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-table {
+        font-size: 12px;
+    }
+
+    .preview-table th,
+    .preview-table td {
+        padding: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .rules-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .rule-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .rule-card-actions {
+        justify-content: flex-end;
+        margin-top: 4px;
+    }
+
+    .rule-actions-display {
+        flex-wrap: wrap;
+    }
+}

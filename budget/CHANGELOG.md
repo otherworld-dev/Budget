@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2026-01-18
+
+### Added
+- Standalone Rules feature (decoupled from Import)
+  - Rules now accessible from top-level navigation
+  - Apply rules to existing transactions at any time
+  - Preview rule matches before applying changes
+  - Filter by account, date range, or uncategorized transactions only
+  - Rules can set multiple fields: category, vendor, notes
+  - Option to control whether rules apply during import
+  - Compact card-based rules list view
+
+### Fixed
+- Add Rule button not working (duplicate HTML element IDs)
+- Rules API endpoint URL mismatch causing HTTP 500 errors
+
 ## [1.0.15] - 2026-01-17
 
 ### Added

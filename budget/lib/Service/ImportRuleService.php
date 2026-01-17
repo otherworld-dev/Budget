@@ -7,18 +7,27 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\Transaction;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IDBConnection;
 
 class ImportRuleService {
     private ImportRuleMapper $mapper;
     private CategoryMapper $categoryMapper;
+    private TransactionMapper $transactionMapper;
+    private IDBConnection $db;
 
     public function __construct(
         ImportRuleMapper $mapper,
-        CategoryMapper $categoryMapper
+        CategoryMapper $categoryMapper,
+        TransactionMapper $transactionMapper,
+        IDBConnection $db
     ) {
         $this->mapper = $mapper;
         $this->categoryMapper = $categoryMapper;
+        $this->transactionMapper = $transactionMapper;
+        $this->db = $db;
     }
 
     /**
@@ -40,21 +49,27 @@ class ImportRuleService {
         string $matchType,
         ?int $categoryId = null,
         ?string $vendorName = null,
-        int $priority = 0
+        int $priority = 0,
+        ?array $actions = null,
+        bool $applyOnImport = true
     ): ImportRule {
-        // Validate category if provided
-        if ($categoryId !== null) {
-            $this->categoryMapper->find($categoryId, $userId);
+        // Validate category if provided (either in categoryId or actions)
+        $effectiveCategoryId = $categoryId;
+        if ($actions !== null && isset($actions['categoryId'])) {
+            $effectiveCategoryId = $actions['categoryId'];
+        }
+        if ($effectiveCategoryId !== null) {
+            $this->categoryMapper->find($effectiveCategoryId, $userId);
         }
 
         // Validate match type
-        $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex'];
+        $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
         if (!in_array($matchType, $validMatchTypes)) {
             throw new \InvalidArgumentException('Invalid match type');
         }
 
         // Validate field
-        $validFields = ['description', 'vendor', 'amount', 'reference'];
+        $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
         if (!in_array($field, $validFields)) {
             throw new \InvalidArgumentException('Invalid field');
         }
@@ -69,22 +84,31 @@ class ImportRuleService {
         $rule->setVendorName($vendorName);
         $rule->setPriority($priority);
         $rule->setActive(true);
+        $rule->setApplyOnImport($applyOnImport);
         $rule->setCreatedAt(date('Y-m-d H:i:s'));
-        
+
+        // Set actions JSON if provided
+        if ($actions !== null) {
+            $rule->setActionsFromArray($actions);
+        }
+
         return $this->mapper->insert($rule);
     }
 
     public function update(int $id, string $userId, array $updates): ImportRule {
         $rule = $this->find($id, $userId);
-        
-        // Validate category if being updated
+
+        // Validate category if being updated (either in categoryId or actions)
         if (isset($updates['categoryId']) && $updates['categoryId'] !== null) {
             $this->categoryMapper->find($updates['categoryId'], $userId);
+        }
+        if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
+            $this->categoryMapper->find($updates['actions']['categoryId'], $userId);
         }
 
         // Validate match type if being updated
         if (isset($updates['matchType'])) {
-            $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex'];
+            $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
             if (!in_array($updates['matchType'], $validMatchTypes)) {
                 throw new \InvalidArgumentException('Invalid match type');
             }
@@ -92,19 +116,28 @@ class ImportRuleService {
 
         // Validate field if being updated
         if (isset($updates['field'])) {
-            $validFields = ['description', 'vendor', 'amount', 'reference'];
+            $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
             if (!in_array($updates['field'], $validFields)) {
                 throw new \InvalidArgumentException('Invalid field');
             }
         }
-        
+
+        // Handle actions array specially - convert to JSON
+        if (isset($updates['actions']) && is_array($updates['actions'])) {
+            $rule->setActionsFromArray($updates['actions']);
+            unset($updates['actions']);
+        }
+
+        // Set updated_at timestamp
+        $rule->setUpdatedAt(date('Y-m-d H:i:s'));
+
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);
             if (method_exists($rule, $setter)) {
                 $rule->$setter($value);
             }
         }
-        
+
         return $this->mapper->update($rule);
     }
 
@@ -247,5 +280,252 @@ class ImportRuleService {
         }
 
         return $created;
+    }
+
+    /**
+     * Find transactions matching the given filters
+     *
+     * @param string $userId
+     * @param array $filters ['accountId' => ?int, 'startDate' => ?string, 'endDate' => ?string, 'uncategorizedOnly' => bool]
+     * @return Transaction[]
+     */
+    public function findTransactionsForRules(string $userId, array $filters): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.*')
+            ->from('budget_transactions', 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+
+        // Filter by account
+        if (!empty($filters['accountId'])) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], \OCP\DB\IQueryBuilder::PARAM_INT)));
+        }
+
+        // Filter by date range
+        if (!empty($filters['startDate'])) {
+            $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($filters['startDate'])));
+        }
+        if (!empty($filters['endDate'])) {
+            $qb->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($filters['endDate'])));
+        }
+
+        // Filter uncategorized only
+        if (!empty($filters['uncategorizedOnly'])) {
+            $qb->andWhere($qb->expr()->isNull('t.category_id'));
+        }
+
+        $qb->orderBy('t.date', 'DESC');
+
+        $result = $qb->executeQuery();
+        $transactions = [];
+        while ($row = $result->fetch()) {
+            $transaction = Transaction::fromRow($row);
+            $transactions[] = $transaction;
+        }
+        $result->closeCursor();
+
+        return $transactions;
+    }
+
+    /**
+     * Preview rule application without modifying transactions
+     *
+     * @param string $userId
+     * @param array $ruleIds Specific rule IDs to apply (empty = all active)
+     * @param array $filters Transaction filters
+     * @return array Preview results with matched transactions and changes
+     */
+    public function previewRuleApplication(string $userId, array $ruleIds, array $filters): array {
+        $transactions = $this->findTransactionsForRules($userId, $filters);
+
+        // Get rules to apply
+        if (empty($ruleIds)) {
+            $rules = $this->mapper->findActive($userId);
+        } else {
+            $rules = [];
+            foreach ($ruleIds as $ruleId) {
+                try {
+                    $rule = $this->find($ruleId, $userId);
+                    if ($rule->getActive()) {
+                        $rules[] = $rule;
+                    }
+                } catch (DoesNotExistException $e) {
+                    continue;
+                }
+            }
+        }
+
+        // Sort rules by priority (highest first)
+        usort($rules, function($a, $b) {
+            return $b->getPriority() - $a->getPriority();
+        });
+
+        $preview = [];
+        $matchCount = 0;
+
+        foreach ($transactions as $transaction) {
+            $transactionData = [
+                'description' => $transaction->getDescription(),
+                'vendor' => $transaction->getVendor(),
+                'amount' => $transaction->getAmount(),
+                'reference' => $transaction->getReference(),
+                'notes' => $transaction->getNotes(),
+            ];
+
+            foreach ($rules as $rule) {
+                if ($this->testRule($rule, $transactionData)) {
+                    $actions = $rule->getParsedActions();
+                    $changes = [];
+
+                    // Determine what would change
+                    if (isset($actions['categoryId']) && $actions['categoryId'] !== $transaction->getCategoryId()) {
+                        $changes['categoryId'] = [
+                            'from' => $transaction->getCategoryId(),
+                            'to' => $actions['categoryId']
+                        ];
+                    }
+                    if (isset($actions['vendor']) && $actions['vendor'] !== $transaction->getVendor()) {
+                        $changes['vendor'] = [
+                            'from' => $transaction->getVendor(),
+                            'to' => $actions['vendor']
+                        ];
+                    }
+                    if (isset($actions['notes']) && $actions['notes'] !== $transaction->getNotes()) {
+                        $changes['notes'] = [
+                            'from' => $transaction->getNotes(),
+                            'to' => $actions['notes']
+                        ];
+                    }
+
+                    if (!empty($changes)) {
+                        $preview[] = [
+                            'transactionId' => $transaction->getId(),
+                            'transactionDescription' => $transaction->getDescription(),
+                            'transactionDate' => $transaction->getDate(),
+                            'transactionAmount' => $transaction->getAmount(),
+                            'ruleId' => $rule->getId(),
+                            'ruleName' => $rule->getName(),
+                            'changes' => $changes
+                        ];
+                        $matchCount++;
+                    }
+                    break; // First matching rule wins
+                }
+            }
+        }
+
+        return [
+            'totalTransactions' => count($transactions),
+            'matchCount' => $matchCount,
+            'preview' => $preview
+        ];
+    }
+
+    /**
+     * Apply rules to existing transactions
+     *
+     * @param string $userId
+     * @param array $ruleIds Specific rule IDs to apply (empty = all active)
+     * @param array $filters Transaction filters
+     * @return array Results with success/failure counts
+     */
+    public function applyRulesToTransactions(string $userId, array $ruleIds, array $filters): array {
+        $transactions = $this->findTransactionsForRules($userId, $filters);
+
+        // Get rules to apply
+        if (empty($ruleIds)) {
+            $rules = $this->mapper->findActive($userId);
+        } else {
+            $rules = [];
+            foreach ($ruleIds as $ruleId) {
+                try {
+                    $rule = $this->find($ruleId, $userId);
+                    if ($rule->getActive()) {
+                        $rules[] = $rule;
+                    }
+                } catch (DoesNotExistException $e) {
+                    continue;
+                }
+            }
+        }
+
+        // Sort rules by priority (highest first)
+        usort($rules, function($a, $b) {
+            return $b->getPriority() - $a->getPriority();
+        });
+
+        $success = 0;
+        $failed = 0;
+        $skipped = 0;
+        $applied = [];
+
+        foreach ($transactions as $transaction) {
+            $transactionData = [
+                'description' => $transaction->getDescription(),
+                'vendor' => $transaction->getVendor(),
+                'amount' => $transaction->getAmount(),
+                'reference' => $transaction->getReference(),
+                'notes' => $transaction->getNotes(),
+            ];
+
+            foreach ($rules as $rule) {
+                if ($this->testRule($rule, $transactionData)) {
+                    $actions = $rule->getParsedActions();
+                    $hasChanges = false;
+
+                    try {
+                        // Apply actions
+                        if (isset($actions['categoryId']) && $actions['categoryId'] !== $transaction->getCategoryId()) {
+                            $transaction->setCategoryId($actions['categoryId']);
+                            $hasChanges = true;
+                        }
+                        if (isset($actions['vendor']) && $actions['vendor'] !== $transaction->getVendor()) {
+                            $transaction->setVendor($actions['vendor']);
+                            $hasChanges = true;
+                        }
+                        if (isset($actions['notes'])) {
+                            // Append to existing notes if not empty
+                            $existingNotes = $transaction->getNotes() ?? '';
+                            if ($existingNotes !== $actions['notes']) {
+                                $transaction->setNotes($actions['notes']);
+                                $hasChanges = true;
+                            }
+                        }
+
+                        if ($hasChanges) {
+                            $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+                            $this->transactionMapper->update($transaction);
+                            $success++;
+                            $applied[] = [
+                                'transactionId' => $transaction->getId(),
+                                'ruleId' => $rule->getId(),
+                                'ruleName' => $rule->getName()
+                            ];
+                        } else {
+                            $skipped++;
+                        }
+                    } catch (\Exception $e) {
+                        $failed++;
+                    }
+
+                    break; // First matching rule wins
+                }
+            }
+        }
+
+        return [
+            'totalTransactions' => count($transactions),
+            'success' => $success,
+            'failed' => $failed,
+            'skipped' => $skipped,
+            'applied' => $applied
+        ];
+    }
+
+    /**
+     * Get active rules for a user
+     */
+    public function findActive(string $userId): array {
+        return $this->mapper->findActive($userId);
     }
 }

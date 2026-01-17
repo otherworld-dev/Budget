@@ -77,7 +77,9 @@ class ImportRuleController extends Controller {
         string $matchType,
         ?int $categoryId = null,
         ?string $vendorName = null,
-        int $priority = 0
+        int $priority = 0,
+        ?array $actions = null,
+        bool $applyOnImport = true
     ): DataResponse {
         try {
             // Validate name (required)
@@ -120,6 +122,15 @@ class ImportRuleController extends Controller {
                 $vendorName = $vendorValidation['sanitized'];
             }
 
+            // Validate actions vendor if provided
+            if ($actions !== null && isset($actions['vendor'])) {
+                $vendorValidation = $this->validationService->validateVendor($actions['vendor']);
+                if (!$vendorValidation['valid']) {
+                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $actions['vendor'] = $vendorValidation['sanitized'];
+            }
+
             $rule = $this->service->create(
                 $this->userId,
                 $name,
@@ -128,7 +139,9 @@ class ImportRuleController extends Controller {
                 $matchType,
                 $categoryId,
                 $vendorName,
-                $priority
+                $priority,
+                $actions,
+                $applyOnImport
             );
             return new DataResponse($rule, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -149,7 +162,9 @@ class ImportRuleController extends Controller {
         ?int $categoryId = null,
         ?string $vendorName = null,
         ?int $priority = null,
-        ?bool $active = null
+        ?bool $active = null,
+        ?array $actions = null,
+        ?bool $applyOnImport = null
     ): DataResponse {
         try {
             $updates = [];
@@ -205,6 +220,15 @@ class ImportRuleController extends Controller {
                 $updates['vendorName'] = $vendorValidation['sanitized'];
             }
 
+            // Validate actions vendor if provided
+            if ($actions !== null && isset($actions['vendor'])) {
+                $vendorValidation = $this->validationService->validateVendor($actions['vendor']);
+                if (!$vendorValidation['valid']) {
+                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $actions['vendor'] = $vendorValidation['sanitized'];
+            }
+
             // Handle other fields
             if ($categoryId !== null) {
                 $updates['categoryId'] = $categoryId;
@@ -214,6 +238,12 @@ class ImportRuleController extends Controller {
             }
             if ($active !== null) {
                 $updates['active'] = $active;
+            }
+            if ($actions !== null) {
+                $updates['actions'] = $actions;
+            }
+            if ($applyOnImport !== null) {
+                $updates['applyOnImport'] = $applyOnImport;
             }
 
             if (empty($updates)) {
@@ -249,6 +279,59 @@ class ImportRuleController extends Controller {
             return new DataResponse($results);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to test import rules');
+        }
+    }
+
+    /**
+     * Preview rule application to existing transactions
+     * @NoAdminRequired
+     */
+    public function preview(
+        array $ruleIds = [],
+        ?int $accountId = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        bool $uncategorizedOnly = false
+    ): DataResponse {
+        try {
+            $filters = [
+                'accountId' => $accountId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'uncategorizedOnly' => $uncategorizedOnly
+            ];
+
+            $results = $this->service->previewRuleApplication($this->userId, $ruleIds, $filters);
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to preview rule application');
+        }
+    }
+
+    /**
+     * Apply rules to existing transactions
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function apply(
+        array $ruleIds = [],
+        ?int $accountId = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        bool $uncategorizedOnly = false
+    ): DataResponse {
+        try {
+            $filters = [
+                'accountId' => $accountId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'uncategorizedOnly' => $uncategorizedOnly
+            ];
+
+            $results = $this->service->applyRulesToTransactions($this->userId, $ruleIds, $filters);
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to apply rules to transactions');
         }
     }
 }
