@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See total owed and owing summary cards
   - Navigate to dedicated Split Expenses section
 
+### Fixed
+- Database migration error "Primary index name too long" on recurring_income table
+
 ## [1.0.14] - 2026-01-17
 
 ### Added

@@ -85,7 +85,7 @@ class Version001000011Date20260117 extends SimpleMigrationStep {
                 'notnull' => true,
             ]);
 
-            $table->setPrimaryKey(['id']);
+            $table->setPrimaryKey(['id'], 'bgt_recinc_pk');
             $table->addIndex(['user_id'], 'bgt_recinc_uid');
             $table->addIndex(['user_id', 'is_active'], 'bgt_recinc_active');
             $table->addIndex(['user_id', 'next_expected_date'], 'bgt_recinc_next');
