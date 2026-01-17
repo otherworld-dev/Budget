@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Database migration error "Primary index name too long" on recurring_income table
+- Account form defaulting to USD instead of user's configured default currency
+- Data export downloading with `.zip_` extension instead of `.zip`
 
 ## [1.0.14] - 2026-01-17
 
