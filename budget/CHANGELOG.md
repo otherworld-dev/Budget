@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-01-17
+
+### Added
+- Budget alerts dashboard widget
+  - Automatically shows when categories are approaching (80%) or exceeding (100%) their budgets
+  - Visual progress bars with warning (yellow) and danger (red) states
+  - Shows spent amount vs budget amount for each category
+  - Supports all budget periods: weekly, monthly, quarterly, yearly
+  - Includes split transaction amounts in budget calculations
+  - Card only appears when there are active alerts
+
 ## [1.0.10] - 2026-01-17
 
 ### Added

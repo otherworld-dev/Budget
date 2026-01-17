@@ -312,6 +312,17 @@ style('budget', 'style');
                         <div id="accounts-summary" class="accounts-widget"></div>
                     </div>
 
+                    <!-- Budget Alerts -->
+                    <div id="budget-alerts-card" class="dashboard-card budget-alerts-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Budget Alerts</h3>
+                            <a href="#budget" class="card-link">Details</a>
+                        </div>
+                        <div id="budget-alerts" class="budget-alerts-widget">
+                            <!-- Alert items will be rendered here -->
+                        </div>
+                    </div>
+
                     <!-- Upcoming Bills -->
                     <div class="dashboard-card">
                         <div class="card-header">
