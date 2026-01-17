@@ -154,14 +154,17 @@ class BudgetApp {
                 const button = e.target.classList.contains('view-transactions-btn') ? e.target : e.target.closest('.view-transactions-btn');
                 const accountId = parseInt(button.getAttribute('data-account-id'));
                 this.viewAccountTransactions(accountId);
-            } else if (e.target.classList.contains('transaction-edit-btn')) {
-                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
+            } else if (e.target.classList.contains('transaction-edit-btn') || e.target.closest('.transaction-edit-btn')) {
+                const button = e.target.classList.contains('transaction-edit-btn') ? e.target : e.target.closest('.transaction-edit-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.editTransaction(transactionId);
-            } else if (e.target.classList.contains('transaction-delete-btn')) {
-                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
+            } else if (e.target.classList.contains('transaction-delete-btn') || e.target.closest('.transaction-delete-btn')) {
+                const button = e.target.classList.contains('transaction-delete-btn') ? e.target : e.target.closest('.transaction-delete-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.deleteTransaction(transactionId);
-            } else if (e.target.classList.contains('transaction-split-btn')) {
-                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
+            } else if (e.target.classList.contains('transaction-split-btn') || e.target.closest('.transaction-split-btn')) {
+                const button = e.target.classList.contains('transaction-split-btn') ? e.target : e.target.closest('.transaction-split-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.showSplitModal(transactionId);
             } else if (e.target.classList.contains('transaction-match-btn') || e.target.closest('.transaction-match-btn')) {
                 const button = e.target.classList.contains('transaction-match-btn') ? e.target : e.target.closest('.transaction-match-btn');

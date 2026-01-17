@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rules API endpoint URL mismatch causing HTTP 500 errors
 - Checkbox styling in rule modal (oversized and misaligned)
 - Edit/delete buttons invisible in rules table actions column
+- Transaction edit/delete/split buttons not responding when clicking on icon
+- Transaction updates not saving (magic method setters not being called)
 
 ## [1.0.15] - 2026-01-17
 

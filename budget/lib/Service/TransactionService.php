@@ -101,7 +101,8 @@ class TransactionService {
         // Apply updates
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);
-            if (method_exists($transaction, $setter)) {
+            // Use is_callable() instead of method_exists() to support magic methods
+            if (is_callable([$transaction, $setter])) {
                 $transaction->$setter($value);
             }
         }
