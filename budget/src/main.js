@@ -7146,10 +7146,17 @@ class BudgetApp {
             });
 
             if (response.ok) {
+                const savedCategory = await response.json();
                 OC.Notification.showTemporary(isEdit ? 'Category updated successfully' : 'Category created successfully');
                 this.hideModals();
                 await this.loadCategories();
                 await this.loadInitialData();
+
+                // Re-select the category to update the details panel
+                const categoryIdToSelect = isEdit ? parseInt(categoryId) : savedCategory.id;
+                if (categoryIdToSelect) {
+                    this.selectCategory(categoryIdToSelect);
+                }
             } else {
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to save category');

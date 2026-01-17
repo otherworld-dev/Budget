@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edit/delete buttons invisible in rules table actions column
 - Transaction edit/delete/split buttons not responding when clicking on icon
 - Transaction updates not saving (magic method setters not being called)
+- Category details panel not updating after renaming a category
 
 ## [1.0.15] - 2026-01-17
 
