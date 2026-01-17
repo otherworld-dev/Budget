@@ -103,6 +103,11 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('TransactionMapper', \OCA\Budget\Db\TransactionMapper::class);
 
+        $context->registerService(\OCA\Budget\Db\TransactionSplitMapper::class, function($c) {
+            return new \OCA\Budget\Db\TransactionSplitMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('TransactionSplitMapper', \OCA\Budget\Db\TransactionSplitMapper::class);
+
         $context->registerService(\OCA\Budget\Db\CategoryMapper::class, function($c) {
             return new \OCA\Budget\Db\CategoryMapper($c->get(\OCP\IDBConnection::class));
         });
@@ -250,6 +255,14 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('TransactionService', \OCA\Budget\Service\TransactionService::class);
+
+        $context->registerService(\OCA\Budget\Service\TransactionSplitService::class, function($c) {
+            return new \OCA\Budget\Service\TransactionSplitService(
+                $c->get(\OCA\Budget\Db\TransactionSplitMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('TransactionSplitService', \OCA\Budget\Service\TransactionSplitService::class);
 
         $context->registerService(\OCA\Budget\Service\CategoryService::class, function($c) {
             return new \OCA\Budget\Service\CategoryService(

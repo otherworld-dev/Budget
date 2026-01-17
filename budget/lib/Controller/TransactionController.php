@@ -6,6 +6,7 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
@@ -21,18 +22,21 @@ class TransactionController extends Controller {
     use InputValidationTrait;
 
     private TransactionService $service;
+    private TransactionSplitService $splitService;
     private ValidationService $validationService;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         TransactionService $service,
+        TransactionSplitService $splitService,
         ValidationService $validationService,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->splitService = $splitService;
         $this->validationService = $validationService;
         $this->userId = $userId;
         $this->setLogger($logger);
@@ -379,6 +383,95 @@ class TransactionController extends Controller {
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to bulk match transactions');
+        }
+    }
+
+    /**
+     * Get splits for a transaction
+     *
+     * @NoAdminRequired
+     */
+    public function getSplits(int $id): DataResponse {
+        try {
+            $splits = $this->splitService->getSplits($id, $this->userId);
+            return new DataResponse($splits);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Transaction', ['id' => $id]);
+        }
+    }
+
+    /**
+     * Split a transaction across multiple categories
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function split(int $id): DataResponse {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+
+            if (!$data || !isset($data['splits']) || !is_array($data['splits'])) {
+                return new DataResponse(['error' => 'Invalid splits data'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Validate each split
+            foreach ($data['splits'] as $i => $split) {
+                if (!isset($split['amount']) || !is_numeric($split['amount'])) {
+                    return new DataResponse(['error' => "Split $i: amount is required"], Http::STATUS_BAD_REQUEST);
+                }
+                if ($split['amount'] <= 0) {
+                    return new DataResponse(['error' => "Split $i: amount must be positive"], Http::STATUS_BAD_REQUEST);
+                }
+            }
+
+            $splits = $this->splitService->splitTransaction($id, $this->userId, $data['splits']);
+            return new DataResponse($splits, Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Transaction', ['id' => $id]);
+        }
+    }
+
+    /**
+     * Remove splits from a transaction (unsplit)
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function unsplit(int $id, ?int $categoryId = null): DataResponse {
+        try {
+            $transaction = $this->splitService->unsplitTransaction($id, $this->userId, $categoryId);
+            return new DataResponse($transaction);
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Transaction', ['id' => $id]);
+        }
+    }
+
+    /**
+     * Update a specific split
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function updateSplit(int $id, int $splitId): DataResponse {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+
+            if (!$data) {
+                return new DataResponse(['error' => 'Invalid JSON data'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $split = $this->splitService->updateSplit($splitId, $this->userId, $data);
+            return new DataResponse($split);
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Split', ['splitId' => $splitId]);
         }
     }
 }

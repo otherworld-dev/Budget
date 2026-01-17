@@ -160,6 +160,9 @@ class BudgetApp {
             } else if (e.target.classList.contains('transaction-delete-btn')) {
                 const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
                 this.deleteTransaction(transactionId);
+            } else if (e.target.classList.contains('transaction-split-btn')) {
+                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
+                this.showSplitModal(transactionId);
             } else if (e.target.classList.contains('transaction-match-btn') || e.target.closest('.transaction-match-btn')) {
                 const button = e.target.classList.contains('transaction-match-btn') ? e.target : e.target.closest('.transaction-match-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
@@ -5351,23 +5354,33 @@ class BudgetApp {
     }
 
     renderTransactionsTable(transactions) {
-        return transactions.map(t => `
-            <tr>
+        return transactions.map(t => {
+            const isSplit = t.isSplit || t.is_split;
+            const categoryDisplay = isSplit
+                ? '<span class="split-indicator" title="This transaction is split across multiple categories">Split</span>'
+                : (t.categoryName || '-');
+
+            return `
+            <tr class="${isSplit ? 'split-transaction' : ''}">
                 <td class="select-column">
                     <input type="checkbox" class="transaction-checkbox" data-transaction-id="${t.id}">
                 </td>
                 <td>${new Date(t.date).toLocaleDateString()}</td>
-                <td>${t.description}</td>
-                <td>${t.categoryName || '-'}</td>
+                <td>${this.escapeHtml(t.description)}</td>
+                <td>${categoryDisplay}</td>
                 <td class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</td>
-                <td>${t.accountName}</td>
+                <td>${this.escapeHtml(t.accountName)}</td>
                 <td class="reconcile-column"></td>
                 <td>
+                    <button class="tertiary transaction-split-btn" data-transaction-id="${t.id}" title="${isSplit ? 'Edit splits' : 'Split transaction'}">
+                        ${isSplit ? 'Splits' : 'Split'}
+                    </button>
                     <button class="tertiary transaction-edit-btn" data-transaction-id="${t.id}" aria-label="Edit transaction: ${t.description}">Edit</button>
                     <button class="error transaction-delete-btn" data-transaction-id="${t.id}" aria-label="Delete transaction: ${t.description}">Delete</button>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
     }
 
     renderCategoryTree(categories, level = 0) {
@@ -9878,6 +9891,267 @@ class BudgetApp {
             await this.loadTransactions();
         } catch (error) {
             OC.Notification.showTemporary(error.message || 'Failed to unlink transaction');
+        }
+    }
+
+    // ===== Transaction Split Methods =====
+
+    /**
+     * Show the split modal for a transaction
+     */
+    async showSplitModal(transactionId) {
+        const transaction = this.transactions?.find(t => t.id === transactionId);
+        if (!transaction) {
+            OC.Notification.showTemporary('Transaction not found');
+            return;
+        }
+
+        const modal = document.getElementById('split-modal');
+        if (!modal) {
+            console.error('Split modal not found');
+            return;
+        }
+
+        const isSplit = transaction.isSplit || transaction.is_split;
+        const titleEl = document.getElementById('split-modal-title');
+        const transactionInfoEl = document.getElementById('split-transaction-info');
+        const splitsContainer = document.getElementById('splits-container');
+
+        // Set title and store transaction id
+        titleEl.textContent = isSplit ? 'Edit Transaction Splits' : 'Split Transaction';
+        modal.dataset.transactionId = transactionId;
+
+        // Display transaction info
+        const account = this.accounts?.find(a => a.id === transaction.accountId);
+        const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
+        transactionInfoEl.innerHTML = `
+            <div class="split-info-row">
+                <span class="split-info-label">Date:</span>
+                <span>${new Date(transaction.date).toLocaleDateString()}</span>
+            </div>
+            <div class="split-info-row">
+                <span class="split-info-label">Description:</span>
+                <span>${this.escapeHtml(transaction.description)}</span>
+            </div>
+            <div class="split-info-row">
+                <span class="split-info-label">Total Amount:</span>
+                <span class="split-total-amount">${this.formatCurrency(transaction.amount, currency)}</span>
+            </div>
+        `;
+
+        // Store transaction data for later
+        modal.dataset.totalAmount = transaction.amount;
+        modal.dataset.currency = currency;
+
+        // Clear and set up splits container
+        splitsContainer.innerHTML = '';
+
+        if (isSplit) {
+            // Load existing splits
+            try {
+                const splits = await this.getTransactionSplits(transactionId);
+                splits.forEach((split, index) => {
+                    this.addSplitRow(splitsContainer, split, index === 0);
+                });
+            } catch (error) {
+                console.error('Failed to load splits:', error);
+                // Add two empty rows as fallback
+                this.addSplitRow(splitsContainer, null, true);
+                this.addSplitRow(splitsContainer, null, false);
+            }
+        } else {
+            // Start with two empty split rows
+            this.addSplitRow(splitsContainer, null, true);
+            this.addSplitRow(splitsContainer, null, false);
+        }
+
+        this.updateSplitRemaining();
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Add a split row to the splits container
+     */
+    addSplitRow(container, split = null, isFirst = false) {
+        const modal = document.getElementById('split-modal');
+        const currency = modal?.dataset.currency || this.getPrimaryCurrency();
+        const rowIndex = container.children.length;
+
+        const row = document.createElement('div');
+        row.className = 'split-row';
+        row.dataset.index = rowIndex;
+
+        row.innerHTML = `
+            <div class="split-field split-amount-field">
+                <label>Amount</label>
+                <input type="number" class="split-amount" step="0.01" min="0.01"
+                       value="${split ? split.amount : ''}" placeholder="0.00" required>
+            </div>
+            <div class="split-field split-category-field">
+                <label>Category</label>
+                <select class="split-category">
+                    <option value="">Uncategorized</option>
+                    ${this.getCategoryOptions(split?.categoryId)}
+                </select>
+            </div>
+            <div class="split-field split-description-field">
+                <label>Description</label>
+                <input type="text" class="split-description" maxlength="255"
+                       value="${split?.description || ''}" placeholder="Optional note">
+            </div>
+            <div class="split-actions">
+                <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
+                        ${isFirst ? 'disabled' : ''} title="Remove split">
+                    <span class="icon-delete"></span>
+                </button>
+            </div>
+        `;
+
+        // Add event listeners
+        row.querySelector('.split-amount').addEventListener('input', () => this.updateSplitRemaining());
+        row.querySelector('.split-remove-btn').addEventListener('click', (e) => {
+            if (!e.currentTarget.classList.contains('disabled')) {
+                row.remove();
+                this.updateSplitRemaining();
+            }
+        });
+
+        container.appendChild(row);
+    }
+
+    /**
+     * Get category options HTML
+     */
+    getCategoryOptions(selectedId = null) {
+        if (!this.categories) return '';
+        return this.categories
+            .filter(c => c.type === 'expense')
+            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${this.escapeHtml(c.name)}</option>`)
+            .join('');
+    }
+
+    /**
+     * Update the remaining amount display in split modal
+     */
+    updateSplitRemaining() {
+        const modal = document.getElementById('split-modal');
+        const totalAmount = parseFloat(modal?.dataset.totalAmount || 0);
+        const currency = modal?.dataset.currency || this.getPrimaryCurrency();
+        const remainingEl = document.getElementById('split-remaining');
+        const remainingAmountEl = document.getElementById('split-remaining-amount');
+
+        const allocatedAmount = Array.from(document.querySelectorAll('.split-amount'))
+            .reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+
+        const remaining = totalAmount - allocatedAmount;
+
+        if (remainingEl && remainingAmountEl) {
+            remainingAmountEl.textContent = this.formatCurrency(Math.abs(remaining), currency);
+            remainingEl.classList.toggle('over', remaining < -0.01);
+            remainingEl.classList.toggle('balanced', Math.abs(remaining) < 0.01);
+        }
+    }
+
+    /**
+     * API call to get transaction splits
+     */
+    async getTransactionSplits(transactionId) {
+        const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            headers: { 'requesttoken': OC.requestToken }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    }
+
+    /**
+     * Save transaction splits
+     */
+    async saveSplits() {
+        const modal = document.getElementById('split-modal');
+        const transactionId = parseInt(modal?.dataset.transactionId);
+        const totalAmount = parseFloat(modal?.dataset.totalAmount || 0);
+
+        // Collect splits data
+        const splits = Array.from(document.querySelectorAll('.split-row')).map(row => ({
+            amount: parseFloat(row.querySelector('.split-amount').value) || 0,
+            categoryId: parseInt(row.querySelector('.split-category').value) || null,
+            description: row.querySelector('.split-description').value.trim() || null
+        })).filter(split => split.amount > 0);
+
+        // Validate
+        if (splits.length < 2) {
+            OC.Notification.showTemporary('A split transaction must have at least 2 parts');
+            return;
+        }
+
+        const splitTotal = splits.reduce((sum, s) => sum + s.amount, 0);
+        if (Math.abs(splitTotal - totalAmount) > 0.01) {
+            OC.Notification.showTemporary(`Split amounts (${splitTotal.toFixed(2)}) must equal transaction amount (${totalAmount.toFixed(2)})`);
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ splits })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+
+            this.hideSplitModal();
+            OC.Notification.showTemporary('Transaction split successfully');
+            await this.loadTransactions();
+        } catch (error) {
+            console.error('Failed to save splits:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to save splits');
+        }
+    }
+
+    /**
+     * Remove splits from a transaction (unsplit)
+     */
+    async unsplitTransaction() {
+        const modal = document.getElementById('split-modal');
+        const transactionId = parseInt(modal?.dataset.transactionId);
+
+        if (!confirm('Are you sure you want to remove the split and revert to a single transaction?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+
+            this.hideSplitModal();
+            OC.Notification.showTemporary('Transaction unsplit successfully');
+            await this.loadTransactions();
+        } catch (error) {
+            console.error('Failed to unsplit transaction:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to unsplit transaction');
+        }
+    }
+
+    /**
+     * Hide the split modal
+     */
+    hideSplitModal() {
+        const modal = document.getElementById('split-modal');
+        if (modal) {
+            modal.style.display = 'none';
         }
     }
 

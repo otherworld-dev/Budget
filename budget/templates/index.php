@@ -3274,3 +3274,60 @@ style('budget', 'style');
         </div>
     </div>
 </div>
+
+<!-- Split Transaction Modal -->
+<div id="split-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="split-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="split-modal-title">Split Transaction</h3>
+
+        <!-- Transaction Info -->
+        <div id="split-transaction-info" class="split-transaction-info">
+            <div class="split-info-row">
+                <span class="split-info-label">Description:</span>
+                <span id="split-tx-description" class="split-info-value"></span>
+            </div>
+            <div class="split-info-row">
+                <span class="split-info-label">Amount:</span>
+                <span id="split-tx-amount" class="split-info-value"></span>
+            </div>
+            <div class="split-info-row">
+                <span class="split-info-label">Date:</span>
+                <span id="split-tx-date" class="split-info-value"></span>
+            </div>
+        </div>
+
+        <!-- Splits Container -->
+        <div class="splits-header">
+            <span>Category</span>
+            <span>Amount</span>
+            <span>Description (optional)</span>
+            <span></span>
+        </div>
+        <div id="splits-container" class="splits-container">
+            <!-- Split rows will be added dynamically -->
+        </div>
+
+        <!-- Add Row Button -->
+        <button type="button" id="add-split-row-btn" class="add-split-row-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Split
+        </button>
+
+        <!-- Remaining Amount -->
+        <div id="split-remaining" class="split-remaining">
+            <span class="split-remaining-label">Remaining to allocate:</span>
+            <span id="split-remaining-amount" class="split-remaining-amount">0.00</span>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" id="split-unsplit-btn" class="danger unsplit-btn" style="display: none;">Unsplit Transaction</button>
+            <div class="modal-buttons-right">
+                <button type="button" id="split-save-btn" class="primary">Save Splits</button>
+                <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>

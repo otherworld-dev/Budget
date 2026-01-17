@@ -39,7 +39,11 @@ return [
         ['name' => 'transaction#link', 'url' => '/api/transactions/{id}/link/{targetId}', 'verb' => 'POST'],
         ['name' => 'transaction#unlink', 'url' => '/api/transactions/{id}/link', 'verb' => 'DELETE'],
         ['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],
-        
+        ['name' => 'transaction#getSplits', 'url' => '/api/transactions/{id}/splits', 'verb' => 'GET'],
+        ['name' => 'transaction#split', 'url' => '/api/transactions/{id}/splits', 'verb' => 'POST'],
+        ['name' => 'transaction#unsplit', 'url' => '/api/transactions/{id}/splits', 'verb' => 'DELETE'],
+        ['name' => 'transaction#updateSplit', 'url' => '/api/transactions/{id}/splits/{splitId}', 'verb' => 'PUT'],
+
         // Category routes - specific paths before {id} wildcard
         ['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
         ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
