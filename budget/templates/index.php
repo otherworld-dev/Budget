@@ -1619,11 +1619,23 @@ style('budget', 'style');
                 </div>
             </div>
 
-            <!-- Rules List -->
-            <div class="rules-container">
-                <div id="rules-list" class="rules-list">
-                    <!-- Rules rendered here by JavaScript -->
-                </div>
+            <!-- Rules Table -->
+            <div class="rules-table-wrapper">
+                <table id="rules-table" class="rules-table">
+                    <thead>
+                        <tr>
+                            <th class="rules-col-priority">Pri</th>
+                            <th class="rules-col-name">Name</th>
+                            <th class="rules-col-status">Status</th>
+                            <th class="rules-col-criteria">Criteria</th>
+                            <th class="rules-col-actions">Actions</th>
+                            <th class="rules-col-buttons"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="rules-list">
+                        <!-- Rules rendered here by JavaScript -->
+                    </tbody>
+                </table>
 
                 <div class="empty-rules" id="empty-rules" style="display: none;">
                     <div class="empty-content">

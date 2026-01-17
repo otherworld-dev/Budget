@@ -10681,194 +10681,220 @@ button.danger:hover {
     color: var(--color-main-text);
 }
 
-/* Rules List - Compact */
-.rules-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-/* Rule Card - Compact row layout */
-.rule-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 8px 12px;
+/* Rules Table */
+.rules-table-wrapper {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 6px;
-    border-left: 3px solid var(--color-primary-element);
-    transition: background 0.15s;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
-.rule-card:hover {
+.rules-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.rules-table thead {
     background: var(--color-background-hover);
 }
 
-.rule-card.inactive {
-    border-left-color: var(--color-text-maxcontrast);
-    opacity: 0.65;
-}
-
-.rule-card.inactive:hover {
-    opacity: 0.85;
-}
-
-/* Rule Card Info - Single line */
-.rule-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.rule-info .rule-name {
-    font-weight: 500;
-    font-size: 13px;
-    color: var(--color-main-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 120px;
-    max-width: 180px;
-}
-
-.rule-info .rule-status {
-    font-size: 9px;
-    padding: 2px 5px;
-    border-radius: 3px;
+.rules-table th {
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
 }
 
-.rule-info .rule-status.active {
-    background: #e8f5e9;
+.rules-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border-dark);
+    vertical-align: middle;
+}
+
+.rules-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.rules-table tbody tr:hover {
+    background: var(--color-background-hover);
+}
+
+.rule-row.inactive {
+    opacity: 0.6;
+}
+
+.rule-row.inactive:hover {
+    opacity: 0.8;
+}
+
+/* Rules Table Column Widths */
+.rules-col-priority {
+    width: 40px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--color-text-maxcontrast);
+}
+
+.rules-col-name {
+    font-weight: 500;
+    color: var(--color-main-text);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rules-col-status {
+    width: 120px;
+    white-space: nowrap;
+}
+
+.rules-col-criteria {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rules-col-criteria code {
+    background: var(--color-background-dark);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.rules-col-actions {
+    white-space: nowrap;
+}
+
+.rules-col-buttons {
+    width: 70px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.rules-col-buttons button {
+    padding: 4px;
+    min-height: 28px;
+    width: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.rules-col-buttons button:hover {
+    opacity: 1;
+    background: var(--color-background-dark);
+}
+
+.rules-col-buttons .rule-delete-btn:hover {
+    color: var(--color-error);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 500;
+}
+
+.status-badge.active {
+    background: rgba(var(--color-success-rgb, 46, 125, 50), 0.15);
     color: var(--color-success);
 }
 
-.rule-info .rule-status.inactive {
-    background: var(--color-background-hover);
-    color: var(--color-text-maxcontrast);
-}
-
-/* Rule Criteria Display - Inline */
-.rule-criteria {
-    font-size: 12px;
-    color: var(--color-text-maxcontrast);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
-}
-
-.rule-criteria code {
+.status-badge.inactive {
     background: var(--color-background-dark);
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 11px;
+    color: var(--color-text-maxcontrast);
 }
 
-/* Rule Actions Display - Compact inline */
-.rule-actions-display {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 4px;
-    flex-shrink: 0;
+.status-badge.import {
+    background: rgba(var(--color-primary-element-rgb, 0, 130, 201), 0.15);
+    color: var(--color-primary-element);
+    margin-left: 4px;
 }
 
-/* Action Badges - Compact */
+/* Action Badges */
 .action-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
+    display: inline-block;
     font-size: 10px;
     padding: 2px 6px;
-    border-radius: 8px;
+    border-radius: 4px;
     white-space: nowrap;
+    margin-right: 4px;
+}
+
+.action-badge:last-child {
+    margin-right: 0;
 }
 
 .action-badge.category {
-    background: #e3f2fd;
+    background: rgba(21, 101, 192, 0.12);
     color: #1565c0;
 }
 
 .action-badge.vendor {
-    background: #f3e5f5;
+    background: rgba(123, 31, 162, 0.12);
     color: #7b1fa2;
 }
 
 .action-badge.notes {
-    background: #fff8e1;
+    background: rgba(245, 127, 23, 0.12);
     color: #f57f17;
 }
 
 .action-badge.none {
-    background: var(--color-background-hover);
+    background: var(--color-background-dark);
     color: var(--color-text-maxcontrast);
     font-style: italic;
 }
 
-/* Rule Card Actions (buttons) - Compact */
-.rule-card-actions {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-}
-
-.rule-card-actions button {
-    padding: 4px 8px;
-    font-size: 12px;
-    border-radius: 4px;
-    border: 1px solid var(--color-border);
-    background: var(--color-main-background);
-    color: var(--color-main-text);
-    cursor: pointer;
-    transition: background 0.15s;
-}
-
-.rule-card-actions button:hover {
-    background: var(--color-background-hover);
-}
-
-.rule-card-actions button.delete-btn {
-    color: var(--color-error);
-    border-color: var(--color-error);
-}
-
-.rule-card-actions button.delete-btn:hover {
-    background: rgba(var(--color-error-rgb), 0.1);
-}
-
-/* Rule Priority Badge - Compact */
-.rule-priority {
-    font-size: 10px;
-    color: var(--color-text-maxcontrast);
-    background: var(--color-background-dark);
-    padding: 1px 6px;
-    border-radius: 8px;
-    flex-shrink: 0;
-}
-
 /* Empty Rules State */
-.empty-rules-state {
-    text-align: center;
+.empty-rules {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     padding: 60px 20px;
-    color: var(--color-text-maxcontrast);
 }
 
-.empty-rules-state .icon {
+.empty-rules .empty-content {
+    max-width: 400px;
+    text-align: center;
+}
+
+.empty-rules .empty-content .empty-icon {
     font-size: 48px;
+    display: block;
     margin-bottom: 16px;
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
-.empty-rules-state p {
-    margin-bottom: 20px;
-    font-size: 15px;
+.empty-rules .empty-content h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: var(--color-main-text);
+}
+
+.empty-rules .empty-content p {
+    margin: 0 0 20px;
+    color: var(--color-text-maxcontrast);
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 /* ==========================================
@@ -11123,32 +11149,38 @@ button.danger:hover {
 }
 
 /* Responsive adjustments for Rules */
+@media (max-width: 900px) {
+    .rules-col-criteria {
+        display: none;
+    }
+
+    .rules-table th:nth-child(4),
+    .rules-table td:nth-child(4) {
+        display: none;
+    }
+}
+
 @media (max-width: 768px) {
     .rules-summary {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .rule-card {
-        flex-wrap: wrap;
-        gap: 8px;
+    .rules-table {
+        font-size: 12px;
     }
 
-    .rule-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
+    .rules-table th,
+    .rules-table td {
+        padding: 4px 6px;
     }
 
-    .rule-info .rule-name {
-        max-width: 100%;
+    .rules-col-actions {
+        display: none;
     }
 
-    .rule-criteria {
-        max-width: 100%;
-    }
-
-    .rule-card-actions {
-        margin-left: auto;
+    .rules-table th:nth-child(5),
+    .rules-table td:nth-child(5) {
+        display: none;
     }
 
     .apply-rules-filters {
@@ -11170,17 +11202,17 @@ button.danger:hover {
         grid-template-columns: 1fr;
     }
 
-    .rule-card {
-        flex-direction: column;
-        align-items: stretch;
+    .rules-col-status {
+        display: none;
     }
 
-    .rule-card-actions {
-        justify-content: flex-end;
-        margin-top: 4px;
+    .rules-table th:nth-child(3),
+    .rules-table td:nth-child(3) {
+        display: none;
     }
 
-    .rule-actions-display {
-        flex-wrap: wrap;
+    .rules-col-buttons button {
+        min-height: 24px;
+        width: 24px;
     }
 }

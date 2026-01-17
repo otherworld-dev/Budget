@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Filter by account, date range, or uncategorized transactions only
   - Rules can set multiple fields: category, vendor, notes
   - Option to control whether rules apply during import
-  - Compact card-based rules list view
+  - Compact table-based rules list matching transactions page style
 
 ### Fixed
 - Add Rule button not working (duplicate HTML element IDs)

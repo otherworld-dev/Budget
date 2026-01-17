@@ -4659,40 +4659,30 @@ class BudgetApp {
             const actions = rule.actions || {};
             const actionBadges = this.getRuleActionBadges(rule, actions);
             const matchTypeLabels = {
-                'contains': 'Contains',
-                'exact': 'Exact match',
-                'starts_with': 'Starts with',
-                'ends_with': 'Ends with',
-                'regex': 'Regex'
+                'contains': 'contains',
+                'exact': 'equals',
+                'starts_with': 'starts with',
+                'ends_with': 'ends with',
+                'regex': 'matches'
             };
 
+            const criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
+
             return `
-                <div class="rule-card ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
-                    <div class="rule-header">
-                        <div class="rule-info">
-                            <h4 class="rule-name">${this.escapeHtml(rule.name)}</h4>
-                            <span class="rule-priority">Priority: ${rule.priority}</span>
-                        </div>
-                        <div class="rule-status">
-                            <span class="status-badge ${rule.active ? 'active' : 'inactive'}">
-                                ${rule.active ? 'Active' : 'Inactive'}
-                            </span>
-                            ${rule.applyOnImport ? '<span class="status-badge import">Import</span>' : ''}
-                        </div>
-                    </div>
-                    <div class="rule-criteria">
-                        <span class="rule-field">${rule.field}</span>
-                        <span class="rule-match-type">${matchTypeLabels[rule.matchType] || rule.matchType}</span>
-                        <span class="rule-pattern">"${this.escapeHtml(rule.pattern)}"</span>
-                    </div>
-                    <div class="rule-actions-display">
-                        ${actionBadges}
-                    </div>
-                    <div class="rule-card-actions">
+                <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
+                    <td class="rules-col-priority">${rule.priority}</td>
+                    <td class="rules-col-name">${this.escapeHtml(rule.name)}</td>
+                    <td class="rules-col-status">
+                        <span class="status-badge ${rule.active ? 'active' : 'inactive'}">${rule.active ? 'Active' : 'Inactive'}</span>
+                        ${rule.applyOnImport ? '<span class="status-badge import">Import</span>' : ''}
+                    </td>
+                    <td class="rules-col-criteria"><code>${criteriaText}</code></td>
+                    <td class="rules-col-actions">${actionBadges}</td>
+                    <td class="rules-col-buttons">
                         <button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="Edit rule"></button>
                         <button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="Delete rule"></button>
-                    </div>
-                </div>
+                    </td>
+                </tr>
             `;
         }).join('');
     }
