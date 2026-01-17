@@ -416,6 +416,19 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('RecurringIncomeService', \OCA\Budget\Service\RecurringIncomeService::class);
+
+        // ==========================================
+        // Budget Alert Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\BudgetAlertService::class, function($c) {
+            return new \OCA\Budget\Service\BudgetAlertService(
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionSplitMapper::class)
+            );
+        });
+        $context->registerServiceAlias('BudgetAlertService', \OCA\Budget\Service\BudgetAlertService::class);
     }
 
     public function boot(IBootContext $context): void {

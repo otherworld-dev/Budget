@@ -479,7 +479,7 @@ class BudgetApp {
             const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
 
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse] = await Promise.all([
+            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse, alertsResponse] = await Promise.all([
                 // Current month summary for hero stats
                 fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}`), {
                     headers: { 'requesttoken': OC.requestToken }
@@ -505,6 +505,9 @@ class BudgetApp {
                 }).catch(() => ({ ok: false })),
                 fetch(OC.generateUrl('/apps/budget/api/net-worth/snapshots?days=30'), {
                     headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/alerts'), {
+                    headers: { 'requesttoken': OC.requestToken }
                 }).catch(() => ({ ok: false }))
             ]);
 
@@ -516,12 +519,16 @@ class BudgetApp {
             const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
             const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
             const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
+            const budgetAlerts = alertsResponse.ok ? await alertsResponse.json() : [];
 
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary);
 
             // Update Account Widget (current balances from current month summary)
             this.updateAccountsWidget(summary.accounts || []);
+
+            // Update Budget Alerts Widget
+            this.updateBudgetAlertsWidget(budgetAlerts);
 
             // Update Recent Transactions
             this.updateRecentTransactions(transactions);
@@ -710,6 +717,54 @@ class BudgetApp {
                     </div>
                     <div class="recent-transaction-amount ${isCredit ? 'credit' : 'debit'}">
                         ${isCredit ? '+' : '-'}${this.formatCurrency(amount)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateBudgetAlertsWidget(alerts) {
+        const card = document.getElementById('budget-alerts-card');
+        const container = document.getElementById('budget-alerts');
+
+        if (!card || !container) return;
+
+        // Hide the card if no alerts
+        if (!Array.isArray(alerts) || alerts.length === 0) {
+            card.style.display = 'none';
+            return;
+        }
+
+        // Show the card
+        card.style.display = '';
+        const currency = this.getPrimaryCurrency();
+
+        container.innerHTML = alerts.map(alert => {
+            const severityClass = alert.severity === 'danger' ? 'alert-danger' : 'alert-warning';
+            const severityIcon = alert.severity === 'danger'
+                ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.83L19.53 19H4.47L12 5.83zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>'
+                : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+
+            const percentDisplay = alert.percentage >= 100
+                ? `${Math.round(alert.percentage - 100)}% over`
+                : `${Math.round(alert.percentage)}% used`;
+
+            return `
+                <div class="budget-alert-item ${severityClass}">
+                    <div class="alert-icon">${severityIcon}</div>
+                    <div class="alert-content">
+                        <div class="alert-category">${this.escapeHtml(alert.categoryName)}</div>
+                        <div class="alert-progress">
+                            <div class="alert-progress-bar">
+                                <div class="alert-progress-fill ${severityClass}" style="width: ${Math.min(100, alert.percentage)}%"></div>
+                            </div>
+                            <span class="alert-percent">${percentDisplay}</span>
+                        </div>
+                        <div class="alert-amounts">
+                            <span class="alert-spent">${this.formatCurrency(alert.spent, currency)}</span>
+                            <span class="alert-separator">/</span>
+                            <span class="alert-budget">${this.formatCurrency(alert.budgetAmount, currency)}</span>
+                        </div>
                     </div>
                 </div>
             `;

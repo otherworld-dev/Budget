@@ -139,6 +139,11 @@ return [
         ['name' => 'pension#destroySnapshot', 'url' => '/api/pensions/snapshots/{snapshotId}', 'verb' => 'DELETE'],
         ['name' => 'pension#destroyContribution', 'url' => '/api/pensions/contributions/{contributionId}', 'verb' => 'DELETE'],
 
+        // Budget Alert routes
+        ['name' => 'alert#index', 'url' => '/api/alerts', 'verb' => 'GET'],
+        ['name' => 'alert#status', 'url' => '/api/alerts/status', 'verb' => 'GET'],
+        ['name' => 'alert#summary', 'url' => '/api/alerts/summary', 'verb' => 'GET'],
+
         // Report routes
         ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
         ['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],
