@@ -150,6 +150,12 @@ return [
         ['name' => 'debt#payoffPlan', 'url' => '/api/debts/payoff-plan', 'verb' => 'GET'],
         ['name' => 'debt#compare', 'url' => '/api/debts/compare', 'verb' => 'GET'],
 
+        // Year-over-Year Comparison routes
+        ['name' => 'yearOverYear#compareMonth', 'url' => '/api/yoy/month', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#compareYears', 'url' => '/api/yoy/years', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#compareCategories', 'url' => '/api/yoy/categories', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#monthlyTrends', 'url' => '/api/yoy/trends', 'verb' => 'GET'],
+
         // Report routes
         ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
         ['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],
