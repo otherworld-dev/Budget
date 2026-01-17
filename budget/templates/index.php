@@ -3054,6 +3054,21 @@ style('budget', 'style');
                 <small id="bill-notes-help" class="form-text">Any additional notes (optional)</small>
             </div>
 
+            <div class="form-group">
+                <label for="bill-reminder-days">Reminder</label>
+                <select id="bill-reminder-days" aria-describedby="bill-reminder-help">
+                    <option value="">No reminder</option>
+                    <option value="0">On due date</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <small id="bill-reminder-help" class="form-text">Receive a notification before bill is due</small>
+            </div>
+
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save bill">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2026-01-17
+
+### Added
+- Bill reminder notifications
+  - Set reminders for recurring bills (on due date, 1-14 days before)
+  - Receive Nextcloud notifications when bills are due soon
+  - Background job checks every 6 hours for upcoming bills
+  - One reminder per billing period (avoids duplicate notifications)
+  - Overdue bill notifications for missed due dates
+
 ## [1.0.11] - 2026-01-17
 
 ### Added

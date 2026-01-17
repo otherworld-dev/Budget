@@ -25,7 +25,7 @@ Track your spending habits, manage savings, and forecast future account balances
 * Nextcloud 30 or higher
 * PHP 8.1 or higher
     ]]></description>
-    <version>1.0.11</version>
+    <version>1.0.12</version>
     <licence>AGPL-3.0-or-later</licence>
     <author mail="adam@otherworld.dev" homepage="https://otherworld.dev">Adam Morgan</author>
     <namespace>Budget</namespace>
@@ -49,5 +49,6 @@ Track your spending habits, manage savings, and forecast future account balances
     <background-jobs>
         <job>OCA\Budget\BackgroundJob\CleanupImportFilesJob</job>
         <job>OCA\Budget\BackgroundJob\CleanupAuditLogsJob</job>
+        <job>OCA\Budget\BackgroundJob\BillReminderJob</job>
     </background-jobs>
 </info>

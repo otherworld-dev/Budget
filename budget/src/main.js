@@ -8779,6 +8779,8 @@ class BudgetApp {
             document.getElementById('bill-account').value = bill.accountId || bill.account_id || '';
             document.getElementById('bill-auto-pattern').value = bill.autoDetectPattern || bill.auto_detect_pattern || '';
             document.getElementById('bill-notes').value = bill.notes || '';
+            const reminderDays = bill.reminderDays ?? bill.reminder_days;
+            document.getElementById('bill-reminder-days').value = reminderDays !== null && reminderDays !== undefined ? reminderDays.toString() : '';
         } else {
             title.textContent = 'Add Bill';
         }
@@ -8851,6 +8853,7 @@ class BudgetApp {
         const billId = document.getElementById('bill-id').value;
         const isNew = !billId;
 
+        const reminderValue = document.getElementById('bill-reminder-days').value;
         const billData = {
             name: document.getElementById('bill-name').value,
             amount: parseFloat(document.getElementById('bill-amount').value),
@@ -8860,7 +8863,8 @@ class BudgetApp {
             categoryId: document.getElementById('bill-category').value ? parseInt(document.getElementById('bill-category').value) : null,
             accountId: document.getElementById('bill-account').value ? parseInt(document.getElementById('bill-account').value) : null,
             autoDetectPattern: document.getElementById('bill-auto-pattern').value || null,
-            notes: document.getElementById('bill-notes').value || null
+            notes: document.getElementById('bill-notes').value || null,
+            reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null
         };
 
         try {
