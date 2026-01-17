@@ -9207,7 +9207,7 @@ class BudgetApp {
             const contentDisposition = response.headers.get('Content-Disposition');
             let filename = 'budget_export.zip';
             if (contentDisposition) {
-                const match = contentDisposition.match(/filename="?(.+)"?/);
+                const match = contentDisposition.match(/filename="([^"]+)"/);
                 if (match) {
                     filename = match[1];
                 }
