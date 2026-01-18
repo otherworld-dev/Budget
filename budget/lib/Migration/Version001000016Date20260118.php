@@ -38,6 +38,13 @@ class Version001000016Date20260118 extends SimpleMigrationStep {
                     'notnull' => true,
                     'default' => 1,
                 ]);
+            } else {
+                // Column exists - fix it if it has wrong default
+                $table->dropColumn('apply_on_import');
+                $table->addColumn('apply_on_import', Types::BOOLEAN, [
+                    'notnull' => true,
+                    'default' => 1,
+                ]);
             }
 
             // Add updated_at timestamp

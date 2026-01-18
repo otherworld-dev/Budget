@@ -61,6 +61,13 @@ class Version001000012Date20260117 extends SimpleMigrationStep {
                     'notnull' => false,
                     'default' => 0,
                 ]);
+            } else {
+                // Column exists - fix it if it has wrong default
+                $transactionsTable->dropColumn('is_split');
+                $transactionsTable->addColumn('is_split', Types::BOOLEAN, [
+                    'notnull' => false,
+                    'default' => 0,
+                ]);
             }
         }
 
