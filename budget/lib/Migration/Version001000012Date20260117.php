@@ -6,6 +6,7 @@ namespace OCA\Budget\Migration;
 
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
+use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 
@@ -15,17 +16,22 @@ use OCP\Migration\SimpleMigrationStep;
 class Version001000012Date20260117 extends SimpleMigrationStep {
 
     /**
-     * Drop broken boolean columns before schema comparison
+     * Drop broken boolean columns with raw SQL
      */
     public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+        $connection = \OC::$server->getDatabaseConnection();
 
-        if ($schema->hasTable('budget_transactions')) {
-            $table = $schema->getTable('budget_transactions');
-            if ($table->hasColumn('is_split')) {
-                $table->dropColumn('is_split');
+        try {
+            $schema = $schemaClosure();
+            if ($schema->hasTable('budget_transactions')) {
+                $table = $schema->getTable('budget_transactions');
+                if ($table->hasColumn('is_split')) {
+                    $tableName = $connection->getPrefix() . 'budget_transactions';
+                    $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_split");
+                }
             }
+        } catch (\Exception $e) {
+            // Column might not exist, continue
         }
     }
 
