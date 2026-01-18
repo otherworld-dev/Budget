@@ -230,6 +230,18 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
+    public function allSpending(string $startDate, string $endDate): DataResponse {
+        try {
+            $spending = $this->service->getAllCategorySpending($this->userId, $startDate, $endDate);
+            return new DataResponse($spending);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to retrieve category spending');
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
     public function spending(int $id, string $startDate, string $endDate): DataResponse {
         try {
             $spending = $this->service->getCategorySpending($id, $this->userId, $startDate, $endDate);

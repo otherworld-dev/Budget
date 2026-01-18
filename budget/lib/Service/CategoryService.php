@@ -125,6 +125,18 @@ class CategoryService extends AbstractCrudService {
         return $this->getCategoryMapper()->getCategorySpending($categoryId, $startDate, $endDate);
     }
 
+    public function getAllCategorySpending(string $userId, string $startDate, string $endDate): array {
+        $summary = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate);
+
+        return array_map(fn($item) => [
+            'categoryId' => (int)$item['id'],
+            'spent' => abs((float)($item['total'] ?? 0)),
+            'name' => $item['name'] ?? '',
+            'color' => $item['color'] ?? null,
+            'count' => (int)($item['count'] ?? 0)
+        ], $summary);
+    }
+
     public function getBudgetAnalysis(string $userId, string $month = null): array {
         if (!$month) {
             $month = date('Y-m');

@@ -7632,7 +7632,9 @@ class BudgetApp {
 
         // Fetch spending data from API
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startStr}&endDate=${endStr}`));
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startStr}&endDate=${endStr}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
             if (response.ok) {
                 const spendingData = await response.json();
                 // Map spending to categories

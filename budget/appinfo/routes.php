@@ -47,6 +47,7 @@ return [
         // Category routes - specific paths before {id} wildcard
         ['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
         ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
+        ['name' => 'category#allSpending', 'url' => '/api/categories/spending', 'verb' => 'GET'],
         ['name' => 'category#create', 'url' => '/api/categories', 'verb' => 'POST'],
         ['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],
         ['name' => 'category#update', 'url' => '/api/categories/{id}', 'verb' => 'PUT'],
