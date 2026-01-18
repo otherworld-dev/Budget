@@ -22,7 +22,7 @@ class Version001000015Date20260117 extends SimpleMigrationStep {
     public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
         /** @var IDBConnection $connection */
         $connection = \OC::$server->getDatabaseConnection();
-        $prefix = $connection->getPrefix();
+        $prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
 
         // Drop entire tables if they exist - will be recreated with correct defaults
         $tablesToDrop = [

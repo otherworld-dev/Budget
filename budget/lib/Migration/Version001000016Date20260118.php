@@ -23,13 +23,14 @@ class Version001000016Date20260118 extends SimpleMigrationStep {
      */
     public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
         $connection = \OC::$server->getDatabaseConnection();
+        $prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
 
         try {
             $schema = $schemaClosure();
             if ($schema->hasTable('budget_import_rules')) {
                 $table = $schema->getTable('budget_import_rules');
                 if ($table->hasColumn('apply_on_import')) {
-                    $tableName = $connection->getPrefix() . 'budget_import_rules';
+                    $tableName = $prefix . 'budget_import_rules';
                     $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN apply_on_import");
                 }
             }
