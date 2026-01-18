@@ -96,20 +96,27 @@ class CategoryService extends AbstractCrudService {
 
     public function getCategoryTree(string $userId): array {
         $categories = $this->findAll($userId);
-        return $this->buildTree($categories);
-    }
 
-    private function buildTree(array $categories, ?int $parentId = null): array {
-        $tree = [];
-
+        // Build parent->children map in O(n) single pass
+        $childrenMap = [];
         foreach ($categories as $category) {
-            if ($category->getParentId() === $parentId) {
-                $categoryArray = $category->jsonSerialize();
-                $categoryArray['children'] = $this->buildTree($categories, $category->getId());
-                $tree[] = $categoryArray;
+            $pid = $category->getParentId();
+            if (!isset($childrenMap[$pid])) {
+                $childrenMap[$pid] = [];
             }
+            $childrenMap[$pid][] = $category;
         }
 
+        return $this->buildTreeFromMap($childrenMap, null);
+    }
+
+    private function buildTreeFromMap(array $childrenMap, ?int $parentId): array {
+        $tree = [];
+        foreach ($childrenMap[$parentId] ?? [] as $category) {
+            $categoryArray = $category->jsonSerialize();
+            $categoryArray['children'] = $this->buildTreeFromMap($childrenMap, $category->getId());
+            $tree[] = $categoryArray;
+        }
         return $tree;
     }
 
@@ -127,11 +134,24 @@ class CategoryService extends AbstractCrudService {
         $endDate = date('Y-m-t', strtotime($startDate));
 
         $categories = $this->findAll($userId);
-        $analysis = [];
 
+        // Collect category IDs with budgets for batch query
+        $categoryIds = [];
         foreach ($categories as $category) {
             if ($category->getBudgetAmount() > 0) {
-                $spent = $this->getCategorySpending($category->getId(), $userId, $startDate, $endDate);
+                $categoryIds[] = $category->getId();
+            }
+        }
+
+        // Single batch query for all spending (avoids N+1)
+        $spendingMap = $this->transactionMapper->getCategorySpendingBatch(
+            $categoryIds, $startDate, $endDate
+        );
+
+        $analysis = [];
+        foreach ($categories as $category) {
+            if ($category->getBudgetAmount() > 0) {
+                $spent = $spendingMap[$category->getId()] ?? 0.0;
                 $budget = $category->getBudgetAmount();
                 $remaining = $budget - $spent;
                 $percentage = $budget > 0 ? ($spent / $budget) * 100 : 0;

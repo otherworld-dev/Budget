@@ -487,36 +487,29 @@ class BudgetApp {
 
     async loadInitialData() {
         try {
-            // Load settings first (needed for formatting)
-            const settingsResponse = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            // Load all initial data in parallel for better performance
+            const [settingsResponse, accountsResponse, categoriesResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/accounts'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/categories'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                })
+            ]);
+
             if (settingsResponse.ok) {
                 this.settings = await settingsResponse.json();
             }
 
-            // Load accounts
-            const accountsResponse = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
             if (!accountsResponse.ok) {
                 throw new Error(`Failed to load accounts: ${accountsResponse.status} ${accountsResponse.statusText}`);
             }
-
             const accountsData = await accountsResponse.json();
             this.accounts = Array.isArray(accountsData) ? accountsData : [];
 
-            // Load categories
-            const categoriesResponse = await fetch(OC.generateUrl('/apps/budget/api/categories'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
             const categoriesData = await categoriesResponse.json();
             this.categories = Array.isArray(categoriesData) ? categoriesData : [];
 
@@ -6486,15 +6479,20 @@ class BudgetApp {
         this.setupDragAndDrop();
     }
 
-    renderCategoryNodes(categories, level = 0) {
+    renderCategoryNodes(categories, level = 0, countMap = null) {
+        // Build count map once at the start (avoids O(n*m) filtering)
+        if (countMap === null) {
+            countMap = this.buildCategoryTransactionCountMap();
+        }
+
         return categories.map(category => {
             const hasChildren = category.children && category.children.length > 0;
             const isExpanded = this.expandedCategories && this.expandedCategories.has(category.id);
             const isSelected = this.selectedCategory?.id === category.id;
             const isChecked = this.selectedCategoryIds && this.selectedCategoryIds.has(category.id);
 
-            // Calculate transaction count
-            const transactionCount = this.getCategoryTransactionCount(category.id);
+            // Use pre-computed count map for O(1) lookup
+            const transactionCount = countMap[category.id] || 0;
 
             return `
                 <div class="category-node" data-level="${level}">
@@ -6532,12 +6530,22 @@ class BudgetApp {
 
                     ${hasChildren ? `
                         <div class="category-children ${isExpanded ? '' : 'collapsed'}">
-                            ${this.renderCategoryNodes(category.children, level + 1)}
+                            ${this.renderCategoryNodes(category.children, level + 1, countMap)}
                         </div>
                     ` : ''}
                 </div>
             `;
         }).join('');
+    }
+
+    buildCategoryTransactionCountMap() {
+        const countMap = {};
+        for (const tx of (this.transactions || [])) {
+            if (tx.categoryId) {
+                countMap[tx.categoryId] = (countMap[tx.categoryId] || 0) + 1;
+            }
+        }
+        return countMap;
     }
 
     setupCategoryItemListeners() {
