@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import wizard includes checkbox to optionally apply rules during import
 - Renamed "Split Expenses" to "Shared Expenses" for clarity
 
+### Performance
+- Categories page loads ~10x faster (fixed O(n²) tree building algorithm)
+- Budget analysis uses single batch query instead of N+1 queries per category
+- Category rendering pre-computes transaction counts (O(n) instead of O(n*m))
+- Initial app load ~2-3x faster (parallel API requests for settings, accounts, categories)
+
 ### Fixed
 - Budget alerts API returning 500 error (incorrect constant reference in TransactionSplitMapper)
 - Add Rule button not working (duplicate HTML element IDs)
