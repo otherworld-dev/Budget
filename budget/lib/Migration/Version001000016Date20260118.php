@@ -58,7 +58,7 @@ class Version001000016Date20260118 extends SimpleMigrationStep {
             // Defaults to true for backward compatibility
             if (!$table->hasColumn('apply_on_import')) {
                 $table->addColumn('apply_on_import', Types::BOOLEAN, [
-                    'notnull' => true,
+                    'notnull' => false,
                     'default' => 1,
                 ]);
             }

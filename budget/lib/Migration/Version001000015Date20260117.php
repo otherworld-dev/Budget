@@ -95,7 +95,7 @@ class Version001000015Date20260117 extends SimpleMigrationStep {
                 'scale' => 2,
             ]);
             $table->addColumn('is_settled', Types::BOOLEAN, [
-                'notnull' => true,
+                'notnull' => false,
                 'default' => 0,
             ]);
             $table->addColumn('notes', Types::TEXT, [
