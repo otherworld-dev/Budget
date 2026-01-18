@@ -14,6 +14,21 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000012Date20260117 extends SimpleMigrationStep {
 
+    /**
+     * Drop broken boolean columns before schema comparison
+     */
+    public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
+        /** @var ISchemaWrapper $schema */
+        $schema = $schemaClosure();
+
+        if ($schema->hasTable('budget_transactions')) {
+            $table = $schema->getTable('budget_transactions');
+            if ($table->hasColumn('is_split')) {
+                $table->dropColumn('is_split');
+            }
+        }
+    }
+
     public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
@@ -53,17 +68,10 @@ class Version001000012Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['category_id'], 'bgt_txsplit_cat');
         }
 
-        // Add is_split flag to transactions table
+        // Add is_split flag to transactions table (was dropped in preSchemaChange if existed)
         if ($schema->hasTable('budget_transactions')) {
             $transactionsTable = $schema->getTable('budget_transactions');
             if (!$transactionsTable->hasColumn('is_split')) {
-                $transactionsTable->addColumn('is_split', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => 0,
-                ]);
-            } else {
-                // Column exists - fix it if it has wrong default
-                $transactionsTable->dropColumn('is_split');
                 $transactionsTable->addColumn('is_split', Types::BOOLEAN, [
                     'notnull' => false,
                     'default' => 0,
