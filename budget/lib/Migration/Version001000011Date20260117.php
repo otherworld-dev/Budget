@@ -20,7 +20,7 @@ class Version001000011Date20260117 extends SimpleMigrationStep {
      */
     public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
         $connection = \OC::$server->getDatabaseConnection();
-        $prefix = $connection->getPrefix();
+        $prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
 
         try {
             $connection->executeStatement("DROP TABLE IF EXISTS {$prefix}budget_recurring_income");

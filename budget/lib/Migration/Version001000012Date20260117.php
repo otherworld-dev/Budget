@@ -20,13 +20,14 @@ class Version001000012Date20260117 extends SimpleMigrationStep {
      */
     public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
         $connection = \OC::$server->getDatabaseConnection();
+        $prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
 
         try {
             $schema = $schemaClosure();
             if ($schema->hasTable('budget_transactions')) {
                 $table = $schema->getTable('budget_transactions');
                 if ($table->hasColumn('is_split')) {
-                    $tableName = $connection->getPrefix() . 'budget_transactions';
+                    $tableName = $prefix . 'budget_transactions';
                     $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_split");
                 }
             }
