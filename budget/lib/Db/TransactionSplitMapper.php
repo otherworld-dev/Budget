@@ -6,6 +6,7 @@ namespace OCA\Budget\Db;
 
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**
@@ -86,7 +87,7 @@ class TransactionSplitMapper extends QBMapper {
         $qb->select('s.category_id')
             ->selectAlias($qb->func()->sum('s.amount'), 'total')
             ->from($this->getTableName(), 's')
-            ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($transactionIds, IDBConnection::PARAM_INT_ARRAY)))
+            ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->groupBy('s.category_id');
 
         $result = $qb->executeQuery();
