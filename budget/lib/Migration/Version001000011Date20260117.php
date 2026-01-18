@@ -14,6 +14,21 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000011Date20260117 extends SimpleMigrationStep {
 
+    /**
+     * Drop broken boolean columns before schema comparison
+     */
+    public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
+        /** @var ISchemaWrapper $schema */
+        $schema = $schemaClosure();
+
+        if ($schema->hasTable('budget_recurring_income')) {
+            $table = $schema->getTable('budget_recurring_income');
+            if ($table->hasColumn('is_active')) {
+                $table->dropColumn('is_active');
+            }
+        }
+    }
+
     public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
@@ -91,15 +106,13 @@ class Version001000011Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['user_id', 'next_expected_date'], 'bgt_recinc_next');
             $table->addIndex(['user_id', 'category_id'], 'bgt_recinc_cat');
         } else {
-            // Table exists - fix is_active column if it has wrong default
+            // Table exists - add is_active column (was dropped in preSchemaChange)
             $table = $schema->getTable('budget_recurring_income');
-            if ($table->hasColumn('is_active')) {
-                $table->dropColumn('is_active');
+            if (!$table->hasColumn('is_active')) {
                 $table->addColumn('is_active', Types::BOOLEAN, [
                     'notnull' => false,
                     'default' => 1,
                 ]);
-                // Recreate index if it was dropped
                 if (!$table->hasIndex('bgt_recinc_active')) {
                     $table->addIndex(['user_id', 'is_active'], 'bgt_recinc_active');
                 }

@@ -16,6 +16,22 @@ use OCP\Migration\SimpleMigrationStep;
  * and to set any transaction field (not just category).
  */
 class Version001000016Date20260118 extends SimpleMigrationStep {
+
+    /**
+     * Drop broken boolean columns before schema comparison
+     */
+    public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+        /** @var ISchemaWrapper $schema */
+        $schema = $schemaClosure();
+
+        if ($schema->hasTable('budget_import_rules')) {
+            $table = $schema->getTable('budget_import_rules');
+            if ($table->hasColumn('apply_on_import')) {
+                $table->dropColumn('apply_on_import');
+            }
+        }
+    }
+
     public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
@@ -31,16 +47,9 @@ class Version001000016Date20260118 extends SimpleMigrationStep {
                 ]);
             }
 
-            // Add apply_on_import flag - whether to apply this rule during import
+            // Add apply_on_import flag (was dropped in preSchemaChange if existed)
             // Defaults to true for backward compatibility
             if (!$table->hasColumn('apply_on_import')) {
-                $table->addColumn('apply_on_import', Types::BOOLEAN, [
-                    'notnull' => true,
-                    'default' => 1,
-                ]);
-            } else {
-                // Column exists - fix it if it has wrong default
-                $table->dropColumn('apply_on_import');
                 $table->addColumn('apply_on_import', Types::BOOLEAN, [
                     'notnull' => true,
                     'default' => 1,

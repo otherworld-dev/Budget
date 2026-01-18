@@ -14,6 +14,23 @@ use OCP\Migration\SimpleMigrationStep;
  * Add shared expense tables for split expenses with contacts.
  */
 class Version001000015Date20260117 extends SimpleMigrationStep {
+
+    /**
+     * Drop broken boolean columns before schema comparison to avoid reconciliation errors
+     */
+    public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+        /** @var ISchemaWrapper $schema */
+        $schema = $schemaClosure();
+
+        // Drop is_settled column if table exists (will be recreated with correct default)
+        if ($schema->hasTable('budget_expense_shares')) {
+            $table = $schema->getTable('budget_expense_shares');
+            if ($table->hasColumn('is_settled')) {
+                $table->dropColumn('is_settled');
+            }
+        }
+    }
+
     public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
@@ -85,15 +102,13 @@ class Version001000015Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['contact_id'], 'bgt_expshare_contact');
             $table->addIndex(['is_settled'], 'bgt_expshare_settled');
         } else {
-            // Table exists - fix is_settled column if it has wrong default
+            // Table exists - add is_settled column (was dropped in preSchemaChange)
             $table = $schema->getTable('budget_expense_shares');
-            if ($table->hasColumn('is_settled')) {
-                $table->dropColumn('is_settled');
+            if (!$table->hasColumn('is_settled')) {
                 $table->addColumn('is_settled', Types::BOOLEAN, [
                     'notnull' => true,
                     'default' => 0,
                 ]);
-                // Recreate index if it was dropped
                 if (!$table->hasIndex('bgt_expshare_settled')) {
                     $table->addIndex(['is_settled'], 'bgt_expshare_settled');
                 }
