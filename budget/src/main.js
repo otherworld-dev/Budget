@@ -7944,7 +7944,9 @@ class BudgetApp {
 
     setupInlineEditingListeners() {
         const transactionsTable = document.getElementById('transactions-table');
-        if (!transactionsTable) return;
+        if (!transactionsTable) {
+            return;
+        }
 
         // Handle click on editable cells
         transactionsTable.addEventListener('click', (e) => {
@@ -7973,11 +7975,15 @@ class BudgetApp {
         const transactionId = parseInt(cell.dataset.transactionId);
         const transaction = this.transactions.find(t => t.id === transactionId);
 
-        if (!transaction) return;
+
+        if (!transaction) {
+            return;
+        }
 
         cell.classList.add('editing');
         this.currentEditingCell = cell;
         this.originalValue = value;
+
 
         switch (field) {
             case 'date':
@@ -8086,6 +8092,7 @@ class BudgetApp {
     }
 
     createCategoryEditor(cell, currentCategoryId) {
+
         const container = document.createElement('div');
         container.className = 'category-autocomplete';
 
@@ -8094,8 +8101,22 @@ class BudgetApp {
         input.className = 'category-autocomplete-input';
         input.placeholder = 'Type to search...';
 
+        // Try hierarchical first (for categories page), then flat (for transactions page)
+        let categoryData = null;
+        if (this.categoryTree && this.categoryTree.length > 0) {
+            categoryData = this.categoryTree;
+        } else if (this.allCategories && this.allCategories.length > 0) {
+            categoryData = this.allCategories;
+        } else if (this.categories && this.categories.length > 0) {
+            categoryData = this.categories;
+        } else {
+        }
+
+        // Build flat list of categories for search
+        const flatCategories = categoryData ? this.getFlatCategoryList(categoryData) : [];
+
         // Set current category name as value
-        const currentCategory = this.categories?.find(c => c.id === parseInt(currentCategoryId));
+        const currentCategory = flatCategories.find(c => c.id === parseInt(currentCategoryId));
         input.value = currentCategory ? currentCategory.name : '';
         input.dataset.categoryId = currentCategoryId || '';
 
@@ -8106,13 +8127,11 @@ class BudgetApp {
         container.appendChild(input);
         container.appendChild(dropdown);
 
-        // Build flat list of categories for search
-        const flatCategories = this.getFlatCategoryList();
-
         const showDropdown = (filter = '') => {
             const filtered = filter
                 ? flatCategories.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
                 : flatCategories;
+
 
             if (filtered.length === 0) {
                 dropdown.innerHTML = '<div class="category-autocomplete-empty">No categories found</div>';
@@ -8141,7 +8160,14 @@ class BudgetApp {
         input.addEventListener('focus', () => showDropdown(input.value));
         input.addEventListener('input', () => showDropdown(input.value));
 
+        // CRITICAL: Prevent input blur when clicking dropdown
+        // Without this, clicking the dropdown causes blur → cancelInlineEdit → table re-render → dropdown destroyed
+        dropdown.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevents input from losing focus
+        });
+
         dropdown.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent event from bubbling up
             const item = e.target.closest('.category-autocomplete-item');
             if (item) {
                 input.dataset.categoryId = item.dataset.categoryId;
@@ -8300,6 +8326,7 @@ class BudgetApp {
         const transactionId = parseInt(cell.dataset.transactionId);
         const transaction = this.transactions.find(t => t.id === transactionId);
 
+
         if (!transaction) {
             this.cancelInlineEdit(cell);
             return;
@@ -8324,6 +8351,7 @@ class BudgetApp {
             this.cancelInlineEdit(cell);
             return;
         }
+
 
         // Show saving state
         cell.classList.add('cell-saving');

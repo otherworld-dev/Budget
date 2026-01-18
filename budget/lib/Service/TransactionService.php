@@ -97,7 +97,7 @@ class TransactionService {
         $transaction = $this->find($id, $userId);
         $oldAmount = $transaction->getAmount();
         $oldType = $transaction->getType();
-        
+
         // Apply updates
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);
@@ -106,19 +106,30 @@ class TransactionService {
                 $transaction->$setter($value);
             }
         }
-        
+
         $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
         $transaction = $this->mapper->update($transaction);
-        
-        // Update account balance if amount or type changed
-        if (isset($updates['amount']) || isset($updates['type'])) {
+
+        // Update account balance only if amount or type actually changed
+        $newAmount = $updates['amount'] ?? $oldAmount;
+        $newType = $updates['type'] ?? $oldType;
+
+        if ($newAmount != $oldAmount || $newType != $oldType) {
             $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-            // Reverse old transaction
-            $this->updateAccountBalance($account, $oldAmount, $oldType === 'credit' ? 'debit' : 'credit', $userId);
-            // Apply new transaction
-            $this->updateAccountBalance($account, $transaction->getAmount(), $transaction->getType(), $userId);
+            $currentBalance = $account->getBalance();
+
+            // Calculate the net balance change
+            // Old effect: what was already applied to the balance
+            $oldEffect = $oldType === 'credit' ? $oldAmount : -$oldAmount;
+            // New effect: what should be applied to the balance
+            $newEffect = $newType === 'credit' ? $newAmount : -$newAmount;
+            // Net change to apply
+            $netChange = $newEffect - $oldEffect;
+
+            $newBalance = $currentBalance + $netChange;
+            $this->accountMapper->updateBalance($account->getId(), $newBalance, $userId);
         }
-        
+
         return $transaction;
     }
 

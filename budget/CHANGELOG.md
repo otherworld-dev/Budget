@@ -5,10 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.29] - 2026-01-18
+
+### Fixed
+- Transaction category changes no longer affect account balance (GitHub issue #3)
+- Inline category editor now works properly on transactions page
+- Fixed double debit bug when updating transaction categories
+
 ## [1.0.28] - 2026-01-18
 
 ### Fixed
-- Fixed Version001000018 cleanup migration: getPrefix() error and NOT NULL boolean columns
+- Fthaixed Version001000018 cleanup migration: getPrefix() error and NOT NULL boolean columns
 - All migrations now use system config to get table prefix
 - All boolean columns now nullable across all migrations
 
