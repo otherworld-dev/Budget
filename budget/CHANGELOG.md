@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Toggle switch to enable/disable rules directly from the table
 
 ### Changed
+- Reorganized navigation menu into logical groups (Core Data, Budgeting, Goals, Analysis)
+- Moved Import, Rules, and Settings to collapsible bottom section (Nextcloud style)
 - Removed Import Rules tab from Import page (rules now managed from dedicated Rules page)
 - Import wizard includes checkbox to optionally apply rules during import
 
