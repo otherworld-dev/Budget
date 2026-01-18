@@ -17,35 +17,26 @@ use OCP\Migration\SimpleMigrationStep;
 class Version001000015Date20260117 extends SimpleMigrationStep {
 
     /**
-     * Drop broken boolean columns with raw SQL before schema comparison
+     * Drop broken tables entirely to avoid schema reconciliation issues
      */
     public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
         /** @var IDBConnection $connection */
         $connection = \OC::$server->getDatabaseConnection();
+        $prefix = $connection->getPrefix();
 
-        // Check if table and column exist, then drop with raw SQL
-        try {
-            $schema = $schemaClosure();
-            if ($schema->hasTable('budget_expense_shares')) {
-                $table = $schema->getTable('budget_expense_shares');
-                if ($table->hasColumn('is_settled')) {
-                    // Drop the column with raw SQL to avoid schema reconciliation issues
-                    $platform = $connection->getDatabasePlatform();
-                    $tableName = $connection->getPrefix() . 'budget_expense_shares';
+        // Drop entire tables if they exist - will be recreated with correct defaults
+        $tablesToDrop = [
+            'budget_expense_shares',
+            'budget_contacts',
+            'budget_settlements',
+        ];
 
-                    if ($platform instanceof \Doctrine\DBAL\Platforms\PostgreSQLPlatform ||
-                        $platform instanceof \Doctrine\DBAL\Platforms\PostgreSQL94Platform) {
-                        $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN IF EXISTS is_settled");
-                    } elseif ($platform instanceof \Doctrine\DBAL\Platforms\OraclePlatform) {
-                        $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_settled");
-                    } else {
-                        // MySQL/MariaDB/SQLite
-                        $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_settled");
-                    }
-                }
+        foreach ($tablesToDrop as $table) {
+            try {
+                $connection->executeStatement("DROP TABLE IF EXISTS {$prefix}{$table}");
+            } catch (\Exception $e) {
+                // Table might not exist, continue
             }
-        } catch (\Exception $e) {
-            // Column might not exist or already dropped, continue
         }
     }
 
@@ -119,19 +110,8 @@ class Version001000015Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['transaction_id'], 'bgt_expshare_txn');
             $table->addIndex(['contact_id'], 'bgt_expshare_contact');
             $table->addIndex(['is_settled'], 'bgt_expshare_settled');
-        } else {
-            // Table exists - add is_settled column (was dropped in preSchemaChange)
-            $table = $schema->getTable('budget_expense_shares');
-            if (!$table->hasColumn('is_settled')) {
-                $table->addColumn('is_settled', Types::BOOLEAN, [
-                    'notnull' => true,
-                    'default' => 0,
-                ]);
-                if (!$table->hasIndex('bgt_expshare_settled')) {
-                    $table->addIndex(['is_settled'], 'bgt_expshare_settled');
-                }
-            }
         }
+        // Note: else removed - table was dropped in preSchemaChange if it existed
 
         // Settlements - records of settling debts
         if (!$schema->hasTable('budget_settlements')) {

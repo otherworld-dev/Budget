@@ -16,22 +16,16 @@ use OCP\Migration\SimpleMigrationStep;
 class Version001000011Date20260117 extends SimpleMigrationStep {
 
     /**
-     * Drop broken boolean columns with raw SQL
+     * Drop broken table entirely to avoid schema reconciliation issues
      */
     public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
         $connection = \OC::$server->getDatabaseConnection();
+        $prefix = $connection->getPrefix();
 
         try {
-            $schema = $schemaClosure();
-            if ($schema->hasTable('budget_recurring_income')) {
-                $table = $schema->getTable('budget_recurring_income');
-                if ($table->hasColumn('is_active')) {
-                    $tableName = $connection->getPrefix() . 'budget_recurring_income';
-                    $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_active");
-                }
-            }
+            $connection->executeStatement("DROP TABLE IF EXISTS {$prefix}budget_recurring_income");
         } catch (\Exception $e) {
-            // Column might not exist, continue
+            // Table might not exist, continue
         }
     }
 
@@ -111,19 +105,8 @@ class Version001000011Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['user_id', 'is_active'], 'bgt_recinc_active');
             $table->addIndex(['user_id', 'next_expected_date'], 'bgt_recinc_next');
             $table->addIndex(['user_id', 'category_id'], 'bgt_recinc_cat');
-        } else {
-            // Table exists - add is_active column (was dropped in preSchemaChange)
-            $table = $schema->getTable('budget_recurring_income');
-            if (!$table->hasColumn('is_active')) {
-                $table->addColumn('is_active', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => 1,
-                ]);
-                if (!$table->hasIndex('bgt_recinc_active')) {
-                    $table->addIndex(['user_id', 'is_active'], 'bgt_recinc_active');
-                }
-            }
         }
+        // Note: else removed - table was dropped in preSchemaChange if it existed
 
         return $schema;
     }

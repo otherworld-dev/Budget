@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.25] - 2026-01-18
+
+### Fixed
+- **FINAL FIX**: Migrations now drop entire tables before recreating them
+- Prevents schema reconciliation errors by ensuring clean slate
+- Works automatically through Nextcloud Apps UI
+- Note: Shared expenses and recurring income data will be lost (features were non-functional anyway due to migration errors)
+
 ## [1.0.24] - 2026-01-18
 
 ### Fixed
