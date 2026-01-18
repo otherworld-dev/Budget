@@ -84,6 +84,20 @@ class Version001000015Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['transaction_id'], 'bgt_expshare_txn');
             $table->addIndex(['contact_id'], 'bgt_expshare_contact');
             $table->addIndex(['is_settled'], 'bgt_expshare_settled');
+        } else {
+            // Table exists - fix is_settled column if it has wrong default
+            $table = $schema->getTable('budget_expense_shares');
+            if ($table->hasColumn('is_settled')) {
+                $table->dropColumn('is_settled');
+                $table->addColumn('is_settled', Types::BOOLEAN, [
+                    'notnull' => true,
+                    'default' => 0,
+                ]);
+                // Recreate index if it was dropped
+                if (!$table->hasIndex('bgt_expshare_settled')) {
+                    $table->addIndex(['is_settled'], 'bgt_expshare_settled');
+                }
+            }
         }
 
         // Settlements - records of settling debts

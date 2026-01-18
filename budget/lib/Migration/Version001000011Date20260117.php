@@ -90,6 +90,20 @@ class Version001000011Date20260117 extends SimpleMigrationStep {
             $table->addIndex(['user_id', 'is_active'], 'bgt_recinc_active');
             $table->addIndex(['user_id', 'next_expected_date'], 'bgt_recinc_next');
             $table->addIndex(['user_id', 'category_id'], 'bgt_recinc_cat');
+        } else {
+            // Table exists - fix is_active column if it has wrong default
+            $table = $schema->getTable('budget_recurring_income');
+            if ($table->hasColumn('is_active')) {
+                $table->dropColumn('is_active');
+                $table->addColumn('is_active', Types::BOOLEAN, [
+                    'notnull' => false,
+                    'default' => 1,
+                ]);
+                // Recreate index if it was dropped
+                if (!$table->hasIndex('bgt_recinc_active')) {
+                    $table->addIndex(['user_id', 'is_active'], 'bgt_recinc_active');
+                }
+            }
         }
 
         return $schema;
