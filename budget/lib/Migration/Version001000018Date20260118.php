@@ -19,7 +19,7 @@ class Version001000018Date20260118 extends SimpleMigrationStep {
 
     public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
         $connection = \OC::$server->getDatabaseConnection();
-        $prefix = $connection->getPrefix();
+        $prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
 
         // Drop tables that may have been created with broken boolean defaults
         $tablesToDrop = [
@@ -112,7 +112,7 @@ class Version001000018Date20260118 extends SimpleMigrationStep {
                 'scale' => 2,
             ]);
             $table->addColumn('is_settled', Types::BOOLEAN, [
-                'notnull' => true,
+                'notnull' => false,
                 'default' => 0,
             ]);
             $table->addColumn('notes', Types::TEXT, [
@@ -254,7 +254,7 @@ class Version001000018Date20260118 extends SimpleMigrationStep {
             $table = $schema->getTable('budget_import_rules');
             if (!$table->hasColumn('apply_on_import')) {
                 $table->addColumn('apply_on_import', Types::BOOLEAN, [
-                    'notnull' => true,
+                    'notnull' => false,
                     'default' => 1,
                 ]);
             }
