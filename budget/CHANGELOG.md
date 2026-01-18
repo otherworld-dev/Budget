@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.24] - 2026-01-18
+
+### Fixed
+- Cleanup migration that drops and recreates broken tables automatically
+- Works through Nextcloud Apps UI - no manual database access required
+- Migration 001000018 runs after problematic migrations to fix failed installations
+- Users can now update through the UI and the app will self-heal
+
 ## [1.0.23] - 2026-01-18
 
 ### Fixed
