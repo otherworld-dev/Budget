@@ -103,6 +103,19 @@
 }
 
 /* Navigation - Exact Nextcloud Files app style */
+#app-navigation {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#app-navigation > ul {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 8px;
+}
+
 #app-navigation .app-navigation-entry {
     position: relative;
 }
@@ -152,20 +165,24 @@
     opacity: 1;
 }
 
-/* Settings button - match Files app style */
+/* Bottom navigation section - docked at bottom */
 #app-settings {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 8px;
+    flex-shrink: 0;
     border-top: 1px solid var(--color-border);
+    background: var(--color-main-background);
 }
 
-#app-settings-header .settings-button {
+#app-settings ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Collapsible toggle button */
+#app-settings-header .settings-toggle {
     display: flex;
     align-items: center;
-    width: 100%;
+    width: calc(100% - 16px);
     padding: 0 16px;
     background: transparent;
     border: none;
@@ -180,7 +197,7 @@
     transition: background-color 0.1s ease-in-out;
 }
 
-#app-settings-header .settings-button .app-navigation-entry-icon {
+#app-settings-header .settings-toggle .app-navigation-entry-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -190,18 +207,33 @@
     flex-shrink: 0;
 }
 
-#app-settings-header .settings-button .app-navigation-entry-icon svg {
+#app-settings-header .settings-toggle .toggle-icon {
     width: 20px;
     height: 20px;
     opacity: 0.7;
+    transition: transform 0.2s ease-in-out;
 }
 
-#app-settings-header .settings-button:hover {
+#app-settings-header .settings-toggle:hover {
     background-color: var(--color-background-hover);
 }
 
-#app-settings-header .settings-button:hover .app-navigation-entry-icon svg {
+#app-settings-header .settings-toggle:hover .toggle-icon {
     opacity: 1;
+}
+
+/* Expanded state - rotate chevron */
+#app-settings-header .settings-toggle[aria-expanded="true"] .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Collapsible content */
+#app-settings-content {
+    display: none;
+}
+
+#app-settings.expanded #app-settings-content {
+    display: block;
 }
 
 #app-content {

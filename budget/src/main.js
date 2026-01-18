@@ -45,6 +45,9 @@ class BudgetApp {
         // Navigation search functionality
         this.setupNavigationSearch();
 
+        // Settings toggle (collapsible bottom nav)
+        this.setupSettingsToggle();
+
         // Transaction form
         const transactionForm = document.getElementById('transaction-form');
         if (transactionForm) {
@@ -314,6 +317,28 @@ class BudgetApp {
                 this.filterNavigationEntries('');
                 searchInput.blur();
             }
+        });
+    }
+
+    setupSettingsToggle() {
+        const settingsToggle = document.querySelector('#app-settings-header .settings-toggle');
+        const appSettings = document.getElementById('app-settings');
+
+        if (!settingsToggle || !appSettings) return;
+
+        // Load saved state from localStorage
+        const isExpanded = localStorage.getItem('budget-settings-expanded') === 'true';
+        if (isExpanded) {
+            appSettings.classList.add('expanded');
+            settingsToggle.setAttribute('aria-expanded', 'true');
+        }
+
+        settingsToggle.addEventListener('click', () => {
+            const expanded = appSettings.classList.toggle('expanded');
+            settingsToggle.setAttribute('aria-expanded', expanded.toString());
+
+            // Save state to localStorage
+            localStorage.setItem('budget-settings-expanded', expanded.toString());
         });
     }
 
