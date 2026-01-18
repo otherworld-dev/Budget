@@ -1,17 +1,28 @@
 # Nextcloud Budget
 
+> ⚠️ **Beta**: This app is currently in testing. Data loss is possible. Please backup your data regularly and [report any issues](https://github.com/otherworld-dev/Nextcloud-Budget/issues) you encounter.
+
 A comprehensive financial management app for Nextcloud. Track spending habits, manage multiple accounts, and forecast future balances through intelligent analysis of your financial history.
 
 ## Features
 
 - **Multi-Account Management** - Track bank accounts, credit cards, and cash across multiple currencies
 - **Transaction Tracking** - Add, edit, categorize, and search transactions with advanced filtering
+- **Split Transactions** - Allocate single transactions across multiple categories
+- **Transaction Matching** - Automatic transfer detection between accounts
 - **Smart Import** - Import bank statements from CSV, OFX, and QIF formats with automatic vendor matching
-- **Auto-Categorization** - Create custom import rules to automatically categorize transactions
+- **Auto-Categorization** - Create custom rules to automatically categorize transactions, apply to existing data anytime
 - **Hierarchical Categories** - Organize spending with nested categories and drag-and-drop reordering
+- **Budget Tracking** - Set spending limits by category with alerts when approaching or exceeding budgets
 - **Balance Forecasting** - Predict future balances using trend analysis and scenario modeling
-- **Recurring Bills** - Detect and track recurring payments with due date monitoring
+- **Recurring Bills** - Detect and track recurring payments with due date monitoring and Nextcloud notifications
+- **Recurring Income** - Track expected income sources (salary, dividends, etc.) with receipt tracking
+- **Split Expenses** - Share expenses with roommates, partners, or friends and track who owes whom
+- **Debt Payoff Planner** - Plan debt repayment using avalanche or snowball strategies
 - **Savings Goals** - Set financial targets with progress tracking and achievement forecasting
+- **Pension Tracker** - Track retirement accounts with growth projections and combined forecasts
+- **Net Worth History** - Track assets and liabilities over time with interactive charts
+- **Year-over-Year Reports** - Compare spending across multiple years side-by-side
 - **Reports & Charts** - Visualize spending patterns, income, and cash flow over time
 - **Data Export/Import** - Full data migration support for moving between Nextcloud instances
 - **Audit Logging** - Complete trail of all financial actions
