@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.19] - 2026-01-18
+
+### Fixed
+- Database migration error: Boolean column defaults must be integers (0/1) not boolean literals (false/true)
+- Fixed migrations 001000011, 001000012, 001000015, and 001000016
+
 ## [1.0.18] - 2026-01-18
 
 ### Fixed

@@ -36,7 +36,7 @@ class Version001000016Date20260118 extends SimpleMigrationStep {
             if (!$table->hasColumn('apply_on_import')) {
                 $table->addColumn('apply_on_import', Types::BOOLEAN, [
                     'notnull' => true,
-                    'default' => true,
+                    'default' => 1,
                 ]);
             }
 

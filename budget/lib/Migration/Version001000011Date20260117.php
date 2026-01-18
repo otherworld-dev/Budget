@@ -70,7 +70,7 @@ class Version001000011Date20260117 extends SimpleMigrationStep {
             ]);
             $table->addColumn('is_active', Types::BOOLEAN, [
                 'notnull' => false,
-                'default' => true,
+                'default' => 1,
             ]);
             $table->addColumn('last_received_date', Types::DATE, [
                 'notnull' => false,

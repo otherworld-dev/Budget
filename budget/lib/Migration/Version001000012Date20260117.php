@@ -59,7 +59,7 @@ class Version001000012Date20260117 extends SimpleMigrationStep {
             if (!$transactionsTable->hasColumn('is_split')) {
                 $transactionsTable->addColumn('is_split', Types::BOOLEAN, [
                     'notnull' => false,
-                    'default' => false,
+                    'default' => 0,
                 ]);
             }
         }
