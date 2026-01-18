@@ -1,0 +1,4 @@
+node_modules/
+build/
+*.tar.gz
+.DS_Store
