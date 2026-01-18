@@ -6,6 +6,8 @@ namespace OCA\Budget\AppInfo;
 
 use OCA\Budget\BackgroundJob\CleanupAuditLogsJob;
 use OCA\Budget\BackgroundJob\CleanupImportFilesJob;
+use OCA\Budget\BackgroundJob\BillReminderJob;
+use OCA\Budget\Notification\Notifier;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -19,6 +21,9 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
+        // Register notification notifier
+        $context->registerNotifierService(Notifier::class);
+
         // Register background jobs
         $context->registerService(CleanupImportFilesJob::class, function($c) {
             return new CleanupImportFilesJob(
@@ -102,6 +107,11 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('TransactionMapper', \OCA\Budget\Db\TransactionMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\TransactionSplitMapper::class, function($c) {
+            return new \OCA\Budget\Db\TransactionSplitMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('TransactionSplitMapper', \OCA\Budget\Db\TransactionSplitMapper::class);
 
         $context->registerService(\OCA\Budget\Db\CategoryMapper::class, function($c) {
             return new \OCA\Budget\Db\CategoryMapper($c->get(\OCP\IDBConnection::class));
@@ -251,6 +261,14 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('TransactionService', \OCA\Budget\Service\TransactionService::class);
 
+        $context->registerService(\OCA\Budget\Service\TransactionSplitService::class, function($c) {
+            return new \OCA\Budget\Service\TransactionSplitService(
+                $c->get(\OCA\Budget\Db\TransactionSplitMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('TransactionSplitService', \OCA\Budget\Service\TransactionSplitService::class);
+
         $context->registerService(\OCA\Budget\Service\CategoryService::class, function($c) {
             return new \OCA\Budget\Service\CategoryService(
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
@@ -262,7 +280,9 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\ImportRuleService::class, function($c) {
             return new \OCA\Budget\Service\ImportRuleService(
                 $c->get(\OCA\Budget\Db\ImportRuleMapper::class),
-                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCP\IDBConnection::class)
             );
         });
         $context->registerServiceAlias('ImportRuleService', \OCA\Budget\Service\ImportRuleService::class);
@@ -324,6 +344,165 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('MigrationService', \OCA\Budget\Service\MigrationService::class);
+
+        // ==========================================
+        // Pension Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\PensionAccountMapper::class, function($c) {
+            return new \OCA\Budget\Db\PensionAccountMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('PensionAccountMapper', \OCA\Budget\Db\PensionAccountMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\PensionSnapshotMapper::class, function($c) {
+            return new \OCA\Budget\Db\PensionSnapshotMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('PensionSnapshotMapper', \OCA\Budget\Db\PensionSnapshotMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\PensionContributionMapper::class, function($c) {
+            return new \OCA\Budget\Db\PensionContributionMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('PensionContributionMapper', \OCA\Budget\Db\PensionContributionMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\PensionService::class, function($c) {
+            return new \OCA\Budget\Service\PensionService(
+                $c->get(\OCA\Budget\Db\PensionAccountMapper::class),
+                $c->get(\OCA\Budget\Db\PensionSnapshotMapper::class),
+                $c->get(\OCA\Budget\Db\PensionContributionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('PensionService', \OCA\Budget\Service\PensionService::class);
+
+        $context->registerService(\OCA\Budget\Service\PensionProjector::class, function($c) {
+            return new \OCA\Budget\Service\PensionProjector(
+                $c->get(\OCA\Budget\Db\PensionAccountMapper::class),
+                $c->get(\OCA\Budget\Service\PensionService::class)
+            );
+        });
+        $context->registerServiceAlias('PensionProjector', \OCA\Budget\Service\PensionProjector::class);
+
+        // ==========================================
+        // Net Worth Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\NetWorthSnapshotMapper::class, function($c) {
+            return new \OCA\Budget\Db\NetWorthSnapshotMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('NetWorthSnapshotMapper', \OCA\Budget\Db\NetWorthSnapshotMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\NetWorthService::class, function($c) {
+            return new \OCA\Budget\Service\NetWorthService(
+                $c->get(\OCA\Budget\Db\NetWorthSnapshotMapper::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class)
+            );
+        });
+        $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);
+
+        $context->registerService(\OCA\Budget\BackgroundJob\NetWorthSnapshotJob::class, function($c) {
+            return new \OCA\Budget\BackgroundJob\NetWorthSnapshotJob(
+                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
+                $c->get(\OCA\Budget\Service\NetWorthService::class),
+                $c->get(\OCP\IDBConnection::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+
+        // ==========================================
+        // Recurring Income Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\RecurringIncomeMapper::class, function($c) {
+            return new \OCA\Budget\Db\RecurringIncomeMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('RecurringIncomeMapper', \OCA\Budget\Db\RecurringIncomeMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\RecurringIncomeService::class, function($c) {
+            return new \OCA\Budget\Service\RecurringIncomeService(
+                $c->get(\OCA\Budget\Db\RecurringIncomeMapper::class),
+                $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class)
+            );
+        });
+        $context->registerServiceAlias('RecurringIncomeService', \OCA\Budget\Service\RecurringIncomeService::class);
+
+        // ==========================================
+        // Budget Alert Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\BudgetAlertService::class, function($c) {
+            return new \OCA\Budget\Service\BudgetAlertService(
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionSplitMapper::class)
+            );
+        });
+        $context->registerServiceAlias('BudgetAlertService', \OCA\Budget\Service\BudgetAlertService::class);
+
+        // ==========================================
+        // Debt Payoff Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\DebtPayoffService::class, function($c) {
+            return new \OCA\Budget\Service\DebtPayoffService(
+                $c->get(\OCA\Budget\Db\AccountMapper::class)
+            );
+        });
+        $context->registerServiceAlias('DebtPayoffService', \OCA\Budget\Service\DebtPayoffService::class);
+
+        // ==========================================
+        // Year-over-Year Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\YearOverYearService::class, function($c) {
+            return new \OCA\Budget\Service\YearOverYearService(
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+            );
+        });
+        $context->registerServiceAlias('YearOverYearService', \OCA\Budget\Service\YearOverYearService::class);
+
+        // ==========================================
+        // Shared Expense Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\ContactMapper::class, function($c) {
+            return new \OCA\Budget\Db\ContactMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('ContactMapper', \OCA\Budget\Db\ContactMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\ExpenseShareMapper::class, function($c) {
+            return new \OCA\Budget\Db\ExpenseShareMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('ExpenseShareMapper', \OCA\Budget\Db\ExpenseShareMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\SettlementMapper::class, function($c) {
+            return new \OCA\Budget\Db\SettlementMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('SettlementMapper', \OCA\Budget\Db\SettlementMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\SharedExpenseService::class, function($c) {
+            return new \OCA\Budget\Service\SharedExpenseService(
+                $c->get(\OCA\Budget\Db\ContactMapper::class),
+                $c->get(\OCA\Budget\Db\ExpenseShareMapper::class),
+                $c->get(\OCA\Budget\Db\SettlementMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('SharedExpenseService', \OCA\Budget\Service\SharedExpenseService::class);
+
+        // ==========================================
+        // Bill Reminder Background Job
+        // ==========================================
+
+        $context->registerService(BillReminderJob::class, function($c) {
+            return new BillReminderJob(
+                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
+                $c->get(\OCA\Budget\Db\BillMapper::class),
+                $c->get(\OCP\Notification\IManager::class),
+                $c->get(\OCP\IDBConnection::class),
+                $c->get(\Psr\Log\LoggerInterface::class),
+                $c->get(\OCA\Budget\Service\SettingService::class)
+            );
+        });
     }
 
     public function boot(IBootContext $context): void {

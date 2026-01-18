@@ -43,6 +43,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreditLimit(?float $creditLimit)
  * @method float|null getOverdraftLimit()
  * @method void setOverdraftLimit(?float $overdraftLimit)
+ * @method float|null getMinimumPayment()
+ * @method void setMinimumPayment(?float $minimumPayment)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  * @method string getUpdatedAt()
@@ -76,6 +78,7 @@ class Account extends Entity implements JsonSerializable {
     protected $interestRate;
     protected $creditLimit;
     protected $overdraftLimit;
+    protected $minimumPayment;
     protected $createdAt;
     protected $updatedAt;
 
@@ -85,6 +88,7 @@ class Account extends Entity implements JsonSerializable {
         $this->addType('interestRate', 'float');
         $this->addType('creditLimit', 'float');
         $this->addType('overdraftLimit', 'float');
+        $this->addType('minimumPayment', 'float');
     }
 
     /**
@@ -136,6 +140,7 @@ class Account extends Entity implements JsonSerializable {
             'interestRate' => $this->getInterestRate(),
             'creditLimit' => $this->getCreditLimit(),
             'overdraftLimit' => $this->getOverdraftLimit(),
+            'minimumPayment' => $this->getMinimumPayment(),
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
             'hasSensitiveData' => $this->hasSensitiveData(),
@@ -165,6 +170,7 @@ class Account extends Entity implements JsonSerializable {
             'interestRate' => $this->getInterestRate(),
             'creditLimit' => $this->getCreditLimit(),
             'overdraftLimit' => $this->getOverdraftLimit(),
+            'minimumPayment' => $this->getMinimumPayment(),
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
         ];

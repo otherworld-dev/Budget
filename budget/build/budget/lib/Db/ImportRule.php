@@ -28,8 +28,14 @@ use OCP\AppFramework\Db\Entity;
  * @method void setPriority(int $priority)
  * @method bool getActive()
  * @method void setActive(bool $active)
+ * @method string|null getActions()
+ * @method void setActions(?string $actions)
+ * @method bool getApplyOnImport()
+ * @method void setApplyOnImport(bool $applyOnImport)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
+ * @method string|null getUpdatedAt()
+ * @method void setUpdatedAt(?string $updatedAt)
  */
 class ImportRule extends Entity implements JsonSerializable {
     protected $userId;
@@ -41,13 +47,17 @@ class ImportRule extends Entity implements JsonSerializable {
     protected $vendorName;
     protected $priority;
     protected $active;
+    protected $actions;
+    protected $applyOnImport;
     protected $createdAt;
+    protected $updatedAt;
 
     public function __construct() {
         $this->addType('id', 'integer');
         $this->addType('categoryId', 'integer');
         $this->addType('priority', 'integer');
         $this->addType('active', 'boolean');
+        $this->addType('applyOnImport', 'boolean');
     }
 
     /**
@@ -66,7 +76,41 @@ class ImportRule extends Entity implements JsonSerializable {
             'vendorName' => $this->getVendorName(),
             'priority' => $this->getPriority(),
             'active' => $this->getActive(),
+            'actions' => $this->getParsedActions(),
+            'applyOnImport' => $this->getApplyOnImport() ?? true,
             'createdAt' => $this->getCreatedAt(),
+            'updatedAt' => $this->getUpdatedAt(),
         ];
+    }
+
+    /**
+     * Get parsed actions from JSON string
+     * Falls back to legacy categoryId/vendorName if actions is empty
+     */
+    public function getParsedActions(): array {
+        $actionsJson = $this->getActions();
+        if ($actionsJson) {
+            $actions = json_decode($actionsJson, true);
+            if (is_array($actions)) {
+                return $actions;
+            }
+        }
+
+        // Fallback to legacy fields
+        $actions = [];
+        if ($this->getCategoryId() !== null) {
+            $actions['categoryId'] = $this->getCategoryId();
+        }
+        if ($this->getVendorName() !== null && $this->getVendorName() !== '') {
+            $actions['vendor'] = $this->getVendorName();
+        }
+        return $actions;
+    }
+
+    /**
+     * Set actions from array (converts to JSON string)
+     */
+    public function setActionsFromArray(array $actions): void {
+        $this->setActions(json_encode($actions));
     }
 }

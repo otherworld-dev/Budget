@@ -38,6 +38,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  * @method int|null getLinkedTransactionId()
  * @method void setLinkedTransactionId(?int $linkedTransactionId)
+ * @method bool getIsSplit()
+ * @method void setIsSplit(bool $isSplit)
  */
 class Transaction extends Entity implements JsonSerializable {
     protected $accountId;
@@ -54,6 +56,7 @@ class Transaction extends Entity implements JsonSerializable {
     protected $createdAt;
     protected $updatedAt;
     protected $linkedTransactionId;
+    protected $isSplit;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -62,6 +65,7 @@ class Transaction extends Entity implements JsonSerializable {
         $this->addType('amount', 'float');
         $this->addType('reconciled', 'boolean');
         $this->addType('linkedTransactionId', 'integer');
+        $this->addType('isSplit', 'boolean');
     }
 
     /**
@@ -85,6 +89,7 @@ class Transaction extends Entity implements JsonSerializable {
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
             'linkedTransactionId' => $this->getLinkedTransactionId(),
+            'isSplit' => $this->getIsSplit() ?? false,
         ];
     }
 }

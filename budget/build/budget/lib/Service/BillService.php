@@ -95,7 +95,8 @@ class BillService {
         ?int $categoryId = null,
         ?int $accountId = null,
         ?string $autoDetectPattern = null,
-        ?string $notes = null
+        ?string $notes = null,
+        ?int $reminderDays = null
     ): Bill {
         $bill = new Bill();
         $bill->setUserId($userId);
@@ -109,6 +110,7 @@ class BillService {
         $bill->setAutoDetectPattern($autoDetectPattern);
         $bill->setIsActive(true);
         $bill->setNotes($notes);
+        $bill->setReminderDays($reminderDays);
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth);

@@ -38,6 +38,10 @@ use OCP\AppFramework\Db\Entity;
  * @method void setNotes(?string $notes)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
+ * @method int|null getReminderDays()
+ * @method void setReminderDays(?int $reminderDays)
+ * @method string|null getLastReminderSent()
+ * @method void setLastReminderSent(?string $lastReminderSent)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
@@ -54,6 +58,8 @@ class Bill extends Entity implements JsonSerializable {
     protected $nextDueDate;
     protected $notes;
     protected $createdAt;
+    protected $reminderDays;      // Days before due date to send reminder
+    protected $lastReminderSent;  // When last reminder was sent
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -63,6 +69,7 @@ class Bill extends Entity implements JsonSerializable {
         $this->addType('categoryId', 'integer');
         $this->addType('accountId', 'integer');
         $this->addType('isActive', 'boolean');
+        $this->addType('reminderDays', 'integer');
     }
 
     public function jsonSerialize(): array {
@@ -82,6 +89,8 @@ class Bill extends Entity implements JsonSerializable {
             'nextDueDate' => $this->getNextDueDate(),
             'notes' => $this->getNotes(),
             'createdAt' => $this->getCreatedAt(),
+            'reminderDays' => $this->getReminderDays(),
+            'lastReminderSent' => $this->getLastReminderSent(),
         ];
     }
 }

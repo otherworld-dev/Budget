@@ -83,7 +83,8 @@ class BillController extends Controller {
         ?int $categoryId = null,
         ?int $accountId = null,
         ?string $autoDetectPattern = null,
-        ?string $notes = null
+        ?string $notes = null,
+        ?int $reminderDays = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -128,6 +129,11 @@ class BillController extends Controller {
                 $notes = $notesValidation['sanitized'];
             }
 
+            // Validate reminderDays if provided
+            if ($reminderDays !== null && ($reminderDays < 0 || $reminderDays > 30)) {
+                return new DataResponse(['error' => 'Reminder days must be between 0 and 30'], Http::STATUS_BAD_REQUEST);
+            }
+
             $bill = $this->service->create(
                 $this->userId,
                 $name,
@@ -138,7 +144,8 @@ class BillController extends Controller {
                 $categoryId,
                 $accountId,
                 $autoDetectPattern,
-                $notes
+                $notes,
+                $reminderDays
             );
             return new DataResponse($bill, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -232,6 +239,16 @@ class BillController extends Controller {
             }
             if (isset($data['active'])) {
                 $updates['active'] = (bool) $data['active'];
+            }
+            if (array_key_exists('reminderDays', $data)) {
+                if ($data['reminderDays'] !== null) {
+                    if ($data['reminderDays'] < 0 || $data['reminderDays'] > 30) {
+                        return new DataResponse(['error' => 'Reminder days must be between 0 and 30'], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['reminderDays'] = (int) $data['reminderDays'];
+                } else {
+                    $updates['reminderDays'] = null;
+                }
             }
 
             if (empty($updates)) {

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.17] - 2026-01-18
+
+### Performance
+- Categories page loads ~10x faster (fixed O(n²) tree building algorithm)
+- Budget analysis uses single batch query instead of N+1 queries per category
+- Category rendering pre-computes transaction counts (O(n) instead of O(n*m))
+- Initial app load ~2-3x faster (parallel API requests for settings, accounts, categories)
+
 ## [1.0.16] - 2026-01-18
 
 ### Added
@@ -25,12 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed Import Rules tab from Import page (rules now managed from dedicated Rules page)
 - Import wizard includes checkbox to optionally apply rules during import
 - Renamed "Split Expenses" to "Shared Expenses" for clarity
-
-### Performance
-- Categories page loads ~10x faster (fixed O(n²) tree building algorithm)
-- Budget analysis uses single batch query instead of N+1 queries per category
-- Category rendering pre-computes transaction counts (O(n) instead of O(n*m))
-- Initial app load ~2-3x faster (parallel API requests for settings, accounts, categories)
 
 ### Fixed
 - Budget alerts API returning 500 error (incorrect constant reference in TransactionSplitMapper)
