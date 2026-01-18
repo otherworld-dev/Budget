@@ -4190,7 +4190,7 @@ button.danger:hover {
 }
 
 .remaining-amount.positive {
-    color: var(--color-success);
+    color: #69c97a;
 }
 
 .remaining-amount.negative {
@@ -7436,7 +7436,8 @@ button.danger:hover {
 
 .budget-col-budget,
 .budget-col-spent,
-.budget-col-remaining {
+.budget-col-remaining,
+.budget-col-progress {
     text-align: right;
     justify-content: flex-end;
 }
@@ -7550,7 +7551,7 @@ button.danger:hover {
 }
 
 .budget-remaining.positive {
-    color: var(--color-success);
+    color: #69c97a;
 }
 
 .budget-remaining.negative {
@@ -9429,7 +9430,7 @@ button.danger:hover {
 }
 
 .split-remaining-amount.balanced {
-    color: var(--color-success);
+    color: #69c97a;
 }
 
 .split-remaining-amount.unbalanced {

@@ -7481,7 +7481,11 @@ class BudgetApp {
         // Fetch categories if not already loaded
         if (!this.allCategories || this.allCategories.length === 0) {
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'));
+                const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
+                    headers: {
+                        'requesttoken': OC.requestToken
+                    }
+                });
                 if (response.ok) {
                     this.categoryTree = await response.json();
                     this.allCategories = this.flattenCategories(this.categoryTree);
