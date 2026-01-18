@@ -148,6 +148,11 @@ class AccountController extends Controller {
                 $overdraftLimit = (float) $data['overdraftLimit'];
             }
 
+            $minimumPayment = null;
+            if (isset($data['minimumPayment']) && $data['minimumPayment'] !== '' && $data['minimumPayment'] !== null) {
+                $minimumPayment = (float) $data['minimumPayment'];
+            }
+
             // Validate optional banking fields if provided
             $institution = !empty($data['institution']) ? trim($data['institution']) : null;
             $accountNumber = !empty($data['accountNumber']) ? trim($data['accountNumber']) : null;
@@ -208,7 +213,8 @@ class AccountController extends Controller {
                 $openingDate,
                 $interestRate,
                 $creditLimit,
-                $overdraftLimit
+                $overdraftLimit,
+                $minimumPayment
             );
 
             // Audit log the account creation
@@ -340,6 +346,9 @@ class AccountController extends Controller {
             }
             if (isset($data['overdraftLimit'])) {
                 $updates['overdraftLimit'] = $data['overdraftLimit'] !== '' ? (float) $data['overdraftLimit'] : null;
+            }
+            if (isset($data['minimumPayment'])) {
+                $updates['minimumPayment'] = $data['minimumPayment'] !== '' ? (float) $data['minimumPayment'] : null;
             }
 
             if (empty($updates)) {

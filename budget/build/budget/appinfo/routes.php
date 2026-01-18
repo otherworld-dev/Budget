@@ -39,7 +39,11 @@ return [
         ['name' => 'transaction#link', 'url' => '/api/transactions/{id}/link/{targetId}', 'verb' => 'POST'],
         ['name' => 'transaction#unlink', 'url' => '/api/transactions/{id}/link', 'verb' => 'DELETE'],
         ['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],
-        
+        ['name' => 'transaction#getSplits', 'url' => '/api/transactions/{id}/splits', 'verb' => 'GET'],
+        ['name' => 'transaction#split', 'url' => '/api/transactions/{id}/splits', 'verb' => 'POST'],
+        ['name' => 'transaction#unsplit', 'url' => '/api/transactions/{id}/splits', 'verb' => 'DELETE'],
+        ['name' => 'transaction#updateSplit', 'url' => '/api/transactions/{id}/splits/{splitId}', 'verb' => 'PUT'],
+
         // Category routes - specific paths before {id} wildcard
         ['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
         ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
@@ -57,13 +61,15 @@ return [
         ['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
         ['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
         
-        // Import rules routes
+        // Import rules routes (also used as general categorization rules)
         ['name' => 'importRule#index', 'url' => '/api/import-rules', 'verb' => 'GET'],
         ['name' => 'importRule#show', 'url' => '/api/import-rules/{id}', 'verb' => 'GET'],
         ['name' => 'importRule#create', 'url' => '/api/import-rules', 'verb' => 'POST'],
         ['name' => 'importRule#update', 'url' => '/api/import-rules/{id}', 'verb' => 'PUT'],
         ['name' => 'importRule#destroy', 'url' => '/api/import-rules/{id}', 'verb' => 'DELETE'],
         ['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
+        ['name' => 'importRule#preview', 'url' => '/api/import-rules/preview', 'verb' => 'POST'],
+        ['name' => 'importRule#apply', 'url' => '/api/import-rules/apply', 'verb' => 'POST'],
         
         // Forecast routes
         ['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
@@ -101,6 +107,77 @@ return [
         ['name' => 'goals#destroy', 'url' => '/api/savings-goals/{id}', 'verb' => 'DELETE'],
         ['name' => 'goals#progress', 'url' => '/api/goals/{id}/progress', 'verb' => 'GET'],
         ['name' => 'goals#forecast', 'url' => '/api/goals/{id}/forecast', 'verb' => 'GET'],
+
+        // Net Worth routes
+        ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
+        ['name' => 'netWorth#snapshots', 'url' => '/api/net-worth/snapshots', 'verb' => 'GET'],
+        ['name' => 'netWorth#createSnapshot', 'url' => '/api/net-worth/snapshots', 'verb' => 'POST'],
+        ['name' => 'netWorth#destroySnapshot', 'url' => '/api/net-worth/snapshots/{id}', 'verb' => 'DELETE'],
+
+        // Recurring Income routes - specific paths before {id} wildcard
+        ['name' => 'recurringIncome#index', 'url' => '/api/recurring-income', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#create', 'url' => '/api/recurring-income', 'verb' => 'POST'],
+        ['name' => 'recurringIncome#upcoming', 'url' => '/api/recurring-income/upcoming', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#expectedThisMonth', 'url' => '/api/recurring-income/this-month', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#summary', 'url' => '/api/recurring-income/summary', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#show', 'url' => '/api/recurring-income/{id}', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#update', 'url' => '/api/recurring-income/{id}', 'verb' => 'PUT'],
+        ['name' => 'recurringIncome#destroy', 'url' => '/api/recurring-income/{id}', 'verb' => 'DELETE'],
+        ['name' => 'recurringIncome#markReceived', 'url' => '/api/recurring-income/{id}/received', 'verb' => 'POST'],
+
+        // Pension routes - specific paths before {id} wildcard
+        ['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],
+        ['name' => 'pension#create', 'url' => '/api/pensions', 'verb' => 'POST'],
+        ['name' => 'pension#summary', 'url' => '/api/pensions/summary', 'verb' => 'GET'],
+        ['name' => 'pension#combinedProjection', 'url' => '/api/pensions/projection', 'verb' => 'GET'],
+        ['name' => 'pension#show', 'url' => '/api/pensions/{id}', 'verb' => 'GET'],
+        ['name' => 'pension#update', 'url' => '/api/pensions/{id}', 'verb' => 'PUT'],
+        ['name' => 'pension#destroy', 'url' => '/api/pensions/{id}', 'verb' => 'DELETE'],
+        ['name' => 'pension#snapshots', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'GET'],
+        ['name' => 'pension#createSnapshot', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'POST'],
+        ['name' => 'pension#contributions', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'GET'],
+        ['name' => 'pension#createContribution', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'POST'],
+        ['name' => 'pension#projection', 'url' => '/api/pensions/{id}/projection', 'verb' => 'GET'],
+        ['name' => 'pension#destroySnapshot', 'url' => '/api/pensions/snapshots/{snapshotId}', 'verb' => 'DELETE'],
+        ['name' => 'pension#destroyContribution', 'url' => '/api/pensions/contributions/{contributionId}', 'verb' => 'DELETE'],
+
+        // Budget Alert routes
+        ['name' => 'alert#index', 'url' => '/api/alerts', 'verb' => 'GET'],
+        ['name' => 'alert#status', 'url' => '/api/alerts/status', 'verb' => 'GET'],
+        ['name' => 'alert#summary', 'url' => '/api/alerts/summary', 'verb' => 'GET'],
+
+        // Debt Payoff routes
+        ['name' => 'debt#index', 'url' => '/api/debts', 'verb' => 'GET'],
+        ['name' => 'debt#summary', 'url' => '/api/debts/summary', 'verb' => 'GET'],
+        ['name' => 'debt#payoffPlan', 'url' => '/api/debts/payoff-plan', 'verb' => 'GET'],
+        ['name' => 'debt#compare', 'url' => '/api/debts/compare', 'verb' => 'GET'],
+
+        // Year-over-Year Comparison routes
+        ['name' => 'yearOverYear#compareMonth', 'url' => '/api/yoy/month', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#compareYears', 'url' => '/api/yoy/years', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#compareCategories', 'url' => '/api/yoy/categories', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#monthlyTrends', 'url' => '/api/yoy/trends', 'verb' => 'GET'],
+
+        // Shared Expense routes - contacts
+        ['name' => 'sharedExpense#contacts', 'url' => '/api/shared/contacts', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#createContact', 'url' => '/api/shared/contacts', 'verb' => 'POST'],
+        ['name' => 'sharedExpense#updateContact', 'url' => '/api/shared/contacts/{id}', 'verb' => 'PUT'],
+        ['name' => 'sharedExpense#destroyContact', 'url' => '/api/shared/contacts/{id}', 'verb' => 'DELETE'],
+        ['name' => 'sharedExpense#contactDetails', 'url' => '/api/shared/contacts/{id}/details', 'verb' => 'GET'],
+        // Shared Expense routes - balances
+        ['name' => 'sharedExpense#balances', 'url' => '/api/shared/balances', 'verb' => 'GET'],
+        // Shared Expense routes - expense shares
+        ['name' => 'sharedExpense#shareExpense', 'url' => '/api/shared/shares', 'verb' => 'POST'],
+        ['name' => 'sharedExpense#splitFiftyFifty', 'url' => '/api/shared/shares/split', 'verb' => 'POST'],
+        ['name' => 'sharedExpense#transactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#updateShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'PUT'],
+        ['name' => 'sharedExpense#markSettled', 'url' => '/api/shared/shares/{id}/settle', 'verb' => 'POST'],
+        ['name' => 'sharedExpense#destroyShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'DELETE'],
+        // Shared Expense routes - settlements
+        ['name' => 'sharedExpense#settlements', 'url' => '/api/shared/settlements', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#recordSettlement', 'url' => '/api/shared/settlements', 'verb' => 'POST'],
+        ['name' => 'sharedExpense#settleWithContact', 'url' => '/api/shared/contacts/{contactId}/settle', 'verb' => 'POST'],
+        ['name' => 'sharedExpense#destroySettlement', 'url' => '/api/shared/settlements/{id}', 'verb' => 'DELETE'],
 
         // Report routes
         ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],

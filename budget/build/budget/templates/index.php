@@ -66,20 +66,20 @@ style('budget', 'style');
             <a href="#budget" class="nav-icon-budget svg">
                 <span class="app-navigation-entry-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                        <path d="M14 21H5v-2h5.5c-.55-1.14-.88-2.4-.97-3.71L9 15.3V17H7v-2.19l-2.66.94-.66-1.88L7 12.8V11H5V9h2V6.5C7 4.01 9.01 2 11.5 2c2.03 0 3.76 1.35 4.32 3.21l-1.89.63C13.6 4.74 12.63 4 11.5 4 10.12 4 9 5.12 9 6.5V9h4v2H9v1.3l6.13-2.16.66 1.88-5.86 2.07c.09 1.14.4 2.21.89 3.19.47.92 1.1 1.73 1.84 2.38L14 19v2z"/>
                     </svg>
                 </span>
                 Budget
             </a>
         </li>
-        <li class="app-navigation-entry" data-id="import">
-            <a href="#import" class="nav-icon-upload svg">
+        <li class="app-navigation-entry" data-id="income">
+            <a href="#income" class="nav-icon-income svg">
                 <span class="app-navigation-entry-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        <path d="M12 21H3v-2h4.05c-.55-1.14-.88-2.4-.97-3.71L5.5 15.3V17h-2v-2.19l-1.16.41-.66-1.88L5.5 12.1V11h-2V9h2V6.5C5.5 4.01 7.51 2 10 2c2.03 0 3.76 1.35 4.32 3.21l-1.89.63C12.1 4.74 11.13 4 10 4 8.62 4 7.5 5.12 7.5 6.5V9h4v2h-4v.8l4.63-1.63.66 1.88-4.36 1.54c.09 1.14.4 2.21.89 3.19.36.71.82 1.35 1.35 1.9L12 19v2zm8-10l4 4-4 4v-3h-4v-2h4V11z"/>
                     </svg>
                 </span>
-                Import
+                Income
             </a>
         </li>
         <li class="app-navigation-entry" data-id="bills">
@@ -102,6 +102,36 @@ style('budget', 'style');
                 Savings Goals
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="debt-payoff">
+            <a href="#debt-payoff" class="nav-icon-debt svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </span>
+                Debt Payoff
+            </a>
+        </li>
+        <li class="app-navigation-entry" data-id="pensions">
+            <a href="#pensions" class="nav-icon-pensions svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                    </svg>
+                </span>
+                Pensions
+            </a>
+        </li>
+        <li class="app-navigation-entry" data-id="shared-expenses">
+            <a href="#shared-expenses" class="nav-icon-split svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z"/>
+                    </svg>
+                </span>
+                Shared Expenses
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="forecast">
             <a href="#forecast" class="nav-icon-trending svg">
                 <span class="app-navigation-entry-icon">
@@ -122,17 +152,51 @@ style('budget', 'style');
                 Reports
             </a>
         </li>
-        <li class="app-navigation-entry" data-id="settings">
-            <a href="#settings" class="nav-icon-settings svg">
+    </ul>
+    <div id="app-settings">
+        <div id="app-settings-header">
+            <button class="settings-toggle" type="button" aria-expanded="false" aria-controls="app-settings-content">
                 <span class="app-navigation-entry-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="toggle-icon">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
                     </svg>
                 </span>
-                Settings
-            </a>
-        </li>
-    </ul>
+                Tools & Settings
+            </button>
+        </div>
+        <ul id="app-settings-content">
+            <li class="app-navigation-entry" data-id="import">
+                <a href="#import" class="nav-icon-upload svg">
+                    <span class="app-navigation-entry-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                    </span>
+                    Import
+                </a>
+            </li>
+            <li class="app-navigation-entry" data-id="rules">
+                <a href="#rules" class="nav-icon-rules svg">
+                    <span class="app-navigation-entry-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10,18h4v-2h-4V18z M3,6v2h18V6H3z M6,13h12v-2H6V13z"/>
+                        </svg>
+                    </span>
+                    Rules
+                </a>
+            </li>
+            <li class="app-navigation-entry" data-id="settings">
+                <a href="#settings" class="nav-icon-settings svg">
+                    <span class="app-navigation-entry-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                    </span>
+                    Settings
+                </a>
+            </li>
+        </ul>
+    </div>
 </div>
 
 <div id="app-content" class="app-content">
@@ -193,6 +257,19 @@ style('budget', 'style');
                         <span id="hero-savings-rate" class="hero-subtext"></span>
                     </div>
                 </div>
+
+                <div class="hero-card hero-pension">
+                    <div class="hero-icon pension">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Pension Worth</span>
+                        <span id="hero-pension-value" class="hero-value">--</span>
+                        <span id="hero-pension-count" class="hero-subtext"></span>
+                    </div>
+                </div>
             </div>
 
             <!-- Main Dashboard Grid -->
@@ -237,6 +314,27 @@ style('budget', 'style');
                         </div>
                     </div>
 
+                    <!-- Net Worth History Chart -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Net Worth History</h3>
+                            <div class="card-controls">
+                                <div class="period-selector" id="net-worth-period-selector">
+                                    <button class="period-btn active" data-days="30">30D</button>
+                                    <button class="period-btn" data-days="90">90D</button>
+                                    <button class="period-btn" data-days="365">1Y</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container chart-container-medium">
+                            <canvas id="net-worth-chart"></canvas>
+                        </div>
+                        <div id="net-worth-chart-empty" class="chart-empty-state" style="display: none;">
+                            <p>No history yet. Snapshots are recorded daily.</p>
+                            <button id="record-net-worth-btn" class="btn btn-secondary btn-small">Record Snapshot Now</button>
+                        </div>
+                    </div>
+
                     <!-- Recent Transactions -->
                     <div class="dashboard-card">
                         <div class="card-header">
@@ -256,6 +354,17 @@ style('budget', 'style');
                             <a href="#accounts" class="card-link">Manage</a>
                         </div>
                         <div id="accounts-summary" class="accounts-widget"></div>
+                    </div>
+
+                    <!-- Budget Alerts -->
+                    <div id="budget-alerts-card" class="dashboard-card budget-alerts-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Budget Alerts</h3>
+                            <a href="#budget" class="card-link">Details</a>
+                        </div>
+                        <div id="budget-alerts" class="budget-alerts-widget">
+                            <!-- Alert items will be rendered here -->
+                        </div>
                     </div>
 
                     <!-- Upcoming Bills -->
@@ -288,6 +397,31 @@ style('budget', 'style');
                         </div>
                         <div id="savings-goals-summary" class="savings-goals-widget">
                             <div class="empty-state-small">No savings goals yet</div>
+                        </div>
+                    </div>
+
+                    <!-- Debt Payoff Summary -->
+                    <div id="debt-payoff-card" class="dashboard-card debt-payoff-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Debt Payoff</h3>
+                            <a href="#debt-payoff" class="card-link">Plan</a>
+                        </div>
+                        <div id="debt-payoff-summary" class="debt-payoff-widget">
+                            <div class="debt-summary-stats">
+                                <div class="debt-stat">
+                                    <span class="debt-stat-label">Total Debt</span>
+                                    <span id="debt-total-balance" class="debt-stat-value">--</span>
+                                </div>
+                                <div class="debt-stat">
+                                    <span class="debt-stat-label">Accounts</span>
+                                    <span id="debt-account-count" class="debt-stat-value">--</span>
+                                </div>
+                                <div class="debt-stat">
+                                    <span class="debt-stat-label">Monthly Min</span>
+                                    <span id="debt-minimum-payment" class="debt-stat-value">--</span>
+                                </div>
+                            </div>
+                            <div id="debt-payoff-estimate" class="debt-payoff-estimate"></div>
                         </div>
                     </div>
                 </div>
@@ -1080,7 +1214,6 @@ style('budget', 'style');
             <!-- Import Navigation Tabs -->
             <div class="import-nav-tabs">
                 <button class="import-tab-btn active" data-tab="wizard">Import Wizard</button>
-                <button class="import-tab-btn" data-tab="rules">Import Rules</button>
                 <button class="import-tab-btn" data-tab="history">Import History</button>
             </div>
 
@@ -1296,42 +1429,6 @@ style('budget', 'style');
                 </div>
             </div>
 
-            <!-- Import Rules Tab -->
-            <div id="import-rules-tab" class="import-tab-content">
-                <div class="rules-header">
-                    <h3>Import Rules</h3>
-                    <p>Create rules to automatically categorize imported transactions</p>
-                    <button id="add-rule-btn" class="primary">Add Rule</button>
-                </div>
-
-                <div class="rules-list">
-                    <div class="rules-table-container">
-                        <table id="rules-table">
-                            <thead>
-                                <tr>
-                                    <th>Priority</th>
-                                    <th>Field</th>
-                                    <th>Condition</th>
-                                    <th>Pattern</th>
-                                    <th>Category</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="rule-tester">
-                    <h4>Test Rules</h4>
-                    <div class="test-input">
-                        <input type="text" id="test-description" placeholder="Enter transaction description to test">
-                        <button id="test-rules-btn" class="secondary">Test</button>
-                    </div>
-                    <div id="test-results"></div>
-                </div>
-            </div>
-
             <!-- Import History Tab -->
             <div id="import-history-tab" class="import-tab-content">
                 <div class="history-header">
@@ -1457,6 +1554,155 @@ style('budget', 'style');
                 <div class="panel-actions">
                     <button id="add-selected-bills-btn" class="primary">Add Selected Bills</button>
                     <button id="cancel-detected-btn" class="secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules View -->
+        <div id="rules-view" class="view">
+            <div class="view-header">
+                <h2>Rules</h2>
+                <div class="view-controls">
+                    <button id="apply-rules-btn" class="secondary" aria-label="Apply rules to transactions">
+                        <span class="icon-play" aria-hidden="true"></span>
+                        Apply Rules
+                    </button>
+                    <button id="rules-add-btn" class="primary" aria-label="Add new rule">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        Add Rule
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rules Summary Cards -->
+            <div class="rules-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-category-monitoring" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="rules-total-count">0</div>
+                        <div class="summary-label">Total Rules</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-checkmark" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="rules-active-count">0</div>
+                        <div class="summary-label">Active</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rules Table -->
+            <div class="rules-table-wrapper">
+                <table id="rules-table" class="rules-table">
+                    <thead>
+                        <tr>
+                            <th class="rules-col-priority">Pri</th>
+                            <th class="rules-col-name">Name</th>
+                            <th class="rules-col-status">Status</th>
+                            <th class="rules-col-criteria">Criteria</th>
+                            <th class="rules-col-actions">Actions</th>
+                            <th class="rules-col-buttons"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="rules-list">
+                        <!-- Rules rendered here by JavaScript -->
+                    </tbody>
+                </table>
+
+                <div class="empty-rules" id="empty-rules" style="display: none;">
+                    <div class="empty-content">
+                        <span class="icon-category-monitoring empty-icon" aria-hidden="true"></span>
+                        <h3>No rules yet</h3>
+                        <p>Create rules to automatically categorize your transactions based on description, vendor, or other fields.</p>
+                        <button class="primary" id="empty-rules-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Create Your First Rule
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recurring Income View -->
+        <div id="income-view" class="view">
+            <div class="view-header">
+                <h2>Recurring Income</h2>
+                <div class="view-controls">
+                    <button id="add-income-btn" class="primary" aria-label="Add recurring income">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        Add Income
+                    </button>
+                </div>
+            </div>
+
+            <!-- Income Summary Cards -->
+            <div class="income-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-calendar" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-expected-count">0</div>
+                        <div class="summary-label">Expected This Month</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-monthly-total">£0</div>
+                        <div class="summary-label">Monthly Total</div>
+                    </div>
+                </div>
+                <div class="summary-card success">
+                    <div class="summary-icon">
+                        <span class="icon-checkmark" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-received-count">0</div>
+                        <div class="summary-label">Received This Month</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-history" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="income-active-count">0</div>
+                        <div class="summary-label">Active Sources</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Income Filter Tabs -->
+            <div class="income-tabs">
+                <button class="tab-button active" data-filter="all">All Income</button>
+                <button class="tab-button" data-filter="expected">Expected Soon</button>
+                <button class="tab-button" data-filter="received">Received</button>
+            </div>
+
+            <!-- Income List -->
+            <div class="income-container">
+                <div id="income-list" class="income-list">
+                    <!-- Income entries will be rendered here -->
+                </div>
+
+                <div class="empty-income" id="empty-income" style="display: none;">
+                    <div class="empty-content">
+                        <span class="icon-quota" aria-hidden="true"></span>
+                        <h3>No recurring income yet</h3>
+                        <p>Track your expected income sources like salary, dividends, or rental income.</p>
+                        <button class="primary" id="empty-income-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Add Your First Income Source
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1750,6 +1996,7 @@ style('budget', 'style');
                         <option value="summary">Summary Dashboard</option>
                         <option value="spending">Spending by Category</option>
                         <option value="cashflow">Cash Flow</option>
+                        <option value="yoy">Year over Year</option>
                     </select>
                 </div>
 
@@ -1985,6 +2232,599 @@ style('budget', 'style');
                             </table>
                         </div>
                     </div>
+                </div>
+
+                <!-- Year over Year Report -->
+                <div id="report-yoy" class="report-section" style="display: none;">
+                    <!-- YoY Controls -->
+                    <div class="yoy-controls">
+                        <div class="control-group">
+                            <label for="yoy-comparison-type">Comparison Type</label>
+                            <select id="yoy-comparison-type" class="report-select">
+                                <option value="years">Full Year Comparison</option>
+                                <option value="month">Same Month Comparison</option>
+                                <option value="categories">Category Spending</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="yoy-years">Years to Compare</label>
+                            <select id="yoy-years" class="report-select">
+                                <option value="2">2 Years</option>
+                                <option value="3" selected>3 Years</option>
+                                <option value="5">5 Years</option>
+                            </select>
+                        </div>
+                        <div class="control-group yoy-month-select" style="display: none;">
+                            <label for="yoy-month">Month</label>
+                            <select id="yoy-month" class="report-select">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <button id="generate-yoy-btn" class="primary">Compare</button>
+                    </div>
+
+                    <!-- YoY Summary Cards -->
+                    <div id="yoy-summary" class="yoy-summary" style="display: none;">
+                        <div class="yoy-year-cards" id="yoy-year-cards">
+                            <!-- Year comparison cards will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- YoY Chart -->
+                    <div id="yoy-chart-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3 id="yoy-chart-title">Income & Expenses by Year</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="yoy-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- YoY Category Table -->
+                    <div id="yoy-category-table-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Category Spending by Year</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="yoy-category-table" class="data-table">
+                                <thead>
+                                    <tr id="yoy-category-header">
+                                        <th>Category</th>
+                                        <!-- Year columns will be added dynamically -->
+                                    </tr>
+                                </thead>
+                                <tbody id="yoy-category-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pensions View -->
+        <div id="pensions-view" class="view">
+            <div class="view-header">
+                <h2>Pensions</h2>
+                <button id="add-pension-btn" class="primary" aria-label="Add new pension">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    Add Pension
+                </button>
+            </div>
+
+            <!-- Pensions Summary Cards -->
+            <div class="pensions-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-total-worth">--</div>
+                        <div class="summary-label">Total Pension Worth</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-projected-value">--</div>
+                        <div class="summary-label">Projected at Retirement</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-projected-income">--</div>
+                        <div class="summary-label">Projected Annual Income</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="pensions-count">0</div>
+                        <div class="summary-label">Pension Accounts</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pensions List -->
+            <div class="pensions-container">
+                <div id="pensions-list" class="pensions-list">
+                    <!-- Pension cards will be rendered here -->
+                </div>
+
+                <div class="empty-pensions" id="empty-pensions" style="display: none;">
+                    <div class="empty-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5;">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                        </svg>
+                        <h3>No pensions yet</h3>
+                        <p>Track your pension accounts to visualize your retirement savings and projections.</p>
+                        <button class="primary" id="empty-pensions-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Add Your First Pension
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pension Detail Panel (shown when a pension is selected) -->
+            <div id="pension-detail-panel" class="pension-detail-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3 id="pension-detail-name">Pension Details</h3>
+                    <div class="panel-actions">
+                        <button id="pension-edit-btn" class="icon-button" title="Edit pension">
+                            <span class="icon-rename" aria-hidden="true"></span>
+                        </button>
+                        <button id="pension-close-btn" class="icon-button" title="Close">
+                            <span class="icon-close" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="pension-detail-summary">
+                        <div class="detail-item">
+                            <span class="detail-label">Current Balance</span>
+                            <span class="detail-value" id="pension-detail-balance">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Monthly Contribution</span>
+                            <span class="detail-value" id="pension-detail-contribution">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Expected Return</span>
+                            <span class="detail-value" id="pension-detail-return">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Retirement Age</span>
+                            <span class="detail-value" id="pension-detail-age">--</span>
+                        </div>
+                    </div>
+
+                    <div class="pension-detail-actions">
+                        <button id="update-balance-btn" class="secondary">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Update Balance
+                        </button>
+                        <button id="add-contribution-btn" class="secondary">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Log Contribution
+                        </button>
+                    </div>
+
+                    <!-- Balance History Chart -->
+                    <div class="pension-chart-section">
+                        <h4>Balance History</h4>
+                        <div class="chart-container">
+                            <canvas id="pension-balance-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Projection Chart -->
+                    <div class="pension-chart-section">
+                        <h4>Projected Growth</h4>
+                        <div class="chart-container">
+                            <canvas id="pension-projection-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="pension-activity-section">
+                        <h4>Recent Activity</h4>
+                        <div id="pension-activity-list" class="activity-list">
+                            <!-- Activity items rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pension Modal (Add/Edit) -->
+        <div id="pension-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-medium">
+                <div class="modal-header">
+                    <h3 id="pension-modal-title">Add Pension</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="pension-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="pension-name">Pension Name *</label>
+                        <input type="text" id="pension-name" name="name" required placeholder="e.g., Company Pension, Vanguard SIPP">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pension-type">Pension Type *</label>
+                            <select id="pension-type" name="type" required>
+                                <option value="workplace">Workplace Pension</option>
+                                <option value="personal">Personal Pension</option>
+                                <option value="sipp">SIPP</option>
+                                <option value="defined_benefit">Defined Benefit</option>
+                                <option value="state">State Pension</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pension-provider">Provider</label>
+                            <input type="text" id="pension-provider" name="provider" placeholder="e.g., Scottish Widows">
+                        </div>
+                    </div>
+
+                    <!-- DC Pension Fields -->
+                    <div id="dc-pension-fields">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pension-balance">Current Balance</label>
+                                <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="pension-monthly">Monthly Contribution</label>
+                                <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pension-return">Expected Annual Return (%)</label>
+                                <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
+                            </div>
+                            <div class="form-group">
+                                <label for="pension-retirement-age">Retirement Age</label>
+                                <input type="number" id="pension-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DB/State Pension Fields -->
+                    <div id="db-pension-fields" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pension-income">Projected Annual Income</label>
+                                <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="pension-transfer">Transfer Value</label>
+                                <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pension-db-retirement-age">Retirement Age</label>
+                            <input type="number" id="pension-db-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pension-currency">Currency</label>
+                            <select id="pension-currency" name="currency">
+                                <option value="GBP">GBP</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="pension-id" name="id" value="">
+
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary" id="save-pension-btn">Save Pension</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Update Balance Modal -->
+        <div id="pension-balance-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3>Update Balance</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="pension-balance-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="snapshot-balance">Current Balance *</label>
+                        <input type="number" id="snapshot-balance" name="balance" min="0" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="snapshot-date">Date *</label>
+                        <input type="date" id="snapshot-date" name="date" required>
+                    </div>
+                    <input type="hidden" id="snapshot-pension-id" name="pensionId" value="">
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Log Contribution Modal -->
+        <div id="pension-contribution-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3>Log Contribution</h3>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="pension-contribution-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="contribution-amount">Amount *</label>
+                        <input type="number" id="contribution-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="contribution-date">Date *</label>
+                        <input type="date" id="contribution-date" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contribution-note">Note</label>
+                        <input type="text" id="contribution-note" name="note" placeholder="e.g., Bonus top-up">
+                    </div>
+                    <input type="hidden" id="contribution-pension-id" name="pensionId" value="">
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary">Log</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Debt Payoff View -->
+        <div id="debt-payoff-view" class="view">
+            <div class="view-header">
+                <h2>Debt Payoff Planner</h2>
+            </div>
+
+            <!-- Debt Summary Cards -->
+            <div class="debt-summary-header">
+                <div class="summary-card summary-card-debt">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Total Debt</span>
+                        <span id="debt-view-total" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-rate">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.36 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Highest Rate</span>
+                        <span id="debt-view-highest-rate" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-payment">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 14V6c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-2 0H3V6h14v8zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm13 0v11c0 1.1-.9 2-2 2H4v-2h17V7h2z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Monthly Minimum</span>
+                        <span id="debt-view-minimum" class="summary-value">--</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-count">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Debt Accounts</span>
+                        <span id="debt-view-count" class="summary-value">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strategy Selection -->
+            <div class="debt-strategy-section">
+                <div class="debt-controls">
+                    <div class="debt-control-group">
+                        <label for="debt-strategy-select">Payoff Strategy</label>
+                        <select id="debt-strategy-select" class="debt-select">
+                            <option value="avalanche">Avalanche (Highest Interest First)</option>
+                            <option value="snowball">Snowball (Smallest Balance First)</option>
+                        </select>
+                    </div>
+                    <div class="debt-control-group">
+                        <label for="debt-extra-payment">Extra Monthly Payment</label>
+                        <div class="input-with-prefix">
+                            <span class="input-prefix">£</span>
+                            <input type="number" id="debt-extra-payment" min="0" step="10" value="0" placeholder="0">
+                        </div>
+                    </div>
+                    <button id="calculate-payoff-btn" class="primary">Calculate Plan</button>
+                    <button id="compare-strategies-btn" class="secondary">Compare Strategies</button>
+                </div>
+            </div>
+
+            <!-- Payoff Plan Results -->
+            <div id="debt-payoff-results" class="debt-payoff-results" style="display: none;">
+                <div class="payoff-summary-cards">
+                    <div class="payoff-card payoff-months">
+                        <span class="payoff-card-label">Time to Debt Free</span>
+                        <span id="payoff-months" class="payoff-card-value">--</span>
+                        <span id="payoff-date" class="payoff-card-date"></span>
+                    </div>
+                    <div class="payoff-card payoff-interest">
+                        <span class="payoff-card-label">Total Interest</span>
+                        <span id="payoff-total-interest" class="payoff-card-value">--</span>
+                    </div>
+                    <div class="payoff-card payoff-total">
+                        <span class="payoff-card-label">Total Paid</span>
+                        <span id="payoff-total-paid" class="payoff-card-value">--</span>
+                    </div>
+                </div>
+
+                <div class="payoff-details">
+                    <h3>Payoff Order</h3>
+                    <div id="debt-payoff-order" class="debt-payoff-order"></div>
+                </div>
+            </div>
+
+            <!-- Strategy Comparison -->
+            <div id="debt-comparison-results" class="debt-comparison-results" style="display: none;">
+                <h3>Strategy Comparison</h3>
+                <div class="comparison-cards">
+                    <div class="comparison-card" id="avalanche-comparison">
+                        <h4>Debt Avalanche</h4>
+                        <p class="strategy-desc">Pay highest interest rates first</p>
+                        <div class="comparison-stats">
+                            <div class="comparison-stat">
+                                <span class="stat-label">Months</span>
+                                <span id="avalanche-months" class="stat-value">--</span>
+                            </div>
+                            <div class="comparison-stat">
+                                <span class="stat-label">Interest</span>
+                                <span id="avalanche-interest" class="stat-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="comparison-card" id="snowball-comparison">
+                        <h4>Debt Snowball</h4>
+                        <p class="strategy-desc">Pay smallest balances first</p>
+                        <div class="comparison-stats">
+                            <div class="comparison-stat">
+                                <span class="stat-label">Months</span>
+                                <span id="snowball-months" class="stat-value">--</span>
+                            </div>
+                            <div class="comparison-stat">
+                                <span class="stat-label">Interest</span>
+                                <span id="snowball-interest" class="stat-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="comparison-recommendation" class="comparison-recommendation"></div>
+            </div>
+
+            <!-- Debt List -->
+            <div class="debt-list-section">
+                <h3>Your Debts</h3>
+                <p class="section-hint">Debts are pulled from your liability accounts. Edit minimum payments in account settings.</p>
+                <div id="debt-list" class="debt-list">
+                    <div class="empty-state">No debt accounts found</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shared Expenses View -->
+        <div id="shared-expenses-view" class="view">
+            <div class="view-header">
+                <h2>Shared Expenses</h2>
+                <div class="view-controls">
+                    <button id="add-contact-btn" class="primary">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        Add Contact
+                    </button>
+                </div>
+            </div>
+
+            <!-- Balance Summary Cards -->
+            <div class="split-summary-header">
+                <div class="summary-card summary-card-owed">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Others Owe You</span>
+                        <span id="split-total-owed" class="summary-value">£0.00</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-owing">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">You Owe Others</span>
+                        <span id="split-total-owing" class="summary-value">£0.00</span>
+                    </div>
+                </div>
+                <div class="summary-card summary-card-net">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <span class="summary-label">Net Balance</span>
+                        <span id="split-net-balance" class="summary-value">£0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Balances List -->
+            <div class="contacts-section">
+                <h3>Contacts</h3>
+                <div id="contacts-list" class="contacts-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                                <path d="M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z"/>
+                            </svg>
+                        </div>
+                        <p>Add contacts to start splitting expenses</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Shared Expenses -->
+            <div class="recent-shares-section">
+                <h3>Recent Shared Expenses</h3>
+                <div id="recent-shares-list" class="recent-shares-list">
+                    <div class="empty-state-small">No shared expenses yet</div>
                 </div>
             </div>
         </div>
@@ -2612,8 +3452,321 @@ style('budget', 'style');
                 <small id="bill-notes-help" class="form-text">Any additional notes (optional)</small>
             </div>
 
+            <div class="form-group">
+                <label for="bill-reminder-days">Reminder</label>
+                <select id="bill-reminder-days" aria-describedby="bill-reminder-help">
+                    <option value="">No reminder</option>
+                    <option value="0">On due date</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <small id="bill-reminder-help" class="form-text">Receive a notification before bill is due</small>
+            </div>
+
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save bill">Save</button>
+                <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rule Modal -->
+<div id="rule-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="rule-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="rule-modal-title">Add/Edit Rule</h3>
+        <form id="rule-form">
+            <input type="hidden" id="rule-id">
+
+            <div class="form-group">
+                <label for="rule-name">Rule Name <span class="required">*</span></label>
+                <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
+                <small class="form-text">A descriptive name for this rule</small>
+            </div>
+
+            <!-- Matching Criteria Section -->
+            <fieldset class="form-section">
+                <legend>Matching Criteria</legend>
+                <small class="section-help">Define when this rule should apply</small>
+
+                <div class="form-group">
+                    <label for="rule-field">Match Field <span class="required">*</span></label>
+                    <select id="rule-field" required>
+                        <option value="description">Description</option>
+                        <option value="vendor">Vendor</option>
+                        <option value="reference">Reference</option>
+                        <option value="notes">Notes</option>
+                        <option value="amount">Amount</option>
+                    </select>
+                    <small class="form-text">Which transaction field to match against</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-match-type">Match Type <span class="required">*</span></label>
+                    <select id="rule-match-type" required>
+                        <option value="contains">Contains</option>
+                        <option value="exact">Exact Match</option>
+                        <option value="starts_with">Starts With</option>
+                        <option value="ends_with">Ends With</option>
+                        <option value="regex">Regex</option>
+                    </select>
+                    <small class="form-text">How to match the pattern</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-pattern">Pattern <span class="required">*</span></label>
+                    <input type="text" id="rule-pattern" required maxlength="500" placeholder="e.g., AMAZON, grocery|supermarket">
+                    <small class="form-text">Text or pattern to match (case-insensitive)</small>
+                </div>
+            </fieldset>
+
+            <!-- Actions Section -->
+            <fieldset class="form-section">
+                <legend>Actions</legend>
+                <small class="section-help">What to set when a transaction matches</small>
+
+                <div class="form-group">
+                    <label for="rule-action-category">Set Category</label>
+                    <select id="rule-action-category">
+                        <option value="">-- Don't change --</option>
+                    </select>
+                    <small class="form-text">Category to assign to matching transactions</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-action-vendor">Set Vendor</label>
+                    <input type="text" id="rule-action-vendor" maxlength="255" placeholder="Leave empty to not change">
+                    <small class="form-text">Override vendor name (optional)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="rule-action-notes">Set Notes</label>
+                    <textarea id="rule-action-notes" maxlength="500" rows="2" placeholder="Leave empty to not change"></textarea>
+                    <small class="form-text">Set transaction notes (optional)</small>
+                </div>
+            </fieldset>
+
+            <!-- Options -->
+            <div class="form-group">
+                <label for="rule-priority">Priority</label>
+                <input type="number" id="rule-priority" min="0" max="100" value="0">
+                <small class="form-text">Higher priority rules are checked first (0-100)</small>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="rule-active" checked>
+                    Active
+                </label>
+                <small class="form-text">Only active rules are applied</small>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="rule-apply-on-import" checked>
+                    Apply during import
+                </label>
+                <small class="form-text">Automatically apply this rule when importing transactions</small>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary" aria-label="Save rule">Save</button>
+                <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Apply Rules Modal -->
+<div id="apply-rules-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="apply-rules-modal-title" aria-hidden="true">
+    <div class="modal-content modal-large">
+        <h3 id="apply-rules-modal-title">Apply Rules to Transactions</h3>
+
+        <!-- Filters Section -->
+        <div class="apply-rules-filters">
+            <h4>Filter Transactions</h4>
+
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="apply-account-filter">Account</label>
+                    <select id="apply-account-filter">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="apply-date-start">From Date</label>
+                    <input type="date" id="apply-date-start">
+                </div>
+
+                <div class="form-group">
+                    <label for="apply-date-end">To Date</label>
+                    <input type="date" id="apply-date-end">
+                </div>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="apply-uncategorized-only" checked>
+                    Uncategorized transactions only
+                </label>
+                <small class="form-text">Only apply rules to transactions without a category</small>
+            </div>
+        </div>
+
+        <!-- Rules Selection -->
+        <div class="apply-rules-selection">
+            <h4>Rules to Apply</h4>
+            <div class="rules-select-actions">
+                <button type="button" class="text-btn" id="select-all-rules">Select All</button>
+                <button type="button" class="text-btn" id="deselect-all-rules">Deselect All</button>
+            </div>
+            <div id="rules-selection-list" class="rules-selection-list">
+                <!-- Rule checkboxes rendered here -->
+            </div>
+        </div>
+
+        <!-- Preview Results -->
+        <div id="apply-rules-preview" class="apply-rules-preview" style="display: none;">
+            <h4>Preview: <span id="preview-match-count">0</span> transactions will be updated</h4>
+            <div class="preview-table-container">
+                <table id="apply-rules-preview-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Matching Rule</th>
+                            <th>Changes</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Results (shown after apply) -->
+        <div id="apply-rules-results" class="apply-rules-results" style="display: none;">
+            <div class="results-summary">
+                <div class="result-item success">
+                    <span class="result-count" id="result-success-count">0</span>
+                    <span class="result-label">Updated</span>
+                </div>
+                <div class="result-item skipped">
+                    <span class="result-count" id="result-skipped-count">0</span>
+                    <span class="result-label">Skipped</span>
+                </div>
+                <div class="result-item failed">
+                    <span class="result-count" id="result-failed-count">0</span>
+                    <span class="result-label">Failed</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" id="preview-rules-btn" class="secondary">Preview Changes</button>
+            <button type="button" id="execute-apply-rules-btn" class="primary" disabled>Apply Rules</button>
+            <button type="button" class="secondary cancel-btn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Recurring Income Modal -->
+<div id="income-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="income-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="income-modal-title">Add/Edit Recurring Income</h3>
+        <form id="income-form">
+            <input type="hidden" id="income-id">
+
+            <div class="form-group">
+                <label for="income-name">Income Name <span class="required">*</span></label>
+                <input type="text" id="income-name" required aria-describedby="income-name-help" maxlength="255" placeholder="e.g., Salary, Dividends, Rental Income">
+                <small id="income-name-help" class="form-text">Name of the recurring income</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-amount">Expected Amount <span class="required">*</span></label>
+                <input type="number" id="income-amount" step="0.01" required min="0" aria-describedby="income-amount-help" placeholder="0.00">
+                <small id="income-amount-help" class="form-text">Expected amount each period</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-source">Source</label>
+                <input type="text" id="income-source" aria-describedby="income-source-help" maxlength="255" placeholder="e.g., Employer Name, Company">
+                <small id="income-source-help" class="form-text">Who pays this income (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-frequency">Frequency <span class="required">*</span></label>
+                <select id="income-frequency" required aria-describedby="income-frequency-help">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly" selected>Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+                <small id="income-frequency-help" class="form-text">How often you receive this income</small>
+            </div>
+
+            <div class="form-group" id="expected-day-group">
+                <label for="income-expected-day">Expected Day</label>
+                <input type="number" id="income-expected-day" min="1" max="31" aria-describedby="income-expected-day-help" placeholder="1-31">
+                <small id="income-expected-day-help" class="form-text">Day of the month when income is expected</small>
+            </div>
+
+            <div class="form-group" id="expected-month-group" style="display: none;">
+                <label for="income-expected-month">Expected Month</label>
+                <select id="income-expected-month" aria-describedby="income-expected-month-help">
+                    <option value="">Select month...</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+                <small id="income-expected-month-help" class="form-text">Month when yearly income is expected</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-category">Category</label>
+                <select id="income-category" aria-describedby="income-category-help">
+                    <option value="">No category</option>
+                </select>
+                <small id="income-category-help" class="form-text">Categorize this income (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-account">Receive To Account</label>
+                <select id="income-account" aria-describedby="income-account-help">
+                    <option value="">No specific account</option>
+                </select>
+                <small id="income-account-help" class="form-text">Account where income is received (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-auto-pattern">Auto-detect Pattern</label>
+                <input type="text" id="income-auto-pattern" aria-describedby="income-auto-pattern-help" maxlength="255" placeholder="e.g., PAYROLL, DIVIDEND">
+                <small id="income-auto-pattern-help" class="form-text">Pattern to match in transaction descriptions for auto-linking</small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-notes">Notes</label>
+                <textarea id="income-notes" aria-describedby="income-notes-help" maxlength="500" rows="2" placeholder="Additional notes..."></textarea>
+                <small id="income-notes-help" class="form-text">Any additional notes (optional)</small>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary" aria-label="Save income">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
         </form>
@@ -2742,6 +3895,214 @@ style('budget', 'style');
 
         <div class="modal-buttons">
             <button type="button" class="secondary cancel-btn" aria-label="Close dialog">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Split Transaction Modal -->
+<div id="split-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="split-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="split-modal-title">Split Transaction</h3>
+
+        <!-- Transaction Info -->
+        <div id="split-transaction-info" class="split-transaction-info">
+            <div class="split-info-row">
+                <span class="split-info-label">Description:</span>
+                <span id="split-tx-description" class="split-info-value"></span>
+            </div>
+            <div class="split-info-row">
+                <span class="split-info-label">Amount:</span>
+                <span id="split-tx-amount" class="split-info-value"></span>
+            </div>
+            <div class="split-info-row">
+                <span class="split-info-label">Date:</span>
+                <span id="split-tx-date" class="split-info-value"></span>
+            </div>
+        </div>
+
+        <!-- Splits Container -->
+        <div class="splits-header">
+            <span>Category</span>
+            <span>Amount</span>
+            <span>Description (optional)</span>
+            <span></span>
+        </div>
+        <div id="splits-container" class="splits-container">
+            <!-- Split rows will be added dynamically -->
+        </div>
+
+        <!-- Add Row Button -->
+        <button type="button" id="add-split-row-btn" class="add-split-row-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Split
+        </button>
+
+        <!-- Remaining Amount -->
+        <div id="split-remaining" class="split-remaining">
+            <span class="split-remaining-label">Remaining to allocate:</span>
+            <span id="split-remaining-amount" class="split-remaining-amount">0.00</span>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" id="split-unsplit-btn" class="danger unsplit-btn" style="display: none;">Unsplit Transaction</button>
+            <div class="modal-buttons-right">
+                <button type="button" id="split-save-btn" class="primary">Save Splits</button>
+                <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Modal -->
+<div id="contact-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="contact-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="contact-modal-title">Add Contact</h3>
+        <form id="contact-form" aria-label="Contact form">
+            <input type="hidden" id="contact-id" name="id">
+
+            <div class="form-group">
+                <label for="contact-name">Name <span class="required">*</span></label>
+                <input type="text" id="contact-name" name="name" required maxlength="255" placeholder="e.g., John, Roommate, Partner">
+            </div>
+
+            <div class="form-group">
+                <label for="contact-email">Email</label>
+                <input type="email" id="contact-email" name="email" maxlength="255" placeholder="Optional email address">
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary">Save</button>
+                <button type="button" class="secondary cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Share Expense Modal -->
+<div id="share-expense-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="share-expense-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="share-expense-modal-title">Share Expense</h3>
+        <form id="share-expense-form" aria-label="Share expense form">
+            <input type="hidden" id="share-transaction-id" name="transactionId">
+
+            <div class="share-transaction-info">
+                <span id="share-transaction-date" class="share-date"></span>
+                <span id="share-transaction-desc" class="share-desc"></span>
+                <span id="share-transaction-amount" class="share-amount"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="share-contact">Split with <span class="required">*</span></label>
+                <select id="share-contact" name="contactId" required>
+                    <option value="">Select a contact...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="share-split-type">Split Method</label>
+                <select id="share-split-type" name="splitType">
+                    <option value="50-50">50/50 Split</option>
+                    <option value="custom">Custom Amount</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="share-custom-amount-group" style="display: none;">
+                <label for="share-amount">Amount They Owe You</label>
+                <input type="number" id="share-amount" name="amount" step="0.01" placeholder="0.00">
+                <small class="form-text">Positive = they owe you, negative = you owe them</small>
+            </div>
+
+            <div class="form-group">
+                <label for="share-notes">Notes</label>
+                <input type="text" id="share-notes" name="notes" maxlength="255" placeholder="Optional notes about this split">
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary">Share Expense</button>
+                <button type="button" class="secondary cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Settlement Modal -->
+<div id="settlement-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="settlement-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="settlement-modal-title">Record Settlement</h3>
+        <form id="settlement-form" aria-label="Settlement form">
+            <input type="hidden" id="settlement-contact-id" name="contactId">
+
+            <div class="settlement-contact-info">
+                <span id="settlement-contact-name" class="contact-name"></span>
+                <span id="settlement-balance" class="balance-amount"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="settlement-amount">Settlement Amount <span class="required">*</span></label>
+                <input type="number" id="settlement-amount" name="amount" step="0.01" required placeholder="0.00">
+                <small class="form-text">Positive = they paid you, negative = you paid them</small>
+            </div>
+
+            <div class="form-group">
+                <label for="settlement-date">Date <span class="required">*</span></label>
+                <input type="date" id="settlement-date" name="date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="settlement-notes">Notes</label>
+                <input type="text" id="settlement-notes" name="notes" maxlength="255" placeholder="Optional notes">
+            </div>
+
+            <div class="modal-buttons">
+                <button type="submit" class="primary">Record Settlement</button>
+                <button type="button" class="secondary cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Contact Details Modal -->
+<div id="contact-details-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="contact-details-modal-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="contact-details-modal-title">Contact Details</h3>
+        <div class="contact-details-header">
+            <div class="contact-info">
+                <span id="contact-details-name" class="contact-name"></span>
+                <span id="contact-details-email" class="contact-email"></span>
+            </div>
+            <div class="contact-balance">
+                <span class="balance-label">Balance:</span>
+                <span id="contact-details-balance" class="balance-value"></span>
+            </div>
+        </div>
+
+        <div class="contact-actions">
+            <button id="settle-all-btn" class="primary">Settle All</button>
+            <button id="record-settlement-btn" class="secondary">Record Payment</button>
+        </div>
+
+        <div class="contact-tabs">
+            <button class="tab-button active" data-tab="shares">Shared Expenses</button>
+            <button class="tab-button" data-tab="settlements">Settlement History</button>
+        </div>
+
+        <div id="contact-shares-tab" class="tab-content active">
+            <div id="contact-shares-list" class="shares-list">
+                <div class="empty-state-small">No shared expenses</div>
+            </div>
+        </div>
+
+        <div id="contact-settlements-tab" class="tab-content" style="display: none;">
+            <div id="contact-settlements-list" class="settlements-list">
+                <div class="empty-state-small">No settlements yet</div>
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" class="secondary close-btn">Close</button>
         </div>
     </div>
 </div>

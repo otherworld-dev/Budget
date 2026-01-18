@@ -233,6 +233,7 @@ class TransactionMapper extends QBMapper {
                 'createdAt' => $row['created_at'],
                 'updatedAt' => $row['updated_at'],
                 'linkedTransactionId' => $row['linked_transaction_id'] ? (int)$row['linked_transaction_id'] : null,
+                'isSplit' => (bool)($row['is_split'] ?? false),
                 'accountName' => $row['account_name'],
                 'accountCurrency' => $row['account_currency'] ?? 'USD',
                 'categoryName' => $row['category_name'],
@@ -813,5 +814,57 @@ class TransactionMapper extends QBMapper {
             'transactions' => $transactionsWithMatches,
             'total' => $total
         ];
+    }
+
+    /**
+     * Get spending for a single category within a date range for a user.
+     * Only counts non-split debit transactions.
+     */
+    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate): float {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ));
+
+        $result = $qb->executeQuery();
+        $row = $result->fetch();
+        $result->closeCursor();
+
+        return (float)($row['total'] ?? 0);
+    }
+
+    /**
+     * Get IDs of split transactions within a date range for a user.
+     * Used to calculate spending from splits.
+     *
+     * @return int[]
+     */
+    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.id')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => (int)$row['id'], $data);
     }
 }
