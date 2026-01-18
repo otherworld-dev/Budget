@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Missing formatAccountType and closeModal methods causing JavaScript errors on shared expenses page
 - Settlement form not submitting (event handler not attached)
 - Share expense modal not loading contacts when accessed from transactions page
+- Split modal buttons (Save Splits, Unsplit, Add Split) not responding to clicks
+- Split transactions not displaying split indicator in transaction list (isSplit field missing from API)
+- TransactionSplit entity causing PHP 8 typed property initialization error
 
 ## [1.0.15] - 2026-01-17
 
