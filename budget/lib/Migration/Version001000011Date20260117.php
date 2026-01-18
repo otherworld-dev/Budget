@@ -6,6 +6,7 @@ namespace OCA\Budget\Migration;
 
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
+use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 
@@ -15,17 +16,22 @@ use OCP\Migration\SimpleMigrationStep;
 class Version001000011Date20260117 extends SimpleMigrationStep {
 
     /**
-     * Drop broken boolean columns before schema comparison
+     * Drop broken boolean columns with raw SQL
      */
     public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+        $connection = \OC::$server->getDatabaseConnection();
 
-        if ($schema->hasTable('budget_recurring_income')) {
-            $table = $schema->getTable('budget_recurring_income');
-            if ($table->hasColumn('is_active')) {
-                $table->dropColumn('is_active');
+        try {
+            $schema = $schemaClosure();
+            if ($schema->hasTable('budget_recurring_income')) {
+                $table = $schema->getTable('budget_recurring_income');
+                if ($table->hasColumn('is_active')) {
+                    $tableName = $connection->getPrefix() . 'budget_recurring_income';
+                    $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_active");
+                }
             }
+        } catch (\Exception $e) {
+            // Column might not exist, continue
         }
     }
 

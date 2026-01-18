@@ -7,6 +7,7 @@ namespace OCA\Budget\Migration;
 use Closure;
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
+use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 
@@ -18,17 +19,22 @@ use OCP\Migration\SimpleMigrationStep;
 class Version001000016Date20260118 extends SimpleMigrationStep {
 
     /**
-     * Drop broken boolean columns before schema comparison
+     * Drop broken boolean columns with raw SQL
      */
     public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+        $connection = \OC::$server->getDatabaseConnection();
 
-        if ($schema->hasTable('budget_import_rules')) {
-            $table = $schema->getTable('budget_import_rules');
-            if ($table->hasColumn('apply_on_import')) {
-                $table->dropColumn('apply_on_import');
+        try {
+            $schema = $schemaClosure();
+            if ($schema->hasTable('budget_import_rules')) {
+                $table = $schema->getTable('budget_import_rules');
+                if ($table->hasColumn('apply_on_import')) {
+                    $tableName = $connection->getPrefix() . 'budget_import_rules';
+                    $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN apply_on_import");
+                }
             }
+        } catch (\Exception $e) {
+            // Column might not exist, continue
         }
     }
 

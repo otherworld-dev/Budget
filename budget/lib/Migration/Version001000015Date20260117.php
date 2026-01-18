@@ -7,6 +7,7 @@ namespace OCA\Budget\Migration;
 use Closure;
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
+use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 
@@ -16,18 +17,35 @@ use OCP\Migration\SimpleMigrationStep;
 class Version001000015Date20260117 extends SimpleMigrationStep {
 
     /**
-     * Drop broken boolean columns before schema comparison to avoid reconciliation errors
+     * Drop broken boolean columns with raw SQL before schema comparison
      */
     public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+        /** @var IDBConnection $connection */
+        $connection = \OC::$server->getDatabaseConnection();
 
-        // Drop is_settled column if table exists (will be recreated with correct default)
-        if ($schema->hasTable('budget_expense_shares')) {
-            $table = $schema->getTable('budget_expense_shares');
-            if ($table->hasColumn('is_settled')) {
-                $table->dropColumn('is_settled');
+        // Check if table and column exist, then drop with raw SQL
+        try {
+            $schema = $schemaClosure();
+            if ($schema->hasTable('budget_expense_shares')) {
+                $table = $schema->getTable('budget_expense_shares');
+                if ($table->hasColumn('is_settled')) {
+                    // Drop the column with raw SQL to avoid schema reconciliation issues
+                    $platform = $connection->getDatabasePlatform();
+                    $tableName = $connection->getPrefix() . 'budget_expense_shares';
+
+                    if ($platform instanceof \Doctrine\DBAL\Platforms\PostgreSQLPlatform ||
+                        $platform instanceof \Doctrine\DBAL\Platforms\PostgreSQL94Platform) {
+                        $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN IF EXISTS is_settled");
+                    } elseif ($platform instanceof \Doctrine\DBAL\Platforms\OraclePlatform) {
+                        $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_settled");
+                    } else {
+                        // MySQL/MariaDB/SQLite
+                        $connection->executeStatement("ALTER TABLE $tableName DROP COLUMN is_settled");
+                    }
+                }
             }
+        } catch (\Exception $e) {
+            // Column might not exist or already dropped, continue
         }
     }
 
