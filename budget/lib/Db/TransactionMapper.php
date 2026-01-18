@@ -233,6 +233,7 @@ class TransactionMapper extends QBMapper {
                 'createdAt' => $row['created_at'],
                 'updatedAt' => $row['updated_at'],
                 'linkedTransactionId' => $row['linked_transaction_id'] ? (int)$row['linked_transaction_id'] : null,
+                'isSplit' => (bool)($row['is_split'] ?? false),
                 'accountName' => $row['account_name'],
                 'accountCurrency' => $row['account_currency'] ?? 'USD',
                 'categoryName' => $row['category_name'],

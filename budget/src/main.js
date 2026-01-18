@@ -143,6 +143,23 @@ class BudgetApp {
             });
         });
 
+        // Split modal buttons
+        document.getElementById('split-save-btn')?.addEventListener('click', () => {
+            this.saveSplits();
+        });
+
+        document.getElementById('split-unsplit-btn')?.addEventListener('click', () => {
+            this.unsplitTransaction();
+        });
+
+        document.getElementById('add-split-row-btn')?.addEventListener('click', () => {
+            const container = document.getElementById('splits-container');
+            if (container) {
+                this.addSplitRow(container);
+                this.updateSplitRemaining();
+            }
+        });
+
         // Account action buttons, transaction action buttons, and autocomplete (using event delegation)
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('edit-account-btn') || e.target.closest('.edit-account-btn')) {

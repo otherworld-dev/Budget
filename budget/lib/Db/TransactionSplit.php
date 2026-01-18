@@ -22,11 +22,11 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class TransactionSplit extends Entity implements JsonSerializable {
-    protected int $transactionId;
+    protected int $transactionId = 0;
     protected ?int $categoryId = null;
-    protected string $amount;
+    protected string $amount = '0';
     protected ?string $description = null;
-    protected string $createdAt;
+    protected string $createdAt = '';
 
     // Non-persisted fields for convenience
     protected ?string $categoryName = null;
