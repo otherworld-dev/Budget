@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Standalone Rules feature (decoupled from Import)
+- Split and Share buttons on transaction list for quick access to category splitting and expense sharing
   - Rules now accessible from top-level navigation
   - Apply rules to existing transactions at any time
   - Preview rule matches before applying changes
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved Import, Rules, and Settings to collapsible bottom section (Nextcloud style)
 - Removed Import Rules tab from Import page (rules now managed from dedicated Rules page)
 - Import wizard includes checkbox to optionally apply rules during import
+- Renamed "Split Expenses" to "Shared Expenses" for clarity
 
 ### Fixed
 - Add Rule button not working (duplicate HTML element IDs)
@@ -35,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Budget page categories not loading on first visit (missing API token)
 - Remaining amount text hard to read in dark mode (improved contrast)
 - Progress column header misaligned with values on budget page
+- Missing formatAccountType and closeModal methods causing JavaScript errors on shared expenses page
+- Settlement form not submitting (event handler not attached)
+- Share expense modal not loading contacts when accessed from transactions page
 
 ## [1.0.15] - 2026-01-17
 

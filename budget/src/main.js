@@ -169,6 +169,13 @@ class BudgetApp {
                 const button = e.target.classList.contains('transaction-split-btn') ? e.target : e.target.closest('.transaction-split-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.showSplitModal(transactionId);
+            } else if (e.target.classList.contains('transaction-share-btn') || e.target.closest('.transaction-share-btn')) {
+                const button = e.target.classList.contains('transaction-share-btn') ? e.target : e.target.closest('.transaction-share-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
+                const transaction = this.transactions?.find(t => t.id === transactionId);
+                if (transaction) {
+                    this.showShareExpenseModal(transaction);
+                }
             } else if (e.target.classList.contains('transaction-match-btn') || e.target.closest('.transaction-match-btn')) {
                 const button = e.target.classList.contains('transaction-match-btn') ? e.target : e.target.closest('.transaction-match-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
@@ -448,8 +455,8 @@ class BudgetApp {
                 case 'debt-payoff':
                     this.loadDebtPayoffView();
                     break;
-                case 'split-expenses':
-                    this.loadSplitExpensesView();
+                case 'shared-expenses':
+                    this.loadSharedExpensesView();
                     break;
                 case 'pensions':
                     this.loadPensionsView();
@@ -2322,6 +2329,16 @@ class BudgetApp {
                     </td>
                     <td class="actions-column">
                         <div class="transaction-actions">
+                            <button class="action-btn split-btn transaction-split-btn"
+                                    data-transaction-id="${transaction.id}"
+                                    title="Split into categories">
+                                <span aria-hidden="true">⋯</span>
+                            </button>
+                            <button class="action-btn share-btn transaction-share-btn"
+                                    data-transaction-id="${transaction.id}"
+                                    title="Share with contact">
+                                <span aria-hidden="true">👥</span>
+                            </button>
                             ${matchButton}
                             <button class="action-btn edit-btn transaction-edit-btn"
                                     data-transaction-id="${transaction.id}"
@@ -6274,6 +6291,28 @@ class BudgetApp {
         });
     }
 
+    formatAccountType(type) {
+        if (!type) return '';
+        const typeNames = {
+            checking: 'Checking',
+            savings: 'Savings',
+            credit_card: 'Credit Card',
+            investment: 'Investment',
+            cash: 'Cash',
+            loan: 'Loan',
+            mortgage: 'Mortgage',
+            pension: 'Pension'
+        };
+        return typeNames[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    closeModal(modal) {
+        if (modal) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    }
+
     renderTransactionsList(transactions) {
         return transactions.map(t => `
             <div class="transaction-item">
@@ -9152,17 +9191,17 @@ class BudgetApp {
     }
 
     // ===========================
-    // Split Expenses / Shared Budgeting
+    // Shared Expenses
     // ===========================
 
-    async loadSplitExpensesView() {
+    async loadSharedExpensesView() {
         await this.loadBalanceSummary();
         await this.loadContacts();
 
         // Setup event listeners (only once)
-        if (!this._splitEventsSetup) {
-            this.setupSplitExpenseEventListeners();
-            this._splitEventsSetup = true;
+        if (!this._sharedEventsSetup) {
+            this.setupSharedExpenseEventListeners();
+            this._sharedEventsSetup = true;
         }
     }
 
@@ -9295,7 +9334,7 @@ class BudgetApp {
         });
     }
 
-    setupSplitExpenseEventListeners() {
+    setupSharedExpenseEventListeners() {
         // Add contact button
         const addContactBtn = document.getElementById('add-contact-btn');
         if (addContactBtn) {
@@ -9546,6 +9585,16 @@ class BudgetApp {
         document.getElementById('settlement-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('settlement-notes').value = '';
 
+        // Ensure form submit handler is attached
+        const form = document.getElementById('settlement-form');
+        if (form && !form.dataset.listenerAttached) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveSettlement();
+            });
+            form.dataset.listenerAttached = 'true';
+        }
+
         modal.style.display = 'flex';
     }
 
@@ -9608,8 +9657,19 @@ class BudgetApp {
         }
     }
 
-    showShareExpenseModal(transaction) {
+    async showShareExpenseModal(transaction) {
         const modal = document.getElementById('share-expense-modal');
+
+        // Load contacts if not already loaded
+        if (!this.contacts || this.contacts.length === 0) {
+            await this.loadContacts();
+        }
+
+        // Check if there are any contacts
+        if (!this.contacts || this.contacts.length === 0) {
+            OC.Notification.showTemporary('Please add contacts first in Shared Expenses');
+            return;
+        }
 
         document.getElementById('share-transaction-id').value = transaction.id;
         document.getElementById('share-transaction-date').textContent = transaction.date;
