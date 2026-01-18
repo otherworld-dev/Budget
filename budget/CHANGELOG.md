@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed "Split Expenses" to "Shared Expenses" for clarity
 
 ### Fixed
+- Budget alerts API returning 500 error (incorrect constant reference in TransactionSplitMapper)
 - Add Rule button not working (duplicate HTML element IDs)
 - Rules API endpoint URL mismatch causing HTTP 500 errors
 - Checkbox styling in rule modal (oversized and misaligned)
