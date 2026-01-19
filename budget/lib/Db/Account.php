@@ -208,6 +208,10 @@ class Account extends Entity implements JsonSerializable {
         if ($value === null || strlen($value) < 4) {
             return $value;
         }
+        // If value still has encryption prefix, decryption failed
+        if (str_starts_with($value, 'enc:')) {
+            return '[DECRYPTION FAILED]';
+        }
         return str_repeat('*', strlen($value) - 4) . substr($value, -4);
     }
 
@@ -219,6 +223,10 @@ class Account extends Entity implements JsonSerializable {
         if ($value === null || strlen($value) < 4) {
             return $value;
         }
+        // If value still has encryption prefix, decryption failed
+        if (str_starts_with($value, 'enc:')) {
+            return '[DECRYPTION FAILED]';
+        }
         return str_repeat('*', strlen($value) - 4) . substr($value, -4);
     }
 
@@ -229,6 +237,10 @@ class Account extends Entity implements JsonSerializable {
     private function maskSortCode(?string $value): ?string {
         if ($value === null || strlen($value) < 2) {
             return $value;
+        }
+        // If value still has encryption prefix, decryption failed
+        if (str_starts_with($value, 'enc:')) {
+            return '[DECRYPTION FAILED]';
         }
         // Handle formatted (12-34-56) and unformatted (123456)
         if (strpos($value, '-') !== false) {
@@ -248,6 +260,10 @@ class Account extends Entity implements JsonSerializable {
         if ($value === null || strlen($value) < 6) {
             return $value;
         }
+        // If value still has encryption prefix, decryption failed
+        if (str_starts_with($value, 'enc:')) {
+            return '[DECRYPTION FAILED]';
+        }
         $countryCode = substr($value, 0, 2);
         $lastFour = substr($value, -4);
         $middleLength = strlen($value) - 6;
@@ -261,6 +277,10 @@ class Account extends Entity implements JsonSerializable {
     private function maskSwiftBic(?string $value): ?string {
         if ($value === null || strlen($value) < 7) {
             return $value;
+        }
+        // If value still has encryption prefix, decryption failed
+        if (str_starts_with($value, 'enc:')) {
+            return '[DECRYPTION FAILED]';
         }
         $first = substr($value, 0, 4);
         $last = substr($value, -3);

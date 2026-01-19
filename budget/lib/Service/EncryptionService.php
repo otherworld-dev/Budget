@@ -48,8 +48,18 @@ class EncryptionService {
             return $value;
         }
 
-        $encrypted = substr($value, strlen(self::ENCRYPTED_PREFIX));
-        return $this->crypto->decrypt($encrypted);
+        try {
+            $encrypted = substr($value, strlen(self::ENCRYPTED_PREFIX));
+            return $this->crypto->decrypt($encrypted);
+        } catch (\Exception $e) {
+            // Log decryption failure - likely due to changed encryption key or corrupted data
+            \OC::$server->get(\Psr\Log\LoggerInterface::class)->error(
+                'Failed to decrypt value: ' . $e->getMessage(),
+                ['exception' => $e]
+            );
+            // Return null to indicate decryption failure
+            return null;
+        }
     }
 
     /**
