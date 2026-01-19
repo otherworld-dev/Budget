@@ -35,28 +35,31 @@ class NetWorthService {
     public function calculateNetWorth(string $userId): array {
         $accounts = $this->accountMapper->findAll($userId);
 
-        $totalAssets = 0.0;
-        $totalLiabilities = 0.0;
+        $totalAssets = '0.00';
+        $totalLiabilities = '0.00';
 
         foreach ($accounts as $account) {
-            $balance = (float) ($account->getBalance() ?? 0);
+            $balance = (string) ($account->getBalance() ?? 0);
             $type = $account->getType();
 
             if ($this->isLiabilityType($type)) {
                 // Liabilities: use absolute value
-                $totalLiabilities += abs($balance);
+                $totalLiabilities = MoneyCalculator::add(
+                    $totalLiabilities,
+                    MoneyCalculator::abs($balance)
+                );
             } else {
                 // Assets: add balance directly
-                $totalAssets += $balance;
+                $totalAssets = MoneyCalculator::add($totalAssets, $balance);
             }
         }
 
-        $netWorth = $totalAssets - $totalLiabilities;
+        $netWorth = MoneyCalculator::subtract($totalAssets, $totalLiabilities);
 
         return [
-            'totalAssets' => round($totalAssets, 2),
-            'totalLiabilities' => round($totalLiabilities, 2),
-            'netWorth' => round($netWorth, 2),
+            'totalAssets' => MoneyCalculator::toFloat($totalAssets),
+            'totalLiabilities' => MoneyCalculator::toFloat($totalLiabilities),
+            'netWorth' => MoneyCalculator::toFloat($netWorth),
         ];
     }
 

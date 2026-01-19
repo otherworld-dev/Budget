@@ -46,8 +46,8 @@ class DebtPayoffService {
     public function getSummary(string $userId): array {
         $debts = $this->getDebts($userId);
 
-        $totalBalance = 0.0;
-        $totalMinimumPayment = 0.0;
+        $totalBalance = '0.00';
+        $totalMinimumPayment = '0.00';
         $highestRate = 0.0;
         $lowestBalance = PHP_FLOAT_MAX;
 
@@ -56,8 +56,13 @@ class DebtPayoffService {
             if ($balance <= 0) {
                 continue;
             }
-            $totalBalance += $balance;
-            $totalMinimumPayment += (float) ($debt->getMinimumPayment() ?? 0);
+
+            // Use MoneyCalculator for precise accumulation
+            $totalBalance = MoneyCalculator::add($totalBalance, (string) $balance);
+
+            $minPayment = (string) ($debt->getMinimumPayment() ?? 0);
+            $totalMinimumPayment = MoneyCalculator::add($totalMinimumPayment, $minPayment);
+
             $rate = (float) ($debt->getInterestRate() ?? 0);
             if ($rate > $highestRate) {
                 $highestRate = $rate;
@@ -68,8 +73,8 @@ class DebtPayoffService {
         }
 
         return [
-            'totalBalance' => round($totalBalance, 2),
-            'totalMinimumPayment' => round($totalMinimumPayment, 2),
+            'totalBalance' => MoneyCalculator::toFloat($totalBalance),
+            'totalMinimumPayment' => MoneyCalculator::toFloat($totalMinimumPayment),
             'debtCount' => count(array_filter($debts, fn($d) => abs((float) $d->getBalance()) > 0)),
             'highestInterestRate' => round($highestRate, 2),
             'lowestBalance' => $lowestBalance === PHP_FLOAT_MAX ? 0 : round($lowestBalance, 2),

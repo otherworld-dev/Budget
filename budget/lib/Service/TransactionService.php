@@ -116,17 +116,25 @@ class TransactionService {
 
         if ($newAmount != $oldAmount || $newType != $oldType) {
             $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-            $currentBalance = $account->getBalance();
+            $currentBalance = (string) $account->getBalance();
 
-            // Calculate the net balance change
+            // Calculate the net balance change using MoneyCalculator for precision
             // Old effect: what was already applied to the balance
-            $oldEffect = $oldType === 'credit' ? $oldAmount : -$oldAmount;
-            // New effect: what should be applied to the balance
-            $newEffect = $newType === 'credit' ? $newAmount : -$newAmount;
-            // Net change to apply
-            $netChange = $newEffect - $oldEffect;
+            $oldAmountStr = (string) $oldAmount;
+            $oldEffect = $oldType === 'credit'
+                ? $oldAmountStr
+                : MoneyCalculator::multiply($oldAmountStr, '-1');
 
-            $newBalance = $currentBalance + $netChange;
+            // New effect: what should be applied to the balance
+            $newAmountStr = (string) $newAmount;
+            $newEffect = $newType === 'credit'
+                ? $newAmountStr
+                : MoneyCalculator::multiply($newAmountStr, '-1');
+
+            // Net change to apply
+            $netChange = MoneyCalculator::subtract($newEffect, $oldEffect);
+            $newBalance = MoneyCalculator::add($currentBalance, $netChange);
+
             $this->accountMapper->updateBalance($account->getId(), $newBalance, $userId);
         }
 
@@ -251,10 +259,12 @@ class TransactionService {
     }
 
     private function updateAccountBalance($account, float $amount, string $type, string $userId): void {
-        $currentBalance = $account->getBalance();
+        $currentBalance = (string) $account->getBalance();
+        $amountStr = (string) $amount;
+
         $newBalance = $type === 'credit'
-            ? $currentBalance + $amount
-            : $currentBalance - $amount;
+            ? MoneyCalculator::add($currentBalance, $amountStr)
+            : MoneyCalculator::subtract($currentBalance, $amountStr);
 
         $this->accountMapper->updateBalance($account->getId(), $newBalance, $userId);
     }
