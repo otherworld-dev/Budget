@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.30] - 2026-01-19
+
+### Fixed
+- Account numbers displaying as extremely long strings of asterisks when decryption fails
+- Added error handling for encryption/decryption failures with proper logging
+- Masking functions now detect failed decryption and display "[DECRYPTION FAILED]" message
+
 ## [1.0.29] - 2026-01-18
 
 ### Fixed
