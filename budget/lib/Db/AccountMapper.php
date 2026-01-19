@@ -71,10 +71,13 @@ class AccountMapper extends QBMapper {
         return (float) ($sum ?? 0);
     }
 
-    public function updateBalance(int $accountId, float $newBalance, string $userId): Account {
+    public function updateBalance(int $accountId, float|string $newBalance, string $userId): Account {
+        // Normalize to string for database precision
+        $balanceStr = is_string($newBalance) ? $newBalance : sprintf('%.2f', $newBalance);
+
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->getTableName())
-            ->set('balance', $qb->createNamedParameter($newBalance))
+            ->set('balance', $qb->createNamedParameter($balanceStr))
             ->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
 
@@ -107,11 +110,15 @@ class AccountMapper extends QBMapper {
         }
 
         /** @var Account $entity */
+        // Normalize balance to string for database precision
+        $balance = $entity->getBalance();
+        $balanceStr = is_float($balance) ? sprintf('%.2f', $balance) : (string) $balance;
+
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->getTableName())
             ->set('name', $qb->createNamedParameter($entity->getName()))
             ->set('type', $qb->createNamedParameter($entity->getType()))
-            ->set('balance', $qb->createNamedParameter($entity->getBalance()))
+            ->set('balance', $qb->createNamedParameter($balanceStr))
             ->set('currency', $qb->createNamedParameter($entity->getCurrency()))
             ->set('institution', $qb->createNamedParameter($entity->getInstitution()))
             ->set('account_number', $qb->createNamedParameter($this->getEncryptedValue($entity, 'accountNumber')))
