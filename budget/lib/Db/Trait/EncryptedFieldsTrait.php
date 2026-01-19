@@ -117,10 +117,16 @@ trait EncryptedFieldsTrait {
             $value = $property->getValue($entity);
             if ($value !== null && is_string($value)) {
                 $decrypted = $this->encryptionService->decrypt($value);
+
+                // Update via setter
                 $setter = 'set' . ucfirst($propertyName);
                 if (method_exists($entity, $setter)) {
                     $entity->$setter($decrypted);
                 }
+
+                // Also update the raw property directly to ensure consistency
+                // This is critical when decryption fails and returns null
+                $property->setValue($entity, $decrypted);
             }
         }
 
@@ -160,6 +166,12 @@ trait EncryptedFieldsTrait {
 
         if ($value === null || $value === '') {
             return $value;
+        }
+
+        // If value still has encryption prefix, decryption must have failed
+        // Return null to avoid persisting broken encrypted data
+        if ($this->encryptionService->isEncrypted($value)) {
+            return null;
         }
 
         return $this->encryptionService->encrypt($value);

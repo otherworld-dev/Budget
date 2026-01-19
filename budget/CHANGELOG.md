@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Account numbers displaying as extremely long strings of asterisks when decryption fails
 - Added error handling for encryption/decryption failures with proper logging
 - Masking functions now detect failed decryption and display "[DECRYPTION FAILED]" message
+- Backend now rejects masked values (containing asterisks) when updating accounts
+- Prevents re-encryption of masked account numbers sent from frontend during balance updates
+- Fixed reflection property sync issue where decrypted values weren't updating the raw property
+- Account updates (e.g., balance changes) no longer corrupt encrypted account numbers
 
 ## [1.0.29] - 2026-01-18
 

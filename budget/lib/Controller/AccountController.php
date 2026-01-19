@@ -289,41 +289,53 @@ class AccountController extends Controller {
 
             // Validate banking fields if provided
             if (isset($data['routingNumber']) && $data['routingNumber'] !== '') {
-                $routingValidation = $this->validationService->validateRoutingNumber($data['routingNumber']);
-                if (!$routingValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid routing number: ' . $routingValidation['error']], Http::STATUS_BAD_REQUEST);
+                // Skip if masked (contains asterisks)
+                if (strpos($data['routingNumber'], '*') === false && strpos($data['routingNumber'], '[DECRYPTION FAILED]') === false) {
+                    $routingValidation = $this->validationService->validateRoutingNumber($data['routingNumber']);
+                    if (!$routingValidation['valid']) {
+                        return new DataResponse(['error' => 'Invalid routing number: ' . $routingValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['routingNumber'] = $routingValidation['formatted'];
                 }
-                $updates['routingNumber'] = $routingValidation['formatted'];
             } elseif (array_key_exists('routingNumber', $data) && $data['routingNumber'] === '') {
                 $updates['routingNumber'] = null;
             }
 
             if (isset($data['sortCode']) && $data['sortCode'] !== '') {
-                $sortValidation = $this->validationService->validateSortCode($data['sortCode']);
-                if (!$sortValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid sort code: ' . $sortValidation['error']], Http::STATUS_BAD_REQUEST);
+                // Skip if masked (contains asterisks)
+                if (strpos($data['sortCode'], '*') === false && strpos($data['sortCode'], '[DECRYPTION FAILED]') === false) {
+                    $sortValidation = $this->validationService->validateSortCode($data['sortCode']);
+                    if (!$sortValidation['valid']) {
+                        return new DataResponse(['error' => 'Invalid sort code: ' . $sortValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['sortCode'] = $sortValidation['formatted'];
                 }
-                $updates['sortCode'] = $sortValidation['formatted'];
             } elseif (array_key_exists('sortCode', $data) && $data['sortCode'] === '') {
                 $updates['sortCode'] = null;
             }
 
             if (isset($data['iban']) && $data['iban'] !== '') {
-                $ibanValidation = $this->validationService->validateIban($data['iban']);
-                if (!$ibanValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid IBAN: ' . $ibanValidation['error']], Http::STATUS_BAD_REQUEST);
+                // Skip if masked (contains asterisks)
+                if (strpos($data['iban'], '*') === false && strpos($data['iban'], '[DECRYPTION FAILED]') === false) {
+                    $ibanValidation = $this->validationService->validateIban($data['iban']);
+                    if (!$ibanValidation['valid']) {
+                        return new DataResponse(['error' => 'Invalid IBAN: ' . $ibanValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['iban'] = $ibanValidation['formatted'];
                 }
-                $updates['iban'] = $ibanValidation['formatted'];
             } elseif (array_key_exists('iban', $data) && $data['iban'] === '') {
                 $updates['iban'] = null;
             }
 
             if (isset($data['swiftBic']) && $data['swiftBic'] !== '') {
-                $swiftValidation = $this->validationService->validateSwiftBic($data['swiftBic']);
-                if (!$swiftValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid SWIFT/BIC: ' . $swiftValidation['error']], Http::STATUS_BAD_REQUEST);
+                // Skip if masked (contains asterisks)
+                if (strpos($data['swiftBic'], '*') === false && strpos($data['swiftBic'], '[DECRYPTION FAILED]') === false) {
+                    $swiftValidation = $this->validationService->validateSwiftBic($data['swiftBic']);
+                    if (!$swiftValidation['valid']) {
+                        return new DataResponse(['error' => 'Invalid SWIFT/BIC: ' . $swiftValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['swiftBic'] = $swiftValidation['formatted'];
                 }
-                $updates['swiftBic'] = $swiftValidation['formatted'];
             } elseif (array_key_exists('swiftBic', $data) && $data['swiftBic'] === '') {
                 $updates['swiftBic'] = null;
             }
@@ -332,8 +344,17 @@ class AccountController extends Controller {
             if (isset($data['balance'])) {
                 $updates['balance'] = (float) $data['balance'];
             }
+            // Only update accountNumber if it's not a masked value (contains asterisks)
             if (isset($data['accountNumber'])) {
-                $updates['accountNumber'] = trim($data['accountNumber']) ?: null;
+                $value = trim($data['accountNumber']);
+                // Skip if empty or contains asterisks (masked value from frontend)
+                if ($value === '') {
+                    $updates['accountNumber'] = null;
+                } elseif (strpos($value, '*') === false && strpos($value, '[DECRYPTION FAILED]') === false) {
+                    // Only update if it's not masked
+                    $updates['accountNumber'] = $value;
+                }
+                // If masked, skip updating - keep existing value
             }
             if (isset($data['openingDate'])) {
                 $updates['openingDate'] = $data['openingDate'] ?: null;
