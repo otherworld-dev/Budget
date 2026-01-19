@@ -9,6 +9,7 @@ use OCA\Budget\Service\NetWorthService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
+use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -19,20 +20,8 @@ use Psr\Log\LoggerInterface;
  * and net worth.
  */
 class NetWorthSnapshotJob extends TimedJob {
-    private NetWorthService $netWorthService;
-    private IDBConnection $db;
-    private LoggerInterface $logger;
-
-    public function __construct(
-        ITimeFactory $time,
-        NetWorthService $netWorthService,
-        IDBConnection $db,
-        LoggerInterface $logger
-    ) {
+    public function __construct(ITimeFactory $time) {
         parent::__construct($time);
-        $this->netWorthService = $netWorthService;
-        $this->db = $db;
-        $this->logger = $logger;
 
         // Run once per day
         $this->setInterval(24 * 60 * 60);
@@ -40,36 +29,40 @@ class NetWorthSnapshotJob extends TimedJob {
     }
 
     protected function run($argument): void {
+        $netWorthService = Server::get(NetWorthService::class);
+        $db = Server::get(IDBConnection::class);
+        $logger = Server::get(LoggerInterface::class);
+
         try {
             // Get all unique user IDs who have accounts
-            $userIds = $this->getAllUserIds();
+            $userIds = $this->getAllUserIds($db);
 
             $snapshotCount = 0;
             $errorCount = 0;
 
             foreach ($userIds as $userId) {
                 try {
-                    $this->netWorthService->createSnapshot(
+                    $netWorthService->createSnapshot(
                         $userId,
                         NetWorthSnapshot::SOURCE_AUTO
                     );
                     $snapshotCount++;
                 } catch (\Exception $e) {
                     $errorCount++;
-                    $this->logger->warning(
+                    $logger->warning(
                         "Failed to create net worth snapshot for user {$userId}: " . $e->getMessage(),
                         ['app' => 'budget', 'userId' => $userId]
                     );
                 }
             }
 
-            $this->logger->info(
+            $logger->info(
                 "Net worth snapshot job completed: {$snapshotCount} snapshots created" .
                     ($errorCount > 0 ? ", {$errorCount} errors" : ""),
                 ['app' => 'budget']
             );
         } catch (\Exception $e) {
-            $this->logger->error(
+            $logger->error(
                 'Net worth snapshot job failed: ' . $e->getMessage(),
                 [
                     'app' => 'budget',
@@ -84,8 +77,8 @@ class NetWorthSnapshotJob extends TimedJob {
      *
      * @return string[]
      */
-    private function getAllUserIds(): array {
-        $qb = $this->db->getQueryBuilder();
+    private function getAllUserIds(IDBConnection $db): array {
+        $qb = $db->getQueryBuilder();
         $qb->selectDistinct('user_id')
             ->from('budget_accounts');
 

@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\AppInfo;
 
-use OCA\Budget\BackgroundJob\CleanupAuditLogsJob;
-use OCA\Budget\BackgroundJob\CleanupImportFilesJob;
-use OCA\Budget\BackgroundJob\BillReminderJob;
 use OCA\Budget\Notification\Notifier;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
@@ -23,23 +20,6 @@ class Application extends App implements IBootstrap {
     public function register(IRegistrationContext $context): void {
         // Register notification notifier
         $context->registerNotifierService(Notifier::class);
-
-        // Register background jobs
-        $context->registerService(CleanupImportFilesJob::class, function($c) {
-            return new CleanupImportFilesJob(
-                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
-                $c->get(\OCP\Files\IAppData::class),
-                $c->get(\Psr\Log\LoggerInterface::class)
-            );
-        });
-
-        $context->registerService(CleanupAuditLogsJob::class, function($c) {
-            return new CleanupAuditLogsJob(
-                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
-                $c->get(\OCA\Budget\Db\AuditLogMapper::class),
-                $c->get(\Psr\Log\LoggerInterface::class)
-            );
-        });
 
         // ==========================================
         // Foundation Services
@@ -132,6 +112,13 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Db\SettingMapper($c->get(\OCP\IDBConnection::class));
         });
         $context->registerServiceAlias('SettingMapper', \OCA\Budget\Db\SettingMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\SettingService::class, function($c) {
+            return new \OCA\Budget\Service\SettingService(
+                $c->get(\OCA\Budget\Db\SettingMapper::class)
+            );
+        });
+        $context->registerServiceAlias('SettingService', \OCA\Budget\Service\SettingService::class);
 
         // ==========================================
         // Validation Service
@@ -398,15 +385,6 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);
 
-        $context->registerService(\OCA\Budget\BackgroundJob\NetWorthSnapshotJob::class, function($c) {
-            return new \OCA\Budget\BackgroundJob\NetWorthSnapshotJob(
-                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
-                $c->get(\OCA\Budget\Service\NetWorthService::class),
-                $c->get(\OCP\IDBConnection::class),
-                $c->get(\Psr\Log\LoggerInterface::class)
-            );
-        });
-
         // ==========================================
         // Recurring Income Services
         // ==========================================
@@ -488,21 +466,6 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('SharedExpenseService', \OCA\Budget\Service\SharedExpenseService::class);
-
-        // ==========================================
-        // Bill Reminder Background Job
-        // ==========================================
-
-        $context->registerService(BillReminderJob::class, function($c) {
-            return new BillReminderJob(
-                $c->get(\OCP\AppFramework\Utility\ITimeFactory::class),
-                $c->get(\OCA\Budget\Db\BillMapper::class),
-                $c->get(\OCP\Notification\IManager::class),
-                $c->get(\OCP\IDBConnection::class),
-                $c->get(\Psr\Log\LoggerInterface::class),
-                $c->get(\OCA\Budget\Service\SettingService::class)
-            );
-        });
     }
 
     public function boot(IBootContext $context): void {

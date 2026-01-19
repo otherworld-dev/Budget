@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.32] - 2026-01-19
+
+### Fixed
+- Background job ArgumentCountError flooding logs: "Too few arguments to function BillReminderJob::__construct()"
+- All background jobs (BillReminderJob, CleanupImportFilesJob, NetWorthSnapshotJob, CleanupAuditLogsJob) now use lazy dependency injection via Server::get()
+- Removed manual background job service registrations that weren't used by Nextcloud's cron system
+
+### Added
+- SettingService to properly wrap SettingMapper following architectural patterns
+- Convenient methods for user settings: get(), set(), getAll(), delete(), exists()
+
 ## [1.0.31] - 2026-01-19
 
 ### Fixed
