@@ -11,6 +11,7 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
 use OCP\Notification\IManager as INotificationManager;
+use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -22,26 +23,8 @@ use Psr\Log\LoggerInterface;
  * 3. Haven't had a reminder sent for this due date yet
  */
 class BillReminderJob extends TimedJob {
-    private BillMapper $billMapper;
-    private INotificationManager $notificationManager;
-    private IDBConnection $db;
-    private LoggerInterface $logger;
-    private ?SettingService $settingService;
-
-    public function __construct(
-        ITimeFactory $time,
-        BillMapper $billMapper,
-        INotificationManager $notificationManager,
-        IDBConnection $db,
-        LoggerInterface $logger,
-        ?SettingService $settingService = null
-    ) {
+    public function __construct(ITimeFactory $time) {
         parent::__construct($time);
-        $this->billMapper = $billMapper;
-        $this->notificationManager = $notificationManager;
-        $this->db = $db;
-        $this->logger = $logger;
-        $this->settingService = $settingService;
 
         // Run every 6 hours
         $this->setInterval(6 * 60 * 60);
@@ -49,15 +32,21 @@ class BillReminderJob extends TimedJob {
     }
 
     protected function run($argument): void {
+        $billMapper = Server::get(BillMapper::class);
+        $notificationManager = Server::get(INotificationManager::class);
+        $db = Server::get(IDBConnection::class);
+        $logger = Server::get(LoggerInterface::class);
+        $settingService = Server::get(SettingService::class);
+
         try {
-            $userIds = $this->getAllUserIds();
+            $userIds = $this->getAllUserIds($db);
             $notificationCount = 0;
             $today = new \DateTime();
             $today->setTime(0, 0, 0);
 
             foreach ($userIds as $userId) {
                 try {
-                    $bills = $this->billMapper->findActive($userId);
+                    $bills = $billMapper->findActive($userId);
 
                     foreach ($bills as $bill) {
                         // Skip if no reminder configured
@@ -79,21 +68,21 @@ class BillReminderJob extends TimedJob {
                         if ($daysUntilDue < 0) {
                             // Bill is overdue - send overdue notification if not already sent
                             if ($this->shouldSendReminder($bill, $dueDate)) {
-                                $this->sendOverdueNotification($userId, $bill, $daysUntilDue);
-                                $this->markReminderSent($bill);
+                                $this->sendOverdueNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
+                                $this->markReminderSent($billMapper, $bill);
                                 $notificationCount++;
                             }
                         } elseif ($daysUntilDue <= $bill->getReminderDays()) {
                             // Within reminder window
                             if ($this->shouldSendReminder($bill, $dueDate)) {
-                                $this->sendReminderNotification($userId, $bill, $daysUntilDue);
-                                $this->markReminderSent($bill);
+                                $this->sendReminderNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
+                                $this->markReminderSent($billMapper, $bill);
                                 $notificationCount++;
                             }
                         }
                     }
                 } catch (\Exception $e) {
-                    $this->logger->warning(
+                    $logger->warning(
                         "Failed to process bill reminders for user {$userId}: " . $e->getMessage(),
                         ['app' => 'budget', 'userId' => $userId]
                     );
@@ -101,13 +90,13 @@ class BillReminderJob extends TimedJob {
             }
 
             if ($notificationCount > 0) {
-                $this->logger->info(
+                $logger->info(
                     "Bill reminder job completed: {$notificationCount} notifications sent",
                     ['app' => 'budget']
                 );
             }
         } catch (\Exception $e) {
-            $this->logger->error(
+            $logger->error(
                 'Bill reminder job failed: ' . $e->getMessage(),
                 ['app' => 'budget', 'exception' => $e]
             );
@@ -134,8 +123,14 @@ class BillReminderJob extends TimedJob {
         return $daysSinceReminder > 7;
     }
 
-    private function sendReminderNotification(string $userId, $bill, int $daysUntilDue): void {
-        $notification = $this->notificationManager->createNotification();
+    private function sendReminderNotification(
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        string $userId,
+        $bill,
+        int $daysUntilDue
+    ): void {
+        $notification = $notificationManager->createNotification();
 
         $notification->setApp(Application::APP_ID)
             ->setUser($userId)
@@ -144,15 +139,21 @@ class BillReminderJob extends TimedJob {
             ->setSubject('bill_reminder', [
                 'billId' => $bill->getId(),
                 'billName' => $bill->getName(),
-                'amount' => $this->formatAmount($userId, $bill->getAmount()),
+                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
                 'daysUntilDue' => $daysUntilDue,
             ]);
 
-        $this->notificationManager->notify($notification);
+        $notificationManager->notify($notification);
     }
 
-    private function sendOverdueNotification(string $userId, $bill, int $daysOverdue): void {
-        $notification = $this->notificationManager->createNotification();
+    private function sendOverdueNotification(
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        string $userId,
+        $bill,
+        int $daysOverdue
+    ): void {
+        $notification = $notificationManager->createNotification();
 
         $notification->setApp(Application::APP_ID)
             ->setUser($userId)
@@ -161,28 +162,26 @@ class BillReminderJob extends TimedJob {
             ->setSubject('bill_overdue', [
                 'billId' => $bill->getId(),
                 'billName' => $bill->getName(),
-                'amount' => $this->formatAmount($userId, $bill->getAmount()),
+                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
                 'daysOverdue' => $daysOverdue,
             ]);
 
-        $this->notificationManager->notify($notification);
+        $notificationManager->notify($notification);
     }
 
-    private function markReminderSent($bill): void {
+    private function markReminderSent(BillMapper $billMapper, $bill): void {
         $bill->setLastReminderSent(date('Y-m-d H:i:s'));
-        $this->billMapper->update($bill);
+        $billMapper->update($bill);
     }
 
-    private function formatAmount(string $userId, float $amount): string {
+    private function formatAmount(SettingService $settingService, string $userId, float $amount): string {
         $currency = 'USD';
 
         // Try to get user's currency setting
-        if ($this->settingService !== null) {
-            try {
-                $currency = $this->settingService->get($userId, 'currency') ?? 'USD';
-            } catch (\Exception $e) {
-                // Use default
-            }
+        try {
+            $currency = $settingService->get($userId, 'currency') ?? 'USD';
+        } catch (\Exception $e) {
+            // Use default
         }
 
         $symbols = [
@@ -199,8 +198,8 @@ class BillReminderJob extends TimedJob {
      *
      * @return string[]
      */
-    private function getAllUserIds(): array {
-        $qb = $this->db->getQueryBuilder();
+    private function getAllUserIds(IDBConnection $db): array {
+        $qb = $db->getQueryBuilder();
         $qb->selectDistinct('user_id')
             ->from('budget_bills')
             ->where($qb->expr()->eq('is_active', $qb->createNamedParameter(true)));

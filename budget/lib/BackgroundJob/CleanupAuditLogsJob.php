@@ -7,6 +7,7 @@ namespace OCA\Budget\BackgroundJob;
 use OCA\Budget\Db\AuditLogMapper;
 use OCP\BackgroundJob\TimedJob;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -22,17 +23,8 @@ class CleanupAuditLogsJob extends TimedJob {
      */
     private const DEFAULT_RETENTION_DAYS = 90;
 
-    private AuditLogMapper $auditLogMapper;
-    private LoggerInterface $logger;
-
-    public function __construct(
-        ITimeFactory $time,
-        AuditLogMapper $auditLogMapper,
-        LoggerInterface $logger
-    ) {
+    public function __construct(ITimeFactory $time) {
         parent::__construct($time);
-        $this->auditLogMapper = $auditLogMapper;
-        $this->logger = $logger;
 
         // Run once per day
         $this->setInterval(24 * 60 * 60);
@@ -40,19 +32,22 @@ class CleanupAuditLogsJob extends TimedJob {
     }
 
     protected function run($argument): void {
+        $auditLogMapper = Server::get(AuditLogMapper::class);
+        $logger = Server::get(LoggerInterface::class);
+
         try {
             $retentionDays = self::DEFAULT_RETENTION_DAYS;
 
-            $deletedCount = $this->auditLogMapper->deleteOldLogs($retentionDays);
+            $deletedCount = $auditLogMapper->deleteOldLogs($retentionDays);
 
             if ($deletedCount > 0) {
-                $this->logger->info(
+                $logger->info(
                     "Audit log cleanup completed: {$deletedCount} records deleted (older than {$retentionDays} days)",
                     ['app' => 'budget']
                 );
             }
         } catch (\Exception $e) {
-            $this->logger->error(
+            $logger->error(
                 'Audit log cleanup job failed: ' . $e->getMessage(),
                 [
                     'app' => 'budget',
