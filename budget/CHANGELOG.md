@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Show duplicates" and "Show uncategorized" checkboxes had no effect on preview display
 - Wrong checkbox ID used in JavaScript ('skip-duplicates' vs 'show-duplicates')
 - Error status badges and balance amounts too dark to read (GitHub issue #8)
+- Installation failure on PostgreSQL: "Column is type Bool and also NotNull, so it can not store false" (GitHub issue #5)
+- Migration Version001000017 used `notnull => true` for boolean columns, violating Nextcloud's cross-database compatibility requirements
+- Boolean columns `is_settled` and `apply_on_import` now correctly defined as nullable per Nextcloud standards
 
 ### Changed
 - TransactionNormalizer now preserves OFX transaction 'id' field for duplicate detection

@@ -29,7 +29,7 @@ class Version001000017Date20260118 extends SimpleMigrationStep {
             }
 
             $table->addColumn('is_settled', Types::BOOLEAN, [
-                'notnull' => true,
+                'notnull' => false,
                 'default' => 0,
             ]);
         }
@@ -71,7 +71,7 @@ class Version001000017Date20260118 extends SimpleMigrationStep {
             }
 
             $table->addColumn('apply_on_import', Types::BOOLEAN, [
-                'notnull' => true,
+                'notnull' => false,
                 'default' => 1,
             ]);
         }
