@@ -2150,11 +2150,11 @@ button.danger:hover {
 }
 
 .balance-amount.positive {
-    color: #2e7d32;
+    color: #43a047;
 }
 
 .balance-amount.negative {
-    color: #c62828;
+    color: #d32f2f;
 }
 
 /* Account Card Sparkline */
@@ -3439,11 +3439,11 @@ button.danger:hover {
 }
 
 .balance-amount.negative {
-    color: var(--color-error);
+    color: #d32f2f;
 }
 
 .balance-amount.positive {
-    color: var(--color-success);
+    color: #43a047;
 }
 
 .balance-secondary {
@@ -5120,8 +5120,8 @@ button.danger:hover {
 }
 
 .status-error {
-    background: rgba(198, 40, 40, 0.1);
-    color: var(--color-error);
+    background: rgba(198, 40, 40, 0.15);
+    color: #d32f2f;
 }
 
 .status-pending {
