@@ -359,8 +359,9 @@ class ImportService {
             foreach ($sourceAccount['transactions'] as $index => $txn) {
                 try {
                     $transaction = $this->normalizer->mapOfxTransaction($txn);
+                    $importId = $this->normalizer->generateImportId('preview', $sourceId . '_' . $index, $transaction);
 
-                    if ($skipDuplicates && $this->duplicateDetector->isDuplicate((int)$destAccountId, $transaction)) {
+                    if ($skipDuplicates && $this->duplicateDetector->isDuplicate((int)$destAccountId, $transaction, $importId)) {
                         $duplicates++;
                         $accountSummaries[$sourceId]['duplicates']++;
                         continue;
@@ -408,8 +409,9 @@ class ImportService {
         foreach ($data as $index => $row) {
             try {
                 $transaction = $this->normalizer->mapRowToTransaction($row, $mapping);
+                $importId = $this->normalizer->generateImportId('preview', $index, $transaction);
 
-                if ($skipDuplicates && $this->duplicateDetector->isDuplicate($accountId, $transaction)) {
+                if ($skipDuplicates && $this->duplicateDetector->isDuplicate($accountId, $transaction, $importId)) {
                     $duplicates++;
                     continue;
                 }

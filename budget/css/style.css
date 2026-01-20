@@ -4937,7 +4937,7 @@ button.danger:hover {
 }
 
 .preview-pagination {
-    color: var(--color-text-lighter);
+    color: var(--color-text-maxcontrast);
     font-size: 14px;
 }
 
