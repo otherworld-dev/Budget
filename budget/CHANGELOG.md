@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import preview showed no indication of which transactions were duplicates
 - "Show duplicates" and "Show uncategorized" checkboxes had no effect on preview display
 - Wrong checkbox ID used in JavaScript ('skip-duplicates' vs 'show-duplicates')
-- Preview pagination text color too dark to read on import page (GitHub issue #8)
+- Error status badges and balance amounts too dark to read (GitHub issue #8)
 
 ### Changed
 - TransactionNormalizer now preserves OFX transaction 'id' field for duplicate detection
@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duplicate transactions unchecked by default in preview to prevent accidental import
 - "Show duplicates" and "Show uncategorized" checkboxes now filter preview table in real-time
 - Preview counter updates to reflect filtered results
+- Error status badges and balance amounts now use brighter colors for improved readability
 
 ## [1.0.32] - 2026-01-19
 
