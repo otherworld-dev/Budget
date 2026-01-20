@@ -78,6 +78,7 @@ class TransactionNormalizer {
             'memo' => $txn['memo'] ?? null,
             'reference' => $txn['reference'] ?? $txn['id'] ?? null,
             'vendor' => $txn['description'] ?? $txn['name'] ?? '',
+            'id' => $txn['id'] ?? null, // Preserve FITID for duplicate detection
         ];
     }
 
@@ -142,7 +143,7 @@ class TransactionNormalizer {
     /**
      * Generate a unique import ID for a transaction.
      *
-     * @param string $fileId The import file ID
+     * @param string $fileId The import file ID (unused, kept for compatibility)
      * @param int|string $index Row index or identifier
      * @param array $transaction Transaction data
      * @return string Unique import ID
@@ -150,18 +151,17 @@ class TransactionNormalizer {
     public function generateImportId(string $fileId, int|string $index, array $transaction): string {
         // Use FITID from OFX if available (bank's unique transaction ID)
         if (!empty($transaction['id'])) {
-            $accountContext = '';
-            if (!empty($transaction['_account']['accountId'])) {
-                $accountContext = $transaction['_account']['accountId'] . '_';
-            }
-            return 'ofx_' . $accountContext . $transaction['id'];
+            // FITID is globally unique per bank, so we can use it directly
+            return 'ofx_fitid_' . $transaction['id'];
         }
 
-        // Fallback to hash-based ID for CSV/QIF imports
-        return $fileId . '_' . $index . '_' . md5(
+        // Content-based hash for CSV/QIF imports (no fileId to ensure same transaction = same hash)
+        // This allows duplicate detection across multiple imports of the same statement
+        return 'hash_' . md5(
             ($transaction['date'] ?? '') .
             ($transaction['amount'] ?? '') .
-            ($transaction['description'] ?? '')
+            ($transaction['description'] ?? '') .
+            ($transaction['reference'] ?? '')
         );
     }
 
