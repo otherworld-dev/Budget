@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Duplicate transaction detection completely broken during statement imports (GitHub issue #6)
+- OFX FITID (bank transaction ID) was lost during transaction mapping, preventing bank-provided duplicate detection
+- Import IDs used random file identifiers instead of content hashing, causing same transaction to generate different IDs
+- Preview methods didn't generate import IDs before duplicate checking, so duplicates were never detected in preview
+- Import preview showed no indication of which transactions were duplicates
+- "Show duplicates" and "Show uncategorized" checkboxes had no effect on preview display
+- Wrong checkbox ID used in JavaScript ('skip-duplicates' vs 'show-duplicates')
+- Preview pagination text color too dark to read on import page (GitHub issue #8)
+
+### Changed
+- TransactionNormalizer now preserves OFX transaction 'id' field for duplicate detection
+- Import ID generation changed from `fileId_index_hash` to content-based: `ofx_fitid_{id}` for OFX or `hash_{md5(date+amount+description+reference)}` for CSV/QIF
+- Same transaction imported multiple times now generates same import ID, enabling proper duplicate detection
+- Import preview now includes 'isDuplicate' flag on each transaction
+- Duplicate transactions displayed with red "Duplicate" badge, new transactions with green "New" badge
+- Duplicate transactions unchecked by default in preview to prevent accidental import
+- "Show duplicates" and "Show uncategorized" checkboxes now filter preview table in real-time
+- Preview counter updates to reflect filtered results
+
 ## [1.0.32] - 2026-01-19
 
 ### Fixed
