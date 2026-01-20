@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.33] - 2026-01-20
+
 ### Fixed
 - Duplicate transaction detection completely broken during statement imports (GitHub issue #6)
 - OFX FITID (bank transaction ID) was lost during transaction mapping, preventing bank-provided duplicate detection
