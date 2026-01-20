@@ -360,8 +360,9 @@ class ImportService {
                 try {
                     $transaction = $this->normalizer->mapOfxTransaction($txn);
                     $importId = $this->normalizer->generateImportId('preview', $sourceId . '_' . $index, $transaction);
+                    $isDuplicate = $this->duplicateDetector->isDuplicate((int)$destAccountId, $transaction, $importId);
 
-                    if ($skipDuplicates && $this->duplicateDetector->isDuplicate((int)$destAccountId, $transaction, $importId)) {
+                    if ($skipDuplicates && $isDuplicate) {
                         $duplicates++;
                         $accountSummaries[$sourceId]['duplicates']++;
                         continue;
@@ -375,8 +376,15 @@ class ImportService {
                         'rowIndex' => $index,
                         'sourceAccountId' => $sourceId,
                         'destinationAccountId' => $destAccountId,
+                        'isDuplicate' => $isDuplicate,
                     ]);
-                    $accountSummaries[$sourceId]['transactionCount']++;
+
+                    if ($isDuplicate) {
+                        $duplicates++;
+                        $accountSummaries[$sourceId]['duplicates']++;
+                    } else {
+                        $accountSummaries[$sourceId]['transactionCount']++;
+                    }
                 } catch (\Exception $e) {
                     $errors[] = ['row' => $index, 'sourceAccountId' => $sourceId, 'error' => $e->getMessage()];
                 }
@@ -410,14 +418,22 @@ class ImportService {
             try {
                 $transaction = $this->normalizer->mapRowToTransaction($row, $mapping);
                 $importId = $this->normalizer->generateImportId('preview', $index, $transaction);
+                $isDuplicate = $this->duplicateDetector->isDuplicate($accountId, $transaction, $importId);
 
-                if ($skipDuplicates && $this->duplicateDetector->isDuplicate($accountId, $transaction, $importId)) {
+                if ($skipDuplicates && $isDuplicate) {
                     $duplicates++;
                     continue;
                 }
 
                 $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
-                $transactions[] = array_merge($transaction, ['rowIndex' => $index]);
+                $transactions[] = array_merge($transaction, [
+                    'rowIndex' => $index,
+                    'isDuplicate' => $isDuplicate,
+                ]);
+
+                if ($isDuplicate) {
+                    $duplicates++;
+                }
             } catch (\Exception $e) {
                 $errors[] = ['row' => $index, 'error' => $e->getMessage(), 'data' => $row];
             }

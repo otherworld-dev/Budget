@@ -3973,6 +3973,16 @@ class BudgetApp {
             select.addEventListener('change', () => this.updatePreviewMapping());
         });
 
+        // Preview filter checkboxes
+        const showDuplicates = document.getElementById('show-duplicates');
+        const showUncategorized = document.getElementById('show-uncategorized');
+        if (showDuplicates) {
+            showDuplicates.addEventListener('change', () => this.filterPreviewTransactions());
+        }
+        if (showUncategorized) {
+            showUncategorized.addEventListener('change', () => this.filterPreviewTransactions());
+        }
+
         // Initialize import state
         this.currentImportStep = 1;
         this.currentImportData = null;
@@ -4262,7 +4272,7 @@ class BudgetApp {
         const requestBody = {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
-            skipDuplicates: document.getElementById('skip-duplicates')?.checked ?? true
+            skipDuplicates: !(document.getElementById('show-duplicates')?.checked ?? true)
         };
 
         if (isMultiAccount) {
@@ -4296,6 +4306,7 @@ class BudgetApp {
                 this.processedTransactions = result.transactions;
                 this.updateImportSummary(result);
                 this.showTransactionPreview(result.transactions);
+                this.filterPreviewTransactions();
             } else {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Processing failed');
@@ -4332,10 +4343,14 @@ class BudgetApp {
         transactions.slice(0, 50).forEach((transaction, index) => {
             const row = document.createElement('tr');
             const amount = parseFloat(transaction.amount) || 0;
+            const isDuplicate = transaction.isDuplicate || false;
+            const statusBadge = isDuplicate
+                ? '<span class="status-badge status-error">Duplicate</span>'
+                : '<span class="status-badge status-success">New</span>';
 
             row.innerHTML = `
                 <td>
-                    <input type="checkbox" checked data-row-index="${transaction.rowIndex ?? index}">
+                    <input type="checkbox" ${isDuplicate ? '' : 'checked'} data-row-index="${transaction.rowIndex ?? index}">
                 </td>
                 <td>${transaction.date || ''}</td>
                 <td>${transaction.description || ''}</td>
@@ -4344,7 +4359,7 @@ class BudgetApp {
                 </td>
                 <td>${transaction.ruleName || 'Uncategorized'}</td>
                 <td>
-                    <span class="status-badge status-success">New</span>
+                    ${statusBadge}
                 </td>
             `;
 
@@ -4353,6 +4368,47 @@ class BudgetApp {
 
         document.getElementById('preview-info').textContent =
             `Showing ${Math.min(50, transactions.length)} of ${transactions.length}`;
+    }
+
+    filterPreviewTransactions() {
+        const showDuplicates = document.getElementById('show-duplicates')?.checked ?? true;
+        const showUncategorized = document.getElementById('show-uncategorized')?.checked ?? true;
+        const tbody = document.querySelector('#preview-table tbody');
+
+        if (!tbody) return;
+
+        const rows = tbody.querySelectorAll('tr');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const statusBadge = row.querySelector('.status-badge');
+            const category = row.cells[4]?.textContent?.trim();
+
+            const isDuplicate = statusBadge?.textContent?.trim() === 'Duplicate';
+            const isUncategorized = category === 'Uncategorized';
+
+            let shouldShow = true;
+
+            if (isDuplicate && !showDuplicates) {
+                shouldShow = false;
+            }
+
+            if (isUncategorized && !showUncategorized) {
+                shouldShow = false;
+            }
+
+            if (shouldShow) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update the preview info text
+        const totalCount = rows.length;
+        document.getElementById('preview-info').textContent =
+            `Showing ${visibleCount} of ${totalCount}`;
     }
 
     async loadAccountsForImport() {
@@ -4482,7 +4538,7 @@ class BudgetApp {
         const requestBody = {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
-            skipDuplicates: document.getElementById('skip-duplicates')?.checked ?? true,
+            skipDuplicates: !(document.getElementById('show-duplicates')?.checked ?? true),
             applyRules: true
         };
 
