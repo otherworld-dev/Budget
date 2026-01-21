@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)
+
 ### Fixed
 - Bulk edit modal appearing in top-left corner instead of centered on screen
 

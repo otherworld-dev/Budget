@@ -3356,13 +3356,6 @@ class BudgetApp {
             });
         }
 
-        const bulkCategorizeBtn = document.getElementById('bulk-categorize-btn');
-        if (bulkCategorizeBtn) {
-            bulkCategorizeBtn.addEventListener('click', () => {
-                this.bulkCategorizeTransactions();
-            });
-        }
-
         const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', () => {
@@ -3545,15 +3538,6 @@ class BudgetApp {
             });
         }
 
-        // Populate bulk category select
-        const bulkCategorySelect = document.getElementById('bulk-category-select');
-        if (bulkCategorySelect && this.categories) {
-            bulkCategorySelect.innerHTML = '<option value="">Select category...</option>';
-            this.categories.forEach(category => {
-                bulkCategorySelect.innerHTML += `<option value="${category.id}">${category.name}</option>`;
-            });
-        }
-
         // Populate reconcile account select
         const reconcileAccount = document.getElementById('reconcile-account');
         if (reconcileAccount && this.accounts) {
@@ -3695,7 +3679,6 @@ class BudgetApp {
         const selectedCount = this.selectedTransactions.size;
         const selectedCountElement = document.getElementById('selected-count');
         const bulkActionsBtn = document.getElementById('bulk-actions-btn');
-        const bulkCategorizeBtn = document.getElementById('bulk-categorize-btn');
         const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
         const bulkReconcileBtn = document.getElementById('bulk-reconcile-btn');
         const bulkUnreconcileBtn = document.getElementById('bulk-unreconcile-btn');
@@ -3709,10 +3692,6 @@ class BudgetApp {
 
         if (bulkActionsBtn) {
             bulkActionsBtn.disabled = disabled;
-        }
-
-        if (bulkCategorizeBtn) {
-            bulkCategorizeBtn.disabled = disabled;
         }
 
         if (bulkDeleteBtn) {
@@ -3729,37 +3708,6 @@ class BudgetApp {
 
         if (bulkEditBtn) {
             bulkEditBtn.disabled = disabled;
-        }
-    }
-
-    async bulkCategorizeTransactions() {
-        const categoryId = document.getElementById('bulk-category-select').value;
-        if (!categoryId || this.selectedTransactions.size === 0) {
-            OC.Notification.showTemporary('Please select a category and transactions');
-            return;
-        }
-
-        try {
-            // Fallback to individual updates if bulk endpoint doesn't exist
-            const updates = Array.from(this.selectedTransactions);
-            const updatePromises = updates.map(async (transactionId) => {
-                return fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}`), {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({ categoryId: parseInt(categoryId) })
-                });
-            });
-
-            await Promise.all(updatePromises);
-            OC.Notification.showTemporary('Transactions categorized successfully');
-            this.selectedTransactions.clear();
-            this.loadTransactions();
-        } catch (error) {
-            console.error('Bulk categorization failed:', error);
-            OC.Notification.showTemporary('Failed to categorize transactions');
         }
     }
 
