@@ -171,6 +171,68 @@ class TransactionService {
         return $results;
     }
 
+    /**
+     * Bulk delete transactions
+     */
+    public function bulkDelete(string $userId, array $ids): array {
+        $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+
+        foreach ($ids as $id) {
+            try {
+                $this->delete($id, $userId);
+                $results['success']++;
+            } catch (\Exception $e) {
+                $results['failed']++;
+                $results['errors'][] = [
+                    'id' => $id,
+                    'message' => $e->getMessage()
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Bulk update reconciled status
+     */
+    public function bulkReconcile(string $userId, array $ids, bool $reconciled): array {
+        $results = ['success' => 0, 'failed' => 0];
+
+        foreach ($ids as $id) {
+            try {
+                $this->update($id, $userId, ['reconciled' => $reconciled]);
+                $results['success']++;
+            } catch (\Exception $e) {
+                $results['failed']++;
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Bulk edit transaction fields
+     */
+    public function bulkEdit(string $userId, array $ids, array $updates): array {
+        $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+
+        foreach ($ids as $id) {
+            try {
+                $this->update($id, $userId, $updates);
+                $results['success']++;
+            } catch (\Exception $e) {
+                $results['failed']++;
+                $results['errors'][] = [
+                    'id' => $id,
+                    'message' => $e->getMessage()
+                ];
+            }
+        }
+
+        return $results;
+    }
+
     public function existsByImportId(int $accountId, string $importId): bool {
         return $this->mapper->existsByImportId($accountId, $importId);
     }

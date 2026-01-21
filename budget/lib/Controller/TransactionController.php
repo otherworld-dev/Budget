@@ -387,6 +387,101 @@ class TransactionController extends Controller {
     }
 
     /**
+     * Bulk delete transactions
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function bulkDelete(array $ids): DataResponse {
+        try {
+            if (empty($ids)) {
+                return new DataResponse(['error' => 'No transaction IDs provided'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $results = $this->service->bulkDelete($this->userId, $ids);
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to delete transactions');
+        }
+    }
+
+    /**
+     * Bulk update reconciled status
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function bulkReconcile(array $ids, bool $reconciled): DataResponse {
+        try {
+            if (empty($ids)) {
+                return new DataResponse(['error' => 'No transaction IDs provided'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $results = $this->service->bulkReconcile($this->userId, $ids, $reconciled);
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to update reconcile status');
+        }
+    }
+
+    /**
+     * Bulk edit transaction fields
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function bulkEdit(array $ids, array $updates): DataResponse {
+        try {
+            if (empty($ids)) {
+                return new DataResponse(['error' => 'No transaction IDs provided'], Http::STATUS_BAD_REQUEST);
+            }
+
+            if (empty($updates)) {
+                return new DataResponse(['error' => 'No update fields provided'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Validate allowed fields
+            $allowedFields = ['categoryId', 'vendor', 'reference', 'notes'];
+            $invalidFields = array_diff(array_keys($updates), $allowedFields);
+            if (!empty($invalidFields)) {
+                return new DataResponse([
+                    'error' => 'Invalid fields: ' . implode(', ', $invalidFields)
+                ], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Validate and sanitize string fields
+            if (isset($updates['vendor'])) {
+                $vendorValidation = $this->validationService->validateVendor($updates['vendor']);
+                if (!$vendorValidation['valid']) {
+                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['vendor'] = $vendorValidation['sanitized'];
+            }
+
+            if (isset($updates['reference'])) {
+                $refValidation = $this->validationService->validateReference($updates['reference']);
+                if (!$refValidation['valid']) {
+                    return new DataResponse(['error' => $refValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['reference'] = $refValidation['sanitized'];
+            }
+
+            if (isset($updates['notes'])) {
+                $notesValidation = $this->validationService->validateNotes($updates['notes']);
+                if (!$notesValidation['valid']) {
+                    return new DataResponse(['error' => $notesValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['notes'] = $notesValidation['sanitized'];
+            }
+
+            $results = $this->service->bulkEdit($this->userId, $ids, $updates);
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to bulk edit transactions');
+        }
+    }
+
+    /**
      * Get splits for a transaction
      *
      * @NoAdminRequired

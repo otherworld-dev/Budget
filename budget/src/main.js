@@ -3370,6 +3370,41 @@ class BudgetApp {
             });
         }
 
+        const bulkReconcileBtn = document.getElementById('bulk-reconcile-btn');
+        if (bulkReconcileBtn) {
+            bulkReconcileBtn.addEventListener('click', () => {
+                this.bulkReconcileTransactions();
+            });
+        }
+
+        const bulkUnreconcileBtn = document.getElementById('bulk-unreconcile-btn');
+        if (bulkUnreconcileBtn) {
+            bulkUnreconcileBtn.addEventListener('click', () => {
+                this.bulkUnreconcileTransactions();
+            });
+        }
+
+        const bulkEditBtn = document.getElementById('bulk-edit-btn');
+        if (bulkEditBtn) {
+            bulkEditBtn.addEventListener('click', () => {
+                this.showBulkEditModal();
+            });
+        }
+
+        const bulkEditSubmitBtn = document.getElementById('bulk-edit-submit-btn');
+        if (bulkEditSubmitBtn) {
+            bulkEditSubmitBtn.addEventListener('click', () => {
+                this.submitBulkEdit();
+            });
+        }
+
+        const cancelBulkEditBtns = document.querySelectorAll('.cancel-bulk-edit-btn');
+        cancelBulkEditBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('bulk-edit-modal').style.display = 'none';
+            });
+        });
+
         // Reconciliation
         const reconcileModeBtn = document.getElementById('reconcile-mode-btn');
         if (reconcileModeBtn) {
@@ -3662,21 +3697,38 @@ class BudgetApp {
         const bulkActionsBtn = document.getElementById('bulk-actions-btn');
         const bulkCategorizeBtn = document.getElementById('bulk-categorize-btn');
         const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+        const bulkReconcileBtn = document.getElementById('bulk-reconcile-btn');
+        const bulkUnreconcileBtn = document.getElementById('bulk-unreconcile-btn');
+        const bulkEditBtn = document.getElementById('bulk-edit-btn');
 
         if (selectedCountElement) {
             selectedCountElement.textContent = selectedCount;
         }
 
+        const disabled = selectedCount === 0;
+
         if (bulkActionsBtn) {
-            bulkActionsBtn.disabled = selectedCount === 0;
+            bulkActionsBtn.disabled = disabled;
         }
 
         if (bulkCategorizeBtn) {
-            bulkCategorizeBtn.disabled = selectedCount === 0;
+            bulkCategorizeBtn.disabled = disabled;
         }
 
         if (bulkDeleteBtn) {
-            bulkDeleteBtn.disabled = selectedCount === 0;
+            bulkDeleteBtn.disabled = disabled;
+        }
+
+        if (bulkReconcileBtn) {
+            bulkReconcileBtn.disabled = disabled;
+        }
+
+        if (bulkUnreconcileBtn) {
+            bulkUnreconcileBtn.disabled = disabled;
+        }
+
+        if (bulkEditBtn) {
+            bulkEditBtn.disabled = disabled;
         }
     }
 
@@ -3721,20 +3773,197 @@ class BudgetApp {
         }
 
         try {
-            const deletePromises = Array.from(this.selectedTransactions).map(id =>
-                fetch(OC.generateUrl(`/apps/budget/api/transactions/${id}`), {
-                    method: 'DELETE',
-                    headers: { 'requesttoken': OC.requestToken }
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ids: Array.from(this.selectedTransactions)
                 })
-            );
+            });
 
-            await Promise.all(deletePromises);
-            OC.Notification.showTemporary('Transactions deleted successfully');
-            this.selectedTransactions.clear();
-            this.loadTransactions();
+            const result = await response.json();
+
+            if (result.success > 0) {
+                OC.Notification.showTemporary(`Successfully deleted ${result.success} transaction(s)`);
+                this.selectedTransactions.clear();
+                this.loadTransactions();
+            }
+
+            if (result.failed > 0) {
+                OC.Notification.showTemporary(`Failed to delete ${result.failed} transaction(s)`, { type: 'error' });
+            }
         } catch (error) {
             console.error('Bulk deletion failed:', error);
             OC.Notification.showTemporary('Failed to delete transactions');
+        }
+    }
+
+    async bulkReconcileTransactions() {
+        if (this.selectedTransactions.size === 0) {
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to mark ${this.selectedTransactions.size} transactions as reconciled?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-reconcile'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ids: Array.from(this.selectedTransactions),
+                    reconciled: true
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success > 0) {
+                OC.Notification.showTemporary(`Successfully reconciled ${result.success} transaction(s)`);
+                this.selectedTransactions.clear();
+                this.loadTransactions();
+            }
+
+            if (result.failed > 0) {
+                OC.Notification.showTemporary(`Failed to reconcile ${result.failed} transaction(s)`, { type: 'error' });
+            }
+        } catch (error) {
+            console.error('Bulk reconcile failed:', error);
+            OC.Notification.showTemporary('Failed to reconcile transactions');
+        }
+    }
+
+    async bulkUnreconcileTransactions() {
+        if (this.selectedTransactions.size === 0) {
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to mark ${this.selectedTransactions.size} transactions as unreconciled?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-reconcile'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ids: Array.from(this.selectedTransactions),
+                    reconciled: false
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success > 0) {
+                OC.Notification.showTemporary(`Successfully unreconciled ${result.success} transaction(s)`);
+                this.selectedTransactions.clear();
+                this.loadTransactions();
+            }
+
+            if (result.failed > 0) {
+                OC.Notification.showTemporary(`Failed to unreconcile ${result.failed} transaction(s)`, { type: 'error' });
+            }
+        } catch (error) {
+            console.error('Bulk unreconcile failed:', error);
+            OC.Notification.showTemporary('Failed to unreconcile transactions');
+        }
+    }
+
+    showBulkEditModal() {
+        if (this.selectedTransactions.size === 0) {
+            return;
+        }
+
+        const modal = document.getElementById('bulk-edit-modal');
+        const countElement = document.getElementById('bulk-edit-count');
+        const categorySelect = document.getElementById('bulk-edit-category');
+
+        // Update count
+        if (countElement) {
+            countElement.textContent = this.selectedTransactions.size;
+        }
+
+        // Populate category dropdown
+        if (categorySelect && this.categories) {
+            categorySelect.innerHTML = '<option value="">Don\'t change</option>';
+            this.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        // Reset form
+        document.getElementById('bulk-edit-vendor').value = '';
+        document.getElementById('bulk-edit-reference').value = '';
+        document.getElementById('bulk-edit-notes').value = '';
+
+        modal.style.display = 'block';
+    }
+
+    async submitBulkEdit() {
+        const categoryId = document.getElementById('bulk-edit-category').value;
+        const vendor = document.getElementById('bulk-edit-vendor').value.trim();
+        const reference = document.getElementById('bulk-edit-reference').value.trim();
+        const notes = document.getElementById('bulk-edit-notes').value.trim();
+
+        // Build updates object with only non-empty fields
+        const updates = {};
+        if (categoryId) updates.categoryId = parseInt(categoryId);
+        if (vendor) updates.vendor = vendor;
+        if (reference) updates.reference = reference;
+        if (notes) updates.notes = notes;
+
+        if (Object.keys(updates).length === 0) {
+            OC.Notification.showTemporary('Please fill in at least one field to update');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to update ${this.selectedTransactions.size} transactions?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-edit'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ids: Array.from(this.selectedTransactions),
+                    updates: updates
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success > 0) {
+                OC.Notification.showTemporary(`Successfully updated ${result.success} transaction(s)`);
+                this.selectedTransactions.clear();
+                this.loadTransactions();
+
+                // Close modal
+                document.getElementById('bulk-edit-modal').style.display = 'none';
+            }
+
+            if (result.failed > 0) {
+                OC.Notification.showTemporary(`Failed to update ${result.failed} transaction(s)`, { type: 'error' });
+            }
+        } catch (error) {
+            console.error('Bulk edit failed:', error);
+            OC.Notification.showTemporary('Failed to update transactions');
         }
     }
 

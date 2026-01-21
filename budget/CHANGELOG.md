@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.34] - 2026-01-21
+
+### Added
+- Bulk actions for transactions page (GitHub issue #10)
+- Bulk delete: Delete multiple transactions in a single API call
+- Bulk reconcile: Mark multiple transactions as reconciled/unreconciled
+- Bulk edit: Update category, vendor, reference, and notes for multiple transactions at once
+- Three new API endpoints: `/api/transactions/bulk-delete`, `/api/transactions/bulk-reconcile`, `/api/transactions/bulk-edit`
+- Bulk edit modal with form validation and theme-consistent styling
+- "Mark Reconciled", "Mark Unreconciled", and "Edit Fields..." buttons to bulk actions toolbar
+- Input validation and sanitization for all bulk operations
+- Rate limiting on bulk endpoints (10 requests/minute)
+- Success/failure counts in API responses with detailed error tracking
+
+### Changed
+- Bulk delete and bulk categorize now use dedicated bulk API endpoints instead of individual API calls for improved performance
+- Bulk actions panel now uses theme-aware CSS variables (`var(--color-background-dark)`) instead of hardcoded light blue colors
+- Bulk actions panel adapts to both light and dark themes automatically
+
 ## [1.0.33] - 2026-01-20
 
 ### Fixed

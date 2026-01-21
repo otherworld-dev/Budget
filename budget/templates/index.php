@@ -845,6 +845,9 @@ style('budget', 'style');
                         <option value="">Select category...</option>
                     </select>
                     <button id="bulk-categorize-btn" class="secondary">Categorize</button>
+                    <button id="bulk-reconcile-btn" class="secondary">Mark Reconciled</button>
+                    <button id="bulk-unreconcile-btn" class="secondary">Mark Unreconciled</button>
+                    <button id="bulk-edit-btn" class="secondary">Edit Fields...</button>
                     <button id="bulk-delete-btn" class="error">Delete</button>
                     <button id="bulk-export-btn" class="secondary">Export</button>
                     <button id="cancel-bulk-btn" class="secondary">Cancel</button>
@@ -3953,6 +3956,46 @@ style('budget', 'style');
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Bulk Edit Modal -->
+<div id="bulk-edit-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="bulk-edit-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="bulk-edit-modal-title">Bulk Edit Transactions</h3>
+        <p class="modal-description">Edit fields for <span id="bulk-edit-count">0</span> selected transactions. Leave fields empty to keep existing values.</p>
+        <form id="bulk-edit-form" aria-label="Bulk edit form">
+            <div class="form-group">
+                <label for="bulk-edit-category">Category</label>
+                <select id="bulk-edit-category" name="categoryId" aria-describedby="bulk-edit-category-help">
+                    <option value="">Don't change</option>
+                </select>
+                <small id="bulk-edit-category-help" class="form-text">Update category for all selected transactions (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="bulk-edit-vendor">Vendor</label>
+                <input type="text" id="bulk-edit-vendor" name="vendor" aria-describedby="bulk-edit-vendor-help" maxlength="255">
+                <small id="bulk-edit-vendor-help" class="form-text">Update vendor name for all selected transactions (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="bulk-edit-reference">Reference</label>
+                <input type="text" id="bulk-edit-reference" name="reference" aria-describedby="bulk-edit-reference-help" maxlength="255">
+                <small id="bulk-edit-reference-help" class="form-text">Update reference number for all selected transactions (optional)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="bulk-edit-notes">Notes</label>
+                <textarea id="bulk-edit-notes" name="notes" rows="3" aria-describedby="bulk-edit-notes-help" maxlength="500"></textarea>
+                <small id="bulk-edit-notes-help" class="form-text">Update notes for all selected transactions (optional)</small>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="primary" id="bulk-edit-submit-btn" aria-label="Update selected transactions">Update Transactions</button>
+                <button type="button" class="secondary cancel-bulk-edit-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
     </div>
 </div>
 
