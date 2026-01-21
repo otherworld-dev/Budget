@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Widget Tiles**: Top Spending Categories, Account Performance, Budget Breakdown, Savings Goals Summary, Payment Methods, Reconciliation Status
 - All new tiles use existing data (no additional API calls required)
 - New tiles available via "Add Tiles" dropdown for user opt-in
+- Phase 2 infrastructure: Lazy loading system for dashboard widgets (widgetDataLoaded, widgetData)
+- 8 additional dashboard tiles registered (Phase 2 - lazy loaded when visible):
+  - **Hero Tiles**: Uncategorized Count, Low Balance Alert
+  - **Widget Tiles**: Monthly Comparison, Large Transactions, Weekly Spending, Unmatched Transfers, Category Trends, Bills Due Soon
 
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)
