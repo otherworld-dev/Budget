@@ -36,6 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chart.js integration for Cash Flow Forecast and Year-over-Year Comparison widgets
 - Chart instance management with proper cleanup when tiles are hidden
 - All Phase 3 tiles hidden by default with lazy loading for optimal performance
+- Quick Add Transaction widget for fast transaction entry directly from dashboard (Phase 4 - fully implemented):
+  - Inline form with essential fields: Date, Account, Type, Amount, Description, and optional Category
+  - Real-time validation with helpful error messages displayed inline
+  - Automatic dropdown population for accounts and categories
+  - Submit button to add transaction via `/api/transactions` POST endpoint
+  - Clear button to reset form to default state
+  - Success/error messages with auto-hide for success (3 seconds)
+  - Auto-refresh of transactions and dashboard after successful add
+  - Today's date auto-populated as default
+  - Compact single-column layout optimized for dashboard widget display
+- All 28 new dashboard tiles (8 hero + 20 widget) now complete and available via "Add Tiles" dropdown
+- Completed 4-phase rollout: Phase 1 (10 tiles, existing data), Phase 2 (8 tiles, lazy loaded), Phase 3 (8 tiles, charts), Phase 4 (1 interactive tile)
 
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)

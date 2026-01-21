@@ -61,7 +61,10 @@ const DASHBOARD_WIDGETS = {
         incomeTracking: { id: 'income-tracking-card', name: 'Income Tracking', size: 'medium', defaultVisible: false, category: 'income' },
         recentImports: { id: 'recent-imports-card', name: 'Recent Imports', size: 'small', defaultVisible: false, category: 'transactions' },
         ruleEffectiveness: { id: 'rule-effectiveness-card', name: 'Rule Effectiveness', size: 'small', defaultVisible: false, category: 'insights' },
-        spendingVelocity: { id: 'spending-velocity-card', name: 'Spending Velocity', size: 'small', defaultVisible: false, category: 'insights' }
+        spendingVelocity: { id: 'spending-velocity-card', name: 'Spending Velocity', size: 'small', defaultVisible: false, category: 'insights' },
+
+        // Phase 4 - Interactive Widgets
+        quickAdd: { id: 'quick-add-card', name: 'Quick Add Transaction', size: 'medium', defaultVisible: false, category: 'interactive' }
     }
 };
 
@@ -123,6 +126,23 @@ class BudgetApp {
             transactionForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.saveTransaction();
+            });
+        }
+
+        // Quick Add form (Phase 4)
+        const quickAddForm = document.getElementById('quick-add-form');
+        if (quickAddForm) {
+            quickAddForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveQuickAddTransaction();
+            });
+        }
+
+        // Quick Add reset button (Phase 4)
+        const quickAddReset = document.getElementById('quick-add-reset');
+        if (quickAddReset) {
+            quickAddReset.addEventListener('click', () => {
+                this.resetQuickAddForm();
             });
         }
 
@@ -3618,6 +3638,178 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to save transaction:', error);
             OC.Notification.showTemporary(error.message || 'Failed to save transaction');
+        }
+    }
+
+    // Phase 4: Quick Add Transaction methods
+    async saveQuickAddTransaction() {
+        // Helper function to safely get and clean form values
+        const getFormValue = (id, defaultValue = null, isNumeric = false, isInteger = false) => {
+            const element = document.getElementById(id);
+            if (!element) return defaultValue;
+
+            const value = element.value ? String(element.value).trim() : '';
+            if (value === '') return defaultValue;
+
+            if (isInteger) {
+                const intValue = parseInt(value);
+                return isNaN(intValue) ? defaultValue : intValue;
+            }
+
+            if (isNumeric) {
+                const numValue = parseFloat(value);
+                return isNaN(numValue) ? defaultValue : numValue;
+            }
+
+            return value;
+        };
+
+        // Validate required fields
+        const accountId = getFormValue('quick-add-account', null, false, true);
+        const date = getFormValue('quick-add-date');
+        const type = getFormValue('quick-add-type');
+        const amount = getFormValue('quick-add-amount', null, true);
+        const description = getFormValue('quick-add-description');
+
+        const messageEl = document.getElementById('quick-add-message');
+
+        if (!accountId) {
+            if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
+                this.showQuickAddMessage('No accounts available. Please create an account first.', 'error');
+                return;
+            }
+            this.showQuickAddMessage('Please select an account', 'error');
+            return;
+        }
+        if (!date) {
+            this.showQuickAddMessage('Please enter a date', 'error');
+            return;
+        }
+        if (!type) {
+            this.showQuickAddMessage('Please select a transaction type', 'error');
+            return;
+        }
+        if (amount === null || amount <= 0) {
+            this.showQuickAddMessage('Please enter a valid amount', 'error');
+            return;
+        }
+        if (!description) {
+            this.showQuickAddMessage('Please enter a description', 'error');
+            return;
+        }
+
+        const formData = {
+            accountId: accountId,
+            date: date,
+            type: type,
+            amount: amount,
+            description: description,
+            vendor: null,
+            categoryId: getFormValue('quick-add-category', null, false, true),
+            notes: null
+        };
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                this.showQuickAddMessage('Transaction added successfully!', 'success');
+                this.resetQuickAddForm();
+                // Reload transactions if on transactions view
+                if (this.currentView === 'transactions') {
+                    this.loadTransactions();
+                }
+                // Reload dashboard to update totals
+                if (this.currentView === 'dashboard') {
+                    this.loadDashboard();
+                }
+            } else {
+                let errorMessage = 'Failed to add transaction';
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (e) {
+                    // If we can't parse JSON, use default message
+                }
+                throw new Error(errorMessage);
+            }
+        } catch (error) {
+            console.error('Failed to save quick add transaction:', error);
+            this.showQuickAddMessage(error.message || 'Failed to add transaction', 'error');
+        }
+    }
+
+    resetQuickAddForm() {
+        const form = document.getElementById('quick-add-form');
+        if (form) {
+            form.reset();
+            // Set today's date as default
+            const dateInput = document.getElementById('quick-add-date');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+        }
+        // Hide message
+        const messageEl = document.getElementById('quick-add-message');
+        if (messageEl) {
+            messageEl.style.display = 'none';
+        }
+    }
+
+    showQuickAddMessage(message, type = 'info') {
+        const messageEl = document.getElementById('quick-add-message');
+        if (!messageEl) return;
+
+        messageEl.textContent = message;
+        messageEl.className = `quick-add-message ${type}`;
+        messageEl.style.display = 'block';
+
+        // Auto-hide success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 3000);
+        }
+    }
+
+    initQuickAddForm() {
+        // Populate account dropdown
+        const accountSelect = document.getElementById('quick-add-account');
+        if (accountSelect && this.accounts) {
+            accountSelect.innerHTML = '<option value="">Select account</option>';
+            this.accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.name;
+                accountSelect.appendChild(option);
+            });
+        }
+
+        // Populate category dropdown
+        const categorySelect = document.getElementById('quick-add-category');
+        if (categorySelect && this.categories) {
+            categorySelect.innerHTML = '<option value="">No category</option>';
+            this.categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        // Set today's date as default
+        const dateInput = document.getElementById('quick-add-date');
+        if (dateInput && !dateInput.value) {
+            dateInput.value = new Date().toISOString().split('T')[0];
         }
     }
 
@@ -14590,6 +14782,12 @@ class BudgetApp {
                 if (typeof this[updateMethod] === 'function') {
                     this[updateMethod]();
                 }
+            }
+
+            // Initialize Quick Add form when it becomes visible (Phase 4)
+            if (visible && key === 'quickAdd' && !this.widgetDataLoaded[key]) {
+                this.initQuickAddForm();
+                this.widgetDataLoaded[key] = true;
             }
 
             // Respect conditional widgets (Budget Alerts, Debt Payoff)

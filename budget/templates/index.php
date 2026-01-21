@@ -723,6 +723,54 @@ style('budget', 'style');
                             <div class="empty-state-small">Loading...</div>
                         </div>
                     </div>
+
+                    <!-- Phase 4: Interactive Widget Tiles -->
+                    <div id="quick-add-card" class="dashboard-card" data-widget-id="quickAdd" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Quick Add Transaction</h3>
+                        </div>
+                        <div class="widget-content">
+                            <form id="quick-add-form" class="quick-add-form">
+                                <div class="form-group-inline">
+                                    <label for="quick-add-date">Date</label>
+                                    <input type="date" id="quick-add-date" required>
+                                </div>
+                                <div class="form-group-inline">
+                                    <label for="quick-add-account">Account</label>
+                                    <select id="quick-add-account" required>
+                                        <option value="">Select account</option>
+                                    </select>
+                                </div>
+                                <div class="form-group-inline">
+                                    <label for="quick-add-type">Type</label>
+                                    <select id="quick-add-type" required>
+                                        <option value="">Select type</option>
+                                        <option value="debit">Expense</option>
+                                        <option value="credit">Income</option>
+                                    </select>
+                                </div>
+                                <div class="form-group-inline">
+                                    <label for="quick-add-amount">Amount</label>
+                                    <input type="number" id="quick-add-amount" step="0.01" required min="0" placeholder="0.00">
+                                </div>
+                                <div class="form-group-inline">
+                                    <label for="quick-add-description">Description</label>
+                                    <input type="text" id="quick-add-description" required maxlength="255" placeholder="Brief description">
+                                </div>
+                                <div class="form-group-inline">
+                                    <label for="quick-add-category">Category</label>
+                                    <select id="quick-add-category">
+                                        <option value="">No category</option>
+                                    </select>
+                                </div>
+                                <div class="quick-add-actions">
+                                    <button type="submit" class="primary">Add Transaction</button>
+                                    <button type="button" class="secondary" id="quick-add-reset">Clear</button>
+                                </div>
+                                <div id="quick-add-message" class="quick-add-message" style="display: none;"></div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
