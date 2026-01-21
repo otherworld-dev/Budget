@@ -2828,6 +2828,29 @@ button.danger:hover {
     display: inline-block;
 }
 
+#column-config-btn {
+    background: var(--color-background-hover) !important;
+    border: 1px solid var(--color-border-dark) !important;
+    opacity: 1 !important;
+}
+
+#column-config-btn .icon-settings {
+    opacity: 1 !important;
+    color: white !important;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.5));
+    font-size: 18px;
+}
+
+#column-config-btn:hover {
+    background: var(--color-primary-element) !important;
+    border-color: var(--color-primary-element) !important;
+}
+
+#column-config-btn:hover .icon-settings {
+    color: white !important;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.7));
+}
+
 .column-config-dropdown {
     position: absolute;
     top: 40px;

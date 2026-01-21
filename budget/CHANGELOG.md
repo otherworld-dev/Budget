@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)
+- Improved visibility of column configuration gear icon with grey background and white icon color
 
 ### Fixed
 - Bulk edit modal appearing in top-left corner instead of centered on screen
