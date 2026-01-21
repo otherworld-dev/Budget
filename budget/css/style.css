@@ -11924,6 +11924,199 @@ button.danger:hover {
     font-size: 12px;
 }
 
+/* Phase 3: Advanced Hero Tile Styles */
+.hero-burn-rate .hero-icon {
+    background: rgba(255, 87, 34, 0.1);
+    color: #ff5722;
+}
+
+.hero-debt-free .hero-icon {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
+
+/* Phase 3: Income Tracking Widget */
+.income-tracking-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.income-tracking-item:last-child {
+    border-bottom: none;
+}
+
+.income-source-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.income-amounts {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.income-expected {
+    color: var(--color-text-lighter);
+}
+
+.income-received {
+    font-weight: 600;
+}
+
+.income-received.income {
+    color: var(--color-success, #2e7d32);
+}
+
+.income-received.warning {
+    color: #ff9800;
+}
+
+.income-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--color-background-dark);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.income-progress-bar {
+    height: 100%;
+    background: var(--color-success, #2e7d32);
+    transition: width 0.3s ease;
+}
+
+.income-progress-bar.warning {
+    background: #ff9800;
+}
+
+.income-progress-bar.error {
+    background: var(--color-error, #c62828);
+}
+
+/* Phase 3: Recent Imports Widget */
+.import-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.import-item:last-child {
+    border-bottom: none;
+}
+
+.import-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.import-filename {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.import-count {
+    font-size: 13px;
+    color: var(--color-text-lighter);
+}
+
+.import-meta {
+    font-size: 12px;
+    color: var(--color-text-lighter);
+}
+
+/* Phase 3: Rule Effectiveness Widget */
+.rule-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.rule-stat-item {
+    text-align: center;
+}
+
+.rule-stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    margin-bottom: 4px;
+}
+
+.rule-stat-label {
+    font-size: 12px;
+    color: var(--color-text-lighter);
+}
+
+.rule-list {
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+}
+
+.rule-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.rule-item:last-child {
+    border-bottom: none;
+}
+
+.rule-name {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.rule-usage {
+    font-size: 12px;
+    color: var(--color-text-lighter);
+}
+
+/* Phase 3: Spending Velocity Widget */
+.velocity-display {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.velocity-current {
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.velocity-comparison {
+    font-size: 14px;
+    color: var(--color-text-lighter);
+    margin-bottom: 4px;
+}
+
+.velocity-trend {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.velocity-trend.positive {
+    color: var(--color-success, #2e7d32);
+}
+
+.velocity-trend.negative {
+    color: var(--color-error, #c62828);
+}
+
+.velocity-trend.neutral {
+    color: var(--color-text-lighter);
+}
+
+/* Phase 3: Chart Container Adjustments */
+.chart-container-large {
+    height: 300px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .dashboard-header {

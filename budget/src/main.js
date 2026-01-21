@@ -21,7 +21,11 @@ const DASHBOARD_WIDGETS = {
 
         // Phase 2 - Moderate Complexity (lazy loaded)
         uncategorizedCount: { id: 'hero-uncategorized', name: 'Uncategorized', size: 'hero', defaultVisible: false, category: 'alerts' },
-        lowBalanceAlert: { id: 'hero-low-balance', name: 'Low Balance Alert', size: 'hero', defaultVisible: false, category: 'alerts' }
+        lowBalanceAlert: { id: 'hero-low-balance', name: 'Low Balance Alert', size: 'hero', defaultVisible: false, category: 'alerts' },
+
+        // Phase 3 - Advanced Features (lazy loaded with charts)
+        burnRate: { id: 'hero-burn-rate', name: 'Burn Rate', size: 'hero', defaultVisible: false, category: 'forecasting' },
+        daysUntilDebtFree: { id: 'hero-debt-free', name: 'Days Until Debt Free', size: 'hero', defaultVisible: false, category: 'debts' }
     },
     widgets: {
         trendChart: { id: 'trend-chart-card', name: 'Income vs Expenses', size: 'large', defaultVisible: true },
@@ -49,7 +53,15 @@ const DASHBOARD_WIDGETS = {
         weeklyTrend: { id: 'weekly-trend-card', name: 'Weekly Spending', size: 'small', defaultVisible: false, category: 'insights' },
         unmatchedTransfers: { id: 'unmatched-transfers-card', name: 'Unmatched Transfers', size: 'small', defaultVisible: false, category: 'transactions' },
         categoryTrends: { id: 'category-trends-card', name: 'Category Trends', size: 'medium', defaultVisible: false, category: 'insights' },
-        billsDueSoon: { id: 'bills-due-soon-card', name: 'Bills Due Soon', size: 'small', defaultVisible: false, category: 'bills' }
+        billsDueSoon: { id: 'bills-due-soon-card', name: 'Bills Due Soon', size: 'small', defaultVisible: false, category: 'bills' },
+
+        // Phase 3 - Advanced Features (lazy loaded with charts)
+        cashFlowForecast: { id: 'cash-flow-forecast-card', name: 'Cash Flow Forecast', size: 'large', defaultVisible: false, category: 'forecasting' },
+        yoyComparison: { id: 'yoy-comparison-card', name: 'Year-over-Year', size: 'large', defaultVisible: false, category: 'insights' },
+        incomeTracking: { id: 'income-tracking-card', name: 'Income Tracking', size: 'medium', defaultVisible: false, category: 'income' },
+        recentImports: { id: 'recent-imports-card', name: 'Recent Imports', size: 'small', defaultVisible: false, category: 'transactions' },
+        ruleEffectiveness: { id: 'rule-effectiveness-card', name: 'Rule Effectiveness', size: 'small', defaultVisible: false, category: 'insights' },
+        spendingVelocity: { id: 'spending-velocity-card', name: 'Spending Velocity', size: 'small', defaultVisible: false, category: 'insights' }
     }
 };
 
@@ -1838,6 +1850,233 @@ class BudgetApp {
         container.innerHTML = '<div class="empty-state-small">No upcoming bills</div>';
     }
 
+    // Phase 3: Update Methods for Advanced Tiles
+    updateBurnRateHero() {
+        const el = document.getElementById('hero-burn-rate-value');
+        if (!el || !this.accounts) return;
+
+        const totalBalance = this.accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+
+        // Calculate average monthly expenses from last 3 months (would need API data)
+        // For now, use placeholder calculation
+        const avgMonthlyExpenses = 2000; // Placeholder
+
+        if (avgMonthlyExpenses <= 0) {
+            el.textContent = '∞';
+            return;
+        }
+
+        const daysRemaining = Math.floor((totalBalance / avgMonthlyExpenses) * 30);
+        el.textContent = `${daysRemaining} days`;
+        el.className = `hero-value ${daysRemaining < 30 ? 'expenses' : daysRemaining < 90 ? '' : 'income'}`;
+
+        const changeEl = document.getElementById('hero-burn-rate-change');
+        if (changeEl) {
+            changeEl.textContent = `at current rate`;
+        }
+    }
+
+    updateDaysUntilDebtFreeHero() {
+        const el = document.getElementById('hero-debt-free-value');
+        if (!el) return;
+
+        const data = this.widgetData.daysUntilDebtFree;
+        if (!data || !data.debtFreeDate) {
+            el.textContent = '--';
+            return;
+        }
+
+        const debtFreeDate = new Date(data.debtFreeDate);
+        const today = new Date();
+        const daysUntil = Math.floor((debtFreeDate - today) / (1000 * 60 * 60 * 24));
+
+        el.textContent = `${daysUntil} days`;
+        el.className = 'hero-value income';
+
+        const changeEl = document.getElementById('hero-debt-free-change');
+        if (changeEl) {
+            const monthsUntil = Math.floor(daysUntil / 30);
+            changeEl.textContent = `~${monthsUntil} months`;
+        }
+    }
+
+    updateCashFlowForecastWidget() {
+        const canvas = document.getElementById('cash-flow-forecast-chart');
+        if (!canvas) return;
+
+        const data = this.widgetData.cashFlowForecast;
+        if (!data || !data.forecast) {
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.charts.cashFlowForecast) {
+            this.charts.cashFlowForecast.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        this.charts.cashFlowForecast = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.forecast.map(f => f.date),
+                datasets: [{
+                    label: 'Projected Balance',
+                    data: data.forecast.map(f => f.balance),
+                    borderColor: '#2196f3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (value) => this.formatCurrency(value)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    updateYoyComparisonWidget() {
+        const canvas = document.getElementById('yoy-comparison-chart');
+        if (!canvas) return;
+
+        const data = this.widgetData.yoyComparison;
+        if (!data || !data.years) {
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.charts.yoyComparison) {
+            this.charts.yoyComparison.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        this.charts.yoyComparison = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: data.years.map((year, idx) => ({
+                    label: year.year,
+                    data: year.monthlyData,
+                    backgroundColor: idx === 0 ? '#2196f3' : '#ff9800'
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (value) => this.formatCurrency(value)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    updateIncomeTrackingWidget() {
+        const container = document.getElementById('income-tracking-content');
+        if (!container) return;
+
+        const data = this.widgetData.incomeTracking;
+        if (!data) {
+            container.innerHTML = '<div class="empty-state-small">No income data</div>';
+            return;
+        }
+
+        const expected = data.expectedThisMonth || 0;
+        const received = data.receivedThisMonth || 0;
+        const percentage = expected > 0 ? (received / expected * 100) : 0;
+
+        container.innerHTML = `
+            <div class="income-tracking-summary">
+                <div class="income-stat">
+                    <span class="income-label">Expected</span>
+                    <span class="income-value">${this.formatCurrency(expected)}</span>
+                </div>
+                <div class="income-stat">
+                    <span class="income-label">Received</span>
+                    <span class="income-value">${this.formatCurrency(received)}</span>
+                </div>
+                <div class="income-progress">
+                    <div class="income-progress-bar">
+                        <div class="income-progress-fill" style="width: ${percentage}%"></div>
+                    </div>
+                    <span class="income-percentage">${percentage.toFixed(0)}%</span>
+                </div>
+            </div>
+        `;
+    }
+
+    updateRecentImportsWidget() {
+        const container = document.getElementById('recent-imports-list');
+        if (!container) return;
+
+        const data = this.widgetData.recentImports;
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No recent imports</div>';
+            return;
+        }
+
+        container.innerHTML = data.slice(0, 3).map(imp => `
+            <div class="import-item">
+                <div class="import-name">${this.escapeHtml(imp.fileName || 'Unknown')}</div>
+                <div class="import-meta">
+                    <span>${imp.transactionCount || 0} transactions</span>
+                    <span>${imp.date || ''}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    updateRuleEffectivenessWidget() {
+        const container = document.getElementById('rule-effectiveness-content');
+        if (!container) return;
+
+        const data = this.widgetData.ruleEffectiveness;
+        if (!data || !Array.isArray(data)) {
+            container.innerHTML = '<div class="empty-state-small">No rules configured</div>';
+            return;
+        }
+
+        const totalRules = data.length;
+        const activeRules = data.filter(r => r.enabled).length;
+
+        container.innerHTML = `
+            <div class="rule-stats">
+                <div class="rule-stat">
+                    <span class="rule-stat-label">Total Rules</span>
+                    <span class="rule-stat-value">${totalRules}</span>
+                </div>
+                <div class="rule-stat">
+                    <span class="rule-stat-label">Active</span>
+                    <span class="rule-stat-value">${activeRules}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    updateSpendingVelocityWidget() {
+        const container = document.getElementById('spending-velocity-content');
+        if (!container) return;
+
+        // Placeholder - would calculate current week vs average
+        container.innerHTML = '<div class="empty-state-small">Spending velocity coming soon</div>';
+    }
+
     // Phase 2: Lazy Loading Infrastructure
     needsLazyLoad(widgetKey) {
         // Phase 1 tiles don't need lazy loading (use existing data)
@@ -1898,7 +2137,51 @@ class BudgetApp {
                     this.widgetData.largeTransactions = await largeResp.json();
                     break;
 
-                // More cases will be added as we implement them
+                // Phase 3 cases
+                case 'cashFlowForecast':
+                    const forecastResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/forecast/live?days=90'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.cashFlowForecast = await forecastResp.json();
+                    break;
+
+                case 'yoyComparison':
+                    const yoyResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/yoy/years?years=2'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.yoyComparison = await yoyResp.json();
+                    break;
+
+                case 'incomeTracking':
+                    const incomeResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/recurring-income/summary'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.incomeTracking = await incomeResp.json();
+                    break;
+
+                case 'daysUntilDebtFree':
+                    const debtResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.daysUntilDebtFree = await debtResp.json();
+                    break;
+
+                case 'recentImports':
+                    // Placeholder - would use /api/import/history if it exists
+                    this.widgetData.recentImports = [];
+                    break;
+
+                case 'ruleEffectiveness':
+                    const rulesResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/import-rules'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.ruleEffectiveness = await rulesResp.json();
+                    break;
             }
 
             this.widgetDataLoaded[widgetKey] = true;
