@@ -204,9 +204,34 @@ style('budget', 'style');
     <div id="app-content-wrapper">
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
+            <div class="dashboard-header">
+                <div class="dashboard-header-hint" id="dashboard-hint">
+                    <span class="icon-info" aria-hidden="true"></span>
+                    <span>Dashboard is locked. Click unlock to reorder tiles.</span>
+                </div>
+                <div class="dashboard-header-actions">
+                    <div class="add-tiles-dropdown" id="add-tiles-dropdown" style="display: none;">
+                        <button id="add-tiles-btn" class="btn btn-secondary" aria-label="Add tiles">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Add Tiles
+                        </button>
+                        <div class="add-tiles-menu" id="add-tiles-menu" style="display: none;">
+                            <div class="add-tiles-menu-header">Hidden Tiles</div>
+                            <div class="add-tiles-menu-list" id="add-tiles-menu-list">
+                                <!-- Hidden widgets will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                    <button id="toggle-dashboard-lock-btn" class="btn btn-secondary" aria-label="Toggle dashboard lock">
+                        <span class="icon-lock" aria-hidden="true"></span>
+                        <span id="lock-btn-text">Unlock Dashboard</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Hero Section - Key Financial Metrics -->
             <div class="dashboard-hero">
-                <div class="hero-card hero-net-worth">
+                <div class="hero-card hero-net-worth" data-widget-id="netWorth" data-widget-category="hero">
                     <div class="hero-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
@@ -219,7 +244,7 @@ style('budget', 'style');
                     </div>
                 </div>
 
-                <div class="hero-card hero-income">
+                <div class="hero-card hero-income" data-widget-id="income" data-widget-category="hero">
                     <div class="hero-icon income">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
@@ -232,7 +257,7 @@ style('budget', 'style');
                     </div>
                 </div>
 
-                <div class="hero-card hero-expenses">
+                <div class="hero-card hero-expenses" data-widget-id="expenses" data-widget-category="hero">
                     <div class="hero-icon expenses">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/>
@@ -245,7 +270,7 @@ style('budget', 'style');
                     </div>
                 </div>
 
-                <div class="hero-card hero-savings">
+                <div class="hero-card hero-savings" data-widget-id="savings" data-widget-category="hero">
                     <div class="hero-icon savings">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2 4.5 3.5 3 2v20l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5zM19 19.09H5V4.91h14v14.18zM6 15h12v2H6zm0-4h12v2H6zm0-4h12v2H6z"/>
@@ -258,7 +283,7 @@ style('budget', 'style');
                     </div>
                 </div>
 
-                <div class="hero-card hero-pension">
+                <div class="hero-card hero-pension" data-widget-id="pension" data-widget-category="hero">
                     <div class="hero-icon pension">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
@@ -277,7 +302,7 @@ style('budget', 'style');
                 <!-- Left Column -->
                 <div class="dashboard-column dashboard-column-main">
                     <!-- Income vs Expenses Chart -->
-                    <div class="dashboard-card dashboard-card-large">
+                    <div id="trend-chart-card" class="dashboard-card dashboard-card-large" data-widget-id="trendChart" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Income vs Expenses</h3>
                             <div class="card-header-controls">
@@ -295,7 +320,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Spending by Category Chart -->
-                    <div class="dashboard-card">
+                    <div id="spending-chart-card" class="dashboard-card" data-widget-id="spendingChart" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Spending by Category</h3>
                             <div class="card-header-controls">
@@ -315,7 +340,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Net Worth History Chart -->
-                    <div class="dashboard-card">
+                    <div id="net-worth-history-card" class="dashboard-card" data-widget-id="netWorthHistory" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Net Worth History</h3>
                             <div class="card-controls">
@@ -336,7 +361,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Recent Transactions -->
-                    <div class="dashboard-card">
+                    <div id="recent-transactions-card" class="dashboard-card" data-widget-id="recentTransactions" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Recent Transactions</h3>
                             <a href="#transactions" class="card-link">View All</a>
@@ -348,7 +373,7 @@ style('budget', 'style');
                 <!-- Right Column -->
                 <div class="dashboard-column dashboard-column-side">
                     <!-- Account Balances -->
-                    <div class="dashboard-card">
+                    <div id="accounts-card" class="dashboard-card" data-widget-id="accounts" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Accounts</h3>
                             <a href="#accounts" class="card-link">Manage</a>
@@ -357,7 +382,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Budget Alerts -->
-                    <div id="budget-alerts-card" class="dashboard-card budget-alerts-card" style="display: none;">
+                    <div id="budget-alerts-card" class="dashboard-card budget-alerts-card" data-widget-id="budgetAlerts" data-widget-category="widget" style="display: none;">
                         <div class="card-header">
                             <h3>Budget Alerts</h3>
                             <a href="#budget" class="card-link">Details</a>
@@ -368,7 +393,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Upcoming Bills -->
-                    <div class="dashboard-card">
+                    <div id="upcoming-bills-card" class="dashboard-card" data-widget-id="upcomingBills" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Upcoming Bills</h3>
                             <a href="#bills" class="card-link">View All</a>
@@ -379,7 +404,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Budget Progress -->
-                    <div class="dashboard-card">
+                    <div id="budget-progress-card" class="dashboard-card" data-widget-id="budgetProgress" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Budget Progress</h3>
                             <a href="#budget" class="card-link">Details</a>
@@ -390,7 +415,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Savings Goals -->
-                    <div class="dashboard-card">
+                    <div id="savings-goals-card" class="dashboard-card" data-widget-id="savingsGoals" data-widget-category="widget">
                         <div class="card-header">
                             <h3>Savings Goals</h3>
                             <a href="#savings-goals" class="card-link">Manage</a>
@@ -401,7 +426,7 @@ style('budget', 'style');
                     </div>
 
                     <!-- Debt Payoff Summary -->
-                    <div id="debt-payoff-card" class="dashboard-card debt-payoff-card" style="display: none;">
+                    <div id="debt-payoff-card" class="dashboard-card debt-payoff-card" data-widget-id="debtPayoff" data-widget-category="widget" style="display: none;">
                         <div class="card-header">
                             <h3>Debt Payoff</h3>
                             <a href="#debt-payoff" class="card-link">Plan</a>
@@ -427,7 +452,7 @@ style('budget', 'style');
                 </div>
             </div>
         </div>
-        
+
         <!-- Accounts View -->
         <div id="accounts-view" class="view">
             <div class="view-header">
