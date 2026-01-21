@@ -11534,6 +11534,49 @@ button.danger:hover {
     color: var(--color-text-lighter);
 }
 
+/* Add Tiles Category Headers */
+.add-tiles-category-header {
+    padding: 12px 16px 6px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-lighter);
+    background: var(--color-background-dark);
+    border-top: 1px solid var(--color-border);
+    margin-top: 4px;
+}
+
+.add-tiles-category-header:first-child {
+    margin-top: 0;
+    border-top: none;
+}
+
+.tile-name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.tile-name {
+    font-size: 13px;
+    color: var(--color-main-text);
+}
+
+.tile-size-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    background: rgba(33, 150, 243, 0.1);
+    color: var(--color-primary);
+    border-radius: 3px;
+    border: 1px solid rgba(33, 150, 243, 0.2);
+}
+
 /* Widget Remove Button */
 .widget-remove-btn {
     position: absolute;

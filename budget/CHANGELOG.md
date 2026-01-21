@@ -48,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compact single-column layout optimized for dashboard widget display
 - All 28 new dashboard tiles (8 hero + 20 widget) now complete and available via "Add Tiles" dropdown
 - Completed 4-phase rollout: Phase 1 (10 tiles, existing data), Phase 2 (8 tiles, lazy loaded), Phase 3 (8 tiles, charts), Phase 4 (1 interactive tile)
+- "Add Tiles" dropdown now organized by categories to reduce overwhelm:
+  - Categories: Insights & Analytics, Budgeting, Forecasting, Transactions, Income, Debts, Goals, Bills, Alerts, Interactive
+  - Each category shows as a collapsible section with header
+  - Hero tiles display "Hero" badge to distinguish from regular widget tiles
+  - Categories only appear if they contain hidden tiles
 
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)

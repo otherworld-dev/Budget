@@ -14633,40 +14633,96 @@ class BudgetApp {
 
         menuList.innerHTML = '';
 
-        // Add hidden hero metrics
+        // Group tiles by category
+        const tilesByCategory = {};
+
+        // Collect hidden hero tiles
         Object.entries(DASHBOARD_WIDGETS.hero).forEach(([key, widget]) => {
             if (!this.dashboardConfig.hero.visibility[key]) {
-                const item = document.createElement('div');
-                item.className = 'add-tiles-menu-item';
-                item.innerHTML = `
-                    <span>${widget.name}</span>
-                    <button class="add-tile-btn" data-widget-id="${key}" data-category="hero">
-                        <span class="icon-add"></span>
-                    </button>
-                `;
-                menuList.appendChild(item);
+                const category = widget.category || 'other';
+                if (!tilesByCategory[category]) {
+                    tilesByCategory[category] = [];
+                }
+                tilesByCategory[category].push({
+                    key,
+                    name: widget.name,
+                    type: 'hero',
+                    size: 'hero'
+                });
             }
         });
 
-        // Add hidden widgets
+        // Collect hidden widget tiles
         Object.entries(DASHBOARD_WIDGETS.widgets).forEach(([key, widget]) => {
             if (!this.dashboardConfig.widgets.visibility[key]) {
+                const category = widget.category || 'other';
+                if (!tilesByCategory[category]) {
+                    tilesByCategory[category] = [];
+                }
+                tilesByCategory[category].push({
+                    key,
+                    name: widget.name,
+                    type: 'widget',
+                    size: widget.size
+                });
+            }
+        });
+
+        // Check if any tiles are hidden
+        const totalHidden = Object.values(tilesByCategory).reduce((sum, tiles) => sum + tiles.length, 0);
+        if (totalHidden === 0) {
+            menuList.innerHTML = '<div class="add-tiles-empty">All tiles are visible</div>';
+            return;
+        }
+
+        // Category display order and labels
+        const categoryOrder = [
+            { key: 'insights', label: 'Insights & Analytics' },
+            { key: 'budgeting', label: 'Budgeting' },
+            { key: 'forecasting', label: 'Forecasting' },
+            { key: 'transactions', label: 'Transactions' },
+            { key: 'income', label: 'Income' },
+            { key: 'debts', label: 'Debts' },
+            { key: 'goals', label: 'Goals' },
+            { key: 'bills', label: 'Bills' },
+            { key: 'alerts', label: 'Alerts' },
+            { key: 'interactive', label: 'Interactive' },
+            { key: 'other', label: 'Other' }
+        ];
+
+        // Render tiles grouped by category
+        categoryOrder.forEach(({ key, label }) => {
+            const tiles = tilesByCategory[key];
+            if (!tiles || tiles.length === 0) return;
+
+            // Add category header
+            const categoryHeader = document.createElement('div');
+            categoryHeader.className = 'add-tiles-category-header';
+            categoryHeader.textContent = label;
+            menuList.appendChild(categoryHeader);
+
+            // Add tiles in this category
+            tiles.forEach(tile => {
                 const item = document.createElement('div');
                 item.className = 'add-tiles-menu-item';
+
+                // Add size badge for hero tiles
+                const sizeBadge = tile.size === 'hero'
+                    ? '<span class="tile-size-badge">Hero</span>'
+                    : '';
+
                 item.innerHTML = `
-                    <span>${widget.name}</span>
-                    <button class="add-tile-btn" data-widget-id="${key}" data-category="widgets">
+                    <span class="tile-name-wrapper">
+                        <span class="tile-name">${tile.name}</span>
+                        ${sizeBadge}
+                    </span>
+                    <button class="add-tile-btn" data-widget-id="${tile.key}" data-category="${tile.type}">
                         <span class="icon-add"></span>
                     </button>
                 `;
                 menuList.appendChild(item);
-            }
+            });
         });
-
-        // Show "All tiles visible" message if nothing hidden
-        if (menuList.children.length === 0) {
-            menuList.innerHTML = '<div class="add-tiles-empty">All tiles are visible</div>';
-        }
 
         // Wire up add buttons
         menuList.querySelectorAll('.add-tile-btn').forEach(btn => {
