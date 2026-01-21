@@ -377,6 +377,33 @@ style('budget', 'style');
                         <span id="hero-low-balance-change" class="hero-subtext"></span>
                     </div>
                 </div>
+
+                <!-- Phase 3: Advanced Hero Tiles -->
+                <div class="hero-card hero-burn-rate" data-widget-id="burnRate" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 19H11v-2h2v2zm0-4H11v-4h2v4zm0-6H11V7h2v2z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Burn Rate</span>
+                        <span id="hero-burn-rate-value" class="hero-value">--</span>
+                        <span id="hero-burn-rate-change" class="hero-subtext"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-debt-free" data-widget-id="daysUntilDebtFree" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Days Until Debt Free</span>
+                        <span id="hero-debt-free-value" class="hero-value">--</span>
+                        <span id="hero-debt-free-change" class="hero-subtext"></span>
+                    </div>
+                </div>
             </div>
 
             <!-- Main Dashboard Grid -->
@@ -638,6 +665,61 @@ style('budget', 'style');
                             <h3>Bills Due Soon</h3>
                         </div>
                         <div id="bills-due-soon-list" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Phase 3: Advanced Widget Tiles -->
+                    <div id="cash-flow-forecast-card" class="dashboard-card dashboard-card-large" data-widget-id="cashFlowForecast" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Cash Flow Forecast</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="cash-flow-forecast-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div id="yoy-comparison-card" class="dashboard-card dashboard-card-large" data-widget-id="yoyComparison" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Year-over-Year Comparison</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="yoy-comparison-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div id="income-tracking-card" class="dashboard-card" data-widget-id="incomeTracking" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Income Tracking</h3>
+                        </div>
+                        <div id="income-tracking-content" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="recent-imports-card" class="dashboard-card" data-widget-id="recentImports" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Recent Imports</h3>
+                        </div>
+                        <div id="recent-imports-list" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="rule-effectiveness-card" class="dashboard-card" data-widget-id="ruleEffectiveness" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Rule Effectiveness</h3>
+                        </div>
+                        <div id="rule-effectiveness-content" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="spending-velocity-card" class="dashboard-card" data-widget-id="spendingVelocity" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Spending Velocity</h3>
+                        </div>
+                        <div id="spending-velocity-content" class="widget-content">
                             <div class="empty-state-small">Loading...</div>
                         </div>
                     </div>
