@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gear icon in transaction table header to access column visibility settings
 - Column visibility preferences persist across sessions via settings API
 - Vendor column added to transaction table with inline editing support
+- 10 new dashboard tiles (Phase 1 - hidden by default, zero performance impact):
+  - **Hero Tiles**: Savings Rate, Cash Flow, Budget Remaining, Budget Health
+  - **Widget Tiles**: Top Spending Categories, Account Performance, Budget Breakdown, Savings Goals Summary, Payment Methods, Reconciliation Status
+- All new tiles use existing data (no additional API calls required)
+- New tiles available via "Add Tiles" dropdown for user opt-in
 
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)

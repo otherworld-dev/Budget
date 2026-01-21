@@ -11614,6 +11614,253 @@ button.danger:hover {
     box-shadow: 0 0 0 2px var(--color-primary-element-light);
 }
 
+/* Phase 1: New Hero Tile Styles */
+.hero-savings-rate .hero-icon {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
+
+.hero-cash-flow .hero-icon {
+    background: rgba(33, 150, 243, 0.1);
+    color: #2196f3;
+}
+
+.hero-budget-remaining .hero-icon {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+}
+
+.hero-budget-health .hero-icon {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
+
+/* Phase 1: Top Categories Widget */
+.top-category-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.top-category-item:last-child {
+    border-bottom: none;
+}
+
+.category-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.category-name {
+    flex: 1;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.category-amount {
+    font-weight: 600;
+    font-size: 14px;
+    margin-left: 8px;
+}
+
+/* Phase 1: Account Performance Widget */
+.account-performance-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+    gap: 8px;
+}
+
+.account-performance-item:last-child {
+    border-bottom: none;
+}
+
+.account-performance-item .account-name {
+    flex: 1;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-performance-item .account-balance {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.account-performance-item .account-change {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.account-performance-item .account-change.positive {
+    color: var(--color-success, #2e7d32);
+}
+
+.account-performance-item .account-change.negative {
+    color: var(--color-error, #c62828);
+}
+
+/* Phase 1: Budget Breakdown Table */
+.budget-breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.budget-breakdown-table th,
+.budget-breakdown-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.budget-breakdown-table thead th {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--color-text-lighter);
+    background: var(--color-background-dark);
+}
+
+.budget-breakdown-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.budget-breakdown-table .positive {
+    color: var(--color-success, #2e7d32);
+}
+
+.budget-breakdown-table .negative {
+    color: var(--color-error, #c62828);
+}
+
+/* Phase 1: Goals Summary Widget */
+.goal-summary-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.goal-summary-item:last-child {
+    border-bottom: none;
+}
+
+.goal-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.goal-summary-header .goal-name {
+    font-size: 14px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.goal-summary-header .goal-percentage {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.goal-summary-progress {
+    height: 6px;
+    background: var(--color-background-dark);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.goal-summary-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-primary-element));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.goal-summary-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--color-text-lighter);
+}
+
+/* Phase 1: Payment Breakdown Widget */
+.payment-method-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.payment-method-item:last-child {
+    border-bottom: none;
+}
+
+.payment-method-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.payment-method-name {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.payment-method-count {
+    font-size: 12px;
+    color: var(--color-text-lighter);
+}
+
+.payment-method-total {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+/* Phase 1: Reconciliation Status Widget */
+.reconciliation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.reconciliation-item:last-child {
+    border-bottom: none;
+}
+
+.reconciliation-name {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.reconciliation-status {
+    margin-left: 12px;
+}
+
+.reconciliation-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(76, 175, 80, 0.1);
+    color: var(--color-success, #2e7d32);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .dashboard-header {

@@ -295,6 +295,61 @@ style('budget', 'style');
                         <span id="hero-pension-count" class="hero-subtext"></span>
                     </div>
                 </div>
+
+                <!-- Phase 1: New Hero Tiles (Hidden by Default) -->
+                <div class="hero-card hero-savings-rate" data-widget-id="savingsRate" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon savings">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                            <path d="M2 17L12 22L22 17"/>
+                            <path d="M2 12L12 17L22 12"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Savings Rate</span>
+                        <span id="hero-savings-rate-value" class="hero-value">--</span>
+                        <span id="hero-savings-rate-change" class="hero-change"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-cash-flow" data-widget-id="cashFlow" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Cash Flow</span>
+                        <span id="hero-cash-flow-value" class="hero-value">--</span>
+                        <span id="hero-cash-flow-change" class="hero-change"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-budget-remaining" data-widget-id="budgetRemaining" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13,2.05V5.08C16.39,5.57 19,8.47 19,12C19,12.9 18.82,13.75 18.5,14.54L21.12,16.07C21.68,14.83 22,13.45 22,12C22,6.82 18.05,2.55 13,2.05M12,19A7,7 0 0,1 5,12C5,8.47 7.61,5.57 11,5.08V2.05C5.94,2.55 2,6.81 2,12A10,10 0 0,0 12,22C15.3,22 18.23,20.39 20.05,17.91L17.45,16.38C16.17,18 14.21,19 12,19Z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Budget Remaining</span>
+                        <span id="hero-budget-remaining-value" class="hero-value">--</span>
+                        <span id="hero-budget-remaining-change" class="hero-subtext"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-budget-health" data-widget-id="budgetHealth" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon savings">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Budget Health</span>
+                        <span id="hero-budget-health-value" class="hero-value">--</span>
+                        <span id="hero-budget-health-change" class="hero-subtext"></span>
+                    </div>
+                </div>
             </div>
 
             <!-- Main Dashboard Grid -->
@@ -447,6 +502,61 @@ style('budget', 'style');
                                 </div>
                             </div>
                             <div id="debt-payoff-estimate" class="debt-payoff-estimate"></div>
+                        </div>
+                    </div>
+
+                    <!-- Phase 1: New Widget Tiles (Hidden by Default) -->
+                    <div id="top-categories-card" class="dashboard-card" data-widget-id="topCategories" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Top Spending Categories</h3>
+                        </div>
+                        <div id="top-categories-list" class="widget-content">
+                            <div class="empty-state-small">No spending data</div>
+                        </div>
+                    </div>
+
+                    <div id="account-performance-card" class="dashboard-card" data-widget-id="accountPerformance" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Account Performance</h3>
+                        </div>
+                        <div id="account-performance-list" class="widget-content">
+                            <div class="empty-state-small">No account data</div>
+                        </div>
+                    </div>
+
+                    <div id="budget-breakdown-card" class="dashboard-card" data-widget-id="budgetBreakdown" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Budget Breakdown</h3>
+                        </div>
+                        <div id="budget-breakdown-table" class="widget-content">
+                            <div class="empty-state-small">No budget data</div>
+                        </div>
+                    </div>
+
+                    <div id="goals-summary-card" class="dashboard-card" data-widget-id="goalsSummary" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>All Goals Progress</h3>
+                        </div>
+                        <div id="goals-summary-list" class="widget-content">
+                            <div class="empty-state-small">No savings goals</div>
+                        </div>
+                    </div>
+
+                    <div id="payment-breakdown-card" class="dashboard-card" data-widget-id="paymentBreakdown" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Payment Methods</h3>
+                        </div>
+                        <div id="payment-breakdown-list" class="widget-content">
+                            <div class="empty-state-small">No account data</div>
+                        </div>
+                    </div>
+
+                    <div id="reconciliation-card" class="dashboard-card" data-widget-id="reconciliationStatus" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Reconciliation Status</h3>
+                        </div>
+                        <div id="reconciliation-status-list" class="widget-content">
+                            <div class="empty-state-small">No accounts to reconcile</div>
                         </div>
                     </div>
                 </div>
