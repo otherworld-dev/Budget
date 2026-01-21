@@ -845,7 +845,6 @@ style('budget', 'style');
                     <button id="bulk-unreconcile-btn" class="secondary">Unreconciled</button>
                     <button id="bulk-edit-btn" class="secondary">Edit Fields...</button>
                     <button id="bulk-delete-btn" class="error">Delete</button>
-                    <button id="bulk-export-btn" class="secondary">Export</button>
                     <button id="cancel-bulk-btn" class="secondary">Cancel</button>
                 </div>
             </div>
