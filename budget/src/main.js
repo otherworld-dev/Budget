@@ -5395,7 +5395,7 @@ class BudgetApp {
 
             columns.forEach((column, index) => {
                 const option = document.createElement('option');
-                option.value = index;
+                option.value = column;
                 option.textContent = column;
                 select.appendChild(option);
             });
@@ -5419,13 +5419,13 @@ class BudgetApp {
             const select = mappingSelects[fieldId];
             if (!select) return;
 
-            const matchingColumn = columns.findIndex(col =>
+            const matchingColumn = columns.find(col =>
                 patternList.some(pattern =>
                     col.toLowerCase().includes(pattern.toLowerCase())
                 )
             );
 
-            if (matchingColumn !== -1) {
+            if (matchingColumn) {
                 select.value = matchingColumn;
             }
         });

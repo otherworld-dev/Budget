@@ -33,6 +33,11 @@ class TransactionNormalizer {
         $transaction = [];
 
         foreach ($mapping as $field => $column) {
+            // Skip non-column mapping fields (boolean config flags)
+            if (is_bool($column) || $column === null || $column === '') {
+                continue;
+            }
+
             if (isset($row[$column])) {
                 $transaction[$field] = $row[$column];
             }
