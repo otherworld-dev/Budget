@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Bulk edit modal appearing in top-left corner instead of centered on screen
+- Category dropdown in inline edit was too narrow and cutting off category names
 
 ## [1.0.34] - 2026-01-21
 
