@@ -1,29 +1,64 @@
 # Nextcloud Budget
 
-> ⚠️ **Beta**: This app is currently in testing. Data loss is possible. Please backup your data regularly and [report any issues](https://github.com/otherworld-dev/Nextcloud-Budget/issues) you encounter.
+> ⚠️ **Beta**: This app is under active development. While stable, please backup your data regularly and [report any issues](https://github.com/otherworld-dev/Budget/issues) you encounter.
 
 A comprehensive financial management app for Nextcloud. Track spending habits, manage multiple accounts, and forecast future balances through intelligent analysis of your financial history.
 
+![Dashboard Screenshot](screenshots/dashboard.png)
+
+## What's New in v1.1.0
+
+🎉 **Major Feature Release** - Dashboard Customization & 28 New Tiles
+
+- **Drag-and-Drop Dashboard** - Customize your dashboard layout with intuitive drag-and-drop tile reordering
+- **28 New Dashboard Tiles** - Choose from insights, budgeting, forecasting, and interactive widgets
+- **Smart Lazy Loading** - Advanced tiles only fetch data when you make them visible
+- **Quick Add Transaction** - Add transactions directly from the dashboard with an inline form
+- **Configurable Columns** - Show/hide transaction table columns to match your workflow
+- **Categorized Add Tiles Menu** - Organized by function (Insights, Budgeting, Forecasting, etc.)
+
+See the [full changelog](budget/CHANGELOG.md) for details.
+
 ## Features
 
+### Dashboard & Visualization
+- **Customizable Dashboard** - Drag-and-drop tile reordering, lock/unlock dashboard editing
+- **28 Dashboard Tiles** - Hero metrics, spending insights, forecasting, budget tracking, and more
+- **Interactive Charts** - Cash flow forecasts, year-over-year comparisons with Chart.js
+
+### Account & Transaction Management
 - **Multi-Account Management** - Track bank accounts, credit cards, and cash across multiple currencies
 - **Transaction Tracking** - Add, edit, categorize, and search transactions with advanced filtering
+- **Bulk Operations** - Delete, reconcile, or edit multiple transactions at once
+- **Configurable Table Columns** - Show/hide columns to customize your transaction view
 - **Split Transactions** - Allocate single transactions across multiple categories
 - **Transaction Matching** - Automatic transfer detection between accounts
+
+### Import & Automation
 - **Smart Import** - Import bank statements from CSV, OFX, and QIF formats with automatic vendor matching
 - **Auto-Categorization** - Create custom rules to automatically categorize transactions, apply to existing data anytime
 - **Hierarchical Categories** - Organize spending with nested categories and drag-and-drop reordering
+
+### Budgeting & Planning
 - **Budget Tracking** - Set spending limits by category with alerts when approaching or exceeding budgets
 - **Balance Forecasting** - Predict future balances using trend analysis and scenario modeling
 - **Recurring Bills** - Detect and track recurring payments with due date monitoring and Nextcloud notifications
 - **Recurring Income** - Track expected income sources (salary, dividends, etc.) with receipt tracking
-- **Split Expenses** - Share expenses with roommates, partners, or friends and track who owes whom
+
+### Debt & Goals
 - **Debt Payoff Planner** - Plan debt repayment using avalanche or snowball strategies
 - **Savings Goals** - Set financial targets with progress tracking and achievement forecasting
 - **Pension Tracker** - Track retirement accounts with growth projections and combined forecasts
+
+### Sharing & Collaboration
+- **Split Expenses** - Share expenses with roommates, partners, or friends and track who owes whom
+
+### Reporting & Analysis
 - **Net Worth History** - Track assets and liabilities over time with interactive charts
 - **Year-over-Year Reports** - Compare spending across multiple years side-by-side
 - **Reports & Charts** - Visualize spending patterns, income, and cash flow over time
+
+### Data Management
 - **Data Export/Import** - Full data migration support for moving between Nextcloud instances
 - **Audit Logging** - Complete trail of all financial actions
 
@@ -46,7 +81,7 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ```bash
 cd /path/to/nextcloud/apps
-git clone https://github.com/otherworld-dev/budget.git
+git clone https://github.com/otherworld-dev/Budget.git budget
 cd budget
 
 # Install dependencies
@@ -69,7 +104,7 @@ php occ app:enable budget
 
 ```bash
 cd /path/to/nextcloud/apps
-git clone https://github.com/otherworld-dev/budget.git
+git clone https://github.com/otherworld-dev/Budget.git budget
 cd budget
 
 # Install all dependencies
@@ -77,24 +112,21 @@ composer install
 npm install
 
 # Build for development
-make dev
+npm run dev
 
 # Watch for changes
-make watch
+npm run watch
 ```
 
 ### Build Commands
 
 | Command | Description |
 |---------|-------------|
-| `make build` | Production build |
-| `make dev` | Development build with source maps |
-| `make watch` | Auto-rebuild on file changes |
-| `make test` | Run PHPUnit tests |
-| `make lint` | Run ESLint and PHP linters |
-| `make lint-fix` | Auto-fix linting issues |
-| `make psalm` | Run static analysis |
-| `make appstore` | Create distribution package |
+| `npm run build` | Production build |
+| `npm run dev` | Development build with source maps |
+| `npm run watch` | Auto-rebuild on file changes |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Auto-fix linting issues |
 
 ### Project Structure
 
@@ -226,5 +258,6 @@ This project is licensed under the **AGPL-3.0-or-later** license.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/otherworld-dev/budget/issues)
+- **Issues**: [GitHub Issues](https://github.com/otherworld-dev/Budget/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/otherworld-dev/Budget/discussions)
 - **Forum**: [Nextcloud Community](https://help.nextcloud.com)
