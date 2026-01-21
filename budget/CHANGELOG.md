@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Bulk edit modal appearing in top-left corner instead of centered on screen
+
 ## [1.0.34] - 2026-01-21
 
 ### Added

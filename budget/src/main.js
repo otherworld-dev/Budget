@@ -3909,7 +3909,7 @@ class BudgetApp {
         document.getElementById('bulk-edit-reference').value = '';
         document.getElementById('bulk-edit-notes').value = '';
 
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
     }
 
     async submitBulkEdit() {
