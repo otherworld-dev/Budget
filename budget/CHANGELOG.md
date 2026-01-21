@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Configurable dashboard layout with drag-and-drop tile reordering (GitHub issue #9)
+- Lock/Unlock Dashboard toggle to enable/disable tile reordering
+- Remove tiles by clicking X button (appears on hover when unlocked)
+- Add hidden tiles back via "Add Tiles" dropdown menu
+- Visual feedback: grab cursor, hover lift effect, drop indicators, and fade-in animations
+- Dashboard customization works on desktop; touch devices show lock toggle only
+- All dashboard layout changes persist automatically to backend
 - Configurable transaction table columns - show/hide Date, Description, Vendor, Category, Amount, and Account columns
 - Gear icon in transaction table header to access column visibility settings
 - Column visibility preferences persist across sessions via settings API
@@ -20,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bulk edit modal appearing in top-left corner instead of centered on screen
 - Category dropdown in inline edit was too narrow and cutting off category names
+- Dashboard tile order not persisting after page refresh
 
 ## [1.0.34] - 2026-01-21
 

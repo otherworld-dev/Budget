@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Piggy bank - white silhouette for dark theme -->
+
+  <!-- Body -->
+  <ellipse cx="15" cy="18" rx="10" ry="8" fill="#ffffff"/>
+
+  <!-- Head/snout extension -->
+  <ellipse cx="25" cy="17" rx="4" ry="3" fill="#ffffff"/>
+
+  <!-- Ear -->
+  <path d="M9 10 Q7 6 10 5 Q13 4 12 9 Z" fill="#ffffff"/>
+
+  <!-- Front legs -->
+  <rect x="8" y="24" width="3" height="5" rx="1" fill="#ffffff"/>
+  <rect x="14" y="24" width="3" height="5" rx="1" fill="#ffffff"/>
+
+  <!-- Back legs -->
+  <rect x="19" y="24" width="3" height="4" rx="1" fill="#ffffff"/>
+
+  <!-- Tail curl -->
+  <path d="M5 16 Q2 14 3 18 Q4 21 6 19" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Coin slot (cut out) -->
+  <rect x="11" y="10" width="5" height="1.5" rx="0.75" fill="#000000"/>
+
+  <!-- Eye (cut out) -->
+  <circle cx="23" cy="15" r="1.2" fill="#000000"/>
+
+  <!-- Nostril dots (cut out) -->
+  <circle cx="27" cy="16.5" r="0.7" fill="#000000"/>
+  <circle cx="27" cy="18" r="0.7" fill="#000000"/>
+</svg>

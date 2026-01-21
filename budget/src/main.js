@@ -4,6 +4,29 @@
 
 import Chart from 'chart.js/auto';
 
+// Dashboard widget registry - defines all available widgets
+const DASHBOARD_WIDGETS = {
+    hero: {
+        netWorth: { id: 'hero-net-worth', name: 'Net Worth', size: 'hero', defaultVisible: true },
+        income: { id: 'hero-income', name: 'Income This Month', size: 'hero', defaultVisible: true },
+        expenses: { id: 'hero-expenses', name: 'Expenses This Month', size: 'hero', defaultVisible: true },
+        savings: { id: 'hero-savings', name: 'Net Savings', size: 'hero', defaultVisible: true },
+        pension: { id: 'hero-pension', name: 'Pension Worth', size: 'hero', defaultVisible: true }
+    },
+    widgets: {
+        trendChart: { id: 'trend-chart-card', name: 'Income vs Expenses', size: 'large', defaultVisible: true },
+        spendingChart: { id: 'spending-chart-card', name: 'Spending by Category', size: 'medium', defaultVisible: true },
+        netWorthHistory: { id: 'net-worth-history-card', name: 'Net Worth History', size: 'medium', defaultVisible: true },
+        recentTransactions: { id: 'recent-transactions-card', name: 'Recent Transactions', size: 'medium', defaultVisible: true },
+        accounts: { id: 'accounts-card', name: 'Accounts', size: 'small', defaultVisible: true },
+        budgetAlerts: { id: 'budget-alerts-card', name: 'Budget Alerts', size: 'small', defaultVisible: true },
+        upcomingBills: { id: 'upcoming-bills-card', name: 'Upcoming Bills', size: 'small', defaultVisible: true },
+        budgetProgress: { id: 'budget-progress-card', name: 'Budget Progress', size: 'small', defaultVisible: true },
+        savingsGoals: { id: 'savings-goals-card', name: 'Savings Goals', size: 'small', defaultVisible: true },
+        debtPayoff: { id: 'debt-payoff-card', name: 'Debt Payoff', size: 'small', defaultVisible: true }
+    }
+};
+
 class BudgetApp {
     constructor() {
         this.currentView = 'dashboard';
@@ -15,6 +38,11 @@ class BudgetApp {
         this.charts = {};
         this.settings = {};
         this.columnVisibility = {};
+        this.dashboardConfig = {
+            hero: { order: [], visibility: {} },
+            widgets: { order: [], visibility: {} }
+        };
+        this.dashboardLocked = true; // Default to locked
 
         this.init();
     }
@@ -326,6 +354,20 @@ class BudgetApp {
 
         // Settings page event listeners
         this.setupSettingsEventListeners();
+
+        // Dashboard customization
+        this.setupDashboardCustomization();
+
+        // Window resize handler for responsive dashboard layout
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (this.currentView === 'dashboard') {
+                    this.applyDashboardLayout();
+                }
+            }, 250);
+        });
     }
 
     setupNavigationSearch() {
@@ -534,6 +576,10 @@ class BudgetApp {
                 this.settings = await settingsResponse.json();
                 this.columnVisibility = this.parseColumnVisibility(this.settings.transaction_columns_visible);
                 this.syncColumnConfigUI();
+
+                // Parse dashboard config
+                this.dashboardConfig.hero = this.parseDashboardConfig(this.settings.dashboard_hero_config, 'hero');
+                this.dashboardConfig.widgets = this.parseDashboardConfig(this.settings.dashboard_widgets_config, 'widgets');
             }
 
             if (!accountsResponse.ok) {
@@ -651,6 +697,18 @@ class BudgetApp {
 
             // Setup dashboard controls
             this.setupDashboardControls();
+
+            // Apply dashboard widget order (must be before visibility)
+            this.applyDashboardOrder();
+
+            // Apply dashboard widget visibility
+            this.applyDashboardVisibility();
+
+            // Setup drag-and-drop for dashboard customization
+            this.setupDashboardDragAndDrop();
+
+            // Apply responsive layout ordering
+            this.applyDashboardLayout();
 
         } catch (error) {
             console.error('Failed to load dashboard:', error);
@@ -13246,6 +13304,43 @@ class BudgetApp {
         }
     }
 
+    parseDashboardConfig(settingValue, category) {
+        // Get defaults from widget registry
+        const widgets = DASHBOARD_WIDGETS[category];
+        const defaults = {
+            order: Object.keys(widgets),
+            visibility: Object.keys(widgets).reduce((acc, key) => {
+                acc[key] = widgets[key].defaultVisible;
+                return acc;
+            }, {})
+        };
+
+        if (!settingValue) return defaults;
+
+        try {
+            const saved = JSON.parse(settingValue);
+
+            // Merge: preserve user settings, add any new widgets from defaults
+            const allWidgetIds = new Set([...saved.order, ...defaults.order]);
+            const mergedOrder = saved.order.filter(id => allWidgetIds.has(id));
+
+            // Append any new widgets that aren't in saved order
+            defaults.order.forEach(id => {
+                if (!mergedOrder.includes(id)) {
+                    mergedOrder.push(id);
+                }
+            });
+
+            return {
+                order: mergedOrder,
+                visibility: { ...defaults.visibility, ...saved.visibility }
+            };
+        } catch (e) {
+            console.error('Failed to parse dashboard config', e);
+            return defaults;
+        }
+    }
+
     applyColumnVisibility() {
         const table = document.getElementById('transactions-table');
         if (!table) return;
@@ -13325,6 +13420,609 @@ class BudgetApp {
                 checkbox.checked = visible;
             }
         });
+    }
+
+    // Dashboard customization methods
+    setupDashboardCustomization() {
+        const toggleBtn = document.getElementById('toggle-dashboard-lock-btn');
+        if (!toggleBtn) return;
+
+        // Load saved lock state
+        const savedLockState = this.settings.dashboard_locked !== 'false'; // Default to locked
+        this.dashboardLocked = savedLockState;
+        this.updateDashboardLockUI();
+
+        toggleBtn.addEventListener('click', () => this.toggleDashboardLock());
+
+        // Add Tiles dropdown
+        const addTilesBtn = document.getElementById('add-tiles-btn');
+        const addTilesMenu = document.getElementById('add-tiles-menu');
+
+        if (addTilesBtn && addTilesMenu) {
+            addTilesBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isVisible = addTilesMenu.style.display !== 'none';
+                addTilesMenu.style.display = isVisible ? 'none' : 'block';
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!addTilesBtn.contains(e.target) && !addTilesMenu.contains(e.target)) {
+                    addTilesMenu.style.display = 'none';
+                }
+            });
+        }
+    }
+
+    async toggleDashboardLock() {
+        this.dashboardLocked = !this.dashboardLocked;
+
+        // Update UI immediately
+        this.updateDashboardLockUI();
+
+        // Apply/remove draggable state
+        this.setupDashboardDragAndDrop();
+
+        // Save state to backend
+        try {
+            const settings = {
+                dashboard_locked: this.dashboardLocked.toString()
+            };
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save lock state');
+            }
+
+            this.settings.dashboard_locked = settings.dashboard_locked;
+
+        } catch (error) {
+            console.error('Failed to save lock state:', error);
+            OC.Notification.showTemporary('Failed to save dashboard lock state');
+        }
+    }
+
+    updateDashboardLockUI() {
+        const btn = document.getElementById('toggle-dashboard-lock-btn');
+        const btnText = document.getElementById('lock-btn-text');
+        const hint = document.getElementById('dashboard-hint');
+        const icon = btn?.querySelector('.icon-lock, .icon-unlock');
+        const addTilesDropdown = document.getElementById('add-tiles-dropdown');
+
+        if (!btn || !btnText || !hint) return;
+
+        if (this.dashboardLocked) {
+            // Locked state
+            btnText.textContent = 'Unlock Dashboard';
+            hint.querySelector('span:last-child').textContent = 'Dashboard is locked. Click unlock to reorder tiles.';
+            if (icon) {
+                icon.classList.remove('icon-unlock');
+                icon.classList.add('icon-lock');
+            }
+            // Hide Add Tiles button
+            if (addTilesDropdown) addTilesDropdown.style.display = 'none';
+            // Remove all X buttons
+            document.querySelectorAll('.widget-remove-btn').forEach(btn => btn.remove());
+        } else {
+            // Unlocked state
+            btnText.textContent = 'Lock Dashboard';
+            hint.querySelector('span:last-child').textContent = 'Drag tiles to reorder your dashboard';
+            if (icon) {
+                icon.classList.remove('icon-lock');
+                icon.classList.add('icon-unlock');
+            }
+            // Show Add Tiles button
+            if (addTilesDropdown) addTilesDropdown.style.display = 'block';
+            // Add X buttons to all visible widgets
+            this.addRemoveButtons();
+        }
+
+        // Update Add Tiles dropdown content
+        this.updateAddTilesMenu();
+    }
+
+    addRemoveButtons() {
+        // Add remove button to hero cards
+        document.querySelectorAll('.hero-card').forEach(card => {
+            if (card.querySelector('.widget-remove-btn')) return; // Already has button
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'widget-remove-btn';
+            removeBtn.setAttribute('aria-label', 'Remove tile');
+            removeBtn.innerHTML = '&times;';
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideWidget(card.dataset.widgetId, 'hero');
+            });
+            card.appendChild(removeBtn);
+        });
+
+        // Add remove button to dashboard cards
+        document.querySelectorAll('.dashboard-card').forEach(card => {
+            if (card.querySelector('.widget-remove-btn')) return; // Already has button
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'widget-remove-btn';
+            removeBtn.setAttribute('aria-label', 'Remove tile');
+            removeBtn.innerHTML = '&times;';
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideWidget(card.dataset.widgetId, 'widget');
+            });
+            card.appendChild(removeBtn);
+        });
+    }
+
+    updateAddTilesMenu() {
+        const menuList = document.getElementById('add-tiles-menu-list');
+        if (!menuList) return;
+
+        menuList.innerHTML = '';
+
+        // Add hidden hero metrics
+        Object.entries(DASHBOARD_WIDGETS.hero).forEach(([key, widget]) => {
+            if (!this.dashboardConfig.hero.visibility[key]) {
+                const item = document.createElement('div');
+                item.className = 'add-tiles-menu-item';
+                item.innerHTML = `
+                    <span>${widget.name}</span>
+                    <button class="add-tile-btn" data-widget-id="${key}" data-category="hero">
+                        <span class="icon-add"></span>
+                    </button>
+                `;
+                menuList.appendChild(item);
+            }
+        });
+
+        // Add hidden widgets
+        Object.entries(DASHBOARD_WIDGETS.widgets).forEach(([key, widget]) => {
+            if (!this.dashboardConfig.widgets.visibility[key]) {
+                const item = document.createElement('div');
+                item.className = 'add-tiles-menu-item';
+                item.innerHTML = `
+                    <span>${widget.name}</span>
+                    <button class="add-tile-btn" data-widget-id="${key}" data-category="widgets">
+                        <span class="icon-add"></span>
+                    </button>
+                `;
+                menuList.appendChild(item);
+            }
+        });
+
+        // Show "All tiles visible" message if nothing hidden
+        if (menuList.children.length === 0) {
+            menuList.innerHTML = '<div class="add-tiles-empty">All tiles are visible</div>';
+        }
+
+        // Wire up add buttons
+        menuList.querySelectorAll('.add-tile-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const widgetId = btn.dataset.widgetId;
+                const category = btn.dataset.category;
+                this.showWidget(widgetId, category);
+            });
+        });
+    }
+
+    async hideWidget(widgetId, category) {
+        const config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
+
+        // Update visibility
+        config.visibility[widgetId] = false;
+
+        // Apply to DOM
+        this.applyDashboardVisibility();
+
+        // Update Add Tiles menu
+        this.updateAddTilesMenu();
+
+        // Save to backend
+        await this.saveDashboardVisibility();
+    }
+
+    async showWidget(widgetId, category) {
+        const config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
+
+        // Update visibility
+        config.visibility[widgetId] = true;
+
+        // Apply to DOM
+        this.applyDashboardVisibility();
+
+        // Add remove button if unlocked
+        if (!this.dashboardLocked) {
+            this.addRemoveButtons();
+        }
+
+        // Update Add Tiles menu
+        this.updateAddTilesMenu();
+
+        // Save to backend
+        await this.saveDashboardVisibility();
+    }
+
+    async saveDashboardVisibility() {
+        try {
+            const settings = {
+                dashboard_hero_config: JSON.stringify(this.dashboardConfig.hero),
+                dashboard_widgets_config: JSON.stringify(this.dashboardConfig.widgets)
+            };
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save dashboard config');
+            }
+
+            this.settings.dashboard_hero_config = settings.dashboard_hero_config;
+            this.settings.dashboard_widgets_config = settings.dashboard_widgets_config;
+
+        } catch (error) {
+            console.error('Failed to save dashboard config:', error);
+            OC.Notification.showTemporary('Failed to save dashboard layout');
+        }
+    }
+
+    applyDashboardVisibility() {
+        // Apply hero visibility
+        Object.entries(this.dashboardConfig.hero.visibility).forEach(([key, visible]) => {
+            const widget = DASHBOARD_WIDGETS.hero[key];
+            if (!widget) return;
+
+            const element = document.querySelector(`[data-widget-id="${key}"][data-widget-category="hero"]`);
+            if (element) {
+                element.style.display = visible ? '' : 'none';
+            }
+        });
+
+        // Apply widget visibility
+        Object.entries(this.dashboardConfig.widgets.visibility).forEach(([key, visible]) => {
+            const widget = DASHBOARD_WIDGETS.widgets[key];
+            if (!widget) return;
+
+            const element = document.querySelector(`[data-widget-id="${key}"][data-widget-category="widget"]`);
+            if (element) {
+                // Respect conditional widgets (Budget Alerts, Debt Payoff)
+                // If they have inline display: none, keep it
+                if (visible) {
+                    // Only show if not conditionally hidden
+                    const hasConditionalHide = element.hasAttribute('style') &&
+                                               element.getAttribute('style').includes('display: none') &&
+                                               (key === 'budgetAlerts' || key === 'debtPayoff');
+                    if (!hasConditionalHide) {
+                        element.style.display = '';
+                    }
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    setupDashboardDragAndDrop() {
+        // Check if touch device - disable drag on mobile
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isTouchDevice) {
+            return; // Only allow drag-and-drop on desktop
+        }
+
+        // Set draggable based on lock state
+        const isDraggable = !this.dashboardLocked;
+
+        // Make hero cards draggable
+        document.querySelectorAll('.hero-card').forEach(card => {
+            card.draggable = isDraggable;
+
+            card.addEventListener('dragstart', (e) => {
+                const widgetId = card.dataset.widgetId;
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    id: widgetId,
+                    category: 'hero'
+                }));
+                card.classList.add('dragging');
+            });
+
+            card.addEventListener('dragend', (e) => {
+                card.classList.remove('dragging');
+                this.clearDashboardDropIndicators();
+            });
+        });
+
+        // Make dashboard cards draggable
+        document.querySelectorAll('.dashboard-card').forEach(card => {
+            card.draggable = isDraggable;
+
+            card.addEventListener('dragstart', (e) => {
+                const widgetId = card.dataset.widgetId;
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    id: widgetId,
+                    category: 'widget'
+                }));
+                card.classList.add('dragging');
+            });
+
+            card.addEventListener('dragend', (e) => {
+                card.classList.remove('dragging');
+                this.clearDashboardDropIndicators();
+            });
+        });
+
+        // Setup drop zones
+        const heroContainer = document.querySelector('.dashboard-hero');
+        const mainColumn = document.querySelector('.dashboard-column-main');
+        const sideColumn = document.querySelector('.dashboard-column-side');
+
+        [heroContainer, mainColumn, sideColumn].forEach(container => {
+            if (!container) return;
+
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                this.showDashboardDropIndicator(e, container);
+            });
+
+            container.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                this.clearDashboardDropIndicators();
+
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    const dropInfo = this.getDashboardDropTarget(e, container);
+
+                    if (dropInfo) {
+                        await this.reorderDashboardWidget(data.id, dropInfo.targetId, dropInfo.position, data.category);
+                    }
+                } catch (error) {
+                    console.error('Drop failed:', error);
+                }
+            });
+
+            container.addEventListener('dragleave', (e) => {
+                if (!container.contains(e.relatedTarget)) {
+                    this.clearDashboardDropIndicators();
+                }
+            });
+        });
+    }
+
+    showDashboardDropIndicator(e, container) {
+        e.preventDefault();
+
+        // Find the card we're hovering over
+        const cards = Array.from(container.children).filter(el =>
+            el.classList.contains('hero-card') || el.classList.contains('dashboard-card')
+        );
+
+        const draggingCard = document.querySelector('.dragging');
+        const afterCard = this.getDragAfterElement(container, e.clientY);
+
+        // Remove existing indicators
+        this.clearDashboardDropIndicators();
+
+        // Add visual feedback
+        if (afterCard) {
+            afterCard.classList.add('drag-over');
+            const indicator = document.createElement('div');
+            indicator.className = 'drop-indicator';
+            afterCard.parentElement.insertBefore(indicator, afterCard);
+        } else {
+            // Drop at the end
+            const lastCard = cards[cards.length - 1];
+            if (lastCard && lastCard !== draggingCard) {
+                lastCard.classList.add('drag-over');
+                const indicator = document.createElement('div');
+                indicator.className = 'drop-indicator';
+                container.appendChild(indicator);
+            }
+        }
+    }
+
+    getDragAfterElement(container, y) {
+        const draggableElements = Array.from(container.children).filter(el =>
+            (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
+            !el.classList.contains('dragging')
+        );
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    getDashboardDropTarget(e, container) {
+        const afterCard = this.getDragAfterElement(container, e.clientY);
+
+        if (afterCard) {
+            return {
+                targetId: afterCard.dataset.widgetId,
+                position: 'before'
+            };
+        } else {
+            // Drop at end - find last card in container
+            const cards = Array.from(container.children).filter(el =>
+                (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
+                !el.classList.contains('dragging')
+            );
+            const lastCard = cards[cards.length - 1];
+            if (lastCard) {
+                return {
+                    targetId: lastCard.dataset.widgetId,
+                    position: 'after'
+                };
+            }
+        }
+        return null;
+    }
+
+    clearDashboardDropIndicators() {
+        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    }
+
+    async reorderDashboardWidget(draggedId, targetId, position, category) {
+        // Determine which config to update
+        const config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
+        const order = [...config.order];
+
+        // Find indices
+        const draggedIndex = order.indexOf(draggedId);
+        let targetIndex = order.indexOf(targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) {
+            console.error('Widget not found in order array');
+            return;
+        }
+
+        // Remove dragged item
+        order.splice(draggedIndex, 1);
+
+        // Adjust target index if needed
+        if (draggedIndex < targetIndex) {
+            targetIndex--;
+        }
+
+        // Insert at new position
+        if (position === 'before') {
+            order.splice(targetIndex, 0, draggedId);
+        } else {
+            order.splice(targetIndex + 1, 0, draggedId);
+        }
+
+        // Update config
+        config.order = order;
+
+        // Persist to backend
+        try {
+            const settingKey = category === 'hero' ? 'dashboard_hero_config' : 'dashboard_widgets_config';
+            const settings = {
+                [settingKey]: JSON.stringify(config)
+            };
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save widget order');
+            }
+
+            this.settings[settingKey] = settings[settingKey];
+
+            // Reorder DOM elements
+            this.applyDashboardOrder();
+
+        } catch (error) {
+            console.error('Failed to save widget order:', error);
+            OC.Notification.showTemporary('Failed to save widget order');
+        }
+    }
+
+    applyDashboardOrder() {
+        // Reorder hero cards
+        const heroContainer = document.querySelector('.dashboard-hero');
+        if (heroContainer) {
+            const fragment = document.createDocumentFragment();
+            this.dashboardConfig.hero.order.forEach(widgetId => {
+                const card = heroContainer.querySelector(`[data-widget-id="${widgetId}"]`);
+                if (card) {
+                    fragment.appendChild(card);
+                }
+            });
+            heroContainer.appendChild(fragment);
+        }
+
+        // For widgets, we need to handle two columns
+        // Simpler approach: collect all widgets, sort by order, then redistribute
+        const mainColumn = document.querySelector('.dashboard-column-main');
+        const sideColumn = document.querySelector('.dashboard-column-side');
+
+        if (!mainColumn || !sideColumn) return;
+
+        // Collect all widget cards
+        const allCards = [];
+        document.querySelectorAll('[data-widget-category="widget"]').forEach(card => {
+            allCards.push(card);
+        });
+
+        // Sort by configured order
+        allCards.sort((a, b) => {
+            const aIndex = this.dashboardConfig.widgets.order.indexOf(a.dataset.widgetId);
+            const bIndex = this.dashboardConfig.widgets.order.indexOf(b.dataset.widgetId);
+            return aIndex - bIndex;
+        });
+
+        // Redistribute: first 4 to main, rest to side (matching original layout)
+        const fragment1 = document.createDocumentFragment();
+        const fragment2 = document.createDocumentFragment();
+
+        allCards.forEach((card, index) => {
+            // Original layout: trendChart, spendingChart, netWorthHistory, recentTransactions in main
+            // accounts, budgetAlerts, upcomingBills, budgetProgress, savingsGoals, debtPayoff in side
+            // We'll keep a similar split: first 4 large/medium widgets to main, rest to side
+            if (index < 4) {
+                fragment1.appendChild(card);
+            } else {
+                fragment2.appendChild(card);
+            }
+        });
+
+        mainColumn.appendChild(fragment1);
+        sideColumn.appendChild(fragment2);
+    }
+
+    applyDashboardLayout() {
+        const isMobile = window.innerWidth < 1200;
+
+        if (isMobile) {
+            // On mobile, apply CSS order property for single-column layout
+            let orderIndex = 0;
+
+            // Hero cards first
+            this.dashboardConfig.hero.order.forEach((widgetId) => {
+                const card = document.querySelector(`[data-widget-id="${widgetId}"][data-widget-category="hero"]`);
+                if (card && this.dashboardConfig.hero.visibility[widgetId]) {
+                    card.style.order = orderIndex++;
+                }
+            });
+
+            // Then widget cards
+            this.dashboardConfig.widgets.order.forEach((widgetId) => {
+                const card = document.querySelector(`[data-widget-id="${widgetId}"][data-widget-category="widget"]`);
+                if (card && this.dashboardConfig.widgets.visibility[widgetId]) {
+                    card.style.order = orderIndex++;
+                }
+            });
+        } else {
+            // On desktop, clear order and let CSS Grid handle layout
+            document.querySelectorAll('[data-widget-id]').forEach(card => {
+                card.style.order = '';
+            });
+        }
     }
 }
 
