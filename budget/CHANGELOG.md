@@ -24,10 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Widget Tiles**: Top Spending Categories, Account Performance, Budget Breakdown, Savings Goals Summary, Payment Methods, Reconciliation Status
 - All new tiles use existing data (no additional API calls required)
 - New tiles available via "Add Tiles" dropdown for user opt-in
-- Phase 2 infrastructure: Lazy loading system for dashboard widgets (widgetDataLoaded, widgetData)
-- 8 additional dashboard tiles registered (Phase 2 - lazy loaded when visible):
-  - **Hero Tiles**: Uncategorized Count, Low Balance Alert
-  - **Widget Tiles**: Monthly Comparison, Large Transactions, Weekly Spending, Unmatched Transfers, Category Trends, Bills Due Soon
+- 8 additional dashboard tiles with lazy loading (Phase 2 - fully implemented):
+  - **Hero Tiles**: Uncategorized Count (shows count of uncategorized transactions), Low Balance Alert (alerts when accounts below threshold)
+  - **Widget Tiles**: Monthly Comparison (current vs previous month table), Large Transactions (top 10 by amount), Weekly Spending, Unmatched Transfers, Category Trends, Bills Due Soon
+- Lazy loading system: Phase 2+ tiles only fetch data when made visible by user
+- Modified applyDashboardVisibility() to support async lazy loading
+- All Phase 2 tiles hidden by default, minimal performance impact (load on-demand only)
 
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)

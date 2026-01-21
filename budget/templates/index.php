@@ -350,6 +350,33 @@ style('budget', 'style');
                         <span id="hero-budget-health-change" class="hero-subtext"></span>
                     </div>
                 </div>
+
+                <!-- Phase 2: Lazy-Loaded Hero Tiles -->
+                <div class="hero-card hero-uncategorized" data-widget-id="uncategorizedCount" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Uncategorized</span>
+                        <span id="hero-uncategorized-value" class="hero-value">--</span>
+                        <span id="hero-uncategorized-change" class="hero-subtext"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-low-balance" data-widget-id="lowBalanceAlert" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon expenses">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Low Balance Alert</span>
+                        <span id="hero-low-balance-value" class="hero-value">--</span>
+                        <span id="hero-low-balance-change" class="hero-subtext"></span>
+                    </div>
+                </div>
             </div>
 
             <!-- Main Dashboard Grid -->
@@ -557,6 +584,61 @@ style('budget', 'style');
                         </div>
                         <div id="reconciliation-status-list" class="widget-content">
                             <div class="empty-state-small">No accounts to reconcile</div>
+                        </div>
+                    </div>
+
+                    <!-- Phase 2: Lazy-Loaded Widget Tiles -->
+                    <div id="monthly-comparison-card" class="dashboard-card" data-widget-id="monthlyComparison" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Monthly Comparison</h3>
+                        </div>
+                        <div id="monthly-comparison-content" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="large-transactions-card" class="dashboard-card" data-widget-id="largeTransactions" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Large Transactions</h3>
+                        </div>
+                        <div id="large-transactions-list" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="weekly-trend-card" class="dashboard-card" data-widget-id="weeklyTrend" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Weekly Spending</h3>
+                        </div>
+                        <div id="weekly-trend-content" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="unmatched-transfers-card" class="dashboard-card" data-widget-id="unmatchedTransfers" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Unmatched Transfers</h3>
+                        </div>
+                        <div id="unmatched-transfers-list" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="category-trends-card" class="dashboard-card" data-widget-id="categoryTrends" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Category Trends</h3>
+                        </div>
+                        <div id="category-trends-content" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div id="bills-due-soon-card" class="dashboard-card" data-widget-id="billsDueSoon" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3>Bills Due Soon</h3>
+                        </div>
+                        <div id="bills-due-soon-list" class="widget-content">
+                            <div class="empty-state-small">Loading...</div>
                         </div>
                     </div>
                 </div>

@@ -11861,6 +11861,69 @@ button.danger:hover {
     color: var(--color-success, #2e7d32);
 }
 
+/* Phase 2: Lazy-Loaded Hero Tile Styles */
+.hero-uncategorized .hero-icon {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+}
+
+.hero-low-balance .hero-icon {
+    background: rgba(198, 40, 40, 0.1);
+    color: #c62828;
+}
+
+/* Phase 2: Large Transactions Widget */
+.large-transaction-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.large-transaction-item:last-child {
+    border-bottom: none;
+}
+
+.transaction-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.transaction-description {
+    font-size: 14px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    margin-right: 12px;
+}
+
+.transaction-amount {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.transaction-amount.income {
+    color: var(--color-success, #2e7d32);
+}
+
+.transaction-amount.expenses {
+    color: var(--color-error, #c62828);
+}
+
+.transaction-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--color-text-lighter);
+}
+
+.transaction-date,
+.transaction-category {
+    font-size: 12px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .dashboard-header {

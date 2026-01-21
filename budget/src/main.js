@@ -1663,6 +1663,181 @@ class BudgetApp {
         `).join('');
     }
 
+    // Phase 2: Update Methods for Lazy-Loaded Tiles
+    updateUncategorizedCountHero() {
+        const el = document.getElementById('hero-uncategorized-value');
+        if (!el) return;
+
+        const data = this.widgetData.uncategorizedCount;
+        if (!data || !Array.isArray(data)) {
+            el.textContent = '--';
+            return;
+        }
+
+        const count = data.length;
+        el.textContent = count.toString();
+        el.className = `hero-value ${count > 0 ? 'expenses' : 'income'}`;
+
+        const changeEl = document.getElementById('hero-uncategorized-change');
+        if (changeEl) {
+            changeEl.textContent = count > 0 ? 'needs categorization' : 'all categorized';
+        }
+    }
+
+    updateLowBalanceAlertHero() {
+        const el = document.getElementById('hero-low-balance-value');
+        if (!el || !this.accounts) return;
+
+        const threshold = this.settings.low_balance_threshold || 100;
+        const lowBalanceAccounts = this.accounts.filter(acc => {
+            const balance = acc.balance || 0;
+            const type = acc.type || '';
+            // Only alert for asset accounts (checking, savings)
+            return (type === 'checking' || type === 'savings') && balance < threshold && balance >= 0;
+        });
+
+        const count = lowBalanceAccounts.length;
+        el.textContent = count.toString();
+        el.className = `hero-value ${count > 0 ? 'expenses' : 'income'}`;
+
+        const changeEl = document.getElementById('hero-low-balance-change');
+        if (changeEl) {
+            if (count > 0) {
+                changeEl.textContent = `below ${this.formatCurrency(threshold)}`;
+            } else {
+                changeEl.textContent = 'all accounts healthy';
+            }
+        }
+    }
+
+    updateMonthlyComparisonWidget() {
+        const container = document.getElementById('monthly-comparison-content');
+        if (!container) return;
+
+        const data = this.widgetData.monthlyComparison;
+        if (!data || !data.current || !data.previous) {
+            container.innerHTML = '<div class="empty-state-small">No comparison data</div>';
+            return;
+        }
+
+        const curr = data.current.totals || {};
+        const prev = data.previous.totals || {};
+
+        const getChange = (current, previous) => {
+            if (!previous || previous === 0) return 0;
+            return ((current - previous) / Math.abs(previous) * 100);
+        };
+
+        const formatChange = (change) => {
+            const icon = change >= 0 ? '↑' : '↓';
+            return `${icon} ${Math.abs(change).toFixed(1)}%`;
+        };
+
+        container.innerHTML = `
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>This Month</th>
+                        <th>Last Month</th>
+                        <th>Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Income</td>
+                        <td>${this.formatCurrency(curr.totalIncome || 0)}</td>
+                        <td>${this.formatCurrency(prev.totalIncome || 0)}</td>
+                        <td class="${getChange(curr.totalIncome, prev.totalIncome) >= 0 ? 'positive' : 'negative'}">
+                            ${formatChange(getChange(curr.totalIncome, prev.totalIncome))}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Expenses</td>
+                        <td>${this.formatCurrency(curr.totalExpenses || 0)}</td>
+                        <td>${this.formatCurrency(prev.totalExpenses || 0)}</td>
+                        <td class="${getChange(curr.totalExpenses, prev.totalExpenses) <= 0 ? 'positive' : 'negative'}">
+                            ${formatChange(getChange(curr.totalExpenses, prev.totalExpenses))}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Net Savings</td>
+                        <td>${this.formatCurrency((curr.totalIncome || 0) - (curr.totalExpenses || 0))}</td>
+                        <td>${this.formatCurrency((prev.totalIncome || 0) - (prev.totalExpenses || 0))}</td>
+                        <td class="${getChange((curr.totalIncome || 0) - (curr.totalExpenses || 0), (prev.totalIncome || 0) - (prev.totalExpenses || 0)) >= 0 ? 'positive' : 'negative'}">
+                            ${formatChange(getChange((curr.totalIncome || 0) - (curr.totalExpenses || 0), (prev.totalIncome || 0) - (prev.totalExpenses || 0)))}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+
+    updateLargeTransactionsWidget() {
+        const container = document.getElementById('large-transactions-list');
+        if (!container) return;
+
+        const data = this.widgetData.largeTransactions;
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No transactions</div>';
+            return;
+        }
+
+        const sorted = [...data].sort((a, b) => Math.abs(b.amount || 0) - Math.abs(a.amount || 0)).slice(0, 10);
+
+        container.innerHTML = sorted.map(trans => {
+            const category = this.categories.find(c => c.id == trans.categoryId);
+            const account = this.accounts.find(a => a.id == trans.accountId);
+            return `
+                <div class="large-transaction-item">
+                    <div class="transaction-main">
+                        <span class="transaction-description">${this.escapeHtml(trans.description || 'Unknown')}</span>
+                        <span class="transaction-amount ${trans.amount >= 0 ? 'income' : 'expenses'}">
+                            ${this.formatCurrency(trans.amount || 0)}
+                        </span>
+                    </div>
+                    <div class="transaction-meta">
+                        <span class="transaction-date">${trans.transactionDate || ''}</span>
+                        <span class="transaction-category">${this.escapeHtml(category?.name || account?.name || '')}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateWeeklyTrendWidget() {
+        const container = document.getElementById('weekly-trend-content');
+        if (!container) return;
+
+        // Placeholder - would need weekly spending data from API
+        container.innerHTML = '<div class="empty-state-small">Weekly trends coming soon</div>';
+    }
+
+    updateUnmatchedTransfersWidget() {
+        const container = document.getElementById('unmatched-transfers-list');
+        if (!container) return;
+
+        // Placeholder - would need unmatched transfer data from API
+        container.innerHTML = '<div class="empty-state-small">No unmatched transfers</div>';
+    }
+
+    updateCategoryTrendsWidget() {
+        const container = document.getElementById('category-trends-content');
+        if (!container) return;
+
+        // Placeholder - would need category trend data from API
+        container.innerHTML = '<div class="empty-state-small">Category trends coming soon</div>';
+    }
+
+    updateBillsDueSoonWidget() {
+        const container = document.getElementById('bills-due-soon-list');
+        if (!container) return;
+
+        // Reuse existing bills data (already loaded in loadDashboard)
+        // This would ideally be filtered to next 3 bills
+        container.innerHTML = '<div class="empty-state-small">No upcoming bills</div>';
+    }
+
     // Phase 2: Lazy Loading Infrastructure
     needsLazyLoad(widgetKey) {
         // Phase 1 tiles don't need lazy loading (use existing data)
@@ -14094,40 +14269,58 @@ class BudgetApp {
         }
     }
 
-    applyDashboardVisibility() {
-        // Apply hero visibility
-        Object.entries(this.dashboardConfig.hero.visibility).forEach(([key, visible]) => {
+    async applyDashboardVisibility() {
+        // Apply hero visibility (with lazy loading for Phase 2+)
+        for (const [key, visible] of Object.entries(this.dashboardConfig.hero.visibility)) {
             const widget = DASHBOARD_WIDGETS.hero[key];
-            if (!widget) return;
+            if (!widget) continue;
 
             const element = document.querySelector(`[data-widget-id="${key}"][data-widget-category="hero"]`);
-            if (element) {
-                element.style.display = visible ? '' : 'none';
-            }
-        });
+            if (!element) continue;
 
-        // Apply widget visibility
-        Object.entries(this.dashboardConfig.widgets.visibility).forEach(([key, visible]) => {
-            const widget = DASHBOARD_WIDGETS.widgets[key];
-            if (!widget) return;
-
-            const element = document.querySelector(`[data-widget-id="${key}"][data-widget-category="widget"]`);
-            if (element) {
-                // Respect conditional widgets (Budget Alerts, Debt Payoff)
-                // If they have inline display: none, keep it
-                if (visible) {
-                    // Only show if not conditionally hidden
-                    const hasConditionalHide = element.hasAttribute('style') &&
-                                               element.getAttribute('style').includes('display: none') &&
-                                               (key === 'budgetAlerts' || key === 'debtPayoff');
-                    if (!hasConditionalHide) {
-                        element.style.display = '';
-                    }
-                } else {
-                    element.style.display = 'none';
+            // Lazy load data if becoming visible and not yet loaded
+            if (visible && this.needsLazyLoad(key) && !this.widgetDataLoaded[key]) {
+                await this.loadWidgetData(key);
+                // Call the appropriate update method
+                const updateMethod = `update${key.charAt(0).toUpperCase() + key.slice(1)}Hero`;
+                if (typeof this[updateMethod] === 'function') {
+                    this[updateMethod]();
                 }
             }
-        });
+
+            element.style.display = visible ? '' : 'none';
+        }
+
+        // Apply widget visibility (with lazy loading for Phase 2+)
+        for (const [key, visible] of Object.entries(this.dashboardConfig.widgets.visibility)) {
+            const widget = DASHBOARD_WIDGETS.widgets[key];
+            if (!widget) continue;
+
+            const element = document.querySelector(`[data-widget-id="${key}"][data-widget-category="widget"]`);
+            if (!element) continue;
+
+            // Lazy load data if becoming visible and not yet loaded
+            if (visible && this.needsLazyLoad(key) && !this.widgetDataLoaded[key]) {
+                await this.loadWidgetData(key);
+                // Call the appropriate update method
+                const updateMethod = `update${key.charAt(0).toUpperCase() + key.slice(1)}Widget`;
+                if (typeof this[updateMethod] === 'function') {
+                    this[updateMethod]();
+                }
+            }
+
+            // Respect conditional widgets (Budget Alerts, Debt Payoff)
+            if (visible) {
+                const hasConditionalHide = element.hasAttribute('style') &&
+                                           element.getAttribute('style').includes('display: none') &&
+                                           (key === 'budgetAlerts' || key === 'debtPayoff');
+                if (!hasConditionalHide) {
+                    element.style.display = '';
+                }
+            } else {
+                element.style.display = 'none';
+            }
+        }
     }
 
     setupDashboardDragAndDrop() {
