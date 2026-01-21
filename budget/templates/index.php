@@ -841,8 +841,8 @@ style('budget', 'style');
                     <span id="selected-count">0</span> transactions selected
                 </div>
                 <div class="bulk-actions">
-                    <button id="bulk-reconcile-btn" class="secondary">Mark Reconciled</button>
-                    <button id="bulk-unreconcile-btn" class="secondary">Mark Unreconciled</button>
+                    <button id="bulk-reconcile-btn" class="secondary">Reconciled</button>
+                    <button id="bulk-unreconcile-btn" class="secondary">Unreconciled</button>
                     <button id="bulk-edit-btn" class="secondary">Edit Fields...</button>
                     <button id="bulk-delete-btn" class="error">Delete</button>
                     <button id="bulk-export-btn" class="secondary">Export</button>
