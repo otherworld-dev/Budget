@@ -841,10 +841,6 @@ style('budget', 'style');
                     <span id="selected-count">0</span> transactions selected
                 </div>
                 <div class="bulk-actions">
-                    <select id="bulk-category-select">
-                        <option value="">Select category...</option>
-                    </select>
-                    <button id="bulk-categorize-btn" class="secondary">Categorize</button>
                     <button id="bulk-reconcile-btn" class="secondary">Mark Reconciled</button>
                     <button id="bulk-unreconcile-btn" class="secondary">Mark Unreconciled</button>
                     <button id="bulk-edit-btn" class="secondary">Edit Fields...</button>
