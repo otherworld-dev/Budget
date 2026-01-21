@@ -17,7 +17,11 @@ const DASHBOARD_WIDGETS = {
         savingsRate: { id: 'hero-savings-rate', name: 'Savings Rate', size: 'hero', defaultVisible: false, category: 'insights' },
         cashFlow: { id: 'hero-cash-flow', name: 'Cash Flow', size: 'hero', defaultVisible: false, category: 'insights' },
         budgetRemaining: { id: 'hero-budget-remaining', name: 'Budget Remaining', size: 'hero', defaultVisible: false, category: 'budgeting' },
-        budgetHealth: { id: 'hero-budget-health', name: 'Budget Health', size: 'hero', defaultVisible: false, category: 'budgeting' }
+        budgetHealth: { id: 'hero-budget-health', name: 'Budget Health', size: 'hero', defaultVisible: false, category: 'budgeting' },
+
+        // Phase 2 - Moderate Complexity (lazy loaded)
+        uncategorizedCount: { id: 'hero-uncategorized', name: 'Uncategorized', size: 'hero', defaultVisible: false, category: 'alerts' },
+        lowBalanceAlert: { id: 'hero-low-balance', name: 'Low Balance Alert', size: 'hero', defaultVisible: false, category: 'alerts' }
     },
     widgets: {
         trendChart: { id: 'trend-chart-card', name: 'Income vs Expenses', size: 'large', defaultVisible: true },
@@ -37,7 +41,15 @@ const DASHBOARD_WIDGETS = {
         budgetBreakdown: { id: 'budget-breakdown-card', name: 'Budget Breakdown', size: 'medium', defaultVisible: false, category: 'budgeting' },
         goalsSummary: { id: 'goals-summary-card', name: 'Savings Goals Summary', size: 'small', defaultVisible: false, category: 'goals' },
         paymentBreakdown: { id: 'payment-breakdown-card', name: 'Payment Methods', size: 'small', defaultVisible: false, category: 'insights' },
-        reconciliationStatus: { id: 'reconciliation-card', name: 'Reconciliation Status', size: 'small', defaultVisible: false, category: 'transactions' }
+        reconciliationStatus: { id: 'reconciliation-card', name: 'Reconciliation Status', size: 'small', defaultVisible: false, category: 'transactions' },
+
+        // Phase 2 - Moderate Complexity (lazy loaded)
+        monthlyComparison: { id: 'monthly-comparison-card', name: 'Monthly Comparison', size: 'medium', defaultVisible: false, category: 'insights' },
+        largeTransactions: { id: 'large-transactions-card', name: 'Large Transactions', size: 'medium', defaultVisible: false, category: 'transactions' },
+        weeklyTrend: { id: 'weekly-trend-card', name: 'Weekly Spending', size: 'small', defaultVisible: false, category: 'insights' },
+        unmatchedTransfers: { id: 'unmatched-transfers-card', name: 'Unmatched Transfers', size: 'small', defaultVisible: false, category: 'transactions' },
+        categoryTrends: { id: 'category-trends-card', name: 'Category Trends', size: 'medium', defaultVisible: false, category: 'insights' },
+        billsDueSoon: { id: 'bills-due-soon-card', name: 'Bills Due Soon', size: 'small', defaultVisible: false, category: 'bills' }
     }
 };
 
@@ -57,6 +69,8 @@ class BudgetApp {
             widgets: { order: [], visibility: {} }
         };
         this.dashboardLocked = true; // Default to locked
+        this.widgetDataLoaded = {}; // Track which widgets have loaded data (Phase 2+)
+        this.widgetData = {}; // Store widget-specific lazy-loaded data (Phase 2+)
 
         this.init();
     }
@@ -1647,6 +1661,75 @@ class BudgetApp {
                 </div>
             </div>
         `).join('');
+    }
+
+    // Phase 2: Lazy Loading Infrastructure
+    needsLazyLoad(widgetKey) {
+        // Phase 1 tiles don't need lazy loading (use existing data)
+        const phase1Tiles = [
+            'savingsRate', 'cashFlow', 'budgetRemaining', 'budgetHealth',
+            'topCategories', 'accountPerformance', 'budgetBreakdown',
+            'goalsSummary', 'paymentBreakdown', 'reconciliationStatus'
+        ];
+        return !phase1Tiles.includes(widgetKey);
+    }
+
+    async loadWidgetData(widgetKey) {
+        if (this.widgetDataLoaded[widgetKey]) return; // Already loaded
+
+        try {
+            switch(widgetKey) {
+                case 'uncategorizedCount':
+                    const uncatResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/transactions/uncategorized?limit=100'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.uncategorizedCount = await uncatResp.json();
+                    break;
+
+                case 'monthlyComparison':
+                    const now = new Date();
+                    const thisMonth = {
+                        start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0],
+                        end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+                    };
+                    const lastMonth = {
+                        start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0],
+                        end: new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+                    };
+
+                    const [currentResp, previousResp] = await Promise.all([
+                        fetch(
+                            OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${thisMonth.start}&endDate=${thisMonth.end}`),
+                            { headers: { 'requesttoken': OC.requestToken } }
+                        ),
+                        fetch(
+                            OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${lastMonth.start}&endDate=${lastMonth.end}`),
+                            { headers: { 'requesttoken': OC.requestToken } }
+                        )
+                    ]);
+
+                    this.widgetData.monthlyComparison = {
+                        current: await currentResp.json(),
+                        previous: await previousResp.json()
+                    };
+                    break;
+
+                case 'largeTransactions':
+                    const largeResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/transactions?limit=10&sort=amount'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    this.widgetData.largeTransactions = await largeResp.json();
+                    break;
+
+                // More cases will be added as we implement them
+            }
+
+            this.widgetDataLoaded[widgetKey] = true;
+        } catch (error) {
+            console.error(`Failed to load data for ${widgetKey}:`, error);
+        }
     }
 
     setupDashboardControls() {
