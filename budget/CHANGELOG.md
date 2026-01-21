@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Configurable transaction table columns - show/hide Date, Description, Vendor, Category, Amount, and Account columns
+- Gear icon in transaction table header to access column visibility settings
+- Column visibility preferences persist across sessions via settings API
+- Vendor column added to transaction table with inline editing support
+
 ### Changed
 - Removed redundant category dropdown and categorize button from bulk actions panel (use Edit Fields modal instead)
 

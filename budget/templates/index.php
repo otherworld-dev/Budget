@@ -882,6 +882,40 @@ style('budget', 'style');
                         <span id="transactions-total">Total: $0.00</span>
                     </div>
                     <div class="table-pagination">
+                        <div class="table-column-config">
+                            <button id="column-config-btn" class="icon-button" title="Configure columns">
+                                <span class="icon-settings" aria-hidden="true"></span>
+                            </button>
+                            <div id="column-config-dropdown" class="column-config-dropdown" style="display: none;">
+                                <div class="dropdown-content">
+                                    <h4>Show/Hide Columns</h4>
+                                    <label>
+                                        <input type="checkbox" id="col-toggle-date" checked>
+                                        <span>Date</span>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="col-toggle-description" checked>
+                                        <span>Description</span>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="col-toggle-vendor" checked>
+                                        <span>Vendor</span>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="col-toggle-category" checked>
+                                        <span>Category</span>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="col-toggle-amount" checked>
+                                        <span>Amount</span>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="col-toggle-account" checked>
+                                        <span>Account</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                         <select id="rows-per-page">
                             <option value="25">25 per page</option>
                             <option value="50">50 per page</option>
@@ -902,23 +936,27 @@ style('budget', 'style');
                             <th class="select-column">
                                 <input type="checkbox" id="select-all-transactions" title="Select all">
                             </th>
-                            <th class="sortable" data-sort="date">
+                            <th class="sortable date-column" data-sort="date">
                                 Date
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable" data-sort="description">
+                            <th class="sortable description-column" data-sort="description">
                                 Description
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable" data-sort="category">
+                            <th class="sortable vendor-column" data-sort="vendor">
+                                Vendor
+                                <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th class="sortable category-column" data-sort="category">
                                 Category
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable" data-sort="amount">
+                            <th class="sortable amount-column" data-sort="amount">
                                 Amount
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable" data-sort="account">
+                            <th class="sortable account-column" data-sort="account">
                                 Account
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>

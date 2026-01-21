@@ -2822,6 +2822,59 @@ button.danger:hover {
     cursor: not-allowed;
 }
 
+/* Column Configuration Dropdown */
+.table-column-config {
+    position: relative;
+    display: inline-block;
+}
+
+.column-config-dropdown {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 200px;
+}
+
+.column-config-dropdown .dropdown-content {
+    padding: 12px;
+}
+
+.column-config-dropdown h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 8px;
+}
+
+.column-config-dropdown label {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    cursor: pointer;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-main-text);
+}
+
+.column-config-dropdown label:hover {
+    background: var(--color-background-hover);
+    border-radius: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.column-config-dropdown input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
 .pagination-controls.pagination-bottom {
     margin-top: 16px;
     justify-content: center;
@@ -2905,6 +2958,11 @@ button.danger:hover {
 
 .description-column {
     width: 100%;
+}
+
+.vendor-column {
+    width: 150px;
+    text-align: left;
 }
 
 .category-column {

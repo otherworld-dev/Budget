@@ -14,6 +14,7 @@ class BudgetApp {
         this.currentPension = null;
         this.charts = {};
         this.settings = {};
+        this.columnVisibility = {};
 
         this.init();
     }
@@ -159,6 +160,35 @@ class BudgetApp {
                 this.updateSplitRemaining();
             }
         });
+
+        // Column configuration toggle
+        const columnConfigBtn = document.getElementById('column-config-btn');
+        const columnConfigDropdown = document.getElementById('column-config-dropdown');
+
+        if (columnConfigBtn && columnConfigDropdown) {
+            columnConfigBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isVisible = columnConfigDropdown.style.display !== 'none';
+                columnConfigDropdown.style.display = isVisible ? 'none' : 'block';
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!columnConfigBtn.contains(e.target) && !columnConfigDropdown.contains(e.target)) {
+                    columnConfigDropdown.style.display = 'none';
+                }
+            });
+
+            // Column visibility toggles
+            ['date', 'description', 'vendor', 'category', 'amount', 'account'].forEach(col => {
+                const checkbox = document.getElementById(`col-toggle-${col}`);
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        this.toggleColumnVisibility(col, checkbox.checked);
+                    });
+                }
+            });
+        }
 
         // Account action buttons, transaction action buttons, and autocomplete (using event delegation)
         document.addEventListener('click', (e) => {
@@ -502,6 +532,8 @@ class BudgetApp {
 
             if (settingsResponse.ok) {
                 this.settings = await settingsResponse.json();
+                this.columnVisibility = this.parseColumnVisibility(this.settings.transaction_columns_visible);
+                this.syncColumnConfigUI();
             }
 
             if (!accountsResponse.ok) {
@@ -2240,6 +2272,7 @@ class BudgetApp {
             if (tbody) {
                 // Always use enhanced rendering for inline editing support
                 this.renderEnhancedTransactionsTable();
+                this.applyColumnVisibility();
             }
 
             // Update enhanced UI elements if they exist
@@ -2315,6 +2348,12 @@ class BudgetApp {
                             ${transaction.reference ? `<span class="secondary-text">${escapeHtml(transaction.reference)}</span>` : ''}
                             ${linkedBadge}
                         </div>
+                    </td>
+                    <td class="vendor-column editable-cell"
+                        data-field="vendor"
+                        data-value="${escapeHtml(transaction.vendor || '')}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="cell-display">${escapeHtml(transaction.vendor) || '-'}</span>
                     </td>
                     <td class="category-column editable-cell"
                         data-field="categoryId"
@@ -8627,6 +8666,7 @@ class BudgetApp {
 
                 // Re-render the table to show updated values
                 this.renderEnhancedTransactionsTable();
+                this.applyColumnVisibility();
                 OC.Notification.showTemporary('Transaction updated');
             } else {
                 throw new Error('Update failed');
@@ -8643,6 +8683,7 @@ class BudgetApp {
 
         // Re-render the table to restore original display
         this.renderEnhancedTransactionsTable();
+        this.applyColumnVisibility();
         this.currentEditingCell = null;
         this.originalValue = null;
     }
@@ -13183,6 +13224,107 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to load pension summary for dashboard:', error);
         }
+    }
+
+    parseColumnVisibility(settingValue) {
+        const defaults = {
+            date: true,
+            description: true,
+            vendor: true,
+            category: true,
+            amount: true,
+            account: true
+        };
+
+        if (!settingValue) return defaults;
+
+        try {
+            return Object.assign({}, defaults, JSON.parse(settingValue));
+        } catch (e) {
+            console.error('Failed to parse column visibility settings', e);
+            return defaults;
+        }
+    }
+
+    applyColumnVisibility() {
+        const table = document.getElementById('transactions-table');
+        if (!table) return;
+
+        const columnMap = {
+            date: 'date-column',
+            description: 'description-column',
+            vendor: 'vendor-column',
+            category: 'category-column',
+            amount: 'amount-column',
+            account: 'account-column'
+        };
+
+        Object.entries(this.columnVisibility).forEach(([key, visible]) => {
+            const className = columnMap[key];
+            if (!className) return;
+
+            // Apply to all cells with this class (header and body)
+            const cells = table.querySelectorAll(`th.${className}, td.${className}`);
+            cells.forEach(cell => {
+                cell.style.display = visible ? '' : 'none';
+            });
+        });
+    }
+
+    async toggleColumnVisibility(columnKey, visible) {
+        // Prevent hiding all columns (enforce minimum 1 visible)
+        const visibleCount = Object.values(this.columnVisibility).filter(v => v).length;
+        if (!visible && visibleCount <= 1) {
+            OC.Notification.showTemporary('At least one column must remain visible');
+            document.getElementById(`col-toggle-${columnKey}`).checked = true;
+            return;
+        }
+
+        // Update local state
+        this.columnVisibility[columnKey] = visible;
+
+        // Apply to DOM immediately
+        this.applyColumnVisibility();
+
+        // Persist to backend
+        try {
+            const settings = {
+                transaction_columns_visible: JSON.stringify(this.columnVisibility)
+            };
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save column visibility');
+            }
+
+            this.settings.transaction_columns_visible = JSON.stringify(this.columnVisibility);
+
+        } catch (error) {
+            console.error('Failed to save column visibility:', error);
+            OC.Notification.showTemporary('Failed to save column preferences');
+
+            // Revert on failure
+            this.columnVisibility[columnKey] = !visible;
+            this.applyColumnVisibility();
+            document.getElementById(`col-toggle-${columnKey}`).checked = !visible;
+        }
+    }
+
+    syncColumnConfigUI() {
+        Object.entries(this.columnVisibility).forEach(([key, visible]) => {
+            const checkbox = document.getElementById(`col-toggle-${key}`);
+            if (checkbox) {
+                checkbox.checked = visible;
+            }
+        });
     }
 }
 
