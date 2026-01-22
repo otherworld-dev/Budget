@@ -197,6 +197,7 @@ return [
         ['name' => 'setup#status', 'url' => '/api/setup/status', 'verb' => 'GET'],
         ['name' => 'setup#removeDuplicateCategories', 'url' => '/api/setup/remove-duplicate-categories', 'verb' => 'POST'],
         ['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
+        ['name' => 'setup#factoryReset', 'url' => '/api/setup/factory-reset', 'verb' => 'POST'],
 
         // Settings routes
         ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],

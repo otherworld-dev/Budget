@@ -11234,6 +11234,132 @@ class BudgetApp {
 
         // Migration event listeners
         this.setupMigrationEventListeners();
+
+        // Factory reset event listeners
+        this.setupFactoryResetEventListeners();
+    }
+
+    setupFactoryResetEventListeners() {
+        const factoryResetBtn = document.getElementById('factory-reset-btn');
+        const factoryResetModal = document.getElementById('factory-reset-modal');
+        const factoryResetInput = document.getElementById('factory-reset-confirm-input');
+        const factoryResetConfirmBtn = document.getElementById('factory-reset-confirm-btn');
+        const modalCloseButtons = factoryResetModal ? factoryResetModal.querySelectorAll('.close-btn') : [];
+
+        // Open modal
+        if (factoryResetBtn) {
+            factoryResetBtn.addEventListener('click', () => {
+                this.openFactoryResetModal();
+            });
+        }
+
+        // Enable/disable confirm button based on input value
+        if (factoryResetInput && factoryResetConfirmBtn) {
+            factoryResetInput.addEventListener('input', (e) => {
+                // User must type exactly "DELETE" (case-sensitive)
+                factoryResetConfirmBtn.disabled = e.target.value !== 'DELETE';
+            });
+        }
+
+        // Confirm button
+        if (factoryResetConfirmBtn) {
+            factoryResetConfirmBtn.addEventListener('click', () => {
+                this.executeFactoryReset();
+            });
+        }
+
+        // Close modal buttons
+        modalCloseButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.closeFactoryResetModal();
+            });
+        });
+
+        // Close modal on background click
+        if (factoryResetModal) {
+            factoryResetModal.addEventListener('click', (e) => {
+                if (e.target === factoryResetModal) {
+                    this.closeFactoryResetModal();
+                }
+            });
+        }
+    }
+
+    openFactoryResetModal() {
+        const modal = document.getElementById('factory-reset-modal');
+        const input = document.getElementById('factory-reset-confirm-input');
+        const confirmBtn = document.getElementById('factory-reset-confirm-btn');
+
+        if (modal) {
+            // Reset input and button state
+            if (input) {
+                input.value = '';
+                input.focus(); // Auto-focus the input field
+            }
+            if (confirmBtn) confirmBtn.disabled = true;
+
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeFactoryResetModal() {
+        const modal = document.getElementById('factory-reset-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    async executeFactoryReset() {
+        try {
+            // Show loading state
+            const confirmBtn = document.getElementById('factory-reset-confirm-btn');
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Deleting...';
+            }
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
+                method: 'POST',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    confirmed: true
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Factory reset failed');
+            }
+
+            // Close modal
+            this.closeFactoryResetModal();
+
+            // Show success message
+            OC.Notification.showTemporary('Factory reset completed successfully. All data has been deleted.');
+
+            // Reload the page to show empty state
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+
+        } catch (error) {
+            console.error('Factory reset error:', error);
+
+            // Reset button state
+            const confirmBtn = document.getElementById('factory-reset-confirm-btn');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
+            }
+
+            OC.Notification.showTemporary(error.message || 'Failed to perform factory reset');
+        }
     }
 
     setupMigrationEventListeners() {

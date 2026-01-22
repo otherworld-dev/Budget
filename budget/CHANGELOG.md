@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Factory reset feature to restore app to empty state
+  - Deletes ALL user data (accounts, transactions, bills, categories, settings, pension data, shared expenses, etc.)
+  - Preserves audit logs for compliance purposes
+  - Danger Zone section in settings page with prominent warnings
+  - Requires typing "DELETE" (case-sensitive) to confirm
+  - Password confirmation required via Nextcloud's built-in security
+  - Rate limited to 3 attempts per 5 minutes to prevent abuse
+  - Database transaction ensures all-or-nothing deletion (rollback on error)
+  - Gracefully handles missing database tables for features not yet used
+  - Audit trail logged with counts of deleted items per entity type
+
 ### Fixed
 - CSV import failing with "Date is required" error on all rows
 - Column mapping dropdowns sending array indices (0, 1, 2) instead of column names ("Date", "Amount", "Description") to backend

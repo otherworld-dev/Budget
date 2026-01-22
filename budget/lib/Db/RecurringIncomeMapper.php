@@ -157,4 +157,19 @@ class RecurringIncomeMapper extends QBMapper {
             default => $amount,
         };
     }
+
+    /**
+     * Delete all recurring income for a user
+     *
+     * @param string $userId
+     * @return int Number of deleted rows
+     */
+    public function deleteAll(string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+        return $qb->executeStatement();
+    }
 }
