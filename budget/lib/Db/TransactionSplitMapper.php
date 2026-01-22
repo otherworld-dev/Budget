@@ -117,4 +117,22 @@ class TransactionSplitMapper extends QBMapper {
 
         return $split;
     }
+
+    /**
+     * Delete all transaction splits for a user (via transaction ownership)
+     *
+     * @param string $userId
+     * @return int Number of deleted rows
+     */
+    public function deleteAll(string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->delete('s')
+            ->from($this->getTableName(), 's')
+            ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+        return $qb->executeStatement();
+    }
 }

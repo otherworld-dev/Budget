@@ -867,4 +867,21 @@ class TransactionMapper extends QBMapper {
 
         return array_map(fn($row) => (int)$row['id'], $data);
     }
+
+    /**
+     * Delete all transactions for a user (via account ownership)
+     *
+     * @param string $userId
+     * @return int Number of deleted rows
+     */
+    public function deleteAll(string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->delete('t')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+        return $qb->executeStatement();
+    }
 }

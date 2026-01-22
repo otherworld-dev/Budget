@@ -12267,3 +12267,229 @@ button.danger:hover {
         display: none; /* Hide drag hint on mobile */
     }
 }
+
+/* Danger Zone Styles */
+.danger-zone {
+    border: 2px solid var(--color-error, #e53935) !important;
+    background: rgba(229, 57, 53, 0.05);
+    margin-top: 32px;
+}
+
+.danger-zone h3 {
+    color: var(--color-error, #e53935);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.danger-zone h3 .icon-error {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+}
+
+.danger-zone-description {
+    background: rgba(229, 57, 53, 0.1);
+    border-left: 4px solid var(--color-error, #e53935);
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+    display: flex;
+    align-items: start;
+    gap: 12px;
+}
+
+.danger-zone-description .icon-error {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.danger-zone-description strong {
+    color: var(--color-error, #e53935);
+    font-weight: 600;
+}
+
+.danger-zone-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 24px;
+    padding: 16px;
+    background: var(--color-main-background, #fff);
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: 4px;
+}
+
+.danger-zone-info h4 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text, #000);
+}
+
+.danger-zone-info p {
+    margin: 0;
+    color: var(--color-text-lighter, #757575);
+    line-height: 1.5;
+    max-width: 600px;
+}
+
+.danger-btn {
+    background: var(--color-error, #e53935);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+}
+
+.danger-btn:hover {
+    background: var(--color-error-hover, #c62828);
+}
+
+.danger-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.danger-btn .icon-delete,
+.danger-btn .icon-loading-small {
+    display: inline-block;
+}
+
+/* Danger Modal Styles */
+.danger-modal .modal-content {
+    border-top: 4px solid var(--color-error, #e53935);
+}
+
+.danger-modal h3 {
+    color: var(--color-error, #e53935);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.danger-modal h3 .icon-error {
+    font-size: 24px;
+}
+
+.danger-warning {
+    background: rgba(229, 57, 53, 0.05);
+    border: 2px solid var(--color-error, #e53935);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.danger-warning strong {
+    color: var(--color-error, #e53935);
+    font-size: 16px;
+}
+
+.danger-warning p {
+    margin: 12px 0;
+    line-height: 1.6;
+}
+
+.danger-warning ul {
+    margin: 16px 0 16px 24px;
+    line-height: 1.8;
+}
+
+.danger-warning ul li {
+    color: var(--color-text-lighter, #757575);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: start;
+    gap: 12px;
+    cursor: pointer;
+    padding: 12px;
+    background: var(--color-background-hover, #f5f5f5);
+    border-radius: 4px;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.checkbox-label span {
+    flex: 1;
+    font-weight: 500;
+}
+
+/* Factory Reset Confirmation Input */
+.factory-reset-confirm-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 2px solid var(--color-error, #e53935);
+    border-radius: 4px;
+    background: var(--color-main-background, #fff);
+    color: var(--color-main-text, #000);
+    font-family: monospace;
+    text-align: center;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.factory-reset-confirm-input:focus {
+    outline: none;
+    border-color: var(--color-error, #e53935);
+    box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.2);
+    background: rgba(229, 57, 53, 0.02);
+}
+
+.factory-reset-confirm-input::placeholder {
+    color: var(--color-text-lighter, #999);
+    font-weight: normal;
+    letter-spacing: normal;
+}
+
+.danger-modal .form-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: var(--color-main-text, #000);
+}
+
+.danger-modal .form-text {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--color-text-lighter, #757575);
+    font-style: italic;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+/* Responsive Danger Zone */
+@media (max-width: 768px) {
+    .danger-zone-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .danger-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

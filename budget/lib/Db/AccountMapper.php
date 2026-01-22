@@ -139,4 +139,19 @@ class AccountMapper extends QBMapper {
         // Reload the entity from database to ensure we return the persisted state (decrypted)
         return $this->find($entity->getId(), $entity->getUserId());
     }
+
+    /**
+     * Delete all accounts for a user
+     *
+     * @param string $userId
+     * @return int Number of deleted rows
+     */
+    public function deleteAll(string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+        return $qb->executeStatement();
+    }
 }

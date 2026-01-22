@@ -100,11 +100,11 @@ class NetWorthSnapshotMapper extends QBMapper {
     /**
      * Delete all snapshots for a user.
      */
-    public function deleteAll(string $userId): void {
+    public function deleteAll(string $userId): int {
         $qb = $this->db->getQueryBuilder();
         $qb->delete($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        $qb->executeStatement();
+        return $qb->executeStatement();
     }
 }

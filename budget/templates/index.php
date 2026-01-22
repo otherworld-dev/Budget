@@ -3532,6 +3532,28 @@ style('budget', 'style');
                     </div>
                 </div>
 
+                <!-- Danger Zone Section -->
+                <div class="settings-section danger-zone">
+                    <h3>Danger Zone</h3>
+                    <p class="settings-description danger-zone-description">
+                        <span class="icon-error" aria-hidden="true"></span>
+                        <strong>Warning:</strong> Actions in this section are destructive and cannot be undone.
+                    </p>
+
+                    <div class="settings-group">
+                        <div class="danger-zone-item">
+                            <div class="danger-zone-info">
+                                <h4>Factory Reset</h4>
+                                <p>Permanently delete ALL your data including accounts, transactions, bills, categories, settings, and more. Only audit logs will be preserved for compliance. This action cannot be undone.</p>
+                            </div>
+                            <button id="factory-reset-btn" class="danger-btn" type="button">
+                                <span class="icon-delete" aria-hidden="true"></span>
+                                Factory Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Settings Actions -->
                 <div class="settings-actions">
                     <button id="save-settings-btn-bottom" class="primary">
@@ -4526,6 +4548,53 @@ style('budget', 'style');
 
         <div class="modal-buttons">
             <button type="button" class="secondary close-btn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Factory Reset Confirmation Modal -->
+<div id="factory-reset-modal" class="modal danger-modal" style="display: none;" role="dialog" aria-labelledby="factory-reset-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="factory-reset-modal-title">
+            <span class="icon-error" aria-hidden="true"></span>
+            Confirm Factory Reset
+        </h3>
+
+        <div class="danger-warning">
+            <p><strong>WARNING: This action cannot be undone!</strong></p>
+            <p>A factory reset will permanently delete ALL of your data including:</p>
+            <ul>
+                <li>All accounts and their balances</li>
+                <li>All transactions and transaction history</li>
+                <li>All bills and recurring income</li>
+                <li>All categories and budget settings</li>
+                <li>All savings goals and pension accounts</li>
+                <li>All import rules and settings</li>
+                <li>All shared expenses and contacts</li>
+            </ul>
+            <p><strong>Only audit logs will be preserved for compliance purposes.</strong></p>
+            <p>You will need to set up everything from scratch after this operation.</p>
+        </div>
+
+        <div class="form-group">
+            <label for="factory-reset-confirm-input">
+                <strong>Type DELETE to confirm:</strong>
+            </label>
+            <input type="text"
+                   id="factory-reset-confirm-input"
+                   class="factory-reset-confirm-input"
+                   placeholder="Type DELETE to confirm"
+                   autocomplete="off"
+                   spellcheck="false">
+            <small class="form-text">You must type DELETE (all caps) exactly to proceed</small>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" class="secondary close-btn">Cancel</button>
+            <button type="button" id="factory-reset-confirm-btn" class="danger-btn" disabled>
+                <span class="icon-delete" aria-hidden="true"></span>
+                Delete Everything
+            </button>
         </div>
     </div>
 </div>

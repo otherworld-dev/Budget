@@ -42,4 +42,19 @@ class SavingsGoalMapper extends QBMapper {
 
         return $this->findEntities($qb);
     }
+
+    /**
+     * Delete all savings goals for a user
+     *
+     * @param string $userId
+     * @return int Number of deleted rows
+     */
+    public function deleteAll(string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+        return $qb->executeStatement();
+    }
 }
