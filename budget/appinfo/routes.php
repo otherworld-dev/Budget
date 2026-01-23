@@ -208,6 +208,15 @@ return [
         ['name' => 'setting#reset', 'url' => '/api/settings/reset', 'verb' => 'POST'],
         ['name' => 'setting#options', 'url' => '/api/settings/options', 'verb' => 'GET'],
 
+        // Auth routes (password protection)
+        ['name' => 'auth#status', 'url' => '/api/auth/status', 'verb' => 'GET'],
+        ['name' => 'auth#setup', 'url' => '/api/auth/setup', 'verb' => 'POST'],
+        ['name' => 'auth#verify', 'url' => '/api/auth/verify', 'verb' => 'POST'],
+        ['name' => 'auth#lock', 'url' => '/api/auth/lock', 'verb' => 'POST'],
+        ['name' => 'auth#extend', 'url' => '/api/auth/extend', 'verb' => 'POST'],
+        ['name' => 'auth#disable', 'url' => '/api/auth/disable', 'verb' => 'DELETE'],
+        ['name' => 'auth#changePassword', 'url' => '/api/auth/password', 'verb' => 'PUT'],
+
         // Migration routes (data export/import)
         ['name' => 'migration#export', 'url' => '/api/migration/export', 'verb' => 'GET'],
         ['name' => 'migration#preview', 'url' => '/api/migration/preview', 'verb' => 'POST'],

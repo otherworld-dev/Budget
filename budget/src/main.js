@@ -86,15 +86,60 @@ class BudgetApp {
         this.dashboardLocked = true; // Default to locked
         this.widgetDataLoaded = {}; // Track which widgets have loaded data (Phase 2+)
         this.widgetData = {}; // Store widget-specific lazy-loaded data (Phase 2+)
+        this.sessionToken = localStorage.getItem('budget_session_token'); // Session token for auth
+        this.lastActivityTime = Date.now(); // Track last user activity for session timeout
+        this.inactivityTimer = null; // Timer for auto-lock
 
         this.init();
     }
 
-    init() {
+    async init() {
+        // Check authentication first
+        const authRequired = await this.checkAuth();
+
+        if (authRequired) {
+            // Show password prompt modal
+            this.showPasswordModal();
+            return;
+        }
+
+        // Authentication passed or not required, proceed with normal init
         this.setupNavigation();
         this.setupEventListeners();
+        this.setupActivityMonitoring();
+        await this.setupLockButton();
         this.loadInitialData();
         this.showView('dashboard');
+    }
+
+    async setupLockButton() {
+        const lockBtn = document.getElementById('lock-app-btn');
+        if (!lockBtn) return;
+
+        try {
+            // Check if password protection is enabled
+            const response = await fetch(OC.generateUrl('/apps/budget/api/auth/status'), {
+                headers: this.getAuthHeaders()
+            });
+
+            if (response.ok) {
+                const status = await response.json();
+                if (status.enabled && status.authenticated) {
+                    lockBtn.style.display = 'block';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to check lock button status:', error);
+        }
+
+        // Add click handler
+        const lockLink = lockBtn.querySelector('a');
+        if (lockLink) {
+            lockLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.lockApp();
+            });
+        }
     }
 
     setupNavigation() {
@@ -111,6 +156,184 @@ class BudgetApp {
                 link.parentElement.classList.add('active');
             });
         });
+    }
+
+    // Auth-related methods
+
+    async checkAuth() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/auth/status'), {
+                headers: this.getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                return false;
+            }
+
+            const status = await response.json();
+
+            // If password protection is not enabled, no auth required
+            if (!status.enabled) {
+                return false;
+            }
+
+            // If authenticated, no auth required
+            if (status.authenticated) {
+                return false;
+            }
+
+            // Password protection enabled but not authenticated
+            return true;
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            return false;
+        }
+    }
+
+    getAuthHeaders() {
+        const headers = { 'requesttoken': OC.requestToken };
+        if (this.sessionToken) {
+            headers['X-Budget-Session-Token'] = this.sessionToken;
+        }
+        return headers;
+    }
+
+    showPasswordModal() {
+        const modal = document.createElement('div');
+        modal.id = 'budget-auth-modal';
+        modal.className = 'budget-modal-overlay';
+        modal.innerHTML = `
+            <div class="budget-modal">
+                <div class="budget-modal-header">
+                    <h2>Password Required</h2>
+                </div>
+                <div class="budget-modal-body">
+                    <p>This budget app is password protected. Please enter your password to continue.</p>
+                    <form id="budget-auth-form">
+                        <div class="form-group">
+                            <label for="budget-auth-password">Password</label>
+                            <input type="password" id="budget-auth-password" class="budget-input" required autocomplete="current-password">
+                        </div>
+                        <div id="budget-auth-error" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="submit" class="budget-btn primary">Unlock</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const form = document.getElementById('budget-auth-form');
+        const passwordInput = document.getElementById('budget-auth-password');
+        const errorDiv = document.getElementById('budget-auth-error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = passwordInput.value;
+
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/verify'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({ password })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Store session token
+                    this.sessionToken = result.sessionToken;
+                    localStorage.setItem('budget_session_token', result.sessionToken);
+
+                    // Remove modal
+                    modal.remove();
+
+                    // Initialize app
+                    this.setupNavigation();
+                    this.setupEventListeners();
+                    this.setupActivityMonitoring();
+                    await this.loadInitialData();
+                    this.showView('dashboard');
+                } else {
+                    // Show error
+                    errorDiv.textContent = result.error || 'Incorrect password';
+                    errorDiv.style.display = 'block';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (error) {
+                console.error('Password verification failed:', error);
+                errorDiv.textContent = 'Failed to verify password. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Focus password input
+        setTimeout(() => passwordInput.focus(), 100);
+    }
+
+    setupActivityMonitoring() {
+        // Reset activity timer on user interaction
+        const resetActivity = () => {
+            this.lastActivityTime = Date.now();
+        };
+
+        // Listen to various user interactions
+        ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+            document.addEventListener(event, resetActivity, true);
+        });
+
+        // Check for inactivity every minute
+        this.inactivityTimer = setInterval(() => {
+            this.checkInactivity();
+        }, 60000); // Check every minute
+    }
+
+    async checkInactivity() {
+        // Only check if session exists and password protection is enabled
+        if (!this.sessionToken) {
+            return;
+        }
+
+        // Get session timeout from settings (default 30 minutes)
+        const timeoutMinutes = parseInt(this.settings.session_timeout_minutes || '30');
+        const timeoutMs = timeoutMinutes * 60 * 1000;
+        const inactiveTime = Date.now() - this.lastActivityTime;
+
+        if (inactiveTime >= timeoutMs) {
+            // Session timed out due to inactivity
+            await this.lockApp();
+        }
+    }
+
+    async lockApp() {
+        try {
+            // Call lock endpoint
+            await fetch(OC.generateUrl('/apps/budget/api/auth/lock'), {
+                method: 'POST',
+                headers: this.getAuthHeaders()
+            });
+        } catch (error) {
+            console.error('Failed to lock session:', error);
+        }
+
+        // Clear session token
+        this.sessionToken = null;
+        localStorage.removeItem('budget_session_token');
+
+        // Clear inactivity timer
+        if (this.inactivityTimer) {
+            clearInterval(this.inactivityTimer);
+            this.inactivityTimer = null;
+        }
+
+        // Reload page to show password prompt
+        window.location.reload();
     }
 
     setupEventListeners() {
@@ -622,13 +845,13 @@ class BudgetApp {
             // Load all initial data in parallel for better performance
             const [settingsResponse, accountsResponse, categoriesResponse] = await Promise.all([
                 fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                    headers: { 'requesttoken': OC.requestToken }
+                    headers: this.getAuthHeaders()
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                    headers: { 'requesttoken': OC.requestToken }
+                    headers: this.getAuthHeaders()
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/categories'), {
-                    headers: { 'requesttoken': OC.requestToken }
+                    headers: this.getAuthHeaders()
                 })
             ]);
 
@@ -11232,11 +11455,337 @@ class BudgetApp {
             }
         });
 
+        // Password protection event listeners
+        this.setupPasswordProtectionEventListeners();
+
         // Migration event listeners
         this.setupMigrationEventListeners();
 
         // Factory reset event listeners
         this.setupFactoryResetEventListeners();
+    }
+
+    setupPasswordProtectionEventListeners() {
+        const passwordToggle = document.getElementById('setting-password-protection-enabled');
+        const setupPasswordBtn = document.getElementById('setup-password-btn');
+        const changePasswordBtn = document.getElementById('change-password-btn');
+        const disablePasswordBtn = document.getElementById('disable-password-btn');
+        const passwordConfig = document.getElementById('password-protection-config');
+
+        if (passwordToggle) {
+            passwordToggle.addEventListener('change', async () => {
+                if (passwordToggle.checked) {
+                    // Show password setup UI
+                    if (passwordConfig) {
+                        passwordConfig.style.display = 'block';
+                        this.updatePasswordButtons(false);
+                    }
+                } else {
+                    // Hide password config
+                    if (passwordConfig) {
+                        passwordConfig.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        if (setupPasswordBtn) {
+            setupPasswordBtn.addEventListener('click', () => this.showSetupPasswordModal());
+        }
+
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', () => this.showChangePasswordModal());
+        }
+
+        if (disablePasswordBtn) {
+            disablePasswordBtn.addEventListener('click', () => this.showDisablePasswordModal());
+        }
+    }
+
+    updatePasswordButtons(hasPassword) {
+        const setupBtn = document.getElementById('setup-password-btn');
+        const changeBtn = document.getElementById('change-password-btn');
+        const disableBtn = document.getElementById('disable-password-btn');
+
+        if (setupBtn) setupBtn.style.display = hasPassword ? 'none' : 'inline-block';
+        if (changeBtn) changeBtn.style.display = hasPassword ? 'inline-block' : 'none';
+        if (disableBtn) disableBtn.style.display = hasPassword ? 'inline-block' : 'none';
+    }
+
+    showSetupPasswordModal() {
+        const modal = document.createElement('div');
+        modal.id = 'setup-password-modal';
+        modal.className = 'budget-modal-overlay';
+        modal.innerHTML = `
+            <div class="budget-modal">
+                <div class="budget-modal-header">
+                    <h2>Set Up Password Protection</h2>
+                    <button class="close-btn">×</button>
+                </div>
+                <div class="budget-modal-body">
+                    <p>Enter a password to protect your budget app. You will need to enter this password when accessing the app.</p>
+                    <form id="setup-password-form">
+                        <div class="form-group">
+                            <label for="new-password">New Password</label>
+                            <input type="password" id="new-password" class="budget-input" required minlength="6" autocomplete="new-password">
+                            <small>Minimum 6 characters</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password">Confirm Password</label>
+                            <input type="password" id="confirm-password" class="budget-input" required autocomplete="new-password">
+                        </div>
+                        <div id="setup-password-error" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
+                            <button type="submit" class="budget-btn primary">Set Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const form = document.getElementById('setup-password-form');
+        const newPasswordInput = document.getElementById('new-password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        const errorDiv = document.getElementById('setup-password-error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'Passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/setup'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...this.getAuthHeaders()
+                    },
+                    body: JSON.stringify({ password: newPassword })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Store session token
+                    this.sessionToken = result.sessionToken;
+                    localStorage.setItem('budget_session_token', result.sessionToken);
+
+                    OC.Notification.showTemporary('Password protection enabled');
+                    modal.remove();
+
+                    // Update UI
+                    this.updatePasswordButtons(true);
+                } else {
+                    errorDiv.textContent = result.error || 'Failed to set password';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to set password:', error);
+                errorDiv.textContent = 'Failed to set password. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Close modal handlers
+        modal.querySelectorAll('.close-btn').forEach(btn => {
+            btn.addEventListener('click', () => modal.remove());
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        newPasswordInput.focus();
+    }
+
+    showChangePasswordModal() {
+        const modal = document.createElement('div');
+        modal.id = 'change-password-modal';
+        modal.className = 'budget-modal-overlay';
+        modal.innerHTML = `
+            <div class="budget-modal">
+                <div class="budget-modal-header">
+                    <h2>Change Password</h2>
+                    <button class="close-btn">×</button>
+                </div>
+                <div class="budget-modal-body">
+                    <form id="change-password-form">
+                        <div class="form-group">
+                            <label for="current-password">Current Password</label>
+                            <input type="password" id="current-password" class="budget-input" required autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password-change">New Password</label>
+                            <input type="password" id="new-password-change" class="budget-input" required minlength="6" autocomplete="new-password">
+                            <small>Minimum 6 characters</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password-change">Confirm New Password</label>
+                            <input type="password" id="confirm-password-change" class="budget-input" required autocomplete="new-password">
+                        </div>
+                        <div id="change-password-error" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
+                            <button type="submit" class="budget-btn primary">Change Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const form = document.getElementById('change-password-form');
+        const currentPasswordInput = document.getElementById('current-password');
+        const newPasswordInput = document.getElementById('new-password-change');
+        const confirmPasswordInput = document.getElementById('confirm-password-change');
+        const errorDiv = document.getElementById('change-password-error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const currentPassword = currentPasswordInput.value;
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'New passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/password'), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...this.getAuthHeaders()
+                    },
+                    body: JSON.stringify({
+                        currentPassword: currentPassword,
+                        newPassword: newPassword
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    OC.Notification.showTemporary('Password changed successfully');
+                    modal.remove();
+                } else {
+                    errorDiv.textContent = result.error || 'Failed to change password';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to change password:', error);
+                errorDiv.textContent = 'Failed to change password. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Close modal handlers
+        modal.querySelectorAll('.close-btn').forEach(btn => {
+            btn.addEventListener('click', () => modal.remove());
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        currentPasswordInput.focus();
+    }
+
+    showDisablePasswordModal() {
+        const modal = document.createElement('div');
+        modal.id = 'disable-password-modal';
+        modal.className = 'budget-modal-overlay';
+        modal.innerHTML = `
+            <div class="budget-modal">
+                <div class="budget-modal-header">
+                    <h2>Disable Password Protection</h2>
+                    <button class="close-btn">×</button>
+                </div>
+                <div class="budget-modal-body">
+                    <p>Enter your current password to disable password protection.</p>
+                    <form id="disable-password-form">
+                        <div class="form-group">
+                            <label for="disable-current-password">Current Password</label>
+                            <input type="password" id="disable-current-password" class="budget-input" required autocomplete="current-password">
+                        </div>
+                        <div id="disable-password-error" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
+                            <button type="submit" class="budget-btn primary">Disable Protection</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const form = document.getElementById('disable-password-form');
+        const passwordInput = document.getElementById('disable-current-password');
+        const errorDiv = document.getElementById('disable-password-error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const password = passwordInput.value;
+
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/disable'), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...this.getAuthHeaders()
+                    },
+                    body: JSON.stringify({ password: password })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Update UI
+                    const passwordToggle = document.getElementById('setting-password-protection-enabled');
+                    if (passwordToggle) passwordToggle.checked = false;
+
+                    const passwordConfig = document.getElementById('password-protection-config');
+                    if (passwordConfig) passwordConfig.style.display = 'none';
+
+                    OC.Notification.showTemporary('Password protection disabled');
+                    modal.remove();
+                } else {
+                    errorDiv.textContent = result.error || 'Failed to disable password protection';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to disable password protection:', error);
+                errorDiv.textContent = 'Failed to disable password protection. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Close modal handlers
+        modal.querySelectorAll('.close-btn').forEach(btn => {
+            btn.addEventListener('click', () => modal.remove());
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        passwordInput.focus();
     }
 
     setupFactoryResetEventListeners() {
@@ -11666,7 +12215,7 @@ class BudgetApp {
         }
     }
 
-    populateSettings(settings) {
+    async populateSettings(settings) {
         // Populate each setting input
         Object.keys(settings).forEach(key => {
             const element = document.getElementById(`setting-${key.replace(/_/g, '-')}`);
@@ -11681,6 +12230,38 @@ class BudgetApp {
                 element.value = value;
             }
         });
+
+        // Check password protection status and update UI
+        await this.updatePasswordProtectionUI();
+    }
+
+    async updatePasswordProtectionUI() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/auth/status'), {
+                headers: this.getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const status = await response.json();
+            const passwordToggle = document.getElementById('setting-password-protection-enabled');
+            const passwordConfig = document.getElementById('password-protection-config');
+
+            if (passwordToggle) {
+                passwordToggle.checked = status.enabled;
+
+                if (status.enabled && passwordConfig) {
+                    passwordConfig.style.display = 'block';
+                    this.updatePasswordButtons(status.hasPassword);
+                } else if (passwordConfig) {
+                    passwordConfig.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to check password protection status:', error);
+        }
     }
 
     async saveSettings() {
