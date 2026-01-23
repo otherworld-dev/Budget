@@ -117,7 +117,6 @@ class SetupController extends Controller {
      *
      * @NoAdminRequired
      */
-    #[PasswordConfirmationRequired]
     #[UserRateLimit(limit: 3, period: 300)]
     public function factoryReset(): DataResponse {
         try {
