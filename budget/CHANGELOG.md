@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Column mapping dropdowns sending array indices (0, 1, 2) instead of column names ("Date", "Amount", "Description") to backend
 - Auto-detection of CSV columns not working after upload
 - TransactionNormalizer now skips non-column mapping fields (boolean config flags) to prevent lookup errors
+- PDF report exports appearing corrupted (TCPDF library not installed)
+- ReportExporter falling back to JSON export when PDF format requested
+- Application.php now loads composer autoloader to ensure TCPDF and other dependencies are available
 
 ## [1.1.0] - 2026-01-21
 

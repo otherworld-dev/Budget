@@ -15,6 +15,12 @@ class Application extends App implements IBootstrap {
 
     public function __construct(array $urlParams = []) {
         parent::__construct(self::APP_ID, $urlParams);
+
+        // Load composer autoloader for dependencies like TCPDF
+        $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
+        if (file_exists($autoloadPath)) {
+            require_once $autoloadPath;
+        }
     }
 
     public function register(IRegistrationContext $context): void {
