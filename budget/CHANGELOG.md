@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Audit trail logged with counts of deleted items per entity type
 
 ### Fixed
+- Password protection setup failing with "Entity which should be updated has no id" error
+- Auth entity `id` property access level changed from protected to public (required by Nextcloud Entity framework)
+- Database migration added to recreate `budget_auth` table with auto-increment `id` as primary key
+- `user_id` changed from primary key to unique index for proper ORM compatibility
 - CSV import failing with "Date is required" error on all rows
 - Column mapping dropdowns sending array indices (0, 1, 2) instead of column names ("Date", "Amount", "Description") to backend
 - Auto-detection of CSV columns not working after upload

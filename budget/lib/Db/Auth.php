@@ -8,6 +8,8 @@ use JsonSerializable;
 use OCP\AppFramework\Db\Entity;
 
 /**
+ * @method int getId()
+ * @method void setId(int $id)
  * @method string getUserId()
  * @method void setUserId(string $userId)
  * @method string getPasswordHash()
@@ -26,6 +28,7 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class Auth extends Entity implements JsonSerializable {
+    public $id;
     protected $userId;
     protected $passwordHash;
     protected $sessionToken;
@@ -36,11 +39,13 @@ class Auth extends Entity implements JsonSerializable {
     protected $updatedAt;
 
     public function __construct() {
+        $this->addType('id', 'integer');
         $this->addType('failedAttempts', 'integer');
     }
 
     public function jsonSerialize(): array {
         return [
+            'id' => $this->getId(),
             'userId' => $this->getUserId(),
             // Never expose password hash or session token in JSON
             'sessionExpiresAt' => $this->getSessionExpiresAt(),
