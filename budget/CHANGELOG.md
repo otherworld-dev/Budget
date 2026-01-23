@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Audit trail logged with counts of deleted items per entity type
 
 ### Fixed
+- Dashboard crashing with "Cannot read properties of undefined (reading 'filter')" error
+- `updateBudgetProgressWidget()` now validates categories parameter is an array before filtering
+- Budget API response handling now properly handles null responses with fallback to empty categories array
 - Password protection setup failing with "Entity which should be updated has no id" error
 - Auth entity `id` property access level changed from protected to public (required by Nextcloud Entity framework)
 - Database migration added to recreate `budget_auth` table with auto-increment `id` as primary key

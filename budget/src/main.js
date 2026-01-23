@@ -933,7 +933,8 @@ class BudgetApp {
             const trendData = await trendResponse.json();
             const transactions = await transResponse.json();
             const bills = billsResponse.ok ? await billsResponse.json() : [];
-            const budgetData = budgetResponse.ok ? await budgetResponse.json() : { categories: [] };
+            const budgetDataRaw = budgetResponse.ok ? await budgetResponse.json() : null;
+            const budgetData = budgetDataRaw && typeof budgetDataRaw === 'object' ? budgetDataRaw : { categories: [] };
             const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
             const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
             const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
@@ -1541,6 +1542,11 @@ class BudgetApp {
     updateBudgetProgressWidget(categories) {
         const container = document.getElementById('budget-progress');
         if (!container) return;
+
+        if (!Array.isArray(categories) || categories.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">No budgets configured</div>';
+            return;
+        }
 
         // Filter to only categories with budgets
         const budgetedCategories = categories.filter(c => c.budgeted > 0 || c.budget > 0);
