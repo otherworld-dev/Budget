@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Password protection feature for enhanced app security
+  - Optional password required to access the budget app (secondary protection layer)
+  - User-configurable password (minimum 6 characters) set via Settings > Security
+  - Session management with configurable timeout (15/30/60 minutes of inactivity)
+  - Auto-lock after inactivity period with activity monitoring on user interactions
+  - Manual lock button in navigation when password protection is enabled
+  - Failed attempt tracking: 5 failed attempts triggers 5-minute account lockout
+  - Session tokens (64-character random tokens) stored securely in localStorage
+  - Password hashing using bcrypt via PHP's `password_hash()` with `PASSWORD_DEFAULT`
+  - Change password and disable protection options (requires current password verification)
+  - Rate limiting on auth endpoints (5-10 requests per minute depending on endpoint)
+  - Modal UI for password entry with error handling and validation
+  - New database table `budget_auth` for password and session management
+  - RESTful API endpoints: `/api/auth/status`, `/api/auth/setup`, `/api/auth/verify`, `/api/auth/lock`, `/api/auth/extend`, `/api/auth/disable`, `/api/auth/password`
 - Factory reset feature to restore app to empty state
   - Deletes ALL user data (accounts, transactions, bills, categories, settings, pension data, shared expenses, etc.)
   - Preserves audit logs for compliance purposes

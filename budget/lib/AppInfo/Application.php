@@ -68,6 +68,14 @@ class Application extends App implements IBootstrap {
             );
         });
 
+        // Auth Mapper (Password Protection)
+        $context->registerService(\OCA\Budget\Db\AuthMapper::class, function($c) {
+            return new \OCA\Budget\Db\AuthMapper(
+                $c->get(\OCP\IDBConnection::class)
+            );
+        });
+        $context->registerServiceAlias('AuthMapper', \OCA\Budget\Db\AuthMapper::class);
+
         // ==========================================
         // Core Mappers
         // ==========================================
@@ -119,6 +127,15 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('SettingService', \OCA\Budget\Service\SettingService::class);
+
+        // Auth Service (Password Protection) - Depends on SettingService
+        $context->registerService(\OCA\Budget\Service\AuthService::class, function($c) {
+            return new \OCA\Budget\Service\AuthService(
+                $c->get(\OCA\Budget\Db\AuthMapper::class),
+                $c->get(\OCA\Budget\Service\SettingService::class)
+            );
+        });
+        $context->registerServiceAlias('AuthService', \OCA\Budget\Service\AuthService::class);
 
         // ==========================================
         // Validation Service
