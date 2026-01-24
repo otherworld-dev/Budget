@@ -2,3 +2,7 @@ node_modules/
 build/
 *.tar.gz
 .DS_Store
+css/budget-main.css
+debug_auth.txt
+fix_auth_lockout.sql
+fix_lockout.php
