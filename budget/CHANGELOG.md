@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-01-24
+
+### Fixed
+- Remove vendor/tecnickcom/tcpdf/tools/.htaccess that was causing integrity check failures
+- File was being blocked/removed by server security policies during installation
+- Directory security is already handled by Nextcloud's web server configuration
+
 ## [1.2.2] - 2026-01-24
 
 ### Fixed
