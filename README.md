@@ -8,16 +8,16 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v1.1.0
+## What's New in v1.2.3
 
-🎉 **Major Feature Release** - Dashboard Customization & 28 New Tiles
+🔒 **Security & Control Release** - Password Protection & Factory Reset
 
-- **Drag-and-Drop Dashboard** - Customize your dashboard layout with intuitive drag-and-drop tile reordering
-- **28 New Dashboard Tiles** - Choose from insights, budgeting, forecasting, and interactive widgets
-- **Smart Lazy Loading** - Advanced tiles only fetch data when you make them visible
-- **Quick Add Transaction** - Add transactions directly from the dashboard with an inline form
-- **Configurable Columns** - Show/hide transaction table columns to match your workflow
-- **Categorized Add Tiles Menu** - Organized by function (Insights, Budgeting, Forecasting, etc.)
+- **Password Protection** - Optional secondary password layer for enhanced app security with session management
+- **Auto-Lock** - Configurable inactivity timeout (15/30/60 minutes) with manual lock option
+- **Failed Attempt Protection** - 5 failed attempts trigger 5-minute lockout with rate limiting
+- **Factory Reset** - Restore app to empty state with one-click data deletion (preserves audit logs)
+- **Improved Import** - Fixed CSV column mapping and duplicate detection issues
+- **PDF Export** - Resolved corrupted PDF report exports with proper TCPDF integration
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
