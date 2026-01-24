@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-01-24
+
+### Fixed
+- Include hidden files (.htaccess) in package signature
+- Fixes FILE_MISSING error for vendor/tecnickcom/tcpdf/tools/.htaccess
+
 ## [1.2.1] - 2026-01-24
 
 ### Fixed
