@@ -3560,8 +3560,14 @@ class BudgetApp {
                             ${category ? escapeHtml(category.name) : 'Uncategorized'}
                         </span>
                     </td>
-                    <td class="tags-column" data-transaction-id="${transaction.id}">
-                        ${this.renderTransactionTags(transaction.id)}
+                    <td class="tags-column editable-cell"
+                        data-field="tags"
+                        data-value="${this.getTransactionTagIds(transaction.id).join(',')}"
+                        data-category-id="${transaction.categoryId || ''}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="cell-display">
+                            ${this.renderTransactionTags(transaction.id)}
+                        </span>
                     </td>
                     <td class="amount-column editable-cell"
                         data-field="amount"
@@ -9702,6 +9708,9 @@ class BudgetApp {
             case 'accountId':
                 this.createAccountEditor(cell, value);
                 break;
+            case 'tags':
+                this.createTagsEditor(cell, transaction);
+                break;
             default:
                 this.createTextEditor(cell, value, field);
         }
@@ -9986,6 +9995,211 @@ class BudgetApp {
         cell.innerHTML = '';
         cell.appendChild(select);
         select.focus();
+    }
+
+    async createTagsEditor(cell, transaction) {
+        const categoryId = transaction.categoryId;
+
+        if (!categoryId) {
+            // No category selected, show message
+            cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">Select category first</span>';
+            setTimeout(() => this.cancelInlineEdit(cell), 1500);
+            return;
+        }
+
+        // Show loading indicator
+        cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">Loading...</span>';
+
+        try {
+            // Load tag sets for this category
+            const tagSets = await this.loadTagSetsForCategory(categoryId);
+
+            if (tagSets.length === 0) {
+                cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tag sets</span>';
+                setTimeout(() => this.cancelInlineEdit(cell), 1500);
+                return;
+            }
+
+            // Get current tag IDs
+            const currentTagIds = this.getTransactionTagIds(transaction.id);
+            const selectedTags = new Set(currentTagIds);
+
+            // Create container similar to category autocomplete
+            const container = document.createElement('div');
+            container.className = 'tags-autocomplete';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'tags-autocomplete-input';
+            input.placeholder = 'Type to filter tags...';
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'tags-autocomplete-dropdown';
+            dropdown.style.display = 'none';
+
+            container.appendChild(input);
+            container.appendChild(dropdown);
+
+            // Build flat list of all tags with their tag set info
+            const allTags = [];
+            tagSets.forEach(tagSet => {
+                tagSet.tags.forEach(tag => {
+                    allTags.push({
+                        id: tag.id,
+                        name: tag.name,
+                        color: tag.color,
+                        tagSetName: tagSet.name,
+                        tagSetId: tagSet.id
+                    });
+                });
+            });
+
+            const renderDropdown = (filter = '') => {
+                const filtered = filter
+                    ? allTags.filter(t =>
+                        t.name.toLowerCase().includes(filter.toLowerCase()) ||
+                        t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                    )
+                    : allTags;
+
+                // Group by tag set
+                const grouped = {};
+                filtered.forEach(tag => {
+                    if (!grouped[tag.tagSetId]) {
+                        grouped[tag.tagSetId] = {
+                            name: tag.tagSetName,
+                            tags: []
+                        };
+                    }
+                    grouped[tag.tagSetId].tags.push(tag);
+                });
+
+                let html = '';
+                Object.values(grouped).forEach(group => {
+                    html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                    group.tags.forEach(tag => {
+                        const isSelected = selectedTags.has(tag.id);
+                        html += `
+                            <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
+                                 data-tag-id="${tag.id}">
+                                <span class="tag-chip"
+                                      style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                                             padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
+                                    ${this.escapeHtml(tag.name)}
+                                </span>
+                                <span class="tag-check">${isSelected ? '✓' : ''}</span>
+                            </div>
+                        `;
+                    });
+                });
+
+                dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+                dropdown.style.display = 'block';
+            };
+
+            input.addEventListener('focus', () => renderDropdown(input.value));
+            input.addEventListener('input', () => renderDropdown(input.value));
+
+            // CRITICAL: Prevent input blur when clicking dropdown
+            dropdown.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevents input from losing focus
+            });
+
+            dropdown.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const item = e.target.closest('.tags-autocomplete-item');
+                if (item) {
+                    const tagId = parseInt(item.dataset.tagId);
+
+                    // Find which tag set this tag belongs to
+                    const clickedTag = allTags.find(t => t.id === tagId);
+                    if (!clickedTag) return;
+
+                    // Remove any other tags from the same tag set (one tag per set rule)
+                    const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
+                    tagsFromSameSet.forEach(t => {
+                        if (t.id !== tagId) {
+                            selectedTags.delete(t.id);
+                        }
+                    });
+
+                    // Toggle the clicked tag
+                    if (selectedTags.has(tagId)) {
+                        selectedTags.delete(tagId);
+                    } else {
+                        selectedTags.add(tagId);
+                    }
+
+                    // Re-render dropdown to update checkmarks
+                    renderDropdown(input.value);
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    this.cancelInlineEdit(cell);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                // Small delay to allow dropdown clicks to register
+                setTimeout(() => {
+                    if (cell.classList.contains('editing')) {
+                        this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                    }
+                }, 200);
+            });
+
+            cell.innerHTML = '';
+            cell.appendChild(container);
+            input.focus();
+            renderDropdown();
+
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+            cell.innerHTML = '<span style="color: var(--color-error); font-size: 11px;">Error loading tags</span>';
+            setTimeout(() => this.cancelInlineEdit(cell), 1500);
+        }
+    }
+
+    async saveTagsFromEditor(cell, selectedTags, transactionId) {
+        // Convert Set to array
+        const tagIds = Array.from(selectedTags);
+
+        // Save tags
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tagIds })
+            });
+
+            if (response.ok) {
+                // Update cache
+                await this.loadTransactionTags(transactionId);
+
+                // Close editor and refresh display
+                this.cancelInlineEdit(cell);
+
+                // Update the cell display
+                const cellDisplay = cell.querySelector('.cell-display');
+                if (cellDisplay) {
+                    cellDisplay.innerHTML = this.renderTransactionTags(transactionId);
+                }
+            } else {
+                console.error('Failed to save tags');
+                this.cancelInlineEdit(cell);
+            }
+        } catch (error) {
+            console.error('Failed to save tags:', error);
+            this.cancelInlineEdit(cell);
+        }
     }
 
     setupEditorEvents(input, cell, field) {
@@ -16682,6 +16896,22 @@ class BudgetApp {
                 ${this.escapeHtml(tag.name)}
             </span>
         `).join('');
+    }
+
+    /**
+     * Get tag IDs for a transaction
+     */
+    getTransactionTagIds(transactionId) {
+        if (!this.transactionTags) {
+            this.transactionTags = {};
+        }
+
+        const tags = this.transactionTags[transactionId];
+        if (!tags || tags.length === 0) {
+            return [];
+        }
+
+        return tags.map(tag => tag.id);
     }
 
     /**
