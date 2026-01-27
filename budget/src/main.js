@@ -659,6 +659,7 @@ class BudgetApp {
 
         // Tag modal listeners
         this.setupAddTagModalListeners();
+        this.setupAddTagSetModalListeners();
     }
 
     setupNavigationSearch() {
@@ -16548,19 +16549,70 @@ class BudgetApp {
     /**
      * Show modal to add tag set from category details view
      */
-    async showAddTagSetModalDetail(categoryId) {
-        const name = prompt('Enter tag set name (e.g., "Activity", "Equipment"):');
-        if (!name || !name.trim()) return;
+    showAddTagSetModalDetail(categoryId) {
+        const modal = document.getElementById('add-tag-set-modal');
+        const form = document.getElementById('add-tag-set-form');
 
-        const description = prompt('Enter description (optional):');
+        if (!modal || !form) return;
+
+        // Reset form
+        form.reset();
+        document.getElementById('tag-set-category-id').value = categoryId;
+
+        // Store categoryId for later use
+        this.currentTagSetCategoryId = categoryId;
+
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Save tag set from modal form
+     */
+    async saveTagSet(e) {
+        e.preventDefault();
+
+        const categoryId = parseInt(document.getElementById('tag-set-category-id').value);
+        const name = document.getElementById('tag-set-name').value.trim();
+        const description = document.getElementById('tag-set-description').value.trim() || null;
+
+        if (!name) {
+            this.showNotification('Tag set name is required', 'error');
+            return;
+        }
 
         try {
-            await this.createTagSet(categoryId, name.trim(), description?.trim() || null);
+            await this.createTagSet(categoryId, name, description);
+            this.hideModals();
             await this.renderCategoryTagSetsList(categoryId);
             this.showNotification('Tag set created successfully', 'success');
         } catch (error) {
             console.error('Failed to create tag set:', error);
             this.showNotification('Failed to create tag set', 'error');
+        }
+    }
+
+    /**
+     * Setup event listeners for add tag set modal
+     */
+    setupAddTagSetModalListeners() {
+        const form = document.getElementById('add-tag-set-form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.saveTagSet(e));
+        }
+
+        // Close button handlers
+        document.querySelectorAll('.cancel-tag-set-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.hideModals());
+        });
+
+        // Close on background click
+        const modal = document.getElementById('add-tag-set-modal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.hideModals();
+                }
+            });
         }
     }
 

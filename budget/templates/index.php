@@ -1447,22 +1447,6 @@ style('budget', 'style');
                             </div>
                         </div>
 
-                        <!-- Tag Sets Section -->
-                        <div class="category-tag-sets-section" style="margin-bottom: 20px;">
-                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <h5 style="margin: 0; font-size: 14px; font-weight: 600;">Tag Sets</h5>
-                                <button id="add-tag-set-btn-detail" class="primary small" title="Add new tag set"
-                                        style="padding: 4px 8px; font-size: 12px; height: auto;">
-                                    <span class="icon-add" aria-hidden="true"></span> Add
-                                </button>
-                            </div>
-                            <div id="category-tag-sets-list" class="tag-sets-list">
-                                <div class="empty-state">
-                                    <p style="font-size: 13px; color: #999; margin: 8px 0;">No tag sets yet.</p>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Recent Transactions -->
                         <div class="recent-transactions-section">
                             <h5>Recent Transactions</h5>
@@ -1506,6 +1490,22 @@ style('budget', 'style');
                                         <div class="analytics-value" id="category-trend">—</div>
                                         <div class="analytics-label">Monthly Trend</div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tag Sets Section -->
+                        <div class="category-tag-sets-section" style="margin-bottom: 20px;">
+                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <h5 style="margin: 0; font-size: 14px; font-weight: 600;">Tag Sets</h5>
+                                <button id="add-tag-set-btn-detail" class="primary small" title="Add new tag set"
+                                        style="padding: 4px 8px; font-size: 12px; height: auto;">
+                                    <span class="icon-add" aria-hidden="true"></span> Add
+                                </button>
+                            </div>
+                            <div id="category-tag-sets-list" class="tag-sets-list">
+                                <div class="empty-state">
+                                    <p style="font-size: 13px; color: #999; margin: 8px 0;">No tag sets yet.</p>
                                 </div>
                             </div>
                         </div>
@@ -4296,6 +4296,30 @@ style('budget', 'style');
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save category">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Tag Set Modal -->
+<div id="add-tag-set-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Add Tag Set</h3>
+        </div>
+        <form id="add-tag-set-form" class="modal-form">
+            <input type="hidden" id="tag-set-category-id" name="categoryId">
+            <div class="form-group">
+                <label for="tag-set-name">Tag Set Name *</label>
+                <input type="text" id="tag-set-name" name="name" required placeholder="e.g., Activity, Equipment, Location">
+            </div>
+            <div class="form-group">
+                <label for="tag-set-description">Description</label>
+                <input type="text" id="tag-set-description" name="description" placeholder="Optional description">
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="primary">Add Tag Set</button>
+                <button type="button" class="secondary cancel-tag-set-btn">Cancel</button>
             </div>
         </form>
     </div>
