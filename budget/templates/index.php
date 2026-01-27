@@ -1447,6 +1447,22 @@ style('budget', 'style');
                             </div>
                         </div>
 
+                        <!-- Tag Sets Section -->
+                        <div class="category-tag-sets-section" style="margin-bottom: 20px;">
+                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <h5 style="margin: 0; font-size: 14px; font-weight: 600;">Tag Sets</h5>
+                                <button id="add-tag-set-btn-detail" class="primary small" title="Add new tag set"
+                                        style="padding: 4px 8px; font-size: 12px; height: auto;">
+                                    <span class="icon-add" aria-hidden="true"></span> Add
+                                </button>
+                            </div>
+                            <div id="category-tag-sets-list" class="tag-sets-list">
+                                <div class="empty-state">
+                                    <p style="font-size: 13px; color: #999; margin: 8px 0;">No tag sets yet.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Recent Transactions -->
                         <div class="recent-transactions-section">
                             <h5>Recent Transactions</h5>
@@ -3675,6 +3691,10 @@ style('budget', 'style');
                 </select>
                 <small id="transaction-category-help" class="form-text">Organize this transaction by category (optional)</small>
             </div>
+
+            <!-- Transaction Tags Container -->
+            <div id="transaction-tags-container"></div>
+
             <div class="form-group">
                 <label for="transaction-notes">Notes</label>
                 <textarea id="transaction-notes" aria-describedby="transaction-notes-help" maxlength="500" rows="3"></textarea>
@@ -4270,9 +4290,36 @@ style('budget', 'style');
                 <small id="category-color-help" class="form-text">Color for charts and display</small>
             </div>
 
+            <!-- Tag Sets Container -->
+            <div id="category-tag-sets-container"></div>
+
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save category">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Tag Modal -->
+<div id="add-tag-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Add Tag</h3>
+        </div>
+        <form id="add-tag-form" class="modal-form">
+            <input type="hidden" id="tag-set-id" name="tagSetId">
+            <div class="form-group">
+                <label for="tag-name">Tag Name *</label>
+                <input type="text" id="tag-name" name="name" required placeholder="e.g., Fishing, Rods, Online">
+            </div>
+            <div class="form-group">
+                <label for="tag-color">Color</label>
+                <input type="color" id="tag-color" name="color" value="#4A90E2">
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="primary">Add Tag</button>
+                <button type="button" class="secondary cancel-tag-btn">Cancel</button>
             </div>
         </form>
     </div>

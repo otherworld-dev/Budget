@@ -48,7 +48,7 @@ Track your spending habits, manage savings, and forecast future account balances
     <screenshot>https://raw.githubusercontent.com/otherworld-dev/Nextcloud-Budget/master/screenshots/dashboard.png</screenshot>
     <dependencies>
         <php min-version="8.1" />
-        <nextcloud min-version="30" max-version="32" />
+        <nextcloud min-version="30" max-version="35" />
     </dependencies>
     <navigations>
         <navigation>

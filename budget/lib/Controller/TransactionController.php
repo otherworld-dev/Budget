@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
+use OCA\Budget\Service\TransactionTagService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
@@ -23,6 +24,7 @@ class TransactionController extends Controller {
 
     private TransactionService $service;
     private TransactionSplitService $splitService;
+    private TransactionTagService $tagService;
     private ValidationService $validationService;
     private string $userId;
 
@@ -30,6 +32,7 @@ class TransactionController extends Controller {
         IRequest $request,
         TransactionService $service,
         TransactionSplitService $splitService,
+        TransactionTagService $tagService,
         ValidationService $validationService,
         string $userId,
         LoggerInterface $logger
@@ -37,6 +40,7 @@ class TransactionController extends Controller {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->splitService = $splitService;
+        $this->tagService = $tagService;
         $this->validationService = $validationService;
         $this->userId = $userId;
         $this->setLogger($logger);
@@ -567,6 +571,62 @@ class TransactionController extends Controller {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, 'Split', ['splitId' => $splitId]);
+        }
+    }
+
+    /**
+     * Get tags for a transaction
+     *
+     * @NoAdminRequired
+     */
+    public function getTags(int $id): DataResponse {
+        try {
+            $tags = $this->tagService->getTransactionTags($id, $this->userId);
+            return new DataResponse($tags);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
+        }
+    }
+
+    /**
+     * Set tags for a transaction (replaces existing tags)
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 60, period: 60)]
+    public function setTags(int $id): DataResponse {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+
+            if (!isset($data['tagIds']) || !is_array($data['tagIds'])) {
+                return new DataResponse(['error' => 'tagIds array is required'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $tagIds = array_map('intval', $data['tagIds']);
+            $transactionTags = $this->tagService->setTransactionTags($id, $this->userId, $tagIds);
+
+            return new DataResponse([
+                'status' => 'success',
+                'transactionTags' => $transactionTags
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to set transaction tags', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+        }
+    }
+
+    /**
+     * Clear all tags from a transaction
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 60, period: 60)]
+    public function clearTags(int $id): DataResponse {
+        try {
+            $this->tagService->clearTransactionTags($id, $this->userId);
+            return new DataResponse(['status' => 'success']);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to clear transaction tags', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
     }
 }
