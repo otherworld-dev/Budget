@@ -3458,6 +3458,9 @@ class BudgetApp {
             const result = await response.json();
             this.transactions = Array.isArray(result) ? result : (result.transactions || result);
 
+            // Load tags for all displayed transactions
+            await this.loadAllTransactionTags();
+
             // Apply client-side filtering if backend doesn't support it
             this.applyClientSideFilters();
 
@@ -3556,6 +3559,9 @@ class BudgetApp {
                         <span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
                             ${category ? escapeHtml(category.name) : 'Uncategorized'}
                         </span>
+                    </td>
+                    <td class="tags-column" data-transaction-id="${transaction.id}">
+                        ${this.renderTransactionTags(transaction.id)}
                     </td>
                     <td class="amount-column editable-cell"
                         data-field="amount"
@@ -16614,6 +16620,68 @@ class BudgetApp {
                 }
             });
         }
+    }
+
+    /**
+     * Load tags for all displayed transactions
+     */
+    async loadAllTransactionTags() {
+        if (!this.transactions || this.transactions.length === 0) {
+            this.transactionTags = {};
+            return;
+        }
+
+        try {
+            // Load tags for each transaction
+            const tagPromises = this.transactions.map(async (transaction) => {
+                const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transaction.id}/tags`), {
+                    headers: {
+                        'requesttoken': OC.requestToken
+                    }
+                });
+
+                if (response.ok) {
+                    const tags = await response.json();
+                    return { transactionId: transaction.id, tags: Array.isArray(tags) ? tags : [] };
+                }
+                return { transactionId: transaction.id, tags: [] };
+            });
+
+            const results = await Promise.all(tagPromises);
+
+            // Store tags by transaction ID
+            this.transactionTags = {};
+            results.forEach(result => {
+                this.transactionTags[result.transactionId] = result.tags;
+            });
+        } catch (error) {
+            console.error('Failed to load transaction tags:', error);
+            this.transactionTags = {};
+        }
+    }
+
+    /**
+     * Render tags for a transaction
+     */
+    renderTransactionTags(transactionId) {
+        // Ensure transactionTags is initialized
+        if (!this.transactionTags) {
+            this.transactionTags = {};
+        }
+
+        const tags = this.transactionTags[transactionId];
+
+        if (!tags || tags.length === 0) {
+            return '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">-</span>';
+        }
+
+        return tags.map(tag => `
+            <span class="tag-chip"
+                  style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                         padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin: 0 2px 2px 0;">
+                ${this.escapeHtml(tag.name)}
+            </span>
+        `).join('');
     }
 
     /**

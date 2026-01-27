@@ -8,20 +8,24 @@ use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
+use OCP\IDBConnection;
 
 class TransactionTagService {
     private TransactionTagMapper $transactionTagMapper;
     private TagMapper $tagMapper;
     private TransactionMapper $transactionMapper;
+    private IDBConnection $db;
 
     public function __construct(
         TransactionTagMapper $transactionTagMapper,
         TagMapper $tagMapper,
-        TransactionMapper $transactionMapper
+        TransactionMapper $transactionMapper,
+        IDBConnection $db
     ) {
         $this->transactionTagMapper = $transactionTagMapper;
         $this->tagMapper = $tagMapper;
         $this->transactionMapper = $transactionMapper;
+        $this->db = $db;
     }
 
     /**
@@ -132,7 +136,7 @@ class TransactionTagService {
         // This query joins tag_sets -> categories to ensure user ownership
         foreach ($tagSetIds as $tagSetId) {
             // Use a query to verify tag set belongs to category
-            $qb = $this->transactionTagMapper->db->getQueryBuilder();
+            $qb = $this->db->getQueryBuilder();
             $qb->select('ts.id')
                 ->from('budget_tag_sets', 'ts')
                 ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')

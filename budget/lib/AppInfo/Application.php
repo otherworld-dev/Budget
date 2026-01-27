@@ -319,7 +319,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\TransactionTagService(
                 $c->get(\OCA\Budget\Db\TransactionTagMapper::class),
                 $c->get(\OCA\Budget\Db\TagMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCP\IDBConnection::class)
             );
         });
         $context->registerServiceAlias('TransactionTagService', \OCA\Budget\Service\TransactionTagService::class);

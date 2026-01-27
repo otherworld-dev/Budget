@@ -1309,6 +1309,9 @@ style('budget', 'style');
                                 Category
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
+                            <th class="tags-column">
+                                Tags
+                            </th>
                             <th class="sortable amount-column" data-sort="amount">
                                 Amount
                                 <span class="sort-indicator" aria-hidden="true"></span>
