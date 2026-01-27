@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Tag Sets feature for multi-dimensional transaction categorization (GitHub issue #13)
+  - Categories can have multiple tag sets (e.g., "Hobbies" → "Activity" tag set + "Equipment" tag set)
+  - Each tag set contains multiple tags with customizable colors
+  - Tags can be assigned to transactions for detailed organization and filtering
+  - Tag management UI in category details page with compact design
+  - Color-coded tag chips with visual distinction
+  - Modal interface for adding tags with HTML5 color picker
+  - Transaction filtering by tags (supports multiple tags with OR logic within tag sets, AND logic across tag sets)
+  - Database tables: `budget_tag_sets`, `budget_tags`, `budget_transaction_tags`
+  - RESTful API endpoints for tag set and tag CRUD operations
+  - Auto-select first category when category page loads for better UX
+  - Theme-aware color scheme using Nextcloud CSS variables
+
 ## [1.2.3] - 2026-01-24
 
 ### Fixed

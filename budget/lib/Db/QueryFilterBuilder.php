@@ -105,6 +105,25 @@ class QueryFilterBuilder {
                 $qb->createNamedParameter($filters['vendor'])
             ));
         }
+
+        // Tag filter - filter transactions by tags
+        if (!empty($filters['tagIds']) && is_array($filters['tagIds'])) {
+            // Join transaction_tags table to filter by tags
+            // This will only return transactions that have at least one of the specified tags
+            $qb->innerJoin(
+                $alias,
+                'budget_transaction_tags',
+                'tt',
+                $qb->expr()->eq("{$alias}.id", 'tt.transaction_id')
+            );
+            $qb->andWhere($qb->expr()->in(
+                'tt.tag_id',
+                $qb->createNamedParameter($filters['tagIds'], IQueryBuilder::PARAM_INT_ARRAY)
+            ));
+
+            // Use DISTINCT to avoid duplicate rows when transaction has multiple matching tags
+            $qb->distinct();
+        }
     }
 
     /**
@@ -172,6 +191,7 @@ class QueryFilterBuilder {
             'search',
             'reconciled',
             'vendor',
+            'tagIds',
         ];
     }
 

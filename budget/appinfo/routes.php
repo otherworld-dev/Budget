@@ -47,6 +47,11 @@ return [
         ['name' => 'transaction#unsplit', 'url' => '/api/transactions/{id}/splits', 'verb' => 'DELETE'],
         ['name' => 'transaction#updateSplit', 'url' => '/api/transactions/{id}/splits/{splitId}', 'verb' => 'PUT'],
 
+        // Transaction tag routes
+        ['name' => 'transaction#getTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'GET'],
+        ['name' => 'transaction#setTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'PUT'],
+        ['name' => 'transaction#clearTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'DELETE'],
+
         // Category routes - specific paths before {id} wildcard
         ['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
         ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
@@ -55,7 +60,20 @@ return [
         ['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],
         ['name' => 'category#update', 'url' => '/api/categories/{id}', 'verb' => 'PUT'],
         ['name' => 'category#destroy', 'url' => '/api/categories/{id}', 'verb' => 'DELETE'],
-        
+
+        // Tag Set routes
+        ['name' => 'tagSet#index', 'url' => '/api/tag-sets', 'verb' => 'GET'],
+        ['name' => 'tagSet#create', 'url' => '/api/tag-sets', 'verb' => 'POST'],
+        ['name' => 'tagSet#show', 'url' => '/api/tag-sets/{id}', 'verb' => 'GET'],
+        ['name' => 'tagSet#update', 'url' => '/api/tag-sets/{id}', 'verb' => 'PUT'],
+        ['name' => 'tagSet#destroy', 'url' => '/api/tag-sets/{id}', 'verb' => 'DELETE'],
+
+        // Tag routes (nested under tag sets)
+        ['name' => 'tagSet#getTags', 'url' => '/api/tag-sets/{tagSetId}/tags', 'verb' => 'GET'],
+        ['name' => 'tagSet#createTag', 'url' => '/api/tag-sets/{tagSetId}/tags', 'verb' => 'POST'],
+        ['name' => 'tagSet#updateTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'PUT'],
+        ['name' => 'tagSet#destroyTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'DELETE'],
+
         // Import routes
         ['name' => 'import#upload', 'url' => '/api/import/upload', 'verb' => 'POST'],
         ['name' => 'import#preview', 'url' => '/api/import/preview', 'verb' => 'POST'],

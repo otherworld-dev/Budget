@@ -287,6 +287,43 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('CategoryService', \OCA\Budget\Service\CategoryService::class);
 
+        // ==========================================
+        // Tag Set Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\TagSetMapper::class, function($c) {
+            return new \OCA\Budget\Db\TagSetMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('TagSetMapper', \OCA\Budget\Db\TagSetMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\TagMapper::class, function($c) {
+            return new \OCA\Budget\Db\TagMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('TagMapper', \OCA\Budget\Db\TagMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\TransactionTagMapper::class, function($c) {
+            return new \OCA\Budget\Db\TransactionTagMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('TransactionTagMapper', \OCA\Budget\Db\TransactionTagMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\TagSetService::class, function($c) {
+            return new \OCA\Budget\Service\TagSetService(
+                $c->get(\OCA\Budget\Db\TagSetMapper::class),
+                $c->get(\OCA\Budget\Db\TagMapper::class),
+                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+            );
+        });
+        $context->registerServiceAlias('TagSetService', \OCA\Budget\Service\TagSetService::class);
+
+        $context->registerService(\OCA\Budget\Service\TransactionTagService::class, function($c) {
+            return new \OCA\Budget\Service\TransactionTagService(
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class),
+                $c->get(\OCA\Budget\Db\TagMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+            );
+        });
+        $context->registerServiceAlias('TransactionTagService', \OCA\Budget\Service\TransactionTagService::class);
+
         $context->registerService(\OCA\Budget\Service\ImportRuleService::class, function($c) {
             return new \OCA\Budget\Service\ImportRuleService(
                 $c->get(\OCA\Budget\Db\ImportRuleMapper::class),

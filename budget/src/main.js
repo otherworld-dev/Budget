@@ -90,6 +90,11 @@ class BudgetApp {
         this.lastActivityTime = Date.now(); // Track last user activity for session timeout
         this.inactivityTimer = null; // Timer for auto-lock
 
+        // Tag sets feature
+        this.tagSets = []; // All tag sets with their tags
+        this.selectedCategoryTagSets = []; // Tag sets for currently selected/editing category
+        this.transactionTags = {}; // Cache of transaction tags by transaction ID
+
         this.init();
     }
 
@@ -651,6 +656,9 @@ class BudgetApp {
                 }
             }, 250);
         });
+
+        // Tag modal listeners
+        this.setupAddTagModalListeners();
     }
 
     setupNavigationSearch() {
@@ -3186,6 +3194,7 @@ class BudgetApp {
                         <span class="category-name ${category ? '' : 'uncategorized'}">
                             ${category ? category.name : 'Uncategorized'}
                         </span>
+                        <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
                     </td>
                     <td class="amount-column">
                         <span class="transaction-amount ${transaction.type}">
@@ -3213,6 +3222,9 @@ class BudgetApp {
 
         // Add event listeners for transaction actions
         this.setupAccountTransactionActionListeners();
+
+        // Load and display tags for visible transactions
+        this.loadAndDisplayTransactionTags();
     }
 
     setupAccountTransactionActionListeners() {
@@ -3844,6 +3856,15 @@ class BudgetApp {
             });
 
             if (response.ok) {
+                const result = await response.json();
+                const savedTransactionId = result.id || transactionId;
+
+                // Save tags if any are selected
+                const selectedTagIds = this.getSelectedTransactionTags();
+                if (selectedTagIds.length > 0 && savedTransactionId) {
+                    await this.saveTransactionTags(savedTransactionId, selectedTagIds);
+                }
+
                 OC.Notification.showTemporary('Transaction saved successfully');
                 this.hideModals();
                 this.loadTransactions();
@@ -6883,11 +6904,26 @@ class BudgetApp {
                     </span>
                 </td>
                 <td>
-                    <button class="icon-download" onclick="budgetApp.downloadImport(${item.id})" title="Download"></button>
-                    <button class="icon-delete" onclick="budgetApp.rollbackImport(${item.id})" title="Rollback"></button>
+                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="Download"></button>
+                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="Rollback"></button>
                 </td>
             `;
             tbody.appendChild(row);
+        });
+
+        // Setup event listeners
+        document.querySelectorAll('.import-download-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const importId = parseInt(btn.dataset.importId);
+                this.downloadImport(importId);
+            });
+        });
+
+        document.querySelectorAll('.import-rollback-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const importId = parseInt(btn.dataset.importId);
+                this.rollbackImport(importId);
+            });
         });
     }
 
@@ -8102,6 +8138,11 @@ class BudgetApp {
         // Setup event listeners for category items
         this.setupCategoryItemListeners();
         this.setupDragAndDrop();
+
+        // Auto-select first category if none is selected
+        if (!this.selectedCategory && typedCategories.length > 0) {
+            this.selectCategory(typedCategories[0].id);
+        }
     }
 
     renderCategoryNodes(categories, level = 0, countMap = null) {
@@ -8365,6 +8406,9 @@ class BudgetApp {
         // Update category overview
         this.updateCategoryOverview(category);
 
+        // Load and display tag sets
+        await this.renderCategoryTagSetsList(category.id);
+
         // Load and display analytics
         await this.loadCategoryAnalytics(category.id);
         await this.loadCategoryTransactions(category.id);
@@ -8588,6 +8632,9 @@ class BudgetApp {
             typeSelect.value = this.currentCategoryType;
         }
 
+        // Show empty state for tag sets (can't add tag sets until category is saved)
+        this.renderCategoryTagSetsUI(null);
+
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
 
@@ -8796,6 +8843,9 @@ class BudgetApp {
         document.getElementById('category-type').value = category.type;
         document.getElementById('category-parent').value = category.parentId || '';
         document.getElementById('category-color').value = category.color || '#3b82f6';
+
+        // Load tag sets for this category
+        this.renderCategoryTagSetsUI(category.id);
     }
 
     populateCategoryParentDropdown(excludeId = null) {
@@ -9488,6 +9538,9 @@ class BudgetApp {
                 document.getElementById('transaction-vendor').value = transaction.vendor || '';
                 document.getElementById('transaction-category').value = transaction.categoryId || '';
                 document.getElementById('transaction-notes').value = transaction.notes || '';
+
+                // Load tag selectors for this transaction
+                this.renderTransactionTagSelectors(transaction.categoryId, transaction.id);
             } else {
                 // Clear form (new transaction mode)
                 document.getElementById('transaction-form').reset();
@@ -9498,7 +9551,23 @@ class BudgetApp {
                 if (preSelectedAccountId) {
                     document.getElementById('transaction-account').value = preSelectedAccountId;
                 }
+
+                // Clear tag selectors
+                this.renderTransactionTagSelectors(null, null);
             }
+
+            // Set up category change listener to update tag selectors
+            const categorySelect = document.getElementById('transaction-category');
+            if (categorySelect) {
+                // Remove old listener if exists
+                const oldListener = categorySelect.onchange;
+                categorySelect.onchange = () => {
+                    if (oldListener) oldListener();
+                    const transactionId = document.getElementById('transaction-id').value;
+                    this.renderTransactionTagSelectors(categorySelect.value || null, transactionId || null);
+                };
+            }
+
             modal.style.display = 'flex';
         }
     }
@@ -15880,6 +15949,689 @@ class BudgetApp {
             // On desktop, clear order and let CSS Grid handle layout
             document.querySelectorAll('[data-widget-id]').forEach(card => {
                 card.style.order = '';
+            });
+        }
+    }
+
+    // ===================================
+    // Tag Sets Feature - Complete Implementation
+    // ===================================
+
+    /**
+     * Load tag sets for a specific category
+     */
+    async loadTagSetsForCategory(categoryId) {
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`),
+                {
+                    headers: { 'requesttoken': OC.requestToken }
+                }
+            );
+
+            if (response.ok) {
+                this.selectedCategoryTagSets = await response.json();
+                return this.selectedCategoryTagSets;
+            }
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+        }
+        return [];
+    }
+
+    /**
+     * Load tags for a transaction
+     */
+    async loadTransactionTags(transactionId) {
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
+                {
+                    headers: { 'requesttoken': OC.requestToken }
+                }
+            );
+
+            if (response.ok) {
+                const tags = await response.json();
+                this.transactionTags[transactionId] = tags;
+                return tags;
+            }
+        } catch (error) {
+            console.error('Failed to load transaction tags:', error);
+        }
+        return [];
+    }
+
+    /**
+     * Save tags for a transaction
+     */
+    async saveTransactionTags(transactionId, tagIds) {
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
+                {
+                    method: 'PUT',
+                    headers: {
+                        'requesttoken': OC.requestToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tagIds })
+                }
+            );
+
+            if (response.ok) {
+                // Update cache
+                await this.loadTransactionTags(transactionId);
+                return true;
+            }
+        } catch (error) {
+            console.error('Failed to save transaction tags:', error);
+        }
+        return false;
+    }
+
+    /**
+     * Render tag chips for display in transaction list
+     */
+    renderTagChips(tags) {
+        if (!tags || tags.length === 0) {
+            return '';
+        }
+
+        return tags.map(tag => `
+            <span class="tag-chip" style="background-color: ${tag.color || '#666'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 4px;">
+                ${this.escapeHtml(tag.name)}
+            </span>
+        `).join('');
+    }
+
+    /**
+     * Render tag set management UI in category modal
+     */
+    async renderCategoryTagSetsUI(categoryId) {
+        const container = document.getElementById('category-tag-sets-container');
+        if (!container) return;
+
+        if (!categoryId) {
+            container.innerHTML = '<p style="color: #999; font-style: italic;">Save category first to manage tag sets</p>';
+            return;
+        }
+
+        // Load tag sets for this category
+        const tagSets = await this.loadTagSetsForCategory(categoryId);
+
+        let html = `
+            <div class="tag-sets-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0;">Tag Sets</h4>
+                <button type="button" class="button-primary add-tagset-btn" data-category-id="${categoryId}">
+                    Add Tag Set
+                </button>
+            </div>
+        `;
+
+        if (tagSets.length === 0) {
+            html += '<p style="color: #999; font-style: italic;">No tag sets yet. Add your first tag set to enable multi-dimensional categorization.</p>';
+        } else {
+            html += '<div class="tag-sets-list" style="display: flex; flex-direction: column; gap: 16px;">';
+
+            tagSets.forEach(tagSet => {
+                html += `
+                    <div class="tag-set-card" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9;">
+                        <div class="tag-set-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div>
+                                <strong>${this.escapeHtml(tagSet.name)}</strong>
+                                ${tagSet.description ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${this.escapeHtml(tagSet.description)}</p>` : ''}
+                            </div>
+                            <div>
+                                <button type="button" class="button-secondary add-tag-btn" data-tagset-id="${tagSet.id}" style="padding: 4px 8px; font-size: 12px;">
+                                    Add Tag
+                                </button>
+                                <button type="button" class="button-danger delete-tagset-btn" data-tagset-id="${tagSet.id}" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="tags-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                            ${this.renderTagsInSet(tagSet)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+        this.setupCategoryTagSetsModalListeners(categoryId);
+    }
+
+    /**
+     * Setup event listeners for tag set UI in category modal
+     */
+    setupCategoryTagSetsModalListeners(categoryId) {
+        // Add tag set button
+        const addTagSetBtn = document.querySelector('.add-tagset-btn');
+        if (addTagSetBtn) {
+            addTagSetBtn.addEventListener('click', () => {
+                this.showAddTagSetModal(categoryId);
+            });
+        }
+
+        // Add tag buttons
+        document.querySelectorAll('.add-tag-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tagSetId = parseInt(btn.dataset.tagsetId);
+                this.showAddTagModal(tagSetId);
+            });
+        });
+
+        // Delete tag set buttons
+        document.querySelectorAll('.delete-tagset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tagSetId = parseInt(btn.dataset.tagsetId);
+                this.deleteTagSet(tagSetId);
+            });
+        });
+
+        // Delete tag buttons
+        document.querySelectorAll('.delete-tag-from-set-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tagId = parseInt(btn.dataset.tagId);
+                const tagSetId = parseInt(btn.dataset.tagsetId);
+                this.deleteTag(tagId, tagSetId);
+            });
+        });
+    }
+
+    /**
+     * Render tags within a tag set
+     */
+    renderTagsInSet(tagSet) {
+        if (!tagSet.tags || tagSet.tags.length === 0) {
+            return '<span style="color: #999; font-style: italic; font-size: 12px;">No tags yet</span>';
+        }
+
+        return tagSet.tags.map(tag => `
+            <span class="tag-item" style="display: inline-flex; align-items: center; gap: 4px; background-color: ${tag.color}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                ${this.escapeHtml(tag.name)}
+                <button type="button"
+                    class="delete-tag-from-set-btn"
+                    data-tag-id="${tag.id}"
+                    data-tagset-id="${tagSet.id}"
+                    style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin: 0; font-size: 14px; line-height: 1;"
+                    title="Delete tag">
+                    ×
+                </button>
+            </span>
+        `).join('');
+    }
+
+    /**
+     * Show modal to add a new tag set
+     */
+    showAddTagSetModal(categoryId) {
+        const name = prompt('Enter tag set name (e.g., "Activity", "Equipment"):');
+        if (!name) return;
+
+        const description = prompt('Enter tag set description (optional):');
+
+        this.createTagSet(categoryId, name, description);
+    }
+
+    /**
+     * Create a new tag set
+     */
+    async createTagSet(categoryId, name, description) {
+        try {
+            const response = await fetch(
+                OC.generateUrl('/apps/budget/api/tag-sets'),
+                {
+                    method: 'POST',
+                    headers: {
+                        'requesttoken': OC.requestToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        categoryId,
+                        name,
+                        description: description || null,
+                        sortOrder: 0
+                    })
+                }
+            );
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Tag set created');
+                this.renderCategoryTagSetsUI(categoryId);
+            } else {
+                const error = await response.json();
+                OC.Notification.showTemporary(error.error || 'Failed to create tag set');
+            }
+        } catch (error) {
+            console.error('Failed to create tag set:', error);
+            OC.Notification.showTemporary('Failed to create tag set');
+        }
+    }
+
+    /**
+     * Delete a tag set
+     */
+    async deleteTagSet(tagSetId) {
+        if (!confirm('Delete this tag set? All tags in this set will be removed from transactions.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}`),
+                {
+                    method: 'DELETE',
+                    headers: { 'requesttoken': OC.requestToken }
+                }
+            );
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Tag set deleted');
+                // Refresh the tag sets UI
+                const categoryId = this.selectedCategory?.id;
+                if (categoryId) {
+                    this.renderCategoryTagSetsUI(categoryId);
+                }
+            } else {
+                const error = await response.json();
+                OC.Notification.showTemporary(error.error || 'Failed to delete tag set');
+            }
+        } catch (error) {
+            console.error('Failed to delete tag set:', error);
+            OC.Notification.showTemporary('Failed to delete tag set');
+        }
+    }
+
+    /**
+     * Show modal to add a new tag to a tag set
+     */
+    showAddTagModal(tagSetId) {
+        const name = prompt('Enter tag name:');
+        if (!name) return;
+
+        const color = prompt('Enter tag color (hex, e.g., #3498db) or leave empty for random:');
+
+        this.createTag(tagSetId, name, color || null);
+    }
+
+    /**
+     * Create a new tag in a tag set
+     */
+    async createTag(tagSetId, name, color) {
+        try {
+            const payload = {
+                name,
+                sortOrder: 0
+            };
+
+            // Only include color if it's provided and non-empty
+            if (color && color.trim()) {
+                payload.color = color.trim();
+            }
+
+            console.log('Creating tag with payload:', payload);
+
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags`),
+                {
+                    method: 'POST',
+                    headers: {
+                        'requesttoken': OC.requestToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Tag created');
+                const categoryId = this.selectedCategory?.id;
+                if (categoryId) {
+                    this.renderCategoryTagSetsUI(categoryId);
+                }
+            } else {
+                const error = await response.json();
+                console.error('Tag creation failed:', error);
+                OC.Notification.showTemporary(error.error || 'Failed to create tag');
+            }
+        } catch (error) {
+            console.error('Failed to create tag:', error);
+            OC.Notification.showTemporary('Failed to create tag');
+        }
+    }
+
+    /**
+     * Delete a tag
+     */
+    async deleteTag(tagId, tagSetId) {
+        if (!confirm('Delete this tag? It will be removed from all transactions.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`),
+                {
+                    method: 'DELETE',
+                    headers: { 'requesttoken': OC.requestToken }
+                }
+            );
+
+            if (response.ok) {
+                OC.Notification.showTemporary('Tag deleted');
+                const categoryId = this.selectedCategory?.id;
+                if (categoryId) {
+                    this.renderCategoryTagSetsUI(categoryId);
+                }
+            } else {
+                const error = await response.json();
+                OC.Notification.showTemporary(error.error || 'Failed to delete tag');
+            }
+        } catch (error) {
+            console.error('Failed to delete tag:', error);
+            OC.Notification.showTemporary('Failed to delete tag');
+        }
+    }
+
+    /**
+     * Render tag selection UI in transaction form
+     */
+    async renderTransactionTagSelectors(categoryId, transactionId) {
+        const container = document.getElementById('transaction-tags-container');
+        if (!container) return;
+
+        if (!categoryId) {
+            container.innerHTML = '<p style="color: #999; font-size: 12px;">Select a category first to tag this transaction</p>';
+            return;
+        }
+
+        // Load tag sets for this category
+        const tagSets = await this.loadTagSetsForCategory(categoryId);
+
+        if (tagSets.length === 0) {
+            container.innerHTML = '<p style="color: #999; font-size: 12px;">No tag sets available for this category</p>';
+            return;
+        }
+
+        // Load existing tags for this transaction (if editing)
+        let selectedTags = [];
+        if (transactionId) {
+            selectedTags = await this.loadTransactionTags(transactionId);
+        }
+
+        let html = '<div style="margin-top: 16px;"><h4 style="margin-bottom: 12px;">Tags (Optional)</h4>';
+
+        tagSets.forEach(tagSet => {
+            const selectedTagId = selectedTags.find(t => t.tagSetId === tagSet.id)?.id || '';
+
+            html += `
+                <div class="tag-set-selector" style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 4px; font-weight: 500;">${this.escapeHtml(tagSet.name)}</label>
+                    <select class="transaction-tag-select" data-tag-set-id="${tagSet.id}" style="width: 100%; padding: 8px;">
+                        <option value="">-- None --</option>
+                        ${tagSet.tags.map(tag => `
+                            <option value="${tag.id}" ${tag.id == selectedTagId ? 'selected' : ''}>
+                                ${this.escapeHtml(tag.name)}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    /**
+     * Get selected tag IDs from transaction form
+     */
+    getSelectedTransactionTags() {
+        const selects = document.querySelectorAll('.transaction-tag-select');
+        const tagIds = [];
+
+        selects.forEach(select => {
+            const value = select.value;
+            if (value) {
+                tagIds.push(parseInt(value));
+            }
+        });
+
+        return tagIds;
+    }
+
+    /**
+     * Load and display tags for all visible transactions in the list
+     */
+    async loadAndDisplayTransactionTags() {
+        const tagDisplays = document.querySelectorAll('.transaction-tags-display');
+
+        for (const display of tagDisplays) {
+            const transactionId = parseInt(display.dataset.transactionId);
+            if (!transactionId) continue;
+
+            try {
+                const tags = await this.loadTransactionTags(transactionId);
+                if (tags && tags.length > 0) {
+                    display.innerHTML = this.renderTagChips(tags);
+                }
+            } catch (error) {
+                console.error(`Failed to load tags for transaction ${transactionId}:`, error);
+            }
+        }
+    }
+
+    /**
+     * Render tag sets in the category details view
+     */
+    async renderCategoryTagSetsList(categoryId) {
+        const container = document.getElementById('category-tag-sets-list');
+        if (!container) return;
+
+        if (!categoryId) {
+            container.innerHTML = '<div class="empty-state"><p>Select a category to manage tag sets</p></div>';
+            return;
+        }
+
+        try {
+            const tagSets = await this.loadTagSetsForCategory(categoryId);
+
+            if (tagSets.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p style="font-size: 13px; color: var(--color-text-maxcontrast); margin: 8px 0;">No tag sets yet.</p></div>';
+            } else {
+                let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+                tagSets.forEach(tagSet => {
+                    const tags = tagSet.tags || [];
+                    html += `
+                        <div class="tag-set-card" data-tag-set-id="${tagSet.id}" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px; background: var(--color-background-dark);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <strong style="font-size: 13px; font-weight: 600;">${this.escapeHtml(tagSet.name)}</strong>
+                                    ${tagSet.description ? `<span style="font-size: 11px; color: var(--color-text-maxcontrast); margin-left: 8px;">– ${this.escapeHtml(tagSet.description)}</span>` : ''}
+                                </div>
+                                <div style="display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px;">
+                                    <button class="icon-button add-tag-to-set-btn"
+                                            data-tag-set-id="${tagSet.id}"
+                                            title="Add tag"
+                                            style="padding: 4px; width: 24px; height: 24px; min-width: 24px;">
+                                        <span class="icon-add" aria-hidden="true" style="font-size: 14px;"></span>
+                                    </button>
+                                    <button class="icon-button delete-tag-set-btn"
+                                            data-tag-set-id="${tagSet.id}"
+                                            title="Delete tag set"
+                                            style="padding: 4px; width: 24px; height: 24px; min-width: 24px;">
+                                        <span class="icon-delete" aria-hidden="true" style="font-size: 14px;"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                ${tags.length === 0 ? '<span style="font-size: 11px; color: var(--color-text-maxcontrast); font-style: italic;">No tags</span>' : ''}
+                                ${tags.map(tag => `
+                                    <span class="tag-chip-editable" data-tag-id="${tag.id}"
+                                          style="display: inline-flex; align-items: center; gap: 4px; background-color: ${tag.color}; color: white;
+                                                 padding: 2px 6px; border-radius: 10px; font-size: 11px; line-height: 16px;">
+                                        <span class="tag-name">${this.escapeHtml(tag.name)}</span>
+                                        <button class="delete-tag-btn"
+                                                data-tag-id="${tag.id}"
+                                                data-tag-set-id="${tagSet.id}"
+                                                title="Delete ${this.escapeHtml(tag.name)}"
+                                                style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin: 0;
+                                                       font-size: 14px; line-height: 1; display: flex; align-items: center;">
+                                            <span class="icon-close" aria-hidden="true"></span>
+                                        </button>
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                container.innerHTML = html;
+            }
+
+            // Always setup listeners, even when there are no tag sets (for the Add button)
+            this.setupCategoryTagSetsListeners(categoryId);
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+            container.innerHTML = '<div class="error-state"><p>Failed to load tag sets</p></div>';
+        }
+    }
+
+    /**
+     * Setup event listeners for tag set management in category details
+     */
+    setupCategoryTagSetsListeners(categoryId) {
+        // Add tag set button
+        const addTagSetBtn = document.getElementById('add-tag-set-btn-detail');
+        if (addTagSetBtn) {
+            addTagSetBtn.onclick = () => this.showAddTagSetModalDetail(categoryId);
+        }
+
+        // Delete tag set buttons
+        document.querySelectorAll('.delete-tag-set-btn').forEach(btn => {
+            btn.onclick = async () => {
+                const tagSetId = parseInt(btn.dataset.tagSetId);
+                if (confirm('Delete this tag set? All tags in this set will also be deleted.')) {
+                    await this.deleteTagSet(tagSetId);
+                    await this.renderCategoryTagSetsList(categoryId);
+                }
+            };
+        });
+
+        // Add tag to set buttons
+        document.querySelectorAll('.add-tag-to-set-btn').forEach(btn => {
+            btn.onclick = () => {
+                const tagSetId = parseInt(btn.dataset.tagSetId);
+                this.showAddTagModalDetail(tagSetId, categoryId);
+            };
+        });
+
+        // Delete tag buttons
+        document.querySelectorAll('.delete-tag-btn').forEach(btn => {
+            btn.onclick = async () => {
+                const tagId = parseInt(btn.dataset.tagId);
+                const tagSetId = parseInt(btn.dataset.tagSetId);
+                if (confirm('Delete this tag?')) {
+                    await this.deleteTag(tagId, tagSetId);
+                    await this.renderCategoryTagSetsList(categoryId);
+                }
+            };
+        });
+    }
+
+    /**
+     * Show modal to add tag set from category details view
+     */
+    async showAddTagSetModalDetail(categoryId) {
+        const name = prompt('Enter tag set name (e.g., "Activity", "Equipment"):');
+        if (!name || !name.trim()) return;
+
+        const description = prompt('Enter description (optional):');
+
+        try {
+            await this.createTagSet(categoryId, name.trim(), description?.trim() || null);
+            await this.renderCategoryTagSetsList(categoryId);
+            this.showNotification('Tag set created successfully', 'success');
+        } catch (error) {
+            console.error('Failed to create tag set:', error);
+            this.showNotification('Failed to create tag set', 'error');
+        }
+    }
+
+    /**
+     * Show modal to add tag from category details view
+     */
+    showAddTagModalDetail(tagSetId, categoryId) {
+        const modal = document.getElementById('add-tag-modal');
+        const form = document.getElementById('add-tag-form');
+
+        if (!modal || !form) return;
+
+        // Reset form
+        form.reset();
+        document.getElementById('tag-set-id').value = tagSetId;
+        document.getElementById('tag-color').value = '#4A90E2';
+
+        // Store categoryId for later use
+        this.currentTagCategoryId = categoryId;
+
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Save tag from modal form
+     */
+    async saveTag(e) {
+        e.preventDefault();
+
+        const tagSetId = parseInt(document.getElementById('tag-set-id').value);
+        const name = document.getElementById('tag-name').value.trim();
+        const color = document.getElementById('tag-color').value;
+        const categoryId = this.currentTagCategoryId;
+
+        if (!name) {
+            this.showNotification('Tag name is required', 'error');
+            return;
+        }
+
+        try {
+            await this.createTag(tagSetId, name, color);
+            this.hideModals();
+            await this.renderCategoryTagSetsList(categoryId);
+            this.showNotification('Tag created successfully', 'success');
+        } catch (error) {
+            console.error('Failed to create tag:', error);
+            this.showNotification('Failed to create tag', 'error');
+        }
+    }
+
+    /**
+     * Setup event listeners for add tag modal
+     */
+    setupAddTagModalListeners() {
+        const form = document.getElementById('add-tag-form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.saveTag(e));
+        }
+
+        // Close button handlers
+        document.querySelectorAll('.cancel-tag-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.hideModals());
+        });
+
+        // Close on background click
+        const modal = document.getElementById('add-tag-modal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.hideModals();
+                }
             });
         }
     }
