@@ -142,6 +142,8 @@ return [
         ['name' => 'recurringIncome#upcoming', 'url' => '/api/recurring-income/upcoming', 'verb' => 'GET'],
         ['name' => 'recurringIncome#expectedThisMonth', 'url' => '/api/recurring-income/this-month', 'verb' => 'GET'],
         ['name' => 'recurringIncome#summary', 'url' => '/api/recurring-income/summary', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#detect', 'url' => '/api/recurring-income/detect', 'verb' => 'GET'],
+        ['name' => 'recurringIncome#createFromDetected', 'url' => '/api/recurring-income/create-from-detected', 'verb' => 'POST'],
         ['name' => 'recurringIncome#show', 'url' => '/api/recurring-income/{id}', 'verb' => 'GET'],
         ['name' => 'recurringIncome#update', 'url' => '/api/recurring-income/{id}', 'verb' => 'PUT'],
         ['name' => 'recurringIncome#destroy', 'url' => '/api/recurring-income/{id}', 'verb' => 'DELETE'],
