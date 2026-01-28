@@ -83,7 +83,8 @@ class ImportController extends Controller {
         array $mapping = [],
         ?int $accountId = null,
         ?array $accountMapping = null,
-        bool $skipDuplicates = true
+        bool $skipDuplicates = true,
+        string $delimiter = ','
     ): DataResponse {
         try {
             $preview = $this->service->previewImport(
@@ -92,7 +93,8 @@ class ImportController extends Controller {
                 $mapping,
                 $accountId,
                 $accountMapping,
-                $skipDuplicates
+                $skipDuplicates,
+                $delimiter
             );
             return new DataResponse($preview);
         } catch (\Exception $e) {
@@ -110,7 +112,8 @@ class ImportController extends Controller {
         ?int $accountId = null,
         ?array $accountMapping = null,
         bool $skipDuplicates = true,
-        bool $applyRules = true
+        bool $applyRules = true,
+        string $delimiter = ','
     ): DataResponse {
         try {
             $result = $this->service->processImport(
@@ -120,7 +123,8 @@ class ImportController extends Controller {
                 $accountId,
                 $accountMapping,
                 $skipDuplicates,
-                $applyRules
+                $applyRules,
+                $delimiter
             );
 
             // Log completed imports for each account

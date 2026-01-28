@@ -48,17 +48,44 @@ class TransactionNormalizer {
             throw new \Exception('Date is required');
         }
 
-        if (empty($transaction['amount'])) {
-            throw new \Exception('Amount is required');
-        }
-
         // Normalize date
         $transaction['date'] = $this->normalizeDate($transaction['date']);
 
-        // Format amount and determine type
-        $amount = $this->parseAmount($transaction['amount']);
+        // Handle amount: either single column OR dual income/expense columns
+        $amount = null;
+        $type = null;
+
+        // Check for dual-column approach (income + expense)
+        if (!empty($mapping['incomeColumn']) && isset($row[$mapping['incomeColumn']])) {
+            $incomeValue = trim($row[$mapping['incomeColumn']]);
+            if ($incomeValue !== '' && $incomeValue !== '0' && $incomeValue !== '0.00') {
+                $amount = $this->parseAmount($incomeValue);
+                $type = 'credit';
+            }
+        }
+
+        if (!empty($mapping['expenseColumn']) && isset($row[$mapping['expenseColumn']])) {
+            $expenseValue = trim($row[$mapping['expenseColumn']]);
+            if ($expenseValue !== '' && $expenseValue !== '0' && $expenseValue !== '0.00') {
+                $amount = $this->parseAmount($expenseValue);
+                $type = 'debit';
+            }
+        }
+
+        // Fall back to single amount column if dual columns weren't used
+        if ($amount === null && !empty($transaction['amount'])) {
+            $amount = $this->parseAmount($transaction['amount']);
+            $type = $amount >= 0 ? 'credit' : 'debit';
+            $amount = abs($amount);
+        }
+
+        // Ensure we have an amount
+        if ($amount === null) {
+            throw new \Exception('Amount is required (either single amount column or income/expense columns)');
+        }
+
         $transaction['amount'] = abs($amount);
-        $transaction['type'] = $amount >= 0 ? 'credit' : 'debit';
+        $transaction['type'] = $type;
 
         // Clean description
         $transaction['description'] = trim($transaction['description'] ?? '');

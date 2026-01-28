@@ -181,4 +181,30 @@ class FileValidator {
     public function getMaxFileSize(): int {
         return self::MAX_FILE_SIZE;
     }
+
+    /**
+     * Detect the most likely delimiter in a CSV file.
+     *
+     * @param string $content File content (at least first few lines)
+     * @return string The detected delimiter (comma, semicolon, or tab)
+     */
+    public function detectDelimiter(string $content): string {
+        $lines = explode("\n", $content);
+        $firstLine = array_values(array_filter($lines, fn($line) => trim($line) !== ''))[0] ?? '';
+
+        // Count occurrences of each delimiter
+        $commaCount = substr_count($firstLine, ',');
+        $semicolonCount = substr_count($firstLine, ';');
+        $tabCount = substr_count($firstLine, "\t");
+
+        // Return the most common delimiter
+        if ($semicolonCount > $commaCount && $semicolonCount > $tabCount) {
+            return ';';
+        } elseif ($tabCount > $commaCount && $tabCount > $semicolonCount) {
+            return "\t";
+        }
+
+        // Default to comma
+        return ',';
+    }
 }

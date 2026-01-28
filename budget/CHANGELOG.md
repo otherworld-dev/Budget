@@ -20,6 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - RESTful API endpoints for tag set and tag CRUD operations
   - Auto-select first category when category page loads for better UX
   - Theme-aware color scheme using Nextcloud CSS variables
+- CSV import enhancements for better international bank support (GitHub issue #15)
+  - Auto-detection of CSV delimiters (comma, semicolon, tab)
+  - User-selectable delimiter override when auto-detection fails
+  - Dual-column amount mapping for files with separate income/expense columns
+  - Support for files with "Deposits" and "Withdrawals" columns (common in European banks)
+  - Intelligent amount parsing handles European number formats (1.234,56)
+  - Auto-detection of income/expense column patterns (deposits, withdrawals, credits, debits)
+  - Smart validation ensures either single amount OR dual columns selected, not both
+  - CSV options panel (delimiter selector) shown only for CSV files
+  - Delimiter flows through entire import pipeline (upload → preview → process)
+  - Backend delimiter parameter support in ParserFactory, ImportService, and ImportController
+  - TransactionNormalizer handles both single and dual-column amount approaches
+  - Frontend validation prevents invalid mapping combinations
 
 ## [1.2.3] - 2026-01-24
 
