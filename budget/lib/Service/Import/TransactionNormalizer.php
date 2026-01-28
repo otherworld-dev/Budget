@@ -56,7 +56,7 @@ class TransactionNormalizer {
         $transaction['date'] = $this->normalizeDate($transaction['date']);
 
         // Format amount and determine type
-        $amount = (float) str_replace(',', '', $transaction['amount']);
+        $amount = $this->parseAmount($transaction['amount']);
         $transaction['amount'] = abs($amount);
         $transaction['type'] = $amount >= 0 ? 'credit' : 'debit';
 
@@ -202,5 +202,80 @@ class TransactionNormalizer {
         $description = preg_replace('/\s+/', ' ', $description);
 
         return $description;
+    }
+
+    /**
+     * Parse amount string handling both comma and period as decimal separators.
+     *
+     * Handles formats like:
+     * - 1234.56 (US/UK format)
+     * - 1,234.56 (US/UK format with thousands separator)
+     * - 1234,56 (European format)
+     * - 1.234,56 (European format with thousands separator)
+     *
+     * @param string|float $amount The amount to parse
+     * @return float Parsed amount
+     */
+    private function parseAmount(string|float $amount): float {
+        // Already a float
+        if (is_float($amount)) {
+            return $amount;
+        }
+
+        // Convert to string and trim
+        $amount = trim((string) $amount);
+
+        // Remove currency symbols and whitespace
+        $amount = preg_replace('/[^\d,.\-+]/', '', $amount);
+
+        // If empty after cleanup, return 0
+        if ($amount === '' || $amount === '-' || $amount === '+') {
+            return 0.0;
+        }
+
+        // Count periods and commas to determine format
+        $periodCount = substr_count($amount, '.');
+        $commaCount = substr_count($amount, ',');
+
+        // Find last occurrence of period and comma
+        $lastPeriod = strrpos($amount, '.');
+        $lastComma = strrpos($amount, ',');
+
+        // Determine decimal separator based on position and count
+        if ($periodCount === 0 && $commaCount === 0) {
+            // No separators - just an integer
+            return (float) $amount;
+        } elseif ($periodCount > 0 && $commaCount === 0) {
+            // Only periods - could be thousands or decimal
+            if ($periodCount === 1 && $lastPeriod > strlen($amount) - 4) {
+                // Single period in last 3 positions = decimal separator
+                return (float) $amount;
+            } else {
+                // Multiple periods or not in decimal position = thousands separator
+                return (float) str_replace('.', '', $amount);
+            }
+        } elseif ($commaCount > 0 && $periodCount === 0) {
+            // Only commas - could be thousands or decimal
+            if ($commaCount === 1 && $lastComma > strlen($amount) - 4) {
+                // Single comma in last 3 positions = decimal separator (European)
+                return (float) str_replace(',', '.', $amount);
+            } else {
+                // Multiple commas or not in decimal position = thousands separator
+                return (float) str_replace(',', '', $amount);
+            }
+        } else {
+            // Both periods and commas present
+            if ($lastPeriod > $lastComma) {
+                // Period comes after comma: 1,234.56 (US format)
+                // Remove commas (thousands), keep period (decimal)
+                return (float) str_replace(',', '', $amount);
+            } else {
+                // Comma comes after period: 1.234,56 (European format)
+                // Remove periods (thousands), replace comma with period (decimal)
+                $amount = str_replace('.', '', $amount);
+                $amount = str_replace(',', '.', $amount);
+                return (float) $amount;
+            }
+        }
     }
 }

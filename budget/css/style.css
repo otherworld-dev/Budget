@@ -9604,13 +9604,24 @@ button.danger:hover {
 }
 
 /* Split indicator in transaction table */
+/* Category display in transactions table */
+.transactions-table .category-name {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
 .split-indicator {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    background: var(--color-primary-light);
-    color: var(--color-primary);
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element);
     border-radius: 10px;
     font-size: 11px;
     font-weight: 600;

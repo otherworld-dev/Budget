@@ -849,6 +849,83 @@ class BudgetApp {
         }
     }
 
+    reloadCurrentView() {
+        // Reload the current view to apply setting changes
+        switch (this.currentView) {
+            case 'dashboard':
+                this.loadDashboard();
+                break;
+            case 'accounts':
+                this.loadAccounts();
+                break;
+            case 'transactions':
+                this.loadTransactions();
+                break;
+            case 'categories':
+                this.loadCategories();
+                break;
+            case 'budget':
+                this.loadBudgetView();
+                break;
+            case 'forecast':
+                this.loadForecastView();
+                break;
+            case 'reports':
+                this.loadReportsView();
+                break;
+            case 'bills':
+                this.loadBillsView();
+                break;
+            case 'rules':
+                this.loadRulesView();
+                break;
+            case 'income':
+                this.loadIncomeView();
+                break;
+            case 'savings-goals':
+                this.loadSavingsGoalsView();
+                break;
+            case 'debt-payoff':
+                this.loadDebtPayoffView();
+                break;
+            case 'shared-expenses':
+                this.loadSharedExpensesView();
+                break;
+            case 'pensions':
+                this.loadPensionsView();
+                break;
+            case 'settings':
+                // Don't reload settings view (we're already in it)
+                break;
+        }
+    }
+
+    applyTheme(themePreference) {
+        const appContainer = document.getElementById('app-content-wrapper');
+        if (!appContainer) return;
+
+        // Remove existing theme classes
+        appContainer.classList.remove('theme-light', 'theme-dark', 'theme-system');
+
+        // Apply theme based on preference
+        switch (themePreference) {
+            case 'light':
+                appContainer.classList.add('theme-light');
+                appContainer.setAttribute('data-theme', 'light');
+                break;
+            case 'dark':
+                appContainer.classList.add('theme-dark');
+                appContainer.setAttribute('data-theme', 'dark');
+                break;
+            case 'system':
+            default:
+                // Follow Nextcloud's theme (remove overrides)
+                appContainer.classList.add('theme-system');
+                appContainer.removeAttribute('data-theme');
+                break;
+        }
+    }
+
     async loadInitialData() {
         try {
             // Load all initial data in parallel for better performance
@@ -872,6 +949,11 @@ class BudgetApp {
                 // Parse dashboard config
                 this.dashboardConfig.hero = this.parseDashboardConfig(this.settings.dashboard_hero_config, 'hero');
                 this.dashboardConfig.widgets = this.parseDashboardConfig(this.settings.dashboard_widgets_config, 'widgets');
+
+                // Apply theme preference on load
+                if (this.settings.theme_preference) {
+                    this.applyTheme(this.settings.theme_preference);
+                }
             }
 
             if (!accountsResponse.ok) {
@@ -1153,7 +1235,7 @@ class BudgetApp {
             const category = this.categories.find(c => c.id === tx.categoryId || c.id === tx.category_id);
             const categoryName = category ? category.name : 'Uncategorized';
             const categoryColor = category ? category.color : '#999';
-            const date = tx.date ? new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            const date = tx.date ? this.formatDate(tx.date) : '';
 
             return `
                 <div class="recent-transaction-item">
@@ -3085,8 +3167,8 @@ class BudgetApp {
         document.getElementById('sort-code').textContent = account.sortCode || 'Not provided';
         document.getElementById('swift-bic').textContent = account.swiftBic || 'Not provided';
         document.getElementById('account-display-currency').textContent = currency;
-        document.getElementById('account-opened').textContent = account.openedDate ? new Date(account.openedDate).toLocaleDateString() : 'Not provided';
-        document.getElementById('last-reconciled').textContent = account.lastReconciled ? new Date(account.lastReconciled).toLocaleDateString() : 'Never';
+        document.getElementById('account-opened').textContent = account.openedDate ? this.formatDate(account.openedDate) : 'Not provided';
+        document.getElementById('last-reconciled').textContent = account.lastReconciled ? this.formatDate(account.lastReconciled) : 'Never';
     }
 
     async loadAccountTransactions(accountId) {
@@ -3183,7 +3265,7 @@ class BudgetApp {
             return `
                 <tr class="transaction-row" data-transaction-id="${transaction.id}">
                     <td class="date-column">
-                        <span class="transaction-date">${new Date(transaction.date).toLocaleDateString()}</span>
+                        <span class="transaction-date">${this.formatDate(transaction.date)}</span>
                     </td>
                     <td class="description-column">
                         <div class="transaction-description">
@@ -3534,7 +3616,7 @@ class BudgetApp {
                         data-field="date"
                         data-value="${transaction.date}"
                         data-transaction-id="${transaction.id}">
-                        <span class="cell-display">${new Date(transaction.date).toLocaleDateString()}</span>
+                        <span class="cell-display">${this.formatDate(transaction.date)}</span>
                     </td>
                     <td class="description-column editable-cell"
                         data-field="description"
@@ -7967,12 +8049,34 @@ class BudgetApp {
 
     formatDate(dateStr) {
         if (!dateStr) return '';
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+
+        // Parse date string directly to avoid timezone conversion issues
+        // Assumes dateStr is in YYYY-MM-DD format from backend
+        const parts = dateStr.split(/[-/]/);
+        if (parts.length !== 3) {
+            // Fallback for unexpected format
+            return dateStr;
+        }
+
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const day = parseInt(parts[2], 10);
+
+        // Use user's date format preference from settings
+        const format = this.settings?.date_format || 'Y-m-d';
+
+        // Format the date according to PHP date format codes
+        const pad = (num) => String(num).padStart(2, '0');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthName = monthNames[month - 1];
+
+        // Convert PHP date format to actual date string
+        return format
+            .replace('Y', year)
+            .replace('m', pad(month))
+            .replace('d', pad(day))
+            .replace('M', monthName)
+            .replace('j', day);
     }
 
     formatAccountType(type) {
@@ -8000,7 +8104,7 @@ class BudgetApp {
     renderTransactionsList(transactions) {
         return transactions.map(t => `
             <div class="transaction-item">
-                <span class="transaction-date">${new Date(t.date).toLocaleDateString()}</span>
+                <span class="transaction-date">${this.formatDate(t.date)}</span>
                 <span class="transaction-description">${t.description}</span>
                 <span class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</span>
             </div>
@@ -8012,14 +8116,14 @@ class BudgetApp {
             const isSplit = t.isSplit || t.is_split;
             const categoryDisplay = isSplit
                 ? '<span class="split-indicator" title="This transaction is split across multiple categories">Split</span>'
-                : (t.categoryName || '-');
+                : (t.categoryName ? `<span class="category-name">${this.escapeHtml(t.categoryName)}</span>` : '-');
 
             return `
             <tr class="${isSplit ? 'split-transaction' : ''}">
                 <td class="select-column">
                     <input type="checkbox" class="transaction-checkbox" data-transaction-id="${t.id}">
                 </td>
-                <td>${new Date(t.date).toLocaleDateString()}</td>
+                <td>${this.formatDate(t.date)}</td>
                 <td>${this.escapeHtml(t.description)}</td>
                 <td>${categoryDisplay}</td>
                 <td class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</td>
@@ -8494,7 +8598,7 @@ class BudgetApp {
             container.innerHTML = transactions.map(transaction => `
                 <div class="transaction-item">
                     <div class="transaction-description">${transaction.description}</div>
-                    <div class="transaction-date">${new Date(transaction.date).toLocaleDateString()}</div>
+                    <div class="transaction-date">${this.formatDate(transaction.date)}</div>
                     <div class="transaction-amount ${transaction.type}">
                         ${transaction.type === 'credit' ? '+' : '-'}${this.formatCurrency(Math.abs(transaction.amount))}
                     </div>
@@ -12654,8 +12758,16 @@ class BudgetApp {
             // Update stored settings to apply immediately
             Object.assign(this.settings, settings);
 
+            // Apply theme if changed
+            if (settings.theme_preference) {
+                this.applyTheme(settings.theme_preference);
+            }
+
             // Update account form currency default if needed
             this.updateAccountFormDefaults(settings);
+
+            // Reload current view to apply setting changes (e.g., date format)
+            this.reloadCurrentView();
         } catch (error) {
             console.error('Error saving settings:', error);
             OC.Notification.showTemporary('Failed to save settings');
@@ -14234,7 +14346,7 @@ class BudgetApp {
         const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
         const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
 
-        sourceDetails.querySelector('.source-date').textContent = new Date(transaction.date).toLocaleDateString();
+        sourceDetails.querySelector('.source-date').textContent = this.formatDate(transaction.date);
         sourceDetails.querySelector('.source-description').textContent = transaction.description;
         sourceDetails.querySelector('.source-amount').textContent = this.formatCurrency(transaction.amount, currency);
         sourceDetails.querySelector('.source-amount').className = `source-amount ${typeClass}`;
@@ -14263,7 +14375,7 @@ class BudgetApp {
 
                 return `
                     <div class="match-item" data-match-id="${match.id}">
-                        <span class="match-date">${new Date(match.date).toLocaleDateString()}</span>
+                        <span class="match-date">${this.formatDate(match.date)}</span>
                         <span class="match-description">${this.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
                         <span class="match-account">${matchAccount?.name || 'Unknown'}</span>
@@ -14347,7 +14459,7 @@ class BudgetApp {
         transactionInfoEl.innerHTML = `
             <div class="split-info-row">
                 <span class="split-info-label">Date:</span>
-                <span>${new Date(transaction.date).toLocaleDateString()}</span>
+                <span>${this.formatDate(transaction.date)}</span>
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">Description:</span>
@@ -14397,6 +14509,11 @@ class BudgetApp {
         const currency = modal?.dataset.currency || this.getPrimaryCurrency();
         const rowIndex = container.children.length;
 
+        // Get the transaction to determine its type
+        const transactionId = parseInt(modal?.dataset.transactionId);
+        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transactionType = transaction?.type || 'debit';
+
         const row = document.createElement('div');
         row.className = 'split-row';
         row.dataset.index = rowIndex;
@@ -14411,7 +14528,7 @@ class BudgetApp {
                 <label>Category</label>
                 <select class="split-category">
                     <option value="">Uncategorized</option>
-                    ${this.getCategoryOptions(split?.categoryId)}
+                    ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
@@ -14442,10 +14559,15 @@ class BudgetApp {
     /**
      * Get category options HTML
      */
-    getCategoryOptions(selectedId = null) {
+    getCategoryOptions(selectedId = null, transactionType = null) {
         if (!this.categories) return '';
+
+        // Determine category type based on transaction type
+        // credit = income categories, debit = expense categories
+        const categoryType = transactionType === 'credit' ? 'income' : 'expense';
+
         return this.categories
-            .filter(c => c.type === 'expense')
+            .filter(c => c.type === categoryType)
             .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${this.escapeHtml(c.name)}</option>`)
             .join('');
     }
@@ -14672,7 +14794,7 @@ class BudgetApp {
         return `
             <div class="bulk-match-pair" data-tx-id="${tx.id}" data-linked-id="${linked.id}">
                 <div class="pair-transaction">
-                    <span class="pair-date">${new Date(tx.date).toLocaleDateString()}</span>
+                    <span class="pair-date">${this.formatDate(tx.date)}</span>
                     <span class="pair-description">${this.escapeHtml(tx.description)}</span>
                     <div class="pair-details">
                         <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
@@ -14681,7 +14803,7 @@ class BudgetApp {
                 </div>
                 <span class="pair-arrow">↔</span>
                 <div class="pair-transaction">
-                    <span class="pair-date">${new Date(linked.date).toLocaleDateString()}</span>
+                    <span class="pair-date">${this.formatDate(linked.date)}</span>
                     <span class="pair-description">${this.escapeHtml(linked.description)}</span>
                     <div class="pair-details">
                         <span class="pair-amount ${linkedTypeClass}">${this.formatCurrency(linked.amount, linkedCurrency)}</span>
@@ -14710,7 +14832,7 @@ class BudgetApp {
                     <input type="radio" name="review-match-${index}" value="${match.id}">
                     <div class="match-info">
                         <div class="match-info-main">
-                            <span class="match-date">${new Date(match.date).toLocaleDateString()}</span>
+                            <span class="match-date">${this.formatDate(match.date)}</span>
                             <span class="match-description">${this.escapeHtml(match.description)}</span>
                         </div>
                         <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
@@ -14724,7 +14846,7 @@ class BudgetApp {
             <div class="bulk-review-item" data-tx-id="${tx.id}" data-index="${index}">
                 <div class="review-source">
                     <div class="review-source-info">
-                        <span class="review-source-date">${new Date(tx.date).toLocaleDateString()}</span>
+                        <span class="review-source-date">${this.formatDate(tx.date)}</span>
                         <span class="review-source-description">${this.escapeHtml(tx.description)}</span>
                         <div class="review-source-details">
                             <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
