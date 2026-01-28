@@ -143,7 +143,8 @@ class FrequencyCalculator {
         if ($avgIntervalDays >= 12 && $avgIntervalDays <= 16) {
             return 'biweekly';
         }
-        if ($avgIntervalDays >= 25 && $avgIntervalDays <= 35) {
+        // Expanded range for monthly: 23-37 days to catch 4-week payments (28 days) with variance
+        if ($avgIntervalDays >= 23 && $avgIntervalDays <= 37) {
             return 'monthly';
         }
         if ($avgIntervalDays >= 85 && $avgIntervalDays <= 100) {

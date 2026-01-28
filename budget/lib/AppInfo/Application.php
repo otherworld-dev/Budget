@@ -250,6 +250,13 @@ class Application extends App implements IBootstrap {
             );
         });
 
+        $context->registerService(\OCA\Budget\Service\Income\RecurringIncomeDetector::class, function($c) {
+            return new \OCA\Budget\Service\Income\RecurringIncomeDetector(
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class)
+            );
+        });
+
         // ==========================================
         // Core Domain Services
         // ==========================================
@@ -458,7 +465,8 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\RecurringIncomeService::class, function($c) {
             return new \OCA\Budget\Service\RecurringIncomeService(
                 $c->get(\OCA\Budget\Db\RecurringIncomeMapper::class),
-                $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class)
+                $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class),
+                $c->get(\OCA\Budget\Service\Income\RecurringIncomeDetector::class)
             );
         });
         $context->registerServiceAlias('RecurringIncomeService', \OCA\Budget\Service\RecurringIncomeService::class);

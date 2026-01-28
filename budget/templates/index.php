@@ -2045,6 +2045,10 @@ style('budget', 'style');
             <div class="view-header">
                 <h2>Recurring Income</h2>
                 <div class="view-controls">
+                    <button id="detect-income-btn" class="secondary" title="Auto-detect recurring income from transactions">
+                        <span class="icon-search" aria-hidden="true"></span>
+                        Detect Income
+                    </button>
                     <button id="add-income-btn" class="primary" aria-label="Add recurring income">
                         <span class="icon-add" aria-hidden="true"></span>
                         Add Income
@@ -2115,6 +2119,24 @@ style('budget', 'style');
                             Add Your First Income Source
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Detected Income Panel (hidden by default) -->
+            <div id="detected-income-panel" class="detected-bills-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3>Detected Recurring Income</h3>
+                    <p>We found these potential recurring income sources in your transaction history</p>
+                    <button id="close-detected-income-panel" class="icon-button" title="Close">
+                        <span class="icon-close" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="detected-bills-list" id="detected-income-list">
+                    <!-- Detected income will be rendered here -->
+                </div>
+                <div class="panel-actions">
+                    <button id="add-selected-income-btn" class="primary">Add Selected Income</button>
+                    <button id="cancel-detected-income-btn" class="secondary">Cancel</button>
                 </div>
             </div>
         </div>

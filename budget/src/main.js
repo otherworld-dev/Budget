@@ -13388,6 +13388,34 @@ class BudgetApp {
             emptyIncomeAddBtn.addEventListener('click', () => this.showIncomeModal());
         }
 
+        // Detect income button
+        const detectIncomeBtn = document.getElementById('detect-income-btn');
+        if (detectIncomeBtn) {
+            detectIncomeBtn.addEventListener('click', () => this.detectIncome());
+        }
+
+        // Close detected income panel
+        const closeDetectedIncomePanel = document.getElementById('close-detected-income-panel');
+        if (closeDetectedIncomePanel) {
+            closeDetectedIncomePanel.addEventListener('click', () => {
+                document.getElementById('detected-income-panel').style.display = 'none';
+            });
+        }
+
+        // Cancel detected income
+        const cancelDetectedIncomeBtn = document.getElementById('cancel-detected-income-btn');
+        if (cancelDetectedIncomeBtn) {
+            cancelDetectedIncomeBtn.addEventListener('click', () => {
+                document.getElementById('detected-income-panel').style.display = 'none';
+            });
+        }
+
+        // Add selected income from detection
+        const addSelectedIncomeBtn = document.getElementById('add-selected-income-btn');
+        if (addSelectedIncomeBtn) {
+            addSelectedIncomeBtn.addEventListener('click', () => this.addSelectedDetectedIncome());
+        }
+
         // Income modal form
         const incomeForm = document.getElementById('income-form');
         if (incomeForm) {
@@ -13624,6 +13652,101 @@ class BudgetApp {
         } catch (error) {
             console.error('Failed to mark income as received:', error);
             OC.Notification.showTemporary('Failed to mark income as received');
+        }
+    }
+
+    async detectIncome() {
+        const detectBtn = document.getElementById('detect-income-btn');
+        detectBtn.disabled = true;
+        detectBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Detecting...';
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income/detect?months=6'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const detected = await response.json();
+
+            if (detected.length === 0) {
+                OC.Notification.showTemporary('No recurring income patterns found in your transactions');
+                return;
+            }
+
+            this._detectedIncome = detected;
+            this.renderDetectedIncome(detected);
+            document.getElementById('detected-income-panel').style.display = 'flex';
+        } catch (error) {
+            console.error('Failed to detect income:', error);
+            OC.Notification.showTemporary('Failed to detect recurring income');
+        } finally {
+            detectBtn.disabled = false;
+            detectBtn.innerHTML = '<span class="icon-search" aria-hidden="true"></span> Detect Income';
+        }
+    }
+
+    renderDetectedIncome(detected) {
+        const list = document.getElementById('detected-income-list');
+
+        list.innerHTML = detected.map((item, index) => {
+            const confidenceClass = item.confidence >= 0.8 ? 'high' : item.confidence >= 0.5 ? 'medium' : 'low';
+            const confidencePercent = Math.round(item.confidence * 100);
+
+            return `
+                <div class="detected-bill-item" data-index="${index}">
+                    <div class="detected-bill-select">
+                        <input type="checkbox" id="detected-income-${index}" ${item.confidence >= 0.7 ? 'checked' : ''}>
+                    </div>
+                    <div class="detected-bill-info">
+                        <div class="detected-bill-name">${this.escapeHtml(item.suggestedName)}</div>
+                        <div class="detected-bill-meta">
+                            <span class="detected-bill-amount">${this.formatCurrency(item.amount)}</span>
+                            <span class="detected-bill-frequency">${item.frequency}</span>
+                            <span class="detected-bill-occurrences">${item.occurrences} occurrences</span>
+                            <span class="detected-bill-source">Source: ${this.escapeHtml(item.source)}</span>
+                        </div>
+                        <div class="detected-bill-confidence">
+                            <span class="confidence-badge ${confidenceClass}">${confidencePercent}% confidence</span>
+                            ${item.amountVariance ? `<span class="variance-info">±${this.formatCurrency(item.amountVariance)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async addSelectedDetectedIncome() {
+        const checkboxes = document.querySelectorAll('#detected-income-list input[type="checkbox"]:checked');
+        const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-income-', '')));
+
+        if (selectedIndices.length === 0) {
+            OC.Notification.showTemporary('Please select at least one income source to add');
+            return;
+        }
+
+        const incomeToAdd = selectedIndices.map(i => this._detectedIncome[i]);
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income/create-from-detected'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ incomes: incomeToAdd })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const result = await response.json();
+
+            document.getElementById('detected-income-panel').style.display = 'none';
+            OC.Notification.showTemporary(`${result.created} income sources added successfully`);
+            await this.loadIncomeView();
+        } catch (error) {
+            console.error('Failed to add income:', error);
+            OC.Notification.showTemporary('Failed to add selected income sources');
         }
     }
 

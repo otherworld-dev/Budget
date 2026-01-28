@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCP\AppFramework\Db\DoesNotExistException;
 
 /**
@@ -15,13 +16,16 @@ use OCP\AppFramework\Db\DoesNotExistException;
 class RecurringIncomeService {
     private RecurringIncomeMapper $mapper;
     private FrequencyCalculator $frequencyCalculator;
+    private RecurringIncomeDetector $recurringDetector;
 
     public function __construct(
         RecurringIncomeMapper $mapper,
-        FrequencyCalculator $frequencyCalculator
+        FrequencyCalculator $frequencyCalculator,
+        RecurringIncomeDetector $recurringDetector
     ) {
         $this->mapper = $mapper;
         $this->frequencyCalculator = $frequencyCalculator;
+        $this->recurringDetector = $recurringDetector;
     }
 
     /**
@@ -201,5 +205,61 @@ class RecurringIncomeService {
             'yearly' => $amount / 12,
             default => $amount,
         };
+    }
+
+    /**
+     * Auto-detect recurring income from transaction history.
+     */
+    public function detectRecurringIncome(string $userId, int $months = 6, bool $debug = false): array {
+        return $this->recurringDetector->detectRecurringIncome($userId, $months, $debug);
+    }
+
+    /**
+     * Create recurring income entries from detected patterns.
+     */
+    public function createFromDetected(string $userId, array $detected): array {
+        $created = [];
+
+        foreach ($detected as $item) {
+            $income = $this->create(
+                $userId,
+                $item['suggestedName'] ?? $item['description'],
+                $item['amount'],
+                $item['frequency'],
+                $item['expectedDay'] ?? null,
+                null, // expectedMonth
+                $item['categoryId'] ?? null,
+                $item['accountId'] ?? null,
+                $item['source'] ?? null,
+                $item['autoDetectPattern'] ?? null
+            );
+            $created[] = $income;
+        }
+
+        return $created;
+    }
+
+    /**
+     * Check if a transaction matches any income's auto-detect pattern.
+     */
+    public function matchTransactionToIncome(string $userId, string $description, float $amount): ?RecurringIncome {
+        $incomes = $this->findActive($userId);
+
+        foreach ($incomes as $income) {
+            $pattern = $income->getAutoDetectPattern();
+            if (empty($pattern)) {
+                continue;
+            }
+
+            if (stripos($description, $pattern) !== false) {
+                $incomeAmount = $income->getAmount();
+                // Allow 20% variance for income (more forgiving than bills)
+                if (abs($amount - $incomeAmount) <= $incomeAmount * 0.2) {
+                    return $income;
+                }
+            }
+        }
+
+        return null;
     }
 }

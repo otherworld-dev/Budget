@@ -268,4 +268,39 @@ class RecurringIncomeController extends Controller {
             return $this->handleNotFoundError($e, 'Recurring income', ['incomeId' => $id]);
         }
     }
+
+    /**
+     * Auto-detect recurring income from transaction history
+     * @NoAdminRequired
+     */
+    public function detect(int $months = 24, ?bool $debug = false): DataResponse {
+        try {
+            $detected = $this->service->detectRecurringIncome($this->userId, $months, $debug);
+            return new DataResponse($detected);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to detect recurring income');
+        }
+    }
+
+    /**
+     * Create recurring income entries from detected patterns
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function createFromDetected(): DataResponse {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($data) || !isset($data['incomes'])) {
+                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $created = $this->service->createFromDetected($this->userId, $data['incomes']);
+            return new DataResponse([
+                'created' => count($created),
+                'incomes' => $created,
+            ], Http::STATUS_CREATED);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to create recurring income from detected patterns');
+        }
+    }
 }
