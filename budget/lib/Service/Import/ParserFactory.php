@@ -54,11 +54,12 @@ class ParserFactory {
      * @param string $content File content
      * @param string $format File format (csv, ofx, qif)
      * @param int|null $limit Maximum number of records to parse
+     * @param string $delimiter CSV delimiter (comma, semicolon, or tab)
      * @return array Parsed data
      */
-    public function parse(string $content, string $format, ?int $limit = null): array {
+    public function parse(string $content, string $format, ?int $limit = null, string $delimiter = ','): array {
         return match ($format) {
-            'csv' => $this->parseCsv($content, $limit),
+            'csv' => $this->parseCsv($content, $limit, $delimiter),
             'ofx' => $this->getOfxParser()->parseToTransactionList($content, $limit),
             'qif' => $this->getQifParser()->parseToTransactionList($content, $limit),
             default => throw new \Exception('Unsupported format: ' . $format),
@@ -78,8 +79,13 @@ class ParserFactory {
 
     /**
      * Parse CSV content.
+     *
+     * @param string $content CSV file content
+     * @param int|null $limit Maximum number of records to parse
+     * @param string $delimiter CSV delimiter character
+     * @return array Parsed data
      */
-    private function parseCsv(string $content, ?int $limit = null): array {
+    private function parseCsv(string $content, ?int $limit = null, string $delimiter = ','): array {
         $lines = explode("\n", $content);
         $data = [];
         $headers = null;
@@ -90,7 +96,7 @@ class ParserFactory {
                 continue;
             }
 
-            $row = str_getcsv($line);
+            $row = str_getcsv($line, $delimiter);
 
             if ($headers === null) {
                 $headers = array_map('trim', $row);

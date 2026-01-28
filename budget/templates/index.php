@@ -1688,6 +1688,18 @@ style('budget', 'style');
                             </div>
                         </div>
 
+                        <div class="csv-options" id="csv-options" style="display: none;">
+                            <div class="mapping-field">
+                                <label>CSV Delimiter</label>
+                                <select id="csv-delimiter">
+                                    <option value=",">Comma (,)</option>
+                                    <option value=";">Semicolon (;)</option>
+                                    <option value="\t">Tab</option>
+                                </select>
+                                <p class="hint">Change if columns are not detected correctly</p>
+                            </div>
+                        </div>
+
                         <div class="mapping-container">
                             <div class="mapping-fields">
                                 <div class="mapping-field required">
@@ -1698,9 +1710,25 @@ style('budget', 'style');
                                 </div>
                                 <div class="mapping-field required">
                                     <label>Amount <span class="required">*</span></label>
-                                    <select id="map-amount" required>
+                                    <select id="map-amount">
                                         <option value="">Select column...</option>
                                     </select>
+                                    <p class="hint">Or use separate income/expense columns below</p>
+                                </div>
+                                <div class="mapping-field-group">
+                                    <div class="mapping-field">
+                                        <label>Income Column</label>
+                                        <select id="map-income">
+                                            <option value="">Select column...</option>
+                                        </select>
+                                    </div>
+                                    <div class="mapping-field">
+                                        <label>Expense Column</label>
+                                        <select id="map-expense">
+                                            <option value="">Select column...</option>
+                                        </select>
+                                    </div>
+                                    <p class="hint">For files with separate income and expense columns</p>
                                 </div>
                                 <div class="mapping-field required">
                                     <label>Description <span class="required">*</span></label>

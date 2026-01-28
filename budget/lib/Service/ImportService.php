@@ -71,11 +71,17 @@ class ImportService {
             $content = file_get_contents($tmpPath);
             $file->putContent($content);
 
+            // Detect CSV delimiter if applicable
+            $delimiter = ',';
+            if ($format === 'csv') {
+                $delimiter = $this->fileValidator->detectDelimiter($content);
+            }
+
             // Parse preview
-            $preview = $this->parserFactory->parse($content, $format, 5);
+            $preview = $this->parserFactory->parse($content, $format, 5, $delimiter);
 
             // Build response based on format
-            return $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize);
+            return $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize, $delimiter);
 
         } catch (\Exception $e) {
             throw new \Exception('Failed to process upload: ' . $e->getMessage());
@@ -91,7 +97,8 @@ class ImportService {
         array $mapping,
         ?int $accountId = null,
         ?array $accountMapping = null,
-        bool $skipDuplicates = true
+        bool $skipDuplicates = true,
+        string $delimiter = ','
     ): array {
         $file = $this->getImportFile($fileId);
         $format = $this->parserFactory->detectFormat($fileId);
@@ -101,7 +108,7 @@ class ImportService {
             return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates);
         }
 
-        return $this->previewSingleAccountImport($userId, $content, $format, $mapping, $accountId, $skipDuplicates);
+        return $this->previewSingleAccountImport($userId, $content, $format, $mapping, $accountId, $skipDuplicates, $delimiter);
     }
 
     /**
@@ -114,7 +121,8 @@ class ImportService {
         ?int $accountId = null,
         ?array $accountMapping = null,
         bool $skipDuplicates = true,
-        bool $applyRules = true
+        bool $applyRules = true,
+        string $delimiter = ','
     ): array {
         $file = $this->getImportFile($fileId);
         $format = $this->parserFactory->detectFormat($fileId);
@@ -123,7 +131,7 @@ class ImportService {
         if (($format === 'ofx' || $format === 'qif') && !empty($accountMapping)) {
             $result = $this->executeMultiAccountImport($userId, $fileId, $content, $format, $accountMapping, $skipDuplicates, $applyRules);
         } else {
-            $result = $this->executeSingleAccountImport($userId, $fileId, $content, $format, $mapping, $accountId, $skipDuplicates, $applyRules);
+            $result = $this->executeSingleAccountImport($userId, $fileId, $content, $format, $mapping, $accountId, $skipDuplicates, $applyRules, $delimiter);
         }
 
         // Clean up import file
@@ -241,7 +249,7 @@ class ImportService {
         }
     }
 
-    private function buildUploadResponse(string $userId, string $fileId, string $fileName, string $format, string $content, array $preview, int $fileSize): array {
+    private function buildUploadResponse(string $userId, string $fileId, string $fileName, string $format, string $content, array $preview, int $fileSize, string $delimiter = ','): array {
         $columns = [];
         $rawPreview = [];
         $sourceAccounts = [];
@@ -251,7 +259,7 @@ class ImportService {
             $headers = [];
             foreach ($lines as $line) {
                 if (empty(trim($line))) continue;
-                $row = str_getcsv($line);
+                $row = str_getcsv($line, $delimiter);
                 if (empty($headers)) {
                     $headers = array_map('trim', $row);
                     $columns = $headers;
@@ -330,7 +338,8 @@ class ImportService {
             'columns' => $columns,
             'sourceAccounts' => $sourceAccounts,
             'recordCount' => $this->parserFactory->countRows($content, $format),
-            'size' => $fileSize
+            'size' => $fileSize,
+            'delimiter' => $format === 'csv' ? $delimiter : null,
         ];
     }
 
@@ -403,13 +412,13 @@ class ImportService {
         ];
     }
 
-    private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates): array {
+    private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ','): array {
         if (!$accountId) {
             throw new \Exception('Account ID is required for single-account imports');
         }
 
         $account = $this->accountMapper->find($accountId, $userId);
-        $data = $this->parserFactory->parse($content, $format);
+        $data = $this->parserFactory->parse($content, $format, null, $delimiter);
         $transactions = [];
         $duplicates = 0;
         $errors = [];
@@ -524,13 +533,13 @@ class ImportService {
         ];
     }
 
-    private function executeSingleAccountImport(string $userId, string $fileId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, bool $applyRules): array {
+    private function executeSingleAccountImport(string $userId, string $fileId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, bool $applyRules, string $delimiter = ','): array {
         if (!$accountId) {
             throw new \Exception('Account ID is required for single-account imports');
         }
 
         $account = $this->accountMapper->find($accountId, $userId);
-        $data = $this->parserFactory->parse($content, $format);
+        $data = $this->parserFactory->parse($content, $format, null, $delimiter);
         $imported = 0;
         $skipped = 0;
         $errors = [];

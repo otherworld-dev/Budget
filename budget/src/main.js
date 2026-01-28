@@ -5700,6 +5700,7 @@ class BudgetApp {
         // Store source accounts for multi-account mapping
         this.sourceAccounts = uploadResult.sourceAccounts || [];
         this.importFormat = uploadResult.format;
+        this.currentDelimiter = uploadResult.delimiter || ',';
 
         // Update file info
         const fileDetails = document.querySelector('.file-details');
@@ -5709,6 +5710,24 @@ class BudgetApp {
                 <span class="file-size">${this.formatFileSize(uploadResult.size)}</span>
                 <span class="record-count">${uploadResult.recordCount} records</span>
             `;
+        }
+
+        // Show/hide CSV options based on format
+        const csvOptions = document.getElementById('csv-options');
+        if (csvOptions) {
+            if (uploadResult.format === 'csv') {
+                csvOptions.style.display = 'block';
+                const delimiterSelect = document.getElementById('csv-delimiter');
+                if (delimiterSelect) {
+                    delimiterSelect.value = this.currentDelimiter;
+                    // Add change handler for delimiter to reload columns
+                    delimiterSelect.removeEventListener('change', this.handleDelimiterChange);
+                    this.handleDelimiterChange = () => this.reloadColumnsWithDelimiter();
+                    delimiterSelect.addEventListener('change', this.handleDelimiterChange);
+                }
+            } else {
+                csvOptions.style.display = 'none';
+            }
         }
 
         // Populate column mapping dropdowns
@@ -5721,10 +5740,20 @@ class BudgetApp {
         this.setImportStep(2);
     }
 
+    reloadColumnsWithDelimiter() {
+        const delimiterSelect = document.getElementById('csv-delimiter');
+        if (!delimiterSelect) return;
+
+        this.currentDelimiter = delimiterSelect.value;
+        OC.Notification.showTemporary('Delimiter changed. File will be re-parsed in the next step.');
+    }
+
     populateColumnMappings(columns) {
         const mappingSelects = {
             'map-date': document.getElementById('map-date'),
             'map-amount': document.getElementById('map-amount'),
+            'map-income': document.getElementById('map-income'),
+            'map-expense': document.getElementById('map-expense'),
             'map-description': document.getElementById('map-description'),
             'map-type': document.getElementById('map-type'),
             'map-vendor': document.getElementById('map-vendor'),
@@ -5754,6 +5783,8 @@ class BudgetApp {
         const patterns = {
             'map-date': ['date', 'transaction date', 'trans date', 'posting date'],
             'map-amount': ['amount', 'transaction amount', 'trans amount', 'value'],
+            'map-income': ['income', 'credit', 'deposits', 'deposit', 'credits', 'receipts'],
+            'map-expense': ['expense', 'debit', 'withdrawals', 'withdrawal', 'debits', 'payments', 'payment'],
             'map-description': ['description', 'memo', 'details', 'transaction details'],
             'map-type': ['type', 'transaction type', 'debit/credit', 'dr/cr'],
             'map-vendor': ['vendor', 'payee', 'merchant', 'counterparty'],
@@ -5827,6 +5858,8 @@ class BudgetApp {
         return {
             date: document.getElementById('map-date')?.value || null,
             amount: document.getElementById('map-amount')?.value || null,
+            incomeColumn: document.getElementById('map-income')?.value || null,
+            expenseColumn: document.getElementById('map-expense')?.value || null,
             description: document.getElementById('map-description')?.value || null,
             type: document.getElementById('map-type')?.value || null,
             vendor: document.getElementById('map-vendor')?.value || null,
@@ -5934,11 +5967,21 @@ class BudgetApp {
 
     validateMappingStep() {
         const mapping = this.getCurrentMapping();
-        const required = ['date', 'amount', 'description'];
 
-        const isValid = required.every(field =>
-            mapping[field] !== null && mapping[field] !== ''
-        );
+        // Check required fields: date and description
+        const hasDate = mapping.date !== null && mapping.date !== '';
+        const hasDescription = mapping.description !== null && mapping.description !== '';
+
+        // Check amount: either single amount column OR both income and expense columns
+        const hasAmount = mapping.amount !== null && mapping.amount !== '';
+        const hasIncome = mapping.incomeColumn !== null && mapping.incomeColumn !== '';
+        const hasExpense = mapping.expenseColumn !== null && mapping.expenseColumn !== '';
+        const hasDualColumns = hasIncome || hasExpense;
+
+        // Valid if we have (amount XOR dual-columns)
+        const hasValidAmount = (hasAmount && !hasDualColumns) || (!hasAmount && hasDualColumns);
+
+        const isValid = hasDate && hasDescription && hasValidAmount;
 
         // Update next button state
         const nextBtn = document.getElementById('next-step-btn');
@@ -5957,7 +6000,8 @@ class BudgetApp {
         const requestBody = {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
-            skipDuplicates: !(document.getElementById('show-duplicates')?.checked ?? true)
+            skipDuplicates: !(document.getElementById('show-duplicates')?.checked ?? true),
+            delimiter: document.getElementById('csv-delimiter')?.value || ','
         };
 
         if (isMultiAccount) {
@@ -6224,7 +6268,8 @@ class BudgetApp {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: !(document.getElementById('show-duplicates')?.checked ?? true),
-            applyRules: true
+            applyRules: true,
+            delimiter: document.getElementById('csv-delimiter')?.value || ','
         };
 
         if (isMultiAccount) {
