@@ -248,20 +248,32 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Get spending summary by category for a period
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
-    public function getSpendingSummary(string $userId, string $startDate, string $endDate): array {
+    public function getSpendingSummary(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
+    ): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('c.id', 'c.name', 'c.color', 'c.icon')
             ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'))
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->groupBy('c.id', 'c.name', 'c.color', 'c.icon')
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')));
+
+        // Apply tag filtering if requested
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
+        $qb->groupBy('c.id', 'c.name', 'c.color', 'c.icon')
             ->orderBy('total', 'DESC');
 
         $result = $qb->executeQuery();
@@ -406,8 +418,17 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Get cash flow data by month (income and expenses combined) - OPTIMIZED single query
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
-    public function getCashFlowByMonth(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+    public function getCashFlowByMonth(
+        string $userId,
+        ?int $accountId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
+    ): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select($qb->createFunction('SUBSTR(t.date, 1, 7) as month'))
@@ -429,6 +450,9 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
 
+        // Apply tag filtering if requested
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
         $qb->groupBy($qb->createFunction('SUBSTR(t.date, 1, 7)'))
             ->orderBy($qb->createFunction('SUBSTR(t.date, 1, 7)'), 'ASC');
 
@@ -446,9 +470,17 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Get aggregated income/expenses per account for a date range (avoids N+1)
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      * @return array<int, array{income: float, expenses: float, count: int}>
      */
-    public function getAccountSummaries(string $userId, string $startDate, string $endDate): array {
+    public function getAccountSummaries(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
+    ): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('t.account_id')
@@ -460,13 +492,17 @@ class TransactionMapper extends QBMapper {
                 $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
                 'expenses'
             )
-            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->groupBy('t.account_id');
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        // Apply tag filtering if requested
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
+        $qb->groupBy('t.account_id');
 
         $result = $qb->executeQuery();
         $data = $result->fetchAll();
@@ -580,8 +616,17 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Get monthly aggregates for trend data (single query for all months)
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
-    public function getMonthlyTrendData(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+    public function getMonthlyTrendData(
+        string $userId,
+        ?int $accountId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
+    ): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select($qb->createFunction('SUBSTR(t.date, 1, 7) as month'))
@@ -602,6 +647,9 @@ class TransactionMapper extends QBMapper {
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
+
+        // Apply tag filtering if requested
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
 
         $qb->groupBy($qb->createFunction('SUBSTR(t.date, 1, 7)'))
             ->orderBy($qb->createFunction('SUBSTR(t.date, 1, 7)'), 'ASC');
@@ -883,5 +931,489 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
 
         return $qb->executeStatement();
+    }
+
+    // ==================== TAG-BASED REPORTING METHODS ====================
+
+    /**
+     * Apply tag filtering to a query builder
+     * Joins through budget_transaction_tags and filters by tag IDs (OR logic)
+     *
+     * @param IQueryBuilder $qb Query builder to modify
+     * @param int[] $tagIds Array of tag IDs to filter by
+     * @param bool $includeUntagged Include transactions without tags
+     */
+    private function applyTagFilter(IQueryBuilder $qb, array $tagIds, bool $includeUntagged = true): void {
+        if (empty($tagIds)) {
+            return;
+        }
+
+        if ($includeUntagged) {
+            // Include transactions with specified tags OR no tags
+            $qb->leftJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+                ->andWhere(
+                    $qb->expr()->orX(
+                        $qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)),
+                        $qb->expr()->isNull('tt.tag_id')
+                    )
+                );
+        } else {
+            // Only transactions with specified tags
+            $qb->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+                ->andWhere($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
+        }
+    }
+
+    /**
+     * Get spending grouped by tags within a specific tag set
+     *
+     * @param string $userId
+     * @param int $tagSetId Tag set to group by
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @param int|null $categoryId Optional category filter
+     * @return array Array of [tagId, tagName, color, total, count]
+     */
+    public function getSpendingByTag(
+        string $userId,
+        int $tagSetId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('tag.id', 'tag.name', 'tag.color')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($categoryId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy('tag.id', 'tag.name', 'tag.color')
+            ->orderBy('total', 'DESC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'tagId' => (int)$row['id'],
+            'name' => $row['name'],
+            'color' => $row['color'],
+            'total' => (float)$row['total'],
+            'count' => (int)$row['count']
+        ], $data);
+    }
+
+    /**
+     * Get income grouped by tags within a specific tag set
+     *
+     * @param string $userId
+     * @param int $tagSetId Tag set to group by
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @param int|null $categoryId Optional category filter
+     * @return array Array of [tagId, tagName, color, total, count]
+     */
+    public function getIncomeByTag(
+        string $userId,
+        int $tagSetId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('tag.id', 'tag.name', 'tag.color')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($categoryId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy('tag.id', 'tag.name', 'tag.color')
+            ->orderBy('total', 'DESC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'tagId' => (int)$row['id'],
+            'name' => $row['name'],
+            'color' => $row['color'],
+            'total' => (float)$row['total'],
+            'count' => (int)$row['count']
+        ], $data);
+    }
+
+    /**
+     * Get tag dimensions breakdown for spending in a category
+     * Returns spending grouped by each tag set associated with the category
+     *
+     * @param string $userId
+     * @param int $categoryId
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @return array Array indexed by tag set ID, containing tag breakdowns
+     */
+    public function getTagDimensionsForCategory(
+        string $userId,
+        int $categoryId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('ts.id as tag_set_id', 'ts.name as tag_set_name', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+            ->innerJoin('tag', 'budget_tag_sets', 'ts', $qb->expr()->eq('tag.tag_set_id', 'ts.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy('ts.id', 'ts.name', 'tag.id', 'tag.name', 'tag.color')
+            ->orderBy('ts.id', 'ASC')
+            ->addOrderBy('total', 'DESC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        // Group by tag set
+        $dimensions = [];
+        foreach ($data as $row) {
+            $tagSetId = (int)$row['tag_set_id'];
+            if (!isset($dimensions[$tagSetId])) {
+                $dimensions[$tagSetId] = [
+                    'tagSetId' => $tagSetId,
+                    'tagSetName' => $row['tag_set_name'],
+                    'tags' => []
+                ];
+            }
+            $dimensions[$tagSetId]['tags'][] = [
+                'tagId' => (int)$row['tag_id'],
+                'name' => $row['tag_name'],
+                'color' => $row['color'],
+                'total' => (float)$row['total'],
+                'count' => (int)$row['count']
+            ];
+        }
+
+        return array_values($dimensions);
+    }
+
+    /**
+     * Get spending by tag combinations (transactions with specific sets of tags)
+     *
+     * @param string $userId
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @param int|null $categoryId Optional category filter
+     * @param int $minCombinationSize Minimum number of tags in combination (default 2)
+     * @param int $limit Maximum number of combinations to return
+     * @return array Array of [tagIds => int[], tagNames => string[], total, count]
+     */
+    public function getSpendingByTagCombination(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null,
+        int $minCombinationSize = 2,
+        int $limit = 50
+    ): array {
+        // This requires aggregating transaction IDs with their tag sets
+        // Step 1: Get all transactions with their tags
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.id', 't.amount', 'tag.id as tag_id', 'tag.name as tag_name')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($categoryId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->orderBy('t.id', 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        // Group tags by transaction
+        $transactionTags = [];
+        $transactionAmounts = [];
+        foreach ($data as $row) {
+            $txId = (int)$row['id'];
+            if (!isset($transactionTags[$txId])) {
+                $transactionTags[$txId] = [];
+                $transactionAmounts[$txId] = (float)$row['amount'];
+            }
+            $transactionTags[$txId][] = [
+                'id' => (int)$row['tag_id'],
+                'name' => $row['tag_name']
+            ];
+        }
+
+        // Group by tag combination
+        $combinations = [];
+        foreach ($transactionTags as $txId => $tags) {
+            if (count($tags) < $minCombinationSize) {
+                continue;
+            }
+
+            // Sort tags by ID for consistent combination key
+            usort($tags, fn($a, $b) => $a['id'] <=> $b['id']);
+            $tagIds = array_column($tags, 'id');
+            $tagNames = array_column($tags, 'name');
+            $key = implode(',', $tagIds);
+
+            if (!isset($combinations[$key])) {
+                $combinations[$key] = [
+                    'tagIds' => $tagIds,
+                    'tagNames' => $tagNames,
+                    'total' => 0,
+                    'count' => 0
+                ];
+            }
+
+            $combinations[$key]['total'] += $transactionAmounts[$txId];
+            $combinations[$key]['count']++;
+        }
+
+        // Sort by total descending
+        usort($combinations, fn($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_slice($combinations, 0, $limit);
+    }
+
+    /**
+     * Get cross-tabulation (pivot table) of spending by two tag sets
+     * Returns a matrix where rows are tags from tagSet1 and columns are tags from tagSet2
+     *
+     * @param string $userId
+     * @param int $tagSetId1 First tag set (rows)
+     * @param int $tagSetId2 Second tag set (columns)
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @param int|null $categoryId Optional category filter
+     * @return array ['rows' => tags from set 1, 'columns' => tags from set 2, 'data' => matrix]
+     */
+    public function getTagCrossTabulation(
+        string $userId,
+        int $tagSetId1,
+        int $tagSetId2,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null
+    ): array {
+        // Get all transactions with tags from both sets
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.id', 't.amount', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.tag_set_id', 'tag.color')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->in('tag.tag_set_id', $qb->createNamedParameter([$tagSetId1, $tagSetId2], IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($categoryId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->orderBy('t.id', 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        // Organize data by transaction
+        $transactionData = [];
+        $rowTags = []; // Tags from tagSet1
+        $colTags = []; // Tags from tagSet2
+
+        foreach ($data as $row) {
+            $txId = (int)$row['id'];
+            $tagId = (int)$row['tag_id'];
+            $tagSetId = (int)$row['tag_set_id'];
+
+            if (!isset($transactionData[$txId])) {
+                $transactionData[$txId] = [
+                    'amount' => (float)$row['amount'],
+                    'tag1' => null,
+                    'tag2' => null
+                ];
+            }
+
+            if ($tagSetId === $tagSetId1) {
+                $transactionData[$txId]['tag1'] = $tagId;
+                if (!isset($rowTags[$tagId])) {
+                    $rowTags[$tagId] = [
+                        'id' => $tagId,
+                        'name' => $row['tag_name'],
+                        'color' => $row['color']
+                    ];
+                }
+            } elseif ($tagSetId === $tagSetId2) {
+                $transactionData[$txId]['tag2'] = $tagId;
+                if (!isset($colTags[$tagId])) {
+                    $colTags[$tagId] = [
+                        'id' => $tagId,
+                        'name' => $row['tag_name'],
+                        'color' => $row['color']
+                    ];
+                }
+            }
+        }
+
+        // Build the matrix
+        $matrix = [];
+        foreach ($transactionData as $tx) {
+            if ($tx['tag1'] !== null && $tx['tag2'] !== null) {
+                $key = $tx['tag1'] . '_' . $tx['tag2'];
+                if (!isset($matrix[$key])) {
+                    $matrix[$key] = [
+                        'rowTagId' => $tx['tag1'],
+                        'colTagId' => $tx['tag2'],
+                        'total' => 0,
+                        'count' => 0
+                    ];
+                }
+                $matrix[$key]['total'] += $tx['amount'];
+                $matrix[$key]['count']++;
+            }
+        }
+
+        return [
+            'rows' => array_values($rowTags),
+            'columns' => array_values($colTags),
+            'data' => array_values($matrix)
+        ];
+    }
+
+    /**
+     * Get monthly trend data for specific tags
+     *
+     * @param string $userId
+     * @param int[] $tagIds Tags to track
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @return array Array of [month, tagId, tagName, amount]
+     */
+    public function getTagTrendByMonth(
+        string $userId,
+        array $tagIds,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null
+    ): array {
+        if (empty($tagIds)) {
+            return [];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select($qb->createFunction('SUBSTR(t.date, 1, 7) as month'))
+            ->addSelect('tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->in('tag.id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->groupBy($qb->createFunction('SUBSTR(t.date, 1, 7)'), 'tag.id', 'tag.name', 'tag.color')
+            ->orderBy($qb->createFunction('SUBSTR(t.date, 1, 7)'), 'ASC')
+            ->addOrderBy('tag.id', 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'month' => $row['month'],
+            'tagId' => (int)$row['tag_id'],
+            'tagName' => $row['tag_name'],
+            'color' => $row['color'],
+            'total' => (float)$row['total']
+        ], $data);
     }
 }

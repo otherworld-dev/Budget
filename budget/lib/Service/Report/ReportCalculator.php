@@ -179,4 +179,46 @@ class ReportCalculator {
             'transactions' => $transactions
         ];
     }
+
+    /**
+     * Get spending grouped by tags within a specific tag set.
+     */
+    public function getSpendingByTag(
+        string $userId,
+        int $tagSetId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null
+    ): array {
+        return $this->transactionMapper->getSpendingByTag(
+            $userId,
+            $tagSetId,
+            $startDate,
+            $endDate,
+            $accountId,
+            $categoryId
+        );
+    }
+
+    /**
+     * Get income grouped by tags within a specific tag set.
+     */
+    public function getIncomeByTag(
+        string $userId,
+        int $tagSetId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null
+    ): array {
+        return $this->transactionMapper->getIncomeByTag(
+            $userId,
+            $tagSetId,
+            $startDate,
+            $endDate,
+            $accountId,
+            $categoryId
+        );
+    }
 }

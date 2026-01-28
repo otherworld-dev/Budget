@@ -206,6 +206,14 @@ class Application extends App implements IBootstrap {
             );
         });
 
+        $context->registerService(\OCA\Budget\Service\Report\TagReportService::class, function($c) {
+            return new \OCA\Budget\Service\Report\TagReportService(
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\TagSetMapper::class),
+                $c->get(\OCA\Budget\Db\TagMapper::class)
+            );
+        });
+
         // ==========================================
         // Forecast Services
         // ==========================================
@@ -355,7 +363,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\ReportService(
                 $c->get(\OCA\Budget\Service\Report\ReportCalculator::class),
                 $c->get(\OCA\Budget\Service\Report\ReportAggregator::class),
-                $c->get(\OCA\Budget\Service\Report\ReportExporter::class)
+                $c->get(\OCA\Budget\Service\Report\ReportExporter::class),
+                $c->get(\OCA\Budget\Service\Report\TagReportService::class)
             );
         });
         $context->registerServiceAlias('ReportService', \OCA\Budget\Service\ReportService::class);

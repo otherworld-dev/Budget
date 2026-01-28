@@ -86,6 +86,30 @@ class TagSetService extends AbstractCrudService {
     }
 
     /**
+     * Get all tag sets with their tags loaded (for reports filtering)
+     *
+     * @return TagSet[]
+     */
+    public function getAllTagSetsWithTags(string $userId): array {
+        $tagSets = $this->findAll($userId);
+
+        if (empty($tagSets)) {
+            return [];
+        }
+
+        // Batch load all tags for these tag sets
+        $tagSetIds = array_map(fn($ts) => $ts->getId(), $tagSets);
+        $tagsGrouped = $this->tagMapper->findByTagSets($tagSetIds);
+
+        // Populate tags on each tag set
+        foreach ($tagSets as $tagSet) {
+            $tagSet->setTags($tagsGrouped[$tagSet->getId()] ?? []);
+        }
+
+        return $tagSets;
+    }
+
+    /**
      * Get a single tag set with its tags loaded
      */
     public function getTagSetWithTags(int $tagSetId, string $userId): TagSet {

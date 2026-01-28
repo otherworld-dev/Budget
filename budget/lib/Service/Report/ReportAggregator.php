@@ -32,12 +32,16 @@ class ReportAggregator {
     /**
      * Generate a comprehensive financial summary.
      * OPTIMIZED: Uses single aggregated query instead of N+1 pattern.
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
     public function generateSummary(
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
     ): array {
         $accounts = $accountId
             ? [$this->accountMapper->find($accountId, $userId)]
@@ -65,7 +69,13 @@ class ReportAggregator {
         ];
 
         // Single aggregated query for all account summaries (replaces N+1 pattern)
-        $accountSummaries = $this->transactionMapper->getAccountSummaries($userId, $startDate, $endDate);
+        $accountSummaries = $this->transactionMapper->getAccountSummaries(
+            $userId,
+            $startDate,
+            $endDate,
+            $tagIds,
+            $includeUntagged
+        );
 
         $totalIncome = 0;
         $totalExpenses = 0;
@@ -107,26 +117,32 @@ class ReportAggregator {
         $summary['spending'] = $this->transactionMapper->getSpendingSummary(
             $userId,
             $startDate,
-            $endDate
+            $endDate,
+            $tagIds,
+            $includeUntagged
         );
 
         // Generate trend data
-        $summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate);
+        $summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged);
 
         return $summary;
     }
 
     /**
      * Generate summary with comparison to previous period.
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
     public function generateSummaryWithComparison(
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
     ): array {
         // Current period
-        $current = $this->generateSummary($userId, $accountId, $startDate, $endDate);
+        $current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged);
 
         // Calculate previous period (same duration)
         $start = new \DateTime($startDate);
@@ -142,7 +158,9 @@ class ReportAggregator {
             $userId,
             $accountId,
             $prevStart->format('Y-m-d'),
-            $prevEnd->format('Y-m-d')
+            $prevEnd->format('Y-m-d'),
+            $tagIds,
+            $includeUntagged
         );
 
         // Calculate changes
@@ -236,14 +254,25 @@ class ReportAggregator {
 
     /**
      * Generate cash flow report by month.
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
     public function getCashFlowReport(
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
     ): array {
-        $cashFlow = $this->transactionMapper->getCashFlowByMonth($userId, $accountId, $startDate, $endDate);
+        $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+            $userId,
+            $accountId,
+            $startDate,
+            $endDate,
+            $tagIds,
+            $includeUntagged
+        );
 
         $totals = ['income' => 0, 'expenses' => 0, 'net' => 0];
         foreach ($cashFlow as $month) {
@@ -269,15 +298,26 @@ class ReportAggregator {
     /**
      * Generate monthly trend data for charts.
      * OPTIMIZED: Uses single aggregated query instead of N×M queries (months × accounts).
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
     public function generateTrendData(
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
     ): array {
         // Single query to get all monthly data at once
-        $monthlyData = $this->transactionMapper->getMonthlyTrendData($userId, $accountId, $startDate, $endDate);
+        $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+            $userId,
+            $accountId,
+            $startDate,
+            $endDate,
+            $tagIds,
+            $includeUntagged
+        );
 
         // Index by month for quick lookup
         $dataByMonth = [];
@@ -308,5 +348,73 @@ class ReportAggregator {
         }
 
         return $trends;
+    }
+
+    /**
+     * Get tag dimensions for spending across categories.
+     * Returns tag breakdown for each category that has tag sets.
+     *
+     * @param string $userId
+     * @param string $startDate
+     * @param string $endDate
+     * @param int|null $accountId Optional account filter
+     * @param int|null $categoryId Optional single category filter
+     * @return array Array of category data with tag dimensions
+     */
+    public function getTagDimensions(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?int $categoryId = null
+    ): array {
+        if ($categoryId !== null) {
+            // Single category
+            $dimensions = $this->transactionMapper->getTagDimensionsForCategory(
+                $userId,
+                $categoryId,
+                $startDate,
+                $endDate,
+                $accountId
+            );
+
+            $category = $this->categoryMapper->find($categoryId, $userId);
+
+            return [
+                'categories' => [[
+                    'categoryId' => $categoryId,
+                    'categoryName' => $category->getName(),
+                    'categoryColor' => $category->getColor(),
+                    'tagDimensions' => $dimensions
+                ]]
+            ];
+        }
+
+        // All categories with spending
+        $spending = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate);
+        $result = [];
+
+        foreach ($spending as $categoryData) {
+            $catId = (int)$categoryData['id'];
+            $dimensions = $this->transactionMapper->getTagDimensionsForCategory(
+                $userId,
+                $catId,
+                $startDate,
+                $endDate,
+                $accountId
+            );
+
+            if (!empty($dimensions)) {
+                $result[] = [
+                    'categoryId' => $catId,
+                    'categoryName' => $categoryData['name'],
+                    'categoryColor' => $categoryData['color'],
+                    'categoryTotal' => (float)$categoryData['total'],
+                    'tagDimensions' => $dimensions
+                ];
+            }
+        }
+
+        return ['categories' => $result];
     }
 }

@@ -10419,6 +10419,9 @@ class BudgetApp {
         // Populate account dropdown
         this.populateReportAccountDropdown();
 
+        // Load and populate tags dropdown
+        await this.loadAllTagsForReports();
+
         // Set default date range
         this.setReportDateRange('last-3-months');
 
@@ -10438,11 +10441,70 @@ class BudgetApp {
         }
     }
 
+    async loadAllTagsForReports() {
+        try {
+            const response = await fetch(
+                OC.generateUrl('/apps/budget/api/tag-sets'),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+
+            if (response.ok) {
+                this.allTagSetsForReports = await response.json();
+                this.populateReportTagsDropdown();
+            }
+        } catch (error) {
+            console.error('Failed to load tags for reports:', error);
+        }
+    }
+
+    populateReportTagsDropdown() {
+        const dropdown = document.getElementById('report-tags');
+        if (!dropdown) return;
+
+        dropdown.innerHTML = '';
+
+        if (!this.allTagSetsForReports || this.allTagSetsForReports.length === 0) {
+            dropdown.innerHTML = '<option value="" disabled>No tags available</option>';
+            return;
+        }
+
+        // Group tags by tag set
+        this.allTagSetsForReports.forEach(tagSet => {
+            if (tagSet.tags && tagSet.tags.length > 0) {
+                // Add optgroup for this tag set
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = tagSet.name;
+
+                tagSet.tags.forEach(tag => {
+                    const option = document.createElement('option');
+                    option.value = tag.id;
+                    option.textContent = tag.name;
+                    option.style.color = tag.color || '#000';
+                    optgroup.appendChild(option);
+                });
+
+                dropdown.appendChild(optgroup);
+            }
+        });
+
+        if (dropdown.children.length === 0) {
+            dropdown.innerHTML = '<option value="" disabled>No tags available</option>';
+        }
+    }
+
     async generateReport() {
         const reportType = document.getElementById('report-type')?.value || 'summary';
         const startDate = document.getElementById('report-start-date')?.value;
         const endDate = document.getElementById('report-end-date')?.value;
         const accountId = document.getElementById('report-account')?.value || '';
+
+        // Get selected tags
+        const tagSelect = document.getElementById('report-tags');
+        const selectedTags = tagSelect ? Array.from(tagSelect.selectedOptions).map(opt => opt.value) : [];
+
+        // Get include untagged checkbox
+        const includeUntaggedCheckbox = document.getElementById('report-include-untagged');
+        const includeUntagged = includeUntaggedCheckbox ? includeUntaggedCheckbox.checked : true;
 
         // Show loading
         const loadingEl = document.getElementById('report-loading');
@@ -10457,6 +10519,15 @@ class BudgetApp {
                 endDate,
                 ...(accountId && { accountId })
             });
+
+            // Add tag filters if any tags are selected
+            if (selectedTags.length > 0) {
+                selectedTags.forEach(tagId => {
+                    params.append('tagIds[]', tagId);
+                });
+                // Only add includeUntagged if tags are selected (otherwise it's irrelevant)
+                params.append('includeUntagged', includeUntagged.toString());
+            }
 
             switch (reportType) {
                 case 'summary':

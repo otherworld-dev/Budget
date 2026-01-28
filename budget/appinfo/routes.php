@@ -211,7 +211,14 @@ return [
         ['name' => 'report#cashflow', 'url' => '/api/reports/cashflow', 'verb' => 'GET'],
         ['name' => 'report#budget', 'url' => '/api/reports/budget', 'verb' => 'GET'],
         ['name' => 'report#export', 'url' => '/api/reports/export', 'verb' => 'POST'],
-        
+
+        // Tag Report routes
+        ['name' => 'report#tagDimensions', 'url' => '/api/reports/tags/dimensions', 'verb' => 'GET'],
+        ['name' => 'report#tagCombinations', 'url' => '/api/reports/tags/combinations', 'verb' => 'GET'],
+        ['name' => 'report#tagCrossTab', 'url' => '/api/reports/tags/crosstab', 'verb' => 'GET'],
+        ['name' => 'report#tagTrends', 'url' => '/api/reports/tags/trends', 'verb' => 'GET'],
+        ['name' => 'report#tagSetBreakdown', 'url' => '/api/reports/tags/breakdown', 'verb' => 'GET'],
+
         // Setup routes
         ['name' => 'setup#initialize', 'url' => '/api/setup/initialize', 'verb' => 'POST'],
         ['name' => 'setup#status', 'url' => '/api/setup/status', 'verb' => 'GET'],

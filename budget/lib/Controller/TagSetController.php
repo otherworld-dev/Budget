@@ -47,7 +47,8 @@ class TagSetController extends Controller {
             if ($categoryId !== null) {
                 $tagSets = $this->service->getCategoryTagSetsWithTags($categoryId, $this->userId);
             } else {
-                $tagSets = $this->service->findAll($this->userId);
+                // Load all tag sets with their tags for reports filtering
+                $tagSets = $this->service->getAllTagSetsWithTags($this->userId);
             }
             return new DataResponse($tagSets);
         } catch (\Exception $e) {

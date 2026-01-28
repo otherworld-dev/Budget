@@ -2461,6 +2461,21 @@ style('budget', 'style');
                     </select>
                 </div>
 
+                <div class="control-group">
+                    <label for="report-tags">Filter by Tags</label>
+                    <select id="report-tags" class="report-select" multiple style="min-height: 120px; max-height: 200px; overflow-y: auto;">
+                        <option value="">No tags loaded</option>
+                    </select>
+                    <small style="display: block; margin-top: 4px; color: var(--color-text-lighter);">Hold Ctrl/Cmd to select multiple</small>
+                </div>
+
+                <div class="control-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="report-include-untagged" checked>
+                        <span>Include untagged transactions</span>
+                    </label>
+                </div>
+
                 <button id="generate-report-btn" class="primary">Generate Report</button>
             </div>
 
