@@ -3816,12 +3816,16 @@ style('budget', 'style');
                 <div class="form-group">
                     <label for="account-currency">Currency</label>
                     <select id="account-currency" aria-describedby="account-currency-help">
-                        <option value="GBP">GBP - British Pound</option>
-                        <option value="USD">USD - US Dollar</option>
-                        <option value="EUR">EUR - Euro</option>
-                        <option value="CAD">CAD - Canadian Dollar</option>
-                        <option value="AUD">AUD - Australian Dollar</option>
-                        <option value="JPY">JPY - Japanese Yen</option>
+                        <option value="GBP">GBP - British Pound (£)</option>
+                        <option value="USD">USD - US Dollar ($)</option>
+                        <option value="EUR">EUR - Euro (€)</option>
+                        <option value="CAD">CAD - Canadian Dollar (C$)</option>
+                        <option value="AUD">AUD - Australian Dollar (A$)</option>
+                        <option value="JPY">JPY - Japanese Yen (¥)</option>
+                        <option value="CHF">CHF - Swiss Franc</option>
+                        <option value="CNY">CNY - Chinese Yuan (¥)</option>
+                        <option value="INR">INR - Indian Rupee (₹)</option>
+                        <option value="MXN">MXN - Mexican Peso ($)</option>
                     </select>
                     <small id="account-currency-help" class="form-text">Select the account currency</small>
                 </div>
