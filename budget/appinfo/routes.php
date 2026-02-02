@@ -226,14 +226,14 @@ return [
         ['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
         ['name' => 'setup#factoryReset', 'url' => '/api/setup/factory-reset', 'verb' => 'POST'],
 
-        // Settings routes
+        // Settings routes - specific paths before {key} wildcard
         ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],
         ['name' => 'setting#update', 'url' => '/api/settings', 'verb' => 'PUT'],
+        ['name' => 'setting#reset', 'url' => '/api/settings/reset', 'verb' => 'POST'],
+        ['name' => 'setting#options', 'url' => '/api/settings/options', 'verb' => 'GET'],
         ['name' => 'setting#show', 'url' => '/api/settings/{key}', 'verb' => 'GET'],
         ['name' => 'setting#updateKey', 'url' => '/api/settings/{key}', 'verb' => 'PUT'],
         ['name' => 'setting#destroy', 'url' => '/api/settings/{key}', 'verb' => 'DELETE'],
-        ['name' => 'setting#reset', 'url' => '/api/settings/reset', 'verb' => 'POST'],
-        ['name' => 'setting#options', 'url' => '/api/settings/options', 'verb' => 'GET'],
 
         // Auth routes (password protection)
         ['name' => 'auth#status', 'url' => '/api/auth/status', 'verb' => 'GET'],

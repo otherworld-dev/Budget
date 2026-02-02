@@ -34,12 +34,20 @@ enum Currency: string {
      */
     public function symbol(): string {
         return match ($this) {
-            self::USD, self::CAD, self::AUD, self::NZD, self::SGD, self::HKD, self::MXN => '$',
+            self::USD => '$',
             self::EUR => '€',
             self::GBP => '£',
-            self::JPY, self::CNY => '¥',
+            self::CAD => 'C$',
+            self::AUD => 'A$',
+            self::JPY => '¥',
             self::CHF => 'CHF',
-            self::SEK, self::NOK => 'kr',
+            self::CNY => '¥',
+            self::SEK => 'kr',
+            self::NOK => 'kr',
+            self::MXN => '$',
+            self::NZD => 'NZ$',
+            self::SGD => 'S$',
+            self::HKD => 'HK$',
             self::ZAR => 'R',
             self::INR => '₹',
             self::BRL => 'R$',

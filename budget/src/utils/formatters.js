@@ -22,12 +22,28 @@ export function formatCurrency(amount, currency, settings) {
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
     const decPart = parts[1] || '';
 
-    // Get currency symbol
+    // Get currency symbol - matches backend Currency enum
     const symbols = {
-        'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$', 'AUD': 'A$',
-        'JPY': '¥', 'CHF': 'CHF', 'CNY': '¥', 'INR': '₹', 'MXN': '$',
-        'BRL': 'R$', 'KRW': '₩', 'SGD': 'S$', 'HKD': 'HK$', 'NOK': 'kr',
-        'SEK': 'kr', 'DKK': 'kr', 'NZD': 'NZ$', 'ZAR': 'R', 'RUB': '₽'
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'CAD': 'C$',
+        'AUD': 'A$',
+        'JPY': '¥',
+        'CHF': 'CHF',
+        'CNY': '¥',
+        'SEK': 'kr',
+        'NOK': 'kr',
+        'MXN': '$',
+        'NZD': 'NZ$',
+        'SGD': 'S$',
+        'HKD': 'HK$',
+        'ZAR': 'R',
+        'INR': '₹',
+        'BRL': 'R$',
+        'RUB': '₽',
+        'KRW': '₩',
+        'TRY': '₺'
     };
     const symbol = symbols[currencyCode] || currencyCode;
 
