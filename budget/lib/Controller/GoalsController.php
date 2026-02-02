@@ -70,10 +70,10 @@ class GoalsController extends Controller {
     public function create(
         string $name,
         float $targetAmount,
-        int $targetMonths,
         float $currentAmount = 0.0,
-        string $description = '',
-        string $targetDate = null
+        ?int $targetMonths = null,
+        ?string $description = null,
+        ?string $targetDate = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -93,11 +93,13 @@ class GoalsController extends Controller {
             }
 
             // Validate targetDate if provided
-            if ($targetDate !== null) {
+            if ($targetDate !== null && $targetDate !== '') {
                 $dateValidation = $this->validationService->validateDate($targetDate, 'Target date', false);
                 if (!$dateValidation['valid']) {
                     return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
+            } else {
+                $targetDate = null;
             }
 
             // Validate targetAmount is positive
@@ -105,8 +107,8 @@ class GoalsController extends Controller {
                 return new DataResponse(['error' => 'Target amount must be greater than zero'], Http::STATUS_BAD_REQUEST);
             }
 
-            // Validate targetMonths is positive
-            if ($targetMonths <= 0) {
+            // Validate targetMonths if provided
+            if ($targetMonths !== null && $targetMonths <= 0) {
                 return new DataResponse(['error' => 'Target months must be greater than zero'], Http::STATUS_BAD_REQUEST);
             }
 

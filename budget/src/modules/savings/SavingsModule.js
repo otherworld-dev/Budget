@@ -213,10 +213,8 @@ export default class SavingsModule {
             document.getElementById('goal-name').value = goal.name;
             document.getElementById('goal-target').value = goal.targetAmount || goal.target_amount || '';
             document.getElementById('goal-current').value = goal.currentAmount || goal.current_amount || 0;
-            document.getElementById('goal-account').value = goal.accountId || goal.account_id || '';
             document.getElementById('goal-target-date').value = goal.targetDate || goal.target_date || '';
-            document.getElementById('goal-color').value = goal.color || '#0082c9';
-            document.getElementById('goal-notes').value = goal.notes || '';
+            document.getElementById('goal-notes').value = goal.description || '';
         }
 
         modal.style.display = 'flex';
@@ -226,14 +224,15 @@ export default class SavingsModule {
         const form = document.getElementById('goal-form');
         const goalId = document.getElementById('goal-id').value;
 
+        const targetDateValue = document.getElementById('goal-target-date').value;
+        const descriptionValue = document.getElementById('goal-notes').value;
+
         const data = {
             name: document.getElementById('goal-name').value,
             targetAmount: parseFloat(document.getElementById('goal-target').value) || 0,
             currentAmount: parseFloat(document.getElementById('goal-current').value) || 0,
-            accountId: document.getElementById('goal-account').value || null,
-            targetDate: document.getElementById('goal-target-date').value || null,
-            color: document.getElementById('goal-color').value,
-            notes: document.getElementById('goal-notes').value
+            targetDate: targetDateValue || null,
+            description: descriptionValue || null
         };
 
         try {

@@ -45,16 +45,21 @@ class SavingsGoal extends Entity implements JsonSerializable {
     }
 
     public function jsonSerialize(): array {
+        $current = $this->getCurrentAmount();
+        $target = $this->getTargetAmount();
+        $completed = $current >= $target;
+
         return [
             'id' => $this->getId(),
             'userId' => $this->getUserId(),
             'name' => $this->getName(),
-            'targetAmount' => $this->getTargetAmount(),
-            'currentAmount' => $this->getCurrentAmount(),
+            'targetAmount' => $target,
+            'currentAmount' => $current,
             'targetMonths' => $this->getTargetMonths(),
             'description' => $this->getDescription(),
             'targetDate' => $this->getTargetDate(),
             'createdAt' => $this->getCreatedAt(),
+            'completed' => $completed,
         ];
     }
 }
