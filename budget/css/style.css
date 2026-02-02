@@ -12775,3 +12775,42 @@ button.danger:hover {
         padding: 20px;
     }
 }
+
+/* ============================================
+   Undo Notification Styles
+   ============================================ */
+
+.undo-notification {
+    font-family: var(--font-face);
+    font-size: 14px;
+}
+
+.undo-notification .undo-message {
+    margin-right: 15px;
+}
+
+.undo-notification .undo-btn:hover {
+    opacity: 0.9;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+    }
+}

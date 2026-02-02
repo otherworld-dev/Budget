@@ -159,6 +159,35 @@ class RecurringIncomeMapper extends QBMapper {
     }
 
     /**
+     * Update specific fields directly using query builder.
+     * This is useful for setting fields to null where Entity change detection may not work.
+     *
+     * @param int $id
+     * @param string $userId
+     * @param array $fields Associative array of column_name => value
+     * @return void
+     */
+    public function updateFields(int $id, string $userId, array $fields): void {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        foreach ($fields as $column => $value) {
+            if ($value === null) {
+                $qb->set($column, $qb->createNamedParameter($value, IQueryBuilder::PARAM_NULL));
+            } else {
+                // Auto-detect parameter type
+                $type = is_int($value) ? IQueryBuilder::PARAM_INT :
+                       (is_bool($value) ? IQueryBuilder::PARAM_BOOL : IQueryBuilder::PARAM_STR);
+                $qb->set($column, $qb->createNamedParameter($value, $type));
+            }
+        }
+
+        $qb->executeStatement();
+    }
+
+    /**
      * Delete all recurring income for a user
      *
      * @param string $userId

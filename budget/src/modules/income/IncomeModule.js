@@ -9,6 +9,8 @@ export default class IncomeModule {
         this.app = app;
         this._eventsSetup = false;
         this._detectedIncome = [];
+        this._undoTimer = null;
+        this._undoData = null;
     }
 
     // Getters for app state
@@ -439,23 +441,153 @@ export default class IncomeModule {
 
     async markIncomeReceived(incomeId) {
         try {
+            // Find the income item to store its previous state
+            const income = this.recurringIncome.find(i => i.id === incomeId);
+            if (!income) {
+                throw new Error('Income not found');
+            }
+
+            const previousReceivedDate = income.lastReceivedDate || income.last_received_date || null;
+            const currentDate = new Date().toISOString().split('T')[0];
+
+            // Mark as received on the server
             const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}/received`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken
                 },
-                body: JSON.stringify({ receivedDate: new Date().toISOString().split('T')[0] })
+                body: JSON.stringify({ receivedDate: currentDate })
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            OC.Notification.showTemporary('Income marked as received');
+            // Store undo data BEFORE reloading
+            this._undoData = {
+                incomeId: incomeId,
+                previousReceivedDate: previousReceivedDate,
+                action: 'markReceived'
+            };
+
+            // Update local state immediately
             await this.loadIncomeView();
+
+            // Clear any existing undo timer
+            if (this._undoTimer) {
+                clearTimeout(this._undoTimer);
+            }
+
+            // Show notification with undo option
+            this.showUndoNotification('Income marked as received', () => this.undoMarkReceived());
+
+            // Set timer to clear undo data after 5 seconds
+            this._undoTimer = setTimeout(() => {
+                this._undoData = null;
+                this._undoTimer = null;
+            }, 5000);
+
         } catch (error) {
             console.error('Failed to mark income as received:', error);
             OC.Notification.showTemporary('Failed to mark income as received');
         }
+    }
+
+    async undoMarkReceived() {
+        if (!this._undoData) {
+            return;
+        }
+
+        try {
+            const { incomeId, previousReceivedDate } = this._undoData;
+
+            // Clear the undo timer
+            if (this._undoTimer) {
+                clearTimeout(this._undoTimer);
+                this._undoTimer = null;
+            }
+
+            // Use the update endpoint to restore the previous state
+            // This allows us to set lastReceivedDate to null if needed
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ lastReceivedDate: previousReceivedDate })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            // Clear undo data
+            this._undoData = null;
+
+            // Reload the view
+            await this.loadIncomeView();
+
+            OC.Notification.showTemporary('Action undone');
+        } catch (error) {
+            console.error('Failed to undo mark received:', error);
+            OC.Notification.showTemporary(`Failed to undo action: ${error.message}`);
+        }
+    }
+
+    showUndoNotification(message, undoCallback) {
+        // Create a custom notification element with an undo button
+        const notification = document.createElement('div');
+        notification.className = 'undo-notification';
+        notification.innerHTML = `
+            <span class="undo-message">${message}</span>
+            <button class="undo-btn">Undo</button>
+        `;
+
+        // Style the notification
+        Object.assign(notification.style, {
+            position: 'fixed',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#333',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            zIndex: '10000',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            animation: 'slideUp 0.3s ease-out'
+        });
+
+        const undoBtn = notification.querySelector('.undo-btn');
+        Object.assign(undoBtn.style, {
+            backgroundColor: '#fff',
+            color: '#333',
+            border: 'none',
+            padding: '6px 12px',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '13px'
+        });
+
+        undoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            undoCallback();
+            notification.remove();
+        });
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideDown 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
     }
 
     async detectIncome() {
