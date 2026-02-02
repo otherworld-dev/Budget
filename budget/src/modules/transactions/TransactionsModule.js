@@ -1640,14 +1640,595 @@ export default class TransactionsModule {
         this.currentEditingCell = cell;
         this.originalValue = value;
 
-        // Different editors based on field type
-        // Implementation would create appropriate input/select elements
-        console.log('Start inline edit:', field, value, transactionId);
+        switch (field) {
+            case 'date':
+                this.createDateEditor(cell, value);
+                break;
+            case 'description':
+                this.createTextEditor(cell, value, 'description');
+                break;
+            case 'categoryId':
+                this.createCategoryEditor(cell, value);
+                break;
+            case 'amount':
+                this.createAmountEditor(cell, transaction);
+                break;
+            case 'accountId':
+                this.createAccountEditor(cell, value);
+                break;
+            case 'tags':
+                this.createTagsEditor(cell, transaction);
+                break;
+            default:
+                this.createTextEditor(cell, value, field);
+        }
+    }
+
+    createDateEditor(cell, value) {
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.className = 'inline-edit-input';
+        input.value = value;
+
+        this.setupEditorEvents(input, cell, 'date');
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+    }
+
+    createTextEditor(cell, value, field) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'inline-edit-input';
+        input.value = value || '';
+        input.placeholder = field === 'description' ? 'Enter description...' : '';
+
+        this.setupEditorEvents(input, cell, field);
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+    }
+
+    createAmountEditor(cell, transaction) {
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '4px';
+
+        // Type toggle
+        const typeToggle = document.createElement('div');
+        typeToggle.className = 'inline-type-toggle';
+
+        const creditBtn = document.createElement('button');
+        creditBtn.type = 'button';
+        creditBtn.className = `inline-type-btn ${transaction.type === 'credit' ? 'active' : ''}`;
+        creditBtn.textContent = '+';
+        creditBtn.title = 'Income';
+
+        const debitBtn = document.createElement('button');
+        debitBtn.type = 'button';
+        debitBtn.className = `inline-type-btn ${transaction.type === 'debit' ? 'active' : ''}`;
+        debitBtn.textContent = '-';
+        debitBtn.title = 'Expense';
+
+        typeToggle.appendChild(creditBtn);
+        typeToggle.appendChild(debitBtn);
+
+        // Amount input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'inline-edit-input';
+        input.value = transaction.amount;
+        input.step = '0.01';
+        input.min = '0';
+        input.dataset.type = transaction.type;
+
+        // Type toggle events
+        creditBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            creditBtn.classList.add('active');
+            debitBtn.classList.remove('active');
+            input.dataset.type = 'credit';
+        });
+
+        debitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            debitBtn.classList.add('active');
+            creditBtn.classList.remove('active');
+            input.dataset.type = 'debit';
+        });
+
+        this.setupEditorEvents(input, cell, 'amount');
+
+        container.appendChild(typeToggle);
+        container.appendChild(input);
+        cell.innerHTML = '';
+        cell.appendChild(container);
+        input.focus();
+        input.select();
+    }
+
+    createCategoryEditor(cell, currentCategoryId) {
+        const container = document.createElement('div');
+        container.className = 'category-autocomplete';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'category-autocomplete-input';
+        input.placeholder = 'Type to search...';
+
+        // Try hierarchical first (for categories page), then flat (for transactions page)
+        let categoryData = null;
+        if (this.categoryTree && this.categoryTree.length > 0) {
+            categoryData = this.categoryTree;
+        } else if (this.allCategories && this.allCategories.length > 0) {
+            categoryData = this.allCategories;
+        } else if (this.categories && this.categories.length > 0) {
+            categoryData = this.categories;
+        }
+
+        // Build flat list of categories for search
+        const flatCategories = categoryData ? this.getFlatCategoryList(categoryData) : [];
+
+        // Set current category name as value
+        const currentCategory = flatCategories.find(c => c.id === parseInt(currentCategoryId));
+        input.value = currentCategory ? currentCategory.name : '';
+        input.dataset.categoryId = currentCategoryId || '';
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'category-autocomplete-dropdown';
+        dropdown.style.display = 'none';
+
+        container.appendChild(input);
+        container.appendChild(dropdown);
+
+        const showDropdown = (filter = '') => {
+            const filtered = filter
+                ? flatCategories.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
+                : flatCategories;
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="category-autocomplete-empty">No categories found</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(c => `
+                    <div class="category-autocomplete-item ${c.id === parseInt(input.dataset.categoryId) ? 'selected' : ''}"
+                         data-category-id="${c.id}"
+                         data-category-name="${c.name}">
+                        ${c.prefix}${c.name}
+                    </div>
+                `).join('');
+            }
+
+            // Add "Uncategorized" option
+            dropdown.innerHTML = `
+                <div class="category-autocomplete-item ${!input.dataset.categoryId ? 'selected' : ''}"
+                     data-category-id=""
+                     data-category-name="">
+                    Uncategorized
+                </div>
+            ` + dropdown.innerHTML;
+
+            dropdown.style.display = 'block';
+        };
+
+        input.addEventListener('focus', () => showDropdown(input.value));
+        input.addEventListener('input', () => showDropdown(input.value));
+
+        // CRITICAL: Prevent input blur when clicking dropdown
+        dropdown.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+        });
+
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = e.target.closest('.category-autocomplete-item');
+            if (item) {
+                input.dataset.categoryId = item.dataset.categoryId;
+                input.value = item.dataset.categoryName;
+                dropdown.style.display = 'none';
+                this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                dropdown.style.display = 'none';
+                this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.navigateCategoryDropdown(dropdown, e.key === 'ArrowDown' ? 1 : -1, input);
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (!container.contains(document.activeElement)) {
+                    dropdown.style.display = 'none';
+                    if (input.dataset.categoryId !== (currentCategoryId || '')) {
+                        this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+                    } else {
+                        this.cancelInlineEdit(cell);
+                    }
+                }
+            }, 200);
+        });
+
+        cell.innerHTML = '';
+        cell.appendChild(container);
+        input.focus();
+        input.select();
+        showDropdown();
+    }
+
+    navigateCategoryDropdown(dropdown, direction, input) {
+        const items = dropdown.querySelectorAll('.category-autocomplete-item');
+        if (items.length === 0) return;
+
+        const currentHighlighted = dropdown.querySelector('.category-autocomplete-item.highlighted');
+        let nextIndex = 0;
+
+        if (currentHighlighted) {
+            currentHighlighted.classList.remove('highlighted');
+            const currentIndex = Array.from(items).indexOf(currentHighlighted);
+            nextIndex = currentIndex + direction;
+            if (nextIndex < 0) nextIndex = items.length - 1;
+            if (nextIndex >= items.length) nextIndex = 0;
+        } else {
+            nextIndex = direction === 1 ? 0 : items.length - 1;
+        }
+
+        items[nextIndex].classList.add('highlighted');
+        items[nextIndex].scrollIntoView({ block: 'nearest' });
+        input.dataset.categoryId = items[nextIndex].dataset.categoryId;
+    }
+
+    createAccountEditor(cell, currentAccountId) {
+        const select = document.createElement('select');
+        select.className = 'inline-edit-select';
+
+        this.accounts?.forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            option.textContent = account.name;
+            option.selected = account.id === parseInt(currentAccountId);
+            select.appendChild(option);
+        });
+
+        select.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                this.saveInlineEdit(cell, 'accountId', select.value);
+            }
+        });
+
+        select.addEventListener('change', () => {
+            this.saveInlineEdit(cell, 'accountId', select.value);
+        });
+
+        select.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (cell.classList.contains('editing')) {
+                    this.cancelInlineEdit(cell);
+                }
+            }, 100);
+        });
+
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+    }
+
+    async createTagsEditor(cell, transaction) {
+        const categoryId = transaction.categoryId;
+
+        if (!categoryId) {
+            cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">Select category first</span>';
+            setTimeout(() => this.cancelInlineEdit(cell), 1500);
+            return;
+        }
+
+        cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">Loading...</span>';
+
+        try {
+            const tagSets = await this.loadTagSetsForCategory(categoryId);
+
+            if (tagSets.length === 0) {
+                cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tag sets</span>';
+                setTimeout(() => this.cancelInlineEdit(cell), 1500);
+                return;
+            }
+
+            const currentTagIds = this.app.getTransactionTagIds(transaction.id);
+            const selectedTags = new Set(currentTagIds);
+
+            const container = document.createElement('div');
+            container.className = 'tags-autocomplete';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'tags-autocomplete-input';
+            input.placeholder = 'Type to filter tags...';
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'tags-autocomplete-dropdown';
+            dropdown.style.display = 'none';
+
+            container.appendChild(input);
+            container.appendChild(dropdown);
+
+            const allTags = [];
+            tagSets.forEach(tagSet => {
+                tagSet.tags.forEach(tag => {
+                    allTags.push({
+                        id: tag.id,
+                        name: tag.name,
+                        color: tag.color,
+                        tagSetName: tagSet.name,
+                        tagSetId: tagSet.id
+                    });
+                });
+            });
+
+            const renderDropdown = (filter = '') => {
+                const filtered = filter
+                    ? allTags.filter(t =>
+                        t.name.toLowerCase().includes(filter.toLowerCase()) ||
+                        t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                    )
+                    : allTags;
+
+                const grouped = {};
+                filtered.forEach(tag => {
+                    if (!grouped[tag.tagSetId]) {
+                        grouped[tag.tagSetId] = {
+                            name: tag.tagSetName,
+                            tags: []
+                        };
+                    }
+                    grouped[tag.tagSetId].tags.push(tag);
+                });
+
+                let html = '';
+                Object.values(grouped).forEach(group => {
+                    html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                    group.tags.forEach(tag => {
+                        const isSelected = selectedTags.has(tag.id);
+                        html += `
+                            <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
+                                 data-tag-id="${tag.id}">
+                                <span class="tag-chip"
+                                      style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                                             padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
+                                    ${this.escapeHtml(tag.name)}
+                                </span>
+                                <span class="tag-check">${isSelected ? '✓' : ''}</span>
+                            </div>
+                        `;
+                    });
+                });
+
+                dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+                dropdown.style.display = 'block';
+            };
+
+            input.addEventListener('focus', () => renderDropdown(input.value));
+            input.addEventListener('input', () => renderDropdown(input.value));
+
+            dropdown.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+
+            dropdown.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const item = e.target.closest('.tags-autocomplete-item');
+                if (item) {
+                    const tagId = parseInt(item.dataset.tagId);
+                    const clickedTag = allTags.find(t => t.id === tagId);
+                    if (!clickedTag) return;
+
+                    const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
+                    tagsFromSameSet.forEach(t => {
+                        if (t.id !== tagId) {
+                            selectedTags.delete(t.id);
+                        }
+                    });
+
+                    if (selectedTags.has(tagId)) {
+                        selectedTags.delete(tagId);
+                    } else {
+                        selectedTags.add(tagId);
+                    }
+
+                    renderDropdown(input.value);
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    this.cancelInlineEdit(cell);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (cell.classList.contains('editing')) {
+                        this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                    }
+                }, 200);
+            });
+
+            cell.innerHTML = '';
+            cell.appendChild(container);
+            input.focus();
+            renderDropdown();
+
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+            cell.innerHTML = '<span style="color: var(--color-error); font-size: 11px;">Error loading tags</span>';
+            setTimeout(() => this.cancelInlineEdit(cell), 1500);
+        }
+    }
+
+    async saveTagsFromEditor(cell, selectedTags, transactionId) {
+        const tagIds = Array.from(selectedTags);
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tagIds })
+            });
+
+            if (response.ok) {
+                await this.app.loadTransactionTags(transactionId);
+                this.cancelInlineEdit(cell);
+
+                const cellDisplay = cell.querySelector('.cell-display');
+                if (cellDisplay) {
+                    cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
+                }
+            } else {
+                console.error('Failed to save tags');
+                this.cancelInlineEdit(cell);
+            }
+        } catch (error) {
+            console.error('Failed to save tags:', error);
+            this.cancelInlineEdit(cell);
+        }
+    }
+
+    async loadTagSetsForCategory(categoryId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+            return [];
+        }
+    }
+
+    setupEditorEvents(input, cell, field) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (field === 'amount') {
+                    const type = input.dataset.type;
+                    this.saveInlineEdit(cell, field, input.value, { type });
+                } else {
+                    this.saveInlineEdit(cell, field, input.value);
+                }
+            }
+        });
+
+        input.addEventListener('blur', (e) => {
+            if (e.relatedTarget?.closest('.inline-type-toggle')) {
+                return;
+            }
+
+            setTimeout(() => {
+                if (cell.classList.contains('editing')) {
+                    if (field === 'amount') {
+                        const type = input.dataset.type;
+                        this.saveInlineEdit(cell, field, input.value, { type });
+                    } else {
+                        this.saveInlineEdit(cell, field, input.value);
+                    }
+                }
+            }, 100);
+        });
     }
 
     async saveInlineEdit(cell, field, value, extra = {}) {
-        // Implementation would save the edited value via API
-        console.log('Save inline edit:', field, value);
+        const transactionId = parseInt(cell.dataset.transactionId);
+        const transaction = this.transactions.find(t => t.id === transactionId);
+
+        if (!transaction) {
+            this.cancelInlineEdit(cell);
+            return;
+        }
+
+        // Check if value actually changed
+        let hasChanged = false;
+        if (field === 'amount') {
+            const newAmount = parseFloat(value);
+            const newType = extra.type || transaction.type;
+            hasChanged = newAmount !== transaction.amount || newType !== transaction.type;
+        } else if (field === 'categoryId') {
+            const newCatId = value === '' ? null : parseInt(value);
+            hasChanged = newCatId !== transaction.categoryId;
+        } else if (field === 'accountId') {
+            hasChanged = parseInt(value) !== transaction.accountId;
+        } else {
+            hasChanged = value !== (transaction[field] || '');
+        }
+
+        if (!hasChanged) {
+            this.cancelInlineEdit(cell);
+            return;
+        }
+
+        cell.classList.add('cell-saving');
+
+        const updateData = {};
+        if (field === 'amount') {
+            updateData.amount = parseFloat(value);
+            if (extra.type) {
+                updateData.type = extra.type;
+            }
+        } else if (field === 'categoryId') {
+            updateData.categoryId = value === '' ? null : parseInt(value);
+        } else if (field === 'accountId') {
+            updateData.accountId = parseInt(value);
+        } else {
+            updateData[field] = value;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                Object.assign(transaction, result);
+
+                if (field === 'accountId') {
+                    await this.app.loadAccounts();
+                }
+
+                this.app.renderEnhancedTransactionsTable();
+                this.app.applyColumnVisibility();
+                OC.Notification.showTemporary('Transaction updated');
+            } else {
+                throw new Error('Update failed');
+            }
+        } catch (error) {
+            console.error('Failed to save inline edit:', error);
+            OC.Notification.showTemporary('Failed to update transaction');
+            this.cancelInlineEdit(cell);
+        }
     }
 
     cancelInlineEdit(cell) {

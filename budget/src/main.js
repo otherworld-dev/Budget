@@ -862,6 +862,163 @@ class BudgetApp {
         return this.transactionsModule.renderTransactionsTable(transactions);
     }
 
+    renderEnhancedTransactionsTable() {
+        const tbody = document.querySelector('#transactions-table tbody');
+        if (!tbody || !this.transactions) return;
+
+        tbody.innerHTML = this.transactions.map(transaction => {
+            const account = this.accounts?.find(a => a.id === transaction.accountId);
+            const category = this.categories?.find(c => c.id === transaction.categoryId);
+            const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
+
+            const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
+            const formattedAmount = this.formatCurrency(transaction.amount, currency);
+
+            const isLinked = transaction.linkedTransactionId != null;
+            const linkedBadge = isLinked
+                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" title="Linked transfer - click to unlink">&#x1F517; Transfer</span>`
+                : '';
+            const matchButton = !isLinked
+                ? `<button class="action-btn match-btn transaction-match-btn"
+                          data-transaction-id="${transaction.id}"
+                          title="Find transfer matches">
+                      <span class="icon-external" aria-hidden="true"></span>
+                  </button>`
+                : `<button class="action-btn unlink-btn transaction-unlink-btn"
+                          data-transaction-id="${transaction.id}"
+                          title="Unlink transfer">
+                      &#x2716;
+                  </button>`;
+
+            return `
+                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}" data-transaction-id="${transaction.id}">
+                    <td class="select-column">
+                        <input type="checkbox" class="transaction-checkbox"
+                               data-transaction-id="${transaction.id}"
+                               ${this.transactionsModule.selectedTransactions?.has(transaction.id) ? 'checked' : ''}>
+                    </td>
+                    <td class="date-column editable-cell"
+                        data-field="date"
+                        data-value="${transaction.date}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="cell-display">${this.formatDate(transaction.date)}</span>
+                    </td>
+                    <td class="description-column editable-cell"
+                        data-field="description"
+                        data-value="${this.escapeHtml(transaction.description)}"
+                        data-transaction-id="${transaction.id}">
+                        <div class="transaction-description">
+                            <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || 'No description'}</span>
+                            ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
+                            ${linkedBadge}
+                        </div>
+                    </td>
+                    <td class="vendor-column editable-cell"
+                        data-field="vendor"
+                        data-value="${this.escapeHtml(transaction.vendor || '')}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="cell-display">${this.escapeHtml(transaction.vendor) || '-'}</span>
+                    </td>
+                    <td class="category-column editable-cell"
+                        data-field="categoryId"
+                        data-value="${transaction.categoryId || ''}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
+                            ${category ? this.escapeHtml(category.name) : 'Uncategorized'}
+                        </span>
+                    </td>
+                    <td class="tags-column editable-cell"
+                        data-field="tags"
+                        data-value="${this.getTransactionTagIds(transaction.id).join(',')}"
+                        data-category-id="${transaction.categoryId || ''}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="cell-display">
+                            ${this.renderTransactionTags(transaction.id)}
+                        </span>
+                    </td>
+                    <td class="amount-column editable-cell"
+                        data-field="amount"
+                        data-value="${transaction.amount}"
+                        data-type="${transaction.type}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="amount cell-display ${typeClass}">${formattedAmount}</span>
+                    </td>
+                    <td class="account-column editable-cell"
+                        data-field="accountId"
+                        data-value="${transaction.accountId}"
+                        data-transaction-id="${transaction.id}">
+                        <span class="account-name cell-display">${account ? this.escapeHtml(account.name) : 'Unknown Account'}</span>
+                    </td>
+                    <td class="actions-column">
+                        <div class="transaction-actions">
+                            <button class="action-btn split-btn transaction-split-btn"
+                                    data-transaction-id="${transaction.id}"
+                                    title="Split into categories">
+                                <span aria-hidden="true">⋯</span>
+                            </button>
+                            <button class="action-btn share-btn transaction-share-btn"
+                                    data-transaction-id="${transaction.id}"
+                                    title="Share with contact">
+                                <span aria-hidden="true">👥</span>
+                            </button>
+                            ${matchButton}
+                            <button class="action-btn edit-btn transaction-edit-btn"
+                                    data-transaction-id="${transaction.id}"
+                                    title="Edit transaction (modal)">
+                                <span class="icon-rename" aria-hidden="true"></span>
+                            </button>
+                            <button class="action-btn delete-btn transaction-delete-btn"
+                                    data-transaction-id="${transaction.id}"
+                                    title="Delete transaction">
+                                <span class="icon-delete" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Render tags for a transaction
+     */
+    renderTransactionTags(transactionId) {
+        // Ensure transactionTags is initialized
+        if (!this.transactionTags) {
+            this.transactionTags = {};
+        }
+
+        const tags = this.transactionTags[transactionId];
+
+        if (!tags || tags.length === 0) {
+            return '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">-</span>';
+        }
+
+        return tags.map(tag => `
+            <span class="tag-chip"
+                  style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                         padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin: 0 2px 2px 0;">
+                ${this.escapeHtml(tag.name)}
+            </span>
+        `).join('');
+    }
+
+    /**
+     * Get tag IDs for a transaction
+     */
+    getTransactionTagIds(transactionId) {
+        if (!this.transactionTags) {
+            this.transactionTags = {};
+        }
+
+        const tags = this.transactionTags[transactionId];
+        if (!tags || tags.length === 0) {
+            return [];
+        }
+
+        return tags.map(tag => tag.id);
+    }
+
     showTransactionModal(transaction, preSelectedAccountId) {
         return this.transactionsModule.showTransactionModal(transaction, preSelectedAccountId);
     }
@@ -957,7 +1114,7 @@ class BudgetApp {
             const tbody = document.querySelector('#transactions-table tbody');
             if (tbody) {
                 // Always use enhanced rendering for inline editing support
-                this.renderTransactionsTable(this.transactions);
+                this.renderEnhancedTransactionsTable();
                 this.applyColumnVisibility();
             }
 
