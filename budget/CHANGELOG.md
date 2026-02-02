@@ -34,6 +34,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TransactionNormalizer handles both single and dual-column amount approaches
   - Frontend validation prevents invalid mapping combinations
 
+## [1.3.0] - 2026-02-02
+
+### Added
+- Tag filter dropdown on reports page for filtering transactions by tags
+- Undo functionality on bills page to revert deletions
+- Undo functionality on income page to revert deletions
+- DKK (Danish Krone) currency support
+- Semi-annually frequency option for recurring bills
+- Expanded currency selection to 20 currencies with centralized Currency enum
+
+### Changed
+- **Major refactoring: Modularized frontend architecture (63% code reduction in main.js)**
+  - Split monolithic main.js (~18,000 lines) into 14 feature-based modules in `src/modules/`
+  - Created dedicated modules: AccountsModule, AuthModule, BillsModule, CategoriesModule, DashboardModule, ForecastModule, ImportModule, IncomeModule, PensionsModule, ReportsModule, RulesModule, SavingsModule, SharedExpensesModule, TagSetsModule, TransactionsModule
+  - Extracted Router into separate `src/core/Router.js` class
+  - Created shared utilities in `src/utils/`: api.js, dom.js, formatters.js, helpers.js, validators.js
+  - Centralized dashboard widget configuration in `src/config/dashboardWidgets.js`
+  - Improved maintainability, testability, and developer experience
+  - No user-facing changes - purely internal architecture improvement
+
+### Fixed
+- Duplicate event listeners in forecast module causing memory leaks
+- Bill editing persistence issues - edits now save correctly
+- Pension modal bugs and added disclaimer notice for retirement projections
+- Savings goals creation failing to save properly
+- Savings goals completed count displaying incorrectly
+- Bills page hero cards showing "no data" despite active bills
+- Multiple UI bugs in tag sets modal and transaction modal
+- Transaction table rendering issues after modularization
+- Inline transaction editing not saving changes correctly
+- Various functionality issues restored after modularization refactor
+
 ## [1.2.3] - 2026-01-24
 
 ### Fixed
