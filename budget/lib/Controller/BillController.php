@@ -250,6 +250,9 @@ class BillController extends Controller {
                     $updates['reminderDays'] = null;
                 }
             }
+            if (array_key_exists('lastPaidDate', $data)) {
+                $updates['lastPaidDate'] = $data['lastPaidDate'];
+            }
 
             if (empty($updates)) {
                 return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);

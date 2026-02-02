@@ -9,6 +9,8 @@ export default class BillsModule {
         this.app = app;
         this._eventsSetup = false;
         this._detectedBills = [];
+        this._undoTimer = null;
+        this._undoData = null;
     }
 
     // Getters for app state
@@ -442,23 +444,138 @@ export default class BillsModule {
 
     async markBillPaid(billId) {
         try {
+            const bill = this.bills.find(b => b.id === billId);
+            if (!bill) {
+                throw new Error('Bill not found');
+            }
+
+            const previousPaidDate = bill.lastPaidDate || bill.last_paid_date || null;
+            const currentDate = new Date().toISOString().split('T')[0];
+
             const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/paid`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken
                 },
-                body: JSON.stringify({ paidDate: new Date().toISOString().split('T')[0] })
+                body: JSON.stringify({ paidDate: currentDate })
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            OC.Notification.showTemporary('Bill marked as paid');
+            // Store undo data BEFORE reloading
+            this._undoData = {
+                billId: billId,
+                previousPaidDate: previousPaidDate,
+                action: 'markPaid'
+            };
+
             await this.loadBillsView();
+
+            if (this._undoTimer) {
+                clearTimeout(this._undoTimer);
+            }
+
+            this.showUndoNotification('Bill marked as paid', () => this.undoMarkBillPaid());
+
+            this._undoTimer = setTimeout(() => {
+                this._undoData = null;
+                this._undoTimer = null;
+            }, 5000);
+
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
             OC.Notification.showTemporary('Failed to mark bill as paid');
         }
+    }
+
+    async undoMarkBillPaid() {
+        if (!this._undoData) {
+            return;
+        }
+
+        try {
+            const { billId, previousPaidDate } = this._undoData;
+
+            if (this._undoTimer) {
+                clearTimeout(this._undoTimer);
+                this._undoTimer = null;
+            }
+
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}`), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ lastPaidDate: previousPaidDate })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            this._undoData = null;
+            await this.loadBillsView();
+
+            OC.Notification.showTemporary('Action undone');
+        } catch (error) {
+            console.error('Failed to undo mark paid:', error);
+            OC.Notification.showTemporary(`Failed to undo action: ${error.message}`);
+        }
+    }
+
+    showUndoNotification(message, undoCallback) {
+        const notification = document.createElement('div');
+        notification.className = 'undo-notification';
+        notification.innerHTML = `
+            <span class="undo-message">${message}</span>
+            <button class="undo-btn">Undo</button>
+        `;
+
+        Object.assign(notification.style, {
+            position: 'fixed',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#333',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            zIndex: '10000',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            animation: 'slideUp 0.3s ease-out'
+        });
+
+        const undoBtn = notification.querySelector('.undo-btn');
+        Object.assign(undoBtn.style, {
+            backgroundColor: '#fff',
+            color: '#333',
+            border: 'none',
+            padding: '6px 12px',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '13px'
+        });
+
+        undoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            undoCallback();
+            notification.remove();
+        });
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideDown 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
     }
 
     async detectBills() {
