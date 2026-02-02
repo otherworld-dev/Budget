@@ -437,13 +437,7 @@ class BudgetApp {
         // Enhanced Forecast System
         this.setupForecastEventListeners();
 
-        // Generate report
-        const generateReportBtn = document.getElementById('generate-report-btn');
-        if (generateReportBtn) {
-            generateReportBtn.addEventListener('click', () => {
-                this.generateReport();
-            });
-        }
+        // Note: Generate report button event listener is handled by ReportsModule
 
         // Settings page event listeners
         this.setupSettingsEventListeners();
