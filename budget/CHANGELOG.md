@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-02-02
+
 ### Added
-- Tag Sets feature for multi-dimensional transaction categorization (GitHub issue #13)
+- **Tag Sets feature for multi-dimensional transaction categorization (GitHub issue #13)**
   - Categories can have multiple tag sets (e.g., "Hobbies" → "Activity" tag set + "Equipment" tag set)
   - Each tag set contains multiple tags with customizable colors
   - Tags can be assigned to transactions for detailed organization and filtering
@@ -16,11 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Color-coded tag chips with visual distinction
   - Modal interface for adding tags with HTML5 color picker
   - Transaction filtering by tags (supports multiple tags with OR logic within tag sets, AND logic across tag sets)
+  - Tag filter dropdown on reports page for filtering transactions by tags
   - Database tables: `budget_tag_sets`, `budget_tags`, `budget_transaction_tags`
   - RESTful API endpoints for tag set and tag CRUD operations
   - Auto-select first category when category page loads for better UX
   - Theme-aware color scheme using Nextcloud CSS variables
-- CSV import enhancements for better international bank support (GitHub issue #15)
+- **CSV import enhancements for better international bank support (GitHub issue #15)**
   - Auto-detection of CSV delimiters (comma, semicolon, tab)
   - User-selectable delimiter override when auto-detection fails
   - Dual-column amount mapping for files with separate income/expense columns
@@ -33,11 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backend delimiter parameter support in ParserFactory, ImportService, and ImportController
   - TransactionNormalizer handles both single and dual-column amount approaches
   - Frontend validation prevents invalid mapping combinations
-
-## [1.3.0] - 2026-02-02
-
-### Added
-- Tag filter dropdown on reports page for filtering transactions by tags
 - Undo functionality on bills page to revert deletions
 - Undo functionality on income page to revert deletions
 - DKK (Danish Krone) currency support
