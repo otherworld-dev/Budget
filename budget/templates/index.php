@@ -2799,6 +2799,16 @@ style('budget', 'style');
                 </button>
             </div>
 
+            <!-- Info Notice -->
+            <div class="pensions-notice" style="background-color: rgba(100, 116, 139, 0.08); border: 1px solid rgba(100, 116, 139, 0.15); border-radius: 4px; padding: 12px 16px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(100, 116, 139, 0.6)" style="flex-shrink: 0; margin-top: 2px;">
+                    <path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                </svg>
+                <div style="color: rgba(100, 116, 139, 0.85); font-size: 14px;">
+                    <strong>Note:</strong> Pension projections and figures are estimates based on the information provided and assumed growth rates. Actual pension values may vary depending on market performance, contribution changes, and other factors. Please consult with a financial advisor for accurate retirement planning.
+                </div>
+            </div>
+
             <!-- Pensions Summary Cards -->
             <div class="pensions-summary">
                 <div class="summary-card">

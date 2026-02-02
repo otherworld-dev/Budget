@@ -313,15 +313,13 @@ export default class PensionsModule {
             document.getElementById('pension-name').value = pension.name;
             document.getElementById('pension-type').value = pension.type;
             document.getElementById('pension-provider').value = pension.provider || '';
-            document.getElementById('pension-account-number').value = pension.accountNumber || '';
             document.getElementById('pension-currency').value = pension.currency || 'GBP';
 
             if (pension.isDefinedContribution) {
-                document.getElementById('pension-current-balance').value = pension.currentBalance || '';
-                document.getElementById('pension-monthly-contribution').value = pension.monthlyContribution || '';
+                document.getElementById('pension-balance').value = pension.currentBalance || '';
+                document.getElementById('pension-monthly').value = pension.monthlyContribution || '';
             } else {
-                document.getElementById('pension-annual-income').value = pension.annualIncome || '';
-                document.getElementById('pension-start-date').value = pension.startDate || '';
+                document.getElementById('pension-income').value = pension.annualIncome || '';
             }
 
             this.togglePensionFields();
@@ -341,7 +339,7 @@ export default class PensionsModule {
     async savePension() {
         const form = document.getElementById('pension-form');
         const formData = new FormData(form);
-        const pensionId = formData.get('pensionId');
+        const pensionId = formData.get('id');
 
         const type = formData.get('type');
         const isDefinedContribution = type !== 'defined_benefit' && type !== 'state';
