@@ -10,8 +10,7 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ## What's New in v1.2.3
 
-🔒 **Security & Control Release** - Password Protection & Factory Reset
-
+**Security & Control Release** - Password Protection & Factory Reset
 - **Password Protection** - Optional secondary password layer for enhanced app security with session management
 - **Auto-Lock** - Configurable inactivity timeout (15/30/60 minutes) with manual lock option
 - **Failed Attempt Protection** - 5 failed attempts trigger 5-minute lockout with rate limiting

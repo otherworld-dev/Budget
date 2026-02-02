@@ -1,0 +1,158 @@
+/**
+ * Formatting utilities for currency, dates, and numbers
+ * All functions are pure - they accept required data as parameters
+ */
+
+/**
+ * Format currency amount according to user settings
+ * @param {number} amount - Amount to format
+ * @param {string|null} currency - Currency code (e.g., 'USD', 'EUR')
+ * @param {object} settings - User settings object
+ * @returns {string} Formatted currency string
+ */
+export function formatCurrency(amount, currency, settings) {
+    const currencyCode = currency || getPrimaryCurrency([], settings);
+    const decimals = parseInt(settings.number_format_decimals) || 2;
+    const decimalSep = settings.number_format_decimal_sep || '.';
+    const thousandsSep = settings.number_format_thousands_sep ?? ',';
+
+    // Format the number manually using user settings
+    const absAmount = Math.abs(amount);
+    const parts = absAmount.toFixed(decimals).split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
+    const decPart = parts[1] || '';
+
+    // Get currency symbol
+    const symbols = {
+        'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$', 'AUD': 'A$',
+        'JPY': '¥', 'CHF': 'CHF', 'CNY': '¥', 'INR': '₹', 'MXN': '$',
+        'BRL': 'R$', 'KRW': '₩', 'SGD': 'S$', 'HKD': 'HK$', 'NOK': 'kr',
+        'SEK': 'kr', 'DKK': 'kr', 'NZD': 'NZ$', 'ZAR': 'R', 'RUB': '₽'
+    };
+    const symbol = symbols[currencyCode] || currencyCode;
+
+    const formattedNumber = decimals > 0 ? `${intPart}${decimalSep}${decPart}` : intPart;
+    const sign = amount < 0 ? '-' : '';
+    return `${sign}${symbol}${formattedNumber}`;
+}
+
+/**
+ * Get primary currency based on account balances
+ * @param {array} accounts - Array of account objects
+ * @param {object} settings - User settings object
+ * @returns {string} Primary currency code
+ */
+export function getPrimaryCurrency(accounts, settings) {
+    // Get default currency from settings (matches backend SettingController default of 'GBP')
+    const defaultCurrency = settings?.default_currency || 'GBP';
+
+    // Default fallback to user's setting
+    if (!Array.isArray(accounts) || accounts.length === 0) {
+        return defaultCurrency;
+    }
+
+    // Weight currencies by absolute balance (same logic as backend ForecastService)
+    const currencyWeights = {};
+    accounts.forEach(account => {
+        const currency = account.currency || defaultCurrency;
+        const balance = Math.abs(parseFloat(account.balance) || 0);
+        currencyWeights[currency] = (currencyWeights[currency] || 0) + balance;
+    });
+
+    // Find currency with highest weight
+    let primaryCurrency = defaultCurrency;
+    let maxWeight = 0;
+    for (const [currency, weight] of Object.entries(currencyWeights)) {
+        if (weight > maxWeight) {
+            maxWeight = weight;
+            primaryCurrency = currency;
+        }
+    }
+
+    return primaryCurrency;
+}
+
+/**
+ * Format date string according to user settings
+ * @param {string} dateStr - Date string in YYYY-MM-DD format
+ * @param {object} settings - User settings object
+ * @returns {string} Formatted date string
+ */
+export function formatDate(dateStr, settings) {
+    if (!dateStr) return '';
+
+    // Parse date string directly to avoid timezone conversion issues
+    // Assumes dateStr is in YYYY-MM-DD format from backend
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length !== 3) {
+        // Fallback for unexpected format
+        return dateStr;
+    }
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+
+    // Use user's date format preference from settings
+    const format = settings?.date_format || 'Y-m-d';
+
+    // Format the date according to PHP date format codes
+    const pad = (num) => String(num).padStart(2, '0');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = monthNames[month - 1];
+
+    // Convert PHP date format to actual date string
+    return format
+        .replace('Y', year)
+        .replace('m', pad(month))
+        .replace('d', pad(day))
+        .replace('M', monthName)
+        .replace('j', day);
+}
+
+/**
+ * Format account type for display
+ * @param {string} type - Account type code
+ * @returns {string} Formatted account type name
+ */
+export function formatAccountType(type) {
+    if (!type) return '';
+    const typeNames = {
+        checking: 'Checking',
+        savings: 'Savings',
+        credit_card: 'Credit Card',
+        investment: 'Investment',
+        cash: 'Cash',
+        loan: 'Loan',
+        mortgage: 'Mortgage',
+        pension: 'Pension'
+    };
+    return typeNames[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Format currency in compact form (with K/M suffix)
+ * @param {number} value - Amount to format
+ * @param {string|null} currency - Currency code
+ * @param {object} settings - User settings object
+ * @returns {string} Compact formatted currency string
+ */
+export function formatCurrencyCompact(value, currency, settings) {
+    if (Math.abs(value) >= 1000000) {
+        return formatCurrency(value / 1000000, currency, settings).replace(/[\d,.]+/, (m) => parseFloat(m).toFixed(1)) + 'M';
+    }
+    if (Math.abs(value) >= 1000) {
+        return formatCurrency(value / 1000, currency, settings).replace(/[\d,.]+/, (m) => parseFloat(m).toFixed(1)) + 'K';
+    }
+    return formatCurrency(value, currency, settings);
+}
+
+/**
+ * Generate hash of accounts for caching purposes
+ * @param {array} accounts - Array of account objects
+ * @returns {string} Hash string
+ */
+export function getAccountsHash(accounts) {
+    if (!Array.isArray(accounts)) return '';
+    return accounts.map(a => `${a.id}:${a.currency}:${a.balance}`).join('|');
+}
