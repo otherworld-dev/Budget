@@ -423,41 +423,66 @@ export default class TagSetsModule {
 
             const tagSets = await this.loadTagSetsForCategory(categoryId);
 
+            // Clear the container first to avoid duplicates
+            container.innerHTML = '';
+
             if (tagSets.length === 0) {
                 container.innerHTML = '<div class="empty-state"><p style="font-size: 13px; color: var(--color-text-maxcontrast); margin: 8px 0;">No tag sets yet.</p></div>';
             } else {
+                // Create table for list layout
+                const table = document.createElement('table');
+                table.className = 'tag-sets-list-table';
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+
+                const tbody = document.createElement('tbody');
+
                 tagSets.forEach(tagSet => {
-                    const tagSetCard = document.createElement('div');
-                    tagSetCard.className = 'tag-set-card';
-                    tagSetCard.innerHTML = `
-                        <div class="tag-set-header">
-                            <div class="tag-set-info">
-                                <h4 class="tag-set-name">${dom.escapeHtml(tagSet.name)}</h4>
-                                ${tagSet.description ? `<p class="tag-set-description">${dom.escapeHtml(tagSet.description)}</p>` : ''}
+                    const row = document.createElement('tr');
+                    row.className = 'tag-set-row';
+                    row.style.borderBottom = '1px solid var(--color-border)';
+
+                    row.innerHTML = `
+                        <td class="tag-set-name-cell" style="padding: 12px 8px; vertical-align: top; width: 25%;">
+                            <div class="tag-set-name" style="font-weight: 600; margin-bottom: 4px;">
+                                ${dom.escapeHtml(tagSet.name)}
                             </div>
-                            <div class="tag-set-actions">
-                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="Add Tag">
+                            ${tagSet.description ? `
+                                <div class="tag-set-description" style="font-size: 12px; color: var(--color-text-maxcontrast);">
+                                    ${dom.escapeHtml(tagSet.description)}
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td class="tag-set-tags-cell" style="padding: 12px 8px; vertical-align: top;">
+                            <div class="tags-container" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
+                                    <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                        ${dom.escapeHtml(tag.name)}
+                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="Delete tag" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>
+                                    </span>
+                                `).join('') : '<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">No tags yet</span>'}
+                            </div>
+                        </td>
+                        <td class="tag-set-actions-cell" style="padding: 12px 8px; vertical-align: top; width: 120px; text-align: right;">
+                            <div class="tag-set-actions" style="display: flex; gap: 4px; justify-content: flex-end;">
+                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="Add Tag" style="padding: 6px 8px;">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Edit Tag Set">
+                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Edit Tag Set" style="padding: 6px 8px;">
                                     <span class="icon-rename" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Delete Tag Set">
+                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Delete Tag Set" style="padding: 6px 8px;">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>
-                        </div>
-                        <div class="tags-container">
-                            ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
-                                <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white;">
-                                    ${dom.escapeHtml(tag.name)}
-                                    <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="Delete tag">×</button>
-                                </span>
-                            `).join('') : '<span class="no-tags-text">No tags yet - click "+" to add tags</span>'}
-                        </div>
+                        </td>
                     `;
-                    container.appendChild(tagSetCard);
+
+                    tbody.appendChild(row);
                 });
+
+                table.appendChild(tbody);
+                container.appendChild(table);
             }
 
             // Always setup listeners, even when there are no tag sets (for the Add button)
@@ -472,12 +497,17 @@ export default class TagSetsModule {
      * Setup event listeners for category tag sets list
      */
     setupCategoryTagSetsListeners(categoryId) {
-        // Add Tag Set button
-        const addTagSetBtn = document.getElementById('add-tag-set-btn');
+        // Add Tag Set button (check both IDs for compatibility)
+        const addTagSetBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
         if (addTagSetBtn) {
-            addTagSetBtn.addEventListener('click', () => {
-                this.showAddTagSetModal(categoryId);
-            });
+            // Remove old listener if exists
+            addTagSetBtn.replaceWith(addTagSetBtn.cloneNode(true));
+            const newBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
+            if (newBtn) {
+                newBtn.addEventListener('click', () => {
+                    this.showAddTagSetModal(categoryId);
+                });
+            }
         }
 
         // Add Tag buttons
@@ -554,18 +584,34 @@ export default class TagSetsModule {
      */
     showAddTagSetModal(categoryId) {
         const modal = document.getElementById('add-tag-set-modal');
-        if (!modal) return;
+        if (!modal) {
+            console.error('Add tag set modal not found');
+            return;
+        }
 
-        document.getElementById('tag-set-category-id').value = categoryId;
-        document.getElementById('tag-set-name').value = '';
-        document.getElementById('tag-set-description').value = '';
+        const categoryIdInput = document.getElementById('tag-set-category-id');
+        const nameInput = document.getElementById('tag-set-name');
+        const descInput = document.getElementById('tag-set-description');
+
+        if (!categoryIdInput || !nameInput) {
+            console.error('Tag set modal form inputs not found');
+            return;
+        }
+
+        categoryIdInput.value = categoryId;
+        nameInput.value = '';
+        if (descInput) {
+            descInput.value = '';
+        }
 
         modal.style.display = 'flex';
 
-        // Setup form submission
+        // Setup form submission (remove old listener first)
         const form = document.getElementById('add-tag-set-form');
         if (form) {
-            form.addEventListener('submit', (e) => this.saveTagSet(e));
+            const newForm = form.cloneNode(true);
+            form.parentNode.replaceChild(newForm, form);
+            newForm.addEventListener('submit', (e) => this.saveTagSet(e));
         }
     }
 
@@ -612,14 +658,35 @@ export default class TagSetsModule {
      */
     showAddTagModal(tagSetId, categoryId) {
         const modal = document.getElementById('add-tag-modal');
-        if (!modal) return;
+        if (!modal) {
+            console.error('Add tag modal not found');
+            return;
+        }
 
-        document.getElementById('tag-set-id').value = tagSetId;
-        document.getElementById('tag-category-id').value = categoryId;
-        document.getElementById('tag-name').value = '';
-        document.getElementById('tag-color').value = '#666666';
+        const tagSetIdInput = document.getElementById('tag-set-id');
+        const categoryIdInput = document.getElementById('tag-category-id');
+        const nameInput = document.getElementById('tag-name');
+        const colorInput = document.getElementById('tag-color');
+
+        if (!tagSetIdInput || !categoryIdInput || !nameInput || !colorInput) {
+            console.error('Tag modal form inputs not found');
+            return;
+        }
+
+        tagSetIdInput.value = tagSetId;
+        categoryIdInput.value = categoryId;
+        nameInput.value = '';
+        colorInput.value = '#666666';
 
         modal.style.display = 'flex';
+
+        // Setup form submission (remove old listener first)
+        const form = document.getElementById('add-tag-form');
+        if (form) {
+            const newForm = form.cloneNode(true);
+            form.parentNode.replaceChild(newForm, form);
+            newForm.addEventListener('submit', (e) => this.saveTag(e));
+        }
     }
 
     /**
@@ -675,13 +742,24 @@ export default class TagSetsModule {
     }
 
     hideModals() {
-        if (this.app.hideModals) {
-            return this.app.hideModals();
-        }
-        // Fallback implementation
-        document.querySelectorAll('.budget-modal-overlay').forEach(modal => {
-            modal.style.display = 'none';
+        // Hide all modals
+        const modals = [
+            'add-tag-set-modal',
+            'add-tag-modal',
+            'edit-tag-set-modal'
+        ];
+
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
         });
+
+        // Also try app's hideModals if it exists
+        if (this.app.hideModals) {
+            this.app.hideModals();
+        }
     }
 
     showNotification(message, type = 'info') {

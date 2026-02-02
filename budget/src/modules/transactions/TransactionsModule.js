@@ -907,9 +907,68 @@ export default class TransactionsModule {
         `).join('');
     }
 
+    populateTransactionModalDropdowns() {
+        // Populate account dropdown
+        const accountSelect = document.getElementById('transaction-account');
+        if (accountSelect && this.accounts) {
+            // Save current value
+            const currentValue = accountSelect.value;
+
+            // Clear and rebuild options
+            accountSelect.innerHTML = '<option value="">Choose an account</option>';
+            this.accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.name;
+                accountSelect.appendChild(option);
+            });
+
+            // Restore previous value if it exists
+            if (currentValue) {
+                accountSelect.value = currentValue;
+            }
+        }
+
+        // Populate category dropdown
+        const categorySelect = document.getElementById('transaction-category');
+        if (categorySelect && this.categories) {
+            // Save current value
+            const currentValue = categorySelect.value;
+
+            // Clear and rebuild options
+            categorySelect.innerHTML = '<option value="">No category</option>';
+
+            // Use flat categories list if available, otherwise use hierarchical
+            const categoriesList = this.allCategories || this.categories;
+            this.renderCategoryOptions(categorySelect, categoriesList);
+
+            // Restore previous value if it exists
+            if (currentValue) {
+                categorySelect.value = currentValue;
+            }
+        }
+    }
+
+    renderCategoryOptions(selectElement, categories, level = 0) {
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = '  '.repeat(level) + category.name;
+            selectElement.appendChild(option);
+
+            // Recursively add child categories
+            if (category.children && category.children.length > 0) {
+                this.renderCategoryOptions(selectElement, category.children, level + 1);
+            }
+        });
+    }
+
     showTransactionModal(transaction = null, preSelectedAccountId = null) {
         const modal = document.getElementById('transaction-modal');
         if (modal) {
+            // Populate account and category dropdowns first
+            this.populateTransactionModalDropdowns();
+
             if (transaction) {
                 // Populate form with transaction data (editing mode)
                 document.getElementById('transaction-id').value = transaction.id;
@@ -959,6 +1018,69 @@ export default class TransactionsModule {
         const transaction = this.transactions.find(t => t.id === id);
         if (transaction) {
             this.showTransactionModal(transaction);
+        }
+    }
+
+    async saveTransaction() {
+        // Get form values
+        const id = document.getElementById('transaction-id').value;
+        const date = document.getElementById('transaction-date').value;
+        const accountId = parseInt(document.getElementById('transaction-account').value);
+        const type = document.getElementById('transaction-type').value;
+        const amount = parseFloat(document.getElementById('transaction-amount').value);
+        const description = document.getElementById('transaction-description').value;
+        const vendor = document.getElementById('transaction-vendor').value;
+        const categoryId = document.getElementById('transaction-category').value;
+        const notes = document.getElementById('transaction-notes').value;
+
+        // Build request data
+        const data = {
+            date,
+            accountId,
+            type,
+            amount,
+            description,
+            vendor: vendor || null,
+            categoryId: categoryId ? parseInt(categoryId) : null,
+            notes: notes || null
+        };
+
+        try {
+            let response;
+            if (id) {
+                // Update existing transaction
+                response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${id}`), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new transaction
+                response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (response.ok) {
+                OC.Notification.showTemporary(id ? 'Transaction updated' : 'Transaction created');
+                this.app.hideModals();
+                await this.app.loadTransactions();
+                await this.app.loadAccounts(); // Refresh account balances
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to save transaction');
+            }
+        } catch (error) {
+            console.error('Failed to save transaction:', error);
+            OC.Notification.showTemporary(error.message || 'Failed to save transaction');
         }
     }
 

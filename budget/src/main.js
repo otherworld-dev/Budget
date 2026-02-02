@@ -1027,6 +1027,10 @@ class BudgetApp {
         return this.transactionsModule.editTransaction(id);
     }
 
+    async saveTransaction() {
+        return this.transactionsModule.saveTransaction();
+    }
+
     async deleteTransaction(id) {
         return this.transactionsModule.deleteTransaction(id);
     }
@@ -2887,6 +2891,32 @@ class BudgetApp {
         if (modal) {
             modal.style.display = 'none';
         }
+    }
+
+    /**
+     * Hide all modals
+     */
+    hideModals() {
+        const modalIds = [
+            'transaction-modal',
+            'account-modal',
+            'category-modal',
+            'split-modal',
+            'matching-modal',
+            'bulk-match-modal',
+            'add-tag-set-modal',
+            'add-tag-modal',
+            'edit-tag-set-modal',
+            'factory-reset-modal'
+        ];
+
+        modalIds.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }
+        });
     }
 
     // ===== Bulk Transaction Matching Methods =====
