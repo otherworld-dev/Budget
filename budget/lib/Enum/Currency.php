@@ -18,6 +18,7 @@ enum Currency: string {
     case CNY = 'CNY';  // Chinese Yuan
     case SEK = 'SEK';  // Swedish Krona
     case NOK = 'NOK';  // Norwegian Krone
+    case DKK = 'DKK';  // Danish Krone
     case MXN = 'MXN';  // Mexican Peso
     case NZD = 'NZD';  // New Zealand Dollar
     case SGD = 'SGD';  // Singapore Dollar
@@ -44,6 +45,7 @@ enum Currency: string {
             self::CNY => '¥',
             self::SEK => 'kr',
             self::NOK => 'kr',
+            self::DKK => 'kr',
             self::MXN => '$',
             self::NZD => 'NZ$',
             self::SGD => 'S$',
@@ -82,6 +84,7 @@ enum Currency: string {
             self::CNY => 'Chinese Yuan',
             self::SEK => 'Swedish Krona',
             self::NOK => 'Norwegian Krone',
+            self::DKK => 'Danish Krone',
             self::MXN => 'Mexican Peso',
             self::NZD => 'New Zealand Dollar',
             self::SGD => 'Singapore Dollar',

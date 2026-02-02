@@ -34,6 +34,7 @@ export function formatCurrency(amount, currency, settings) {
         'CNY': '¥',
         'SEK': 'kr',
         'NOK': 'kr',
+        'DKK': 'kr',
         'MXN': '$',
         'NZD': 'NZ$',
         'SGD': 'S$',
