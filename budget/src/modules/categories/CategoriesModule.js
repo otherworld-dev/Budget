@@ -1270,6 +1270,13 @@ export default class CategoriesModule {
 
     async saveCategoryBudget(categoryId, updates) {
         try {
+            // Convert empty string or null to 0 for budgetAmount
+            if ('budgetAmount' in updates && (updates.budgetAmount === null || updates.budgetAmount === '')) {
+                updates.budgetAmount = 0;
+            } else if ('budgetAmount' in updates) {
+                updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
+            }
+
             const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
                 method: 'PUT',
                 headers: {
@@ -1292,11 +1299,21 @@ export default class CategoriesModule {
 
                 OC.Notification.showTemporary('Budget updated');
             } else {
-                throw new Error('Failed to update budget');
+                // Try to get detailed error message
+                let errorMessage = 'Failed to update budget';
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (e) {
+                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
             }
         } catch (error) {
             console.error('Failed to save budget:', error);
-            OC.Notification.showTemporary('Failed to update budget');
+            OC.Notification.showTemporary(`Failed to update budget: ${error.message}`);
         }
     }
 

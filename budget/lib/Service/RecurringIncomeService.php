@@ -92,25 +92,54 @@ class RecurringIncomeService {
 
     public function update(int $id, string $userId, array $updates): RecurringIncome {
         $income = $this->find($id, $userId);
+        $needsRecalculation = false;
+        $directDbUpdates = [];
 
         foreach ($updates as $key => $value) {
+            // Track if we need to recalculate next expected date
+            if (in_array($key, ['frequency', 'expectedDay', 'expectedMonth', 'lastReceivedDate'])) {
+                $needsRecalculation = true;
+            }
+
+            // Special handling for null values - use direct DB update to bypass Entity change detection
+            if ($value === null) {
+                // Convert camelCase to snake_case for database column names
+                $columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
+                $directDbUpdates[$columnName] = null;
+                continue;
+            }
+
             $setter = 'set' . ucfirst($key);
             if (method_exists($income, $setter)) {
                 $income->$setter($value);
             }
         }
 
-        // Recalculate next expected date if frequency or expected day changed
-        if (isset($updates['frequency']) || isset($updates['expectedDay']) || isset($updates['expectedMonth'])) {
+        // Apply direct database updates for null values first
+        if (!empty($directDbUpdates)) {
+            $this->mapper->updateFields($id, $userId, $directDbUpdates);
+            // Reload entity to reflect the changes
+            $income = $this->find($id, $userId);
+        }
+
+        // Recalculate next expected date if needed
+        if ($needsRecalculation) {
+            $referenceDate = $income->getLastReceivedDate();
+
             $nextExpected = $this->frequencyCalculator->calculateNextDueDate(
                 $income->getFrequency(),
                 $income->getExpectedDay(),
-                $income->getExpectedMonth()
+                $income->getExpectedMonth(),
+                $referenceDate
             );
             $income->setNextExpectedDate($nextExpected);
         }
 
-        return $this->mapper->update($income);
+        // Save any non-null changes
+        $this->mapper->update($income);
+
+        // Reload from database to ensure we return the actual saved state
+        return $this->find($id, $userId);
     }
 
     public function delete(int $id, string $userId): void {

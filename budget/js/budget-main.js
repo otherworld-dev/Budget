@@ -20866,11 +20866,17 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "saveCategoryBudget",
     value: function () {
       var _saveCategoryBudget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(categoryId, updates) {
-        var response, category, _t10;
+        var response, category, errorMessage, errorData, _t10, _t11;
         return _regenerator().w(function (_context12) {
           while (1) switch (_context12.p = _context12.n) {
             case 0:
               _context12.p = 0;
+              // Convert empty string or null to 0 for budgetAmount
+              if ('budgetAmount' in updates && (updates.budgetAmount === null || updates.budgetAmount === '')) {
+                updates.budgetAmount = 0;
+              } else if ('budgetAmount' in updates) {
+                updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
+              }
               _context12.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/categories/".concat(categoryId)), {
                 method: 'PUT',
@@ -20896,22 +20902,39 @@ var CategoriesModule = /*#__PURE__*/function () {
               this.renderBudgetTree();
               this.updateBudgetSummary();
               OC.Notification.showTemporary('Budget updated');
-              _context12.n = 3;
+              _context12.n = 7;
               break;
             case 2:
-              throw new Error('Failed to update budget');
-            case 3:
-              _context12.n = 5;
-              break;
+              // Try to get detailed error message
+              errorMessage = 'Failed to update budget';
+              _context12.p = 3;
+              _context12.n = 4;
+              return response.json();
             case 4:
-              _context12.p = 4;
-              _t10 = _context12.v;
-              console.error('Failed to save budget:', _t10);
-              OC.Notification.showTemporary('Failed to update budget');
+              errorData = _context12.v;
+              if (errorData.error) {
+                errorMessage = errorData.error;
+              }
+              _context12.n = 6;
+              break;
             case 5:
+              _context12.p = 5;
+              _t10 = _context12.v;
+              errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
+            case 6:
+              throw new Error(errorMessage);
+            case 7:
+              _context12.n = 9;
+              break;
+            case 8:
+              _context12.p = 8;
+              _t11 = _context12.v;
+              console.error('Failed to save budget:', _t11);
+              OC.Notification.showTemporary("Failed to update budget: ".concat(_t11.message));
+            case 9:
               return _context12.a(2);
           }
-        }, _callee12, this, [[0, 4]]);
+        }, _callee12, this, [[3, 5], [0, 8]]);
       }));
       function saveCategoryBudget(_x9, _x0) {
         return _saveCategoryBudget.apply(this, arguments);
@@ -25327,6 +25350,8 @@ var IncomeModule = /*#__PURE__*/function () {
     this.app = app;
     this._eventsSetup = false;
     this._detectedIncome = [];
+    this._undoTimer = null;
+    this._undoData = null;
   }
 
   // Getters for app state
@@ -25861,12 +25886,32 @@ var IncomeModule = /*#__PURE__*/function () {
     key: "markIncomeReceived",
     value: function () {
       var _markIncomeReceived = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(incomeId) {
-        var response, _t5;
+        var _this3 = this;
+        var income, previousReceivedDate, currentDate, response, _t5;
         return _regenerator().w(function (_context5) {
           while (1) switch (_context5.p = _context5.n) {
             case 0:
               _context5.p = 0;
-              _context5.n = 1;
+              // Find the income item to store its previous state
+              income = this.recurringIncome.find(function (i) {
+                return i.id === incomeId;
+              });
+              if (income) {
+                _context5.n = 1;
+                break;
+              }
+              throw new Error('Income not found');
+            case 1:
+              previousReceivedDate = income.lastReceivedDate || income.last_received_date || null;
+              currentDate = new Date().toISOString().split('T')[0];
+              console.log('[IncomeModule] Marking as received:', {
+                incomeId: incomeId,
+                previousReceivedDate: previousReceivedDate,
+                currentDate: currentDate
+              });
+
+              // Mark as received on the server
+              _context5.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/recurring-income/".concat(incomeId, "/received")), {
                 method: 'POST',
                 headers: {
@@ -25874,32 +25919,56 @@ var IncomeModule = /*#__PURE__*/function () {
                   'requesttoken': OC.requestToken
                 },
                 body: JSON.stringify({
-                  receivedDate: new Date().toISOString().split('T')[0]
+                  receivedDate: currentDate
                 })
               });
-            case 1:
+            case 2:
               response = _context5.v;
               if (response.ok) {
-                _context5.n = 2;
+                _context5.n = 3;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
-            case 2:
-              OC.Notification.showTemporary('Income marked as received');
-              _context5.n = 3;
-              return this.loadIncomeView();
             case 3:
-              _context5.n = 5;
-              break;
+              // Store undo data BEFORE reloading
+              this._undoData = {
+                incomeId: incomeId,
+                previousReceivedDate: previousReceivedDate,
+                action: 'markReceived'
+              };
+              console.log('[IncomeModule] Stored undo data:', this._undoData);
+
+              // Update local state immediately
+              _context5.n = 4;
+              return this.loadIncomeView();
             case 4:
-              _context5.p = 4;
+              // Clear any existing undo timer
+              if (this._undoTimer) {
+                clearTimeout(this._undoTimer);
+              }
+
+              // Show notification with undo option
+              this.showUndoNotification('Income marked as received', function () {
+                return _this3.undoMarkReceived();
+              });
+
+              // Set timer to clear undo data after 5 seconds
+              this._undoTimer = setTimeout(function () {
+                console.log('[IncomeModule] Clearing undo data after timeout');
+                _this3._undoData = null;
+                _this3._undoTimer = null;
+              }, 5000);
+              _context5.n = 6;
+              break;
+            case 5:
+              _context5.p = 5;
               _t5 = _context5.v;
               console.error('Failed to mark income as received:', _t5);
               OC.Notification.showTemporary('Failed to mark income as received');
-            case 5:
+            case 6:
               return _context5.a(2);
           }
-        }, _callee5, this, [[0, 4]]);
+        }, _callee5, this, [[0, 5]]);
       }));
       function markIncomeReceived(_x2) {
         return _markIncomeReceived.apply(this, arguments);
@@ -25907,61 +25976,220 @@ var IncomeModule = /*#__PURE__*/function () {
       return markIncomeReceived;
     }()
   }, {
-    key: "detectIncome",
+    key: "undoMarkReceived",
     value: function () {
-      var _detectIncome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-        var detectBtn, response, detected, _t6;
+      var _undoMarkReceived = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+        var _this$_undoData, incomeId, previousReceivedDate, payload, response, errorData, result, updatedIncome, _t6;
         return _regenerator().w(function (_context6) {
           while (1) switch (_context6.p = _context6.n) {
+            case 0:
+              if (this._undoData) {
+                _context6.n = 1;
+                break;
+              }
+              console.warn('[IncomeModule] Undo called but no undo data available');
+              return _context6.a(2);
+            case 1:
+              _context6.p = 1;
+              _this$_undoData = this._undoData, incomeId = _this$_undoData.incomeId, previousReceivedDate = _this$_undoData.previousReceivedDate;
+              console.log('[IncomeModule] Undoing mark received:', {
+                incomeId: incomeId,
+                previousReceivedDate: previousReceivedDate
+              });
+
+              // Clear the undo timer
+              if (this._undoTimer) {
+                clearTimeout(this._undoTimer);
+                this._undoTimer = null;
+              }
+              payload = {
+                lastReceivedDate: previousReceivedDate
+              };
+              console.log('[IncomeModule] Sending update:', payload);
+
+              // Use the update endpoint to restore the previous state
+              // This allows us to set lastReceivedDate to null if needed
+              _context6.n = 2;
+              return fetch(OC.generateUrl("/apps/budget/api/recurring-income/".concat(incomeId)), {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(payload)
+              });
+            case 2:
+              response = _context6.v;
+              console.log('[IncomeModule] Update response status:', response.status);
+              if (response.ok) {
+                _context6.n = 4;
+                break;
+              }
+              _context6.n = 3;
+              return response.json()["catch"](function () {
+                return {};
+              });
+            case 3:
+              errorData = _context6.v;
+              console.error('[IncomeModule] Update failed:', errorData);
+              throw new Error(errorData.error || "HTTP ".concat(response.status));
+            case 4:
+              _context6.n = 5;
+              return response.json();
+            case 5:
+              result = _context6.v;
+              console.log('[IncomeModule] Update successful:', result);
+              console.log('[IncomeModule] Result lastReceivedDate:', result.lastReceivedDate);
+              console.log('[IncomeModule] Result nextExpectedDate:', result.nextExpectedDate);
+
+              // Clear undo data
+              this._undoData = null;
+
+              // Reload the view
+              _context6.n = 6;
+              return this.loadIncomeView();
+            case 6:
+              // Check the income after reload
+              updatedIncome = this.recurringIncome.find(function (i) {
+                return i.id === incomeId;
+              });
+              console.log('[IncomeModule] Income after reload:', {
+                id: updatedIncome === null || updatedIncome === void 0 ? void 0 : updatedIncome.id,
+                lastReceivedDate: updatedIncome === null || updatedIncome === void 0 ? void 0 : updatedIncome.lastReceivedDate,
+                nextExpectedDate: updatedIncome === null || updatedIncome === void 0 ? void 0 : updatedIncome.nextExpectedDate,
+                isReceivedThisMonth: this.isIncomeReceivedThisMonth(updatedIncome)
+              });
+              OC.Notification.showTemporary('Action undone');
+              _context6.n = 8;
+              break;
+            case 7:
+              _context6.p = 7;
+              _t6 = _context6.v;
+              console.error('Failed to undo mark received:', _t6);
+              OC.Notification.showTemporary("Failed to undo action: ".concat(_t6.message));
+            case 8:
+              return _context6.a(2);
+          }
+        }, _callee6, this, [[1, 7]]);
+      }));
+      function undoMarkReceived() {
+        return _undoMarkReceived.apply(this, arguments);
+      }
+      return undoMarkReceived;
+    }()
+  }, {
+    key: "showUndoNotification",
+    value: function showUndoNotification(message, undoCallback) {
+      console.log('[IncomeModule] Showing undo notification:', message);
+
+      // Create a custom notification element with an undo button
+      var notification = document.createElement('div');
+      notification.className = 'undo-notification';
+      notification.innerHTML = "\n            <span class=\"undo-message\">".concat(message, "</span>\n            <button class=\"undo-btn\">Undo</button>\n        ");
+
+      // Style the notification
+      Object.assign(notification.style, {
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: '#333',
+        color: '#fff',
+        padding: '12px 20px',
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        zIndex: '10000',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        animation: 'slideUp 0.3s ease-out'
+      });
+      var undoBtn = notification.querySelector('.undo-btn');
+      Object.assign(undoBtn.style, {
+        backgroundColor: '#fff',
+        color: '#333',
+        border: 'none',
+        padding: '6px 12px',
+        borderRadius: '3px',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        fontSize: '13px'
+      });
+      undoBtn.addEventListener('click', function (e) {
+        console.log('[IncomeModule] Undo button clicked!', e);
+        e.preventDefault();
+        e.stopPropagation();
+        undoCallback();
+        notification.remove();
+      });
+      document.body.appendChild(notification);
+      console.log('[IncomeModule] Notification appended to body, button:', undoBtn);
+
+      // Auto-remove after 5 seconds
+      setTimeout(function () {
+        console.log('[IncomeModule] Auto-removing notification after 5 seconds');
+        notification.style.animation = 'slideDown 0.3s ease-in';
+        setTimeout(function () {
+          return notification.remove();
+        }, 300);
+      }, 5000);
+    }
+  }, {
+    key: "detectIncome",
+    value: function () {
+      var _detectIncome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
+        var detectBtn, response, detected, _t7;
+        return _regenerator().w(function (_context7) {
+          while (1) switch (_context7.p = _context7.n) {
             case 0:
               detectBtn = document.getElementById('detect-income-btn');
               detectBtn.disabled = true;
               detectBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Detecting...';
-              _context6.p = 1;
-              _context6.n = 2;
+              _context7.p = 1;
+              _context7.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/recurring-income/detect?months=6'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context6.v;
+              response = _context7.v;
               if (response.ok) {
-                _context6.n = 3;
+                _context7.n = 3;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 3:
-              _context6.n = 4;
+              _context7.n = 4;
               return response.json();
             case 4:
-              detected = _context6.v;
+              detected = _context7.v;
               if (!(detected.length === 0)) {
-                _context6.n = 5;
+                _context7.n = 5;
                 break;
               }
               OC.Notification.showTemporary('No recurring income patterns found in your transactions');
-              return _context6.a(2);
+              return _context7.a(2);
             case 5:
               this._detectedIncome = detected;
               this.renderDetectedIncome(detected);
               document.getElementById('detected-income-panel').style.display = 'flex';
-              _context6.n = 7;
+              _context7.n = 7;
               break;
             case 6:
-              _context6.p = 6;
-              _t6 = _context6.v;
-              console.error('Failed to detect income:', _t6);
+              _context7.p = 6;
+              _t7 = _context7.v;
+              console.error('Failed to detect income:', _t7);
               OC.Notification.showTemporary('Failed to detect recurring income');
             case 7:
-              _context6.p = 7;
+              _context7.p = 7;
               detectBtn.disabled = false;
               detectBtn.innerHTML = '<span class="icon-search" aria-hidden="true"></span> Detect Income';
-              return _context6.f(7);
+              return _context7.f(7);
             case 8:
-              return _context6.a(2);
+              return _context7.a(2);
           }
-        }, _callee6, this, [[1, 6, 7, 8]]);
+        }, _callee7, this, [[1, 6, 7, 8]]);
       }));
       function detectIncome() {
         return _detectIncome.apply(this, arguments);
@@ -25971,39 +26199,39 @@ var IncomeModule = /*#__PURE__*/function () {
   }, {
     key: "renderDetectedIncome",
     value: function renderDetectedIncome(detected) {
-      var _this3 = this;
+      var _this4 = this;
       var list = document.getElementById('detected-income-list');
       list.innerHTML = detected.map(function (item, index) {
         var confidenceClass = item.confidence >= 0.8 ? 'high' : item.confidence >= 0.5 ? 'medium' : 'low';
         var confidencePercent = Math.round(item.confidence * 100);
-        return "\n                <div class=\"detected-bill-item\" data-index=\"".concat(index, "\">\n                    <div class=\"detected-bill-select\">\n                        <input type=\"checkbox\" id=\"detected-income-").concat(index, "\" ").concat(item.confidence >= 0.7 ? 'checked' : '', ">\n                    </div>\n                    <div class=\"detected-bill-info\">\n                        <div class=\"detected-bill-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(item.suggestedName), "</div>\n                        <div class=\"detected-bill-meta\">\n                            <span class=\"detected-bill-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(item.amount, null, _this3.settings), "</span>\n                            <span class=\"detected-bill-frequency\">").concat(item.frequency, "</span>\n                            <span class=\"detected-bill-occurrences\">").concat(item.occurrences, " occurrences</span>\n                            <span class=\"detected-bill-source\">Source: ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(item.source), "</span>\n                        </div>\n                        <div class=\"detected-bill-confidence\">\n                            <span class=\"confidence-badge ").concat(confidenceClass, "\">").concat(confidencePercent, "% confidence</span>\n                            ").concat(item.amountVariance ? "<span class=\"variance-info\">\xB1".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(item.amountVariance, null, _this3.settings), "</span>") : '', "\n                        </div>\n                    </div>\n                </div>\n            ");
+        return "\n                <div class=\"detected-bill-item\" data-index=\"".concat(index, "\">\n                    <div class=\"detected-bill-select\">\n                        <input type=\"checkbox\" id=\"detected-income-").concat(index, "\" ").concat(item.confidence >= 0.7 ? 'checked' : '', ">\n                    </div>\n                    <div class=\"detected-bill-info\">\n                        <div class=\"detected-bill-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(item.suggestedName), "</div>\n                        <div class=\"detected-bill-meta\">\n                            <span class=\"detected-bill-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(item.amount, null, _this4.settings), "</span>\n                            <span class=\"detected-bill-frequency\">").concat(item.frequency, "</span>\n                            <span class=\"detected-bill-occurrences\">").concat(item.occurrences, " occurrences</span>\n                            <span class=\"detected-bill-source\">Source: ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(item.source), "</span>\n                        </div>\n                        <div class=\"detected-bill-confidence\">\n                            <span class=\"confidence-badge ").concat(confidenceClass, "\">").concat(confidencePercent, "% confidence</span>\n                            ").concat(item.amountVariance ? "<span class=\"variance-info\">\xB1".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(item.amountVariance, null, _this4.settings), "</span>") : '', "\n                        </div>\n                    </div>\n                </div>\n            ");
       }).join('');
     }
   }, {
     key: "addSelectedDetectedIncome",
     value: function () {
-      var _addSelectedDetectedIncome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-        var _this4 = this;
-        var checkboxes, selectedIndices, incomeToAdd, response, result, _t7;
-        return _regenerator().w(function (_context7) {
-          while (1) switch (_context7.p = _context7.n) {
+      var _addSelectedDetectedIncome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
+        var _this5 = this;
+        var checkboxes, selectedIndices, incomeToAdd, response, result, _t8;
+        return _regenerator().w(function (_context8) {
+          while (1) switch (_context8.p = _context8.n) {
             case 0:
               checkboxes = document.querySelectorAll('#detected-income-list input[type="checkbox"]:checked');
               selectedIndices = Array.from(checkboxes).map(function (cb) {
                 return parseInt(cb.id.replace('detected-income-', ''));
               });
               if (!(selectedIndices.length === 0)) {
-                _context7.n = 1;
+                _context8.n = 1;
                 break;
               }
               OC.Notification.showTemporary('Please select at least one income source to add');
-              return _context7.a(2);
+              return _context8.a(2);
             case 1:
               incomeToAdd = selectedIndices.map(function (i) {
-                return _this4._detectedIncome[i];
+                return _this5._detectedIncome[i];
               });
-              _context7.p = 2;
-              _context7.n = 3;
+              _context8.p = 2;
+              _context8.n = 3;
               return fetch(OC.generateUrl('/apps/budget/api/recurring-income/create-from-detected'), {
                 method: 'POST',
                 headers: {
@@ -26015,33 +26243,33 @@ var IncomeModule = /*#__PURE__*/function () {
                 })
               });
             case 3:
-              response = _context7.v;
+              response = _context8.v;
               if (response.ok) {
-                _context7.n = 4;
+                _context8.n = 4;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 4:
-              _context7.n = 5;
+              _context8.n = 5;
               return response.json();
             case 5:
-              result = _context7.v;
+              result = _context8.v;
               document.getElementById('detected-income-panel').style.display = 'none';
               OC.Notification.showTemporary("".concat(result.created, " income sources added successfully"));
-              _context7.n = 6;
+              _context8.n = 6;
               return this.loadIncomeView();
             case 6:
-              _context7.n = 8;
+              _context8.n = 8;
               break;
             case 7:
-              _context7.p = 7;
-              _t7 = _context7.v;
-              console.error('Failed to add income:', _t7);
+              _context8.p = 7;
+              _t8 = _context8.v;
+              console.error('Failed to add income:', _t8);
               OC.Notification.showTemporary('Failed to add selected income sources');
             case 8:
-              return _context7.a(2);
+              return _context8.a(2);
           }
-        }, _callee7, this, [[2, 7]]);
+        }, _callee8, this, [[2, 7]]);
       }));
       function addSelectedDetectedIncome() {
         return _addSelectedDetectedIncome.apply(this, arguments);
