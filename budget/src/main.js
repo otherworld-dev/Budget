@@ -45,6 +45,7 @@ class BudgetApp {
         this.currentPension = null;
         this.charts = {};
         this.settings = {};
+        this.options = {}; // Available options (currencies, date formats, etc.) from /api/settings/options
         this.columnVisibility = {};
         this.dashboardConfig = {
             hero: { order: [], visibility: {} },
@@ -614,7 +615,7 @@ class BudgetApp {
     async loadInitialData() {
         try {
             // Load all initial data in parallel for better performance
-            const [settingsResponse, accountsResponse, categoriesResponse] = await Promise.all([
+            const [settingsResponse, accountsResponse, categoriesResponse, optionsResponse] = await Promise.all([
                 fetch(OC.generateUrl('/apps/budget/api/settings'), {
                     headers: this.getAuthHeaders()
                 }),
@@ -622,6 +623,9 @@ class BudgetApp {
                     headers: this.getAuthHeaders()
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/categories'), {
+                    headers: this.getAuthHeaders()
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/settings/options'), {
                     headers: this.getAuthHeaders()
                 })
             ]);
@@ -641,6 +645,10 @@ class BudgetApp {
                 }
             }
 
+            if (optionsResponse.ok) {
+                this.options = await optionsResponse.json();
+            }
+
             if (!accountsResponse.ok) {
                 throw new Error(`Failed to load accounts: ${accountsResponse.status} ${accountsResponse.statusText}`);
             }
@@ -653,6 +661,7 @@ class BudgetApp {
             // Populate dropdowns
             this.populateAccountDropdowns();
             this.populateCategoryDropdowns();
+            this.populateCurrencyDropdowns();
         } catch (error) {
             console.error('Failed to load initial data:', error);
             OC.Notification.showTemporary('Failed to load data');
@@ -782,6 +791,10 @@ class BudgetApp {
 
     viewAccountTransactions(accountId) {
         return this.accountsModule.viewAccountTransactions(accountId);
+    }
+
+    async setupAccountTypeConditionals() {
+        return this.accountsModule.setupAccountTypeConditionals();
     }
 
     // ==================== END ACCOUNTS MODULE ====================
@@ -2086,6 +2099,14 @@ class BudgetApp {
     // Settings - delegated to SettingsModule
     async loadSettingsView() {
         return this.settingsModule.loadSettingsView();
+    }
+
+    async saveSettings() {
+        return this.settingsModule.saveSettings();
+    }
+
+    async resetSettings() {
+        return this.settingsModule.resetSettings();
     }
 
     // ==========================================
@@ -3464,6 +3485,35 @@ class BudgetApp {
     populateCategoryDropdowns() {
         // Stub method - dropdowns are populated by individual modules as needed
         // This is called from loadInitialData but doesn't need to do anything
+    }
+
+    populateCurrencyDropdowns() {
+        // Populate all currency dropdowns with options from backend
+        if (!this.options.currencies || !Array.isArray(this.options.currencies)) {
+            return;
+        }
+
+        const currencySelects = document.querySelectorAll('#account-currency, #setting-default-currency');
+        currencySelects.forEach(select => {
+            // Store current value to preserve it
+            const currentValue = select.value;
+
+            // Clear existing options
+            select.innerHTML = '';
+
+            // Add all currency options
+            this.options.currencies.forEach(currency => {
+                const option = document.createElement('option');
+                option.value = currency.code;
+                option.textContent = `${currency.code} - ${currency.name} (${currency.symbol})`;
+                select.appendChild(option);
+            });
+
+            // Restore previous value if it exists in new options
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        });
     }
 }
 

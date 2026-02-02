@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -253,19 +254,17 @@ class SettingController extends Controller {
      * @NoAdminRequired
      */
     public function options(): DataResponse {
+        // Generate currencies array from Currency enum
+        $currencies = array_map(function (Currency $currency) {
+            return [
+                'code' => $currency->value,
+                'name' => $currency->name(),
+                'symbol' => $currency->symbol(),
+            ];
+        }, Currency::cases());
+
         return new DataResponse([
-            'currencies' => [
-                ['code' => 'USD', 'name' => 'US Dollar', 'symbol' => '$'],
-                ['code' => 'EUR', 'name' => 'Euro', 'symbol' => '€'],
-                ['code' => 'GBP', 'name' => 'British Pound', 'symbol' => '£'],
-                ['code' => 'CAD', 'name' => 'Canadian Dollar', 'symbol' => 'C$'],
-                ['code' => 'AUD', 'name' => 'Australian Dollar', 'symbol' => 'A$'],
-                ['code' => 'JPY', 'name' => 'Japanese Yen', 'symbol' => '¥'],
-                ['code' => 'CHF', 'name' => 'Swiss Franc', 'symbol' => 'CHF'],
-                ['code' => 'CNY', 'name' => 'Chinese Yuan', 'symbol' => '¥'],
-                ['code' => 'INR', 'name' => 'Indian Rupee', 'symbol' => '₹'],
-                ['code' => 'MXN', 'name' => 'Mexican Peso', 'symbol' => '$'],
-            ],
+            'currencies' => $currencies,
             'date_formats' => [
                 ['value' => 'Y-m-d', 'label' => 'YYYY-MM-DD (2025-10-12)'],
                 ['value' => 'm/d/Y', 'label' => 'MM/DD/YYYY (10/12/2025)'],
