@@ -122,7 +122,7 @@ class BillService {
     public function update(int $id, string $userId, array $updates): Bill {
         $bill = $this->find($id, $userId);
         $needsRecalculation = false;
-        $directDbUpdates = [];
+        $dbUpdates = [];
 
         foreach ($updates as $key => $value) {
             // Track if we need to recalculate next due date
@@ -130,39 +130,33 @@ class BillService {
                 $needsRecalculation = true;
             }
 
-            // Special handling for null values - use direct DB update to bypass Entity change detection
-            if ($value === null) {
-                // Convert camelCase to snake_case for database column names
-                $columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
-                $directDbUpdates[$columnName] = null;
-                continue;
-            }
-
-            $setter = 'set' . ucfirst($key);
-            if (method_exists($bill, $setter)) {
-                $bill->$setter($value);
-            }
-        }
-
-        // Apply direct database updates for null values first
-        if (!empty($directDbUpdates)) {
-            $this->mapper->updateFields($id, $userId, $directDbUpdates);
-            // Reload entity to reflect the changes
-            $bill = $this->find($id, $userId);
+            // Convert camelCase to snake_case for database column names
+            $columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
+            $dbUpdates[$columnName] = $value;
         }
 
         // Recalculate next due date if frequency or due day changed
-        if ($needsRecalculation && (isset($updates['frequency']) || isset($updates['dueDay']) || isset($updates['dueMonth']))) {
+        if ($needsRecalculation && (array_key_exists('frequency', $updates) || array_key_exists('dueDay', $updates) || array_key_exists('dueMonth', $updates))) {
+            // Apply updates to get current state for calculation
+            foreach ($updates as $key => $value) {
+                $setter = 'set' . ucfirst($key);
+                if (method_exists($bill, $setter)) {
+                    $bill->$setter($value);
+                }
+            }
+
             $nextDue = $this->frequencyCalculator->calculateNextDueDate(
                 $bill->getFrequency(),
                 $bill->getDueDay(),
                 $bill->getDueMonth()
             );
-            $bill->setNextDueDate($nextDue);
+            $dbUpdates['next_due_date'] = $nextDue;
         }
 
-        // Save any non-null changes
-        $this->mapper->update($bill);
+        // Apply all updates directly to database
+        if (!empty($dbUpdates)) {
+            $this->mapper->updateFields($id, $userId, $dbUpdates);
+        }
 
         // Reload from database to ensure we return the actual saved state
         return $this->find($id, $userId);
