@@ -13,6 +13,7 @@ export default class CategoriesModule {
         this.budgetType = 'expense';
         this.budgetMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
         this.budgetEventListenersSetup = false;
+        this.categoryEventListenersSetup = false;
         this.categorySpending = {};
     }
 
@@ -75,6 +76,7 @@ export default class CategoriesModule {
                 this.categoryTree = await response.json();
                 this.allCategories = this.flattenCategories(this.categoryTree);
                 this.renderCategoriesTree();
+                this.setupCategoriesEventListeners();
             }
         } catch (error) {
             console.error('Failed to load categories:', error);
@@ -92,6 +94,12 @@ export default class CategoriesModule {
     }
 
     setupCategoriesEventListeners() {
+        // Prevent duplicate event listeners
+        if (this.categoryEventListenersSetup) {
+            return;
+        }
+        this.categoryEventListenersSetup = true;
+
         // Tab switching
         document.querySelectorAll('.tab-button').forEach(btn => {
             btn.addEventListener('click', (e) => {

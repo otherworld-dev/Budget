@@ -58,6 +58,46 @@ export default class AccountsModule {
         return this.app.router.showView(viewName);
     }
 
+    hideModals() {
+        return this.app.hideModals();
+    }
+
+    loadInitialData() {
+        return this.app.loadInitialData();
+    }
+
+    editTransaction(id) {
+        return this.app.editTransaction(id);
+    }
+
+    deleteTransaction(id) {
+        return this.app.deleteTransaction(id);
+    }
+
+    loadAndDisplayTransactionTags() {
+        return this.app.loadAndDisplayTransactionTags();
+    }
+
+    getSelectedTransactionTags() {
+        return this.app.getSelectedTransactionTags();
+    }
+
+    saveTransactionTags(transactionId, tagIds) {
+        return this.app.saveTransactionTags(transactionId, tagIds);
+    }
+
+    setupCategoriesEventListeners() {
+        return this.app.setupCategoriesEventListeners();
+    }
+
+    renderCategoriesTree() {
+        return this.app.renderCategoriesTree();
+    }
+
+    loadDashboard() {
+        return this.app.loadDashboard();
+    }
+
     // ============================================
     // Accounts Module Methods
     // ============================================
