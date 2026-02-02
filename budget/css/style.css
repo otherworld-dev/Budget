@@ -7946,6 +7946,17 @@ button.danger:hover {
     display: none;
 }
 
+.reports-controls .tags-autocomplete {
+    min-width: 160px;
+    width: 180px;
+}
+
+.reports-controls .tags-autocomplete-input {
+    height: 36px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
 #generate-report-btn {
     height: 36px;
     padding: 0 20px;

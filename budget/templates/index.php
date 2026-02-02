@@ -2336,6 +2336,16 @@ style('budget', 'style');
                 </div>
             </div>
 
+            <!-- Info Notice -->
+            <div class="forecast-notice" style="background-color: rgba(100, 116, 139, 0.08); border: 1px solid rgba(100, 116, 139, 0.15); border-radius: 4px; padding: 12px 16px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(100, 116, 139, 0.6)" style="flex-shrink: 0; margin-top: 2px;">
+                    <path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                </svg>
+                <div style="color: rgba(100, 116, 139, 0.85); font-size: 14px;">
+                    <strong>Note:</strong> Forecasts are estimates based on historical spending patterns and trends. Actual results may vary due to unexpected expenses, income changes, or shifts in spending behavior. Use these projections as guidance rather than guarantees.
+                </div>
+            </div>
+
             <!-- Loading State -->
             <div id="forecast-loading" class="forecast-loading">
                 <div class="loading-spinner"></div>
@@ -2490,11 +2500,10 @@ style('budget', 'style');
                 </div>
 
                 <div class="control-group">
-                    <label for="report-tags">Filter by Tags</label>
-                    <select id="report-tags" class="report-select" multiple style="min-height: 120px; max-height: 200px; overflow-y: auto;">
-                        <option value="">No tags loaded</option>
-                    </select>
-                    <small style="display: block; margin-top: 4px; color: var(--color-text-lighter);">Hold Ctrl/Cmd to select multiple</small>
+                    <label for="report-tags-input">Filter by Tags</label>
+                    <div id="report-tags-filter" class="tags-autocomplete">
+                        <!-- Populated by JavaScript -->
+                    </div>
                 </div>
 
                 <div class="control-group">

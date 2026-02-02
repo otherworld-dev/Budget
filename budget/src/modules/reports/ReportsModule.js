@@ -166,38 +166,142 @@ export default class ReportsModule {
     }
 
     populateReportTagsDropdown() {
-        const dropdown = document.getElementById('report-tags');
-        if (!dropdown) return;
+        const container = document.getElementById('report-tags-filter');
+        if (!container) return;
 
-        dropdown.innerHTML = '';
+        container.innerHTML = '';
 
         if (!this.allTagSetsForReports || this.allTagSetsForReports.length === 0) {
-            dropdown.innerHTML = '<option value="" disabled>No tags available</option>';
+            container.innerHTML = '<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">No tags available</div>';
             return;
         }
 
-        // Group tags by tag set
+        // Track selected tags
+        this.selectedReportTags = this.selectedReportTags || new Set();
+
+        // Create input field
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'report-tags-input';
+        input.className = 'tags-autocomplete-input';
+        input.placeholder = 'Type to filter tags...';
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'tags-autocomplete-dropdown';
+        dropdown.style.display = 'none';
+
+        container.appendChild(input);
+        container.appendChild(dropdown);
+
+        // Build flat list of all tags
+        const allTags = [];
         this.allTagSetsForReports.forEach(tagSet => {
             if (tagSet.tags && tagSet.tags.length > 0) {
-                // Add optgroup for this tag set
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = tagSet.name;
-
                 tagSet.tags.forEach(tag => {
-                    const option = document.createElement('option');
-                    option.value = tag.id;
-                    option.textContent = tag.name;
-                    option.style.color = tag.color || '#000';
-                    optgroup.appendChild(option);
+                    allTags.push({
+                        id: tag.id,
+                        name: tag.name,
+                        color: tag.color,
+                        tagSetName: tagSet.name,
+                        tagSetId: tagSet.id
+                    });
                 });
-
-                dropdown.appendChild(optgroup);
             }
         });
 
-        if (dropdown.children.length === 0) {
-            dropdown.innerHTML = '<option value="" disabled>No tags available</option>';
-        }
+        // Render dropdown function
+        const renderDropdown = (filter = '') => {
+            const filtered = filter
+                ? allTags.filter(t =>
+                    t.name.toLowerCase().includes(filter.toLowerCase()) ||
+                    t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                )
+                : allTags;
+
+            // Group by tag set
+            const grouped = {};
+            filtered.forEach(tag => {
+                if (!grouped[tag.tagSetId]) {
+                    grouped[tag.tagSetId] = {
+                        name: tag.tagSetName,
+                        tags: []
+                    };
+                }
+                grouped[tag.tagSetId].tags.push(tag);
+            });
+
+            let html = '';
+            Object.values(grouped).forEach(group => {
+                html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                group.tags.forEach(tag => {
+                    const isSelected = this.selectedReportTags.has(tag.id);
+                    html += `
+                        <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
+                             data-tag-id="${tag.id}">
+                            <span class="tag-chip"
+                                  style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color || '#888')}; color: white;
+                                         padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
+                                ${this.escapeHtml(tag.name)}
+                            </span>
+                            <span class="tag-check">${isSelected ? '✓' : ''}</span>
+                        </div>
+                    `;
+                });
+            });
+
+            dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+            dropdown.style.display = 'block';
+        };
+
+        // Event listeners
+        input.addEventListener('focus', () => renderDropdown(input.value));
+        input.addEventListener('input', () => renderDropdown(input.value));
+
+        // Prevent dropdown from closing when clicking inside
+        dropdown.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+        });
+
+        // Handle tag selection
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = e.target.closest('.tags-autocomplete-item');
+            if (item) {
+                const tagId = parseInt(item.dataset.tagId);
+                const clickedTag = allTags.find(t => t.id === tagId);
+                if (!clickedTag) return;
+
+                // Remove other tags from same tag set (single selection per set)
+                const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
+                tagsFromSameSet.forEach(t => {
+                    if (t.id !== tagId) {
+                        this.selectedReportTags.delete(t.id);
+                    }
+                });
+
+                // Toggle selection
+                if (this.selectedReportTags.has(tagId)) {
+                    this.selectedReportTags.delete(tagId);
+                } else {
+                    this.selectedReportTags.add(tagId);
+                }
+
+                renderDropdown(input.value);
+            }
+        });
+
+        // Close dropdown when clicking outside
+        const closeDropdown = (e) => {
+            if (!container.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        };
+
+        document.addEventListener('click', closeDropdown);
+
+        // Cleanup on module unload
+        container.dataset.cleanupListener = 'true';
     }
 
     async generateReport() {
@@ -206,9 +310,8 @@ export default class ReportsModule {
         const endDate = document.getElementById('report-end-date')?.value;
         const accountId = document.getElementById('report-account')?.value || '';
 
-        // Get selected tags
-        const tagSelect = document.getElementById('report-tags');
-        const selectedTags = tagSelect ? Array.from(tagSelect.selectedOptions).map(opt => opt.value) : [];
+        // Get selected tags from dropdown state
+        const selectedTags = this.selectedReportTags ? Array.from(this.selectedReportTags) : [];
 
         // Get include untagged checkbox
         const includeUntaggedCheckbox = document.getElementById('report-include-untagged');
