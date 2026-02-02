@@ -186,19 +186,27 @@ class BillController extends Controller {
             }
 
             // Validate dueDay if provided
-            if (isset($data['dueDay']) && $data['dueDay'] !== null) {
-                if ($data['dueDay'] < 1 || $data['dueDay'] > 31) {
-                    return new DataResponse(['error' => 'Due day must be between 1 and 31'], Http::STATUS_BAD_REQUEST);
+            if (array_key_exists('dueDay', $data)) {
+                if ($data['dueDay'] !== null) {
+                    if ($data['dueDay'] < 1 || $data['dueDay'] > 31) {
+                        return new DataResponse(['error' => 'Due day must be between 1 and 31'], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['dueDay'] = (int) $data['dueDay'];
+                } else {
+                    $updates['dueDay'] = null;
                 }
-                $updates['dueDay'] = $data['dueDay'];
             }
 
             // Validate dueMonth if provided
-            if (isset($data['dueMonth']) && $data['dueMonth'] !== null) {
-                if ($data['dueMonth'] < 1 || $data['dueMonth'] > 12) {
-                    return new DataResponse(['error' => 'Due month must be between 1 and 12'], Http::STATUS_BAD_REQUEST);
+            if (array_key_exists('dueMonth', $data)) {
+                if ($data['dueMonth'] !== null) {
+                    if ($data['dueMonth'] < 1 || $data['dueMonth'] > 12) {
+                        return new DataResponse(['error' => 'Due month must be between 1 and 12'], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['dueMonth'] = (int) $data['dueMonth'];
+                } else {
+                    $updates['dueMonth'] = null;
                 }
-                $updates['dueMonth'] = $data['dueMonth'];
             }
 
             // Validate autoDetectPattern if provided
@@ -231,11 +239,11 @@ class BillController extends Controller {
             if (isset($data['amount'])) {
                 $updates['amount'] = (float) $data['amount'];
             }
-            if (isset($data['categoryId'])) {
-                $updates['categoryId'] = $data['categoryId'];
+            if (array_key_exists('categoryId', $data)) {
+                $updates['categoryId'] = $data['categoryId'] !== null ? (int) $data['categoryId'] : null;
             }
-            if (isset($data['accountId'])) {
-                $updates['accountId'] = $data['accountId'];
+            if (array_key_exists('accountId', $data)) {
+                $updates['accountId'] = $data['accountId'] !== null ? (int) $data['accountId'] : null;
             }
             if (isset($data['active'])) {
                 $updates['active'] = (bool) $data['active'];

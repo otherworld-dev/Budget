@@ -3965,6 +3965,7 @@ style('budget', 'style');
                     <option value="weekly">Weekly</option>
                     <option value="monthly" selected>Monthly</option>
                     <option value="quarterly">Quarterly</option>
+                    <option value="semi-annually">Semi-Annually</option>
                     <option value="yearly">Yearly</option>
                 </select>
                 <small id="bill-frequency-help" class="form-text">How often this bill is due</small>

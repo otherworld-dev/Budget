@@ -104,7 +104,14 @@ export default class BillsModule {
             }
 
             const frequency = bill.frequency || 'monthly';
-            const frequencyLabel = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+            const frequencyLabels = {
+                'weekly': 'Weekly',
+                'monthly': 'Monthly',
+                'quarterly': 'Quarterly',
+                'semi-annually': 'Semi-Annually',
+                'yearly': 'Yearly'
+            };
+            const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
 
             return `
                 <div class="bill-card ${statusClass}" data-bill-id="${bill.id}" data-status="${statusClass}">
@@ -212,6 +219,15 @@ export default class BillsModule {
                 e.preventDefault();
                 this.saveBill();
             });
+        }
+
+        // Bill modal cancel button
+        const billModal = document.getElementById('bill-modal');
+        if (billModal) {
+            const cancelBtn = billModal.querySelector('.cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => this.hideBillModal());
+            }
         }
 
         // Bill frequency change (show/hide due month for yearly)
