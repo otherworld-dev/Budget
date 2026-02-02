@@ -1,0 +1,52 @@
+/**
+ * Reports Module - Financial reporting and analysis
+ */
+import * as formatters from '../../utils/formatters.js';
+import * as dom from '../../utils/dom.js';
+import Chart from 'chart.js/auto';
+
+export default class ReportsModule {
+    constructor(app) {
+        this.app = app;
+        this.reportCharts = {};
+        this.reportEventListenersSetup = false;
+        this.yoyControlsSetup = false;
+    }
+
+    // Getters for app state
+    get accounts() {
+        return this.app.accounts;
+    }
+
+    get settings() {
+        return this.app.settings;
+    }
+
+    get allTagSetsForReports() {
+        return this.app.allTagSetsForReports;
+    }
+
+    set allTagSetsForReports(value) {
+        this.app.allTagSetsForReports = value;
+    }
+
+    get categories() {
+        return this.app.categories;
+    }
+
+    // Helper method delegations
+    formatCurrency(amount, currency = null) {
+        return formatters.formatCurrency(amount, currency, this.settings);
+    }
+
+    formatCurrencyCompact(amount, currency = null) {
+        return formatters.formatCurrencyCompact(amount, currency, this.settings);
+    }
+
+    getPrimaryCurrency() {
+        return formatters.getPrimaryCurrency(this.accounts, this.settings);
+    }
+
+    escapeHtml(text) {
+        return dom.escapeHtml(text);
+    }
