@@ -11,6 +11,7 @@ export default class ForecastModule {
         this.balanceChart = null;
         this.forecastData = null;
         this.forecastCurrency = null;
+        this._eventsSetup = false;
     }
 
     // Getters for app state
@@ -28,6 +29,12 @@ export default class ForecastModule {
     }
 
     async loadForecastView() {
+        // Setup event listeners once
+        if (!this._eventsSetup) {
+            this.setupForecastEventListeners();
+            this._eventsSetup = true;
+        }
+
         const loadingEl = document.getElementById('forecast-loading');
         const emptyEl = document.getElementById('forecast-empty');
         const sections = [
@@ -88,6 +95,16 @@ export default class ForecastModule {
             console.error('Failed to load forecast:', error);
             if (loadingEl) loadingEl.style.display = 'none';
             OC.Notification.showTemporary('Failed to load forecast data');
+        }
+    }
+
+    setupForecastEventListeners() {
+        // Forecast horizon dropdown
+        const horizonSelect = document.getElementById('forecast-horizon');
+        if (horizonSelect) {
+            horizonSelect.addEventListener('change', () => {
+                this.loadForecastView();
+            });
         }
     }
 
