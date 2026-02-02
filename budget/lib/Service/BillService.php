@@ -200,6 +200,9 @@ class BillService {
         $bills = $this->findActive($userId);
 
         $total = 0.0;
+        $dueThisMonth = 0;
+        $overdue = 0;
+        $paidThisMonth = 0;
         $byCategory = [];
         $byFrequency = [
             'daily' => 0.0,
@@ -209,6 +212,10 @@ class BillService {
             'quarterly' => 0.0,
             'yearly' => 0.0,
         ];
+
+        $today = date('Y-m-d');
+        $startOfMonth = date('Y-m-01');
+        $endOfMonth = date('Y-m-t');
 
         foreach ($bills as $bill) {
             $monthlyAmount = $this->frequencyCalculator->getMonthlyEquivalent($bill);
@@ -224,12 +231,35 @@ class BillService {
                 $byCategory[$catId] = 0.0;
             }
             $byCategory[$catId] += $monthlyAmount;
+
+            // Check if due this month
+            $nextDue = $bill->getNextDueDate();
+            if ($nextDue && $nextDue >= $startOfMonth && $nextDue <= $endOfMonth) {
+                $dueThisMonth++;
+            }
+
+            // Check if overdue
+            if ($nextDue && $nextDue < $today) {
+                $isPaid = $this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth);
+                if (!$isPaid) {
+                    $overdue++;
+                }
+            }
+
+            // Check if paid this month
+            if ($this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth)) {
+                $paidThisMonth++;
+            }
         }
 
         return [
             'totalMonthly' => $total,
+            'monthlyTotal' => $total, // Alias for frontend compatibility
             'totalYearly' => $total * 12,
             'billCount' => count($bills),
+            'dueThisMonth' => $dueThisMonth,
+            'overdue' => $overdue,
+            'paidThisMonth' => $paidThisMonth,
             'byCategory' => $byCategory,
             'byFrequency' => $byFrequency,
         ];
