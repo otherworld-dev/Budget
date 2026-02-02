@@ -4405,6 +4405,7 @@ style('budget', 'style');
         </div>
         <form id="add-tag-form" class="modal-form">
             <input type="hidden" id="tag-set-id" name="tagSetId">
+            <input type="hidden" id="tag-category-id" name="categoryId">
             <div class="form-group">
                 <label for="tag-name">Tag Name *</label>
                 <input type="text" id="tag-name" name="name" required placeholder="e.g., Fishing, Rods, Online">
