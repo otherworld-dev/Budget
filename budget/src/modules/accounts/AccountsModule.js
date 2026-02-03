@@ -294,7 +294,7 @@ export default class AccountsModule {
                 startDate.setDate(startDate.getDate() - 7);
 
                 const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/transactions?account=${accountId}&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`),
+                    OC.generateUrl(`/apps/budget/api/transactions?account=${accountId}&startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`),
                     { headers: { 'requesttoken': OC.requestToken } }
                 );
 
@@ -1099,7 +1099,7 @@ export default class AccountsModule {
             // Set today's date as default
             const dateInput = document.getElementById('quick-add-date');
             if (dateInput) {
-                dateInput.value = new Date().toISOString().split('T')[0];
+                dateInput.value = formatters.getTodayDateString();
             }
         }
         // Hide message
@@ -1153,7 +1153,7 @@ export default class AccountsModule {
         // Set today's date as default
         const dateInput = document.getElementById('quick-add-date');
         if (dateInput && !dateInput.value) {
-            dateInput.value = new Date().toISOString().split('T')[0];
+            dateInput.value = formatters.getTodayDateString();
         }
     }
 
