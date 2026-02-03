@@ -3949,8 +3949,28 @@ style('budget', 'style');
                     <option value="quarterly">Quarterly</option>
                     <option value="semi-annually">Semi-Annually</option>
                     <option value="yearly">Yearly</option>
+                    <option value="custom">Custom</option>
                 </select>
                 <small id="bill-frequency-help" class="form-text">How often this bill is due</small>
+            </div>
+
+            <div class="form-group" id="custom-months-group" style="display: none;">
+                <label>Select Months <span class="required">*</span></label>
+                <div id="bill-custom-months" class="custom-months-selector">
+                    <label><input type="checkbox" value="1"> Jan</label>
+                    <label><input type="checkbox" value="2"> Feb</label>
+                    <label><input type="checkbox" value="3"> Mar</label>
+                    <label><input type="checkbox" value="4"> Apr</label>
+                    <label><input type="checkbox" value="5"> May</label>
+                    <label><input type="checkbox" value="6"> Jun</label>
+                    <label><input type="checkbox" value="7"> Jul</label>
+                    <label><input type="checkbox" value="8"> Aug</label>
+                    <label><input type="checkbox" value="9"> Sep</label>
+                    <label><input type="checkbox" value="10"> Oct</label>
+                    <label><input type="checkbox" value="11"> Nov</label>
+                    <label><input type="checkbox" value="12"> Dec</label>
+                </div>
+                <small class="form-text">Select which months this bill occurs</small>
             </div>
 
             <div class="form-group" id="due-day-group">

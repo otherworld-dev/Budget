@@ -96,7 +96,8 @@ class BillService {
         ?int $accountId = null,
         ?string $autoDetectPattern = null,
         ?string $notes = null,
-        ?int $reminderDays = null
+        ?int $reminderDays = null,
+        ?string $customRecurrencePattern = null
     ): Bill {
         $bill = new Bill();
         $bill->setUserId($userId);
@@ -111,9 +112,10 @@ class BillService {
         $bill->setIsActive(true);
         $bill->setNotes($notes);
         $bill->setReminderDays($reminderDays);
+        $bill->setCustomRecurrencePattern($customRecurrencePattern);
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
-        $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth);
+        $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);
         $bill->setNextDueDate($nextDue);
 
         return $this->mapper->insert($bill);
@@ -126,7 +128,7 @@ class BillService {
 
         foreach ($updates as $key => $value) {
             // Track if we need to recalculate next due date
-            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'lastPaidDate'])) {
+            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'lastPaidDate', 'customRecurrencePattern'])) {
                 $needsRecalculation = true;
             }
 
@@ -135,8 +137,8 @@ class BillService {
             $dbUpdates[$columnName] = $value;
         }
 
-        // Recalculate next due date if frequency or due day changed
-        if ($needsRecalculation && (array_key_exists('frequency', $updates) || array_key_exists('dueDay', $updates) || array_key_exists('dueMonth', $updates))) {
+        // Recalculate next due date if frequency or due day or custom pattern changed
+        if ($needsRecalculation && (array_key_exists('frequency', $updates) || array_key_exists('dueDay', $updates) || array_key_exists('dueMonth', $updates) || array_key_exists('customRecurrencePattern', $updates))) {
             // Apply updates to get current state for calculation
             foreach ($updates as $key => $value) {
                 $setter = 'set' . ucfirst($key);
@@ -148,7 +150,9 @@ class BillService {
             $nextDue = $this->frequencyCalculator->calculateNextDueDate(
                 $bill->getFrequency(),
                 $bill->getDueDay(),
-                $bill->getDueMonth()
+                $bill->getDueMonth(),
+                null,
+                $bill->getCustomRecurrencePattern()
             );
             $dbUpdates['next_due_date'] = $nextDue;
         }
@@ -180,7 +184,8 @@ class BillService {
             $bill->getFrequency(),
             $bill->getDueDay(),
             $bill->getDueMonth(),
-            $bill->getNextDueDate()
+            $bill->getNextDueDate(),
+            $bill->getCustomRecurrencePattern()
         );
         $bill->setNextDueDate($nextDue);
 

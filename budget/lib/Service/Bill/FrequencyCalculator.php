@@ -18,13 +18,15 @@ class FrequencyCalculator {
      * @param int|null $dueDay Day of week (1-7) or day of month (1-31)
      * @param int|null $dueMonth Month for quarterly/yearly bills
      * @param string|null $fromDate Base date to calculate from
+     * @param string|null $customPattern JSON pattern for custom frequency
      * @return string Next due date in Y-m-d format
      */
     public function calculateNextDueDate(
         string $frequency,
         ?int $dueDay,
         ?int $dueMonth,
-        ?string $fromDate = null
+        ?string $fromDate = null,
+        ?string $customPattern = null
     ): string {
         $baseDate = $fromDate ? new \DateTime($fromDate) : new \DateTime();
         $today = new \DateTime();
@@ -93,6 +95,9 @@ class FrequencyCalculator {
                 }
                 return $next->format('Y-m-d');
 
+            case 'custom':
+                return $this->calculateCustomNextDueDate($customPattern, $dueDay, $fromDate);
+
             default:
                 return $baseDate->format('Y-m-d');
         }
@@ -105,7 +110,18 @@ class FrequencyCalculator {
      * @return float Monthly equivalent amount
      */
     public function getMonthlyEquivalent(Bill $bill): float {
-        return $this->getMonthlyEquivalentFromValues($bill->getAmount(), $bill->getFrequency());
+        $frequency = $bill->getFrequency();
+        $amount = $bill->getAmount();
+
+        if ($frequency === 'custom') {
+            $occurrences = $this->getCustomOccurrencesPerYear($bill->getCustomRecurrencePattern());
+            if ($occurrences > 0) {
+                return ($amount * $occurrences) / 12;
+            }
+            return 0;
+        }
+
+        return $this->getMonthlyEquivalentFromValues($amount, $frequency);
     }
 
     /**
@@ -183,5 +199,169 @@ class FrequencyCalculator {
      */
     public function getYearlyTotal(float $amount, string $frequency): float {
         return $amount * $this->getOccurrencesPerYear($frequency);
+    }
+
+    /**
+     * Calculate next due date for custom frequency pattern.
+     *
+     * @param string|null $customPattern JSON pattern (e.g., {"months": [1, 6, 7]})
+     * @param int|null $dueDay Day of the month for occurrences
+     * @param string|null $fromDate Base date to calculate from
+     * @return string Next due date in Y-m-d format
+     */
+    private function calculateCustomNextDueDate(?string $customPattern, ?int $dueDay, ?string $fromDate = null): string {
+        $today = new \DateTime();
+        $baseDate = $fromDate ? new \DateTime($fromDate) : clone $today;
+
+        if (empty($customPattern)) {
+            // No pattern defined, default to monthly
+            return $baseDate->format('Y-m-d');
+        }
+
+        $pattern = json_decode($customPattern, true);
+        if (!is_array($pattern)) {
+            // Invalid pattern, default to monthly
+            return $baseDate->format('Y-m-d');
+        }
+
+        // Handle {"months": [1, 6, 7]} pattern
+        if (isset($pattern['months']) && is_array($pattern['months'])) {
+            return $this->findNextMonthOccurrence($pattern['months'], $dueDay ?? 1, $baseDate, $today);
+        }
+
+        // Handle {"dates": [{"month": 1, "day": 15}, ...]} pattern (future enhancement)
+        if (isset($pattern['dates']) && is_array($pattern['dates'])) {
+            return $this->findNextDateOccurrence($pattern['dates'], $baseDate, $today);
+        }
+
+        // No valid pattern found
+        return $baseDate->format('Y-m-d');
+    }
+
+    /**
+     * Find next occurrence from a list of months.
+     *
+     * @param array $months List of month numbers (1-12)
+     * @param int $day Day of the month
+     * @param \DateTime $baseDate Base date
+     * @param \DateTime $today Today's date
+     * @return string Next due date
+     */
+    private function findNextMonthOccurrence(array $months, int $day, \DateTime $baseDate, \DateTime $today): string {
+        if (empty($months)) {
+            return $baseDate->format('Y-m-d');
+        }
+
+        // Sort months in ascending order
+        sort($months);
+
+        $currentYear = (int)$today->format('Y');
+        $currentMonth = (int)$today->format('n');
+
+        // Try to find next occurrence in current year
+        foreach ($months as $month) {
+            if ($month < 1 || $month > 12) {
+                continue; // Skip invalid months
+            }
+
+            $candidate = new \DateTime();
+            $candidate->setDate($currentYear, $month, min($day, (int)date('t', mktime(0, 0, 0, $month, 1, $currentYear))));
+
+            if ($candidate > $today) {
+                return $candidate->format('Y-m-d');
+            }
+        }
+
+        // No occurrence found in current year, use first month of next year
+        $nextYear = $currentYear + 1;
+        $firstMonth = $months[0];
+        $next = new \DateTime();
+        $next->setDate($nextYear, $firstMonth, min($day, (int)date('t', mktime(0, 0, 0, $firstMonth, 1, $nextYear))));
+
+        return $next->format('Y-m-d');
+    }
+
+    /**
+     * Find next occurrence from a list of specific dates.
+     *
+     * @param array $dates List of date objects with 'month' and 'day' keys
+     * @param \DateTime $baseDate Base date
+     * @param \DateTime $today Today's date
+     * @return string Next due date
+     */
+    private function findNextDateOccurrence(array $dates, \DateTime $baseDate, \DateTime $today): string {
+        if (empty($dates)) {
+            return $baseDate->format('Y-m-d');
+        }
+
+        $currentYear = (int)$today->format('Y');
+        $candidates = [];
+
+        // Build candidate dates for current and next year
+        foreach ($dates as $dateSpec) {
+            if (!isset($dateSpec['month']) || !isset($dateSpec['day'])) {
+                continue;
+            }
+
+            $month = (int)$dateSpec['month'];
+            $day = (int)$dateSpec['day'];
+
+            if ($month < 1 || $month > 12) {
+                continue;
+            }
+
+            // Try current year
+            $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, $currentYear));
+            $candidate = new \DateTime();
+            $candidate->setDate($currentYear, $month, min($day, $maxDay));
+
+            if ($candidate > $today) {
+                $candidates[] = $candidate;
+            }
+
+            // Also add next year occurrence
+            $nextYear = $currentYear + 1;
+            $maxDayNext = (int)date('t', mktime(0, 0, 0, $month, 1, $nextYear));
+            $candidateNext = new \DateTime();
+            $candidateNext->setDate($nextYear, $month, min($day, $maxDayNext));
+            $candidates[] = $candidateNext;
+        }
+
+        if (empty($candidates)) {
+            return $baseDate->format('Y-m-d');
+        }
+
+        // Sort and return earliest date
+        usort($candidates, fn($a, $b) => $a <=> $b);
+        return $candidates[0]->format('Y-m-d');
+    }
+
+    /**
+     * Get occurrences per year from custom pattern.
+     *
+     * @param string|null $customPattern JSON pattern
+     * @return int Number of occurrences per year
+     */
+    public function getCustomOccurrencesPerYear(?string $customPattern): int {
+        if (empty($customPattern)) {
+            return 0;
+        }
+
+        $pattern = json_decode($customPattern, true);
+        if (!is_array($pattern)) {
+            return 0;
+        }
+
+        // For months pattern, count unique months
+        if (isset($pattern['months']) && is_array($pattern['months'])) {
+            return count(array_unique($pattern['months']));
+        }
+
+        // For dates pattern, count unique dates
+        if (isset($pattern['dates']) && is_array($pattern['dates'])) {
+            return count($pattern['dates']);
+        }
+
+        return 0;
     }
 }

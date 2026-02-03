@@ -307,8 +307,19 @@ export default class BillsModule {
             document.getElementById('bill-notes').value = bill.notes || '';
             const reminderDays = bill.reminderDays ?? bill.reminder_days;
             document.getElementById('bill-reminder-days').value = reminderDays !== null && reminderDays !== undefined ? reminderDays.toString() : '';
+
+            // Parse and set custom recurrence pattern if present
+            const customPattern = bill.customRecurrencePattern || bill.custom_recurrence_pattern;
+            if (customPattern) {
+                this.setCustomMonthsFromPattern(customPattern);
+            } else {
+                // Clear all month checkboxes
+                document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
+            }
         } else {
             title.textContent = 'Add Bill';
+            // Clear all month checkboxes for new bill
+            document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
         this.updateBillFormFields();
@@ -326,11 +337,20 @@ export default class BillsModule {
         const frequency = document.getElementById('bill-frequency').value;
         const dueDayGroup = document.getElementById('due-day-group');
         const dueMonthGroup = document.getElementById('due-month-group');
+        const customMonthsGroup = document.getElementById('custom-months-group');
 
-        // Show due month only for yearly bills
-        if (frequency === 'yearly') {
+        // Show/hide custom months selector for custom frequency
+        if (frequency === 'custom') {
+            customMonthsGroup.style.display = 'block';
+            dueDayGroup.style.display = 'block';
+            dueMonthGroup.style.display = 'none';
+        } else if (frequency === 'yearly') {
+            customMonthsGroup.style.display = 'none';
+            dueDayGroup.style.display = 'block';
             dueMonthGroup.style.display = 'block';
         } else {
+            customMonthsGroup.style.display = 'none';
+            dueDayGroup.style.display = 'block';
             dueMonthGroup.style.display = 'none';
         }
 
@@ -342,6 +362,10 @@ export default class BillsModule {
             dueDayLabel.textContent = 'Due Day (1-7)';
             dueDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
             document.getElementById('bill-due-day').max = 7;
+        } else if (frequency === 'custom') {
+            dueDayLabel.textContent = 'Due Day';
+            dueDayHelp.textContent = 'Day of the selected months when bill is due';
+            document.getElementById('bill-due-day').max = 31;
         } else {
             dueDayLabel.textContent = 'Due Day';
             dueDayHelp.textContent = 'Day of the month when bill is due';
@@ -380,10 +404,12 @@ export default class BillsModule {
         const isNew = !billId;
 
         const reminderValue = document.getElementById('bill-reminder-days').value;
+        const frequency = document.getElementById('bill-frequency').value;
+
         const billData = {
             name: document.getElementById('bill-name').value,
             amount: parseFloat(document.getElementById('bill-amount').value),
-            frequency: document.getElementById('bill-frequency').value,
+            frequency: frequency,
             dueDay: document.getElementById('bill-due-day').value ? parseInt(document.getElementById('bill-due-day').value) : null,
             dueMonth: document.getElementById('bill-due-month').value ? parseInt(document.getElementById('bill-due-month').value) : null,
             categoryId: document.getElementById('bill-category').value ? parseInt(document.getElementById('bill-category').value) : null,
@@ -392,6 +418,18 @@ export default class BillsModule {
             notes: document.getElementById('bill-notes').value || null,
             reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null
         };
+
+        // Add custom recurrence pattern if frequency is custom
+        if (frequency === 'custom') {
+            const customPattern = this.getCustomMonthsPattern();
+            if (!customPattern) {
+                OC.Notification.showTemporary('Please select at least one month for custom frequency');
+                return;
+            }
+            billData.customRecurrencePattern = customPattern;
+        } else {
+            billData.customRecurrencePattern = null;
+        }
 
         try {
             const url = isNew
@@ -408,8 +446,10 @@ export default class BillsModule {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to save bill');
+                const error = await response.json().catch(() => ({}));
+                const errorMessage = error.error || `HTTP ${response.status}: ${response.statusText}`;
+                console.error('Server error:', error);
+                throw new Error(errorMessage);
             }
 
             this.hideBillModal();
@@ -682,6 +722,47 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to add bills:', error);
             OC.Notification.showTemporary('Failed to add selected bills');
+        }
+    }
+
+    /**
+     * Get custom months pattern from checkboxes as JSON string.
+     * @returns {string|null} JSON pattern or null if no months selected
+     */
+    getCustomMonthsPattern() {
+        const checkboxes = document.querySelectorAll('#bill-custom-months input[type="checkbox"]:checked');
+        const selectedMonths = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        if (selectedMonths.length === 0) {
+            return null;
+        }
+
+        // Sort months in ascending order
+        selectedMonths.sort((a, b) => a - b);
+
+        return JSON.stringify({ months: selectedMonths });
+    }
+
+    /**
+     * Set custom months checkboxes from JSON pattern.
+     * @param {string} pattern JSON pattern string
+     */
+    setCustomMonthsFromPattern(pattern) {
+        // Clear all checkboxes first
+        document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+        try {
+            const parsed = JSON.parse(pattern);
+            if (parsed && parsed.months && Array.isArray(parsed.months)) {
+                parsed.months.forEach(month => {
+                    const checkbox = document.querySelector(`#bill-custom-months input[value="${month}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Failed to parse custom recurrence pattern:', e);
         }
     }
 }

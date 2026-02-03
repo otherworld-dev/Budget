@@ -15,9 +15,11 @@ enum Frequency: string {
     case QUARTERLY = 'quarterly';
     case SEMI_ANNUALLY = 'semi-annually';
     case YEARLY = 'yearly';
+    case CUSTOM = 'custom';
 
     /**
      * Get the number of occurrences per year.
+     * For CUSTOM frequency, returns 0 (must be calculated from pattern).
      */
     public function occurrencesPerYear(): int {
         return match ($this) {
@@ -28,12 +30,14 @@ enum Frequency: string {
             self::QUARTERLY => 4,
             self::SEMI_ANNUALLY => 2,
             self::YEARLY => 1,
+            self::CUSTOM => 0, // Must be calculated from custom pattern
         };
     }
 
     /**
      * Get the monthly equivalent multiplier.
      * Used to normalize amounts to monthly values.
+     * For CUSTOM frequency, returns 0 (must be calculated from pattern).
      */
     public function monthlyMultiplier(): float {
         return match ($this) {
@@ -44,6 +48,7 @@ enum Frequency: string {
             self::QUARTERLY => 1 / 3,
             self::SEMI_ANNUALLY => 1 / 6,
             self::YEARLY => 1 / 12,
+            self::CUSTOM => 0, // Must be calculated from custom pattern
         };
     }
 
@@ -66,6 +71,7 @@ enum Frequency: string {
             self::QUARTERLY => 'Quarterly',
             self::SEMI_ANNUALLY => 'Semi-Annually',
             self::YEARLY => 'Yearly',
+            self::CUSTOM => 'Custom',
         };
     }
 

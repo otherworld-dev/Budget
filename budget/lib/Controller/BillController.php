@@ -74,19 +74,30 @@ class BillController extends Controller {
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 30, period: 60)]
-    public function create(
-        string $name,
-        float $amount,
-        string $frequency = 'monthly',
-        ?int $dueDay = null,
-        ?int $dueMonth = null,
-        ?int $categoryId = null,
-        ?int $accountId = null,
-        ?string $autoDetectPattern = null,
-        ?string $notes = null,
-        ?int $reminderDays = null
-    ): DataResponse {
+    public function create(): DataResponse {
         try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($data)) {
+                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Extract and validate required fields
+            if (!isset($data['name']) || !isset($data['amount'])) {
+                return new DataResponse(['error' => 'Name and amount are required'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $name = $data['name'];
+            $amount = (float) $data['amount'];
+            $frequency = $data['frequency'] ?? 'monthly';
+            $dueDay = isset($data['dueDay']) ? (int) $data['dueDay'] : null;
+            $dueMonth = isset($data['dueMonth']) ? (int) $data['dueMonth'] : null;
+            $categoryId = isset($data['categoryId']) ? (int) $data['categoryId'] : null;
+            $accountId = isset($data['accountId']) ? (int) $data['accountId'] : null;
+            $autoDetectPattern = $data['autoDetectPattern'] ?? null;
+            $notes = $data['notes'] ?? null;
+            $reminderDays = isset($data['reminderDays']) ? (int) $data['reminderDays'] : null;
+            $customRecurrencePattern = $data['customRecurrencePattern'] ?? null;
+
             // Validate name (required)
             $nameValidation = $this->validationService->validateName($name, true);
             if (!$nameValidation['valid']) {
@@ -112,7 +123,7 @@ class BillController extends Controller {
             }
 
             // Validate autoDetectPattern if provided
-            if ($autoDetectPattern !== null) {
+            if ($autoDetectPattern !== null && $autoDetectPattern !== '') {
                 $patternValidation = $this->validationService->validatePattern($autoDetectPattern, false);
                 if (!$patternValidation['valid']) {
                     return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
@@ -121,7 +132,7 @@ class BillController extends Controller {
             }
 
             // Validate notes if provided
-            if ($notes !== null) {
+            if ($notes !== null && $notes !== '') {
                 $notesValidation = $this->validationService->validateNotes($notes);
                 if (!$notesValidation['valid']) {
                     return new DataResponse(['error' => $notesValidation['error']], Http::STATUS_BAD_REQUEST);
@@ -132,6 +143,14 @@ class BillController extends Controller {
             // Validate reminderDays if provided
             if ($reminderDays !== null && ($reminderDays < 0 || $reminderDays > 30)) {
                 return new DataResponse(['error' => 'Reminder days must be between 0 and 30'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Validate customRecurrencePattern if provided
+            if ($customRecurrencePattern !== null && $customRecurrencePattern !== '' && $frequency === 'custom') {
+                $patternValidation = $this->validateCustomPattern($customRecurrencePattern);
+                if (!$patternValidation['valid']) {
+                    return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
             }
 
             $bill = $this->service->create(
@@ -145,11 +164,18 @@ class BillController extends Controller {
                 $accountId,
                 $autoDetectPattern,
                 $notes,
-                $reminderDays
+                $reminderDays,
+                $customRecurrencePattern
             );
             return new DataResponse($bill, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create bill');
+            // Log full error details for debugging
+            error_log('BillController create error: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
+            return new DataResponse([
+                'error' => 'Failed to create bill: ' . $e->getMessage(),
+                'details' => $e->getTraceAsString()
+            ], Http::STATUS_BAD_REQUEST);
         }
     }
 
@@ -260,6 +286,17 @@ class BillController extends Controller {
             }
             if (array_key_exists('lastPaidDate', $data)) {
                 $updates['lastPaidDate'] = $data['lastPaidDate'];
+            }
+            if (array_key_exists('customRecurrencePattern', $data)) {
+                if ($data['customRecurrencePattern'] !== null && $data['customRecurrencePattern'] !== '') {
+                    $patternValidation = $this->validateCustomPattern($data['customRecurrencePattern']);
+                    if (!$patternValidation['valid']) {
+                        return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['customRecurrencePattern'] = $data['customRecurrencePattern'];
+                } else {
+                    $updates['customRecurrencePattern'] = null;
+                }
             }
 
             if (empty($updates)) {
@@ -399,5 +436,104 @@ class BillController extends Controller {
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to create bills from detected patterns');
         }
+    }
+
+    /**
+     * Validate custom recurrence pattern JSON.
+     *
+     * @param string $pattern JSON pattern string
+     * @return array ['valid' => bool, 'error' => string|null]
+     */
+    private function validateCustomPattern(string $pattern): array {
+        $decoded = json_decode($pattern, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [
+                'valid' => false,
+                'error' => 'Invalid JSON in custom recurrence pattern',
+            ];
+        }
+
+        if (!is_array($decoded)) {
+            return [
+                'valid' => false,
+                'error' => 'Custom recurrence pattern must be a JSON object',
+            ];
+        }
+
+        // Validate months pattern: {"months": [1, 6, 7]}
+        if (isset($decoded['months'])) {
+            if (!is_array($decoded['months'])) {
+                return [
+                    'valid' => false,
+                    'error' => 'Months must be an array',
+                ];
+            }
+
+            if (empty($decoded['months'])) {
+                return [
+                    'valid' => false,
+                    'error' => 'At least one month must be specified',
+                ];
+            }
+
+            foreach ($decoded['months'] as $month) {
+                if (!is_int($month) || $month < 1 || $month > 12) {
+                    return [
+                        'valid' => false,
+                        'error' => 'Each month must be a number between 1 and 12',
+                    ];
+                }
+            }
+
+            return ['valid' => true, 'error' => null];
+        }
+
+        // Validate dates pattern: {"dates": [{"month": 1, "day": 15}, ...]}
+        if (isset($decoded['dates'])) {
+            if (!is_array($decoded['dates'])) {
+                return [
+                    'valid' => false,
+                    'error' => 'Dates must be an array',
+                ];
+            }
+
+            if (empty($decoded['dates'])) {
+                return [
+                    'valid' => false,
+                    'error' => 'At least one date must be specified',
+                ];
+            }
+
+            foreach ($decoded['dates'] as $date) {
+                if (!is_array($date) || !isset($date['month']) || !isset($date['day'])) {
+                    return [
+                        'valid' => false,
+                        'error' => 'Each date must have "month" and "day" fields',
+                    ];
+                }
+
+                if (!is_int($date['month']) || $date['month'] < 1 || $date['month'] > 12) {
+                    return [
+                        'valid' => false,
+                        'error' => 'Month must be a number between 1 and 12',
+                    ];
+                }
+
+                if (!is_int($date['day']) || $date['day'] < 1 || $date['day'] > 31) {
+                    return [
+                        'valid' => false,
+                        'error' => 'Day must be a number between 1 and 31',
+                    ];
+                }
+            }
+
+            return ['valid' => true, 'error' => null];
+        }
+
+        return [
+            'valid' => false,
+            'error' => 'Custom pattern must contain either "months" or "dates" field',
+        ];
     }
 }

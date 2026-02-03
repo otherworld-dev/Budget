@@ -42,12 +42,14 @@ use OCP\AppFramework\Db\Entity;
  * @method void setReminderDays(?int $reminderDays)
  * @method string|null getLastReminderSent()
  * @method void setLastReminderSent(?string $lastReminderSent)
+ * @method string|null getCustomRecurrencePattern()
+ * @method void setCustomRecurrencePattern(?string $customRecurrencePattern)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
     protected $name;
     protected $amount;
-    protected $frequency;       // monthly, weekly, yearly, quarterly
+    protected $frequency;       // monthly, weekly, yearly, quarterly, custom
     protected $dueDay;          // Day of month (1-31) or day of week (1-7) for weekly
     protected $dueMonth;        // Month (1-12) for yearly bills
     protected $categoryId;
@@ -60,6 +62,7 @@ class Bill extends Entity implements JsonSerializable {
     protected $createdAt;
     protected $reminderDays;      // Days before due date to send reminder
     protected $lastReminderSent;  // When last reminder was sent
+    protected $customRecurrencePattern;  // JSON pattern for custom frequency
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -91,6 +94,7 @@ class Bill extends Entity implements JsonSerializable {
             'createdAt' => $this->getCreatedAt(),
             'reminderDays' => $this->getReminderDays(),
             'lastReminderSent' => $this->getLastReminderSent(),
+            'customRecurrencePattern' => $this->getCustomRecurrencePattern(),
         ];
     }
 }
