@@ -155,10 +155,14 @@ class TagSetService extends AbstractCrudService {
     }
 
     /**
-     * Delete a tag
+     * Delete a tag (cascade deletes transaction_tags)
      */
     public function deleteTag(int $tagId, string $userId): void {
         $tag = $this->tagMapper->find($tagId, $userId);
+
+        // Delete associated transaction tags first (cascade delete)
+        $this->transactionTagMapper->deleteByTag($tagId);
+
         $this->tagMapper->delete($tag);
     }
 
@@ -177,10 +181,13 @@ class TagSetService extends AbstractCrudService {
      */
     protected function beforeDelete(Entity $entity, string $userId): void {
         /** @var TagSet $entity */
-        // Check if any tags exist in this tag set
+        // Cascade delete: Delete all tags in this tag set
         $tags = $this->tagMapper->findByTagSet($entity->getId());
-        if (!empty($tags)) {
-            throw new \Exception('Cannot delete tag set with existing tags');
+        foreach ($tags as $tag) {
+            // Delete associated transaction tags first
+            $this->transactionTagMapper->deleteByTag($tag->getId());
+            // Then delete the tag itself
+            $this->tagMapper->delete($tag);
         }
     }
 

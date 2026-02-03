@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\AccountMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\MultipleObjectsReturnedException;
@@ -13,13 +14,16 @@ use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 class TransactionService {
     private TransactionMapper $mapper;
     private AccountMapper $accountMapper;
+    private TransactionTagMapper $transactionTagMapper;
 
     public function __construct(
         TransactionMapper $mapper,
-        AccountMapper $accountMapper
+        AccountMapper $accountMapper,
+        TransactionTagMapper $transactionTagMapper
     ) {
         $this->mapper = $mapper;
         $this->accountMapper = $accountMapper;
+        $this->transactionTagMapper = $transactionTagMapper;
     }
 
     /**
@@ -144,11 +148,14 @@ class TransactionService {
     public function delete(int $id, string $userId): void {
         $transaction = $this->find($id, $userId);
         $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-        
+
         // Reverse transaction effect on balance
         $reverseType = $transaction->getType() === 'credit' ? 'debit' : 'credit';
         $this->updateAccountBalance($account, $transaction->getAmount(), $reverseType, $userId);
-        
+
+        // Cascade delete: Delete transaction tags first
+        $this->transactionTagMapper->deleteByTransaction($id);
+
         $this->mapper->delete($transaction);
     }
 

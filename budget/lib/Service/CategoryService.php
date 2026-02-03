@@ -6,6 +6,9 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\TagSetMapper;
+use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\Entity;
 
@@ -14,13 +17,22 @@ use OCP\AppFramework\Db\Entity;
  */
 class CategoryService extends AbstractCrudService {
     private TransactionMapper $transactionMapper;
+    private TagSetMapper $tagSetMapper;
+    private TagMapper $tagMapper;
+    private TransactionTagMapper $transactionTagMapper;
 
     public function __construct(
         CategoryMapper $mapper,
-        TransactionMapper $transactionMapper
+        TransactionMapper $transactionMapper,
+        TagSetMapper $tagSetMapper,
+        TagMapper $tagMapper,
+        TransactionTagMapper $transactionTagMapper
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
+        $this->tagSetMapper = $tagSetMapper;
+        $this->tagMapper = $tagMapper;
+        $this->transactionTagMapper = $transactionTagMapper;
     }
 
     /**
@@ -91,6 +103,21 @@ class CategoryService extends AbstractCrudService {
         $transactions = $this->transactionMapper->findByCategory($entity->getId(), 1);
         if (!empty($transactions)) {
             throw new \Exception('Cannot delete category with existing transactions');
+        }
+
+        // Cascade delete: Delete all tag sets for this category
+        $tagSets = $this->tagSetMapper->findByCategory($entity->getId());
+        foreach ($tagSets as $tagSet) {
+            // Delete tags in this tag set
+            $tags = $this->tagMapper->findByTagSet($tagSet->getId());
+            foreach ($tags as $tag) {
+                // Delete transaction tags first
+                $this->transactionTagMapper->deleteByTag($tag->getId());
+                // Then delete the tag
+                $this->tagMapper->delete($tag);
+            }
+            // Finally delete the tag set
+            $this->tagSetMapper->delete($tagSet);
         }
     }
 

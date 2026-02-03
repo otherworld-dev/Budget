@@ -59,16 +59,7 @@ class Version001000022Date20260127 extends SimpleMigrationStep {
                 'default' => 'CURRENT_TIMESTAMP',
             ]);
 
-            // Foreign key to categories with cascade delete
-            $table->addForeignKeyConstraint(
-                'budget_categories',
-                ['category_id'],
-                ['id'],
-                ['onDelete' => 'CASCADE'],
-                'fk_tag_sets_category'
-            );
-
-            // Index for category lookup
+            // Index for category lookup (cascade deletes handled at application level)
             $table->addIndex(['category_id'], 'idx_tag_sets_category');
         }
 
@@ -108,16 +99,7 @@ class Version001000022Date20260127 extends SimpleMigrationStep {
                 'default' => 'CURRENT_TIMESTAMP',
             ]);
 
-            // Foreign key to tag_sets with cascade delete
-            $table->addForeignKeyConstraint(
-                'budget_tag_sets',
-                ['tag_set_id'],
-                ['id'],
-                ['onDelete' => 'CASCADE'],
-                'fk_tags_tag_set'
-            );
-
-            // Index for tag set lookup
+            // Index for tag set lookup (cascade deletes handled at application level)
             $table->addIndex(['tag_set_id'], 'idx_tags_tag_set');
         }
 
@@ -147,28 +129,10 @@ class Version001000022Date20260127 extends SimpleMigrationStep {
                 'default' => 'CURRENT_TIMESTAMP',
             ]);
 
-            // Foreign key to transactions with cascade delete
-            $table->addForeignKeyConstraint(
-                'budget_transactions',
-                ['transaction_id'],
-                ['id'],
-                ['onDelete' => 'CASCADE'],
-                'fk_tx_tags_transaction'
-            );
-
-            // Foreign key to tags with cascade delete
-            $table->addForeignKeyConstraint(
-                'budget_tags',
-                ['tag_id'],
-                ['id'],
-                ['onDelete' => 'CASCADE'],
-                'fk_tx_tags_tag'
-            );
-
             // Unique constraint to prevent duplicate tag assignments
             $table->addUniqueIndex(['transaction_id', 'tag_id'], 'idx_tx_tags_unique');
 
-            // Indexes for efficient lookups and filtering
+            // Indexes for efficient lookups and filtering (cascade deletes handled at application level)
             $table->addIndex(['transaction_id'], 'idx_tx_tags_transaction');
             $table->addIndex(['tag_id'], 'idx_tx_tags_tag');
         }
