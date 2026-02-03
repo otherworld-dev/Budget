@@ -92,7 +92,10 @@ return [
         ['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
         ['name' => 'importRule#preview', 'url' => '/api/import-rules/preview', 'verb' => 'POST'],
         ['name' => 'importRule#apply', 'url' => '/api/import-rules/apply', 'verb' => 'POST'],
-        
+        ['name' => 'importRule#migrate', 'url' => '/api/import-rules/{id}/migrate', 'verb' => 'POST'],
+        ['name' => 'importRule#migrateAll', 'url' => '/api/import-rules/migrate-all', 'verb' => 'POST'],
+        ['name' => 'importRule#validateCriteria', 'url' => '/api/import-rules/validate-criteria', 'verb' => 'POST'],
+
         // Forecast routes
         ['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
         ['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
