@@ -281,7 +281,7 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\TransactionService(
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
-                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class)
             );
         });
         $context->registerServiceAlias('TransactionService', \OCA\Budget\Service\TransactionService::class);
@@ -297,7 +297,10 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\CategoryService::class, function($c) {
             return new \OCA\Budget\Service\CategoryService(
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\TagSetMapper::class),
+                $c->get(\OCA\Budget\Db\TagMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class)
             );
         });
         $context->registerServiceAlias('CategoryService', \OCA\Budget\Service\CategoryService::class);
@@ -325,7 +328,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\TagSetService(
                 $c->get(\OCA\Budget\Db\TagSetMapper::class),
                 $c->get(\OCA\Budget\Db\TagMapper::class),
-                $c->get(\OCA\Budget\Db\CategoryMapper::class)
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class)
             );
         });
         $context->registerServiceAlias('TagSetService', \OCA\Budget\Service\TagSetService::class);
