@@ -72,6 +72,20 @@ class TransactionTagMapper extends QBMapper {
     }
 
     /**
+     * Delete all transaction tags for a specific tag
+     *
+     * @param int $tagId
+     * @return int Number of deleted rows
+     */
+    public function deleteByTag(int $tagId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)));
+
+        return $qb->executeStatement();
+    }
+
+    /**
      * Batch insert transaction tags
      *
      * @param TransactionTag[] $transactionTags
