@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-02-03
+
+### Added
+- **Custom frequency pattern for bills**: Select specific months when irregular bills occur (e.g., bills in January, June, and July only)
+  - New "Custom" frequency option in bill creation/editing modal
+  - Interactive month selector with modern tile-based UI design
+  - Selected months show full primary color background with checkmark indicators
+  - Smooth hover animations and responsive grid layout (4/3/2 columns for desktop/tablet/mobile)
+  - Automatic next due date calculation based on selected month patterns
+  - Handles year wrapping and month-end edge cases (e.g., day 31 in February)
+  - Monthly equivalent calculations for budget summaries
+  - Pattern stored as JSON: `{"months": [1, 6, 7]}` for flexibility
+
+### Improved
+- Enhanced month selector UI with hidden checkboxes and clean tile design
+- Better visual feedback for selected months in bill frequency picker
+
 ## [2.0.4] - 2026-02-03
 
 ### Fixed
