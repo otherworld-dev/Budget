@@ -28,7 +28,7 @@ class Version001000022Date20260127 extends SimpleMigrationStep {
                 'notnull' => true,
                 'unsigned' => true,
             ]);
-            $table->setPrimaryKey(['id']);
+            $table->setPrimaryKey(['id'], 'tag_sets_pk');
 
             $table->addColumn('category_id', Types::BIGINT, [
                 'notnull' => true,
@@ -81,7 +81,7 @@ class Version001000022Date20260127 extends SimpleMigrationStep {
                 'notnull' => true,
                 'unsigned' => true,
             ]);
-            $table->setPrimaryKey(['id']);
+            $table->setPrimaryKey(['id'], 'tags_pk');
 
             $table->addColumn('tag_set_id', Types::BIGINT, [
                 'notnull' => true,
@@ -130,7 +130,7 @@ class Version001000022Date20260127 extends SimpleMigrationStep {
                 'notnull' => true,
                 'unsigned' => true,
             ]);
-            $table->setPrimaryKey(['id']);
+            $table->setPrimaryKey(['id'], 'tx_tags_pk');
 
             $table->addColumn('transaction_id', Types::BIGINT, [
                 'notnull' => true,
