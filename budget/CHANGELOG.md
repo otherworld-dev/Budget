@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-02-03
+
+### Fixed
+- Foreign key constraint incorrectly formed error during migration 001000022
+- Removed all database foreign key constraints for better cross-database compatibility
+- Implemented application-level cascade deletes:
+  - Deleting a tag now removes associated transaction_tags
+  - Deleting a tag set now removes all tags and their transaction_tags
+  - Deleting a category now removes all tag sets, tags, and transaction_tags
+  - Deleting a transaction now removes associated transaction_tags
+- Matches pattern used throughout rest of application (no other migrations use foreign keys)
+
 ## [2.0.1] - 2026-02-03
 
 ### Fixed
