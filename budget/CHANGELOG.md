@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-02-03
+
+### Fixed
+- Missing `deleteByTag()` method in TransactionTagMapper causing HTTP 500 errors when deleting categories with tag sets
+- Categories with subcategories can now be deleted recursively - cascade delete now removes all child categories and their tag sets automatically
+
 ## [2.0.2] - 2026-02-03
 
 ### Fixed
