@@ -106,7 +106,7 @@ class CategoryService extends AbstractCrudService {
         }
 
         // Cascade delete: Delete all tag sets for this category
-        $tagSets = $this->tagSetMapper->findByCategory($entity->getId());
+        $tagSets = $this->tagSetMapper->findByCategory($entity->getId(), $userId);
         foreach ($tagSets as $tagSet) {
             // Delete tags in this tag set
             $tags = $this->tagMapper->findByTagSet($tagSet->getId());
