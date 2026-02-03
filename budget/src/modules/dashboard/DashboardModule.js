@@ -56,11 +56,12 @@ export default class DashboardModule {
         try {
             // Calculate current month date range for hero stats
             const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+            const startOfMonth = formatters.getMonthStart(now.getFullYear(), now.getMonth() + 1);
+            const endOfMonth = formatters.getMonthEnd(now.getFullYear(), now.getMonth() + 1);
 
             // Calculate 6-month range for trend charts
-            const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
+            const sixMonthsAgoDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+            const sixMonthsAgo = formatters.getMonthStart(sixMonthsAgoDate.getFullYear(), sixMonthsAgoDate.getMonth() + 1);
 
             // Load all dashboard data in parallel for better performance
             const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse, alertsResponse, debtResponse] = await Promise.all([
@@ -1192,7 +1193,7 @@ export default class DashboardModule {
             startDate.setMonth(startDate.getMonth() - months);
 
             const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startDate.toISOString().split('T')[0]}`),
+                OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(startDate)}`),
                 { headers: { 'requesttoken': OC.requestToken } }
             );
             const data = await response.json();
@@ -1223,7 +1224,7 @@ export default class DashboardModule {
             }
 
             const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/reports/spending?startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`),
+                OC.generateUrl(`/apps/budget/api/reports/spending?startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`),
                 { headers: { 'requesttoken': OC.requestToken } }
             );
             const data = await response.json();
@@ -1559,12 +1560,13 @@ export default class DashboardModule {
                 case 'monthlyComparison':
                     const now = new Date();
                     const thisMonth = {
-                        start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0],
-                        end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+                        start: formatters.getMonthStart(now.getFullYear(), now.getMonth() + 1),
+                        end: formatters.getMonthEnd(now.getFullYear(), now.getMonth() + 1)
                     };
+                    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                     const lastMonth = {
-                        start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0],
-                        end: new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+                        start: formatters.getMonthStart(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1),
+                        end: formatters.getMonthEnd(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1)
                     };
 
                     const [currentResp, previousResp] = await Promise.all([

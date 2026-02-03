@@ -1122,11 +1122,10 @@ export default class CategoriesModule {
     async calculateCategorySpending() {
         // Get date range for selected month
         const [year, month] = this.budgetMonth.split('-').map(Number);
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0); // Last day of month
 
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
+        // Format dates without timezone conversion to avoid off-by-one errors
+        const startStr = formatters.getMonthStart(year, month);
+        const endStr = formatters.getMonthEnd(year, month);
 
         // Fetch spending data from API
         try {

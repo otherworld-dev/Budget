@@ -173,3 +173,49 @@ export function getAccountsHash(accounts) {
     if (!Array.isArray(accounts)) return '';
     return accounts.map(a => `${a.id}:${a.currency}:${a.balance}`).join('|');
 }
+
+/**
+ * Format a Date object as YYYY-MM-DD without timezone conversion.
+ * This prevents off-by-one day errors when working with local dates.
+ *
+ * @param {Date} date - Date object to format
+ * @returns {string} Date string in YYYY-MM-DD format
+ */
+export function formatDateForAPI(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get today's date as YYYY-MM-DD string without timezone conversion.
+ *
+ * @returns {string} Today's date in YYYY-MM-DD format
+ */
+export function getTodayDateString() {
+    return formatDateForAPI(new Date());
+}
+
+/**
+ * Get the first day of a month as YYYY-MM-DD string.
+ *
+ * @param {number} year - Full year (e.g., 2026)
+ * @param {number} month - Month number (1-12, NOT 0-11)
+ * @returns {string} First day of month in YYYY-MM-DD format
+ */
+export function getMonthStart(year, month) {
+    return `${year}-${String(month).padStart(2, '0')}-01`;
+}
+
+/**
+ * Get the last day of a month as YYYY-MM-DD string.
+ *
+ * @param {number} year - Full year (e.g., 2026)
+ * @param {number} month - Month number (1-12, NOT 0-11)
+ * @returns {string} Last day of month in YYYY-MM-DD format
+ */
+export function getMonthEnd(year, month) {
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+}

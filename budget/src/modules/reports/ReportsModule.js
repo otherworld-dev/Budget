@@ -113,8 +113,8 @@ export default class ReportsModule {
 
         const startInput = document.getElementById('report-start-date');
         const endInput = document.getElementById('report-end-date');
-        if (startInput) startInput.value = startDate.toISOString().split('T')[0];
-        if (endInput) endInput.value = endDate.toISOString().split('T')[0];
+        if (startInput) startInput.value = formatters.formatDateForAPI(startDate);
+        if (endInput) endInput.value = formatters.formatDateForAPI(endDate);
     }
 
     async loadReportsView() {
