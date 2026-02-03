@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-02-03
+
+### Fixed
+- Primary key index name too long error during migration 001000022
+- Shorten primary key names for tag_sets, tags, and transaction_tags tables to prevent MySQL 64-character limit error
+- Critical fix for fresh installations that were failing during database setup
+
 ## [2.0.0] - 2026-02-02
 
 ### Added
