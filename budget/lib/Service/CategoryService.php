@@ -93,10 +93,11 @@ class CategoryService extends AbstractCrudService {
      * @inheritDoc
      */
     protected function beforeDelete(Entity $entity, string $userId): void {
-        // Check for child categories
+        // Cascade delete: Delete child categories first (recursively)
         $children = $this->getCategoryMapper()->findChildren($userId, $entity->getId());
-        if (!empty($children)) {
-            throw new \Exception('Cannot delete category with subcategories');
+        foreach ($children as $child) {
+            // Recursively delete child and its descendants
+            $this->delete($child->getId(), $userId);
         }
 
         // Check for transactions
