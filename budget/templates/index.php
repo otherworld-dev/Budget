@@ -4110,27 +4110,10 @@ style('budget', 'style');
             <!-- Actions Section -->
             <fieldset class="form-section">
                 <legend>Actions</legend>
-                <small class="section-help">What to set when a transaction matches</small>
+                <small class="section-help">What to do when a transaction matches</small>
 
-                <div class="form-group">
-                    <label for="rule-action-category">Set Category</label>
-                    <select id="rule-action-category">
-                        <option value="">-- Don't change --</option>
-                    </select>
-                    <small class="form-text">Category to assign to matching transactions</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="rule-action-vendor">Set Vendor</label>
-                    <input type="text" id="rule-action-vendor" maxlength="255" placeholder="Leave empty to not change">
-                    <small class="form-text">Override vendor name (optional)</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="rule-action-notes">Set Notes</label>
-                    <textarea id="rule-action-notes" maxlength="500" rows="2" placeholder="Leave empty to not change"></textarea>
-                    <small class="form-text">Set transaction notes (optional)</small>
-                </div>
+                <!-- ActionBuilder container (v2 advanced actions) -->
+                <div id="action-builder-container"></div>
             </fieldset>
 
             <!-- Options -->

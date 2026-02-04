@@ -4,11 +4,13 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { CriteriaBuilder } from './components/CriteriaBuilder.js';
+import { ActionBuilder } from './components/ActionBuilder.js';
 
 export default class RulesModule {
     constructor(app) {
         this.app = app;
         this.criteriaBuilder = null; // Instance of CriteriaBuilder for v2 rules
+        this.actionBuilder = null; // Instance of ActionBuilder for v2 actions
         this.currentRule = null; // Currently editing rule
     }
 
@@ -35,6 +37,10 @@ export default class RulesModule {
 
     get settings() {
         return this.app.settings;
+    }
+
+    get tagSets() {
+        return this.app.tagSets || [];
     }
 
     // Helper method delegations
@@ -396,17 +402,15 @@ export default class RulesModule {
                 document.getElementById('rule-pattern').value = rule.pattern || '';
             }
 
-            // Parse actions
-            const actions = rule.actions || {};
-            document.getElementById('rule-action-category').value = actions.categoryId || rule.categoryId || '';
-            document.getElementById('rule-action-vendor').value = actions.vendor || rule.vendorName || '';
-            document.getElementById('rule-action-notes').value = actions.notes || '';
+            // Initialize ActionBuilder with rule actions
+            this.initializeActionBuilder(rule.actions);
         } else {
             // New rule - use v2 format with empty criteria
             title.textContent = 'Add Rule';
             if (v1Section) v1Section.style.display = 'none';
             if (v2Section) v2Section.style.display = 'block';
             this.initializeCriteriaBuilder(null);
+            this.initializeActionBuilder(null);
         }
 
         modal.style.display = 'flex';
@@ -429,6 +433,24 @@ export default class RulesModule {
 
         // Create new CriteriaBuilder instance
         this.criteriaBuilder = new CriteriaBuilder(container, initialCriteria);
+    }
+
+    initializeActionBuilder(initialActions) {
+        const container = document.getElementById('action-builder-container');
+        if (!container) {
+            console.error('ActionBuilder container not found');
+            return;
+        }
+
+        // Clear previous instance
+        container.innerHTML = '';
+
+        // Create new ActionBuilder instance with app data
+        this.actionBuilder = new ActionBuilder(container, initialActions, {
+            categories: this.categories,
+            accounts: this.accounts,
+            tagSets: this.tagSets
+        });
     }
 
     async populateRuleCategoryDropdown() {
@@ -475,15 +497,19 @@ export default class RulesModule {
 
         const criteria = this.criteriaBuilder.getCriteria();
 
-        // Collect actions
-        const categoryId = document.getElementById('rule-action-category').value;
-        const vendor = document.getElementById('rule-action-vendor').value.trim();
-        const notes = document.getElementById('rule-action-notes').value.trim();
+        // Validate actions from ActionBuilder
+        if (!this.actionBuilder) {
+            OC.Notification.showTemporary('Error: ActionBuilder not initialized');
+            return;
+        }
 
-        const actions = {};
-        if (categoryId) actions.categoryId = parseInt(categoryId);
-        if (vendor) actions.vendor = vendor;
-        if (notes) actions.notes = notes;
+        const actionsValidation = this.actionBuilder.validate();
+        if (!actionsValidation.valid) {
+            OC.Notification.showTemporary('Invalid actions: ' + actionsValidation.errors.join(', '));
+            return;
+        }
+
+        const actions = this.actionBuilder.getActions();
 
         try {
             const url = isEdit
@@ -497,7 +523,8 @@ export default class RulesModule {
                 applyOnImport,
                 schemaVersion: 2,
                 criteria,
-                actions: Object.keys(actions).length > 0 ? actions : null
+                actions: actions,
+                stopProcessing: actions.stopProcessing
             };
 
             const response = await fetch(url, {
