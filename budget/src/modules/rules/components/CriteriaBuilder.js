@@ -13,8 +13,32 @@ import './CriteriaBuilder.css';
 export class CriteriaBuilder {
 	constructor(containerEl, initialCriteria = null) {
 		this.container = containerEl;
-		this.criteria = initialCriteria || this.createEmptyRoot();
+		this.criteria = this.normalizeCriteria(initialCriteria);
 		this.render();
+	}
+
+	/**
+	 * Normalize criteria to ensure root is always a group
+	 * Fixes legacy migrations where root was a single condition
+	 */
+	normalizeCriteria(criteria) {
+		if (!criteria) {
+			return this.createEmptyRoot();
+		}
+
+		// If root is a single condition (legacy migration bug), wrap it in a group
+		if (criteria.root && criteria.root.type === 'condition') {
+			return {
+				version: 2,
+				root: {
+					operator: 'AND',
+					conditions: [criteria.root]
+				}
+			};
+		}
+
+		// Already normalized
+		return criteria;
 	}
 
 	createEmptyRoot() {
