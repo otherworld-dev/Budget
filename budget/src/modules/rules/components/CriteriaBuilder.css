@@ -1,0 +1,261 @@
+/* CriteriaBuilder Component Styles */
+
+.criteria-group {
+	border: 2px solid #e0e0e0;
+	border-radius: 8px;
+	padding: 16px;
+	margin: 12px 0;
+	background: #f9f9f9;
+}
+
+.criteria-group .criteria-group {
+	background: #fff;
+	border-color: #d0d0d0;
+	margin-left: 24px;
+}
+
+.criteria-group .criteria-group .criteria-group {
+	background: #f5f5f5;
+	border-color: #c0c0c0;
+}
+
+.group-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.group-operator {
+	flex: 1;
+	padding: 8px 12px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	background: white;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.group-operator:focus {
+	outline: 2px solid #0082c9;
+	outline-offset: 2px;
+}
+
+.btn-remove-group {
+	background: #dc3545;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	padding: 6px 12px;
+	cursor: pointer;
+	font-size: 16px;
+	line-height: 1;
+	transition: background-color 0.2s;
+}
+
+.btn-remove-group:hover {
+	background: #c82333;
+}
+
+.group-conditions {
+	margin: 8px 0;
+}
+
+.group-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid #e0e0e0;
+}
+
+.btn-add-condition,
+.btn-add-group {
+	padding: 8px 16px;
+	border: 1px solid #0082c9;
+	background: white;
+	color: #0082c9;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.2s;
+}
+
+.btn-add-condition:hover,
+.btn-add-group:hover {
+	background: #0082c9;
+	color: white;
+}
+
+.criteria-condition {
+	margin: 8px 0;
+	padding: 12px;
+	background: white;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	transition: border-color 0.2s;
+}
+
+.criteria-condition:hover {
+	border-color: #0082c9;
+}
+
+.condition-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.negate-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	background: #f0f0f0;
+	border-radius: 4px;
+	cursor: pointer;
+	user-select: none;
+	transition: background-color 0.2s;
+}
+
+.negate-checkbox:hover {
+	background: #e0e0e0;
+}
+
+.negate-checkbox input[type="checkbox"] {
+	cursor: pointer;
+}
+
+.negate-label {
+	font-size: 13px;
+	font-weight: 600;
+	color: #666;
+}
+
+.negate-checkbox input[type="checkbox"]:checked + .negate-label {
+	color: #d32f2f;
+}
+
+.condition-field,
+.condition-match-type {
+	padding: 8px 12px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	background: white;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.condition-field {
+	min-width: 120px;
+}
+
+.condition-match-type {
+	min-width: 150px;
+}
+
+.condition-pattern {
+	flex: 1;
+	min-width: 200px;
+	padding: 8px 12px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.condition-pattern::placeholder {
+	color: #999;
+	font-style: italic;
+}
+
+.condition-pattern:focus,
+.condition-field:focus,
+.condition-match-type:focus {
+	outline: 2px solid #0082c9;
+	outline-offset: 2px;
+	border-color: #0082c9;
+}
+
+.btn-remove-condition {
+	background: #dc3545;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+	transition: background-color 0.2s;
+}
+
+.btn-remove-condition:hover {
+	background: #c82333;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.condition-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.condition-field,
+	.condition-match-type,
+	.condition-pattern {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.group-actions {
+		flex-direction: column;
+	}
+
+	.btn-add-condition,
+	.btn-add-group {
+		width: 100%;
+	}
+
+	.criteria-group .criteria-group {
+		margin-left: 12px;
+	}
+}
+
+/* Dark mode support (if Nextcloud uses it) */
+@media (prefers-color-scheme: dark) {
+	.criteria-group {
+		background: #2a2a2a;
+		border-color: #444;
+	}
+
+	.criteria-group .criteria-group {
+		background: #1e1e1e;
+		border-color: #555;
+	}
+
+	.criteria-condition {
+		background: #2a2a2a;
+		border-color: #444;
+	}
+
+	.condition-field,
+	.condition-match-type,
+	.condition-pattern,
+	.group-operator {
+		background: #1e1e1e;
+		border-color: #555;
+		color: #e0e0e0;
+	}
+
+	.negate-checkbox {
+		background: #3a3a3a;
+	}
+
+	.negate-checkbox:hover {
+		background: #4a4a4a;
+	}
+}
