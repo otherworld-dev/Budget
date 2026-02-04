@@ -613,9 +613,15 @@ class ImportRuleService {
     public function migrateLegacyRule(int $ruleId, string $userId): ImportRule {
         $rule = $this->find($ruleId, $userId);
 
-        // Already migrated AND has valid criteria - no need to re-migrate
+        // Check if already properly migrated
         if ($rule->getSchemaVersion() === 2 && $rule->getCriteria() !== null && $rule->getCriteria() !== '') {
-            return $rule;
+            // Also check if criteria has valid structure (root must be a group, not a condition)
+            $parsedCriteria = $rule->getParsedCriteria();
+            if ($parsedCriteria && isset($parsedCriteria['root']) && isset($parsedCriteria['root']['operator'])) {
+                // Valid v2 structure - no need to re-migrate
+                return $rule;
+            }
+            // Has criteria but invalid structure (old broken migration) - fall through to re-migrate
         }
 
         // Convert field/pattern/matchType to criteria tree
