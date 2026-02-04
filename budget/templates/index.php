@@ -1,6 +1,7 @@
 <?php
 script('budget', 'budget-main');
 style('budget', 'style');
+style('budget', 'budget-main');
 ?>
 
 <div id="app-navigation">
@@ -4057,16 +4058,27 @@ style('budget', 'style');
         <form id="rule-form">
             <input type="hidden" id="rule-id">
 
-            <div class="form-group">
-                <label for="rule-name">Rule Name <span class="required">*</span></label>
-                <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
-                <small class="form-text">A descriptive name for this rule</small>
+            <!-- Basic Info Section -->
+            <div class="form-section" style="background: transparent; border: none; padding: 0 0 20px 0;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="rule-name">Rule Name <span class="required">*</span></label>
+                        <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
+                        <small class="form-text">A descriptive name for this rule</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="rule-priority">Priority</label>
+                        <input type="number" id="rule-priority" min="0" max="100" value="0">
+                        <small class="form-text">0-100 (higher first)</small>
+                    </div>
+                </div>
             </div>
 
             <!-- Matching Criteria Section -->
             <fieldset class="form-section">
                 <legend>Matching Criteria</legend>
-                <small class="section-help">Define when this rule should apply</small>
+                <small class="section-help">Define when this rule should apply to a transaction</small>
 
                 <!-- v1 Criteria (legacy - hidden for new rules) -->
                 <div id="rule-criteria-v1" style="display: none;">
@@ -4110,33 +4122,31 @@ style('budget', 'style');
             <!-- Actions Section -->
             <fieldset class="form-section">
                 <legend>Actions</legend>
-                <small class="section-help">What to do when a transaction matches</small>
+                <small class="section-help">What to do when a transaction matches these criteria</small>
 
                 <!-- ActionBuilder container (v2 advanced actions) -->
                 <div id="action-builder-container"></div>
             </fieldset>
 
-            <!-- Options -->
-            <div class="form-group">
-                <label for="rule-priority">Priority</label>
-                <input type="number" id="rule-priority" min="0" max="100" value="0">
-                <small class="form-text">Higher priority rules are checked first (0-100)</small>
-            </div>
+            <!-- Options Section -->
+            <div class="form-section" style="background: transparent; border: none; padding: 0;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="rule-active" checked>
+                            <strong>Active</strong>
+                        </label>
+                        <small class="form-text">Only active rules are applied</small>
+                    </div>
 
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="rule-active" checked>
-                    Active
-                </label>
-                <small class="form-text">Only active rules are applied</small>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="rule-apply-on-import" checked>
-                    Apply during import
-                </label>
-                <small class="form-text">Automatically apply this rule when importing transactions</small>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="rule-apply-on-import" checked>
+                            <strong>Apply during import</strong>
+                        </label>
+                        <small class="form-text">Auto-apply when importing transactions</small>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-buttons">
