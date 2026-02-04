@@ -370,16 +370,25 @@ export default class RulesModule {
         form.reset();
         document.getElementById('rule-id').value = '';
 
-        // Auto-migrate v1 rules OR broken v2 rules (with null/empty criteria) to v2
+        // Check if criteria has broken structure (root is a condition instead of a group)
+        const hasBrokenStructure = rule && rule.schemaVersion === 2 && rule.criteria &&
+            rule.criteria.root && rule.criteria.root.type === 'condition' && !rule.criteria.root.operator;
+
+        // Auto-migrate v1 rules OR broken v2 rules
         const needsMigration = rule && (
             !rule.schemaVersion ||
             rule.schemaVersion === 1 ||
-            (rule.schemaVersion === 2 && (!rule.criteria || Object.keys(rule.criteria).length === 0))
+            (rule.schemaVersion === 2 && (!rule.criteria || Object.keys(rule.criteria).length === 0)) ||
+            hasBrokenStructure
         );
 
         if (needsMigration) {
             try {
-                console.log('Migrating rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'hasCriteria:', !!rule.criteria);
+                const reason = hasBrokenStructure ? 'broken criteria structure' :
+                    (!rule.criteria || Object.keys(rule.criteria).length === 0) ? 'null/empty criteria' :
+                    'v1 rule';
+                console.log('Migrating rule:', rule.id, 'reason:', reason, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
+
                 const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${rule.id}/migrate`), {
                     method: 'POST',
                     headers: { 'requesttoken': OC.requestToken }
@@ -388,7 +397,7 @@ export default class RulesModule {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 rule = await response.json();
-                console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'hasCriteria:', !!rule.criteria);
+                console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
                 OC.Notification.showTemporary('This rule has been upgraded to the new format with advanced features');
             } catch (error) {
                 console.error('Failed to migrate rule:', error);
