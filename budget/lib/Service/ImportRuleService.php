@@ -613,8 +613,8 @@ class ImportRuleService {
     public function migrateLegacyRule(int $ruleId, string $userId): ImportRule {
         $rule = $this->find($ruleId, $userId);
 
-        // Already migrated
-        if ($rule->getSchemaVersion() === 2) {
+        // Already migrated AND has valid criteria - no need to re-migrate
+        if ($rule->getSchemaVersion() === 2 && $rule->getCriteria() !== null && $rule->getCriteria() !== '') {
             return $rule;
         }
 
