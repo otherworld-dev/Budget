@@ -5,16 +5,19 @@
 	flex-direction: column;
 	height: 100%;
 	min-height: 150px;
+	width: 100%;
 }
 
 .criteria-group {
 	border: 2px solid var(--color-border, #e0e0e0);
 	border-radius: 4px;
 	padding: 8px 10px;
-	margin: 4px 0;
+	margin: 4px 0 10px 0;
 	background: var(--color-main-background, #f9f9f9);
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 	transition: all 0.2s;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .criteria-group:hover {
@@ -217,27 +220,25 @@
 	background: #c82333;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments - Keep horizontal layout */
 @media (max-width: 768px) {
 	.condition-row {
-		flex-direction: column;
-		align-items: stretch;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		gap: 4px;
 	}
 
 	.condition-field,
-	.condition-match-type,
+	.condition-match-type {
+		flex-shrink: 0;
+	}
+
 	.condition-pattern {
-		width: 100%;
-		min-width: 0;
+		min-width: 120px;
 	}
 
 	.group-actions {
-		flex-direction: column;
-	}
-
-	.btn-add-condition,
-	.btn-add-group {
-		width: 100%;
+		flex-wrap: wrap;
 	}
 
 	.criteria-group .criteria-group {

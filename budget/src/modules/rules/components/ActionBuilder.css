@@ -317,41 +317,41 @@
 	font-size: 11px;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments - Keep horizontal layout */
 @media (max-width: 768px) {
 	.action-item {
-		flex-direction: column;
-		align-items: stretch;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		gap: 8px;
 	}
 
 	.action-header {
-		flex-direction: row;
-		justify-content: space-between;
-		width: 100%;
+		flex-shrink: 0;
 	}
 
 	.action-config {
-		flex-direction: column;
-		align-items: stretch;
+		flex-wrap: nowrap;
+		gap: 6px;
 	}
 
 	.form-row {
-		flex-direction: row;
-		width: 100%;
+		flex-shrink: 0;
+		flex-wrap: nowrap;
 	}
 
 	.form-row select,
 	.form-row input,
 	.form-row textarea {
-		flex: 1;
+		min-width: 100px;
 	}
 
 	.type-radios {
-		flex-direction: column;
+		flex-wrap: wrap;
+		gap: 6px;
 	}
 
 	.type-radio {
-		width: 100%;
+		flex-shrink: 0;
 	}
 }
 

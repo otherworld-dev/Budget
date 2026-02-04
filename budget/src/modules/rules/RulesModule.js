@@ -306,6 +306,26 @@ export default class RulesModule {
             deselectAllBtn.dataset.listenerAttached = 'true';
         }
 
+        // Rule modal cancel button
+        const ruleModal = document.getElementById('rule-modal');
+        if (ruleModal) {
+            const cancelBtn = ruleModal.querySelector('.cancel-btn');
+            if (cancelBtn && !cancelBtn.dataset.listenerAttached) {
+                cancelBtn.addEventListener('click', () => this.hideModals());
+                cancelBtn.dataset.listenerAttached = 'true';
+            }
+        }
+
+        // Apply Rules modal cancel button
+        const applyRulesModal = document.getElementById('apply-rules-modal');
+        if (applyRulesModal) {
+            const cancelBtn = applyRulesModal.querySelector('.cancel-btn');
+            if (cancelBtn && !cancelBtn.dataset.listenerAttached) {
+                cancelBtn.addEventListener('click', () => this.hideModals());
+                cancelBtn.dataset.listenerAttached = 'true';
+            }
+        }
+
         // Delegate click events for rule cards
         const rulesList = document.getElementById('rules-list');
         if (rulesList && !rulesList.dataset.listenerAttached) {

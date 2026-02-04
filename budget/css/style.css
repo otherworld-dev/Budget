@@ -1636,6 +1636,11 @@ button.danger:hover {
     border-bottom: 1px solid var(--color-border);
 }
 
+/* Rule Modal specific adjustments */
+#rule-modal .form-section {
+    margin-right: 0;
+}
+
 .form-group.conditional {
     display: none;
 }
@@ -11506,7 +11511,7 @@ button.danger:hover {
 
 /* Rule Modal - Matching App Style */
 #rule-modal .modal-content {
-    max-width: 1200px;
+    max-width: 800px;
     width: 95%;
     padding: 30px;
 }
@@ -11528,20 +11533,22 @@ button.danger:hover {
 }
 
 #rule-modal #rule-form > .form-group:first-child {
-    width: calc(100% - 180px);
-    margin-right: 20px;
+    width: calc(100% - 70px) !important;
+    margin-right: 20px !important;
 }
 
 #rule-modal #rule-form > .form-group:nth-child(2) {
-    width: 160px;
+    width: 50px !important;
 }
 
 /* Form sections - standard app pattern */
 #rule-modal .form-section {
-    margin-bottom: 25px;
-    padding-bottom: 20px;
+    margin-bottom: 10px;
+    padding: 0 30px 0 0;
+    margin-left: 0;
+    margin-right: 0px;
     border-bottom: 1px solid var(--color-border-dark);
-    min-height: 200px;
+    min-height: 0;
     display: flex;
     flex-direction: column;
 }
@@ -11551,17 +11558,29 @@ button.danger:hover {
 }
 
 #rule-modal .form-section legend {
-    margin: 0 0 15px 0;
+    margin: 0;
     color: var(--color-main-text);
     font-size: 16px;
     font-weight: 600;
-    padding-bottom: 8px;
+    padding-bottom: 5px;
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
 }
 
+#rule-modal .form-section fieldset {
+    width: 100%;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
 #rule-modal .form-section .section-help {
     display: none;
+}
+
+/* Criteria and Action Wrappers */
+#rule-modal #rule-criteria-v2 {
+    width: 100%;
 }
 
 /* Containers */
@@ -11571,15 +11590,12 @@ button.danger:hover {
     display: flex;
     flex-direction: column;
     margin-top: 15px;
+    width: 100%;
 }
 
 /* Form groups */
 #rule-modal .form-group {
-    margin-bottom: 15px;
-}
-
-#rule-modal .form-group:last-child {
-    margin-bottom: 0;
+    margin: 0;
 }
 
 #rule-modal .form-group label {
@@ -11692,18 +11708,15 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
+#rule-modal #rule-form > div:nth-child(2) > div:nth-child(1) {
+    width: 100%;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     #rule-modal .modal-content {
         padding: 20px;
         width: 95%;
-    }
-
-    #rule-modal #rule-form > .form-group:first-child,
-    #rule-modal #rule-form > .form-group:nth-child(2) {
-        width: 100% !important;
-        margin-right: 0 !important;
-        display: block;
     }
 
     #rule-modal .form-section {

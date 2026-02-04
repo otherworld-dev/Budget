@@ -4060,7 +4060,7 @@ style('budget', 'budget-main');
 
             <!-- Basic Info Section -->
             <div class="form-section" style="background: transparent; border: none; padding: 0 0 20px 0;">
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 80px; gap: 16px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="rule-name">Rule Name <span class="required">*</span></label>
                         <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
@@ -4126,11 +4126,9 @@ style('budget', 'budget-main');
 
                 <!-- ActionBuilder container (v2 advanced actions) -->
                 <div id="action-builder-container"></div>
-            </fieldset>
 
-            <!-- Options Section -->
-            <div class="form-section" style="background: transparent; border: none; padding: 0;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <!-- Options -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
                     <div class="form-group checkbox-group">
                         <label>
                             <input type="checkbox" id="rule-active" checked>
@@ -4147,7 +4145,7 @@ style('budget', 'budget-main');
                         <small class="form-text">Auto-apply when importing transactions</small>
                     </div>
                 </div>
-            </div>
+            </fieldset>
 
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save rule">Save</button>
