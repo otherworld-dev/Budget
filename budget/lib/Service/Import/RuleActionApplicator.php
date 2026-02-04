@@ -188,9 +188,9 @@ class RuleActionApplicator {
 				if ($this->shouldApply($type, $behavior, $transaction->getCategoryId(), $appliedActions)) {
 					// Validate category exists
 					try {
-						$this->categoryMapper->find($value, $userId);
+						$this->categoryMapper->find((int)$value, $userId);
 						$oldValue = $transaction->getCategoryId();
-						$transaction->setCategoryId($value);
+						$transaction->setCategoryId((int)$value);
 						$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
 						$changes['category'] = ['old' => $oldValue, 'new' => $value];
 					} catch (\Exception $e) {
@@ -246,9 +246,9 @@ class RuleActionApplicator {
 				if ($this->shouldApply($type, $behavior, $transaction->getAccountId(), $appliedActions)) {
 					// Validate account exists
 					try {
-						$this->accountMapper->find($value, $userId);
+						$this->accountMapper->find((int)$value, $userId);
 						$oldValue = $transaction->getAccountId();
-						$transaction->setAccountId($value);
+						$transaction->setAccountId((int)$value);
 						$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
 						$changes['account'] = ['old' => $oldValue, 'new' => $value];
 					} catch (\Exception $e) {
@@ -398,7 +398,7 @@ class RuleActionApplicator {
 				case 'set_category':
 					if ($value !== null) {
 						try {
-							$this->categoryMapper->find($value, $userId);
+							$this->categoryMapper->find((int)$value, $userId);
 						} catch (\Exception $e) {
 							$errors[] = "Action $idx: invalid category ID $value";
 						}
@@ -408,7 +408,7 @@ class RuleActionApplicator {
 				case 'set_account':
 					if ($value !== null) {
 						try {
-							$this->accountMapper->find($value, $userId);
+							$this->accountMapper->find((int)$value, $userId);
 						} catch (\Exception $e) {
 							$errors[] = "Action $idx: invalid account ID $value";
 						}
