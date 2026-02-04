@@ -619,14 +619,20 @@ class ImportRuleService {
         }
 
         // Convert field/pattern/matchType to criteria tree
+        // Wrap single condition in a group for CriteriaBuilder compatibility
         $criteria = [
             'version' => 2,
             'root' => [
-                'type' => 'condition',
-                'field' => $rule->getField(),
-                'matchType' => $rule->getMatchType(),
-                'pattern' => $rule->getPattern(),
-                'negate' => false
+                'operator' => 'AND',
+                'conditions' => [
+                    [
+                        'type' => 'condition',
+                        'field' => $rule->getField(),
+                        'matchType' => $rule->getMatchType(),
+                        'pattern' => $rule->getPattern(),
+                        'negate' => false
+                    ]
+                ]
             ]
         ];
 
