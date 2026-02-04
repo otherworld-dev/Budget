@@ -11504,61 +11504,146 @@ button.danger:hover {
     font-style: italic;
 }
 
-/* Rule Modal Specifics */
+/* Rule Modal - Modern Redesign */
 #rule-modal .modal-content {
-    max-width: 600px;
+    max-width: 1400px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 16px 24px;
+    background: var(--color-main-background);
 }
 
-#rule-modal .form-section {
-    margin-bottom: 20px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-#rule-modal .form-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-#rule-modal .form-section h4 {
-    font-size: 14px;
+#rule-modal h3#rule-modal-title {
+    font-size: 20px;
     font-weight: 600;
-    margin-bottom: 12px;
+    margin: 0 0 16px 0;
     color: var(--color-main-text);
+    padding: 0 0 12px 0;
+    border-bottom: 3px solid var(--color-primary);
 }
 
-#rule-modal .form-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+/* Top form fields in a clean grid */
+#rule-modal #rule-form > .form-group:first-child,
+#rule-modal #rule-form > .form-group:nth-child(2) {
+    display: inline-block;
+    width: calc(50% - 6px);
+    margin-bottom: 12px;
+    vertical-align: top;
 }
 
-#rule-modal .options-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+#rule-modal #rule-form > .form-group:first-child {
+    margin-right: 12px;
 }
 
-#rule-modal .options-row .checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* Checkbox groups in rule modal */
-#rule-modal .form-group.checkbox-group {
+/* Form sections - minimal clean style with left accent border */
+#rule-modal .form-section {
+    background: transparent;
+    border: none;
+    border-left: 4px solid var(--color-primary);
+    padding: 4px 0 4px 16px;
+    margin-bottom: 16px;
+    min-height: 140px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+}
+
+#rule-modal .form-section legend {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary);
+    padding: 0;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+#rule-modal .form-section .section-help {
+    display: none;
+}
+
+/* Criteria and action containers fill available space */
+#rule-modal #criteria-builder-container,
+#rule-modal #action-builder-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Basic form fields */
+#rule-modal .form-group {
+    margin-bottom: 8px;
+}
+
+#rule-modal .form-group:last-child {
+    margin-bottom: 0;
+}
+
+#rule-modal .form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--color-text-light);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#rule-modal .form-group input[type="text"],
+#rule-modal .form-group input[type="number"],
+#rule-modal .form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-dark);
+    border-radius: 3px;
+    font-size: 14px;
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#rule-modal .form-group input:focus,
+#rule-modal .form-group select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(0, 130, 201, 0.1);
+}
+
+#rule-modal .form-group .form-text {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-lighter);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+#rule-modal .form-group .required {
+    color: var(--color-error);
+}
+
+/* Checkbox groups - inline style */
+#rule-modal .form-group.checkbox-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--color-background-dark);
+    border-radius: 3px;
+    border: 1px solid var(--color-border);
+    margin-top: 12px;
 }
 
 #rule-modal .form-group.checkbox-group label {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-weight: normal;
+    gap: 8px;
+    font-weight: 500;
     cursor: pointer;
+    margin: 0;
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 #rule-modal .form-group.checkbox-group input[type="checkbox"] {
@@ -11570,7 +11655,96 @@ button.danger:hover {
 }
 
 #rule-modal .form-group.checkbox-group .form-text {
-    margin-left: 28px;
+    flex-basis: 100%;
+    margin: 0;
+    padding-left: 26px;
+    font-size: 11px;
+}
+
+/* Modal buttons - clean and aligned */
+#rule-modal .modal-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px solid var(--color-border);
+}
+
+#rule-modal .modal-buttons button {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#rule-modal .modal-buttons .primary {
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    border: none;
+}
+
+#rule-modal .modal-buttons .primary:hover {
+    background: var(--color-primary-element-hover);
+    box-shadow: 0 2px 8px rgba(0, 130, 201, 0.3);
+}
+
+#rule-modal .modal-buttons .secondary {
+    background: transparent;
+    color: var(--color-main-text);
+    border: 2px solid var(--color-border-dark);
+}
+
+#rule-modal .modal-buttons .secondary:hover {
+    background: var(--color-background-hover);
+    border-color: var(--color-primary);
+}
+
+/* Responsive design for rule modal */
+@media (max-width: 1400px) {
+    #rule-modal .modal-content {
+        max-width: 95%;
+    }
+}
+
+@media (max-width: 768px) {
+    #rule-modal .modal-content {
+        max-width: 98%;
+        padding: 16px;
+        max-height: 95vh;
+    }
+
+    #rule-modal h3#rule-modal-title {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    #rule-modal #rule-form > .form-group:first-child,
+    #rule-modal #rule-form > .form-group:nth-child(2) {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    #rule-modal .form-section {
+        padding: 4px 0 4px 12px;
+        margin-bottom: 12px;
+        border-left-width: 3px;
+    }
+
+    #rule-modal .form-section legend {
+        font-size: 12px;
+    }
+
+    #rule-modal .modal-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    #rule-modal .modal-buttons button {
+        width: 100%;
+    }
 }
 
 /* Responsive adjustments for Rules */

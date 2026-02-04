@@ -1,42 +1,58 @@
 /* CriteriaBuilder Component Styles */
 
+.criteria-builder {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 150px;
+}
+
 .criteria-group {
-	border: 2px solid #e0e0e0;
-	border-radius: 8px;
-	padding: 16px;
-	margin: 12px 0;
-	background: #f9f9f9;
+	border: 2px solid var(--color-border, #e0e0e0);
+	border-radius: 4px;
+	padding: 8px 10px;
+	margin: 4px 0;
+	background: var(--color-main-background, #f9f9f9);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+	transition: all 0.2s;
+}
+
+.criteria-group:hover {
+	border-color: var(--color-primary-element, #0082c9);
+	box-shadow: 0 2px 6px rgba(0, 130, 201, 0.1);
 }
 
 .criteria-group .criteria-group {
-	background: #fff;
-	border-color: #d0d0d0;
-	margin-left: 24px;
+	background: var(--color-background-hover, #fff);
+	border-color: var(--color-border-dark, #d0d0d0);
+	margin-left: 20px;
+	margin-top: 6px;
 }
 
 .criteria-group .criteria-group .criteria-group {
-	background: #f5f5f5;
-	border-color: #c0c0c0;
+	background: var(--color-background-dark, #f5f5f5);
+	border-color: var(--color-border, #c0c0c0);
 }
 
 .group-header {
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	margin-bottom: 12px;
-	padding-bottom: 12px;
+	gap: 8px;
+	margin-bottom: 8px;
+	padding-bottom: 6px;
 	border-bottom: 1px solid #e0e0e0;
 }
 
 .group-operator {
-	flex: 1;
-	padding: 8px 12px;
+	flex: 0 0 auto;
+	padding: 6px 10px;
 	border: 1px solid #ccc;
-	border-radius: 4px;
+	border-radius: 3px;
 	background: white;
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 500;
 	cursor: pointer;
+	min-width: 80px;
 }
 
 .group-operator:focus {
@@ -48,10 +64,10 @@
 	background: #dc3545;
 	color: white;
 	border: none;
-	border-radius: 4px;
-	padding: 6px 12px;
+	border-radius: 3px;
+	padding: 6px 10px;
 	cursor: pointer;
-	font-size: 16px;
+	font-size: 13px;
 	line-height: 1;
 	transition: background-color 0.2s;
 }
@@ -61,26 +77,26 @@
 }
 
 .group-conditions {
-	margin: 8px 0;
+	margin: 4px 0;
 }
 
 .group-actions {
 	display: flex;
-	gap: 8px;
-	margin-top: 12px;
-	padding-top: 12px;
+	gap: 6px;
+	margin-top: 8px;
+	padding-top: 8px;
 	border-top: 1px solid #e0e0e0;
 }
 
 .btn-add-condition,
 .btn-add-group {
-	padding: 8px 16px;
+	padding: 6px 12px;
 	border: 1px solid #0082c9;
 	background: white;
 	color: #0082c9;
-	border-radius: 4px;
+	border-radius: 3px;
 	cursor: pointer;
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 500;
 	transition: all 0.2s;
 }
@@ -92,11 +108,11 @@
 }
 
 .criteria-condition {
-	margin: 8px 0;
-	padding: 12px;
+	margin: 4px 0;
+	padding: 8px 10px;
 	background: white;
 	border: 1px solid #ddd;
-	border-radius: 6px;
+	border-radius: 4px;
 	transition: border-color 0.2s;
 }
 
@@ -107,17 +123,17 @@
 .condition-row {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	flex-wrap: wrap;
+	gap: 6px;
+	flex-wrap: nowrap;
 }
 
 .negate-checkbox {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	padding: 6px 10px;
+	gap: 4px;
+	padding: 4px 8px;
 	background: #f0f0f0;
-	border-radius: 4px;
+	border-radius: 3px;
 	cursor: pointer;
 	user-select: none;
 	transition: background-color 0.2s;
@@ -132,9 +148,10 @@
 }
 
 .negate-label {
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 600;
 	color: #666;
+	white-space: nowrap;
 }
 
 .negate-checkbox input[type="checkbox"]:checked + .negate-label {
@@ -143,29 +160,32 @@
 
 .condition-field,
 .condition-match-type {
-	padding: 8px 12px;
+	padding: 6px 8px;
 	border: 1px solid #ccc;
-	border-radius: 4px;
+	border-radius: 3px;
 	background: white;
-	font-size: 14px;
+	font-size: 13px;
 	cursor: pointer;
 }
 
 .condition-field {
-	min-width: 120px;
+	min-width: 100px;
+	max-width: 120px;
 }
 
 .condition-match-type {
-	min-width: 150px;
+	min-width: 130px;
+	max-width: 160px;
 }
 
 .condition-pattern {
 	flex: 1;
-	min-width: 200px;
-	padding: 8px 12px;
+	min-width: 150px;
+	max-width: 300px;
+	padding: 6px 8px;
 	border: 1px solid #ccc;
-	border-radius: 4px;
-	font-size: 14px;
+	border-radius: 3px;
+	font-size: 13px;
 }
 
 .condition-pattern::placeholder {
@@ -185,10 +205,10 @@
 	background: #dc3545;
 	color: white;
 	border: none;
-	border-radius: 4px;
-	padding: 8px 12px;
+	border-radius: 3px;
+	padding: 6px 10px;
 	cursor: pointer;
-	font-size: 14px;
+	font-size: 13px;
 	line-height: 1;
 	transition: background-color 0.2s;
 }

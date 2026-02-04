@@ -106,7 +106,7 @@ export class ActionBuilder {
 
 	renderActions() {
 		if (this.actions.length === 0) {
-			return '<p class="no-actions-message">No actions configured. Add actions using the dropdown below.</p>';
+			return '<p class="no-actions-message">No actions yet. Use the dropdown below to add actions.</p>';
 		}
 
 		return this.actions.map((action, index) => this.renderAction(action, index)).join('');
