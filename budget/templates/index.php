@@ -4068,34 +4068,42 @@ style('budget', 'style');
                 <legend>Matching Criteria</legend>
                 <small class="section-help">Define when this rule should apply</small>
 
-                <div class="form-group">
-                    <label for="rule-field">Match Field <span class="required">*</span></label>
-                    <select id="rule-field" required>
-                        <option value="description">Description</option>
-                        <option value="vendor">Vendor</option>
-                        <option value="reference">Reference</option>
-                        <option value="notes">Notes</option>
-                        <option value="amount">Amount</option>
-                    </select>
-                    <small class="form-text">Which transaction field to match against</small>
+                <!-- v1 Criteria (legacy - hidden for new rules) -->
+                <div id="rule-criteria-v1" style="display: none;">
+                    <div class="form-group">
+                        <label for="rule-field">Match Field <span class="required">*</span></label>
+                        <select id="rule-field">
+                            <option value="description">Description</option>
+                            <option value="vendor">Vendor</option>
+                            <option value="reference">Reference</option>
+                            <option value="notes">Notes</option>
+                            <option value="amount">Amount</option>
+                        </select>
+                        <small class="form-text">Which transaction field to match against</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rule-match-type">Match Type <span class="required">*</span></label>
+                        <select id="rule-match-type">
+                            <option value="contains">Contains</option>
+                            <option value="exact">Exact Match</option>
+                            <option value="starts_with">Starts With</option>
+                            <option value="ends_with">Ends With</option>
+                            <option value="regex">Regex</option>
+                        </select>
+                        <small class="form-text">How to match the pattern</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rule-pattern">Pattern <span class="required">*</span></label>
+                        <input type="text" id="rule-pattern" maxlength="500" placeholder="e.g., AMAZON, grocery|supermarket">
+                        <small class="form-text">Text or pattern to match (case-insensitive)</small>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="rule-match-type">Match Type <span class="required">*</span></label>
-                    <select id="rule-match-type" required>
-                        <option value="contains">Contains</option>
-                        <option value="exact">Exact Match</option>
-                        <option value="starts_with">Starts With</option>
-                        <option value="ends_with">Ends With</option>
-                        <option value="regex">Regex</option>
-                    </select>
-                    <small class="form-text">How to match the pattern</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="rule-pattern">Pattern <span class="required">*</span></label>
-                    <input type="text" id="rule-pattern" required maxlength="500" placeholder="e.g., AMAZON, grocery|supermarket">
-                    <small class="form-text">Text or pattern to match (case-insensitive)</small>
+                <!-- v2 Criteria (advanced - visual query builder) -->
+                <div id="rule-criteria-v2" style="display: block;">
+                    <div id="criteria-builder-container"></div>
                 </div>
             </fieldset>
 
