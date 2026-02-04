@@ -677,15 +677,14 @@ class ImportRuleService {
             ];
         }
 
-        // Update the rule
-        $updates = [
-            'criteria' => $criteria,
-            'actions' => $actions,
-            'schemaVersion' => 2,
-            'stopProcessing' => true
-        ];
+        // Update the rule - explicitly set all fields to ensure they're saved
+        $rule->setCriteriaFromArray($criteria);
+        $rule->setActionsFromArray($actions);
+        $rule->setSchemaVersion(2);
+        $rule->setStopProcessing(true);
+        $rule->setUpdatedAt(date('Y-m-d H:i:s'));
 
-        return $this->update($ruleId, $userId, $updates);
+        return $this->mapper->update($rule);
     }
 
     /**
