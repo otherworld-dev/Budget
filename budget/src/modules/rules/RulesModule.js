@@ -370,9 +370,16 @@ export default class RulesModule {
         form.reset();
         document.getElementById('rule-id').value = '';
 
-        // Auto-migrate v1 rules to v2 on edit (forced)
-        if (rule && (!rule.schemaVersion || rule.schemaVersion === 1)) {
+        // Auto-migrate v1 rules OR broken v2 rules (with null/empty criteria) to v2
+        const needsMigration = rule && (
+            !rule.schemaVersion ||
+            rule.schemaVersion === 1 ||
+            (rule.schemaVersion === 2 && (!rule.criteria || Object.keys(rule.criteria).length === 0))
+        );
+
+        if (needsMigration) {
             try {
+                console.log('Migrating rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'hasCriteria:', !!rule.criteria);
                 const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${rule.id}/migrate`), {
                     method: 'POST',
                     headers: { 'requesttoken': OC.requestToken }
@@ -381,6 +388,7 @@ export default class RulesModule {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 rule = await response.json();
+                console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'hasCriteria:', !!rule.criteria);
                 OC.Notification.showTemporary('This rule has been upgraded to the new format with advanced features');
             } catch (error) {
                 console.error('Failed to migrate rule:', error);
@@ -408,13 +416,23 @@ export default class RulesModule {
             document.getElementById('rule-apply-on-import').checked = rule.applyOnImport !== false;
 
             // Show appropriate criteria UI based on schema version
+            console.log('Rule UI decision:', {
+                ruleId: rule.id,
+                schemaVersion: rule.schemaVersion,
+                hasCriteria: !!rule.criteria,
+                criteriaType: typeof rule.criteria,
+                criteria: rule.criteria
+            });
+
             if (rule.schemaVersion === 2 && rule.criteria) {
                 // v2 format - show CriteriaBuilder
+                console.log('Showing v2 CriteriaBuilder UI');
                 if (v1Section) v1Section.style.display = 'none';
                 if (v2Section) v2Section.style.display = 'block';
                 this.initializeCriteriaBuilder(rule.criteria);
             } else {
                 // v1 format (should not happen after migration, but fallback)
+                console.warn('Showing v1 fallback UI - schemaVersion:', rule.schemaVersion, 'hasCriteria:', !!rule.criteria);
                 if (v1Section) v1Section.style.display = 'block';
                 if (v2Section) v2Section.style.display = 'none';
                 document.getElementById('rule-field').value = rule.field || 'description';
