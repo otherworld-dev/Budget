@@ -3745,8 +3745,16 @@ style('budget', 'budget-main');
                     <option value="">Choose transaction type</option>
                     <option value="debit">Expense</option>
                     <option value="credit">Income</option>
+                    <option value="transfer">Transfer</option>
                 </select>
                 <small id="transaction-type-help" class="form-text">Whether this is money coming in or going out</small>
+            </div>
+            <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
+                <label for="transfer-to-account">To Account</label>
+                <select id="transfer-to-account" aria-describedby="transfer-to-account-help">
+                    <option value="">Choose destination account</option>
+                </select>
+                <small id="transfer-to-account-help" class="form-text">Select the account to transfer money to</small>
             </div>
             <div class="form-group">
                 <label for="transaction-amount">Amount</label>
