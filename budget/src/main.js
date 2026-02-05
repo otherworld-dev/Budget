@@ -1087,7 +1087,7 @@ class BudgetApp {
             // Try to add enhanced parameters, but don't break if backend doesn't support them
             const params = new URLSearchParams();
 
-            // Basic parameters that should be safe
+            // All filter parameters supported by the backend
             if (this.transactionFilters?.search) {
                 params.append('search', this.transactionFilters.search);
             }
@@ -1096,6 +1096,24 @@ class BudgetApp {
             }
             if (this.transactionFilters?.dateTo) {
                 params.append('dateTo', this.transactionFilters.dateTo);
+            }
+            if (this.transactionFilters?.category) {
+                params.append('category', this.transactionFilters.category);
+            }
+            if (this.transactionFilters?.type) {
+                params.append('type', this.transactionFilters.type);
+            }
+            if (this.transactionFilters?.amountMin) {
+                params.append('amountMin', this.transactionFilters.amountMin);
+            }
+            if (this.transactionFilters?.amountMax) {
+                params.append('amountMax', this.transactionFilters.amountMax);
+            }
+
+            // Add sorting parameters
+            if (this.currentSort) {
+                params.append('sort', this.currentSort.field || 'date');
+                params.append('direction', this.currentSort.direction || 'desc');
             }
 
             if (params.toString()) {
