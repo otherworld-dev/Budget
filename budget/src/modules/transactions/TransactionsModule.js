@@ -926,6 +926,27 @@ export default class TransactionsModule {
             }
         }
 
+        // Populate "To Account" dropdown for transfers
+        const toAccountSelect = document.getElementById('transfer-to-account');
+        if (toAccountSelect && this.accounts) {
+            // Save current value
+            const currentValue = toAccountSelect.value;
+
+            // Clear and rebuild options
+            toAccountSelect.innerHTML = '<option value="">Choose destination account</option>';
+            this.accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.name;
+                toAccountSelect.appendChild(option);
+            });
+
+            // Restore previous value if it exists
+            if (currentValue) {
+                toAccountSelect.value = currentValue;
+            }
+        }
+
         // Populate category dropdown
         const categorySelect = document.getElementById('transaction-category');
         if (categorySelect && this.categories) {
@@ -1007,6 +1028,25 @@ export default class TransactionsModule {
                 };
             }
 
+            // Set up transaction type change listener to show/hide transfer fields
+            const typeSelect = document.getElementById('transaction-type');
+            const toAccountWrapper = document.getElementById('transfer-to-account-wrapper');
+            if (typeSelect && toAccountWrapper) {
+                const handleTypeChange = () => {
+                    if (typeSelect.value === 'transfer') {
+                        toAccountWrapper.style.display = 'block';
+                    } else {
+                        toAccountWrapper.style.display = 'none';
+                    }
+                };
+
+                // Set up listener
+                typeSelect.onchange = handleTypeChange;
+
+                // Initialize visibility based on current value
+                handleTypeChange();
+            }
+
             modal.style.display = 'flex';
         }
     }
@@ -1030,7 +1070,104 @@ export default class TransactionsModule {
         const categoryId = document.getElementById('transaction-category').value;
         const notes = document.getElementById('transaction-notes').value;
 
-        // Build request data
+        // Handle transfer creation (new transfers only, not editing)
+        if (type === 'transfer' && !id) {
+            const toAccountId = parseInt(document.getElementById('transfer-to-account').value);
+
+            // Validation
+            if (!toAccountId) {
+                OC.Notification.showTemporary('Please select destination account');
+                return;
+            }
+            if (toAccountId === accountId) {
+                OC.Notification.showTemporary('Cannot transfer to same account');
+                return;
+            }
+
+            try {
+                // Step 1: Create debit transaction in FROM account
+                const debitResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({
+                        date,
+                        accountId: accountId,
+                        type: 'debit',
+                        amount,
+                        description,
+                        vendor: vendor || null,
+                        categoryId: categoryId ? parseInt(categoryId) : null,
+                        notes: notes || null
+                    })
+                });
+
+                if (!debitResponse.ok) {
+                    const error = await debitResponse.json();
+                    throw new Error(error.error || 'Failed to create transfer debit transaction');
+                }
+                const debitData = await debitResponse.json();
+                const debitTransactionId = debitData.id;
+
+                // Step 2: Create credit transaction in TO account
+                const creditResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({
+                        date,
+                        accountId: toAccountId,
+                        type: 'credit',
+                        amount,
+                        description,
+                        vendor: vendor || null,
+                        categoryId: categoryId ? parseInt(categoryId) : null,
+                        notes: notes || null
+                    })
+                });
+
+                if (!creditResponse.ok) {
+                    const error = await creditResponse.json();
+                    throw new Error(error.error || 'Failed to create transfer credit transaction');
+                }
+                const creditData = await creditResponse.json();
+                const creditTransactionId = creditData.id;
+
+                // Step 3: Link the two transactions using existing matching API
+                const linkResponse = await fetch(
+                    OC.generateUrl(`/apps/budget/api/transactions/${debitTransactionId}/link/${creditTransactionId}`),
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'requesttoken': OC.requestToken
+                        }
+                    }
+                );
+
+                if (!linkResponse.ok) {
+                    const error = await linkResponse.json();
+                    throw new Error(error.error || 'Failed to link transfer transactions');
+                }
+
+                // Success
+                OC.Notification.showTemporary('Transfer created successfully');
+                this.app.hideModals();
+                await this.app.loadTransactions();
+                await this.app.loadAccounts();
+                return;
+            } catch (error) {
+                console.error('Transfer creation failed:', error);
+                OC.Notification.showTemporary(error.message || 'Failed to create transfer');
+                return;
+            }
+        }
+
+        // Build request data for regular expense/income transactions
         const data = {
             date,
             accountId,
