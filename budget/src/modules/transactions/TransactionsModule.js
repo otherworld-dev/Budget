@@ -1159,6 +1159,11 @@ export default class TransactionsModule {
                 this.app.hideModals();
                 await this.app.loadTransactions();
                 await this.app.loadAccounts();
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
                 return;
             } catch (error) {
                 console.error('Transfer creation failed:', error);
@@ -1208,6 +1213,11 @@ export default class TransactionsModule {
                 this.app.hideModals();
                 await this.app.loadTransactions();
                 await this.app.loadAccounts(); // Refresh account balances
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
             } else {
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to save transaction');
@@ -1233,7 +1243,12 @@ export default class TransactionsModule {
 
             if (response.ok) {
                 OC.Notification.showTemporary('Transaction deleted');
-                this.app.loadTransactions();
+                await this.app.loadTransactions();
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
             }
         } catch (error) {
             console.error('Failed to delete transaction:', error);

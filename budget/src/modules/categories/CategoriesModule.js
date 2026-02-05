@@ -1381,6 +1381,11 @@ export default class CategoriesModule {
                 this.renderBudgetTree();
                 this.updateBudgetSummary();
 
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
+
                 OC.Notification.showTemporary('Budget updated');
             } else {
                 // Try to get detailed error message

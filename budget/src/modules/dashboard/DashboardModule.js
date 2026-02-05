@@ -318,7 +318,9 @@ export default class DashboardModule {
         }
 
         const totalRemaining = budgetData.categories.reduce((sum, cat) => {
-            const remaining = (cat.budget || 0) - (cat.spent || 0);
+            const budget = cat.budgeted || cat.budget || 0;
+            const spent = cat.spent || 0;
+            const remaining = budget - spent;
             return sum + (remaining > 0 ? remaining : 0);
         }, 0);
 
@@ -327,7 +329,11 @@ export default class DashboardModule {
 
         const changeEl = document.getElementById('hero-budget-remaining-change');
         if (changeEl) {
-            const categoryCount = budgetData.categories.filter(c => (c.budget || 0) - (c.spent || 0) > 0).length;
+            const categoryCount = budgetData.categories.filter(c => {
+                const budget = c.budgeted || c.budget || 0;
+                const spent = c.spent || 0;
+                return (budget - spent) > 0;
+            }).length;
             changeEl.textContent = `${categoryCount} categories under budget`;
         }
     }
@@ -706,21 +712,39 @@ export default class DashboardModule {
         const container = document.getElementById('top-categories-list');
         if (!container) return;
 
-        if (!spending || typeof spending !== 'object' || Object.keys(spending).length === 0) {
+        // Handle both object and array formats
+        let spendingData;
+        if (Array.isArray(spending)) {
+            if (spending.length === 0) {
+                container.innerHTML = '<div class="empty-state-small">No spending data</div>';
+                return;
+            }
+            spendingData = spending;
+        } else if (typeof spending === 'object') {
+            const entries = Object.entries(spending);
+            if (entries.length === 0) {
+                container.innerHTML = '<div class="empty-state-small">No spending data</div>';
+                return;
+            }
+            spendingData = entries.map(([categoryId, amount]) => ({ categoryId: parseInt(categoryId), amount }));
+        } else {
             container.innerHTML = '<div class="empty-state-small">No spending data</div>';
             return;
         }
 
-        const topCategories = Object.entries(spending)
-            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+        const topCategories = spendingData
+            .sort((a, b) => Math.abs(b.total || b.amount || 0) - Math.abs(a.total || a.amount || 0))
             .slice(0, 5);
 
-        container.innerHTML = topCategories.map(([categoryId, amount]) => {
-            const category = this.categories.find(c => c.id == categoryId);
+        container.innerHTML = topCategories.map(item => {
+            // API already includes name and color in the spending data
+            const name = item.name || 'Unknown';
+            const color = item.color || '#999';
+            const amount = item.total || item.amount || 0;
             return `
                 <div class="top-category-item">
-                    <span class="category-dot" style="background: ${category?.color || '#999'}"></span>
-                    <span class="category-name">${this.escapeHtml(category?.name || 'Unknown')}</span>
+                    <span class="category-dot" style="background: ${color}"></span>
+                    <span class="category-name">${this.escapeHtml(name)}</span>
                     <span class="category-amount">${this.formatCurrency(Math.abs(amount))}</span>
                 </div>
             `;
@@ -781,7 +805,7 @@ export default class DashboardModule {
                 </thead>
                 <tbody>
                     ${categories.map(cat => {
-                        const budget = cat.budget || 0;
+                        const budget = cat.budgeted || cat.budget || 0;
                         const spent = cat.spent || 0;
                         const remaining = budget - spent;
                         const percentage = budget > 0 ? (spent / budget * 100) : 0;
@@ -918,24 +942,38 @@ export default class DashboardModule {
             this.charts.spending.destroy();
         }
 
-        if (!spending || Object.keys(spending).length === 0) {
+        // Handle both object and array formats
+        let spendingData;
+        if (Array.isArray(spending)) {
+            // If it's an array, check if it's empty
+            if (spending.length === 0) return;
+            spendingData = spending;
+        } else if (typeof spending === 'object') {
+            // If it's an object, convert to array format
+            const entries = Object.entries(spending);
+            if (entries.length === 0) return;
+            spendingData = entries.map(([categoryId, amount]) => ({ categoryId: parseInt(categoryId), amount }));
+        } else {
             return;
         }
 
         const ctx = canvas.getContext('2d');
-        const sortedData = Object.entries(spending)
-            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+
+        // Sort by absolute amount and take top 10
+        const sortedData = spendingData
+            .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
             .slice(0, 10);
 
-        const labels = sortedData.map(([categoryId]) => {
-            const category = this.categories.find(c => c.id == categoryId);
-            return category ? category.name : 'Unknown';
+        // Extract data - API already returns name and color in each item
+        const labels = sortedData.map(item => {
+            // Use the name directly from the spending item (API includes it)
+            return item.name || 'Unknown';
         });
 
-        const data = sortedData.map(([, amount]) => Math.abs(amount));
-        const colors = sortedData.map(([categoryId]) => {
-            const category = this.categories.find(c => c.id == categoryId);
-            return category ? category.color : '#999';
+        const data = sortedData.map(item => Math.abs(item.total || item.amount || 0));
+        const colors = sortedData.map(item => {
+            // Use the color directly from the spending item (API includes it)
+            return item.color || '#999';
         });
 
         this.charts.spending = new Chart(ctx, {
@@ -952,8 +990,7 @@ export default class DashboardModule {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: true,
-                        position: 'right'
+                        display: false  // Hide built-in legend, we'll use custom one
                     },
                     tooltip: {
                         callbacks: {
@@ -962,9 +999,42 @@ export default class DashboardModule {
                             }
                         }
                     }
+                },
+                layout: {
+                    padding: 10
                 }
             }
         });
+
+        // Populate custom legend with spending breakdown
+        const legendContainer = document.getElementById('spending-chart-legend');
+        if (legendContainer) {
+            const totalSpending = data.reduce((sum, val) => sum + val, 0);
+            legendContainer.innerHTML = `
+                <div class="spending-breakdown">
+                    <div class="spending-breakdown-header">
+                        <strong>Total Spending</strong>
+                        <strong>${this.formatCurrency(totalSpending)}</strong>
+                    </div>
+                    ${sortedData.map((item, index) => {
+                        const amount = data[index];
+                        const percentage = totalSpending > 0 ? ((amount / totalSpending) * 100).toFixed(1) : 0;
+                        return `
+                            <div class="spending-breakdown-item">
+                                <div class="spending-breakdown-label">
+                                    <span class="spending-dot" style="background: ${colors[index]}"></span>
+                                    <span class="spending-category-name">${this.escapeHtml(labels[index])}</span>
+                                </div>
+                                <div class="spending-breakdown-values">
+                                    <span class="spending-percentage">${percentage}%</span>
+                                    <span class="spending-amount">${this.formatCurrency(amount)}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
     }
 
     updateTrendChart(trends) {

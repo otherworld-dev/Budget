@@ -598,6 +598,79 @@
     color: var(--color-main-text);
 }
 
+/* Spending Breakdown List */
+.spending-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.spending-breakdown-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0 8px 0;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.spending-breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border-dark);
+}
+
+.spending-breakdown-item:last-child {
+    border-bottom: none;
+}
+
+.spending-breakdown-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.spending-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.spending-category-name {
+    font-size: 13px;
+    color: var(--color-main-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spending-breakdown-values {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.spending-percentage {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    min-width: 40px;
+    text-align: right;
+}
+
+.spending-amount {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-main-text);
+    min-width: 70px;
+    text-align: right;
+}
+
 .spending-legend-value {
     font-size: 13px;
     font-weight: 600;
@@ -1009,7 +1082,7 @@
 
 #spending-chart,
 #trend-chart {
-    max-height: 280px !important;
+    max-height: 360px !important;
     max-width: 100% !important;
 }
 
@@ -8180,13 +8253,14 @@ button.danger:hover {
 /* Spending Chart Wrapper */
 .spending-chart-wrapper {
     display: flex;
-    gap: 24px;
-    align-items: flex-start;
+    gap: 32px;
+    align-items: stretch;
+    min-height: 320px;
 }
 
 .chart-container-doughnut {
-    width: 280px;
-    height: 280px;
+    width: 320px;
+    height: 320px;
     flex-shrink: 0;
 }
 
@@ -8195,6 +8269,7 @@ button.danger:hover {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
 }
 
 .spending-legend-item {

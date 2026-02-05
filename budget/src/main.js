@@ -120,7 +120,7 @@ class BudgetApp {
         this.setupEventListeners();
         this.authModule.setupActivityMonitoring();
         await this.authModule.setupLockButton();
-        this.loadInitialData();
+        await this.loadInitialData();
         this.showView('dashboard');
     }
 
