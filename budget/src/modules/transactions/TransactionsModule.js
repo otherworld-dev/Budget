@@ -17,11 +17,11 @@ export default class TransactionsModule {
     constructor(app) {
         this.app = app;
 
-        // Transaction state
-        this.transactionFilters = {};
-        this.currentSort = { field: 'date', direction: 'desc' };
-        this.currentPage = 1;
-        this.rowsPerPage = 25;
+        // Transaction state - store on app for shared access
+        this.app.transactionFilters = {};
+        this.app.currentSort = { field: 'date', direction: 'desc' };
+        this.app.currentPage = 1;
+        this.app.rowsPerPage = 25;
         this.selectedTransactions = new Set();
         this.reconcileMode = false;
         this.reconcileData = null;
@@ -68,10 +68,10 @@ export default class TransactionsModule {
         const hasEnhancedUI = document.getElementById('transactions-filters');
 
         if (hasEnhancedUI) {
-            this.transactionFilters = {};
-            this.currentSort = { field: 'date', direction: 'desc' };
-            this.currentPage = 1;
-            this.rowsPerPage = 25;
+            this.app.transactionFilters = {};
+            this.app.currentSort = { field: 'date', direction: 'desc' };
+            this.app.currentPage = 1;
+            this.app.rowsPerPage = 25;
             this.selectedTransactions = new Set();
             this.reconcileMode = false;
         }
@@ -215,8 +215,8 @@ export default class TransactionsModule {
         const rowsPerPageSelect = document.getElementById('rows-per-page');
         if (rowsPerPageSelect) {
             rowsPerPageSelect.addEventListener('change', (e) => {
-                this.rowsPerPage = parseInt(e.target.value);
-                this.currentPage = 1;
+                this.app.rowsPerPage = parseInt(e.target.value);
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
             });
         }
@@ -224,8 +224,8 @@ export default class TransactionsModule {
         const prevPageBtn = document.getElementById('prev-page-btn');
         if (prevPageBtn) {
             prevPageBtn.addEventListener('click', () => {
-                if (this.currentPage > 1) {
-                    this.currentPage--;
+                if (this.app.currentPage > 1) {
+                    this.app.currentPage--;
                     this.app.loadTransactions();
                 }
             });
@@ -234,7 +234,7 @@ export default class TransactionsModule {
         const nextPageBtn = document.getElementById('next-page-btn');
         if (nextPageBtn) {
             nextPageBtn.addEventListener('click', () => {
-                this.currentPage++;
+                this.app.currentPage++;
                 this.app.loadTransactions();
             });
         }
@@ -243,8 +243,8 @@ export default class TransactionsModule {
         const prevPageBtnBottom = document.getElementById('prev-page-btn-bottom');
         if (prevPageBtnBottom) {
             prevPageBtnBottom.addEventListener('click', () => {
-                if (this.currentPage > 1) {
-                    this.currentPage--;
+                if (this.app.currentPage > 1) {
+                    this.app.currentPage--;
                     this.app.loadTransactions();
                 }
             });
@@ -253,7 +253,7 @@ export default class TransactionsModule {
         const nextPageBtnBottom = document.getElementById('next-page-btn-bottom');
         if (nextPageBtnBottom) {
             nextPageBtnBottom.addEventListener('click', () => {
-                this.currentPage++;
+                this.app.currentPage++;
                 this.app.loadTransactions();
             });
         }
@@ -332,7 +332,7 @@ export default class TransactionsModule {
     }
 
     updateFilters() {
-        this.transactionFilters = {
+        this.app.transactionFilters = {
             account: document.getElementById('filter-account')?.value || '',
             category: document.getElementById('filter-category')?.value || '',
             type: document.getElementById('filter-type')?.value || '',
@@ -344,9 +344,9 @@ export default class TransactionsModule {
         };
 
         // Auto-apply filters if any are set
-        const hasFilters = Object.values(this.transactionFilters).some(value => value !== '');
+        const hasFilters = Object.values(this.app.transactionFilters).some(value => value !== '');
         if (hasFilters) {
-            this.currentPage = 1;
+            this.app.currentPage = 1;
             this.app.loadTransactions();
         }
     }
@@ -365,17 +365,17 @@ export default class TransactionsModule {
             }
         });
 
-        this.transactionFilters = {};
-        this.currentPage = 1;
+        this.app.transactionFilters = {};
+        this.app.currentPage = 1;
         this.app.loadTransactions();
     }
 
     sortTransactions(field) {
-        if (this.currentSort.field === field) {
-            this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+        if (this.app.currentSort.field === field) {
+            this.app.currentSort.direction = this.app.currentSort.direction === 'asc' ? 'desc' : 'asc';
         } else {
-            this.currentSort.field = field;
-            this.currentSort.direction = 'asc';
+            this.app.currentSort.field = field;
+            this.app.currentSort.direction = 'asc';
         }
 
         // Update sort indicators
@@ -385,7 +385,7 @@ export default class TransactionsModule {
 
         const currentHeader = document.querySelector(`[data-sort="${field}"] .sort-indicator`);
         if (currentHeader) {
-            currentHeader.className = `sort-indicator ${this.currentSort.direction}`;
+            currentHeader.className = `sort-indicator ${this.app.currentSort.direction}`;
         }
 
         this.app.loadTransactions();
