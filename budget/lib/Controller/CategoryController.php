@@ -151,6 +151,7 @@ class CategoryController extends Controller {
         ?string $icon = null,
         ?string $color = null,
         ?float $budgetAmount = null,
+        ?string $budgetPeriod = null,
         ?int $sortOrder = null
     ): DataResponse {
         try {
@@ -190,6 +191,15 @@ class CategoryController extends Controller {
                     return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['color'] = $colorValidation['sanitized'];
+            }
+
+            // Validate budgetPeriod if provided
+            if ($budgetPeriod !== null) {
+                $validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
+                if (!in_array($budgetPeriod, $validPeriods, true)) {
+                    return new DataResponse(['error' => 'Invalid budget period. Must be monthly, weekly, yearly, or quarterly'], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['budgetPeriod'] = $budgetPeriod;
             }
 
             // Handle other fields

@@ -1533,7 +1533,7 @@ style('budget', 'budget-main');
                 <h2>Budget</h2>
                 <div class="view-controls">
                     <div class="budget-period-selector">
-                        <label for="budget-month">Period:</label>
+                        <label for="budget-month">Month:</label>
                         <select id="budget-month">
                             <!-- Populated dynamically -->
                         </select>
