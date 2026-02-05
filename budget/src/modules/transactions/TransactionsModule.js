@@ -343,12 +343,9 @@ export default class TransactionsModule {
             search: document.getElementById('filter-search')?.value || ''
         };
 
-        // Auto-apply filters if any are set
-        const hasFilters = Object.values(this.app.transactionFilters).some(value => value !== '');
-        if (hasFilters) {
-            this.app.currentPage = 1;
-            this.app.loadTransactions();
-        }
+        // Always auto-apply filters (including when clearing them)
+        this.app.currentPage = 1;
+        this.app.loadTransactions();
     }
 
     clearFilters() {
