@@ -375,7 +375,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\BillService(
                 $c->get(\OCA\Budget\Db\BillMapper::class),
                 $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class),
-                $c->get(\OCA\Budget\Service\Bill\RecurringBillDetector::class)
+                $c->get(\OCA\Budget\Service\Bill\RecurringBillDetector::class),
+                $c->get(\OCA\Budget\Service\TransactionService::class)
             );
         });
         $context->registerServiceAlias('BillService', \OCA\Budget\Service\BillService::class);

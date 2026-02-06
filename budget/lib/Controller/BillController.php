@@ -97,6 +97,8 @@ class BillController extends Controller {
             $notes = $data['notes'] ?? null;
             $reminderDays = isset($data['reminderDays']) ? (int) $data['reminderDays'] : null;
             $customRecurrencePattern = $data['customRecurrencePattern'] ?? null;
+            $createTransaction = $data['createTransaction'] ?? false;
+            $transactionDate = $data['transactionDate'] ?? null;
 
             // Validate name (required)
             $nameValidation = $this->validationService->validateName($name, true);
@@ -153,6 +155,14 @@ class BillController extends Controller {
                 }
             }
 
+            // Validate transactionDate if provided
+            if ($transactionDate !== null && $transactionDate !== '') {
+                $dateValidation = $this->validationService->validateDate($transactionDate, 'Transaction date', false);
+                if (!$dateValidation['valid']) {
+                    return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+            }
+
             $bill = $this->service->create(
                 $this->userId,
                 $name,
@@ -165,7 +175,9 @@ class BillController extends Controller {
                 $autoDetectPattern,
                 $notes,
                 $reminderDays,
-                $customRecurrencePattern
+                $customRecurrencePattern,
+                $createTransaction,
+                $transactionDate
             );
             return new DataResponse($bill, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -331,7 +343,10 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markPaid(int $id, ?string $paidDate = null): DataResponse {
         try {
-            $bill = $this->service->markPaid($id, $this->userId, $paidDate);
+            $data = json_decode(file_get_contents('php://input'), true) ?? [];
+            $createNextTransaction = $data['createNextTransaction'] ?? true;
+
+            $bill = $this->service->markPaid($id, $this->userId, $paidDate, $createNextTransaction);
             return new DataResponse($bill);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to mark bill as paid', Http::STATUS_BAD_REQUEST, ['billId' => $id]);

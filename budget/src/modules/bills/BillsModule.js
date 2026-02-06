@@ -236,6 +236,17 @@ export default class BillsModule {
             billFrequency.addEventListener('change', () => this.updateBillFormFields());
         }
 
+        // Create transaction checkbox (show/hide date field)
+        const createTransactionCheckbox = document.getElementById('bill-create-transaction');
+        if (createTransactionCheckbox) {
+            createTransactionCheckbox.addEventListener('change', (e) => {
+                const dateGroup = document.getElementById('transaction-date-group');
+                if (dateGroup) {
+                    dateGroup.style.display = e.target.checked ? 'block' : 'none';
+                }
+            });
+        }
+
         // Bills filter tabs
         document.querySelectorAll('.bills-tabs .tab-button').forEach(tab => {
             tab.addEventListener('click', (e) => {
@@ -316,10 +327,20 @@ export default class BillsModule {
                 // Clear all month checkboxes
                 document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
+
+            // Reset transaction creation fields for edit mode
+            document.getElementById('bill-create-transaction').checked = false;
+            document.getElementById('bill-transaction-date').value = '';
+            document.getElementById('transaction-date-group').style.display = 'none';
         } else {
             title.textContent = 'Add Bill';
             // Clear all month checkboxes for new bill
             document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+            // Reset transaction creation fields for new bill
+            document.getElementById('bill-create-transaction').checked = false;
+            document.getElementById('bill-transaction-date').value = '';
+            document.getElementById('transaction-date-group').style.display = 'none';
         }
 
         this.updateBillFormFields();
@@ -416,7 +437,9 @@ export default class BillsModule {
             accountId: document.getElementById('bill-account').value ? parseInt(document.getElementById('bill-account').value) : null,
             autoDetectPattern: document.getElementById('bill-auto-pattern').value || null,
             notes: document.getElementById('bill-notes').value || null,
-            reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null
+            reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null,
+            createTransaction: document.getElementById('bill-create-transaction')?.checked || false,
+            transactionDate: document.getElementById('bill-transaction-date')?.value || null
         };
 
         // Add custom recurrence pattern if frequency is custom
@@ -514,7 +537,10 @@ export default class BillsModule {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken
                 },
-                body: JSON.stringify({ paidDate: currentDate })
+                body: JSON.stringify({
+                    paidDate: currentDate,
+                    createNextTransaction: true
+                })
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -532,7 +558,7 @@ export default class BillsModule {
                 clearTimeout(this._undoTimer);
             }
 
-            this.showUndoNotification('Bill marked as paid', () => this.undoMarkBillPaid());
+            this.showUndoNotification('Bill marked as paid. Future transaction created.', () => this.undoMarkBillPaid());
 
             this._undoTimer = setTimeout(() => {
                 this._undoData = null;

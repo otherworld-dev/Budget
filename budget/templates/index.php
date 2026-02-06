@@ -4051,6 +4051,20 @@ style('budget', 'budget-main');
                 <small id="bill-reminder-help" class="form-text">Receive a notification before bill is due</small>
             </div>
 
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="bill-create-transaction" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span>Create future transaction for this bill</span>
+                </label>
+                <small class="form-text">Automatically creates a transaction on the bill's due date</small>
+            </div>
+
+            <div class="form-group" id="transaction-date-group" style="display: none;">
+                <label for="bill-transaction-date">Transaction Date</label>
+                <input type="date" id="bill-transaction-date" aria-describedby="bill-transaction-date-help">
+                <small id="bill-transaction-date-help" class="form-text">Leave empty to use next due date</small>
+            </div>
+
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save bill">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>

@@ -8,6 +8,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Bill;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 
@@ -64,7 +65,8 @@ class TransactionService {
         ?string $vendor = null,
         ?string $reference = null,
         ?string $notes = null,
-        ?string $importId = null
+        ?string $importId = null,
+        ?int $billId = null
     ): Transaction {
         // Verify account belongs to user
         $account = $this->accountMapper->find($accountId, $userId);
@@ -85,16 +87,53 @@ class TransactionService {
         $transaction->setReference($reference);
         $transaction->setNotes($notes);
         $transaction->setImportId($importId);
+        $transaction->setBillId($billId);
         $transaction->setReconciled(false);
         $transaction->setCreatedAt(date('Y-m-d H:i:s'));
         $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
-        
+
         $transaction = $this->mapper->insert($transaction);
         
         // Update account balance
         $this->updateAccountBalance($account, $amount, $type, $userId);
         
         return $transaction;
+    }
+
+    /**
+     * Create a transaction from a bill
+     *
+     * @param string $userId User ID
+     * @param Bill $bill The bill to create transaction from
+     * @param string|null $transactionDate Optional date override (uses bill's nextDueDate if not provided)
+     * @return Transaction The created transaction
+     * @throws \Exception if bill has no account
+     */
+    public function createFromBill(
+        string $userId,
+        Bill $bill,
+        ?string $transactionDate = null
+    ): Transaction {
+        if (!$bill->getAccountId()) {
+            throw new \Exception('Bill must have an account to create transaction');
+        }
+
+        $date = $transactionDate ?? $bill->getNextDueDate();
+
+        return $this->create(
+            userId: $userId,
+            accountId: $bill->getAccountId(),
+            date: $date,
+            description: $bill->getName(),
+            amount: $bill->getAmount(),
+            type: 'debit',
+            categoryId: $bill->getCategoryId(),
+            vendor: null,
+            reference: null,
+            notes: "Auto-generated from bill: {$bill->getName()}",
+            importId: null,
+            billId: $bill->getId()
+        );
     }
 
     public function update(int $id, string $userId, array $updates): Transaction {

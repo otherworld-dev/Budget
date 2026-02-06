@@ -8,6 +8,7 @@ use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
+use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 
 /**
@@ -17,15 +18,18 @@ class BillService {
     private BillMapper $mapper;
     private FrequencyCalculator $frequencyCalculator;
     private RecurringBillDetector $recurringDetector;
+    private TransactionService $transactionService;
 
     public function __construct(
         BillMapper $mapper,
         FrequencyCalculator $frequencyCalculator,
-        RecurringBillDetector $recurringDetector
+        RecurringBillDetector $recurringDetector,
+        TransactionService $transactionService
     ) {
         $this->mapper = $mapper;
         $this->frequencyCalculator = $frequencyCalculator;
         $this->recurringDetector = $recurringDetector;
+        $this->transactionService = $transactionService;
     }
 
     /**
@@ -97,7 +101,9 @@ class BillService {
         ?string $autoDetectPattern = null,
         ?string $notes = null,
         ?int $reminderDays = null,
-        ?string $customRecurrencePattern = null
+        ?string $customRecurrencePattern = null,
+        bool $createTransaction = false,
+        ?string $transactionDate = null
     ): Bill {
         $bill = new Bill();
         $bill->setUserId($userId);
@@ -118,7 +124,23 @@ class BillService {
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);
         $bill->setNextDueDate($nextDue);
 
-        return $this->mapper->insert($bill);
+        $bill = $this->mapper->insert($bill);
+
+        // Create future transaction if requested and bill has account
+        if ($createTransaction && $accountId !== null) {
+            try {
+                $this->transactionService->createFromBill(
+                    $userId,
+                    $bill,
+                    $transactionDate
+                );
+            } catch (\Exception $e) {
+                // Log error but don't fail bill creation
+                error_log("Failed to create transaction for bill {$bill->getId()}: {$e->getMessage()}");
+            }
+        }
+
+        return $bill;
     }
 
     public function update(int $id, string $userId, array $updates): Bill {
@@ -173,8 +195,14 @@ class BillService {
 
     /**
      * Mark a bill as paid and advance to next due date.
+     *
+     * @param int $id Bill ID
+     * @param string $userId User ID
+     * @param string|null $paidDate Date bill was paid (defaults to today)
+     * @param bool $createNextTransaction Whether to create transaction for next occurrence
+     * @return Bill Updated bill
      */
-    public function markPaid(int $id, string $userId, ?string $paidDate = null): Bill {
+    public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $createNextTransaction = true): Bill {
         $bill = $this->find($id, $userId);
 
         $paidDate = $paidDate ?? date('Y-m-d');
@@ -189,7 +217,18 @@ class BillService {
         );
         $bill->setNextDueDate($nextDue);
 
-        return $this->mapper->update($bill);
+        $bill = $this->mapper->update($bill);
+
+        // Auto-create transaction for next occurrence if bill has account
+        if ($createNextTransaction && $bill->getAccountId() !== null) {
+            try {
+                $this->transactionService->createFromBill($userId, $bill, null);
+            } catch (\Exception $e) {
+                error_log("Failed to create next transaction for bill {$id}: {$e->getMessage()}");
+            }
+        }
+
+        return $bill;
     }
 
     /**
