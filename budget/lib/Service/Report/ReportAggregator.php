@@ -77,6 +77,10 @@ class ReportAggregator {
             $includeUntagged
         );
 
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $totalIncome = 0;
         $totalExpenses = 0;
 
@@ -87,10 +91,15 @@ class ReportAggregator {
             $accountIncome = $accountData['income'];
             $accountExpenses = $accountData['expenses'];
 
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = $account->getBalance();
+            $futureChange = $futureChanges[$currentAccountId] ?? 0;
+            $currentBalance = $storedBalance - $futureChange;
+
             $summary['accounts'][] = [
                 'id' => $currentAccountId,
                 'name' => $account->getName(),
-                'balance' => $account->getBalance(),
+                'balance' => $currentBalance,
                 'currency' => $account->getCurrency(),
                 'income' => $accountIncome,
                 'expenses' => $accountExpenses,
@@ -98,7 +107,7 @@ class ReportAggregator {
                 'transactionCount' => $accountData['count']
             ];
 
-            $summary['totals']['currentBalance'] += $account->getBalance();
+            $summary['totals']['currentBalance'] += $currentBalance;
             $totalIncome += $accountIncome;
             $totalExpenses += $accountExpenses;
         }

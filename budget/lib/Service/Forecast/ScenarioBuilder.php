@@ -69,9 +69,15 @@ class ScenarioBuilder {
             ? [$this->accountMapper->find($accountId, $userId)]
             : $this->accountMapper->findAll($userId);
 
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $currentBalance = 0.0;
         foreach ($accounts as $account) {
-            $currentBalance += $account->getBalance();
+            $storedBalance = $account->getBalance();
+            $futureChange = $futureChanges[$account->getId()] ?? 0;
+            $currentBalance += ($storedBalance - $futureChange);
         }
 
         // Get historical averages
@@ -181,9 +187,15 @@ class ScenarioBuilder {
             ? [$this->accountMapper->find($accountId, $userId)]
             : $this->accountMapper->findAll($userId);
 
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $currentBalance = 0.0;
         foreach ($accounts as $account) {
-            $currentBalance += $account->getBalance();
+            $storedBalance = $account->getBalance();
+            $futureChange = $futureChanges[$account->getId()] ?? 0;
+            $currentBalance += ($storedBalance - $futureChange);
         }
 
         // Work backwards from current balance using transactions

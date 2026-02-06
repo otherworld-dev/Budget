@@ -1051,8 +1051,27 @@ export default class TransactionsModule {
         }
     }
 
-    editTransaction(id) {
-        const transaction = this.transactions.find(t => t.id === id);
+    async editTransaction(id) {
+        // First check TransactionsModule's list
+        let transaction = this.transactions.find(t => t.id === id);
+
+        // If not found, check AccountsModule's accountTransactions (for account detail view)
+        if (!transaction && this.app.accountsModule?.accountTransactions) {
+            transaction = this.app.accountsModule.accountTransactions.find(t => t.id === id);
+        }
+
+        // If still not found, fetch from API
+        if (!transaction) {
+            try {
+                const response = await this.app.api.get(`/apps/budget/api/transactions/${id}`);
+                transaction = response.data;
+            } catch (error) {
+                console.error('Failed to fetch transaction for editing:', error);
+                this.app.showNotification('Failed to load transaction', 'error');
+                return;
+            }
+        }
+
         if (transaction) {
             this.showTransactionModal(transaction);
         }

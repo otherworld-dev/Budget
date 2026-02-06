@@ -478,7 +478,8 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\NetWorthService::class, function($c) {
             return new \OCA\Budget\Service\NetWorthService(
                 $c->get(\OCA\Budget\Db\NetWorthSnapshotMapper::class),
-                $c->get(\OCA\Budget\Db\AccountMapper::class)
+                $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
             );
         });
         $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);
@@ -520,7 +521,8 @@ class Application extends App implements IBootstrap {
 
         $context->registerService(\OCA\Budget\Service\DebtPayoffService::class, function($c) {
             return new \OCA\Budget\Service\DebtPayoffService(
-                $c->get(\OCA\Budget\Db\AccountMapper::class)
+                $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class)
             );
         });
         $context->registerServiceAlias('DebtPayoffService', \OCA\Budget\Service\DebtPayoffService::class);

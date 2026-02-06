@@ -78,6 +78,10 @@ class ForecastService {
             ? [$this->accountMapper->find($accountId, $userId)]
             : $this->accountMapper->findAll($userId);
 
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $forecast = [
             'summary' => [],
             'monthlyProjections' => [],
@@ -86,9 +90,15 @@ class ForecastService {
         ];
 
         foreach ($accounts as $account) {
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = $account->getBalance();
+            $futureChange = $futureChanges[$account->getId()] ?? 0;
+            $currentBalance = $storedBalance - $futureChange;
+
             $accountForecast = $this->generateAccountForecast(
                 $userId,
                 $account,
+                $currentBalance,
                 $basedOnMonths,
                 $forecastMonths
             );
@@ -96,9 +106,9 @@ class ForecastService {
             $forecast['summary'][] = [
                 'accountId' => $account->getId(),
                 'accountName' => $account->getName(),
-                'currentBalance' => $account->getBalance(),
+                'currentBalance' => $currentBalance,
                 'projectedBalance' => $accountForecast['projectedBalance'],
-                'projectedChange' => $accountForecast['projectedBalance'] - $account->getBalance(),
+                'projectedChange' => $accountForecast['projectedBalance'] - $currentBalance,
                 'confidence' => $accountForecast['confidence']
             ];
 
@@ -129,13 +139,23 @@ class ForecastService {
         }
 
         $accounts = $this->accountMapper->findAll($userId);
+
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $currentBalance = 0.0;
         $currencyCounts = [];
 
         foreach ($accounts as $account) {
-            $currentBalance += $account->getBalance();
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = $account->getBalance();
+            $futureChange = $futureChanges[$account->getId()] ?? 0;
+            $accountBalance = $storedBalance - $futureChange;
+
+            $currentBalance += $accountBalance;
             $currency = $account->getCurrency() ?? 'USD';
-            $currencyCounts[$currency] = ($currencyCounts[$currency] ?? 0) + abs($account->getBalance());
+            $currencyCounts[$currency] = ($currencyCounts[$currency] ?? 0) + abs($accountBalance);
         }
 
         // Determine primary currency
@@ -241,11 +261,11 @@ class ForecastService {
     private function generateAccountForecast(
         string $userId,
         $account,
+        float $currentBalance,
         int $basedOnMonths,
         int $forecastMonths
     ): array {
         $accountId = $account->getId();
-        $currentBalance = $account->getBalance();
 
         // Get historical data
         $endDate = date('Y-m-d');

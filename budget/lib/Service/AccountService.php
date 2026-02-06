@@ -76,13 +76,80 @@ class AccountService extends AbstractCrudService {
         }
     }
 
+    /**
+     * Get a single account with balance adjusted to exclude future transactions.
+     *
+     * @return array Account data array with adjusted balance
+     */
+    public function findWithCurrentBalance(int $id, string $userId): array {
+        $account = $this->find($id, $userId);
+
+        // Get future transaction adjustment for this account
+        $today = date('Y-m-d');
+        $futureChange = $this->transactionMapper->getNetChangeAfterDate($id, $today);
+
+        // Calculate balance as of today (stored balance minus future transactions)
+        $storedBalance = (string) $account->getBalance();
+        $balance = MoneyCalculator::subtract($storedBalance, (string) $futureChange);
+
+        // Convert account to array and override balance with adjusted value
+        $accountData = $account->toArrayMasked();
+        $accountData['balance'] = MoneyCalculator::toFloat($balance);
+
+        return $accountData;
+    }
+
+    /**
+     * Get all accounts with balances adjusted to exclude future transactions.
+     * Returns accounts as arrays with balance reflecting today's actual balance.
+     *
+     * @return array[] Array of account data arrays
+     */
+    public function findAllWithCurrentBalances(string $userId): array {
+        $accounts = $this->findAll($userId);
+
+        // Get future transaction adjustments for all accounts in one query
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
+        $result = [];
+        foreach ($accounts as $account) {
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = (string) $account->getBalance();
+            $futureChange = (string) ($futureChanges[$account->getId()] ?? 0);
+            $balance = MoneyCalculator::subtract($storedBalance, $futureChange);
+
+            // Convert account to array and override balance with adjusted value
+            $accountData = $account->toArrayMasked();
+            $accountData['balance'] = MoneyCalculator::toFloat($balance);
+            $result[] = $accountData;
+        }
+
+        return $result;
+    }
+
     public function getSummary(string $userId): array {
         $accounts = $this->findAll($userId);
         $totalBalance = '0.00';
         $currencyBreakdown = [];
+        $accountsWithAdjustedBalance = [];
+
+        // Get future transaction adjustments for all accounts in one query
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
         foreach ($accounts as $account) {
-            $balance = (string) $account->getBalance();
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = (string) $account->getBalance();
+            $futureChange = (string) ($futureChanges[$account->getId()] ?? 0);
+            $balance = MoneyCalculator::subtract($storedBalance, $futureChange);
+            $balanceFloat = MoneyCalculator::toFloat($balance);
+
+            // Convert account to array and override balance with adjusted value
+            $accountData = $account->toArrayMasked();
+            $accountData['balance'] = $balanceFloat;
+            $accountsWithAdjustedBalance[] = $accountData;
+
             $totalBalance = MoneyCalculator::add($totalBalance, $balance);
             $currency = $account->getCurrency();
 
@@ -99,7 +166,7 @@ class AccountService extends AbstractCrudService {
         }
 
         return [
-            'accounts' => $accounts,
+            'accounts' => $accountsWithAdjustedBalance,
             'totalBalance' => MoneyCalculator::toFloat($totalBalance),
             'currencyBreakdown' => $currencyBreakdownFloat,
             'accountCount' => count($accounts)

@@ -584,6 +584,66 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Calculate the net effect of transactions after a given date for an account.
+     * Used to derive "balance as of date" by subtracting from stored balance.
+     *
+     * @param int $accountId
+     * @param string $afterDate Transactions strictly after this date are summed
+     * @return float Net effect (credits positive, debits negative)
+     */
+    public function getNetChangeAfterDate(int $accountId, string $afterDate): float {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->selectAlias(
+                $qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
+                'net_change'
+            )
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)));
+
+        $result = $qb->executeQuery();
+        $netChange = (float)$result->fetchOne();
+        $result->closeCursor();
+
+        return $netChange;
+    }
+
+    /**
+     * Calculate the net effect of future transactions for multiple accounts (batch version).
+     * Used to derive "balance as of date" by subtracting from stored balances.
+     *
+     * @param string $userId
+     * @param string $afterDate Transactions strictly after this date are summed
+     * @return array<int, float> accountId => net change (credits positive, debits negative)
+     */
+    public function getNetChangeAfterDateBatch(string $userId, string $afterDate): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.account_id')
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END)'),
+                'net_change'
+            )
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)))
+            ->groupBy('t.account_id');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        $changes = [];
+        foreach ($data as $row) {
+            $changes[(int)$row['account_id']] = (float)$row['net_change'];
+        }
+
+        return $changes;
+    }
+
+    /**
      * Get daily balance changes for an account (for efficient balance history calculation)
      * @return array<string, float> date => net change (credits positive, debits negative)
      */
