@@ -103,8 +103,14 @@ class BillService {
         ?int $reminderDays = null,
         ?string $customRecurrencePattern = null,
         bool $createTransaction = false,
-        ?string $transactionDate = null
+        ?string $transactionDate = null,
+        bool $autoPayEnabled = false
     ): Bill {
+        // Validate auto-pay requires account
+        if ($autoPayEnabled && $accountId === null) {
+            throw new \InvalidArgumentException('Auto-pay requires an account to be set');
+        }
+
         $bill = new Bill();
         $bill->setUserId($userId);
         $bill->setName($name);
@@ -119,6 +125,8 @@ class BillService {
         $bill->setNotes($notes);
         $bill->setReminderDays($reminderDays);
         $bill->setCustomRecurrencePattern($customRecurrencePattern);
+        $bill->setAutoPayEnabled($autoPayEnabled);
+        $bill->setAutoPayFailed(false);
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);
@@ -147,6 +155,20 @@ class BillService {
         $bill = $this->find($id, $userId);
         $needsRecalculation = false;
         $dbUpdates = [];
+
+        // Validate auto-pay requires account when enabling
+        if (isset($updates['autoPayEnabled']) && $updates['autoPayEnabled'] === true) {
+            $currentAccountId = $updates['accountId'] ?? $bill->getAccountId();
+            if ($currentAccountId === null) {
+                throw new \InvalidArgumentException('Auto-pay requires an account to be set');
+            }
+        }
+
+        // Auto-disable auto-pay if account is being removed
+        if (array_key_exists('accountId', $updates) && $updates['accountId'] === null) {
+            $updates['autoPayEnabled'] = false;
+            $updates['autoPayFailed'] = false;
+        }
 
         foreach ($updates as $key => $value) {
             // Track if we need to recalculate next due date
@@ -204,6 +226,11 @@ class BillService {
      */
     public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $createNextTransaction = true): Bill {
         $bill = $this->find($id, $userId);
+
+        // Reset auto-pay failed flag on successful manual payment
+        if ($bill->getAutoPayFailed()) {
+            $bill->setAutoPayFailed(false);
+        }
 
         $paidDate = $paidDate ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
@@ -380,6 +407,68 @@ class BillService {
         }
 
         return null;
+    }
+
+    /**
+     * Attempt to auto-pay a bill and handle success/failure.
+     *
+     * @param int $id Bill ID
+     * @param string $userId User ID
+     * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill]
+     */
+    public function processAutoPay(int $id, string $userId): array {
+        try {
+            $bill = $this->find($id, $userId);
+
+            // Validate auto-pay is enabled and account exists
+            if (!$bill->getAutoPayEnabled()) {
+                return [
+                    'success' => false,
+                    'message' => 'Auto-pay is not enabled for this bill',
+                    'bill' => null,
+                ];
+            }
+
+            if ($bill->getAccountId() === null) {
+                // Disable auto-pay and mark as failed
+                $this->mapper->updateFields($id, $userId, [
+                    'auto_pay_enabled' => false,
+                    'auto_pay_failed' => true,
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Bill has no account associated',
+                    'bill' => $this->find($id, $userId),
+                ];
+            }
+
+            // Mark bill as paid
+            $bill = $this->markPaid($id, $userId, null, true);
+
+            return [
+                'success' => true,
+                'message' => 'Bill auto-paid successfully',
+                'bill' => $bill,
+            ];
+
+        } catch (\Exception $e) {
+            // Mark auto-pay as failed and disable it
+            try {
+                $this->mapper->updateFields($id, $userId, [
+                    'auto_pay_enabled' => false,
+                    'auto_pay_failed' => true,
+                ]);
+                $bill = $this->find($id, $userId);
+            } catch (\Exception $e2) {
+                $bill = null;
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Auto-pay failed: ' . $e->getMessage(),
+                'bill' => $bill,
+            ];
+        }
     }
 
     private function checkIfPaidInPeriod(Bill $bill, string $startDate, string $endDate): bool {

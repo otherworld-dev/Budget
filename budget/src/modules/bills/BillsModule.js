@@ -113,6 +113,9 @@ export default class BillsModule {
             };
             const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
 
+            const autoPayEnabled = bill.autoPayEnabled ?? bill.auto_pay_enabled ?? false;
+            const autoPayFailed = bill.autoPayFailed ?? bill.auto_pay_failed ?? false;
+
             return `
                 <div class="bill-card ${statusClass}" data-bill-id="${bill.id}" data-status="${statusClass}">
                     <div class="bill-header">
@@ -129,6 +132,8 @@ export default class BillsModule {
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
+                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="Auto-pay enabled" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> Auto-pay</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="Auto-pay failed - disabled" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> Auto-pay Failed</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">
@@ -247,6 +252,25 @@ export default class BillsModule {
             });
         }
 
+        // Account dropdown change (enable/disable auto-pay checkbox)
+        const billAccount = document.getElementById('bill-account');
+        const autoPayCheckbox = document.getElementById('bill-auto-pay');
+        if (billAccount && autoPayCheckbox) {
+            billAccount.addEventListener('change', () => {
+                if (!billAccount.value || billAccount.value === '') {
+                    autoPayCheckbox.checked = false;
+                    autoPayCheckbox.disabled = true;
+                } else {
+                    autoPayCheckbox.disabled = false;
+                }
+            });
+
+            // Set initial state
+            if (!billAccount.value || billAccount.value === '') {
+                autoPayCheckbox.disabled = true;
+            }
+        }
+
         // Bills filter tabs
         document.querySelectorAll('.bills-tabs .tab-button').forEach(tab => {
             tab.addEventListener('click', (e) => {
@@ -332,6 +356,12 @@ export default class BillsModule {
             document.getElementById('bill-create-transaction').checked = false;
             document.getElementById('bill-transaction-date').value = '';
             document.getElementById('transaction-date-group').style.display = 'none';
+
+            // Set auto-pay fields
+            const autoPayEnabled = bill.autoPayEnabled ?? bill.auto_pay_enabled ?? false;
+            const autoPayFailed = bill.autoPayFailed ?? bill.auto_pay_failed ?? false;
+            document.getElementById('bill-auto-pay').checked = autoPayEnabled;
+            document.getElementById('auto-pay-failed-warning').style.display = autoPayFailed ? 'block' : 'none';
         } else {
             title.textContent = 'Add Bill';
             // Clear all month checkboxes for new bill
@@ -341,6 +371,10 @@ export default class BillsModule {
             document.getElementById('bill-create-transaction').checked = false;
             document.getElementById('bill-transaction-date').value = '';
             document.getElementById('transaction-date-group').style.display = 'none';
+
+            // Reset auto-pay fields for new bill
+            document.getElementById('bill-auto-pay').checked = false;
+            document.getElementById('auto-pay-failed-warning').style.display = 'none';
         }
 
         this.updateBillFormFields();
@@ -439,7 +473,8 @@ export default class BillsModule {
             notes: document.getElementById('bill-notes').value || null,
             reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null,
             createTransaction: document.getElementById('bill-create-transaction')?.checked || false,
-            transactionDate: document.getElementById('bill-transaction-date')?.value || null
+            transactionDate: document.getElementById('bill-transaction-date')?.value || null,
+            autoPayEnabled: document.getElementById('bill-auto-pay')?.checked || false
         };
 
         // Add custom recurrence pattern if frequency is custom

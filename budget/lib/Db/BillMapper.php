@@ -125,6 +125,39 @@ class BillMapper extends QBMapper {
     }
 
     /**
+     * Find bills that are due for auto-payment today or earlier.
+     * Returns only active bills with auto-pay enabled, valid account,
+     * not already paid this month, and not in failed state.
+     *
+     * @return Bill[]
+     */
+    public function findDueForAutoPay(string $userId): array {
+        $today = date('Y-m-d');
+        $startOfMonth = date('Y-m-01');
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->andWhere($qb->expr()->eq('auto_pay_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->andWhere($qb->expr()->eq('auto_pay_failed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
+            ->andWhere($qb->expr()->isNotNull('account_id'))
+            ->andWhere($qb->expr()->isNotNull('next_due_date'))
+            ->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($today)))
+            // Exclude bills already paid this month
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->isNull('last_paid_date'),
+                    $qb->expr()->lt('last_paid_date', $qb->createNamedParameter($startOfMonth))
+                )
+            )
+            ->orderBy('next_due_date', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Get total monthly bill amount
      */
     public function getMonthlyTotal(string $userId): float {

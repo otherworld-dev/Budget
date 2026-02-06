@@ -99,6 +99,15 @@ class BillController extends Controller {
             $customRecurrencePattern = $data['customRecurrencePattern'] ?? null;
             $createTransaction = $data['createTransaction'] ?? false;
             $transactionDate = $data['transactionDate'] ?? null;
+            $autoPayEnabled = $data['autoPayEnabled'] ?? false;
+
+            // Validate auto-pay requires account
+            if ($autoPayEnabled && $accountId === null) {
+                return new DataResponse(
+                    ['error' => 'Auto-pay requires an account to be set'],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
 
             // Validate name (required)
             $nameValidation = $this->validationService->validateName($name, true);
@@ -177,7 +186,8 @@ class BillController extends Controller {
                 $reminderDays,
                 $customRecurrencePattern,
                 $createTransaction,
-                $transactionDate
+                $transactionDate,
+                $autoPayEnabled
             );
             return new DataResponse($bill, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -309,6 +319,12 @@ class BillController extends Controller {
                 } else {
                     $updates['customRecurrencePattern'] = null;
                 }
+            }
+            if (isset($data['autoPayEnabled'])) {
+                $updates['autoPayEnabled'] = (bool) $data['autoPayEnabled'];
+            }
+            if (isset($data['autoPayFailed'])) {
+                $updates['autoPayFailed'] = (bool) $data['autoPayFailed'];
             }
 
             if (empty($updates)) {

@@ -6,6 +6,7 @@ namespace OCA\Budget\BackgroundJob;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
@@ -33,6 +34,7 @@ class BillReminderJob extends TimedJob {
 
     protected function run($argument): void {
         $billMapper = Server::get(BillMapper::class);
+        $billService = Server::get(BillService::class);
         $notificationManager = Server::get(INotificationManager::class);
         $db = Server::get(IDBConnection::class);
         $logger = Server::get(LoggerInterface::class);
@@ -41,11 +43,18 @@ class BillReminderJob extends TimedJob {
         try {
             $userIds = $this->getAllUserIds($db);
             $notificationCount = 0;
+            $autoPayCount = 0;
+            $autoPayFailedCount = 0;
             $today = new \DateTime();
             $today->setTime(0, 0, 0);
 
             foreach ($userIds as $userId) {
                 try {
+                    // Process auto-pay BEFORE reminders to avoid sending reminder for auto-paid bill
+                    $autoPay = $this->processAutoPayForUser($userId, $billMapper, $billService, $notificationManager, $settingService);
+                    $autoPayCount += $autoPay['success'];
+                    $autoPayFailedCount += $autoPay['failed'];
+
                     $bills = $billMapper->findActive($userId);
 
                     foreach ($bills as $bill) {
@@ -89,9 +98,9 @@ class BillReminderJob extends TimedJob {
                 }
             }
 
-            if ($notificationCount > 0) {
+            if ($notificationCount > 0 || $autoPayCount > 0) {
                 $logger->info(
-                    "Bill reminder job completed: {$notificationCount} notifications sent",
+                    "Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures",
                     ['app' => 'budget']
                 );
             }
@@ -212,5 +221,98 @@ class BillReminderJob extends TimedJob {
         $result->closeCursor();
 
         return $userIds;
+    }
+
+    /**
+     * Process auto-pay for all due bills for a user.
+     *
+     * @return array ['success' => int, 'failed' => int]
+     */
+    private function processAutoPayForUser(
+        string $userId,
+        BillMapper $billMapper,
+        BillService $billService,
+        INotificationManager $notificationManager,
+        SettingService $settingService
+    ): array {
+        $successCount = 0;
+        $failedCount = 0;
+
+        try {
+            $dueForAutoPay = $billMapper->findDueForAutoPay($userId);
+
+            foreach ($dueForAutoPay as $bill) {
+                $result = $billService->processAutoPay($bill->getId(), $userId);
+
+                if ($result['success']) {
+                    $successCount++;
+                    $this->sendAutoPaySuccessNotification(
+                        $notificationManager,
+                        $settingService,
+                        $userId,
+                        $result['bill']
+                    );
+                } else {
+                    $failedCount++;
+                    $this->sendAutoPayFailureNotification(
+                        $notificationManager,
+                        $settingService,
+                        $userId,
+                        $bill,
+                        $result['message']
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            // Log but don't fail entire job
+            error_log("Auto-pay processing failed for user {$userId}: " . $e->getMessage());
+        }
+
+        return ['success' => $successCount, 'failed' => $failedCount];
+    }
+
+    private function sendAutoPaySuccessNotification(
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        string $userId,
+        $bill
+    ): void {
+        $notification = $notificationManager->createNotification();
+
+        $notification->setApp(Application::APP_ID)
+            ->setUser($userId)
+            ->setDateTime(new \DateTime())
+            ->setObject('bill', (string)$bill->getId())
+            ->setSubject('bill_auto_paid', [
+                'billId' => $bill->getId(),
+                'billName' => $bill->getName(),
+                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+                'nextDueDate' => $bill->getNextDueDate(),
+            ]);
+
+        $notificationManager->notify($notification);
+    }
+
+    private function sendAutoPayFailureNotification(
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        string $userId,
+        $bill,
+        string $reason
+    ): void {
+        $notification = $notificationManager->createNotification();
+
+        $notification->setApp(Application::APP_ID)
+            ->setUser($userId)
+            ->setDateTime(new \DateTime())
+            ->setObject('bill', (string)$bill->getId())
+            ->setSubject('bill_auto_pay_failed', [
+                'billId' => $bill->getId(),
+                'billName' => $bill->getName(),
+                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+                'reason' => $reason,
+            ]);
+
+        $notificationManager->notify($notification);
     }
 }

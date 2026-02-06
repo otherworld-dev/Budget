@@ -4065,6 +4065,20 @@ style('budget', 'budget-main');
                 <small id="bill-transaction-date-help" class="form-text">Leave empty to use next due date</small>
             </div>
 
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="bill-auto-pay" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span>Auto-pay when due</span>
+                </label>
+                <small class="form-text">Automatically mark this bill as paid when due date arrives (requires account)</small>
+            </div>
+
+            <div class="form-group" id="auto-pay-failed-warning" style="display: none;">
+                <div style="padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; color: #856404;">
+                    <strong>Auto-pay failed!</strong> Auto-pay has been disabled. Please check the bill details and re-enable if needed.
+                </div>
+            </div>
+
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save bill">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>

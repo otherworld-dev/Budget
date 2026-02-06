@@ -138,6 +138,92 @@ class Notifier implements INotifier {
 
                 break;
 
+            case 'bill_auto_paid':
+                $notification->setRichSubject(
+                    $l->t('Bill auto-paid: {bill}'),
+                    [
+                        'bill' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['billId'],
+                            'name' => $parameters['billName'],
+                        ],
+                    ]
+                );
+
+                $notification->setRichMessage(
+                    $l->t('{bill} ({amount}) was automatically paid. Next due: {nextDueDate}'),
+                    [
+                        'bill' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['billId'],
+                            'name' => $parameters['billName'],
+                        ],
+                        'amount' => [
+                            'type' => 'highlight',
+                            'id' => 'amount',
+                            'name' => $parameters['amount'],
+                        ],
+                        'nextDueDate' => [
+                            'type' => 'highlight',
+                            'id' => 'nextDueDate',
+                            'name' => $parameters['nextDueDate'],
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app-dark.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#bills');
+
+                break;
+
+            case 'bill_auto_pay_failed':
+                $notification->setRichSubject(
+                    $l->t('Auto-pay failed: {bill}'),
+                    [
+                        'bill' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['billId'],
+                            'name' => $parameters['billName'],
+                        ],
+                    ]
+                );
+
+                $notification->setRichMessage(
+                    $l->t('Failed to auto-pay {bill} ({amount}). Auto-pay has been disabled. Reason: {reason}'),
+                    [
+                        'bill' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['billId'],
+                            'name' => $parameters['billName'],
+                        ],
+                        'amount' => [
+                            'type' => 'highlight',
+                            'id' => 'amount',
+                            'name' => $parameters['amount'],
+                        ],
+                        'reason' => [
+                            'type' => 'highlight',
+                            'id' => 'reason',
+                            'name' => $parameters['reason'],
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app-dark.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#bills');
+
+                break;
+
             default:
                 throw new \InvalidArgumentException('Unknown subject');
         }
