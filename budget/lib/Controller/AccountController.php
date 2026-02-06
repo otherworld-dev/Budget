@@ -49,7 +49,8 @@ class AccountController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $accounts = $this->service->findAll($this->userId);
+            // Return accounts with balances adjusted to exclude future transactions
+            $accounts = $this->service->findAllWithCurrentBalances($this->userId);
             return new DataResponse($accounts);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to retrieve accounts');
@@ -61,7 +62,8 @@ class AccountController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $account = $this->service->find($id, $this->userId);
+            // Return account with balance adjusted to exclude future transactions
+            $account = $this->service->findWithCurrentBalance($id, $this->userId);
             return new DataResponse($account);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, 'Account', ['accountId' => $id]);

@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\TransactionMapper;
 
 /**
  * Service for calculating debt payoff strategies.
@@ -23,9 +24,14 @@ class DebtPayoffService {
     private const MAX_MONTHS = 480;
 
     private AccountMapper $accountMapper;
+    private TransactionMapper $transactionMapper;
 
-    public function __construct(AccountMapper $accountMapper) {
+    public function __construct(
+        AccountMapper $accountMapper,
+        TransactionMapper $transactionMapper
+    ) {
         $this->accountMapper = $accountMapper;
+        $this->transactionMapper = $transactionMapper;
     }
 
     /**
@@ -46,13 +52,20 @@ class DebtPayoffService {
     public function getSummary(string $userId): array {
         $debts = $this->getDebts($userId);
 
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $totalBalance = '0.00';
         $totalMinimumPayment = '0.00';
         $highestRate = 0.0;
         $lowestBalance = PHP_FLOAT_MAX;
 
         foreach ($debts as $debt) {
-            $balance = abs((float) $debt->getBalance());
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = (float) $debt->getBalance();
+            $futureChange = $futureChanges[$debt->getId()] ?? 0;
+            $balance = abs($storedBalance - $futureChange);
             if ($balance <= 0) {
                 continue;
             }
@@ -72,10 +85,20 @@ class DebtPayoffService {
             }
         }
 
+        // Count active debts (those with balance > 0 after adjustment)
+        $activeDebtCount = 0;
+        foreach ($debts as $debt) {
+            $storedBal = (float) $debt->getBalance();
+            $futureChg = $futureChanges[$debt->getId()] ?? 0;
+            if (abs($storedBal - $futureChg) > 0) {
+                $activeDebtCount++;
+            }
+        }
+
         return [
             'totalBalance' => MoneyCalculator::toFloat($totalBalance),
             'totalMinimumPayment' => MoneyCalculator::toFloat($totalMinimumPayment),
-            'debtCount' => count(array_filter($debts, fn($d) => abs((float) $d->getBalance()) > 0)),
+            'debtCount' => $activeDebtCount,
             'highestInterestRate' => round($highestRate, 2),
             'lowestBalance' => $lowestBalance === PHP_FLOAT_MAX ? 0 : round($lowestBalance, 2),
         ];
@@ -96,8 +119,16 @@ class DebtPayoffService {
         $debts = $this->getDebts($userId);
         $extraPayment = $extraPayment ?? 0;
 
-        // Filter to debts with balance > 0
-        $activeDebts = array_filter($debts, fn($d) => abs((float) $d->getBalance()) > 0);
+        // Get future transaction adjustments to calculate balance as of today
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
+        // Filter to debts with balance > 0 (after adjustment)
+        $activeDebts = array_filter($debts, function($d) use ($futureChanges) {
+            $storedBalance = (float) $d->getBalance();
+            $futureChange = $futureChanges[$d->getId()] ?? 0;
+            return abs($storedBalance - $futureChange) > 0;
+        });
 
         if (empty($activeDebts)) {
             return [
@@ -115,7 +146,10 @@ class DebtPayoffService {
         // Build debt data structure
         $debtData = [];
         foreach ($activeDebts as $debt) {
-            $balance = abs((float) $debt->getBalance());
+            // Calculate balance as of today
+            $storedBalance = (float) $debt->getBalance();
+            $futureChange = $futureChanges[$debt->getId()] ?? 0;
+            $balance = abs($storedBalance - $futureChange);
             $minimumPayment = (float) ($debt->getMinimumPayment() ?? 25); // Default $25 minimum
             $interestRate = (float) ($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
 

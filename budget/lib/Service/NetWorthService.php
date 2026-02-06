@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\NetWorthSnapshot;
 use OCA\Budget\Db\NetWorthSnapshotMapper;
+use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 
 class NetWorthService {
@@ -18,28 +19,39 @@ class NetWorthService {
 
     private NetWorthSnapshotMapper $snapshotMapper;
     private AccountMapper $accountMapper;
+    private TransactionMapper $transactionMapper;
 
     public function __construct(
         NetWorthSnapshotMapper $snapshotMapper,
-        AccountMapper $accountMapper
+        AccountMapper $accountMapper,
+        TransactionMapper $transactionMapper
     ) {
         $this->snapshotMapper = $snapshotMapper;
         $this->accountMapper = $accountMapper;
+        $this->transactionMapper = $transactionMapper;
     }
 
     /**
      * Calculate current net worth from account balances.
+     * Excludes future-dated transactions to show balance as of today.
      *
      * @return array{totalAssets: float, totalLiabilities: float, netWorth: float}
      */
     public function calculateNetWorth(string $userId): array {
         $accounts = $this->accountMapper->findAll($userId);
 
+        // Get future transaction adjustments for all accounts in one query
+        $today = date('Y-m-d');
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
         $totalAssets = '0.00';
         $totalLiabilities = '0.00';
 
         foreach ($accounts as $account) {
-            $balance = (string) ($account->getBalance() ?? 0);
+            // Calculate balance as of today (stored balance minus future transactions)
+            $storedBalance = $account->getBalance() ?? 0;
+            $futureChange = $futureChanges[$account->getId()] ?? 0;
+            $balance = (string) ($storedBalance - $futureChange);
             $type = $account->getType();
 
             if ($this->isLiabilityType($type)) {
