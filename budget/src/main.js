@@ -773,6 +773,10 @@ class BudgetApp {
         return this.accountsModule.hideAccountDetails();
     }
 
+    async refreshCurrentAccountView() {
+        return this.accountsModule.refreshCurrentAccountView();
+    }
+
     async saveAccount() {
         return this.accountsModule.saveAccount();
     }

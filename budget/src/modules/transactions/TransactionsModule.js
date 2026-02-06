@@ -1160,6 +1160,9 @@ export default class TransactionsModule {
                 await this.app.loadTransactions();
                 await this.app.loadAccounts();
 
+                // Refresh account details view if currently viewing an account
+                await this.app.refreshCurrentAccountView();
+
                 // Refresh dashboard if currently viewing it
                 if (window.location.hash === '' || window.location.hash === '#/dashboard') {
                     await this.app.loadDashboard();
@@ -1214,6 +1217,9 @@ export default class TransactionsModule {
                 await this.app.loadTransactions();
                 await this.app.loadAccounts(); // Refresh account balances
 
+                // Refresh account details view if currently viewing an account
+                await this.app.refreshCurrentAccountView();
+
                 // Refresh dashboard if currently viewing it
                 if (window.location.hash === '' || window.location.hash === '#/dashboard') {
                     await this.app.loadDashboard();
@@ -1244,6 +1250,10 @@ export default class TransactionsModule {
             if (response.ok) {
                 OC.Notification.showTemporary('Transaction deleted');
                 await this.app.loadTransactions();
+                await this.app.loadAccounts(); // Refresh account balances
+
+                // Refresh account details view if currently viewing an account
+                await this.app.refreshCurrentAccountView();
 
                 // Refresh dashboard if currently viewing it
                 if (window.location.hash === '' || window.location.hash === '#/dashboard') {

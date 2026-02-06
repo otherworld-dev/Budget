@@ -63,14 +63,17 @@ export default class DashboardModule {
             const sixMonthsAgoDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
             const sixMonthsAgo = formatters.getMonthStart(sixMonthsAgoDate.getFullYear(), sixMonthsAgoDate.getMonth() + 1);
 
+            // Cache-busting timestamp to ensure fresh data
+            const cacheBuster = Date.now();
+
             // Load all dashboard data in parallel for better performance
             const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse, alertsResponse, debtResponse] = await Promise.all([
                 // Current month summary for hero stats
-                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}`), {
+                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}&_=${cacheBuster}`), {
                     headers: { 'requesttoken': OC.requestToken }
                 }),
                 // 6-month summary for trend charts
-                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}`), {
+                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`), {
                     headers: { 'requesttoken': OC.requestToken }
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/transactions?limit=8'), {
@@ -1039,7 +1042,9 @@ export default class DashboardModule {
 
     updateTrendChart(trends) {
         const canvas = document.getElementById('trend-chart');
-        if (!canvas) return;
+        if (!canvas) {
+            return;
+        }
 
         // Destroy existing chart
         if (this.charts.trend) {

@@ -629,4 +629,5 @@ class TransactionController extends Controller {
             return $this->handleError($e, 'Failed to clear transaction tags', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
     }
+
 }
