@@ -219,3 +219,102 @@ export function getMonthEnd(year, month) {
     const lastDay = new Date(year, month, 0).getDate();
     return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 }
+
+/**
+ * Get date range for a budget period.
+ *
+ * @param {string} period - Period type: 'weekly', 'monthly', 'quarterly', 'yearly'
+ * @returns {object} Object with {start, end, label} date strings
+ */
+export function getPeriodDateRange(period) {
+    const now = new Date();
+
+    switch (period) {
+        case 'weekly': {
+            // Monday to Sunday of current week
+            const weekStart = new Date(now);
+            const dayOfWeek = weekStart.getDay();
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            weekStart.setDate(weekStart.getDate() + daysToMonday);
+
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+
+            return {
+                start: formatDateForAPI(weekStart),
+                end: formatDateForAPI(weekEnd),
+                label: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+            };
+        }
+
+        case 'monthly': {
+            // 1st to last day of current month
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            return {
+                start: formatDateForAPI(monthStart),
+                end: formatDateForAPI(monthEnd),
+                label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            };
+        }
+
+        case 'quarterly': {
+            // First to last day of current quarter
+            const quarter = Math.ceil((now.getMonth() + 1) / 3);
+            const quarterStartMonth = (quarter - 1) * 3;
+            const quarterStart = new Date(now.getFullYear(), quarterStartMonth, 1);
+            const quarterEnd = new Date(now.getFullYear(), quarterStartMonth + 3, 0);
+
+            return {
+                start: formatDateForAPI(quarterStart),
+                end: formatDateForAPI(quarterEnd),
+                label: `Q${quarter} ${now.getFullYear()}`
+            };
+        }
+
+        case 'yearly': {
+            // Jan 1 to Dec 31 of current year
+            const yearStart = new Date(now.getFullYear(), 0, 1);
+            const yearEnd = new Date(now.getFullYear(), 11, 31);
+
+            return {
+                start: formatDateForAPI(yearStart),
+                end: formatDateForAPI(yearEnd),
+                label: `${now.getFullYear()}`
+            };
+        }
+
+        default:
+            // Default to monthly
+            return getPeriodDateRange('monthly');
+    }
+}
+
+/**
+ * Pro-rate a budget amount from one period to another.
+ *
+ * @param {number} amount - Budget amount in the source period
+ * @param {string} fromPeriod - Source period: 'weekly', 'monthly', 'quarterly', 'yearly'
+ * @param {string} toPeriod - Target period: 'weekly', 'monthly', 'quarterly', 'yearly'
+ * @returns {number} Pro-rated budget amount
+ */
+export function prorateBudget(amount, fromPeriod, toPeriod) {
+    if (fromPeriod === toPeriod) {
+        return amount;
+    }
+
+    // Conversion ratios (all relative to yearly)
+    const yearlyMultipliers = {
+        'weekly': 52,
+        'monthly': 12,
+        'quarterly': 4,
+        'yearly': 1
+    };
+
+    // Convert to yearly amount first
+    const yearlyAmount = amount * yearlyMultipliers[fromPeriod];
+
+    // Convert from yearly to target period
+    return yearlyAmount / yearlyMultipliers[toPeriod];
+}

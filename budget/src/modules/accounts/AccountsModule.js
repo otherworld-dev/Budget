@@ -429,6 +429,32 @@ export default class AccountsModule {
         }
     }
 
+    /**
+     * Refresh the current account view with updated data
+     * Called after transactions are created/updated/deleted
+     */
+    async refreshCurrentAccountView() {
+        if (!this.currentAccount) {
+            return; // Not viewing an account details page
+        }
+
+        // Find updated account data from the accounts array
+        const updatedAccount = this.accounts.find(acc => acc.id === this.currentAccount.id);
+        if (!updatedAccount) {
+            console.warn('Current account no longer exists');
+            return;
+        }
+
+        // Update the reference
+        this.currentAccount = updatedAccount;
+
+        // Re-render the account overview with fresh data
+        this.populateAccountOverview(updatedAccount);
+
+        // Reload transactions to show the newly added/updated transaction
+        await this.loadAccountTransactions(updatedAccount.id);
+    }
+
     populateAccountOverview(account) {
         // Update title and breadcrumb
         document.getElementById('account-details-title').textContent = account.name;
@@ -1288,6 +1314,11 @@ export default class AccountsModule {
                 await this.loadAccounts();
                 await this.loadInitialData(); // Refresh dropdowns
 
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
+
                 // Refresh account details view if it's currently visible
                 const detailsView = document.getElementById('account-details-view');
                 if (detailsView && detailsView.style.display !== 'none' && accountId) {
@@ -1447,8 +1478,13 @@ export default class AccountsModule {
 
             if (response.ok) {
                 OC.Notification.showTemporary('Account deleted successfully');
-                this.loadAccounts();
-                this.loadInitialData(); // Refresh dropdowns
+                await this.loadAccounts();
+                await this.loadInitialData(); // Refresh dropdowns
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
             } else {
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to delete account');

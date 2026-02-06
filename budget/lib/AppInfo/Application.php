@@ -180,6 +180,21 @@ class Application extends App implements IBootstrap {
             );
         });
 
+        $context->registerService(\OCA\Budget\Service\Import\CriteriaEvaluator::class, function($c) {
+            return new \OCA\Budget\Service\Import\CriteriaEvaluator(
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+
+        $context->registerService(\OCA\Budget\Service\Import\RuleActionApplicator::class, function($c) {
+            return new \OCA\Budget\Service\Import\RuleActionApplicator(
+                $c->get(\OCA\Budget\Service\TransactionTagService::class),
+                $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+
         // ==========================================
         // Report Services
         // ==========================================
@@ -349,7 +364,9 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\ImportRuleMapper::class),
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
-                $c->get(\OCP\IDBConnection::class)
+                $c->get(\OCP\IDBConnection::class),
+                $c->get(\OCA\Budget\Service\Import\CriteriaEvaluator::class),
+                $c->get(\OCA\Budget\Service\Import\RuleActionApplicator::class)
             );
         });
         $context->registerServiceAlias('ImportRuleService', \OCA\Budget\Service\ImportRuleService::class);

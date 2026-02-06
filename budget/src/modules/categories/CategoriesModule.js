@@ -1120,42 +1120,61 @@ export default class CategoriesModule {
     }
 
     async calculateCategorySpending() {
-        // Get date range for selected month
-        const [year, month] = this.budgetMonth.split('-').map(Number);
+        // Initialize spending object
+        this.categorySpending = {};
 
-        // Format dates without timezone conversion to avoid off-by-one errors
-        const startStr = formatters.getMonthStart(year, month);
-        const endStr = formatters.getMonthEnd(year, month);
+        // Get all categories that have budgets
+        const allCategories = this.flattenCategories(this.categoryTree || []);
+        const categoriesWithBudgets = allCategories.filter(cat => parseFloat(cat.budgetAmount) > 0);
 
-        // Fetch spending data from API
+        if (categoriesWithBudgets.length === 0) {
+            return;
+        }
+
+        // Group categories by their period to minimize API calls
+        const categoriesByPeriod = {
+            weekly: [],
+            monthly: [],
+            quarterly: [],
+            yearly: []
+        };
+
+        categoriesWithBudgets.forEach(cat => {
+            const period = cat.budgetPeriod || 'monthly';
+            if (categoriesByPeriod[period]) {
+                categoriesByPeriod[period].push(cat.id);
+            }
+        });
+
+        // Fetch spending for each period
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startStr}&endDate=${endStr}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                const spendingData = await response.json();
-                // Map spending to categories
-                this.categorySpending = {};
-                spendingData.forEach(item => {
-                    this.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
-                });
+            for (const [period, categoryIds] of Object.entries(categoriesByPeriod)) {
+                if (categoryIds.length === 0) continue;
+
+                // Get date range for this period
+                const dateRange = formatters.getPeriodDateRange(period);
+
+                // Fetch spending for this period
+                const response = await fetch(
+                    OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}`),
+                    {
+                        headers: { 'requesttoken': OC.requestToken }
+                    }
+                );
+
+                if (response.ok) {
+                    const spendingData = await response.json();
+                    // Map spending to categories
+                    spendingData.forEach(item => {
+                        if (categoryIds.includes(item.categoryId)) {
+                            this.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error('Failed to fetch category spending:', error);
             this.categorySpending = {};
-        }
-
-        // Also calculate from local transactions as fallback
-        if (!this.categorySpending || Object.keys(this.categorySpending).length === 0) {
-            this.categorySpending = {};
-            (this.transactions || []).forEach(t => {
-                if (!t.categoryId) return;
-                const txDate = new Date(t.date);
-                if (txDate >= startDate && txDate <= endDate) {
-                    const amount = Math.abs(parseFloat(t.amount) || 0);
-                    this.categorySpending[t.categoryId] = (this.categorySpending[t.categoryId] || 0) + amount;
-                }
-            });
         }
     }
 
@@ -1188,8 +1207,20 @@ export default class CategoriesModule {
     renderBudgetCategoryNodes(categories, level = 0) {
         return categories.map(category => {
             const hasChildren = category.children && category.children.length > 0;
+
+            // Get category's budget period (defaults to monthly if not set)
+            const categoryPeriod = category.budgetPeriod || 'monthly';
+
+            // Get spending for this category (already calculated for the period)
             const spent = this.categorySpending[category.id] || 0;
-            const budget = parseFloat(category.budgetAmount) || 0;
+
+            // Get the stored budget amount
+            const storedBudget = parseFloat(category.budgetAmount) || 0;
+
+            // Budget is already in the correct period since we store it by period
+            // No pro-rating needed - the budget amount is for the selected period
+            const budget = storedBudget;
+
             const remaining = budget - spent;
             const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
 
@@ -1259,12 +1290,66 @@ export default class CategoriesModule {
 
         // Period selects
         document.querySelectorAll('.budget-period-select').forEach(select => {
-            select.addEventListener('change', (e) => {
-                this.saveCategoryBudget(e.target.dataset.categoryId, {
-                    budgetPeriod: e.target.value
+            select.addEventListener('change', async (e) => {
+                const categoryId = parseInt(e.target.dataset.categoryId);
+                const newPeriod = e.target.value;
+                const oldPeriod = e.target.dataset.oldPeriod || e.target.querySelector('option[selected]')?.value || 'monthly';
+
+                // Find the category to get current budget amount
+                const category = this.findCategoryById(categoryId);
+                if (!category) return;
+
+                const currentBudget = parseFloat(category.budgetAmount) || 0;
+                const currentPeriod = category.budgetPeriod || 'monthly';
+
+                // Pro-rate budget from current period to new period
+                const proratedBudget = formatters.prorateBudget(currentBudget, currentPeriod, newPeriod);
+
+                // Save both the new period and pro-rated amount
+                await this.saveCategoryBudget(categoryId, {
+                    budgetPeriod: newPeriod,
+                    budgetAmount: proratedBudget
                 });
+
+                // Recalculate spending for the new period
+                await this.recalculateCategorySpending(categoryId, newPeriod);
+
+                // Update old period data attribute for next change
+                e.target.dataset.oldPeriod = newPeriod;
             });
         });
+    }
+
+    async recalculateCategorySpending(categoryId, period) {
+        try {
+            // Get date range for the period
+            const dateRange = formatters.getPeriodDateRange(period);
+
+            // Fetch spending for this category in the period
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}`),
+                {
+                    headers: { 'requesttoken': OC.requestToken }
+                }
+            );
+
+            if (response.ok) {
+                const spendingData = await response.json();
+
+                // Find this category's spending in the response
+                const categorySpending = spendingData.find(item => item.categoryId === categoryId);
+                const spent = categorySpending ? parseFloat(categorySpending.spent) || 0 : 0;
+
+                // Update local spending data for this category
+                this.categorySpending[categoryId] = spent;
+
+                // Re-render to show updated spending
+                this.renderBudgetTree();
+                this.updateBudgetSummary();
+            }
+        } catch (error) {
+            console.error('Failed to recalculate spending:', error);
+        }
     }
 
     async saveCategoryBudget(categoryId, updates) {
@@ -1295,6 +1380,11 @@ export default class CategoriesModule {
                 // Re-render to update calculations
                 this.renderBudgetTree();
                 this.updateBudgetSummary();
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
 
                 OC.Notification.showTemporary('Budget updated');
             } else {

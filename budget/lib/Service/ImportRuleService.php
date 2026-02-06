@@ -9,6 +9,8 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Service\Import\CriteriaEvaluator;
+use OCA\Budget\Service\Import\RuleActionApplicator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
 
@@ -17,17 +19,23 @@ class ImportRuleService {
     private CategoryMapper $categoryMapper;
     private TransactionMapper $transactionMapper;
     private IDBConnection $db;
+    private CriteriaEvaluator $criteriaEvaluator;
+    private RuleActionApplicator $actionApplicator;
 
     public function __construct(
         ImportRuleMapper $mapper,
         CategoryMapper $categoryMapper,
         TransactionMapper $transactionMapper,
-        IDBConnection $db
+        IDBConnection $db,
+        CriteriaEvaluator $criteriaEvaluator,
+        RuleActionApplicator $actionApplicator
     ) {
         $this->mapper = $mapper;
         $this->categoryMapper = $categoryMapper;
         $this->transactionMapper = $transactionMapper;
         $this->db = $db;
+        $this->criteriaEvaluator = $criteriaEvaluator;
+        $this->actionApplicator = $actionApplicator;
     }
 
     /**
@@ -44,48 +52,85 @@ class ImportRuleService {
     public function create(
         string $userId,
         string $name,
-        string $pattern,
-        string $field,
-        string $matchType,
+        ?string $pattern = null,
+        ?string $field = null,
+        ?string $matchType = null,
+        ?array $criteria = null,
+        int $schemaVersion = 1,
         ?int $categoryId = null,
         ?string $vendorName = null,
         int $priority = 0,
         ?array $actions = null,
-        bool $applyOnImport = true
+        bool $applyOnImport = true,
+        bool $stopProcessing = true
     ): ImportRule {
-        // Validate category if provided (either in categoryId or actions)
-        $effectiveCategoryId = $categoryId;
-        if ($actions !== null && isset($actions['categoryId'])) {
-            $effectiveCategoryId = $actions['categoryId'];
-        }
-        if ($effectiveCategoryId !== null) {
-            $this->categoryMapper->find($effectiveCategoryId, $userId);
-        }
+        // Validate based on schema version
+        if ($schemaVersion === 2) {
+            // v2 format: criteria required
+            if ($criteria === null) {
+                throw new \InvalidArgumentException('Criteria required for v2 rules');
+            }
 
-        // Validate match type
-        $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
-        if (!in_array($matchType, $validMatchTypes)) {
-            throw new \InvalidArgumentException('Invalid match type');
-        }
+            // Validate criteria structure
+            $validation = $this->criteriaEvaluator->validate($criteria);
+            if (!$validation['valid']) {
+                throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
+            }
 
-        // Validate field
-        $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
-        if (!in_array($field, $validFields)) {
-            throw new \InvalidArgumentException('Invalid field');
+            // Validate actions if provided
+            if ($actions !== null) {
+                $actionValidation = $this->actionApplicator->validateActions($actions, $userId);
+                if (!$actionValidation['valid']) {
+                    throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
+                }
+            }
+        } else {
+            // v1 format: pattern, field, matchType required
+            if (!$pattern || !$field || !$matchType) {
+                throw new \InvalidArgumentException('Pattern, field, and matchType required for v1 rules');
+            }
+
+            // Validate category if provided (either in categoryId or actions)
+            $effectiveCategoryId = $categoryId;
+            if ($actions !== null && isset($actions['categoryId'])) {
+                $effectiveCategoryId = $actions['categoryId'];
+            }
+            if ($effectiveCategoryId !== null) {
+                $this->categoryMapper->find($effectiveCategoryId, $userId);
+            }
+
+            // Validate match type
+            $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
+            if (!in_array($matchType, $validMatchTypes)) {
+                throw new \InvalidArgumentException('Invalid match type');
+            }
+
+            // Validate field
+            $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
+            if (!in_array($field, $validFields)) {
+                throw new \InvalidArgumentException('Invalid field');
+            }
         }
 
         $rule = new ImportRule();
         $rule->setUserId($userId);
         $rule->setName($name);
-        $rule->setPattern($pattern);
-        $rule->setField($field);
-        $rule->setMatchType($matchType);
+        $rule->setPattern($pattern ?? '');
+        $rule->setField($field ?? 'description');
+        $rule->setMatchType($matchType ?? 'contains');
         $rule->setCategoryId($categoryId);
         $rule->setVendorName($vendorName);
         $rule->setPriority($priority);
         $rule->setActive(true);
         $rule->setApplyOnImport($applyOnImport);
+        $rule->setSchemaVersion($schemaVersion);
+        $rule->setStopProcessing($stopProcessing);
         $rule->setCreatedAt(date('Y-m-d H:i:s'));
+
+        // Set criteria JSON for v2 rules
+        if ($criteria !== null) {
+            $rule->setCriteriaFromArray($criteria);
+        }
 
         // Set actions JSON if provided
         if ($actions !== null) {
@@ -98,28 +143,58 @@ class ImportRuleService {
     public function update(int $id, string $userId, array $updates): ImportRule {
         $rule = $this->find($id, $userId);
 
-        // Validate category if being updated (either in categoryId or actions)
-        if (isset($updates['categoryId']) && $updates['categoryId'] !== null) {
-            $this->categoryMapper->find($updates['categoryId'], $userId);
-        }
-        if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
-            $this->categoryMapper->find($updates['actions']['categoryId'], $userId);
-        }
+        // Determine if upgrading from v1 to v2
+        $currentVersion = $rule->getSchemaVersion() ?? 1;
+        $newVersion = $updates['schemaVersion'] ?? $currentVersion;
 
-        // Validate match type if being updated
-        if (isset($updates['matchType'])) {
-            $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
-            if (!in_array($updates['matchType'], $validMatchTypes)) {
-                throw new \InvalidArgumentException('Invalid match type');
+        // Validate based on schema version
+        if ($newVersion === 2) {
+            // Validate criteria if being updated
+            if (isset($updates['criteria'])) {
+                $validation = $this->criteriaEvaluator->validate($updates['criteria']);
+                if (!$validation['valid']) {
+                    throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
+                }
+            }
+
+            // Validate actions if being updated
+            if (isset($updates['actions'])) {
+                $actionValidation = $this->actionApplicator->validateActions($updates['actions'], $userId);
+                if (!$actionValidation['valid']) {
+                    throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
+                }
+            }
+        } else {
+            // v1 validation (existing logic)
+            // Validate category if being updated (either in categoryId or actions)
+            if (isset($updates['categoryId']) && $updates['categoryId'] !== null) {
+                $this->categoryMapper->find($updates['categoryId'], $userId);
+            }
+            if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
+                $this->categoryMapper->find($updates['actions']['categoryId'], $userId);
+            }
+
+            // Validate match type if being updated
+            if (isset($updates['matchType'])) {
+                $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
+                if (!in_array($updates['matchType'], $validMatchTypes)) {
+                    throw new \InvalidArgumentException('Invalid match type');
+                }
+            }
+
+            // Validate field if being updated
+            if (isset($updates['field'])) {
+                $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
+                if (!in_array($updates['field'], $validFields)) {
+                    throw new \InvalidArgumentException('Invalid field');
+                }
             }
         }
 
-        // Validate field if being updated
-        if (isset($updates['field'])) {
-            $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
-            if (!in_array($updates['field'], $validFields)) {
-                throw new \InvalidArgumentException('Invalid field');
-            }
+        // Handle criteria array specially - convert to JSON
+        if (isset($updates['criteria']) && is_array($updates['criteria'])) {
+            $rule->setCriteriaFromArray($updates['criteria']);
+            unset($updates['criteria']);
         }
 
         // Handle actions array specially - convert to JSON
@@ -172,34 +247,20 @@ class ImportRuleService {
     }
 
     private function testRule(ImportRule $rule, array $data): bool {
-        $field = $rule->getField();
-        $pattern = $rule->getPattern();
-        $matchType = $rule->getMatchType();
-        
-        if (!isset($data[$field])) {
-            return false;
-        }
-        
-        $value = (string) $data[$field];
-        
-        switch ($matchType) {
-            case 'contains':
-                return stripos($value, $pattern) !== false;
-            
-            case 'starts_with':
-                return stripos($value, $pattern) === 0;
-            
-            case 'ends_with':
-                return substr(strtolower($value), -strlen($pattern)) === strtolower($pattern);
-            
-            case 'equals':
-                return strtolower($value) === strtolower($pattern);
-            
-            case 'regex':
-                return preg_match('/' . $pattern . '/i', $value) === 1;
-            
-            default:
-                return false;
+        $schemaVersion = $rule->getSchemaVersion() ?? 1;
+
+        if ($schemaVersion === 2) {
+            // v2 format: use CriteriaEvaluator
+            $criteria = $rule->getCriteria();
+            return $this->criteriaEvaluator->evaluate($criteria, $data, $schemaVersion);
+        } else {
+            // v1 format: legacy evaluation
+            $criteria = [
+                'field' => $rule->getField(),
+                'pattern' => $rule->getPattern(),
+                'matchType' => $rule->getMatchType()
+            ];
+            return $this->criteriaEvaluator->evaluate($criteria, $data, $schemaVersion);
         }
     }
 
@@ -423,6 +484,7 @@ class ImportRuleService {
 
     /**
      * Apply rules to existing transactions
+     * Supports multiple matching rules with conflict resolution
      *
      * @param string $userId
      * @param array $ruleIds Specific rule IDs to apply (empty = all active)
@@ -460,56 +522,49 @@ class ImportRuleService {
         $applied = [];
 
         foreach ($transactions as $transaction) {
-            $transactionData = [
-                'description' => $transaction->getDescription(),
-                'vendor' => $transaction->getVendor(),
-                'amount' => $transaction->getAmount(),
-                'reference' => $transaction->getReference(),
-                'notes' => $transaction->getNotes(),
-            ];
+            $transactionData = $this->extractTransactionData($transaction);
 
+            // Find all matching rules
+            $matchingRules = [];
             foreach ($rules as $rule) {
                 if ($this->testRule($rule, $transactionData)) {
-                    $actions = $rule->getParsedActions();
-                    $hasChanges = false;
+                    $matchingRules[] = $rule;
 
-                    try {
-                        // Apply actions
-                        if (isset($actions['categoryId']) && $actions['categoryId'] !== $transaction->getCategoryId()) {
-                            $transaction->setCategoryId($actions['categoryId']);
-                            $hasChanges = true;
-                        }
-                        if (isset($actions['vendor']) && $actions['vendor'] !== $transaction->getVendor()) {
-                            $transaction->setVendor($actions['vendor']);
-                            $hasChanges = true;
-                        }
-                        if (isset($actions['notes'])) {
-                            // Append to existing notes if not empty
-                            $existingNotes = $transaction->getNotes() ?? '';
-                            if ($existingNotes !== $actions['notes']) {
-                                $transaction->setNotes($actions['notes']);
-                                $hasChanges = true;
-                            }
-                        }
-
-                        if ($hasChanges) {
-                            $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
-                            $this->transactionMapper->update($transaction);
-                            $success++;
-                            $applied[] = [
-                                'transactionId' => $transaction->getId(),
-                                'ruleId' => $rule->getId(),
-                                'ruleName' => $rule->getName()
-                            ];
-                        } else {
-                            $skipped++;
-                        }
-                    } catch (\Exception $e) {
-                        $failed++;
+                    // Check stop_processing flag
+                    if ($rule->getStopProcessing() ?? true) {
+                        break; // Don't evaluate more rules
                     }
-
-                    break; // First matching rule wins
                 }
+            }
+
+            if (empty($matchingRules)) {
+                $skipped++;
+                continue;
+            }
+
+            try {
+                // Apply all matching rules
+                $changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
+
+                if (!empty($changes)) {
+                    $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+                    $updatedTransaction = $this->transactionMapper->update($transaction);
+
+                    // Apply deferred tag actions after transaction is persisted
+                    $appliedActions = $changes['_appliedActions'] ?? [];
+                    $this->actionApplicator->applyDeferredTagActions($updatedTransaction, $appliedActions, $userId, $changes);
+
+                    $success++;
+                    $applied[] = [
+                        'transactionId' => $transaction->getId(),
+                        'rules' => array_map(fn($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
+                        'changes' => $changes
+                    ];
+                } else {
+                    $skipped++;
+                }
+            } catch (\Exception $e) {
+                $failed++;
             }
         }
 
@@ -523,9 +578,138 @@ class ImportRuleService {
     }
 
     /**
+     * Extract transaction data as array for rule evaluation
+     *
+     * @param Transaction $transaction
+     * @return array
+     */
+    private function extractTransactionData(Transaction $transaction): array {
+        return [
+            'description' => $transaction->getDescription(),
+            'vendor' => $transaction->getVendor() ?? '',
+            'amount' => $transaction->getAmount(),
+            'reference' => $transaction->getReference() ?? '',
+            'notes' => $transaction->getNotes() ?? '',
+            'date' => $transaction->getDate(),
+            'account_type' => '' // Could be enriched with account type if needed
+        ];
+    }
+
+    /**
      * Get active rules for a user
      */
     public function findActive(string $userId): array {
         return $this->mapper->findActive($userId);
+    }
+
+    /**
+     * Migrate a legacy v1 rule to v2 format
+     *
+     * @param int $ruleId Rule ID to migrate
+     * @param string $userId User ID
+     * @return ImportRule Migrated rule
+     * @throws DoesNotExistException
+     */
+    public function migrateLegacyRule(int $ruleId, string $userId): ImportRule {
+        $rule = $this->find($ruleId, $userId);
+
+        // Check if already properly migrated
+        if ($rule->getSchemaVersion() === 2 && $rule->getCriteria() !== null && $rule->getCriteria() !== '') {
+            // Also check if criteria has valid structure (root must be a group, not a condition)
+            $parsedCriteria = $rule->getParsedCriteria();
+            if ($parsedCriteria && isset($parsedCriteria['root']) && isset($parsedCriteria['root']['operator'])) {
+                // Valid v2 structure - no need to re-migrate
+                return $rule;
+            }
+            // Has criteria but invalid structure (old broken migration) - fall through to re-migrate
+        }
+
+        // Convert field/pattern/matchType to criteria tree
+        // Wrap single condition in a group for CriteriaBuilder compatibility
+        $criteria = [
+            'version' => 2,
+            'root' => [
+                'operator' => 'AND',
+                'conditions' => [
+                    [
+                        'type' => 'condition',
+                        'field' => $rule->getField(),
+                        'matchType' => $rule->getMatchType(),
+                        'pattern' => $rule->getPattern(),
+                        'negate' => false
+                    ]
+                ]
+            ]
+        ];
+
+        // Convert legacy actions to v2 format
+        $legacyActions = $rule->getParsedActions();
+        $actions = [
+            'version' => 2,
+            'stopProcessing' => true, // Default for migrated rules
+            'actions' => []
+        ];
+
+        if (isset($legacyActions['categoryId']) && $legacyActions['categoryId'] !== null) {
+            $actions['actions'][] = [
+                'type' => 'set_category',
+                'value' => $legacyActions['categoryId'],
+                'behavior' => 'always',
+                'priority' => 100
+            ];
+        }
+
+        if (isset($legacyActions['vendor']) && $legacyActions['vendor'] !== null && $legacyActions['vendor'] !== '') {
+            $actions['actions'][] = [
+                'type' => 'set_vendor',
+                'value' => $legacyActions['vendor'],
+                'behavior' => 'always',
+                'priority' => 90
+            ];
+        }
+
+        if (isset($legacyActions['notes']) && $legacyActions['notes'] !== null && $legacyActions['notes'] !== '') {
+            $actions['actions'][] = [
+                'type' => 'set_notes',
+                'value' => $legacyActions['notes'],
+                'behavior' => 'always',
+                'priority' => 80
+            ];
+        }
+
+        // Update the rule - explicitly set all fields to ensure they're saved
+        $rule->setCriteriaFromArray($criteria);
+        $rule->setActionsFromArray($actions);
+        $rule->setSchemaVersion(2);
+        $rule->setStopProcessing(true);
+        $rule->setUpdatedAt(date('Y-m-d H:i:s'));
+
+        return $this->mapper->update($rule);
+    }
+
+    /**
+     * Batch migrate all legacy rules for a user
+     *
+     * @param string $userId User ID
+     * @return array Array of migrated rule IDs
+     */
+    public function migrateAllLegacyRules(string $userId): array {
+        $rules = $this->mapper->findAll($userId);
+        $migrated = [];
+
+        foreach ($rules as $rule) {
+            // Only migrate v1 rules
+            if (($rule->getSchemaVersion() ?? 1) === 1) {
+                try {
+                    $this->migrateLegacyRule($rule->getId(), $userId);
+                    $migrated[] = $rule->getId();
+                } catch (\Exception $e) {
+                    // Log error but continue with other rules
+                    continue;
+                }
+            }
+        }
+
+        return $migrated;
     }
 }

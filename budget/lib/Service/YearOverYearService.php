@@ -232,7 +232,7 @@ class YearOverYearService {
      * Get month summary data.
      */
     private function getMonthSummary(string $userId, string $startDate, string $endDate): array {
-        $transactions = $this->transactionMapper->findByDateRange($userId, null, $startDate, $endDate);
+        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
 
         $income = 0.0;
         $expenses = 0.0;
@@ -258,7 +258,7 @@ class YearOverYearService {
      * Get year summary data with monthly breakdowns.
      */
     private function getYearSummary(string $userId, int $year, string $startDate, string $endDate): array {
-        $transactions = $this->transactionMapper->findByDateRange($userId, null, $startDate, $endDate);
+        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
 
         $income = 0.0;
         $expenses = 0.0;
