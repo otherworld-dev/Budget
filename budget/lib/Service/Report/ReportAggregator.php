@@ -81,14 +81,14 @@ class ReportAggregator {
         $totalExpenses = 0;
 
         foreach ($accounts as $account) {
-            $accountId = $account->getId();
-            $accountData = $accountSummaries[$accountId] ?? ['income' => 0, 'expenses' => 0, 'count' => 0];
+            $currentAccountId = $account->getId();
+            $accountData = $accountSummaries[$currentAccountId] ?? ['income' => 0, 'expenses' => 0, 'count' => 0];
 
             $accountIncome = $accountData['income'];
             $accountExpenses = $accountData['expenses'];
 
             $summary['accounts'][] = [
-                'id' => $accountId,
+                'id' => $currentAccountId,
                 'name' => $account->getName(),
                 'balance' => $account->getBalance(),
                 'currency' => $account->getCurrency(),

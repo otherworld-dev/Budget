@@ -598,6 +598,79 @@
     color: var(--color-main-text);
 }
 
+/* Spending Breakdown List */
+.spending-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.spending-breakdown-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0 8px 0;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.spending-breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border-dark);
+}
+
+.spending-breakdown-item:last-child {
+    border-bottom: none;
+}
+
+.spending-breakdown-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.spending-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.spending-category-name {
+    font-size: 13px;
+    color: var(--color-main-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spending-breakdown-values {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.spending-percentage {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    min-width: 40px;
+    text-align: right;
+}
+
+.spending-amount {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-main-text);
+    min-width: 70px;
+    text-align: right;
+}
+
 .spending-legend-value {
     font-size: 13px;
     font-weight: 600;
@@ -1009,7 +1082,7 @@
 
 #spending-chart,
 #trend-chart {
-    max-height: 280px !important;
+    max-height: 360px !important;
     max-width: 100% !important;
 }
 
@@ -1634,6 +1707,11 @@ button.danger:hover {
     font-weight: 600;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--color-border);
+}
+
+/* Rule Modal specific adjustments */
+#rule-modal .form-section {
+    margin-right: 0;
 }
 
 .form-group.conditional {
@@ -8175,13 +8253,14 @@ button.danger:hover {
 /* Spending Chart Wrapper */
 .spending-chart-wrapper {
     display: flex;
-    gap: 24px;
-    align-items: flex-start;
+    gap: 32px;
+    align-items: stretch;
+    min-height: 320px;
 }
 
 .chart-container-doughnut {
-    width: 280px;
-    height: 280px;
+    width: 320px;
+    height: 320px;
     flex-shrink: 0;
 }
 
@@ -8190,6 +8269,7 @@ button.danger:hover {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
 }
 
 .spending-legend-item {
@@ -11504,61 +11584,151 @@ button.danger:hover {
     font-style: italic;
 }
 
-/* Rule Modal Specifics */
+/* Rule Modal - Matching App Style */
 #rule-modal .modal-content {
-    max-width: 600px;
+    max-width: 800px;
+    width: 95%;
+    padding: 30px;
 }
 
-#rule-modal .form-section {
+#rule-modal h3#rule-modal-title {
+    margin-top: 0;
     margin-bottom: 20px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-#rule-modal .form-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-#rule-modal .form-section h4 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 12px;
+    font-size: 16px;
+    font-weight: bold;
     color: var(--color-main-text);
 }
 
-#rule-modal .form-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+/* Top fields - inline layout */
+#rule-modal #rule-form > .form-group:first-child,
+#rule-modal #rule-form > .form-group:nth-child(2) {
+    display: inline-block;
+    vertical-align: top;
+    margin-bottom: 20px;
 }
 
-#rule-modal .options-row {
+#rule-modal #rule-form > .form-group:first-child {
+    width: calc(100% - 70px) !important;
+    margin-right: 20px !important;
+}
+
+#rule-modal #rule-form > .form-group:nth-child(2) {
+    width: 50px !important;
+}
+
+/* Form sections - standard app pattern */
+#rule-modal .form-section {
+    margin-bottom: 10px;
+    padding: 0 30px 0 0;
+    margin-left: 0;
+    margin-right: 0px;
+    border-bottom: 1px solid var(--color-border-dark);
+    min-height: 0;
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+    flex-direction: column;
 }
 
-#rule-modal .options-row .checkbox-group {
+#rule-modal .form-section:last-of-type {
+    border-bottom: none;
+}
+
+#rule-modal .form-section legend {
+    margin: 0;
+    color: var(--color-main-text);
+    font-size: 16px;
+    font-weight: 600;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+#rule-modal .form-section fieldset {
+    width: 100%;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+#rule-modal .form-section .section-help {
+    display: none;
+}
+
+/* Criteria and Action Wrappers */
+#rule-modal #rule-criteria-v2 {
+    width: 100%;
+}
+
+/* Containers */
+#rule-modal #criteria-builder-container,
+#rule-modal #action-builder-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 15px;
+    width: 100%;
+}
+
+/* Form groups */
+#rule-modal .form-group {
+    margin: 0;
+}
+
+#rule-modal .form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: var(--color-text-light);
+    font-size: 14px;
+}
+
+#rule-modal .form-group input[type="text"],
+#rule-modal .form-group input[type="number"],
+#rule-modal .form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-dark);
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+}
+
+#rule-modal .form-group input:focus,
+#rule-modal .form-group select:focus {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: 0;
+}
+
+#rule-modal .form-group .form-text {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 5px;
+}
+
+#rule-modal .form-group .required {
+    color: var(--color-error);
+}
+
+/* Checkbox groups */
+#rule-modal .form-group.checkbox-group {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-/* Checkbox groups in rule modal */
-#rule-modal .form-group.checkbox-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    padding: 10px;
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-border);
 }
 
 #rule-modal .form-group.checkbox-group label {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-weight: normal;
+    gap: 8px;
+    font-weight: 500;
     cursor: pointer;
+    margin: 0;
+    font-size: 14px;
 }
 
 #rule-modal .form-group.checkbox-group input[type="checkbox"] {
@@ -11566,11 +11736,76 @@ button.danger:hover {
     height: 18px;
     margin: 0;
     cursor: pointer;
-    accent-color: var(--color-primary-element);
 }
 
 #rule-modal .form-group.checkbox-group .form-text {
-    margin-left: 28px;
+    flex: 1;
+    margin: 0 0 0 26px;
+    font-size: 12px;
+}
+
+/* Modal buttons */
+#rule-modal .modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border-dark);
+}
+
+#rule-modal .modal-buttons button {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#rule-modal .modal-buttons .primary {
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    border: none;
+}
+
+#rule-modal .modal-buttons .primary:hover {
+    background: var(--color-primary-element-hover);
+}
+
+#rule-modal .modal-buttons .secondary {
+    background: transparent;
+    color: var(--color-main-text);
+    border: 1px solid var(--color-border-dark);
+}
+
+#rule-modal .modal-buttons .secondary:hover {
+    background: var(--color-background-hover);
+}
+
+#rule-modal #rule-form > div:nth-child(2) > div:nth-child(1) {
+    width: 100%;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #rule-modal .modal-content {
+        padding: 20px;
+        width: 95%;
+    }
+
+    #rule-modal .form-section {
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+
+    #rule-modal .modal-buttons {
+        flex-direction: column;
+    }
+
+    #rule-modal .modal-buttons button {
+        width: 100%;
+    }
 }
 
 /* Responsive adjustments for Rules */

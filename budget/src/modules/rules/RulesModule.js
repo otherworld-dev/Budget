@@ -3,10 +3,15 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { CriteriaBuilder } from './components/CriteriaBuilder.js';
+import { ActionBuilder } from './components/ActionBuilder.js';
 
 export default class RulesModule {
     constructor(app) {
         this.app = app;
+        this.criteriaBuilder = null; // Instance of CriteriaBuilder for v2 rules
+        this.actionBuilder = null; // Instance of ActionBuilder for v2 actions
+        this.currentRule = null; // Currently editing rule
     }
 
     // Getters for app state
@@ -32,6 +37,10 @@ export default class RulesModule {
 
     get settings() {
         return this.app.settings;
+    }
+
+    get tagSets() {
+        return this.app.tagSets || [];
     }
 
     // Helper method delegations
@@ -101,15 +110,22 @@ export default class RulesModule {
         rulesList.innerHTML = rules.map(rule => {
             const actions = rule.actions || {};
             const actionBadges = this.getRuleActionBadges(rule, actions);
-            const matchTypeLabels = {
-                'contains': 'contains',
-                'exact': 'equals',
-                'starts_with': 'starts with',
-                'ends_with': 'ends with',
-                'regex': 'matches'
-            };
 
-            const criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
+            // Get criteria display text based on schema version
+            let criteriaText;
+            if (rule.schemaVersion === 2 && rule.criteria) {
+                criteriaText = this.formatCriteriaTreeSummary(rule.criteria);
+            } else {
+                // v1 format fallback
+                const matchTypeLabels = {
+                    'contains': 'contains',
+                    'exact': 'equals',
+                    'starts_with': 'starts with',
+                    'ends_with': 'ends with',
+                    'regex': 'matches'
+                };
+                criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
+            }
 
             return `
                 <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
@@ -131,6 +147,62 @@ export default class RulesModule {
                 </tr>
             `;
         }).join('');
+    }
+
+    formatCriteriaTreeSummary(criteria) {
+        if (!criteria || !criteria.root) return 'Complex criteria';
+
+        const root = criteria.root;
+
+        // If root is a simple condition, format it
+        if (root.type === 'condition') {
+            return this.formatConditionSummary(root);
+        }
+
+        // If root is a group, show operator and condition count
+        if (root.operator) {
+            const conditionCount = this.countConditions(root);
+            const operator = root.operator === 'AND' ? 'All' : 'Any';
+            return `${operator} of ${conditionCount} condition${conditionCount !== 1 ? 's' : ''}`;
+        }
+
+        return 'Complex criteria';
+    }
+
+    formatConditionSummary(condition) {
+        const matchTypeLabels = {
+            'contains': 'contains',
+            'starts_with': 'starts with',
+            'ends_with': 'ends with',
+            'equals': 'equals',
+            'regex': 'matches',
+            'greater_than': '>',
+            'less_than': '<',
+            'between': 'between',
+            'before': 'before',
+            'after': 'after'
+        };
+
+        const negate = condition.negate ? 'NOT ' : '';
+        const field = condition.field || 'field';
+        const matchType = matchTypeLabels[condition.matchType] || condition.matchType;
+        const pattern = condition.pattern || '';
+
+        return `${negate}${field} ${matchType} "${this.escapeHtml(pattern)}"`;
+    }
+
+    countConditions(node) {
+        if (!node) return 0;
+
+        if (node.type === 'condition') {
+            return 1;
+        }
+
+        if (node.operator && node.conditions) {
+            return node.conditions.reduce((sum, child) => sum + this.countConditions(child), 0);
+        }
+
+        return 0;
     }
 
     getRuleActionBadges(rule, actions) {
@@ -234,6 +306,26 @@ export default class RulesModule {
             deselectAllBtn.dataset.listenerAttached = 'true';
         }
 
+        // Rule modal cancel button
+        const ruleModal = document.getElementById('rule-modal');
+        if (ruleModal) {
+            const cancelBtn = ruleModal.querySelector('.cancel-btn');
+            if (cancelBtn && !cancelBtn.dataset.listenerAttached) {
+                cancelBtn.addEventListener('click', () => this.hideModals());
+                cancelBtn.dataset.listenerAttached = 'true';
+            }
+        }
+
+        // Apply Rules modal cancel button
+        const applyRulesModal = document.getElementById('apply-rules-modal');
+        if (applyRulesModal) {
+            const cancelBtn = applyRulesModal.querySelector('.cancel-btn');
+            if (cancelBtn && !cancelBtn.dataset.listenerAttached) {
+                cancelBtn.addEventListener('click', () => this.hideModals());
+                cancelBtn.dataset.listenerAttached = 'true';
+            }
+        }
+
         // Delegate click events for rule cards
         const rulesList = document.getElementById('rules-list');
         if (rulesList && !rulesList.dataset.listenerAttached) {
@@ -278,27 +370,94 @@ export default class RulesModule {
         form.reset();
         document.getElementById('rule-id').value = '';
 
+        // Check if criteria has broken structure (root is a condition instead of a group)
+        const hasBrokenStructure = rule && rule.schemaVersion === 2 && rule.criteria &&
+            rule.criteria.root && rule.criteria.root.type === 'condition' && !rule.criteria.root.operator;
+
+        // Auto-migrate v1 rules OR broken v2 rules
+        const needsMigration = rule && (
+            !rule.schemaVersion ||
+            rule.schemaVersion === 1 ||
+            (rule.schemaVersion === 2 && (!rule.criteria || Object.keys(rule.criteria).length === 0)) ||
+            hasBrokenStructure
+        );
+
+        if (needsMigration) {
+            try {
+                const reason = hasBrokenStructure ? 'broken criteria structure' :
+                    (!rule.criteria || Object.keys(rule.criteria).length === 0) ? 'null/empty criteria' :
+                    'v1 rule';
+                console.log('Migrating rule:', rule.id, 'reason:', reason, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
+
+                const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${rule.id}/migrate`), {
+                    method: 'POST',
+                    headers: { 'requesttoken': OC.requestToken }
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                rule = await response.json();
+                console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
+                OC.Notification.showTemporary('This rule has been upgraded to the new format with advanced features');
+            } catch (error) {
+                console.error('Failed to migrate rule:', error);
+                OC.Notification.showTemporary('Failed to upgrade rule format');
+                return;
+            }
+        }
+
+        // Store current rule reference
+        this.currentRule = rule;
+
         // Populate category dropdown
         await this.populateRuleCategoryDropdown();
+
+        // Get UI sections
+        const v1Section = document.getElementById('rule-criteria-v1');
+        const v2Section = document.getElementById('rule-criteria-v2');
 
         if (rule) {
             title.textContent = 'Edit Rule';
             document.getElementById('rule-id').value = rule.id;
             document.getElementById('rule-name').value = rule.name || '';
-            document.getElementById('rule-field').value = rule.field || 'description';
-            document.getElementById('rule-match-type').value = rule.matchType || 'contains';
-            document.getElementById('rule-pattern').value = rule.pattern || '';
             document.getElementById('rule-priority').value = rule.priority || 0;
             document.getElementById('rule-active').checked = rule.active !== false;
             document.getElementById('rule-apply-on-import').checked = rule.applyOnImport !== false;
 
-            // Parse actions
-            const actions = rule.actions || {};
-            document.getElementById('rule-action-category').value = actions.categoryId || rule.categoryId || '';
-            document.getElementById('rule-action-vendor').value = actions.vendor || rule.vendorName || '';
-            document.getElementById('rule-action-notes').value = actions.notes || '';
+            // Show appropriate criteria UI based on schema version
+            console.log('Rule UI decision:', {
+                ruleId: rule.id,
+                schemaVersion: rule.schemaVersion,
+                hasCriteria: !!rule.criteria,
+                criteriaType: typeof rule.criteria,
+                criteria: rule.criteria
+            });
+
+            if (rule.schemaVersion === 2 && rule.criteria) {
+                // v2 format - show CriteriaBuilder
+                console.log('Showing v2 CriteriaBuilder UI');
+                if (v1Section) v1Section.style.display = 'none';
+                if (v2Section) v2Section.style.display = 'block';
+                this.initializeCriteriaBuilder(rule.criteria);
+            } else {
+                // v1 format (should not happen after migration, but fallback)
+                console.warn('Showing v1 fallback UI - schemaVersion:', rule.schemaVersion, 'hasCriteria:', !!rule.criteria);
+                if (v1Section) v1Section.style.display = 'block';
+                if (v2Section) v2Section.style.display = 'none';
+                document.getElementById('rule-field').value = rule.field || 'description';
+                document.getElementById('rule-match-type').value = rule.matchType || 'contains';
+                document.getElementById('rule-pattern').value = rule.pattern || '';
+            }
+
+            // Initialize ActionBuilder with rule actions
+            this.initializeActionBuilder(rule.actions);
         } else {
+            // New rule - use v2 format with empty criteria
             title.textContent = 'Add Rule';
+            if (v1Section) v1Section.style.display = 'none';
+            if (v2Section) v2Section.style.display = 'block';
+            this.initializeCriteriaBuilder(null);
+            this.initializeActionBuilder(null);
         }
 
         modal.style.display = 'flex';
@@ -307,6 +466,38 @@ export default class RulesModule {
         // Focus on name field
         const nameField = document.getElementById('rule-name');
         if (nameField) nameField.focus();
+    }
+
+    initializeCriteriaBuilder(initialCriteria) {
+        const container = document.getElementById('criteria-builder-container');
+        if (!container) {
+            console.error('CriteriaBuilder container not found');
+            return;
+        }
+
+        // Clear previous instance
+        container.innerHTML = '';
+
+        // Create new CriteriaBuilder instance
+        this.criteriaBuilder = new CriteriaBuilder(container, initialCriteria);
+    }
+
+    initializeActionBuilder(initialActions) {
+        const container = document.getElementById('action-builder-container');
+        if (!container) {
+            console.error('ActionBuilder container not found');
+            return;
+        }
+
+        // Clear previous instance
+        container.innerHTML = '';
+
+        // Create new ActionBuilder instance with app data
+        this.actionBuilder = new ActionBuilder(container, initialActions, {
+            categories: this.categories,
+            accounts: this.accounts,
+            tagSets: this.tagSets
+        });
     }
 
     async populateRuleCategoryDropdown() {
@@ -335,27 +526,53 @@ export default class RulesModule {
 
         // Collect form data
         const name = document.getElementById('rule-name').value.trim();
-        const field = document.getElementById('rule-field').value;
-        const matchType = document.getElementById('rule-match-type').value;
-        const pattern = document.getElementById('rule-pattern').value.trim();
         const priority = parseInt(document.getElementById('rule-priority').value) || 0;
         const active = document.getElementById('rule-active').checked;
         const applyOnImport = document.getElementById('rule-apply-on-import').checked;
 
-        // Collect actions
-        const categoryId = document.getElementById('rule-action-category').value;
-        const vendor = document.getElementById('rule-action-vendor').value.trim();
-        const notes = document.getElementById('rule-action-notes').value.trim();
+        // Validate criteria from CriteriaBuilder
+        if (!this.criteriaBuilder) {
+            OC.Notification.showTemporary('Error: CriteriaBuilder not initialized');
+            return;
+        }
 
-        const actions = {};
-        if (categoryId) actions.categoryId = parseInt(categoryId);
-        if (vendor) actions.vendor = vendor;
-        if (notes) actions.notes = notes;
+        const validation = this.criteriaBuilder.validate();
+        if (!validation.valid) {
+            OC.Notification.showTemporary('Invalid criteria: ' + validation.errors.join(', '));
+            return;
+        }
+
+        const criteria = this.criteriaBuilder.getCriteria();
+
+        // Validate actions from ActionBuilder
+        if (!this.actionBuilder) {
+            OC.Notification.showTemporary('Error: ActionBuilder not initialized');
+            return;
+        }
+
+        const actionsValidation = this.actionBuilder.validate();
+        if (!actionsValidation.valid) {
+            OC.Notification.showTemporary('Invalid actions: ' + actionsValidation.errors.join(', '));
+            return;
+        }
+
+        const actions = this.actionBuilder.getActions();
 
         try {
             const url = isEdit
                 ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
                 : OC.generateUrl('/apps/budget/api/import-rules');
+
+            const requestBody = {
+                name,
+                priority,
+                active,
+                applyOnImport,
+                schemaVersion: 2,
+                criteria,
+                actions: actions,
+                stopProcessing: actions.stopProcessing
+            };
 
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
@@ -363,16 +580,7 @@ export default class RulesModule {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken
                 },
-                body: JSON.stringify({
-                    name,
-                    pattern,
-                    field,
-                    matchType,
-                    priority,
-                    active,
-                    applyOnImport,
-                    actions: Object.keys(actions).length > 0 ? actions : null
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {

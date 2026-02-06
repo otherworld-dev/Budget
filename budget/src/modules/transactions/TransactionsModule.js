@@ -17,11 +17,11 @@ export default class TransactionsModule {
     constructor(app) {
         this.app = app;
 
-        // Transaction state
-        this.transactionFilters = {};
-        this.currentSort = { field: 'date', direction: 'desc' };
-        this.currentPage = 1;
-        this.rowsPerPage = 25;
+        // Transaction state - store on app for shared access
+        this.app.transactionFilters = {};
+        this.app.currentSort = { field: 'date', direction: 'desc' };
+        this.app.currentPage = 1;
+        this.app.rowsPerPage = 25;
         this.selectedTransactions = new Set();
         this.reconcileMode = false;
         this.reconcileData = null;
@@ -68,10 +68,10 @@ export default class TransactionsModule {
         const hasEnhancedUI = document.getElementById('transactions-filters');
 
         if (hasEnhancedUI) {
-            this.transactionFilters = {};
-            this.currentSort = { field: 'date', direction: 'desc' };
-            this.currentPage = 1;
-            this.rowsPerPage = 25;
+            this.app.transactionFilters = {};
+            this.app.currentSort = { field: 'date', direction: 'desc' };
+            this.app.currentPage = 1;
+            this.app.rowsPerPage = 25;
             this.selectedTransactions = new Set();
             this.reconcileMode = false;
         }
@@ -215,8 +215,8 @@ export default class TransactionsModule {
         const rowsPerPageSelect = document.getElementById('rows-per-page');
         if (rowsPerPageSelect) {
             rowsPerPageSelect.addEventListener('change', (e) => {
-                this.rowsPerPage = parseInt(e.target.value);
-                this.currentPage = 1;
+                this.app.rowsPerPage = parseInt(e.target.value);
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
             });
         }
@@ -224,8 +224,8 @@ export default class TransactionsModule {
         const prevPageBtn = document.getElementById('prev-page-btn');
         if (prevPageBtn) {
             prevPageBtn.addEventListener('click', () => {
-                if (this.currentPage > 1) {
-                    this.currentPage--;
+                if (this.app.currentPage > 1) {
+                    this.app.currentPage--;
                     this.app.loadTransactions();
                 }
             });
@@ -234,7 +234,7 @@ export default class TransactionsModule {
         const nextPageBtn = document.getElementById('next-page-btn');
         if (nextPageBtn) {
             nextPageBtn.addEventListener('click', () => {
-                this.currentPage++;
+                this.app.currentPage++;
                 this.app.loadTransactions();
             });
         }
@@ -243,8 +243,8 @@ export default class TransactionsModule {
         const prevPageBtnBottom = document.getElementById('prev-page-btn-bottom');
         if (prevPageBtnBottom) {
             prevPageBtnBottom.addEventListener('click', () => {
-                if (this.currentPage > 1) {
-                    this.currentPage--;
+                if (this.app.currentPage > 1) {
+                    this.app.currentPage--;
                     this.app.loadTransactions();
                 }
             });
@@ -253,7 +253,7 @@ export default class TransactionsModule {
         const nextPageBtnBottom = document.getElementById('next-page-btn-bottom');
         if (nextPageBtnBottom) {
             nextPageBtnBottom.addEventListener('click', () => {
-                this.currentPage++;
+                this.app.currentPage++;
                 this.app.loadTransactions();
             });
         }
@@ -332,7 +332,7 @@ export default class TransactionsModule {
     }
 
     updateFilters() {
-        this.transactionFilters = {
+        this.app.transactionFilters = {
             account: document.getElementById('filter-account')?.value || '',
             category: document.getElementById('filter-category')?.value || '',
             type: document.getElementById('filter-type')?.value || '',
@@ -343,12 +343,9 @@ export default class TransactionsModule {
             search: document.getElementById('filter-search')?.value || ''
         };
 
-        // Auto-apply filters if any are set
-        const hasFilters = Object.values(this.transactionFilters).some(value => value !== '');
-        if (hasFilters) {
-            this.currentPage = 1;
-            this.app.loadTransactions();
-        }
+        // Always auto-apply filters (including when clearing them)
+        this.app.currentPage = 1;
+        this.app.loadTransactions();
     }
 
     clearFilters() {
@@ -365,17 +362,17 @@ export default class TransactionsModule {
             }
         });
 
-        this.transactionFilters = {};
-        this.currentPage = 1;
+        this.app.transactionFilters = {};
+        this.app.currentPage = 1;
         this.app.loadTransactions();
     }
 
     sortTransactions(field) {
-        if (this.currentSort.field === field) {
-            this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+        if (this.app.currentSort.field === field) {
+            this.app.currentSort.direction = this.app.currentSort.direction === 'asc' ? 'desc' : 'asc';
         } else {
-            this.currentSort.field = field;
-            this.currentSort.direction = 'asc';
+            this.app.currentSort.field = field;
+            this.app.currentSort.direction = 'asc';
         }
 
         // Update sort indicators
@@ -385,7 +382,7 @@ export default class TransactionsModule {
 
         const currentHeader = document.querySelector(`[data-sort="${field}"] .sort-indicator`);
         if (currentHeader) {
-            currentHeader.className = `sort-indicator ${this.currentSort.direction}`;
+            currentHeader.className = `sort-indicator ${this.app.currentSort.direction}`;
         }
 
         this.app.loadTransactions();
@@ -929,6 +926,27 @@ export default class TransactionsModule {
             }
         }
 
+        // Populate "To Account" dropdown for transfers
+        const toAccountSelect = document.getElementById('transfer-to-account');
+        if (toAccountSelect && this.accounts) {
+            // Save current value
+            const currentValue = toAccountSelect.value;
+
+            // Clear and rebuild options
+            toAccountSelect.innerHTML = '<option value="">Choose destination account</option>';
+            this.accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.name;
+                toAccountSelect.appendChild(option);
+            });
+
+            // Restore previous value if it exists
+            if (currentValue) {
+                toAccountSelect.value = currentValue;
+            }
+        }
+
         // Populate category dropdown
         const categorySelect = document.getElementById('transaction-category');
         if (categorySelect && this.categories) {
@@ -1010,6 +1028,25 @@ export default class TransactionsModule {
                 };
             }
 
+            // Set up transaction type change listener to show/hide transfer fields
+            const typeSelect = document.getElementById('transaction-type');
+            const toAccountWrapper = document.getElementById('transfer-to-account-wrapper');
+            if (typeSelect && toAccountWrapper) {
+                const handleTypeChange = () => {
+                    if (typeSelect.value === 'transfer') {
+                        toAccountWrapper.style.display = 'block';
+                    } else {
+                        toAccountWrapper.style.display = 'none';
+                    }
+                };
+
+                // Set up listener
+                typeSelect.onchange = handleTypeChange;
+
+                // Initialize visibility based on current value
+                handleTypeChange();
+            }
+
             modal.style.display = 'flex';
         }
     }
@@ -1033,7 +1070,112 @@ export default class TransactionsModule {
         const categoryId = document.getElementById('transaction-category').value;
         const notes = document.getElementById('transaction-notes').value;
 
-        // Build request data
+        // Handle transfer creation (new transfers only, not editing)
+        if (type === 'transfer' && !id) {
+            const toAccountId = parseInt(document.getElementById('transfer-to-account').value);
+
+            // Validation
+            if (!toAccountId) {
+                OC.Notification.showTemporary('Please select destination account');
+                return;
+            }
+            if (toAccountId === accountId) {
+                OC.Notification.showTemporary('Cannot transfer to same account');
+                return;
+            }
+
+            try {
+                // Step 1: Create debit transaction in FROM account
+                const debitResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({
+                        date,
+                        accountId: accountId,
+                        type: 'debit',
+                        amount,
+                        description,
+                        vendor: vendor || null,
+                        categoryId: categoryId ? parseInt(categoryId) : null,
+                        notes: notes || null
+                    })
+                });
+
+                if (!debitResponse.ok) {
+                    const error = await debitResponse.json();
+                    throw new Error(error.error || 'Failed to create transfer debit transaction');
+                }
+                const debitData = await debitResponse.json();
+                const debitTransactionId = debitData.id;
+
+                // Step 2: Create credit transaction in TO account
+                const creditResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({
+                        date,
+                        accountId: toAccountId,
+                        type: 'credit',
+                        amount,
+                        description,
+                        vendor: vendor || null,
+                        categoryId: categoryId ? parseInt(categoryId) : null,
+                        notes: notes || null
+                    })
+                });
+
+                if (!creditResponse.ok) {
+                    const error = await creditResponse.json();
+                    throw new Error(error.error || 'Failed to create transfer credit transaction');
+                }
+                const creditData = await creditResponse.json();
+                const creditTransactionId = creditData.id;
+
+                // Step 3: Link the two transactions using existing matching API
+                const linkResponse = await fetch(
+                    OC.generateUrl(`/apps/budget/api/transactions/${debitTransactionId}/link/${creditTransactionId}`),
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'requesttoken': OC.requestToken
+                        }
+                    }
+                );
+
+                if (!linkResponse.ok) {
+                    const error = await linkResponse.json();
+                    throw new Error(error.error || 'Failed to link transfer transactions');
+                }
+
+                // Success
+                OC.Notification.showTemporary('Transfer created successfully');
+                this.app.hideModals();
+                await this.app.loadTransactions();
+                await this.app.loadAccounts();
+
+                // Refresh account details view if currently viewing an account
+                await this.app.refreshCurrentAccountView();
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
+                return;
+            } catch (error) {
+                console.error('Transfer creation failed:', error);
+                OC.Notification.showTemporary(error.message || 'Failed to create transfer');
+                return;
+            }
+        }
+
+        // Build request data for regular expense/income transactions
         const data = {
             date,
             accountId,
@@ -1074,6 +1216,14 @@ export default class TransactionsModule {
                 this.app.hideModals();
                 await this.app.loadTransactions();
                 await this.app.loadAccounts(); // Refresh account balances
+
+                // Refresh account details view if currently viewing an account
+                await this.app.refreshCurrentAccountView();
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
             } else {
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to save transaction');
@@ -1099,7 +1249,16 @@ export default class TransactionsModule {
 
             if (response.ok) {
                 OC.Notification.showTemporary('Transaction deleted');
-                this.app.loadTransactions();
+                await this.app.loadTransactions();
+                await this.app.loadAccounts(); // Refresh account balances
+
+                // Refresh account details view if currently viewing an account
+                await this.app.refreshCurrentAccountView();
+
+                // Refresh dashboard if currently viewing it
+                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                    await this.app.loadDashboard();
+                }
             }
         } catch (error) {
             console.error('Failed to delete transaction:', error);

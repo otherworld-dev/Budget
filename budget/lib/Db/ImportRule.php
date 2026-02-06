@@ -32,6 +32,12 @@ use OCP\AppFramework\Db\Entity;
  * @method void setActions(?string $actions)
  * @method bool getApplyOnImport()
  * @method void setApplyOnImport(bool $applyOnImport)
+ * @method string|null getCriteria()
+ * @method void setCriteria(?string $criteria)
+ * @method int getSchemaVersion()
+ * @method void setSchemaVersion(int $schemaVersion)
+ * @method bool getStopProcessing()
+ * @method void setStopProcessing(bool $stopProcessing)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  * @method string|null getUpdatedAt()
@@ -49,6 +55,9 @@ class ImportRule extends Entity implements JsonSerializable {
     protected $active;
     protected $actions;
     protected $applyOnImport;
+    protected $criteria;
+    protected $schemaVersion;
+    protected $stopProcessing;
     protected $createdAt;
     protected $updatedAt;
 
@@ -58,6 +67,8 @@ class ImportRule extends Entity implements JsonSerializable {
         $this->addType('priority', 'integer');
         $this->addType('active', 'boolean');
         $this->addType('applyOnImport', 'boolean');
+        $this->addType('schemaVersion', 'integer');
+        $this->addType('stopProcessing', 'boolean');
     }
 
     /**
@@ -78,6 +89,9 @@ class ImportRule extends Entity implements JsonSerializable {
             'active' => $this->getActive(),
             'actions' => $this->getParsedActions(),
             'applyOnImport' => $this->getApplyOnImport() ?? true,
+            'criteria' => $this->getParsedCriteria(),
+            'schemaVersion' => $this->getSchemaVersion() ?? 1,
+            'stopProcessing' => $this->getStopProcessing() ?? true,
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
         ];
@@ -112,5 +126,27 @@ class ImportRule extends Entity implements JsonSerializable {
      */
     public function setActionsFromArray(array $actions): void {
         $this->setActions(json_encode($actions));
+    }
+
+    /**
+     * Get parsed criteria from JSON string
+     * Returns array or null for v1 rules
+     */
+    public function getParsedCriteria(): ?array {
+        $criteriaJson = $this->getCriteria();
+        if ($criteriaJson) {
+            $criteria = json_decode($criteriaJson, true);
+            if (is_array($criteria)) {
+                return $criteria;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Set criteria from array (converts to JSON string)
+     */
+    public function setCriteriaFromArray(array $criteria): void {
+        $this->setCriteria(json_encode($criteria));
     }
 }

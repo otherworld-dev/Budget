@@ -1,6 +1,7 @@
 <?php
 script('budget', 'budget-main');
 style('budget', 'style');
+style('budget', 'budget-main');
 ?>
 
 <div id="app-navigation">
@@ -1532,7 +1533,7 @@ style('budget', 'style');
                 <h2>Budget</h2>
                 <div class="view-controls">
                     <div class="budget-period-selector">
-                        <label for="budget-month">Period:</label>
+                        <label for="budget-month">Month:</label>
                         <select id="budget-month">
                             <!-- Populated dynamically -->
                         </select>
@@ -3744,8 +3745,16 @@ style('budget', 'style');
                     <option value="">Choose transaction type</option>
                     <option value="debit">Expense</option>
                     <option value="credit">Income</option>
+                    <option value="transfer">Transfer</option>
                 </select>
                 <small id="transaction-type-help" class="form-text">Whether this is money coming in or going out</small>
+            </div>
+            <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
+                <label for="transfer-to-account">To Account</label>
+                <select id="transfer-to-account" aria-describedby="transfer-to-account-help">
+                    <option value="">Choose destination account</option>
+                </select>
+                <small id="transfer-to-account-help" class="form-text">Select the account to transfer money to</small>
             </div>
             <div class="form-group">
                 <label for="transaction-amount">Amount</label>
@@ -4057,96 +4066,94 @@ style('budget', 'style');
         <form id="rule-form">
             <input type="hidden" id="rule-id">
 
-            <div class="form-group">
-                <label for="rule-name">Rule Name <span class="required">*</span></label>
-                <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
-                <small class="form-text">A descriptive name for this rule</small>
+            <!-- Basic Info Section -->
+            <div class="form-section" style="background: transparent; border: none; padding: 0 0 20px 0;">
+                <div style="display: grid; grid-template-columns: 1fr 80px; gap: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="rule-name">Rule Name <span class="required">*</span></label>
+                        <input type="text" id="rule-name" required maxlength="255" placeholder="e.g., Amazon Purchases, Grocery Stores">
+                        <small class="form-text">A descriptive name for this rule</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="rule-priority">Priority</label>
+                        <input type="number" id="rule-priority" min="0" max="100" value="0">
+                        <small class="form-text">0-100 (higher first)</small>
+                    </div>
+                </div>
             </div>
 
             <!-- Matching Criteria Section -->
             <fieldset class="form-section">
                 <legend>Matching Criteria</legend>
-                <small class="section-help">Define when this rule should apply</small>
+                <small class="section-help">Define when this rule should apply to a transaction</small>
 
-                <div class="form-group">
-                    <label for="rule-field">Match Field <span class="required">*</span></label>
-                    <select id="rule-field" required>
-                        <option value="description">Description</option>
-                        <option value="vendor">Vendor</option>
-                        <option value="reference">Reference</option>
-                        <option value="notes">Notes</option>
-                        <option value="amount">Amount</option>
-                    </select>
-                    <small class="form-text">Which transaction field to match against</small>
+                <!-- v1 Criteria (legacy - hidden for new rules) -->
+                <div id="rule-criteria-v1" style="display: none;">
+                    <div class="form-group">
+                        <label for="rule-field">Match Field <span class="required">*</span></label>
+                        <select id="rule-field">
+                            <option value="description">Description</option>
+                            <option value="vendor">Vendor</option>
+                            <option value="reference">Reference</option>
+                            <option value="notes">Notes</option>
+                            <option value="amount">Amount</option>
+                        </select>
+                        <small class="form-text">Which transaction field to match against</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rule-match-type">Match Type <span class="required">*</span></label>
+                        <select id="rule-match-type">
+                            <option value="contains">Contains</option>
+                            <option value="exact">Exact Match</option>
+                            <option value="starts_with">Starts With</option>
+                            <option value="ends_with">Ends With</option>
+                            <option value="regex">Regex</option>
+                        </select>
+                        <small class="form-text">How to match the pattern</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rule-pattern">Pattern <span class="required">*</span></label>
+                        <input type="text" id="rule-pattern" maxlength="500" placeholder="e.g., AMAZON, grocery|supermarket">
+                        <small class="form-text">Text or pattern to match (case-insensitive)</small>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="rule-match-type">Match Type <span class="required">*</span></label>
-                    <select id="rule-match-type" required>
-                        <option value="contains">Contains</option>
-                        <option value="exact">Exact Match</option>
-                        <option value="starts_with">Starts With</option>
-                        <option value="ends_with">Ends With</option>
-                        <option value="regex">Regex</option>
-                    </select>
-                    <small class="form-text">How to match the pattern</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="rule-pattern">Pattern <span class="required">*</span></label>
-                    <input type="text" id="rule-pattern" required maxlength="500" placeholder="e.g., AMAZON, grocery|supermarket">
-                    <small class="form-text">Text or pattern to match (case-insensitive)</small>
+                <!-- v2 Criteria (advanced - visual query builder) -->
+                <div id="rule-criteria-v2" style="display: block;">
+                    <div id="criteria-builder-container"></div>
                 </div>
             </fieldset>
 
             <!-- Actions Section -->
             <fieldset class="form-section">
                 <legend>Actions</legend>
-                <small class="section-help">What to set when a transaction matches</small>
+                <small class="section-help">What to do when a transaction matches these criteria</small>
 
-                <div class="form-group">
-                    <label for="rule-action-category">Set Category</label>
-                    <select id="rule-action-category">
-                        <option value="">-- Don't change --</option>
-                    </select>
-                    <small class="form-text">Category to assign to matching transactions</small>
-                </div>
+                <!-- ActionBuilder container (v2 advanced actions) -->
+                <div id="action-builder-container"></div>
 
-                <div class="form-group">
-                    <label for="rule-action-vendor">Set Vendor</label>
-                    <input type="text" id="rule-action-vendor" maxlength="255" placeholder="Leave empty to not change">
-                    <small class="form-text">Override vendor name (optional)</small>
-                </div>
+                <!-- Options -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="rule-active" checked>
+                            <strong>Active</strong>
+                        </label>
+                        <small class="form-text">Only active rules are applied</small>
+                    </div>
 
-                <div class="form-group">
-                    <label for="rule-action-notes">Set Notes</label>
-                    <textarea id="rule-action-notes" maxlength="500" rows="2" placeholder="Leave empty to not change"></textarea>
-                    <small class="form-text">Set transaction notes (optional)</small>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="rule-apply-on-import" checked>
+                            <strong>Apply during import</strong>
+                        </label>
+                        <small class="form-text">Auto-apply when importing transactions</small>
+                    </div>
                 </div>
             </fieldset>
-
-            <!-- Options -->
-            <div class="form-group">
-                <label for="rule-priority">Priority</label>
-                <input type="number" id="rule-priority" min="0" max="100" value="0">
-                <small class="form-text">Higher priority rules are checked first (0-100)</small>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="rule-active" checked>
-                    Active
-                </label>
-                <small class="form-text">Only active rules are applied</small>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="rule-apply-on-import" checked>
-                    Apply during import
-                </label>
-                <small class="form-text">Automatically apply this rule when importing transactions</small>
-            </div>
 
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="Save rule">Save</button>
