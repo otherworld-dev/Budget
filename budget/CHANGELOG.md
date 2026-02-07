@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-02-07
+
+### Fixed
+- Critical database migration error preventing fresh installations: "Column is type Bool and also NotNull, so it can not store false"
+- Fixed 4 boolean columns incorrectly created with NOT NULL constraint in migrations 001000024, 001000026, and 001000027:
+  - `budget_import_rules.stop_processing`
+  - `budget_bills.auto_pay_enabled`
+  - `budget_bills.auto_pay_failed`
+  - `budget_bills.is_transfer`
+- Added cleanup migration (Version001000028) to fix existing installations that already ran broken migrations
+- All boolean columns now use `'notnull' => false` as required by Nextcloud's DBAL for cross-database compatibility
+- Updated CLAUDE.md with critical boolean column requirements to prevent future occurrences
+
 ## [2.1.0] - 2026-02-07
 
 ### Added

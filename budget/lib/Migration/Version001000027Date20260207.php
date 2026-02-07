@@ -32,7 +32,7 @@ class Version001000027Date20260207 extends SimpleMigrationStep {
 			// Add is_transfer flag
 			if (!$table->hasColumn('is_transfer')) {
 				$table->addColumn('is_transfer', Types::BOOLEAN, [
-					'notnull' => true,
+					'notnull' => false,
 					'default' => false,
 				]);
 			}

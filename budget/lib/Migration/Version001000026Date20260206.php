@@ -32,7 +32,7 @@ class Version001000026Date20260206 extends SimpleMigrationStep {
 			// Add auto_pay_enabled column
 			if (!$table->hasColumn('auto_pay_enabled')) {
 				$table->addColumn('auto_pay_enabled', Types::BOOLEAN, [
-					'notnull' => true,
+					'notnull' => false,
 					'default' => false,
 					'comment' => 'Automatically mark bill as paid when due date arrives',
 				]);
@@ -41,7 +41,7 @@ class Version001000026Date20260206 extends SimpleMigrationStep {
 			// Add auto_pay_failed column to track failure state
 			if (!$table->hasColumn('auto_pay_failed')) {
 				$table->addColumn('auto_pay_failed', Types::BOOLEAN, [
-					'notnull' => true,
+					'notnull' => false,
 					'default' => false,
 					'comment' => 'Tracks if last auto-pay attempt failed, prevents retry loops',
 				]);

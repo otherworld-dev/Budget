@@ -50,7 +50,7 @@ class Version001000024Date20260204 extends SimpleMigrationStep {
 			// If true, stop evaluating subsequent rules after this one matches
 			if (!$table->hasColumn('stop_processing')) {
 				$table->addColumn('stop_processing', Types::BOOLEAN, [
-					'notnull' => true,
+					'notnull' => false,
 					'default' => true,
 					'comment' => 'If true, stop evaluating rules after this one matches',
 				]);
