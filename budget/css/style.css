@@ -13583,3 +13583,284 @@ button.danger:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================
+ * Share Module - Budget Sharing UI
+ * ============================================ */
+
+.share-module {
+    padding: 20px;
+    max-width: 1000px;
+}
+
+.share-section {
+    margin-bottom: 40px;
+    padding: 24px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.share-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.share-description {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: var(--color-text-lighter);
+    line-height: 1.6;
+}
+
+/* Share New Form */
+.share-new-form {
+    margin-bottom: 24px;
+}
+
+.share-new-form .form-group {
+    position: relative;
+    margin-bottom: 0;
+}
+
+.share-new-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--color-main-text);
+}
+
+.share-new-form .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--color-main-text);
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.share-new-form .form-control:focus {
+    border-color: var(--color-primary-element);
+    box-shadow: 0 0 0 2px var(--color-primary-element-light);
+}
+
+/* User Search Results Dropdown */
+.share-user-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.search-result-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color 0.1s;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--color-background-hover);
+}
+
+.search-result-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-main-text);
+    margin-bottom: 2px;
+}
+
+.search-result-email {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.search-no-results {
+    padding: 16px;
+    text-align: center;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
+}
+
+/* Share List */
+.share-list h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.share-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-main-background);
+}
+
+.share-table thead {
+    background: var(--color-background-dark);
+}
+
+.share-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-lighter);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.share-table td {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--color-main-text);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.share-table tr:last-child td {
+    border-bottom: none;
+}
+
+.share-table tr:hover {
+    background: var(--color-background-hover);
+}
+
+/* Permission Badges */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-read {
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element-text);
+}
+
+.badge-write {
+    background: var(--color-success-light);
+    color: var(--color-success-text);
+}
+
+/* Status Indicators */
+.status-active {
+    color: var(--color-success);
+    font-weight: 500;
+}
+
+/* Empty State */
+.empty-message {
+    padding: 32px;
+    text-align: center;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
+}
+
+/* Buttons */
+.share-table .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.share-table .btn:hover {
+    transform: translateY(-1px);
+}
+
+.share-table .btn:active {
+    transform: translateY(0);
+}
+
+.share-table .btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.share-table .btn-danger {
+    background: var(--color-error);
+    color: white;
+}
+
+.share-table .btn-danger:hover {
+    background: var(--color-error-hover);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .share-module {
+        padding: 12px;
+    }
+
+    .share-section {
+        padding: 16px;
+    }
+
+    .share-table {
+        font-size: 12px;
+    }
+
+    .share-table th,
+    .share-table td {
+        padding: 8px 12px;
+    }
+
+    /* Stack table on mobile */
+    .share-table,
+    .share-table thead,
+    .share-table tbody,
+    .share-table tr,
+    .share-table th,
+    .share-table td {
+        display: block;
+    }
+
+    .share-table thead {
+        display: none;
+    }
+
+    .share-table tr {
+        margin-bottom: 16px;
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        padding: 12px;
+    }
+
+    .share-table td {
+        border-bottom: none;
+        padding: 8px 0;
+        position: relative;
+        padding-left: 40%;
+    }
+
+    .share-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        font-weight: 600;
+        color: var(--color-text-lighter);
+    }
+}

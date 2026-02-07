@@ -52,6 +52,17 @@ export default class SettingsModule {
 
         // Check password protection status and update UI
         await this.updatePasswordProtectionUI();
+
+        // Render share management UI
+        await this.renderShareModule();
+    }
+
+    async renderShareModule() {
+        const container = document.getElementById('share-module-container');
+        if (container && this.app.shareModule) {
+            await this.app.shareModule.init();
+            this.app.shareModule.render(container);
+        }
     }
 
     async updatePasswordProtectionUI() {

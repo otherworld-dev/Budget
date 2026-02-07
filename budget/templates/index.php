@@ -3680,6 +3680,16 @@ style('budget', 'budget-main');
                     </div>
                 </div>
 
+                <!-- Budget Sharing Section -->
+                <div class="settings-section">
+                    <h3>Budget Sharing</h3>
+                    <p class="settings-description">Share your budget with family members or trusted Nextcloud users. They can view your financial data but cannot make changes.</p>
+
+                    <div id="share-module-container" class="settings-group">
+                        <!-- ShareModule will render here -->
+                    </div>
+                </div>
+
                 <!-- Data Migration Section -->
                 <div class="settings-section">
                     <h3>Data Migration</h3>

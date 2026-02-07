@@ -35,6 +35,7 @@ import ReportsModule from './modules/reports/ReportsModule.js';
 import ImportModule from './modules/import/ImportModule.js';
 import AccountsModule from './modules/accounts/AccountsModule.js';
 import CategoriesModule from './modules/categories/CategoriesModule.js';
+import ShareModule from './modules/share/ShareModule.js';
 
 class BudgetApp {
     constructor() {
@@ -103,6 +104,7 @@ class BudgetApp {
         this.importModule = new ImportModule(this);
         this.accountsModule = new AccountsModule(this);
         this.categoriesModule = new CategoriesModule(this);
+        this.shareModule = new ShareModule(this);
 
         this.init();
     }
