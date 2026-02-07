@@ -91,6 +91,7 @@ return [
         ['name' => 'importRule#update', 'url' => '/api/import-rules/{id}', 'verb' => 'PUT'],
         ['name' => 'importRule#destroy', 'url' => '/api/import-rules/{id}', 'verb' => 'DELETE'],
         ['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
+        ['name' => 'importRule#testUnsaved', 'url' => '/api/import-rules/test-unsaved', 'verb' => 'POST'],
         ['name' => 'importRule#preview', 'url' => '/api/import-rules/preview', 'verb' => 'POST'],
         ['name' => 'importRule#apply', 'url' => '/api/import-rules/apply', 'verb' => 'POST'],
         ['name' => 'importRule#migrate', 'url' => '/api/import-rules/{id}/migrate', 'verb' => 'POST'],

@@ -280,6 +280,20 @@ export default class RulesModule {
             ruleForm.dataset.listenerAttached = 'true';
         }
 
+        // Preview rule button in rule modal
+        const previewRuleBtn = document.getElementById('preview-rule-btn');
+        if (previewRuleBtn && !previewRuleBtn.dataset.listenerAttached) {
+            previewRuleBtn.addEventListener('click', () => this.previewRule());
+            previewRuleBtn.dataset.listenerAttached = 'true';
+        }
+
+        // Run rule now button in rule modal
+        const runRuleNowBtn = document.getElementById('run-rule-now-btn');
+        if (runRuleNowBtn && !runRuleNowBtn.dataset.listenerAttached) {
+            runRuleNowBtn.addEventListener('click', () => this.runRuleNow());
+            runRuleNowBtn.dataset.listenerAttached = 'true';
+        }
+
         // Preview button in apply modal
         const previewBtn = document.getElementById('preview-rules-btn');
         if (previewBtn && !previewBtn.dataset.listenerAttached) {
@@ -460,6 +474,13 @@ export default class RulesModule {
             this.initializeActionBuilder(null);
         }
 
+        // Hide preview and results sections (from previous actions)
+        const previewSection = document.getElementById('rule-preview-section');
+        if (previewSection) previewSection.style.display = 'none';
+
+        const runResults = document.getElementById('rule-run-results');
+        if (runResults) runResults.style.display = 'none';
+
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
 
@@ -518,6 +539,323 @@ export default class RulesModule {
                 select.appendChild(option);
             });
         }
+    }
+
+    async previewRule() {
+        // Validate criteria from CriteriaBuilder
+        if (!this.criteriaBuilder) {
+            OC.Notification.showTemporary('Error: CriteriaBuilder not initialized');
+            return;
+        }
+
+        const validation = this.criteriaBuilder.validate();
+        if (!validation.valid) {
+            OC.Notification.showTemporary('Invalid criteria: ' + validation.errors.join(', '));
+            return;
+        }
+
+        const criteria = this.criteriaBuilder.getCriteria();
+
+        // Show loading state
+        const previewSection = document.getElementById('rule-preview-section');
+        const previewCount = document.getElementById('rule-preview-count');
+        const previewTable = document.getElementById('rule-preview-table');
+        const previewBtn = document.getElementById('preview-rule-btn');
+
+        if (!previewSection || !previewTable) return;
+
+        previewBtn.disabled = true;
+        previewBtn.textContent = 'Loading...';
+        previewSection.style.display = 'block';
+        previewCount.textContent = '...';
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/test-unsaved'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    criteria,
+                    schemaVersion: 2,
+                    uncategorizedOnly: false,
+                    limit: 50
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to preview rule');
+            }
+
+            const result = await response.json();
+            this.displayRulePreview(result);
+
+        } catch (error) {
+            console.error('Failed to preview rule:', error);
+            OC.Notification.showTemporary('Failed to preview rule: ' + error.message);
+            previewSection.style.display = 'none';
+        } finally {
+            previewBtn.disabled = false;
+            previewBtn.textContent = 'Preview Matches';
+        }
+    }
+
+    displayRulePreview(result) {
+        const previewSection = document.getElementById('rule-preview-section');
+        const previewCount = document.getElementById('rule-preview-count');
+        const previewLimitNote = document.getElementById('rule-preview-limit-note');
+        const previewTable = document.getElementById('rule-preview-table');
+        const tbody = previewTable.querySelector('tbody');
+
+        if (!previewSection || !previewCount || !tbody) return;
+
+        // Update table header for preview mode
+        const thead = previewTable.querySelector('thead tr');
+        if (thead) {
+            thead.innerHTML = `
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Current Category</th>
+            `;
+        }
+
+        // Update count
+        previewCount.textContent = result.totalMatches;
+
+        // Show limit note if applicable
+        if (result.limitReached) {
+            previewLimitNote.style.display = 'inline';
+        } else {
+            previewLimitNote.style.display = 'none';
+        }
+
+        // Clear previous results
+        tbody.innerHTML = '';
+
+        if (result.totalMatches === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--color-text-maxcontrast);">No matching transactions found</td></tr>';
+            return;
+        }
+
+        // Render matches
+        result.matches.forEach(match => {
+            const category = match.categoryId ? this.categories.find(c => c.id === match.categoryId) : null;
+            const categoryName = category ? category.name : '<em>Uncategorized</em>';
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.escapeHtml(this.formatDate(match.date))}</td>
+                <td>${this.escapeHtml(match.description || '')}</td>
+                <td class="${match.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${this.formatCurrency(match.amount)}</td>
+                <td>${categoryName}</td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        previewSection.style.display = 'block';
+    }
+
+    async runRuleNow() {
+        const runBtn = document.getElementById('run-rule-now-btn');
+        const resultsSection = document.getElementById('rule-run-results');
+
+        if (!runBtn || !resultsSection) return;
+
+        // Always save the rule first to ensure any edits are persisted
+        runBtn.disabled = true;
+        runBtn.textContent = 'Saving...';
+
+        try {
+            // Save the rule (creates new or updates existing)
+            const savedRule = await this.saveRuleForRunNow();
+            const ruleId = savedRule.id || document.getElementById('rule-id').value;
+
+            if (!ruleId) {
+                throw new Error('Failed to save rule');
+            }
+
+            // Now run the saved rule on all matching transactions
+            runBtn.textContent = 'Running...';
+            resultsSection.style.display = 'none';
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ruleIds: [parseInt(ruleId)],
+                    uncategorizedOnly: false
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to run rule');
+            }
+
+            const result = await response.json();
+            this.displayRunResults(result);
+
+            if (result.success > 0) {
+                OC.Notification.showTemporary(`Rule applied: ${result.success} transaction(s) updated`);
+                // Reload transactions if we're on the transactions view
+                if (this.currentView === 'transactions') {
+                    await this.loadTransactions();
+                }
+            } else {
+                OC.Notification.showTemporary('No transactions were updated');
+            }
+
+        } catch (error) {
+            console.error('Failed to run rule:', error);
+            OC.Notification.showTemporary('Failed to run rule: ' + error.message);
+        } finally {
+            runBtn.disabled = false;
+            runBtn.textContent = 'Run Rule Now';
+        }
+    }
+
+    async saveRuleForRunNow() {
+        const ruleId = document.getElementById('rule-id').value;
+        const isEdit = !!ruleId;
+
+        // Collect form data
+        const name = document.getElementById('rule-name').value.trim();
+        const priority = parseInt(document.getElementById('rule-priority').value) || 0;
+        const active = document.getElementById('rule-active').checked;
+        const applyOnImport = document.getElementById('rule-apply-on-import').checked;
+
+        // Validate criteria from CriteriaBuilder
+        if (!this.criteriaBuilder) {
+            throw new Error('CriteriaBuilder not initialized');
+        }
+
+        const validation = this.criteriaBuilder.validate();
+        if (!validation.valid) {
+            throw new Error('Invalid criteria: ' + validation.errors.join(', '));
+        }
+
+        const criteria = this.criteriaBuilder.getCriteria();
+
+        // Validate actions from ActionBuilder
+        if (!this.actionBuilder) {
+            throw new Error('ActionBuilder not initialized');
+        }
+
+        const actionsValidation = this.actionBuilder.validate();
+        if (!actionsValidation.valid) {
+            throw new Error('Invalid actions: ' + actionsValidation.errors.join(', '));
+        }
+
+        const actions = this.actionBuilder.getActions();
+
+        const url = isEdit
+            ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
+            : OC.generateUrl('/apps/budget/api/import-rules');
+
+        const requestBody = {
+            name,
+            priority,
+            active,
+            applyOnImport,
+            schemaVersion: 2,
+            criteria,
+            actions: actions,
+            stopProcessing: actions.stopProcessing
+        };
+
+        const response = await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'requesttoken': OC.requestToken
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save rule');
+        }
+
+        const savedRule = await response.json();
+
+        // Update the rule ID in the form (for new rules)
+        if (!isEdit && savedRule.id) {
+            document.getElementById('rule-id').value = savedRule.id;
+        }
+
+        return savedRule;
+    }
+
+    displayRunResults(result) {
+        // Show results in the preview section with updated values
+        const previewSection = document.getElementById('rule-preview-section');
+        const previewCount = document.getElementById('rule-preview-count');
+        const previewLimitNote = document.getElementById('rule-preview-limit-note');
+        const previewTable = document.getElementById('rule-preview-table');
+        const tbody = previewTable.querySelector('tbody');
+        const resultsSection = document.getElementById('rule-run-results');
+        const successCount = document.getElementById('rule-run-success-count');
+        const skippedCount = document.getElementById('rule-run-skipped-count');
+        const failedCount = document.getElementById('rule-run-failed-count');
+
+        if (!previewSection || !previewCount || !tbody) return;
+
+        // Update summary counts
+        if (resultsSection && successCount && skippedCount && failedCount) {
+            successCount.textContent = result.success || 0;
+            skippedCount.textContent = result.skipped || 0;
+            failedCount.textContent = result.failed || 0;
+            resultsSection.style.display = 'block';
+        }
+
+        // Keep the same table header as preview
+        const thead = previewTable.querySelector('thead tr');
+        if (thead) {
+            thead.innerHTML = `
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Current Category</th>
+            `;
+        }
+
+        // Update count text
+        previewCount.textContent = `${result.success} updated`;
+        previewLimitNote.style.display = 'none';
+
+        // Clear previous results
+        tbody.innerHTML = '';
+
+        if (!result.applied || result.applied.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--color-text-maxcontrast);">No transactions were updated</td></tr>';
+            previewSection.style.display = 'block';
+            return;
+        }
+
+        // Display all updated transactions with their new values
+        result.applied.forEach(item => {
+            // Use the updated categoryId from the backend
+            const category = item.categoryId ? this.categories.find(c => c.id === item.categoryId) : null;
+            const categoryName = category ? category.name : '<em>Uncategorized</em>';
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.escapeHtml(this.formatDate(item.date))}</td>
+                <td>${this.escapeHtml(item.description || '')}</td>
+                <td class="${item.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${this.formatCurrency(item.amount)}</td>
+                <td>${categoryName}</td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        previewSection.style.display = 'block';
     }
 
     async saveRule() {

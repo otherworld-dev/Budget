@@ -4183,7 +4183,45 @@ style('budget', 'budget-main');
                 </div>
             </fieldset>
 
+            <!-- Preview Section (hidden until preview is run) -->
+            <div id="rule-preview-section" class="rule-preview-section" style="display: none;">
+                <h4>Preview: <span id="rule-preview-count">0</span> matching transactions <span id="rule-preview-limit-note" style="display: none;">(showing first 50)</span></h4>
+                <div class="preview-table-container">
+                    <table id="rule-preview-table" class="preview-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Current Category</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Run Rule Results Section (hidden until run) -->
+            <div id="rule-run-results" class="rule-run-results" style="display: none;">
+                <div class="results-summary">
+                    <div class="result-item success">
+                        <span class="result-count" id="rule-run-success-count">0</span>
+                        <span class="result-label">Updated</span>
+                    </div>
+                    <div class="result-item skipped">
+                        <span class="result-count" id="rule-run-skipped-count">0</span>
+                        <span class="result-label">Skipped</span>
+                    </div>
+                    <div class="result-item failed">
+                        <span class="result-count" id="rule-run-failed-count">0</span>
+                        <span class="result-label">Failed</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal-buttons">
+                <button type="button" id="preview-rule-btn" class="secondary" aria-label="Preview matching transactions">Preview Matches</button>
+                <button type="button" id="run-rule-now-btn" class="secondary" aria-label="Apply rule to uncategorized transactions now">Run Rule Now</button>
                 <button type="submit" class="primary" aria-label="Save rule">Save</button>
                 <button type="button" class="secondary cancel-btn" aria-label="Cancel and close dialog">Cancel</button>
             </div>

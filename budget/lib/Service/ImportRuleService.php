@@ -12,6 +12,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
 use OCA\Budget\Service\Import\RuleActionApplicator;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\DB\IQueryBuilder;
 use OCP\IDBConnection;
 
 class ImportRuleService {
@@ -359,7 +360,7 @@ class ImportRuleService {
 
         // Filter by account
         if (!empty($filters['accountId'])) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], \OCP\DB\IQueryBuilder::PARAM_INT)));
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], IQueryBuilder::PARAM_INT)));
         }
 
         // Filter by date range
@@ -556,7 +557,11 @@ class ImportRuleService {
 
                     $success++;
                     $applied[] = [
-                        'transactionId' => $transaction->getId(),
+                        'transactionId' => $updatedTransaction->getId(),
+                        'date' => $updatedTransaction->getDate(),
+                        'description' => $updatedTransaction->getDescription(),
+                        'amount' => $updatedTransaction->getAmount(),
+                        'categoryId' => $updatedTransaction->getCategoryId(),
                         'rules' => array_map(fn($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
                         'changes' => $changes
                     ];
@@ -600,6 +605,68 @@ class ImportRuleService {
      */
     public function findActive(string $userId): array {
         return $this->mapper->findActive($userId);
+    }
+
+    /**
+     * Test unsaved rule criteria against existing transactions
+     *
+     * @param string $userId User ID
+     * @param array $criteria Rule criteria (v2 format)
+     * @param int $schemaVersion Schema version (1 or 2)
+     * @param array $filters Transaction filters
+     * @param int $limit Maximum number of matching transactions to return
+     * @return array Array with matching transactions
+     */
+    public function testUnsavedRule(string $userId, array $criteria, int $schemaVersion, array $filters, int $limit = 50): array {
+        // Validate criteria
+        if ($schemaVersion === 2) {
+            $validation = $this->criteriaEvaluator->validate($criteria);
+            if (!$validation['valid']) {
+                throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
+            }
+        }
+
+        // Find transactions matching filters
+        $transactions = $this->findTransactionsForRules($userId, $filters);
+
+        $matches = [];
+        $count = 0;
+
+        foreach ($transactions as $transaction) {
+            if ($count >= $limit) {
+                break;
+            }
+
+            $transactionData = $this->extractTransactionData($transaction);
+
+            // Test criteria against transaction
+            $isMatch = false;
+            if ($schemaVersion === 2) {
+                $isMatch = $this->criteriaEvaluator->evaluate($criteria, $transactionData, $schemaVersion);
+            } else {
+                // v1 format (if needed for backwards compatibility)
+                $isMatch = $this->criteriaEvaluator->evaluate($criteria, $transactionData, $schemaVersion);
+            }
+
+            if ($isMatch) {
+                $matches[] = [
+                    'id' => $transaction->getId(),
+                    'date' => $transaction->getDate(),
+                    'description' => $transaction->getDescription(),
+                    'vendor' => $transaction->getVendor(),
+                    'amount' => $transaction->getAmount(),
+                    'categoryId' => $transaction->getCategoryId(),
+                    'accountId' => $transaction->getAccountId(),
+                ];
+                $count++;
+            }
+        }
+
+        return [
+            'totalMatches' => $count,
+            'matches' => $matches,
+            'limitReached' => $count >= $limit
+        ];
     }
 
     /**

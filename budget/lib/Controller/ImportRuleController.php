@@ -343,6 +343,34 @@ class ImportRuleController extends Controller {
     }
 
     /**
+     * Test unsaved rule against existing transactions
+     * @NoAdminRequired
+     */
+    public function testUnsaved(
+        array $criteria,
+        int $schemaVersion = 2,
+        ?int $accountId = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        bool $uncategorizedOnly = false,
+        int $limit = 50
+    ): DataResponse {
+        try {
+            $filters = [
+                'accountId' => $accountId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'uncategorizedOnly' => $uncategorizedOnly
+            ];
+
+            $results = $this->service->testUnsavedRule($this->userId, $criteria, $schemaVersion, $filters, $limit);
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to test rule against transactions');
+        }
+    }
+
+    /**
      * Apply rules to existing transactions
      * @NoAdminRequired
      */
