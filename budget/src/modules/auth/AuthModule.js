@@ -9,6 +9,34 @@ export default class AuthModule {
         this.sessionToken = localStorage.getItem('budget_session_token');
         this.lastActivityTime = Date.now();
         this.inactivityTimer = null;
+
+        // Shared session state
+        this.sharedSessions = this.loadSharedSessions(); // { ownerUserId: sessionToken }
+        this.currentOwnerUserId = null; // null = viewing own budget, otherwise owner user ID
+    }
+
+    /**
+     * Load shared session tokens from localStorage
+     */
+    loadSharedSessions() {
+        try {
+            const stored = localStorage.getItem('budget_shared_sessions');
+            return stored ? JSON.parse(stored) : {};
+        } catch (error) {
+            console.error('Failed to load shared sessions:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Save shared session tokens to localStorage
+     */
+    saveSharedSessions() {
+        try {
+            localStorage.setItem('budget_shared_sessions', JSON.stringify(this.sharedSessions));
+        } catch (error) {
+            console.error('Failed to save shared sessions:', error);
+        }
     }
 
     // ============================================
@@ -102,11 +130,8 @@ export default class AuthModule {
     }
 
     getAuthHeaders() {
-        const headers = { 'requesttoken': OC.requestToken };
-        if (this.sessionToken) {
-            headers['X-Budget-Session-Token'] = this.sessionToken;
-        }
-        return headers;
+        // Use current owner context if set, otherwise use own budget
+        return this.getAuthHeadersForOwner(this.currentOwnerUserId);
     }
 
     showPasswordModal() {
@@ -253,5 +278,218 @@ export default class AuthModule {
 
         // Reload page to show password prompt
         window.location.reload();
+    }
+
+    // ============================================
+    // Shared Budget Session Methods
+    // ============================================
+
+    /**
+     * Get auth headers for accessing a specific owner's budget
+     * @param {string|null} ownerUserId - Owner user ID, or null for own budget
+     */
+    getAuthHeadersForOwner(ownerUserId = null) {
+        const headers = { 'requesttoken': OC.requestToken };
+
+        // If viewing own budget, use regular session token
+        if (!ownerUserId) {
+            if (this.sessionToken) {
+                headers['X-Budget-Session-Token'] = this.sessionToken;
+            }
+            return headers;
+        }
+
+        // If viewing shared budget, use shared session token
+        const sharedToken = this.sharedSessions[ownerUserId];
+        if (sharedToken) {
+            headers['X-Budget-Shared-Session-Token'] = sharedToken;
+        }
+
+        return headers;
+    }
+
+    /**
+     * Check if a shared budget requires password unlock
+     * @param {string} ownerUserId - Owner user ID
+     */
+    async checkSharedBudgetAuth(ownerUserId) {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/auth/status'), {
+                headers: this.getAuthHeadersForOwner(ownerUserId)
+            });
+
+            if (!response.ok) {
+                return { requiresPassword: false };
+            }
+
+            const status = await response.json();
+
+            // Check if the shared budget has a valid session
+            const hasValidSession = this.sharedSessions[ownerUserId] != null;
+
+            return {
+                requiresPassword: status.enabled && !hasValidSession,
+                hasPassword: status.hasPassword,
+                enabled: status.enabled
+            };
+        } catch (error) {
+            console.error('Failed to check shared budget auth:', error);
+            return { requiresPassword: false };
+        }
+    }
+
+    /**
+     * Unlock a shared budget with password
+     * @param {string} ownerUserId - Owner user ID
+     * @param {string} password - Owner's password
+     */
+    async unlockSharedBudget(ownerUserId, password) {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/auth/unlock-shared'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ ownerUserId, password })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Store shared session token
+                this.sharedSessions[ownerUserId] = result.sessionToken;
+                this.saveSharedSessions();
+                return { success: true };
+            } else {
+                return { success: false, error: result.error || 'Incorrect password' };
+            }
+        } catch (error) {
+            console.error('Failed to unlock shared budget:', error);
+            return { success: false, error: 'Failed to unlock shared budget' };
+        }
+    }
+
+    /**
+     * Lock (end) a shared budget session
+     * @param {string} ownerUserId - Owner user ID
+     */
+    async lockSharedBudget(ownerUserId) {
+        try {
+            await fetch(OC.generateUrl('/apps/budget/api/auth/lock-shared'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ ownerUserId })
+            });
+        } catch (error) {
+            console.error('Failed to lock shared budget:', error);
+        }
+
+        // Remove shared session token
+        delete this.sharedSessions[ownerUserId];
+        this.saveSharedSessions();
+
+        // If we're currently viewing this shared budget, switch back to own budget
+        if (this.currentOwnerUserId === ownerUserId) {
+            this.currentOwnerUserId = null;
+            await this.app.loadInitialData();
+            this.app.showView('dashboard');
+        }
+    }
+
+    /**
+     * Show password modal for unlocking a shared budget
+     * @param {string} ownerUserId - Owner user ID
+     * @param {string} ownerDisplayName - Owner display name
+     * @param {function} onSuccess - Callback on successful unlock
+     */
+    showSharedBudgetPasswordModal(ownerUserId, ownerDisplayName, onSuccess) {
+        const modal = document.createElement('div');
+        modal.id = 'budget-shared-auth-modal';
+        modal.className = 'budget-modal-overlay';
+        modal.innerHTML = `
+            <div class="budget-modal">
+                <div class="budget-modal-header">
+                    <h2>Unlock Shared Budget</h2>
+                </div>
+                <div class="budget-modal-body">
+                    <p>This budget is password protected. Enter <strong>${this.escapeHtml(ownerDisplayName)}</strong>'s password to access it.</p>
+                    <form id="budget-shared-auth-form">
+                        <div class="form-group">
+                            <label for="budget-shared-auth-password">Password</label>
+                            <input type="password" id="budget-shared-auth-password" class="budget-input" required autocomplete="off">
+                        </div>
+                        <div id="budget-shared-auth-error" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="button" class="budget-btn secondary" id="budget-shared-auth-cancel">Cancel</button>
+                            <button type="submit" class="budget-btn primary">Unlock</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const form = document.getElementById('budget-shared-auth-form');
+        const passwordInput = document.getElementById('budget-shared-auth-password');
+        const errorDiv = document.getElementById('budget-shared-auth-error');
+        const cancelBtn = document.getElementById('budget-shared-auth-cancel');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = passwordInput.value;
+
+            const result = await this.unlockSharedBudget(ownerUserId, password);
+
+            if (result.success) {
+                modal.remove();
+                if (onSuccess) onSuccess();
+            } else {
+                errorDiv.textContent = result.error;
+                errorDiv.style.display = 'block';
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            modal.remove();
+        });
+
+        // Focus password input
+        setTimeout(() => passwordInput.focus(), 100);
+    }
+
+    /**
+     * Load active shared sessions from server
+     */
+    async loadActiveSharedSessions() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/auth/shared-sessions'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) {
+                return [];
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to load active shared sessions:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }

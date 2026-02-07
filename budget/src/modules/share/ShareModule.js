@@ -25,6 +25,43 @@ export default class ShareModule {
 	async init() {
 		console.log('[ShareModule] Initializing...');
 		await this.loadShares();
+
+		// Set up budget switcher
+		this.setupBudgetSwitcher();
+	}
+
+	/**
+	 * Set up the budget switcher component
+	 */
+	setupBudgetSwitcher() {
+		const backBtn = document.getElementById('budget-switcher-back-btn');
+		if (backBtn) {
+			backBtn.addEventListener('click', () => this.switchToOwnBudget());
+		}
+	}
+
+	/**
+	 * Update budget switcher visibility based on current owner context
+	 */
+	updateBudgetSwitcher() {
+		const switcher = document.getElementById('budget-switcher');
+		const ownerSpan = document.getElementById('budget-switcher-owner');
+		const currentOwner = this.app.authModule.currentOwnerUserId;
+
+		if (!switcher || !ownerSpan) return;
+
+		if (currentOwner) {
+			// Find the owner's display name from received shares
+			const sharedBudget = this.shares.received.find(s => s.ownerUserId === currentOwner);
+			const ownerName = sharedBudget ?
+				(sharedBudget.ownerDisplayName || sharedBudget.ownerUserId) :
+				currentOwner;
+
+			ownerSpan.textContent = ownerName;
+			switcher.style.display = 'block';
+		} else {
+			switcher.style.display = 'none';
+		}
 	}
 
 	/**
@@ -161,7 +198,7 @@ export default class ShareModule {
 						<th>Email</th>
 						<th>Permission</th>
 						<th>Shared On</th>
-						<th>Status</th>
+						<th>Actions</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -172,7 +209,13 @@ export default class ShareModule {
 							<td><span class="badge badge-${share.permissionLevel}">${share.permissionLevel}</span></td>
 							<td>${this.formatDate(share.createdAt)}</td>
 							<td>
-								<span class="status-active">Active</span>
+								<button
+									class="btn btn-sm btn-primary view-shared-budget-btn"
+									data-owner-user-id="${share.ownerUserId}"
+									data-owner-display-name="${this.escapeHtml(share.ownerDisplayName || share.ownerUserId)}"
+								>
+									View Budget
+								</button>
 							</td>
 						</tr>
 					`).join('')}
@@ -202,6 +245,15 @@ export default class ShareModule {
 				const shareId = parseInt(e.target.dataset.shareId);
 				const userName = e.target.dataset.userName;
 				this.handleRevokeShare(shareId, userName);
+			});
+		});
+
+		// View shared budget buttons
+		container.querySelectorAll('.view-shared-budget-btn').forEach(btn => {
+			btn.addEventListener('click', (e) => {
+				const ownerUserId = e.target.dataset.ownerUserId;
+				const ownerDisplayName = e.target.dataset.ownerDisplayName;
+				this.handleViewSharedBudget(ownerUserId, ownerDisplayName);
 			});
 		});
 
@@ -331,6 +383,80 @@ export default class ShareModule {
 		} catch (error) {
 			console.error('[ShareModule] Failed to revoke share:', error);
 			this.app.showNotification('Failed to revoke access', 'error');
+		}
+	}
+
+	/**
+	 * Handle viewing a shared budget
+	 */
+	async handleViewSharedBudget(ownerUserId, ownerDisplayName) {
+		console.log('[ShareModule] Switching to shared budget:', ownerUserId, ownerDisplayName);
+
+		// Check if shared budget requires password unlock
+		const authStatus = await this.app.authModule.checkSharedBudgetAuth(ownerUserId);
+
+		if (authStatus.requiresPassword) {
+			// Show password modal
+			this.app.authModule.showSharedBudgetPasswordModal(ownerUserId, ownerDisplayName, async () => {
+				await this.switchToSharedBudget(ownerUserId, ownerDisplayName);
+			});
+		} else {
+			// No password required, switch directly
+			await this.switchToSharedBudget(ownerUserId, ownerDisplayName);
+		}
+	}
+
+	/**
+	 * Switch to viewing a shared budget
+	 */
+	async switchToSharedBudget(ownerUserId, ownerDisplayName) {
+		try {
+			// Set current owner context
+			this.app.authModule.currentOwnerUserId = ownerUserId;
+
+			// Update budget switcher
+			this.updateBudgetSwitcher();
+
+			// Show notification
+			this.app.showNotification(`Viewing ${ownerDisplayName}'s budget`, 'success');
+
+			// Reload data for the shared budget
+			await this.app.loadInitialData();
+
+			// Navigate to dashboard
+			this.app.showView('dashboard');
+		} catch (error) {
+			console.error('[ShareModule] Failed to switch to shared budget:', error);
+			this.app.showNotification('Failed to load shared budget', 'error');
+
+			// Reset owner context on error
+			this.app.authModule.currentOwnerUserId = null;
+			this.updateBudgetSwitcher();
+		}
+	}
+
+	/**
+	 * Switch back to viewing own budget
+	 */
+	async switchToOwnBudget() {
+		try {
+			// Clear current owner context
+			this.app.authModule.currentOwnerUserId = null;
+
+			// Update budget switcher
+			this.updateBudgetSwitcher();
+
+			// Show notification
+			this.app.showNotification('Viewing your budget', 'success');
+
+			// Reload own data
+			await this.app.loadInitialData();
+
+			// Navigate to dashboard
+			this.app.showView('dashboard');
+		} catch (error) {
+			console.error('[ShareModule] Failed to switch to own budget:', error);
+			this.app.showNotification('Failed to load your budget', 'error');
 		}
 	}
 

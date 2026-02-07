@@ -223,6 +223,21 @@ style('budget', 'budget-main');
 <div id="app-content" class="app-content">
     <div id="app-navigation-toggle" class="icon-menu" style="display: none;"></div>
     <div id="app-content-wrapper">
+        <!-- Budget Switcher (shown when viewing shared budget) -->
+        <div id="budget-switcher" class="budget-switcher" style="display: none;">
+            <div class="budget-switcher-content">
+                <span class="budget-switcher-icon icon-shared"></span>
+                <div class="budget-switcher-info">
+                    <strong>Viewing Shared Budget</strong>
+                    <span id="budget-switcher-owner" class="budget-switcher-owner"></span>
+                </div>
+                <button id="budget-switcher-back-btn" class="budget-switcher-back-btn">
+                    <span class="icon-close"></span>
+                    Return to My Budget
+                </button>
+            </div>
+        </div>
+
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
             <div class="dashboard-header">
