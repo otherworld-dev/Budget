@@ -125,14 +125,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Chart layout optimized with detailed breakdown showing percentages
   - Increased chart size from 280px to 320px for better visibility
 
-### Development
-- Remove debug console.log statements from transfers module
-- Add sample data files to .gitignore (sample_data/, budget_sample_data*.zip, import_supplemental_data.js)
-- Remove development files from repository (ADVANCED_RULES_IMPLEMENTATION.md, check_transaction.php)
-- Update dashboard screenshot
-- Comprehensive test coverage for advanced rules engine
-- Documentation for advanced rules implementation
-
 ## [2.0.5] - 2026-02-03
 
 ### Added
