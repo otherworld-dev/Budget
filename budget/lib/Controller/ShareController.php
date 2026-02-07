@@ -48,7 +48,7 @@ class ShareController extends Controller {
 
 			return new DataResponse([
 				'owned' => $ownedShares,
-				'accessible' => $accessibleShares,
+				'received' => $accessibleShares, // Frontend expects 'received' not 'accessible'
 			]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, 'Failed to retrieve shares');

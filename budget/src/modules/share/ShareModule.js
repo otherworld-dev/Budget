@@ -78,15 +78,14 @@ export default class ShareModule {
 
 			const result = await response.json();
 
-			if (result.data) {
-				this.shares.owned = result.data.owned || [];
-				this.shares.received = result.data.received || [];
+			// No .data wrapper - response is the data directly
+			this.shares.owned = result.owned || [];
+			this.shares.received = result.received || [];
 
-				console.log('[ShareModule] Loaded shares:', {
-					owned: this.shares.owned.length,
-					received: this.shares.received.length
-				});
-			}
+			console.log('[ShareModule] Loaded shares:', {
+				owned: this.shares.owned.length,
+				received: this.shares.received.length
+			});
 		} catch (error) {
 			console.error('[ShareModule] Failed to load shares:', error);
 			OC.Notification.showTemporary('Failed to load shares');
@@ -300,7 +299,8 @@ export default class ShareModule {
 				}
 
 				const result = await response.json();
-				this.searchResults = result.data || [];
+				// No .data wrapper - response is the data directly
+				this.searchResults = Array.isArray(result) ? result : [];
 				this.renderSearchResults();
 			} catch (error) {
 				console.error('[ShareModule] User search failed:', error);
