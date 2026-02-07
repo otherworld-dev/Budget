@@ -40,12 +40,23 @@ class BillController extends Controller {
     }
 
     /**
-     * Get all bills
+     * Get all bills or transfers
      * @NoAdminRequired
+     * @param string|bool|null $activeOnly Filter by active status (null = all)
+     * @param string|bool|null $isTransfer Filter by type (null = all, true = only transfers, false = only bills)
      */
-    public function index(?bool $activeOnly = false): DataResponse {
+    public function index($activeOnly = false, $isTransfer = null): DataResponse {
         try {
-            if ($activeOnly) {
+            // Convert string parameters to boolean
+            $activeOnlyBool = $this->toBool($activeOnly);
+            $isTransferBool = $isTransfer === null ? null : $this->toBool($isTransfer);
+
+            // Use mapper's findByType if filtering by transfer status
+            if ($isTransferBool !== null) {
+                // Convert activeOnly to isActive parameter: false -> null (all), true -> true (active only)
+                $isActive = $activeOnlyBool ? true : null;
+                $bills = $this->service->findByType($this->userId, $isTransferBool, $isActive);
+            } elseif ($activeOnlyBool) {
                 $bills = $this->service->findActive($this->userId);
             } else {
                 $bills = $this->service->findAll($this->userId);
@@ -54,6 +65,16 @@ class BillController extends Controller {
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to retrieve bills');
         }
+    }
+
+    /**
+     * Convert string/bool to boolean
+     */
+    private function toBool($value): bool {
+        if (is_bool($value)) {
+            return $value;
+        }
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -100,11 +121,30 @@ class BillController extends Controller {
             $createTransaction = $data['createTransaction'] ?? false;
             $transactionDate = $data['transactionDate'] ?? null;
             $autoPayEnabled = $data['autoPayEnabled'] ?? false;
+            $isTransfer = $data['isTransfer'] ?? false;
+            $destinationAccountId = isset($data['destinationAccountId']) ? (int) $data['destinationAccountId'] : null;
+            $transferDescriptionPattern = $data['transferDescriptionPattern'] ?? null;
 
             // Validate auto-pay requires account
             if ($autoPayEnabled && $accountId === null) {
                 return new DataResponse(
                     ['error' => 'Auto-pay requires an account to be set'],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+
+            // Validate transfer requires destination account
+            if ($isTransfer && $destinationAccountId === null) {
+                return new DataResponse(
+                    ['error' => 'Transfer requires a destination account'],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+
+            // Validate transfer cannot have same source and destination
+            if ($isTransfer && $accountId !== null && $accountId === $destinationAccountId) {
+                return new DataResponse(
+                    ['error' => 'Cannot transfer to the same account'],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -187,8 +227,12 @@ class BillController extends Controller {
                 $customRecurrencePattern,
                 $createTransaction,
                 $transactionDate,
-                $autoPayEnabled
+                $autoPayEnabled,
+                $isTransfer,
+                $destinationAccountId,
+                $transferDescriptionPattern
             );
+
             return new DataResponse($bill, Http::STATUS_CREATED);
         } catch (\Exception $e) {
             // Log full error details for debugging
@@ -325,6 +369,63 @@ class BillController extends Controller {
             }
             if (isset($data['autoPayFailed'])) {
                 $updates['autoPayFailed'] = (bool) $data['autoPayFailed'];
+            }
+            if (isset($data['isTransfer'])) {
+                $updates['isTransfer'] = (bool) $data['isTransfer'];
+            }
+            if (array_key_exists('destinationAccountId', $data)) {
+                $updates['destinationAccountId'] = $data['destinationAccountId'] !== null ? (int) $data['destinationAccountId'] : null;
+            }
+            if (array_key_exists('transferDescriptionPattern', $data)) {
+                $updates['transferDescriptionPattern'] = $data['transferDescriptionPattern'];
+            }
+
+            // Validate transfer constraints if being updated
+            if (isset($updates['isTransfer']) && $updates['isTransfer']) {
+                $destinationId = $updates['destinationAccountId'] ?? null;
+                if ($destinationId === null) {
+                    // Check existing bill for destination account if not in updates
+                    try {
+                        $existingBill = $this->service->find($id, $this->userId);
+                        $destinationId = $existingBill->getDestinationAccountId();
+                    } catch (\Exception $e) {
+                        // Will be caught by outer try-catch
+                    }
+                }
+                if ($destinationId === null) {
+                    return new DataResponse(
+                        ['error' => 'Transfer requires a destination account'],
+                        Http::STATUS_BAD_REQUEST
+                    );
+                }
+            }
+
+            // Validate cannot transfer to same account
+            if (isset($updates['destinationAccountId']) || isset($updates['accountId'])) {
+                $accountId = $updates['accountId'] ?? null;
+                $destinationId = $updates['destinationAccountId'] ?? null;
+
+                // If only one is being updated, get the other from existing bill
+                if ($accountId === null || $destinationId === null) {
+                    try {
+                        $existingBill = $this->service->find($id, $this->userId);
+                        if ($accountId === null) {
+                            $accountId = $existingBill->getAccountId();
+                        }
+                        if ($destinationId === null) {
+                            $destinationId = $existingBill->getDestinationAccountId();
+                        }
+                    } catch (\Exception $e) {
+                        // Will be caught by outer try-catch
+                    }
+                }
+
+                if ($accountId !== null && $destinationId !== null && $accountId === $destinationId) {
+                    return new DataResponse(
+                        ['error' => 'Cannot transfer to the same account'],
+                        Http::STATUS_BAD_REQUEST
+                    );
+                }
             }
 
             if (empty($updates)) {

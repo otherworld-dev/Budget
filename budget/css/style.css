@@ -13058,6 +13058,42 @@ button.danger:hover {
     font-size: 13px;
 }
 
+.budget-modal .form-row .form-group {
+    margin-top: 15px;
+}
+
+/* Modal checkbox styling */
+.budget-modal .checkbox-label {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 0;
+    background: none;
+    border-radius: 0;
+}
+
+.budget-modal .checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    top: 3px;
+}
+
+.budget-modal .checkbox-label span {
+    font-weight: normal;
+    font-size: 14px;
+    color: var(--color-main-text);
+    line-height: 1;
+    margin: 0;
+    padding: 0;
+}
+
 .budget-modal .budget-input {
     width: 100%;
     padding: 10px 12px;
@@ -13131,6 +13167,239 @@ button.danger:hover {
 
     .budget-modal-body {
         padding: 20px;
+    }
+}
+
+/* ============================================
+   Enhanced Transfer Modal Styles
+   ============================================ */
+
+/* Larger modal for complex forms */
+.budget-modal-large {
+    max-width: 700px;
+}
+
+/* Modal header with icon */
+.modal-header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.modal-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary-element) 0%, var(--color-primary-element-light) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.modal-icon .icon-link {
+    color: white;
+    font-size: 24px;
+    filter: brightness(0) invert(1);
+}
+
+.modal-subtitle {
+    margin: 4px 0 0 0;
+    font-size: 13px;
+    color: var(--color-text-lighter);
+    font-weight: normal;
+}
+
+/* Modal sections */
+.modal-section {
+    margin-bottom: 24px;
+    background: var(--color-background-hover);
+    border-radius: var(--border-radius-large);
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    background: var(--color-background-dark);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.section-header .icon-info,
+.section-header .icon-category-organization,
+.section-header .icon-settings {
+    color: var(--color-primary-element);
+    font-size: 18px;
+}
+
+.section-content {
+    padding: 20px;
+}
+
+/* Transfer flow layout */
+.transfer-flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+.transfer-account-group {
+    margin: 0;
+}
+
+.account-select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.account-select-wrapper .icon-download,
+.account-select-wrapper .icon-upload {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-lighter);
+    font-size: 16px;
+    z-index: 1;
+}
+
+.account-select-wrapper select {
+    padding-left: 40px;
+}
+
+.transfer-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-primary-element);
+    color: white;
+    flex-shrink: 0;
+}
+
+.transfer-arrow .icon-play-next {
+    font-size: 20px;
+    filter: brightness(0) invert(1);
+}
+
+/* Enhanced checkbox card */
+.checkbox-card {
+    background: var(--color-main-background);
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-card:hover {
+    border-color: var(--color-primary-element);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.checkbox-card .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-card input[type="checkbox"] {
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.checkbox-content {
+    flex: 1;
+}
+
+.checkbox-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.checkbox-title .icon-checkmark-circle {
+    color: var(--color-primary-element);
+    font-size: 18px;
+}
+
+.checkbox-title strong {
+    font-size: 14px;
+    color: var(--color-main-text);
+}
+
+.checkbox-description {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-text-lighter);
+    line-height: 1.4;
+}
+
+/* Form group enhancements */
+.budget-modal label .icon-quota,
+.budget-modal label .icon-calendar,
+.budget-modal label .icon-calendar-dark,
+.budget-modal label .icon-search,
+.budget-modal label .icon-edit {
+    margin-right: 6px;
+    color: var(--color-primary-element);
+    font-size: 14px;
+}
+
+.form-hint .icon-info {
+    margin-right: 4px;
+    color: var(--color-primary-element);
+    font-size: 12px;
+}
+
+/* Modal footer enhancements */
+.budget-modal-footer button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.budget-modal-footer button .icon-close,
+.budget-modal-footer button .icon-checkmark {
+    font-size: 14px;
+}
+
+/* Responsive adjustments for enhanced modal */
+@media (max-width: 768px) {
+    .budget-modal-large {
+        max-width: 95%;
+    }
+
+    .transfer-flow {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .transfer-arrow {
+        transform: rotate(90deg);
+        margin: 8px auto;
+    }
+
+    .modal-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .modal-icon .icon-link {
+        font-size: 20px;
     }
 }
 

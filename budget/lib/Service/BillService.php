@@ -47,6 +47,13 @@ class BillService {
         return $this->mapper->findActive($userId);
     }
 
+    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
+        error_log("BillService::findByType - userId: $userId, isTransfer: " . var_export($isTransfer, true) . ", isActive: " . var_export($isActive, true));
+        $result = $this->mapper->findByType($userId, $isTransfer, $isActive);
+        error_log("BillService::findByType - Mapper returned " . count($result) . " results");
+        return $result;
+    }
+
     public function findOverdue(string $userId): array {
         return $this->mapper->findOverdue($userId);
     }
@@ -104,11 +111,24 @@ class BillService {
         ?string $customRecurrencePattern = null,
         bool $createTransaction = false,
         ?string $transactionDate = null,
-        bool $autoPayEnabled = false
+        bool $autoPayEnabled = false,
+        bool $isTransfer = false,
+        ?int $destinationAccountId = null,
+        ?string $transferDescriptionPattern = null
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
             throw new \InvalidArgumentException('Auto-pay requires an account to be set');
+        }
+
+        // Validate transfer requires destination account
+        if ($isTransfer && $destinationAccountId === null) {
+            throw new \InvalidArgumentException('Transfer requires a destination account');
+        }
+
+        // Validate transfer cannot have same source and destination
+        if ($isTransfer && $accountId !== null && $accountId === $destinationAccountId) {
+            throw new \InvalidArgumentException('Cannot transfer to the same account');
         }
 
         $bill = new Bill();
@@ -127,6 +147,9 @@ class BillService {
         $bill->setCustomRecurrencePattern($customRecurrencePattern);
         $bill->setAutoPayEnabled($autoPayEnabled);
         $bill->setAutoPayFailed(false);
+        $bill->setIsTransfer($isTransfer);
+        $bill->setDestinationAccountId($destinationAccountId);
+        $bill->setTransferDescriptionPattern($transferDescriptionPattern);
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);

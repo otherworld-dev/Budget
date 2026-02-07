@@ -25,6 +25,7 @@ import PensionsModule from './modules/pensions/PensionsModule.js';
 import SavingsModule from './modules/savings/SavingsModule.js';
 import IncomeModule from './modules/income/IncomeModule.js';
 import BillsModule from './modules/bills/BillsModule.js';
+import TransfersModule from './modules/transfers/TransfersModule.js';
 import SettingsModule from './modules/settings/SettingsModule.js';
 import SharedExpensesModule from './modules/shared-expenses/SharedExpensesModule.js';
 import TagSetsModule from './modules/tagsets/TagSetsModule.js';
@@ -92,6 +93,7 @@ class BudgetApp {
         this.savingsModule = new SavingsModule(this);
         this.incomeModule = new IncomeModule(this);
         this.billsModule = new BillsModule(this);
+        this.transfersModule = new TransfersModule(this);
         this.settingsModule = new SettingsModule(this);
         this.sharedExpensesModule = new SharedExpensesModule(this);
         this.tagSetsModule = new TagSetsModule(this);
@@ -2136,6 +2138,10 @@ class BudgetApp {
     // ==========================================
     async loadBillsView() {
         return this.billsModule.loadBillsView();
+    }
+
+    async loadTransfersView() {
+        return this.transfersModule.loadTransfersView();
     }
 
     async loadRulesView() {

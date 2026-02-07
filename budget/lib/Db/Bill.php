@@ -48,6 +48,12 @@ use OCP\AppFramework\Db\Entity;
  * @method void setAutoPayEnabled(bool $autoPayEnabled)
  * @method bool getAutoPayFailed()
  * @method void setAutoPayFailed(bool $autoPayFailed)
+ * @method bool getIsTransfer()
+ * @method void setIsTransfer(bool $isTransfer)
+ * @method int|null getDestinationAccountId()
+ * @method void setDestinationAccountId(?int $destinationAccountId)
+ * @method string|null getTransferDescriptionPattern()
+ * @method void setTransferDescriptionPattern(?string $transferDescriptionPattern)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
@@ -69,6 +75,9 @@ class Bill extends Entity implements JsonSerializable {
     protected $customRecurrencePattern;  // JSON pattern for custom frequency
     protected $autoPayEnabled;    // Automatically mark bill as paid when due
     protected $autoPayFailed;     // Tracks if last auto-pay attempt failed
+    protected $isTransfer;        // Flag to distinguish transfers from bills
+    protected $destinationAccountId;  // Target account for transfers
+    protected $transferDescriptionPattern;  // Optional description pattern for matching
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -81,6 +90,8 @@ class Bill extends Entity implements JsonSerializable {
         $this->addType('reminderDays', 'integer');
         $this->addType('autoPayEnabled', 'boolean');
         $this->addType('autoPayFailed', 'boolean');
+        $this->addType('isTransfer', 'boolean');
+        $this->addType('destinationAccountId', 'integer');
     }
 
     public function jsonSerialize(): array {
@@ -105,6 +116,9 @@ class Bill extends Entity implements JsonSerializable {
             'customRecurrencePattern' => $this->getCustomRecurrencePattern(),
             'autoPayEnabled' => $this->getAutoPayEnabled(),
             'autoPayFailed' => $this->getAutoPayFailed(),
+            'isTransfer' => $this->getIsTransfer() ?? false,
+            'destinationAccountId' => $this->getDestinationAccountId(),
+            'transferDescriptionPattern' => $this->getTransferDescriptionPattern(),
         ];
     }
 }
