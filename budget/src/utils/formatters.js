@@ -4,6 +4,35 @@
  */
 
 /**
+ * Currency configuration with symbol and position metadata
+ * Position: 'prefix' = symbol before amount (e.g., $500), 'suffix' = symbol after amount (e.g., 500 kr)
+ * Prefix currencies have no space, suffix currencies have a space before the symbol
+ */
+const CURRENCY_CONFIG = {
+    'USD': { symbol: '$', position: 'prefix' },
+    'EUR': { symbol: '€', position: 'prefix' },
+    'GBP': { symbol: '£', position: 'prefix' },
+    'CAD': { symbol: 'C$', position: 'prefix' },
+    'AUD': { symbol: 'A$', position: 'prefix' },
+    'JPY': { symbol: '¥', position: 'prefix' },
+    'CHF': { symbol: 'CHF', position: 'suffix' },  // ISO 4217 standard
+    'CNY': { symbol: '¥', position: 'prefix' },
+    'SEK': { symbol: 'kr', position: 'suffix' },   // Swedish krona
+    'NOK': { symbol: 'kr', position: 'suffix' },   // Norwegian krone
+    'DKK': { symbol: 'kr', position: 'suffix' },   // Danish krone
+    'MXN': { symbol: '$', position: 'prefix' },
+    'NZD': { symbol: 'NZ$', position: 'prefix' },
+    'SGD': { symbol: 'S$', position: 'prefix' },
+    'HKD': { symbol: 'HK$', position: 'prefix' },
+    'ZAR': { symbol: 'R', position: 'prefix' },
+    'INR': { symbol: '₹', position: 'prefix' },
+    'BRL': { symbol: 'R$', position: 'prefix' },
+    'RUB': { symbol: '₽', position: 'prefix' },
+    'KRW': { symbol: '₩', position: 'prefix' },
+    'TRY': { symbol: '₺', position: 'prefix' }
+};
+
+/**
  * Format currency amount according to user settings
  * @param {number} amount - Amount to format
  * @param {string|null} currency - Currency code (e.g., 'USD', 'EUR')
@@ -22,35 +51,19 @@ export function formatCurrency(amount, currency, settings) {
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
     const decPart = parts[1] || '';
 
-    // Get currency symbol - matches backend Currency enum
-    const symbols = {
-        'USD': '$',
-        'EUR': '€',
-        'GBP': '£',
-        'CAD': 'C$',
-        'AUD': 'A$',
-        'JPY': '¥',
-        'CHF': 'CHF',
-        'CNY': '¥',
-        'SEK': 'kr',
-        'NOK': 'kr',
-        'DKK': 'kr',
-        'MXN': '$',
-        'NZD': 'NZ$',
-        'SGD': 'S$',
-        'HKD': 'HK$',
-        'ZAR': 'R',
-        'INR': '₹',
-        'BRL': 'R$',
-        'RUB': '₽',
-        'KRW': '₩',
-        'TRY': '₺'
-    };
-    const symbol = symbols[currencyCode] || currencyCode;
+    // Get currency configuration (symbol + position)
+    const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
+    const { symbol, position } = config;
 
     const formattedNumber = decimals > 0 ? `${intPart}${decimalSep}${decPart}` : intPart;
     const sign = amount < 0 ? '-' : '';
-    return `${sign}${symbol}${formattedNumber}`;
+
+    // Apply symbol based on position (suffix currencies get a space before the symbol)
+    if (position === 'suffix') {
+        return `${sign}${formattedNumber} ${symbol}`;
+    } else {
+        return `${sign}${symbol}${formattedNumber}`;
+    }
 }
 
 /**
@@ -155,13 +168,42 @@ export function formatAccountType(type) {
  * @returns {string} Compact formatted currency string
  */
 export function formatCurrencyCompact(value, currency, settings) {
+    const currencyCode = currency || getPrimaryCurrency([], settings);
+    const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
+    const { symbol, position } = config;
+
+    const decimals = parseInt(settings.number_format_decimals) || 2;
+    const decimalSep = settings.number_format_decimal_sep || '.';
+    const thousandsSep = settings.number_format_thousands_sep ?? ',';
+
+    let scaledValue, suffix;
+
     if (Math.abs(value) >= 1000000) {
-        return formatCurrency(value / 1000000, currency, settings).replace(/[\d,.]+/, (m) => parseFloat(m).toFixed(1)) + 'M';
+        scaledValue = value / 1000000;
+        suffix = 'M';
+    } else if (Math.abs(value) >= 1000) {
+        scaledValue = value / 1000;
+        suffix = 'K';
+    } else {
+        // No scaling needed, use regular formatting
+        return formatCurrency(value, currency, settings);
     }
-    if (Math.abs(value) >= 1000) {
-        return formatCurrency(value / 1000, currency, settings).replace(/[\d,.]+/, (m) => parseFloat(m).toFixed(1)) + 'K';
+
+    // Format the scaled number
+    const absScaled = Math.abs(scaledValue);
+    const formatted = absScaled.toFixed(1);
+    const parts = formatted.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
+    const decPart = parts[1] || '';
+    const formattedNumber = decPart ? `${intPart}${decimalSep}${decPart}` : intPart;
+    const sign = scaledValue < 0 ? '-' : '';
+
+    // Apply currency symbol and K/M suffix based on position
+    if (position === 'suffix') {
+        return `${sign}${formattedNumber}${suffix} ${symbol}`;
+    } else {
+        return `${sign}${symbol}${formattedNumber}${suffix}`;
     }
-    return formatCurrency(value, currency, settings);
 }
 
 /**
