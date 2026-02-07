@@ -12,13 +12,16 @@ use OCP\IUserManager;
 class ShareService {
 	private ShareMapper $mapper;
 	private IUserManager $userManager;
+	private AuditService $auditService;
 
 	public function __construct(
 		ShareMapper $mapper,
-		IUserManager $userManager
+		IUserManager $userManager,
+		AuditService $auditService
 	) {
 		$this->mapper = $mapper;
 		$this->userManager = $userManager;
+		$this->auditService = $auditService;
 	}
 
 	/**
@@ -64,7 +67,17 @@ class ShareService {
 		$share->setCreatedAt(date('Y-m-d H:i:s'));
 		$share->setUpdatedAt(date('Y-m-d H:i:s'));
 
-		return $this->mapper->insert($share);
+		$share = $this->mapper->insert($share);
+
+		// Log share creation
+		$this->auditService->logShareCreated(
+			$ownerUserId,
+			$share->getId(),
+			$targetUserId,
+			$permissionLevel
+		);
+
+		return $share;
 	}
 
 	/**
@@ -75,8 +88,28 @@ class ShareService {
 	 * @return bool True if share was revoked, false if no share existed
 	 */
 	public function revokeAccess(string $ownerUserId, string $sharedWithUserId): bool {
+		// Try to find the share before deleting so we can log it
+		try {
+			$share = $this->mapper->findShare($ownerUserId, $sharedWithUserId);
+			$shareId = $share->getId();
+		} catch (DoesNotExistException $e) {
+			// Share doesn't exist
+			return false;
+		}
+
 		$deletedRows = $this->mapper->revokeShare($ownerUserId, $sharedWithUserId);
-		return $deletedRows > 0;
+
+		if ($deletedRows > 0) {
+			// Log share revocation
+			$this->auditService->logShareRevoked(
+				$ownerUserId,
+				$shareId,
+				$sharedWithUserId
+			);
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

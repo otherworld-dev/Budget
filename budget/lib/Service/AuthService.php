@@ -15,6 +15,7 @@ class AuthService {
     private AuthMapper $mapper;
     private SharedSessionMapper $sharedSessionMapper;
     private SettingService $settingService;
+    private AuditService $auditService;
 
     private const LOCKOUT_DURATION_MINUTES = 5;
     private const MAX_FAILED_ATTEMPTS = 5;
@@ -22,11 +23,13 @@ class AuthService {
     public function __construct(
         AuthMapper $mapper,
         SharedSessionMapper $sharedSessionMapper,
-        SettingService $settingService
+        SettingService $settingService,
+        AuditService $auditService
     ) {
         $this->mapper = $mapper;
         $this->sharedSessionMapper = $sharedSessionMapper;
         $this->settingService = $settingService;
+        $this->auditService = $auditService;
     }
 
     /**
@@ -425,6 +428,9 @@ class AuthService {
 
         // Password correct - create or update shared session
         $sessionToken = $this->createSharedSession($currentUserId, $ownerUserId);
+
+        // Log shared session creation
+        $this->auditService->logSharedSessionCreated($currentUserId, $ownerUserId);
 
         return [
             'success' => true,

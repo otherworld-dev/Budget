@@ -21,11 +21,16 @@ class AuditService {
     public const ACTION_IMPORT_COMPLETED = 'import_completed';
     public const ACTION_IMPORT_FAILED = 'import_failed';
     public const ACTION_BULK_OPERATION = 'bulk_operation';
+    public const ACTION_SHARE_CREATED = 'share_created';
+    public const ACTION_SHARE_REVOKED = 'share_revoked';
+    public const ACTION_SHARED_BUDGET_ACCESSED = 'shared_budget_accessed';
+    public const ACTION_SHARED_SESSION_CREATED = 'shared_session_created';
 
     // Entity types
     public const ENTITY_ACCOUNT = 'account';
     public const ENTITY_TRANSACTION = 'transaction';
     public const ENTITY_IMPORT = 'import';
+    public const ENTITY_SHARE = 'share';
 
     private AuditLogMapper $mapper;
     private ?IRequest $request;
@@ -168,6 +173,95 @@ class AuditService {
             self::ENTITY_IMPORT,
             null,
             ['filename' => $filename, 'error' => $error]
+        );
+    }
+
+    /**
+     * Log share creation.
+     *
+     * @param string $ownerUserId User who owns the budget being shared
+     * @param int $shareId Share record ID
+     * @param string $sharedWithUserId User receiving access
+     * @param string $permissionLevel Permission level (read, write)
+     */
+    public function logShareCreated(
+        string $ownerUserId,
+        int $shareId,
+        string $sharedWithUserId,
+        string $permissionLevel
+    ): AuditLog {
+        return $this->log(
+            $ownerUserId,
+            self::ACTION_SHARE_CREATED,
+            self::ENTITY_SHARE,
+            $shareId,
+            [
+                'sharedWithUserId' => $sharedWithUserId,
+                'permissionLevel' => $permissionLevel
+            ]
+        );
+    }
+
+    /**
+     * Log share revocation.
+     *
+     * @param string $ownerUserId User who owns the budget
+     * @param int $shareId Share record ID
+     * @param string $sharedWithUserId User whose access was revoked
+     */
+    public function logShareRevoked(
+        string $ownerUserId,
+        int $shareId,
+        string $sharedWithUserId
+    ): AuditLog {
+        return $this->log(
+            $ownerUserId,
+            self::ACTION_SHARE_REVOKED,
+            self::ENTITY_SHARE,
+            $shareId,
+            ['sharedWithUserId' => $sharedWithUserId]
+        );
+    }
+
+    /**
+     * Log when a user accesses a shared budget.
+     *
+     * @param string $currentUserId User accessing the shared budget
+     * @param string $ownerUserId Budget owner
+     * @param string|null $entityType Type of entity accessed (account, transaction, etc.)
+     * @param int|null $entityId ID of entity accessed
+     */
+    public function logSharedBudgetAccessed(
+        string $currentUserId,
+        string $ownerUserId,
+        ?string $entityType = null,
+        ?int $entityId = null
+    ): AuditLog {
+        return $this->log(
+            $currentUserId,
+            self::ACTION_SHARED_BUDGET_ACCESSED,
+            $entityType,
+            $entityId,
+            ['ownerUserId' => $ownerUserId]
+        );
+    }
+
+    /**
+     * Log when a shared session is created (password-protected shared budget unlocked).
+     *
+     * @param string $currentUserId User who authenticated
+     * @param string $ownerUserId Budget owner whose password was verified
+     */
+    public function logSharedSessionCreated(
+        string $currentUserId,
+        string $ownerUserId
+    ): AuditLog {
+        return $this->log(
+            $currentUserId,
+            self::ACTION_SHARED_SESSION_CREATED,
+            self::ENTITY_SHARE,
+            null,
+            ['ownerUserId' => $ownerUserId]
         );
     }
 

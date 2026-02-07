@@ -104,7 +104,8 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\ShareService::class, function($c) {
             return new \OCA\Budget\Service\ShareService(
                 $c->get(\OCA\Budget\Db\ShareMapper::class),
-                $c->get(\OCP\IUserManager::class)
+                $c->get(\OCP\IUserManager::class),
+                $c->get(\OCA\Budget\Service\AuditService::class)
             );
         });
         $context->registerServiceAlias('ShareService', \OCA\Budget\Service\ShareService::class);
@@ -161,12 +162,13 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('SettingService', \OCA\Budget\Service\SettingService::class);
 
-        // Auth Service (Password Protection) - Depends on SettingService
+        // Auth Service (Password Protection) - Depends on SettingService and AuditService
         $context->registerService(\OCA\Budget\Service\AuthService::class, function($c) {
             return new \OCA\Budget\Service\AuthService(
                 $c->get(\OCA\Budget\Db\AuthMapper::class),
                 $c->get(\OCA\Budget\Db\SharedSessionMapper::class),
-                $c->get(\OCA\Budget\Service\SettingService::class)
+                $c->get(\OCA\Budget\Service\SettingService::class),
+                $c->get(\OCA\Budget\Service\AuditService::class)
             );
         });
         $context->registerServiceAlias('AuthService', \OCA\Budget\Service\AuthService::class);
