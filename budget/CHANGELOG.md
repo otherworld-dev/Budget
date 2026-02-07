@@ -7,6 +7,132 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-02-07
+
+### Added
+- **Bills Calendar Report**: Annual overview showing which months bills are due ([#32](https://github.com/otherworld-dev/budget/issues/32))
+  - Annual overview table with bill amounts by month
+  - Monthly totals bar chart and color-coded heatmap view
+  - Year selector (current year ± 2 years)
+  - Filter by bill status (active/inactive/all)
+  - Option to include/exclude recurring transfers
+  - Toggle between table and heatmap visualization
+  - Supports all bill frequencies (daily, weekly, monthly, quarterly, yearly, custom)
+- **Recurring Transfers**: Track recurring transfers between accounts ([#36](https://github.com/otherworld-dev/budget/issues/36))
+  - Define recurring transfers with auto-pay option
+  - Transaction description pattern for import matching
+  - Monthly equivalent calculation for different frequencies
+  - Integrated with bills system infrastructure
+  - Summary cards showing active, due, and completed transfers
+  - Filtering tabs (All, Due Soon, Overdue, Completed)
+- **Advanced Rules Engine**: Complete redesign of import rules system
+  - Visual query builder for complex boolean expressions (AND/OR/NOT operators)
+  - Support for nested criteria groups with unlimited depth
+  - Multiple action types: category, vendor, notes, tags, account, type, reference
+  - Action priority ordering and behavior settings (always, if_empty, append, merge, replace)
+  - Preview matches before saving rules to test criteria
+  - Run rules immediately on existing transactions
+  - Comprehensive unit test coverage (50+ tests for CriteriaEvaluator and RuleActionApplicator)
+  - Auto-migration of v1 rules to v2 format when edited
+- **Auto-Pay Bills**: Automatic bill payment when due date arrives
+  - Auto-pay checkbox in bill form (requires account to be set)
+  - Notifications for successful payments and failures
+  - Auto-disable on failure to prevent retry loops
+  - Status badges on bill cards showing auto-pay state
+  - Manual payment resets failed state
+- **Future Bill Transactions**: Create future transactions for better cash flow planning
+  - Option to create future transaction when adding bills
+  - Auto-generate transaction when marking bills as paid
+  - Link bills to transactions via bill_id column
+  - Enhanced TransactionService with createFromBill() method
+- **Transfer Transaction Creation**: Create transfers directly from transaction form
+  - Select "Transfer" type to create linked debit/credit transactions
+  - Automatic account linking between source and destination
+  - Reuses existing transaction matching infrastructure
+- **Dynamic Budget Period Switching**: Change budget period with automatic pro-rating
+  - Switch between weekly, monthly, quarterly, and yearly periods
+  - Automatic budget amount pro-rating between periods (e.g., £12,000 yearly = £1,000 monthly)
+  - Spending recalculation for selected period's date range
+- **Net Worth Tracking Enhancements**: Improved net worth history display
+  - Show when last automatic snapshot was taken (hours/days ago)
+  - Status indicator displaying last snapshot information
+  - Improved empty state messaging with better user guidance
+
+### Improved
+- **Import Rules UI**: Completely redesigned modal interface
+  - Modern, space-efficient layout with 1400px width
+  - Inline layout for name and priority fields
+  - Visual CriteriaBuilder and ActionBuilder components
+  - Simplified "Apply Rules" modal that auto-applies all active rules
+  - Enhanced checkbox design with card-like styling
+  - Better visual hierarchy and improved spacing
+- **Currency Symbol Placement**: Correct positioning for suffix currencies ([#34](https://github.com/otherworld-dev/budget/issues/34))
+  - Swedish, Norwegian, Danish kronas now display as "500 kr" instead of "kr500"
+  - Swiss franc follows ISO 4217 standard positioning
+  - Position-aware formatting with CURRENCY_CONFIG metadata
+  - Both formatCurrency() and formatCurrencyCompact() updated
+- **Dashboard Tiles**: Auto-update when transactions or budgets change
+  - Automatic refresh after transaction create/update/delete operations
+  - Auto-refresh when budget amounts are modified
+  - Fixed race conditions by awaiting loadInitialData before rendering
+  - Optimized spending chart layout with detailed breakdown list
+
+### Fixed
+- **Timezone Date Calculations**: Resolve month-off-by-one errors ([#27](https://github.com/otherworld-dev/budget/issues/27))
+  - Transactions no longer appear in wrong month for users in non-UTC timezones
+  - Added timezone-safe date formatting utilities: formatDateForAPI(), getTodayDateString(), getMonthStart(), getMonthEnd()
+  - Fixed budget spending queries and dashboard date ranges
+  - Ensures all date ranges use user's local timezone consistently
+- **Transaction Filters**: Filters now properly apply to transaction table
+  - Category, type, amount range, search, and date filters work correctly
+  - Filters auto-update on every change for consistent behavior
+  - Fixed state management between app and module instances
+  - Added missing filter parameters to loadTransactions() API call
+- **Account Balance Calculations**: Exclude future-dated transactions
+  - Balances reflect actual state as of today
+  - Affects dashboard, accounts page, net worth calculations, and forecasts
+  - Future bill transactions no longer affect current balance
+- **Bill Auto-Pay Validation**: Proper account requirement handling
+  - Auto-pay requires account to be set (validated frontend and backend)
+  - Auto-pay checkbox disabled without account selection
+  - Clear UI feedback for validation requirements
+- **Rule Migration System**: Fix v1 to v2 migration issues
+  - Properly wrap migrated v1 conditions in groups for CriteriaBuilder
+  - Detect and re-migrate broken v2 rules with null criteria
+  - Schema version now reliably saved during migration
+  - Auto-fix legacy broken structures when rules are opened in UI
+  - Detailed console logging for debugging migration decisions
+- **Transaction Edit Button**: Fix for old transactions on accounts page
+  - Fetch transaction from API when not found in local state
+  - Ensures edit functionality works for all historical transactions
+- **Routing Issues**: Fix 404/500 errors on specific endpoints
+  - Year-over-Year API using correct TransactionMapper method (findAllByUserAndDateRange)
+  - Uncategorized transactions endpoint route ordering fixed (specific paths before {id} patterns)
+  - Account balance auto-update after adding transactions
+- **Category Update Endpoint**: Add missing budgetPeriod parameter support
+  - Fixes "No valid fields to update" error when changing budget periods
+  - Validation for monthly, weekly, quarterly, and yearly periods
+- **Modal Close Behavior**: Rules modals now properly close after save
+  - Added rule-modal and apply-rules-modal to hideModals list
+  - Prevents modals staying open after successful operations
+- **Import Rule Type Casting**: Fix TypeError in category/account ID validation
+  - Cast category and account IDs to int in RuleActionApplicator
+  - JSON sends IDs as strings but PHP strict typing requires int
+  - Resolves 500 error when creating rules with category/account actions
+- **Dashboard Data Accuracy**: Improved trend chart and tile calculations
+  - Budget Remaining tile property name handling fixed
+  - Spending by Category chart handles API array data format correctly
+  - Chart layout optimized with detailed breakdown showing percentages
+  - Increased chart size from 280px to 320px for better visibility
+
+### Development
+- Remove debug console.log statements from transfers module
+- Add sample data files to .gitignore (sample_data/, budget_sample_data*.zip, import_supplemental_data.js)
+- Remove development files from repository (ADVANCED_RULES_IMPLEMENTATION.md, check_transaction.php)
+- Update dashboard screenshot
+- Comprehensive test coverage for advanced rules engine
+- Documentation for advanced rules implementation
+
 ## [2.0.5] - 2026-02-03
 
 ### Added
