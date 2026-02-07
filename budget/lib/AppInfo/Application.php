@@ -82,6 +82,33 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('AuthMapper', \OCA\Budget\Db\AuthMapper::class);
 
+        // Shared Session Mapper (Multi-User Password Sessions)
+        $context->registerService(\OCA\Budget\Db\SharedSessionMapper::class, function($c) {
+            return new \OCA\Budget\Db\SharedSessionMapper(
+                $c->get(\OCP\IDBConnection::class)
+            );
+        });
+        $context->registerServiceAlias('SharedSessionMapper', \OCA\Budget\Db\SharedSessionMapper::class);
+
+        // ==========================================
+        // Sharing Services (Multi-User Access)
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\ShareMapper::class, function($c) {
+            return new \OCA\Budget\Db\ShareMapper(
+                $c->get(\OCP\IDBConnection::class)
+            );
+        });
+        $context->registerServiceAlias('ShareMapper', \OCA\Budget\Db\ShareMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\ShareService::class, function($c) {
+            return new \OCA\Budget\Service\ShareService(
+                $c->get(\OCA\Budget\Db\ShareMapper::class),
+                $c->get(\OCP\IUserManager::class)
+            );
+        });
+        $context->registerServiceAlias('ShareService', \OCA\Budget\Service\ShareService::class);
+
         // ==========================================
         // Core Mappers
         // ==========================================
@@ -138,6 +165,7 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\AuthService::class, function($c) {
             return new \OCA\Budget\Service\AuthService(
                 $c->get(\OCA\Budget\Db\AuthMapper::class),
+                $c->get(\OCA\Budget\Db\SharedSessionMapper::class),
                 $c->get(\OCA\Budget\Service\SettingService::class)
             );
         });

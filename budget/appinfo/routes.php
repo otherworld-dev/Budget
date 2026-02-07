@@ -250,6 +250,19 @@ return [
         ['name' => 'auth#disable', 'url' => '/api/auth/disable', 'verb' => 'DELETE'],
         ['name' => 'auth#changePassword', 'url' => '/api/auth/password', 'verb' => 'PUT'],
 
+        // Shared session routes (multi-user password sessions)
+        ['name' => 'auth#unlockShared', 'url' => '/api/auth/shared/unlock', 'verb' => 'POST'],
+        ['name' => 'auth#lockShared', 'url' => '/api/auth/shared/lock', 'verb' => 'POST'],
+        ['name' => 'auth#extendShared', 'url' => '/api/auth/shared/extend', 'verb' => 'POST'],
+        ['name' => 'auth#sharedSessions', 'url' => '/api/auth/shared/sessions', 'verb' => 'GET'],
+
+        // Share routes (multi-user budget sharing) - specific paths before {id} wildcard
+        ['name' => 'share#index', 'url' => '/api/shares', 'verb' => 'GET'],
+        ['name' => 'share#create', 'url' => '/api/shares', 'verb' => 'POST'],
+        ['name' => 'share#searchUsers', 'url' => '/api/shares/users/search', 'verb' => 'GET'],
+        ['name' => 'share#getAccessibleUsers', 'url' => '/api/shares/accessible-users', 'verb' => 'GET'],
+        ['name' => 'share#destroy', 'url' => '/api/shares/{sharedWithUserId}', 'verb' => 'DELETE'],
+
         // Migration routes (data export/import)
         ['name' => 'migration#export', 'url' => '/api/migration/export', 'verb' => 'GET'],
         ['name' => 'migration#preview', 'url' => '/api/migration/preview', 'verb' => 'POST'],

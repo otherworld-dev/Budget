@@ -18,41 +18,65 @@ class RecurringIncomeMapper extends QBMapper {
     }
 
     /**
+     * @param int $id Income ID
+     * @param string $userId Current user ID (for permission check)
+     * @param array|null $accessibleUserIds Optional list of user IDs that current user can access (for shared budgets)
      * @throws DoesNotExistException
      */
-    public function find(int $id, string $userId): RecurringIncome {
+    public function find(int $id, string $userId, ?array $accessibleUserIds = null): RecurringIncome {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->andWhere($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
 
         return $this->findEntity($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch income for (for shared budgets)
      * @return RecurringIncome[]
      */
-    public function findAll(string $userId): array {
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('next_expected_date', 'ASC')
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->orderBy('next_expected_date', 'ASC')
             ->addOrderBy('name', 'ASC');
 
         return $this->findEntities($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch income for (for shared budgets)
      * @return RecurringIncome[]
      */
-    public function findActive(string $userId): array {
+    public function findActive(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->orderBy('next_expected_date', 'ASC')
             ->addOrderBy('name', 'ASC');
 
@@ -61,14 +85,24 @@ class RecurringIncomeMapper extends QBMapper {
 
     /**
      * Find income expected within a date range
+     * @param string $userId Current user ID
+     * @param string $startDate Start date
+     * @param string $endDate End date
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch income for (for shared budgets)
      * @return RecurringIncome[]
      */
-    public function findExpectedInRange(string $userId, string $startDate, string $endDate): array {
+    public function findExpectedInRange(string $userId, string $startDate, string $endDate, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->andWhere($qb->expr()->gte('next_expected_date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('next_expected_date', $qb->createNamedParameter($endDate)))
             ->orderBy('next_expected_date', 'ASC');
@@ -78,14 +112,23 @@ class RecurringIncomeMapper extends QBMapper {
 
     /**
      * Find income by category
+     * @param string $userId Current user ID
+     * @param int $categoryId Category ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch income for (for shared budgets)
      * @return RecurringIncome[]
      */
-    public function findByCategory(string $userId, int $categoryId): array {
+    public function findByCategory(string $userId, int $categoryId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->orderBy('name', 'ASC');
 
         return $this->findEntities($qb);
@@ -93,14 +136,23 @@ class RecurringIncomeMapper extends QBMapper {
 
     /**
      * Find income by frequency
+     * @param string $userId Current user ID
+     * @param string $frequency Frequency type
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch income for (for shared budgets)
      * @return RecurringIncome[]
      */
-    public function findByFrequency(string $userId, string $frequency): array {
+    public function findByFrequency(string $userId, string $frequency, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('frequency', $qb->createNamedParameter($frequency)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('frequency', $qb->createNamedParameter($frequency)))
             ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->orderBy('next_expected_date', 'ASC');
 
@@ -109,17 +161,26 @@ class RecurringIncomeMapper extends QBMapper {
 
     /**
      * Find upcoming income (within next N days)
+     * @param string $userId Current user ID
+     * @param int $days Number of days ahead
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch income for (for shared budgets)
      * @return RecurringIncome[]
      */
-    public function findUpcoming(string $userId, int $days = 30): array {
+    public function findUpcoming(string $userId, int $days = 30, ?array $accessibleUserIds = null): array {
         $today = date('Y-m-d');
         $endDate = date('Y-m-d', strtotime("+{$days} days"));
 
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->andWhere($qb->expr()->gte('next_expected_date', $qb->createNamedParameter($today)))
             ->andWhere($qb->expr()->lte('next_expected_date', $qb->createNamedParameter($endDate)))
             ->orderBy('next_expected_date', 'ASC');
@@ -129,9 +190,11 @@ class RecurringIncomeMapper extends QBMapper {
 
     /**
      * Get total monthly income amount (normalized from all frequencies)
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to calculate total for (for shared budgets)
      */
-    public function getMonthlyTotal(string $userId): float {
-        $incomes = $this->findActive($userId);
+    public function getMonthlyTotal(string $userId, ?array $accessibleUserIds = null): float {
+        $incomes = $this->findActive($userId, $accessibleUserIds);
         $total = 0.0;
 
         foreach ($incomes as $income) {

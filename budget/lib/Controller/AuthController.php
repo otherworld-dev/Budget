@@ -228,4 +228,92 @@ class AuthController extends Controller {
             return $this->handleError($e, 'Failed to change password', Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Unlock a shared budget by verifying owner's password
+     * Creates a shared session that allows current user to access owner's budget
+     *
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     * @UserRateLimit(limit=10, period=60)
+     */
+    public function unlockShared(string $ownerUserId, string $password): DataResponse {
+        try {
+            $result = $this->authService->verifySharedPassword($this->userId, $ownerUserId, $password);
+
+            if ($result['success']) {
+                return new DataResponse([
+                    'success' => true,
+                    'sessionToken' => $result['sessionToken'],
+                    'ownerUserId' => $ownerUserId
+                ]);
+            } else {
+                return new DataResponse([
+                    'success' => false,
+                    'error' => $result['error']
+                ], Http::STATUS_UNAUTHORIZED);
+            }
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to unlock shared budget', Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Lock (end) a specific shared session
+     *
+     * @NoAdminRequired
+     */
+    public function lockShared(string $ownerUserId): DataResponse {
+        try {
+            $this->authService->lockSharedSession($this->userId, $ownerUserId);
+            return new DataResponse(['success' => true]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to lock shared session', Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Extend a shared session expiration
+     *
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function extendShared(): DataResponse {
+        try {
+            $sessionToken = $this->request->getHeader('X-Budget-Shared-Session-Token');
+
+            if (!$sessionToken) {
+                return new DataResponse([
+                    'error' => 'No shared session token provided'
+                ], Http::STATUS_BAD_REQUEST);
+            }
+
+            $success = $this->authService->extendSharedSession($sessionToken, $this->userId);
+
+            if ($success) {
+                return new DataResponse(['success' => true]);
+            } else {
+                return new DataResponse([
+                    'error' => 'Invalid shared session'
+                ], Http::STATUS_UNAUTHORIZED);
+            }
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to extend shared session', Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Get all active shared sessions for the current user
+     *
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function sharedSessions(): DataResponse {
+        try {
+            $sessions = $this->authService->getActiveSharedSessions($this->userId);
+            return new DataResponse($sessions);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to get shared sessions', Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

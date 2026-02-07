@@ -43,8 +43,8 @@ class CategoryService extends AbstractCrudService {
         return $this->mapper;
     }
 
-    public function findByType(string $userId, string $type): array {
-        return $this->getCategoryMapper()->findByType($userId, $type);
+    public function findByType(string $userId, string $type, ?array $accessibleUserIds = null): array {
+        return $this->getCategoryMapper()->findByType($userId, $type, $accessibleUserIds);
     }
 
     public function create(
@@ -122,8 +122,8 @@ class CategoryService extends AbstractCrudService {
         }
     }
 
-    public function getCategoryTree(string $userId): array {
-        $categories = $this->findAll($userId);
+    public function getCategoryTree(string $userId, ?array $accessibleUserIds = null): array {
+        $categories = $this->findAll($userId, $accessibleUserIds);
 
         // Build parent->children map in O(n) single pass
         $childrenMap = [];

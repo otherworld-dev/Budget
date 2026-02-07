@@ -7,10 +7,13 @@ namespace OCA\Budget\Service;
 use DateTime;
 use OCA\Budget\Db\Auth;
 use OCA\Budget\Db\AuthMapper;
+use OCA\Budget\Db\SharedSession;
+use OCA\Budget\Db\SharedSessionMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 
 class AuthService {
     private AuthMapper $mapper;
+    private SharedSessionMapper $sharedSessionMapper;
     private SettingService $settingService;
 
     private const LOCKOUT_DURATION_MINUTES = 5;
@@ -18,9 +21,11 @@ class AuthService {
 
     public function __construct(
         AuthMapper $mapper,
+        SharedSessionMapper $sharedSessionMapper,
         SettingService $settingService
     ) {
         $this->mapper = $mapper;
+        $this->sharedSessionMapper = $sharedSessionMapper;
         $this->settingService = $settingService;
     }
 
@@ -376,5 +381,225 @@ class AuthService {
         $auth->setSessionExpiresAt(null);
         $auth->setUpdatedAt(date('Y-m-d H:i:s'));
         $this->mapper->update($auth);
+    }
+
+    // ============================================================================
+    // Shared Session Management (for accessing shared budgets with password protection)
+    // ============================================================================
+
+    /**
+     * Verify owner's password and create a shared session for current user
+     *
+     * @param string $currentUserId User who is accessing the shared budget
+     * @param string $ownerUserId Budget owner whose password is being verified
+     * @param string $password Owner's password
+     * @return array{success: bool, sessionToken?: string, error?: string}
+     */
+    public function verifySharedPassword(string $currentUserId, string $ownerUserId, string $password): array {
+        // Can't create shared session for own budget
+        if ($currentUserId === $ownerUserId) {
+            return ['success' => false, 'error' => 'Cannot create shared session for own budget'];
+        }
+
+        try {
+            $auth = $this->mapper->findByUserId($ownerUserId);
+        } catch (DoesNotExistException $e) {
+            return ['success' => false, 'error' => 'Password protection not set up for this budget'];
+        }
+
+        // Check if owner's account is locked
+        if ($this->isLocked($auth)) {
+            return [
+                'success' => false,
+                'error' => 'Budget owner account is temporarily locked'
+            ];
+        }
+
+        // Verify password against owner's password hash
+        if (!password_verify($password, $auth->getPasswordHash())) {
+            return [
+                'success' => false,
+                'error' => 'Incorrect password'
+            ];
+        }
+
+        // Password correct - create or update shared session
+        $sessionToken = $this->createSharedSession($currentUserId, $ownerUserId);
+
+        return [
+            'success' => true,
+            'sessionToken' => $sessionToken
+        ];
+    }
+
+    /**
+     * Validate a shared session token
+     *
+     * @param string $sessionToken
+     * @return bool
+     */
+    public function isValidSharedSession(string $sessionToken): bool {
+        try {
+            $session = $this->sharedSessionMapper->findBySessionToken($sessionToken);
+
+            // Check if session has expired
+            $expiresAt = new DateTime($session->getExpiresAt());
+            $now = new DateTime();
+
+            if ($now > $expiresAt) {
+                // Session expired - delete it
+                $this->sharedSessionMapper->delete($session);
+                return false;
+            }
+
+            return true;
+        } catch (DoesNotExistException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get owner user ID from a shared session token
+     *
+     * @param string $sessionToken
+     * @return string|null Owner user ID if session valid, null otherwise
+     */
+    public function getOwnerFromSharedSession(string $sessionToken): ?string {
+        try {
+            $session = $this->sharedSessionMapper->findBySessionToken($sessionToken);
+
+            // Validate session is not expired
+            if ($this->isValidSharedSession($sessionToken)) {
+                return $session->getOwnerUserId();
+            }
+
+            return null;
+        } catch (DoesNotExistException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get current user ID from a shared session token
+     *
+     * @param string $sessionToken
+     * @return string|null Current user ID if session valid, null otherwise
+     */
+    public function getCurrentUserFromSharedSession(string $sessionToken): ?string {
+        try {
+            $session = $this->sharedSessionMapper->findBySessionToken($sessionToken);
+
+            // Validate session is not expired
+            if ($this->isValidSharedSession($sessionToken)) {
+                return $session->getCurrentUserId();
+            }
+
+            return null;
+        } catch (DoesNotExistException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Extend shared session expiration time
+     *
+     * @param string $sessionToken
+     * @param string $currentUserId
+     * @return bool
+     */
+    public function extendSharedSession(string $sessionToken, string $currentUserId): bool {
+        try {
+            $session = $this->sharedSessionMapper->findBySessionToken($sessionToken);
+
+            if ($session->getCurrentUserId() !== $currentUserId) {
+                return false;
+            }
+
+            // Get timeout from owner's settings
+            $ownerUserId = $session->getOwnerUserId();
+            $timeoutMinutes = (int) ($this->settingService->get($ownerUserId, 'session_timeout_minutes') ?? '30');
+            $expiresAt = (new DateTime())->modify("+{$timeoutMinutes} minutes");
+
+            $session->setExpiresAt($expiresAt->format('Y-m-d H:i:s'));
+            $this->sharedSessionMapper->update($session);
+
+            return true;
+        } catch (DoesNotExistException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Lock (delete) a specific shared session
+     *
+     * @param string $currentUserId
+     * @param string $ownerUserId
+     * @return void
+     */
+    public function lockSharedSession(string $currentUserId, string $ownerUserId): void {
+        $this->sharedSessionMapper->deleteByCurrentUserAndOwner($currentUserId, $ownerUserId);
+    }
+
+    /**
+     * Lock (delete) all shared sessions for a current user
+     *
+     * @param string $currentUserId
+     * @return void
+     */
+    public function lockAllSharedSessions(string $currentUserId): void {
+        $this->sharedSessionMapper->deleteByCurrentUser($currentUserId);
+    }
+
+    /**
+     * Get all active shared sessions for a user
+     *
+     * @param string $currentUserId
+     * @return SharedSession[]
+     */
+    public function getActiveSharedSessions(string $currentUserId): array {
+        $sessions = $this->sharedSessionMapper->findByCurrentUser($currentUserId);
+        $now = new DateTime();
+
+        // Filter out expired sessions
+        return array_filter($sessions, function ($session) use ($now) {
+            $expiresAt = new DateTime($session->getExpiresAt());
+            return $now <= $expiresAt;
+        });
+    }
+
+    /**
+     * Create a new shared session for the current user to access owner's budget
+     *
+     * @param string $currentUserId
+     * @param string $ownerUserId
+     * @return string Session token
+     */
+    private function createSharedSession(string $currentUserId, string $ownerUserId): string {
+        // Generate session token
+        $sessionToken = bin2hex(random_bytes(32));
+
+        // Get timeout from owner's settings
+        $timeoutMinutes = (int) ($this->settingService->get($ownerUserId, 'session_timeout_minutes') ?? '30');
+        $expiresAt = (new DateTime())->modify("+{$timeoutMinutes} minutes");
+
+        // Check if session already exists for this current_user + owner pair
+        try {
+            $session = $this->sharedSessionMapper->findByCurrentUserAndOwner($currentUserId, $ownerUserId);
+            // Update existing session
+            $session->setSessionToken($sessionToken);
+            $session->setExpiresAt($expiresAt->format('Y-m-d H:i:s'));
+            $this->sharedSessionMapper->update($session);
+        } catch (DoesNotExistException $e) {
+            // Create new session
+            $session = new SharedSession();
+            $session->setCurrentUserId($currentUserId);
+            $session->setOwnerUserId($ownerUserId);
+            $session->setSessionToken($sessionToken);
+            $session->setExpiresAt($expiresAt->format('Y-m-d H:i:s'));
+            $session->setCreatedAt(date('Y-m-d H:i:s'));
+            $this->sharedSessionMapper->insert($session);
+        }
+
+        return $sessionToken;
     }
 }

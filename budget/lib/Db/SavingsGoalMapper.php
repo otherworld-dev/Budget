@@ -18,27 +18,43 @@ class SavingsGoalMapper extends QBMapper {
     }
 
     /**
+     * @param int $id Goal ID
+     * @param string $userId Current user ID (for permission check)
+     * @param array|null $accessibleUserIds Optional list of user IDs that current user can access (for shared budgets)
      * @throws DoesNotExistException
      */
-    public function find(int $id, string $userId): SavingsGoal {
+    public function find(int $id, string $userId, ?array $accessibleUserIds = null): SavingsGoal {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->andWhere($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
 
         return $this->findEntity($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch goals for (for shared budgets)
      * @return SavingsGoal[]
      */
-    public function findAll(string $userId): array {
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('name', 'ASC');
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->orderBy('name', 'ASC');
 
         return $this->findEntities($qb);
     }

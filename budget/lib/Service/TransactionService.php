@@ -34,6 +34,29 @@ class TransactionService {
         return $this->mapper->find($id, $userId);
     }
 
+    /**
+     * Get the owner user ID for a transaction (via its account).
+     * Used by controllers to check write access.
+     *
+     * @throws DoesNotExistException
+     */
+    public function getTransactionOwner(int $transactionId, string $userId): string {
+        $transaction = $this->mapper->find($transactionId, $userId);
+        $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
+        return $account->getUserId();
+    }
+
+    /**
+     * Get the owner user ID for an account.
+     * Used by controllers to check write access before creating transactions.
+     *
+     * @throws DoesNotExistException
+     */
+    public function getAccountOwner(int $accountId, string $userId): string {
+        $account = $this->accountMapper->find($accountId, $userId);
+        return $account->getUserId();
+    }
+
     public function findByAccount(string $userId, int $accountId, int $limit = 100, int $offset = 0): array {
         // Verify account belongs to user
         $this->accountMapper->find($accountId, $userId);
@@ -244,8 +267,8 @@ class TransactionService {
         $this->mapper->delete($transaction);
     }
 
-    public function findWithFilters(string $userId, array $filters, int $limit, int $offset): array {
-        return $this->mapper->findWithFilters($userId, $filters, $limit, $offset);
+    public function findWithFilters(string $userId, array $filters, int $limit, int $offset, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findWithFilters($userId, $filters, $limit, $offset, $accessibleUserIds);
     }
 
     public function bulkCategorize(string $userId, array $updates): array {

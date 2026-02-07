@@ -21,16 +21,28 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Find a transaction by ID
+     *
+     * @param int $id Transaction ID
+     * @param string $userId Current user ID (for permission check)
+     * @param array|null $accessibleUserIds Optional list of user IDs that current user can access (for shared budgets)
      * @throws DoesNotExistException
      */
-    public function find(int $id, string $userId): Transaction {
+    public function find(int $id, string $userId, ?array $accessibleUserIds = null): Transaction {
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('t.id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
-        
+            ->where($qb->expr()->eq('t.id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        // If accessibleUserIds provided, check if transaction's account belongs to any accessible user
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->andWhere($qb->expr()->in('a.user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's transactions
+            $qb->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+        }
+
         return $this->findEntity($qb);
     }
 
@@ -67,32 +79,56 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Find all transactions for a user (across all accounts)
+     * Find all transactions for user(s) (across all accounts)
+     *
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch transactions for (for shared budgets)
      * @return Transaction[]
      */
-    public function findAll(string $userId): array {
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('t.date', 'DESC')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // If accessibleUserIds provided, get transactions from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('a.user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's transactions
+            $qb->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->orderBy('t.date', 'DESC')
             ->addOrderBy('t.id', 'DESC');
 
         return $this->findEntities($qb);
     }
 
     /**
-     * Find all transactions for a user within a date range (across all accounts)
+     * Find all transactions for user(s) within a date range (across all accounts)
+     *
+     * @param string $userId Current user ID
+     * @param string $startDate Start date
+     * @param string $endDate End date
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch transactions for (for shared budgets)
      * @return Transaction[]
      */
-    public function findAllByUserAndDateRange(string $userId, string $startDate, string $endDate): array {
+    public function findAllByUserAndDateRange(string $userId, string $startDate, string $endDate, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // If accessibleUserIds provided, get transactions from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('a.user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's transactions
+            $qb->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->orderBy('t.date', 'DESC')
             ->addOrderBy('t.id', 'DESC');
@@ -132,34 +168,60 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Find uncategorized transactions
+     *
+     * @param string $userId Current user ID
+     * @param int $limit Maximum results
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch transactions for (for shared budgets)
      * @return Transaction[]
      */
-    public function findUncategorized(string $userId, int $limit = 100): array {
+    public function findUncategorized(string $userId, int $limit = 100, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->isNull('t.category_id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // If accessibleUserIds provided, get uncategorized transactions from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('a.user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's uncategorized transactions
+            $qb->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->isNull('t.category_id'))
             ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
-        
+
         return $this->findEntities($qb);
     }
 
     /**
      * Search transactions
+     *
+     * @param string $userId Current user ID
+     * @param string $query Search query
+     * @param int $limit Maximum results
+     * @param array|null $accessibleUserIds Optional list of user IDs to search transactions for (for shared budgets)
      * @return Transaction[]
      */
-    public function search(string $userId, string $query, int $limit = 100): array {
+    public function search(string $userId, string $query, int $limit = 100, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $searchPattern = '%' . $qb->escapeLikeParameter($query) . '%';
-        
+
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere(
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // If accessibleUserIds provided, search transactions from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('a.user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's transactions
+            $qb->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere(
                 $qb->expr()->orX(
                     $qb->expr()->like('t.description', $qb->createNamedParameter($searchPattern)),
                     $qb->expr()->like('t.vendor', $qb->createNamedParameter($searchPattern)),
@@ -168,20 +230,33 @@ class TransactionMapper extends QBMapper {
             )
             ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
-        
+
         return $this->findEntities($qb);
     }
 
     /**
      * Find transactions with filters, pagination and sorting
+     *
+     * @param string $userId Current user ID
+     * @param array $filters Filter criteria
+     * @param int $limit Maximum results
+     * @param int $offset Pagination offset
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch transactions for (for shared budgets)
      */
-    public function findWithFilters(string $userId, array $filters, int $limit, int $offset): array {
+    public function findWithFilters(string $userId, array $filters, int $limit, int $offset, ?array $accessibleUserIds = null): array {
         // Main query
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // If accessibleUserIds provided, get transactions from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('a.user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's transactions
+            $qb->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+        }
 
         // Apply filters using the filter builder
         $this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
@@ -190,8 +265,14 @@ class TransactionMapper extends QBMapper {
         $countQb = $this->db->getQueryBuilder();
         $countQb->select($countQb->func()->count('t.id'))
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $countQb->expr()->eq('t.account_id', 'a.id'))
-            ->where($countQb->expr()->eq('a.user_id', $countQb->createNamedParameter($userId)));
+            ->innerJoin('t', 'budget_accounts', 'a', $countQb->expr()->eq('t.account_id', 'a.id'));
+
+        // Apply same user filter to count query
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $countQb->where($countQb->expr()->in('a.user_id', $countQb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $countQb->where($countQb->expr()->eq('a.user_id', $countQb->createNamedParameter($userId)));
+        }
 
         // Apply same filters to count query
         $this->filterBuilder->applyTransactionFilters($countQb, $filters, 't');

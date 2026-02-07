@@ -6,9 +6,11 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\CategoryService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -19,6 +21,7 @@ use Psr\Log\LoggerInterface;
 class CategoryController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private CategoryService $service;
     private ValidationService $validationService;
@@ -28,6 +31,7 @@ class CategoryController extends Controller {
         IRequest $request,
         CategoryService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -37,6 +41,7 @@ class CategoryController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -44,10 +49,13 @@ class CategoryController extends Controller {
      */
     public function index(?string $type = null): DataResponse {
         try {
+            // Get all accessible user IDs (own + shared budgets)
+            $accessibleUserIds = $this->getAccessibleUserIds($this->userId);
+
             if ($type) {
-                $categories = $this->service->findByType($this->userId, $type);
+                $categories = $this->service->findByType($this->userId, $type, $accessibleUserIds);
             } else {
-                $categories = $this->service->findAll($this->userId);
+                $categories = $this->service->findAll($this->userId, $accessibleUserIds);
             }
             return new DataResponse($categories);
         } catch (\Exception $e) {
@@ -60,7 +68,10 @@ class CategoryController extends Controller {
      */
     public function tree(): DataResponse {
         try {
-            $tree = $this->service->getCategoryTree($this->userId);
+            // Get all accessible user IDs (own + shared budgets)
+            $accessibleUserIds = $this->getAccessibleUserIds($this->userId);
+
+            $tree = $this->service->getCategoryTree($this->userId, $accessibleUserIds);
             return new DataResponse($tree);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to retrieve category tree');
@@ -155,6 +166,10 @@ class CategoryController extends Controller {
         ?int $sortOrder = null
     ): DataResponse {
         try {
+            // Check category ownership before allowing updates
+            $category = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $category->getUserId());
+
             $updates = [];
 
             // Validate name if provided
@@ -230,6 +245,10 @@ class CategoryController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
+            // Check category ownership before allowing deletion
+            $category = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $category->getUserId());
+
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {

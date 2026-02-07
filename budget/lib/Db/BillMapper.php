@@ -18,41 +18,65 @@ class BillMapper extends QBMapper {
     }
 
     /**
+     * @param int $id Bill ID
+     * @param string $userId Current user ID (for permission check)
+     * @param array|null $accessibleUserIds Optional list of user IDs that current user can access (for shared budgets)
      * @throws DoesNotExistException
      */
-    public function find(int $id, string $userId): Bill {
+    public function find(int $id, string $userId, ?array $accessibleUserIds = null): Bill {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->andWhere($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
 
         return $this->findEntity($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findAll(string $userId): array {
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('next_due_date', 'ASC')
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->orderBy('next_due_date', 'ASC')
             ->addOrderBy('name', 'ASC');
 
         return $this->findEntities($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findActive(string $userId): array {
+    public function findActive(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->orderBy('next_due_date', 'ASC')
             ->addOrderBy('name', 'ASC');
 
@@ -61,14 +85,24 @@ class BillMapper extends QBMapper {
 
     /**
      * Find bills due within a date range
+     * @param string $userId Current user ID
+     * @param string $startDate Start date
+     * @param string $endDate End date
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findDueInRange(string $userId, string $startDate, string $endDate): array {
+    public function findDueInRange(string $userId, string $startDate, string $endDate, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->andWhere($qb->expr()->gte('next_due_date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($endDate)))
             ->orderBy('next_due_date', 'ASC');
@@ -78,14 +112,23 @@ class BillMapper extends QBMapper {
 
     /**
      * Find bills by category
+     * @param string $userId Current user ID
+     * @param int $categoryId Category ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findByCategory(string $userId, int $categoryId): array {
+    public function findByCategory(string $userId, int $categoryId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->orderBy('name', 'ASC');
 
         return $this->findEntities($qb);
@@ -93,14 +136,23 @@ class BillMapper extends QBMapper {
 
     /**
      * Find bills by frequency
+     * @param string $userId Current user ID
+     * @param string $frequency Frequency type
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findByFrequency(string $userId, string $frequency): array {
+    public function findByFrequency(string $userId, string $frequency, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('frequency', $qb->createNamedParameter($frequency)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('frequency', $qb->createNamedParameter($frequency)))
             ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->orderBy('next_due_date', 'ASC');
 
@@ -109,16 +161,22 @@ class BillMapper extends QBMapper {
 
     /**
      * Find bills or transfers based on type
-     * @param string $userId
+     * @param string $userId Current user ID
      * @param bool|null $isTransfer null = all, true = only transfers, false = only bills
      * @param bool|null $isActive null = all, true = only active, false = only inactive
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
+    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
 
         if ($isTransfer !== null) {
             $qb->andWhere($qb->expr()->eq('is_transfer', $qb->createNamedParameter($isTransfer, IQueryBuilder::PARAM_BOOL)));
@@ -136,15 +194,23 @@ class BillMapper extends QBMapper {
 
     /**
      * Find overdue bills (next_due_date < today)
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch bills for (for shared budgets)
      * @return Bill[]
      */
-    public function findOverdue(string $userId): array {
+    public function findOverdue(string $userId, ?array $accessibleUserIds = null): array {
         $today = date('Y-m-d');
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->andWhere($qb->expr()->lt('next_due_date', $qb->createNamedParameter($today)))
             ->orderBy('next_due_date', 'ASC');
 
@@ -186,9 +252,11 @@ class BillMapper extends QBMapper {
 
     /**
      * Get total monthly bill amount
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to calculate total for (for shared budgets)
      */
-    public function getMonthlyTotal(string $userId): float {
-        $bills = $this->findActive($userId);
+    public function getMonthlyTotal(string $userId, ?array $accessibleUserIds = null): float {
+        $bills = $this->findActive($userId, $accessibleUserIds);
         $total = 0.0;
 
         foreach ($bills as $bill) {

@@ -6,9 +6,11 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -19,6 +21,7 @@ use Psr\Log\LoggerInterface;
 class BillController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private BillService $service;
     private ValidationService $validationService;
@@ -28,6 +31,7 @@ class BillController extends Controller {
         IRequest $request,
         BillService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -37,6 +41,7 @@ class BillController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -47,6 +52,9 @@ class BillController extends Controller {
      */
     public function index($activeOnly = false, $isTransfer = null): DataResponse {
         try {
+            // Get all accessible user IDs (own + shared budgets)
+            $accessibleUserIds = $this->getAccessibleUserIds($this->userId);
+
             // Convert string parameters to boolean
             $activeOnlyBool = $this->toBool($activeOnly);
             $isTransferBool = $isTransfer === null ? null : $this->toBool($isTransfer);
@@ -55,11 +63,11 @@ class BillController extends Controller {
             if ($isTransferBool !== null) {
                 // Convert activeOnly to isActive parameter: false -> null (all), true -> true (active only)
                 $isActive = $activeOnlyBool ? true : null;
-                $bills = $this->service->findByType($this->userId, $isTransferBool, $isActive);
+                $bills = $this->service->findByType($this->userId, $isTransferBool, $isActive, $accessibleUserIds);
             } elseif ($activeOnlyBool) {
-                $bills = $this->service->findActive($this->userId);
+                $bills = $this->service->findActive($this->userId, $accessibleUserIds);
             } else {
-                $bills = $this->service->findAll($this->userId);
+                $bills = $this->service->findAll($this->userId, $accessibleUserIds);
             }
             return new DataResponse($bills);
         } catch (\Exception $e) {
@@ -252,6 +260,10 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function update(int $id): DataResponse {
         try {
+            // Check bill ownership before allowing updates
+            $bill = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $bill->getUserId());
+
             $data = json_decode(file_get_contents('php://input'), true);
             if (!is_array($data)) {
                 return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
@@ -446,6 +458,10 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
+            // Check bill ownership before allowing deletion
+            $bill = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $bill->getUserId());
+
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
@@ -460,6 +476,10 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markPaid(int $id, ?string $paidDate = null): DataResponse {
         try {
+            // Check bill ownership before marking as paid
+            $bill = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $bill->getUserId());
+
             $data = json_decode(file_get_contents('php://input'), true) ?? [];
             $createNextTransaction = $data['createNextTransaction'] ?? true;
 

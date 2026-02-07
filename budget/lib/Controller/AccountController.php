@@ -7,9 +7,11 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AuditService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
@@ -21,6 +23,7 @@ use Psr\Log\LoggerInterface;
 class AccountController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private AccountService $service;
     private ValidationService $validationService;
@@ -32,6 +35,7 @@ class AccountController extends Controller {
         AccountService $service,
         ValidationService $validationService,
         AuditService $auditService,
+        ShareService $shareService,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -42,6 +46,7 @@ class AccountController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -49,9 +54,30 @@ class AccountController extends Controller {
      */
     public function index(): DataResponse {
         try {
+            // Get all accessible user IDs (own + shared budgets)
+            $accessibleUserIds = $this->getAccessibleUserIds($this->userId);
+
             // Return accounts with balances adjusted to exclude future transactions
-            $accounts = $this->service->findAllWithCurrentBalances($this->userId);
-            return new DataResponse($accounts);
+            // This now includes accounts from shared budgets
+            $accounts = $this->service->findAllWithCurrentBalances($this->userId, $accessibleUserIds);
+
+            // Enrich with owner information for shared accounts
+            $enrichedAccounts = array_map(function ($account) {
+                if ($account['userId'] !== $this->userId) {
+                    // This account belongs to someone else (shared budget)
+                    $ownerInfo = $this->getUserDisplayInfo($account['userId']);
+                    $account['ownerDisplayName'] = $ownerInfo['displayName'];
+                    $account['isShared'] = true;
+                    $account['isReadOnly'] = true;
+                }
+else {
+                    $account['isShared'] = false;
+                    $account['isReadOnly'] = false;
+                }
+                return $account;
+            }, $accounts);
+
+            return new DataResponse($enrichedAccounts);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to retrieve accounts');
         }
@@ -64,7 +90,23 @@ class AccountController extends Controller {
         try {
             // Return account with balance adjusted to exclude future transactions
             $account = $this->service->findWithCurrentBalance($id, $this->userId);
-            return new DataResponse($account);
+
+            // Enrich with ownership information
+            $accountData = $account;
+            if (is_array($accountData) && isset($accountData['userId'])) {
+                $ownerId = $accountData['userId'];
+                if ($ownerId !== $this->userId) {
+                    $ownerInfo = $this->getUserDisplayInfo($ownerId);
+                    $accountData['ownerDisplayName'] = $ownerInfo['displayName'];
+                    $accountData['isShared'] = true;
+                    $accountData['isReadOnly'] = true;
+                } else {
+                    $accountData['isShared'] = false;
+                    $accountData['isReadOnly'] = false;
+                }
+            }
+
+            return new DataResponse($accountData);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, 'Account', ['accountId' => $id]);
         }
@@ -235,6 +277,12 @@ class AccountController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function update(int $id): DataResponse {
         try {
+            // First fetch the account to check ownership
+            $account = $this->service->find($id, $this->userId);
+
+            // Enforce write access (prevents updates to shared read-only accounts)
+            $this->enforceWriteAccess($this->userId, $account->getUserId());
+
             // Get JSON data from request body
             $data = json_decode(file_get_contents('php://input'), true);
 
@@ -395,8 +443,12 @@ class AccountController extends Controller {
     #[UserRateLimit(limit: 10, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            // Get account name before deletion for audit log
+            // Get account before deletion to check ownership and get name for audit log
             $account = $this->service->find($id, $this->userId);
+
+            // Enforce write access (prevents deletion of shared read-only accounts)
+            $this->enforceWriteAccess($this->userId, $account->getUserId());
+
             $accountName = $account->getName();
 
             $this->service->delete($id, $this->userId);
@@ -413,6 +465,7 @@ class AccountController extends Controller {
     /**
      * Reveal full (unmasked) sensitive account details.
      * Requires password confirmation and logs the access.
+     * Only available for owned accounts, not shared read-only accounts.
      *
      * @NoAdminRequired
      */
@@ -421,6 +474,9 @@ class AccountController extends Controller {
     public function reveal(int $id): DataResponse {
         try {
             $account = $this->service->find($id, $this->userId);
+
+            // Enforce write access - only owners can reveal sensitive data
+            $this->enforceWriteAccess($this->userId, $account->getUserId());
 
             // Check if account has sensitive data to reveal
             if (!$account->hasSensitiveData()) {

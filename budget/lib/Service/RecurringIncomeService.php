@@ -35,25 +35,25 @@ class RecurringIncomeService {
         return $this->mapper->find($id, $userId);
     }
 
-    public function findAll(string $userId): array {
-        return $this->mapper->findAll($userId);
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findAll($userId, $accessibleUserIds);
     }
 
-    public function findActive(string $userId): array {
-        return $this->mapper->findActive($userId);
+    public function findActive(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findActive($userId, $accessibleUserIds);
     }
 
-    public function findExpectedThisMonth(string $userId): array {
+    public function findExpectedThisMonth(string $userId, ?array $accessibleUserIds = null): array {
         $startDate = date('Y-m-01');
         $endDate = date('Y-m-t');
-        return $this->mapper->findExpectedInRange($userId, $startDate, $endDate);
+        return $this->mapper->findExpectedInRange($userId, $startDate, $endDate, $accessibleUserIds);
     }
 
     /**
      * Find upcoming income sorted by expected date.
      */
-    public function findUpcoming(string $userId, int $days = 30): array {
-        return $this->mapper->findUpcoming($userId, $days);
+    public function findUpcoming(string $userId, int $days = 30, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findUpcoming($userId, $days, $accessibleUserIds);
     }
 
     public function create(
@@ -170,8 +170,8 @@ class RecurringIncomeService {
     /**
      * Get monthly summary of recurring income.
      */
-    public function getMonthlySummary(string $userId): array {
-        $incomes = $this->findActive($userId);
+    public function getMonthlySummary(string $userId, ?array $accessibleUserIds = null): array {
+        $incomes = $this->findActive($userId, $accessibleUserIds);
         $totalMonthly = 0.0;
         $byFrequency = [];
 
@@ -239,8 +239,8 @@ class RecurringIncomeService {
     /**
      * Auto-detect recurring income from transaction history.
      */
-    public function detectRecurringIncome(string $userId, int $months = 6, bool $debug = false): array {
-        return $this->recurringDetector->detectRecurringIncome($userId, $months, $debug);
+    public function detectRecurringIncome(string $userId, int $months = 6, bool $debug = false, ?array $accessibleUserIds = null): array {
+        return $this->recurringDetector->detectRecurringIncome($userId, $months, $debug, $accessibleUserIds);
     }
 
     /**

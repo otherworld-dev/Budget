@@ -44,11 +44,12 @@ abstract class AbstractCrudService {
     /**
      * Find all entities for a user.
      *
-     * @param string $userId
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch entities for (for shared budgets)
      * @return T[]
      */
-    public function findAll(string $userId): array {
-        return $this->mapper->findAll($userId);
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findAll($userId, $accessibleUserIds);
     }
 
     /**

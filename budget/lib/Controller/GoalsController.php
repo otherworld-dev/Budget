@@ -6,9 +6,11 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\GoalsService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -19,6 +21,7 @@ use Psr\Log\LoggerInterface;
 class GoalsController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private GoalsService $service;
     private ValidationService $validationService;
@@ -28,6 +31,7 @@ class GoalsController extends Controller {
         IRequest $request,
         GoalsService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -37,6 +41,7 @@ class GoalsController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -44,7 +49,8 @@ class GoalsController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $goals = $this->service->findAll($this->userId);
+            $accessibleUserIds = $this->getAccessibleUserIds($this->userId);
+            $goals = $this->service->findAll($this->userId, $accessibleUserIds);
             return new DataResponse($goals);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to retrieve goals');
@@ -76,6 +82,9 @@ class GoalsController extends Controller {
         ?string $targetDate = null
     ): DataResponse {
         try {
+            // User can only create their own goals
+            $this->enforceWriteAccess($this->userId, $this->userId);
+
             // Validate name (required)
             $nameValidation = $this->validationService->validateName($name, true);
             if (!$nameValidation['valid']) {
@@ -146,6 +155,9 @@ class GoalsController extends Controller {
         string $targetDate = null
     ): DataResponse {
         try {
+            $goal = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $goal->getUserId());
+
             // Validate name if provided
             if ($name !== null) {
                 $nameValidation = $this->validationService->validateName($name, false);
@@ -209,6 +221,9 @@ class GoalsController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
+            $goal = $this->service->find($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $goal->getUserId());
+
             $this->service->delete($id, $this->userId);
             return new DataResponse(['message' => 'Goal deleted successfully']);
         } catch (\Exception $e) {

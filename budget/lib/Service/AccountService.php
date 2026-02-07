@@ -103,14 +103,16 @@ class AccountService extends AbstractCrudService {
      * Get all accounts with balances adjusted to exclude future transactions.
      * Returns accounts as arrays with balance reflecting today's actual balance.
      *
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch accounts for (for shared budgets)
      * @return array[] Array of account data arrays
      */
-    public function findAllWithCurrentBalances(string $userId): array {
-        $accounts = $this->findAll($userId);
+    public function findAllWithCurrentBalances(string $userId, ?array $accessibleUserIds = null): array {
+        $accounts = $this->findAll($userId, $accessibleUserIds);
 
         // Get future transaction adjustments for all accounts in one query
         $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today, $accessibleUserIds);
 
         $result = [];
         foreach ($accounts as $account) {
@@ -122,6 +124,7 @@ class AccountService extends AbstractCrudService {
             // Convert account to array and override balance with adjusted value
             $accountData = $account->toArrayMasked();
             $accountData['balance'] = MoneyCalculator::toFloat($balance);
+            $accountData['userId'] = $account->getUserId(); // Include userId for ownership checking
             $result[] = $accountData;
         }
 

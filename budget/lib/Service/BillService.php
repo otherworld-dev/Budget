@@ -39,23 +39,23 @@ class BillService {
         return $this->mapper->find($id, $userId);
     }
 
-    public function findAll(string $userId): array {
-        return $this->mapper->findAll($userId);
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findAll($userId, $accessibleUserIds);
     }
 
-    public function findActive(string $userId): array {
-        return $this->mapper->findActive($userId);
+    public function findActive(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findActive($userId, $accessibleUserIds);
     }
 
-    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
+    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, ?array $accessibleUserIds = null): array {
         error_log("BillService::findByType - userId: $userId, isTransfer: " . var_export($isTransfer, true) . ", isActive: " . var_export($isActive, true));
-        $result = $this->mapper->findByType($userId, $isTransfer, $isActive);
+        $result = $this->mapper->findByType($userId, $isTransfer, $isActive, $accessibleUserIds);
         error_log("BillService::findByType - Mapper returned " . count($result) . " results");
         return $result;
     }
 
-    public function findOverdue(string $userId): array {
-        return $this->mapper->findOverdue($userId);
+    public function findOverdue(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findOverdue($userId, $accessibleUserIds);
     }
 
     public function findDueThisMonth(string $userId): array {

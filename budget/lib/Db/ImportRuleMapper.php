@@ -18,59 +18,86 @@ class ImportRuleMapper extends QBMapper {
     }
 
     /**
+     * @param int $id Rule ID
+     * @param string $userId Current user ID (for permission check)
+     * @param array|null $accessibleUserIds Optional list of user IDs that current user can access (for shared budgets)
      * @throws DoesNotExistException
      */
-    public function find(int $id, string $userId): ImportRule {
+    public function find(int $id, string $userId, ?array $accessibleUserIds = null): ImportRule {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-        
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->andWhere($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
         return $this->findEntity($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch rules for (for shared budgets)
      * @return ImportRule[]
      */
-    public function findAll(string $userId): array {
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('priority', 'DESC')
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->orderBy('priority', 'DESC')
             ->addOrderBy('name', 'ASC');
-        
+
         return $this->findEntities($qb);
     }
 
     /**
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch rules for (for shared budgets)
      * @return ImportRule[]
      */
-    public function findActive(string $userId): array {
+    public function findActive(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->from($this->getTableName());
+
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->orderBy('priority', 'DESC')
             ->addOrderBy('id', 'ASC');
-        
+
         return $this->findEntities($qb);
     }
 
     /**
      * Find matching rule for transaction
+     * @param string $userId Current user ID
+     * @param array $transactionData Transaction data to match against
+     * @param array|null $accessibleUserIds Optional list of user IDs to check rules for (for shared budgets)
      */
-    public function findMatchingRule(string $userId, array $transactionData): ?ImportRule {
-        $rules = $this->findActive($userId);
-        
+    public function findMatchingRule(string $userId, array $transactionData, ?array $accessibleUserIds = null): ?ImportRule {
+        $rules = $this->findActive($userId, $accessibleUserIds);
+
         foreach ($rules as $rule) {
             if ($this->matchesRule($rule, $transactionData)) {
                 return $rule;
             }
         }
-        
+
         return null;
     }
 

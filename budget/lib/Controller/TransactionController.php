@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\TransactionTagService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -21,6 +23,7 @@ use Psr\Log\LoggerInterface;
 class TransactionController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private TransactionService $service;
     private TransactionSplitService $splitService;
@@ -34,6 +37,7 @@ class TransactionController extends Controller {
         TransactionSplitService $splitService,
         TransactionTagService $tagService,
         ValidationService $validationService,
+        ShareService $shareService,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -45,6 +49,7 @@ class TransactionController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -65,6 +70,9 @@ class TransactionController extends Controller {
         ?string $direction = 'desc'
     ): DataResponse {
         try {
+            // Get all accessible user IDs (own + shared budgets)
+            $accessibleUserIds = $this->getAccessibleUserIds($this->userId);
+
             $offset = ($page - 1) * $limit;
 
             $filters = [
@@ -80,7 +88,7 @@ class TransactionController extends Controller {
                 'direction' => $direction
             ];
 
-            $result = $this->service->findWithFilters($this->userId, $filters, $limit, $offset);
+            $result = $this->service->findWithFilters($this->userId, $filters, $limit, $offset, $accessibleUserIds);
 
             return new DataResponse([
                 'transactions' => $result['transactions'],
@@ -121,6 +129,10 @@ class TransactionController extends Controller {
         ?string $notes = null
     ): DataResponse {
         try {
+            // Check account ownership before allowing transaction creation
+            $accountOwnerId = $this->service->getAccountOwner($accountId, $this->userId);
+            $this->enforceWriteAccess($this->userId, $accountOwnerId);
+
             // Validate description (required)
             $descValidation = $this->validationService->validateDescription($description, true);
             if (!$descValidation['valid']) {
@@ -200,6 +212,10 @@ class TransactionController extends Controller {
         ?bool $reconciled = null
     ): DataResponse {
         try {
+            // Check transaction ownership before allowing updates
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $updates = [];
 
             // Validate description if provided
@@ -282,6 +298,10 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
+            // Check transaction ownership before allowing deletion
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
@@ -351,6 +371,12 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function link(int $id, int $targetId): DataResponse {
         try {
+            // Check ownership of both transactions before linking
+            $ownerId1 = $this->service->getTransactionOwner($id, $this->userId);
+            $ownerId2 = $this->service->getTransactionOwner($targetId, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId1);
+            $this->enforceWriteAccess($this->userId, $ownerId2);
+
             $result = $this->service->linkTransactions($id, $targetId, $this->userId);
             return new DataResponse($result);
         } catch (\Exception $e) {
@@ -367,6 +393,10 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function unlink(int $id): DataResponse {
         try {
+            // Check transaction ownership before unlinking
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $result = $this->service->unlinkTransaction($id, $this->userId);
             return new DataResponse($result);
         } catch (\Exception $e) {
@@ -507,6 +537,10 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function split(int $id): DataResponse {
         try {
+            // Check transaction ownership before splitting
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $rawInput = file_get_contents('php://input');
             $data = json_decode($rawInput, true);
 
@@ -541,6 +575,10 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function unsplit(int $id, ?int $categoryId = null): DataResponse {
         try {
+            // Check transaction ownership before unsplitting
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $transaction = $this->splitService->unsplitTransaction($id, $this->userId, $categoryId);
             return new DataResponse($transaction);
         } catch (\InvalidArgumentException $e) {
@@ -596,6 +634,10 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 60, period: 60)]
     public function setTags(int $id): DataResponse {
         try {
+            // Check transaction ownership before modifying tags
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $rawInput = file_get_contents('php://input');
             $data = json_decode($rawInput, true);
 
@@ -623,6 +665,10 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 60, period: 60)]
     public function clearTags(int $id): DataResponse {
         try {
+            // Check transaction ownership before clearing tags
+            $ownerId = $this->service->getTransactionOwner($id, $this->userId);
+            $this->enforceWriteAccess($this->userId, $ownerId);
+
             $this->tagService->clearTransactionTags($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {

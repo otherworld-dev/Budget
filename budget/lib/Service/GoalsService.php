@@ -18,8 +18,8 @@ class GoalsService {
     /**
      * @return SavingsGoal[]
      */
-    public function findAll(string $userId): array {
-        return $this->mapper->findAll($userId);
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
+        return $this->mapper->findAll($userId, $accessibleUserIds);
     }
 
     /**

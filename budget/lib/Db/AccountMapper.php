@@ -24,41 +24,77 @@ class AccountMapper extends QBMapper {
     }
 
     /**
+     * Find an account by ID
+     *
+     * @param int $id Account ID
+     * @param string $userId Current user ID (for permission check)
+     * @param array|null $accessibleUserIds Optional list of user IDs that current user can access (for shared budgets)
      * @throws DoesNotExistException
      */
-    public function find(int $id, string $userId): Account {
+    public function find(int $id, string $userId, ?array $accessibleUserIds = null): Account {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        // If accessibleUserIds provided, check if account belongs to any accessible user
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->andWhere($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's accounts
+            $qb->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
 
         $account = $this->findEntity($qb);
         return $this->decryptEntity($account);
     }
 
     /**
+     * Find all accounts for user(s)
+     *
+     * @param string $userId Current user ID
+     * @param array|null $accessibleUserIds Optional list of user IDs to fetch accounts for (for shared budgets)
      * @return Account[]
      */
-    public function findAll(string $userId): array {
+    public function findAll(string $userId, ?array $accessibleUserIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('name', 'ASC');
+            ->from($this->getTableName());
+
+        // If accessibleUserIds provided, get accounts from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's accounts
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
+
+        $qb->orderBy('user_id', 'ASC')
+            ->addOrderBy('name', 'ASC');
 
         $accounts = $this->findEntities($qb);
         return $this->decryptEntities($accounts);
     }
 
     /**
-     * Calculate total balance for user across all accounts
+     * Calculate total balance for user(s) across all accounts
+     *
+     * @param string $userId Current user ID
+     * @param string|null $currency Optional currency filter
+     * @param array|null $accessibleUserIds Optional list of user IDs to calculate balance for (for shared budgets)
      */
-    public function getTotalBalance(string $userId, ?string $currency = null): float {
+    public function getTotalBalance(string $userId, ?string $currency = null, ?array $accessibleUserIds = null): float {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->func()->sum('balance'))
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->from($this->getTableName());
+
+        // If accessibleUserIds provided, get balance from all accessible users
+        if ($accessibleUserIds !== null && count($accessibleUserIds) > 0) {
+            $qb->where($qb->expr()->in('user_id', $qb->createNamedParameter($accessibleUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+        } else {
+            // Default: only current user's balance
+            $qb->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        }
 
         if ($currency !== null) {
             $qb->andWhere($qb->expr()->eq('currency', $qb->createNamedParameter($currency)));
