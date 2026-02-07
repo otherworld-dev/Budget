@@ -28,7 +28,7 @@ class AccountController extends Controller {
     private AccountService $service;
     private ValidationService $validationService;
     private AuditService $auditService;
-    private string $userId;
+    private ?string $userId;
 
     public function __construct(
         IRequest $request,
@@ -36,7 +36,7 @@ class AccountController extends Controller {
         ValidationService $validationService,
         AuditService $auditService,
         ShareService $shareService,
-        string $userId,
+        ?string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);

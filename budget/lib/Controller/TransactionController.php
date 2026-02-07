@@ -29,7 +29,7 @@ class TransactionController extends Controller {
     private TransactionSplitService $splitService;
     private TransactionTagService $tagService;
     private ValidationService $validationService;
-    private string $userId;
+    private ?string $userId;
 
     public function __construct(
         IRequest $request,
@@ -38,7 +38,7 @@ class TransactionController extends Controller {
         TransactionTagService $tagService,
         ValidationService $validationService,
         ShareService $shareService,
-        string $userId,
+        ?string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);

@@ -10,7 +10,6 @@
 export default class ShareModule {
 	constructor(app) {
 		this.app = app;
-		this.apiClient = app.apiClient;
 		this.shares = {
 			owned: [], // Shares I've created (users I've shared my budget with)
 			received: [] // Shares I've received (budgets shared with me)
@@ -69,11 +68,19 @@ export default class ShareModule {
 	 */
 	async loadShares() {
 		try {
-			const response = await this.apiClient.get('/shares');
+			const response = await fetch(OC.generateUrl('/apps/budget/api/shares'), {
+				headers: this.app.getAuthHeaders()
+			});
 
-			if (response.data) {
-				this.shares.owned = response.data.owned || [];
-				this.shares.received = response.data.received || [];
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+
+			if (result.data) {
+				this.shares.owned = result.data.owned || [];
+				this.shares.received = result.data.received || [];
 
 				console.log('[ShareModule] Loaded shares:', {
 					owned: this.shares.owned.length,
@@ -82,7 +89,7 @@ export default class ShareModule {
 			}
 		} catch (error) {
 			console.error('[ShareModule] Failed to load shares:', error);
-			this.app.showNotification('Failed to load shares', 'error');
+			OC.Notification.showTemporary('Failed to load shares');
 		}
 	}
 
@@ -280,8 +287,20 @@ export default class ShareModule {
 
 		this.searchTimeout = setTimeout(async () => {
 			try {
-				const response = await this.apiClient.get('/shares/users/search', { query });
-				this.searchResults = response.data || [];
+				const params = new URLSearchParams({ query });
+				const response = await fetch(
+					OC.generateUrl('/apps/budget/api/shares/users/search?' + params.toString()),
+					{
+						headers: this.app.getAuthHeaders()
+					}
+				);
+
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+				}
+
+				const result = await response.json();
+				this.searchResults = result.data || [];
 				this.renderSearchResults();
 			} catch (error) {
 				console.error('[ShareModule] User search failed:', error);
@@ -331,12 +350,24 @@ export default class ShareModule {
 		}
 
 		try {
-			await this.apiClient.post('/shares', {
-				sharedWithUserId: user.userId,
-				permissionLevel: 'read'
+			const response = await fetch(OC.generateUrl('/apps/budget/api/shares'), {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...this.app.getAuthHeaders()
+				},
+				body: JSON.stringify({
+					sharedWithUserId: user.userId,
+					permissionLevel: 'read'
+				})
 			});
 
-			this.app.showNotification(`Budget shared with ${user.displayName}`, 'success');
+			if (!response.ok) {
+				const result = await response.json();
+				throw new Error(result.error || 'Failed to share budget');
+			}
+
+			OC.Notification.showTemporary(`Budget shared with ${user.displayName}`);
 
 			// Clear search
 			document.querySelector('#share-user-search').value = '';
@@ -351,13 +382,7 @@ export default class ShareModule {
 			}
 		} catch (error) {
 			console.error('[ShareModule] Failed to share budget:', error);
-
-			let errorMsg = 'Failed to share budget';
-			if (error.response?.data?.error) {
-				errorMsg = error.response.data.error;
-			}
-
-			this.app.showNotification(errorMsg, 'error');
+			OC.Notification.showTemporary(error.message || 'Failed to share budget');
 		}
 	}
 
@@ -370,9 +395,16 @@ export default class ShareModule {
 		}
 
 		try {
-			await this.apiClient.delete(`/shares/${shareId}`);
+			const response = await fetch(OC.generateUrl(`/apps/budget/api/shares/${shareId}`), {
+				method: 'DELETE',
+				headers: this.app.getAuthHeaders()
+			});
 
-			this.app.showNotification(`Access revoked for ${userName}`, 'success');
+			if (!response.ok) {
+				throw new Error('Failed to revoke share');
+			}
+
+			OC.Notification.showTemporary(`Access revoked for ${userName}`);
 
 			// Reload and re-render
 			await this.loadShares();
@@ -382,7 +414,7 @@ export default class ShareModule {
 			}
 		} catch (error) {
 			console.error('[ShareModule] Failed to revoke share:', error);
-			this.app.showNotification('Failed to revoke access', 'error');
+			OC.Notification.showTemporary('Failed to revoke access');
 		}
 	}
 
@@ -418,7 +450,7 @@ export default class ShareModule {
 			this.updateBudgetSwitcher();
 
 			// Show notification
-			this.app.showNotification(`Viewing ${ownerDisplayName}'s budget`, 'success');
+			OC.Notification.showTemporary(`Viewing ${ownerDisplayName}'s budget`);
 
 			// Reload data for the shared budget
 			await this.app.loadInitialData();
@@ -427,7 +459,7 @@ export default class ShareModule {
 			this.app.showView('dashboard');
 		} catch (error) {
 			console.error('[ShareModule] Failed to switch to shared budget:', error);
-			this.app.showNotification('Failed to load shared budget', 'error');
+			OC.Notification.showTemporary('Failed to load shared budget');
 
 			// Reset owner context on error
 			this.app.authModule.currentOwnerUserId = null;
@@ -447,7 +479,7 @@ export default class ShareModule {
 			this.updateBudgetSwitcher();
 
 			// Show notification
-			this.app.showNotification('Viewing your budget', 'success');
+			OC.Notification.showTemporary('Viewing your budget');
 
 			// Reload own data
 			await this.app.loadInitialData();
@@ -456,7 +488,7 @@ export default class ShareModule {
 			this.app.showView('dashboard');
 		} catch (error) {
 			console.error('[ShareModule] Failed to switch to own budget:', error);
-			this.app.showNotification('Failed to load your budget', 'error');
+			OC.Notification.showTemporary('Failed to load your budget');
 		}
 	}
 

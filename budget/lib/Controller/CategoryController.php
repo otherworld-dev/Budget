@@ -25,14 +25,14 @@ class CategoryController extends Controller {
 
     private CategoryService $service;
     private ValidationService $validationService;
-    private string $userId;
+    private ?string $userId;
 
     public function __construct(
         IRequest $request,
         CategoryService $service,
         ValidationService $validationService,
         ShareService $shareService,
-        string $userId,
+        ?string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
