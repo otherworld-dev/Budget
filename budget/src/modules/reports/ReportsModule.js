@@ -353,6 +353,9 @@ export default class ReportsModule {
                 case 'yoy':
                     this.showYoYReport();
                     break;
+                case 'bills-calendar':
+                    this.showBillsCalendarReport();
+                    break;
             }
         } catch (error) {
             console.error('Failed to generate report:', error);
@@ -1032,5 +1035,251 @@ export default class ReportsModule {
             console.error('Export failed:', error);
             OC.Notification.showTemporary('Failed to export report');
         }
+    }
+
+    // ==========================================
+    // Bills Calendar Report Functions
+    // ==========================================
+
+    showBillsCalendarReport() {
+        const section = document.getElementById('report-bills-calendar');
+        if (section) section.style.display = 'block';
+
+        // Setup controls if not already done
+        if (!this.billsCalendarControlsSetup) {
+            this.setupBillsCalendarControls();
+            this.billsCalendarControlsSetup = true;
+        }
+
+        // Populate year dropdown
+        this.populateBillsCalendarYears();
+
+        // Auto-generate on first load (like other reports)
+        this.generateBillsCalendar();
+    }
+
+    setupBillsCalendarControls() {
+        const generateBtn = document.getElementById('generate-bills-calendar-btn');
+        const viewSelect = document.getElementById('bills-calendar-view');
+
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateBillsCalendar());
+        }
+
+        if (viewSelect) {
+            viewSelect.addEventListener('change', (e) => {
+                const tableContainer = document.getElementById('bills-calendar-table-container');
+                const heatmapContainer = document.getElementById('bills-calendar-heatmap-container');
+
+                if (e.target.value === 'table') {
+                    if (tableContainer) tableContainer.style.display = '';
+                    if (heatmapContainer) heatmapContainer.style.display = 'none';
+                } else {
+                    if (tableContainer) tableContainer.style.display = 'none';
+                    if (heatmapContainer) heatmapContainer.style.display = '';
+                }
+            });
+        }
+    }
+
+    populateBillsCalendarYears() {
+        const yearSelect = document.getElementById('bills-calendar-year');
+        if (!yearSelect) return;
+
+        const currentYear = new Date().getFullYear();
+        yearSelect.innerHTML = '';
+
+        // Add 5 years: 2 past, current, 2 future
+        for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            if (year === currentYear) option.selected = true;
+            yearSelect.appendChild(option);
+        }
+    }
+
+    async generateBillsCalendar() {
+        const year = document.getElementById('bills-calendar-year')?.value || new Date().getFullYear();
+        const billStatus = document.getElementById('bills-calendar-status')?.value || 'active';
+        const includeTransfers = document.getElementById('bills-calendar-include-transfers')?.checked || false;
+
+        // Show loading
+        const loadingEl = document.getElementById('report-loading');
+        if (loadingEl) loadingEl.style.display = 'flex';
+
+        try {
+            const params = new URLSearchParams({
+                year: year.toString(),
+                billStatus,
+                includeTransfers: includeTransfers.toString()
+            });
+
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/bills/annual-overview?${params}`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+
+            if (!response.ok) throw new Error('Failed to fetch bills calendar data');
+
+            const data = await response.json();
+
+            // Render monthly totals chart
+            this.renderBillsCalendarChart(data.monthlyTotals);
+
+            // Get current view
+            const view = document.getElementById('bills-calendar-view')?.value || 'table';
+
+            if (view === 'table') {
+                this.renderBillsCalendarTable(data.bills, data.monthlyTotals);
+            } else {
+                this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
+            }
+
+            // Show appropriate containers
+            document.getElementById('bills-calendar-chart-container').style.display = '';
+
+            if (view === 'table') {
+                document.getElementById('bills-calendar-table-container').style.display = '';
+                document.getElementById('bills-calendar-heatmap-container').style.display = 'none';
+            } else {
+                document.getElementById('bills-calendar-table-container').style.display = 'none';
+                document.getElementById('bills-calendar-heatmap-container').style.display = '';
+            }
+
+        } catch (error) {
+            console.error('Failed to generate bills calendar:', error);
+            OC.Notification.showTemporary('Failed to generate bills calendar');
+        } finally {
+            if (loadingEl) loadingEl.style.display = 'none';
+        }
+    }
+
+    renderBillsCalendarChart(monthlyTotals) {
+        const canvas = document.getElementById('bills-calendar-chart');
+        if (!canvas) return;
+
+        if (this.reportCharts.billsCalendar) {
+            this.reportCharts.billsCalendar.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const currency = this.getPrimaryCurrency();
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const data = [];
+        for (let i = 1; i <= 12; i++) {
+            data.push(monthlyTotals[i] || 0);
+        }
+
+        this.reportCharts.billsCalendar = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Total Bills',
+                    data: data,
+                    backgroundColor: 'rgba(198, 40, 40, 0.7)',
+                    borderColor: 'rgba(198, 40, 40, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `Total: ${this.formatCurrency(context.raw, currency)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => this.formatCurrencyCompact(value, currency)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    renderBillsCalendarTable(bills, monthlyTotals) {
+        const tbody = document.getElementById('bills-calendar-table-body');
+        const tfoot = document.getElementById('bills-calendar-table-footer');
+        if (!tbody || !tfoot) return;
+
+        const currency = this.getPrimaryCurrency();
+
+        // Render bills rows
+        tbody.innerHTML = bills.map(bill => {
+            const months = [];
+            for (let month = 1; month <= 12; month++) {
+                const occurs = bill.occurrences[month];
+                const amount = occurs ? this.formatCurrency(bill.amount, currency) : '';
+                months.push(`<td class="month-cell ${occurs ? 'has-bill' : 'no-bill'}">${amount}</td>`);
+            }
+
+            const transferBadge = bill.isTransfer ? ' <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">Transfer</span>' : '';
+
+            return `
+                <tr>
+                    <td class="bill-name-col">${this.escapeHtml(bill.name)}${transferBadge}</td>
+                    ${months.join('')}
+                </tr>
+            `;
+        }).join('');
+
+        // Render totals row
+        const totals = [];
+        for (let month = 1; month <= 12; month++) {
+            totals.push(`<td class="total-cell">${this.formatCurrency(monthlyTotals[month] || 0, currency)}</td>`);
+        }
+
+        tfoot.innerHTML = `
+            <tr class="totals-row">
+                <td class="bill-name-col"><strong>Monthly Totals</strong></td>
+                ${totals.join('')}
+            </tr>
+        `;
+    }
+
+    renderBillsCalendarHeatmap(bills, monthlyTotals) {
+        const container = document.getElementById('bills-calendar-heatmap');
+        if (!container) return;
+
+        const currency = this.getPrimaryCurrency();
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+        // Find max total for color scaling
+        const maxTotal = Math.max(...Object.values(monthlyTotals));
+
+        let html = '<div class="heatmap-grid">';
+
+        for (let month = 1; month <= 12; month++) {
+            const total = monthlyTotals[month] || 0;
+            const billsThisMonth = bills.filter(b => b.occurrences[month]).length;
+            const intensity = maxTotal > 0 ? (total / maxTotal) : 0;
+
+            // Color scale from light red to dark red
+            const red = Math.round(198 * (0.3 + 0.7 * intensity));
+            const green = Math.round(40 * (1 - 0.5 * intensity));
+            const blue = Math.round(40 * (1 - 0.5 * intensity));
+
+            html += `
+                <div class="heatmap-month" style="background-color: rgba(${red}, ${green}, ${blue}, ${0.2 + 0.6 * intensity});" title="${months[month - 1]}: ${billsThisMonth} bills, ${this.formatCurrency(total, currency)}">
+                    <div class="heatmap-month-name">${months[month - 1]}</div>
+                    <div class="heatmap-month-count">${billsThisMonth} bills</div>
+                    <div class="heatmap-month-total">${this.formatCurrency(total, currency)}</div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+
+        container.innerHTML = html;
     }
 }

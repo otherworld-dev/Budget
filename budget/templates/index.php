@@ -2485,6 +2485,7 @@ style('budget', 'budget-main');
                         <option value="spending">Spending by Category</option>
                         <option value="cashflow">Cash Flow</option>
                         <option value="yoy">Year over Year</option>
+                        <option value="bills-calendar">Bills Calendar</option>
                     </select>
                 </div>
 
@@ -2808,6 +2809,93 @@ style('budget', 'budget-main');
                                 </thead>
                                 <tbody id="yoy-category-body"></tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bills Calendar Report -->
+                <div id="report-bills-calendar" class="report-section" style="display: none;">
+                    <!-- Bills Calendar Controls -->
+                    <div class="bills-calendar-controls">
+                        <div class="control-group">
+                            <label for="bills-calendar-year">Year</label>
+                            <select id="bills-calendar-year" class="report-select">
+                                <!-- Years will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="bills-calendar-status">Bill Status</label>
+                            <select id="bills-calendar-status" class="report-select">
+                                <option value="active" selected>Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                                <option value="all">All Bills</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="bills-calendar-include-transfers">
+                                <span>Include Recurring Transfers</span>
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <label for="bills-calendar-view">View</label>
+                            <select id="bills-calendar-view" class="report-select">
+                                <option value="table" selected>Table View</option>
+                                <option value="heatmap">Calendar Heatmap</option>
+                            </select>
+                        </div>
+                        <button id="generate-bills-calendar-btn" class="primary">Generate</button>
+                    </div>
+
+                    <!-- Monthly Totals Chart -->
+                    <div id="bills-calendar-chart-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Monthly Bill Totals</h3>
+                        </div>
+                        <div class="chart-container chart-container-large">
+                            <canvas id="bills-calendar-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Table View -->
+                    <div id="bills-calendar-table-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Bills by Month</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="bills-calendar-table" class="data-table bills-calendar-table">
+                                <thead>
+                                    <tr>
+                                        <th class="bill-name-col">Bill</th>
+                                        <th>Jan</th>
+                                        <th>Feb</th>
+                                        <th>Mar</th>
+                                        <th>Apr</th>
+                                        <th>May</th>
+                                        <th>Jun</th>
+                                        <th>Jul</th>
+                                        <th>Aug</th>
+                                        <th>Sep</th>
+                                        <th>Oct</th>
+                                        <th>Nov</th>
+                                        <th>Dec</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bills-calendar-table-body"></tbody>
+                                <tfoot id="bills-calendar-table-footer">
+                                    <!-- Monthly totals will be added here -->
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Heatmap View -->
+                    <div id="bills-calendar-heatmap-container" class="dashboard-card" style="display: none;">
+                        <div class="card-header">
+                            <h3>Bills Calendar Heatmap</h3>
+                        </div>
+                        <div id="bills-calendar-heatmap" class="bills-calendar-heatmap">
+                            <!-- Heatmap will be rendered here -->
                         </div>
                     </div>
                 </div>

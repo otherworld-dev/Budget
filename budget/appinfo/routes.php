@@ -116,6 +116,7 @@ return [
         ['name' => 'bill#statusForMonth', 'url' => '/api/bills/status', 'verb' => 'GET'],
         ['name' => 'bill#detect', 'url' => '/api/bills/detect', 'verb' => 'GET'],
         ['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
+        ['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
         ['name' => 'bill#show', 'url' => '/api/bills/{id}', 'verb' => 'GET'],
         ['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
         ['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],

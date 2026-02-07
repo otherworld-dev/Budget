@@ -501,4 +501,140 @@ class BillService {
         }
         return $lastPaid >= $startDate && $lastPaid <= $endDate;
     }
+
+    /**
+     * Get annual overview of bills showing which months each bill occurs
+     *
+     * @param string $userId User ID
+     * @param int $year Year to generate overview for
+     * @param bool $includeTransfers Include transfer bills
+     * @param string $billStatus 'active', 'inactive', or 'all'
+     * @return array Bills with monthly occurrences and totals
+     */
+    public function getAnnualOverview(string $userId, int $year, bool $includeTransfers = false, string $billStatus = 'active'): array {
+        // Determine which bills to fetch based on status
+        $bills = [];
+        if ($billStatus === 'active') {
+            $isActive = true;
+        } elseif ($billStatus === 'inactive') {
+            $isActive = false;
+        } else {
+            $isActive = null; // All bills
+        }
+
+        // Fetch bills with type filter
+        if ($includeTransfers) {
+            $bills = $this->mapper->findByType($userId, null, $isActive);
+        } else {
+            $bills = $this->mapper->findByType($userId, false, $isActive);
+        }
+
+        // Calculate monthly occurrences for each bill
+        $billsData = [];
+        $monthlyTotals = array_fill(1, 12, 0.0);
+
+        foreach ($bills as $bill) {
+            $occurrences = $this->calculateMonthlyOccurrences($bill, $year);
+
+            $billData = [
+                'id' => $bill->getId(),
+                'name' => $bill->getName(),
+                'amount' => $bill->getAmount(),
+                'frequency' => $bill->getFrequency(),
+                'categoryId' => $bill->getCategoryId(),
+                'accountId' => $bill->getAccountId(),
+                'isActive' => $bill->getIsActive(),
+                'isTransfer' => $bill->getIsTransfer() ?? false,
+                'destinationAccountId' => $bill->getDestinationAccountId(),
+                'occurrences' => $occurrences, // Array with month numbers as keys
+            ];
+
+            // Add amounts to monthly totals
+            foreach ($occurrences as $month => $occurs) {
+                if ($occurs) {
+                    $monthlyTotals[$month] += $bill->getAmount();
+                }
+            }
+
+            $billsData[] = $billData;
+        }
+
+        return [
+            'year' => $year,
+            'bills' => $billsData,
+            'monthlyTotals' => $monthlyTotals,
+        ];
+    }
+
+    /**
+     * Calculate which months a bill occurs in for a given year
+     *
+     * @param Bill $bill The bill entity
+     * @param int $year The year to calculate for
+     * @return array Array with month numbers (1-12) as keys and boolean values
+     */
+    private function calculateMonthlyOccurrences(Bill $bill, int $year): array {
+        $occurrences = array_fill(1, 12, false);
+        $frequency = $bill->getFrequency();
+        $dueDay = $bill->getDueDay();
+        $dueMonth = $bill->getDueMonth();
+        $customPattern = $bill->getCustomRecurrencePattern();
+
+        switch ($frequency) {
+            case 'daily':
+            case 'weekly':
+            case 'biweekly':
+            case 'monthly':
+                // Occurs every month
+                for ($month = 1; $month <= 12; $month++) {
+                    $occurrences[$month] = true;
+                }
+                break;
+
+            case 'quarterly':
+                // Quarterly bills occur every 3 months
+                // Determine starting month (defaults to Jan, Apr, Jul, Oct)
+                $startMonth = $dueMonth ?? 1;
+
+                // Calculate which months it occurs in
+                for ($month = $startMonth; $month <= 12; $month += 3) {
+                    $occurrences[$month] = true;
+                }
+
+                // If startMonth is not 1, 4, 7, or 10, we need to wrap around
+                // E.g., if startMonth is 2, then 2, 5, 8, 11
+                break;
+
+            case 'semi-annually':
+                // Twice per year - every 6 months
+                $startMonth = $dueMonth ?? 1;
+                $occurrences[$startMonth] = true;
+                if ($startMonth + 6 <= 12) {
+                    $occurrences[$startMonth + 6] = true;
+                }
+                break;
+
+            case 'yearly':
+                // Only occurs in the specified month
+                $month = $dueMonth ?? 1;
+                $occurrences[$month] = true;
+                break;
+
+            case 'custom':
+                // Parse custom pattern
+                if ($customPattern) {
+                    $pattern = json_decode($customPattern, true);
+                    if (is_array($pattern) && isset($pattern['months'])) {
+                        foreach ($pattern['months'] as $month) {
+                            if ($month >= 1 && $month <= 12) {
+                                $occurrences[$month] = true;
+                            }
+                        }
+                    }
+                }
+                break;
+        }
+
+        return $occurrences;
+    }
 }
