@@ -4257,43 +4257,16 @@ style('budget', 'budget-main');
                 </div>
             </div>
 
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="apply-uncategorized-only" checked>
-                    Uncategorized transactions only
+            <div class="form-group" style="margin-top: 24px; padding: 16px; background-color: var(--color-background-hover); border-radius: 8px; border: 1px solid var(--color-border);">
+                <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                    <input type="checkbox" id="apply-uncategorized-only" checked style="cursor: pointer; margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0;">
+                    <div style="flex: 1;">
+                        <span style="font-weight: 600; font-size: 14px; color: var(--color-main-text); display: block; margin-bottom: 4px;">Only apply to uncategorized transactions</span>
+                        <small style="color: var(--color-text-maxcontrast); font-size: 13px; line-height: 1.4;">
+                            When enabled, rules will only be applied to transactions that don't have a category assigned
+                        </small>
+                    </div>
                 </label>
-                <small class="form-text">Only apply rules to transactions without a category</small>
-            </div>
-        </div>
-
-        <!-- Rules Selection -->
-        <div class="apply-rules-selection">
-            <h4>Rules to Apply</h4>
-            <div class="rules-select-actions">
-                <button type="button" class="text-btn" id="select-all-rules">Select All</button>
-                <button type="button" class="text-btn" id="deselect-all-rules">Deselect All</button>
-            </div>
-            <div id="rules-selection-list" class="rules-selection-list">
-                <!-- Rule checkboxes rendered here -->
-            </div>
-        </div>
-
-        <!-- Preview Results -->
-        <div id="apply-rules-preview" class="apply-rules-preview" style="display: none;">
-            <h4>Preview: <span id="preview-match-count">0</span> transactions will be updated</h4>
-            <div class="preview-table-container">
-                <table id="apply-rules-preview-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Amount</th>
-                            <th>Matching Rule</th>
-                            <th>Changes</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
             </div>
         </div>
 
@@ -4316,8 +4289,7 @@ style('budget', 'budget-main');
         </div>
 
         <div class="modal-buttons">
-            <button type="button" id="preview-rules-btn" class="secondary">Preview Changes</button>
-            <button type="button" id="execute-apply-rules-btn" class="primary" disabled>Apply Rules</button>
+            <button type="button" id="execute-apply-rules-btn" class="primary">Apply Rules</button>
             <button type="button" class="secondary cancel-btn">Close</button>
         </div>
     </div>

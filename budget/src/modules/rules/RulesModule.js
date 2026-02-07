@@ -294,30 +294,11 @@ export default class RulesModule {
             runRuleNowBtn.dataset.listenerAttached = 'true';
         }
 
-        // Preview button in apply modal
-        const previewBtn = document.getElementById('preview-rules-btn');
-        if (previewBtn && !previewBtn.dataset.listenerAttached) {
-            previewBtn.addEventListener('click', () => this.previewRuleApplication());
-            previewBtn.dataset.listenerAttached = 'true';
-        }
-
         // Execute apply button
         const executeBtn = document.getElementById('execute-apply-rules-btn');
         if (executeBtn && !executeBtn.dataset.listenerAttached) {
             executeBtn.addEventListener('click', () => this.executeApplyRules());
             executeBtn.dataset.listenerAttached = 'true';
-        }
-
-        // Select/Deselect all rules
-        const selectAllBtn = document.getElementById('select-all-rules');
-        const deselectAllBtn = document.getElementById('deselect-all-rules');
-        if (selectAllBtn && !selectAllBtn.dataset.listenerAttached) {
-            selectAllBtn.addEventListener('click', () => this.toggleAllRuleSelections(true));
-            selectAllBtn.dataset.listenerAttached = 'true';
-        }
-        if (deselectAllBtn && !deselectAllBtn.dataset.listenerAttached) {
-            deselectAllBtn.addEventListener('click', () => this.toggleAllRuleSelections(false));
-            deselectAllBtn.dataset.listenerAttached = 'true';
         }
 
         // Rule modal cancel button
@@ -1016,15 +997,11 @@ export default class RulesModule {
         if (!modal) return;
 
         // Reset state
-        document.getElementById('apply-rules-preview').style.display = 'none';
-        document.getElementById('apply-rules-results').style.display = 'none';
-        document.getElementById('execute-apply-rules-btn').disabled = true;
+        const resultsDiv = document.getElementById('apply-rules-results');
+        if (resultsDiv) resultsDiv.style.display = 'none';
 
         // Populate account filter
         await this.populateApplyRulesFilters();
-
-        // Populate rules selection
-        await this.populateRulesSelectionList();
 
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
@@ -1050,87 +1027,6 @@ export default class RulesModule {
         }
     }
 
-    async populateRulesSelectionList() {
-        const container = document.getElementById('rules-selection-list');
-        if (!container) return;
-
-        // Ensure we have rules loaded
-        if (!this.rules) {
-            await this.loadRules();
-        }
-
-        const activeRules = this.rules?.filter(r => r.active) || [];
-
-        if (activeRules.length === 0) {
-            container.innerHTML = '<p class="no-rules-message">No active rules available. Create and activate rules first.</p>';
-            return;
-        }
-
-        container.innerHTML = activeRules.map(rule => `
-            <label class="rule-selection-item">
-                <input type="checkbox" name="rule-select" value="${rule.id}" checked>
-                <span class="rule-select-name">${this.escapeHtml(rule.name)}</span>
-                <span class="rule-select-pattern">${this.escapeHtml(rule.pattern)}</span>
-            </label>
-        `).join('');
-    }
-
-    toggleAllRuleSelections(checked) {
-        const checkboxes = document.querySelectorAll('#rules-selection-list input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = checked);
-    }
-
-    async previewRuleApplication() {
-        const previewDiv = document.getElementById('apply-rules-preview');
-        const resultsDiv = document.getElementById('apply-rules-results');
-        const executeBtn = document.getElementById('execute-apply-rules-btn');
-        const previewBtn = document.getElementById('preview-rules-btn');
-
-        if (!previewDiv) return;
-
-        // Collect filters
-        const filters = this.collectApplyRulesFilters();
-        const ruleIds = this.collectSelectedRuleIds();
-
-        if (ruleIds.length === 0) {
-            OC.Notification.showTemporary('Please select at least one rule');
-            return;
-        }
-
-        previewBtn.disabled = true;
-        previewBtn.textContent = 'Loading...';
-
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/preview'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    ruleIds,
-                    ...filters
-                })
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
-            this.renderPreviewResults(result);
-
-            previewDiv.style.display = 'block';
-            resultsDiv.style.display = 'none';
-            executeBtn.disabled = result.matchCount === 0;
-
-        } catch (error) {
-            console.error('Failed to preview rules:', error);
-            OC.Notification.showTemporary('Failed to preview rule application');
-        } finally {
-            previewBtn.disabled = false;
-            previewBtn.textContent = 'Preview Changes';
-        }
-    }
-
     collectApplyRulesFilters() {
         const accountId = document.getElementById('apply-account-filter')?.value || null;
         const startDate = document.getElementById('apply-date-start')?.value || null;
@@ -1146,52 +1042,15 @@ export default class RulesModule {
     }
 
     collectSelectedRuleIds() {
-        const checkboxes = document.querySelectorAll('#rules-selection-list input[type="checkbox"]:checked');
-        return Array.from(checkboxes).map(cb => parseInt(cb.value));
-    }
-
-    renderPreviewResults(result) {
-        const countSpan = document.getElementById('preview-match-count');
-        const tbody = document.querySelector('#apply-rules-preview-table tbody');
-
-        if (countSpan) countSpan.textContent = result.matchCount;
-
-        if (tbody) {
-            tbody.innerHTML = result.preview.slice(0, 50).map(item => {
-                const changesHtml = Object.entries(item.changes).map(([field, change]) => {
-                    const fromVal = change.from || '(empty)';
-                    const toVal = change.to || '(empty)';
-                    if (field === 'categoryId') {
-                        const fromCat = this.categories?.find(c => c.id === change.from)?.name || fromVal;
-                        const toCat = this.categories?.find(c => c.id === change.to)?.name || toVal;
-                        return `<span class="change-item">Category: ${this.escapeHtml(fromCat)} → ${this.escapeHtml(toCat)}</span>`;
-                    }
-                    return `<span class="change-item">${field}: ${this.escapeHtml(String(fromVal))} → ${this.escapeHtml(String(toVal))}</span>`;
-                }).join('');
-
-                return `
-                    <tr>
-                        <td>${this.formatDate(item.transactionDate)}</td>
-                        <td>${this.escapeHtml(item.transactionDescription)}</td>
-                        <td>${this.formatCurrency(item.transactionAmount)}</td>
-                        <td>${this.escapeHtml(item.ruleName)}</td>
-                        <td>${changesHtml}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            if (result.matchCount > 50) {
-                tbody.innerHTML += `<tr><td colspan="5" class="preview-truncated">... and ${result.matchCount - 50} more transactions</td></tr>`;
-            }
-        }
+        // Return empty array to apply all active rules
+        return [];
     }
 
     async executeApplyRules() {
-        const previewDiv = document.getElementById('apply-rules-preview');
         const resultsDiv = document.getElementById('apply-rules-results');
         const executeBtn = document.getElementById('execute-apply-rules-btn');
 
-        if (!confirm('Apply rules to the previewed transactions? This will modify the selected transactions.')) {
+        if (!confirm('Apply rules to matching transactions? This will modify the selected transactions.')) {
             return;
         }
 
@@ -1219,13 +1078,12 @@ export default class RulesModule {
 
             const result = await response.json();
 
-            // Show results
+            // Show results summary
             document.getElementById('result-success-count').textContent = result.success;
             document.getElementById('result-skipped-count').textContent = result.skipped;
             document.getElementById('result-failed-count').textContent = result.failed;
 
-            previewDiv.style.display = 'none';
-            resultsDiv.style.display = 'block';
+            if (resultsDiv) resultsDiv.style.display = 'block';
 
             OC.Notification.showTemporary(`Rules applied: ${result.success} updated, ${result.skipped} skipped, ${result.failed} failed`);
 

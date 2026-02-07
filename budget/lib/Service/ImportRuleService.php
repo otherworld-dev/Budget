@@ -426,51 +426,21 @@ class ImportRuleService {
         $matchCount = 0;
 
         foreach ($transactions as $transaction) {
-            $transactionData = [
-                'description' => $transaction->getDescription(),
-                'vendor' => $transaction->getVendor(),
-                'amount' => $transaction->getAmount(),
-                'reference' => $transaction->getReference(),
-                'notes' => $transaction->getNotes(),
-            ];
+            $transactionData = $this->extractTransactionData($transaction);
 
             foreach ($rules as $rule) {
                 if ($this->testRule($rule, $transactionData)) {
-                    $actions = $rule->getParsedActions();
-                    $changes = [];
-
-                    // Determine what would change
-                    if (isset($actions['categoryId']) && $actions['categoryId'] !== $transaction->getCategoryId()) {
-                        $changes['categoryId'] = [
-                            'from' => $transaction->getCategoryId(),
-                            'to' => $actions['categoryId']
-                        ];
-                    }
-                    if (isset($actions['vendor']) && $actions['vendor'] !== $transaction->getVendor()) {
-                        $changes['vendor'] = [
-                            'from' => $transaction->getVendor(),
-                            'to' => $actions['vendor']
-                        ];
-                    }
-                    if (isset($actions['notes']) && $actions['notes'] !== $transaction->getNotes()) {
-                        $changes['notes'] = [
-                            'from' => $transaction->getNotes(),
-                            'to' => $actions['notes']
-                        ];
-                    }
-
-                    if (!empty($changes)) {
-                        $preview[] = [
-                            'transactionId' => $transaction->getId(),
-                            'transactionDescription' => $transaction->getDescription(),
-                            'transactionDate' => $transaction->getDate(),
-                            'transactionAmount' => $transaction->getAmount(),
-                            'ruleId' => $rule->getId(),
-                            'ruleName' => $rule->getName(),
-                            'changes' => $changes
-                        ];
-                        $matchCount++;
-                    }
+                    // Show ALL matching transactions in preview
+                    $preview[] = [
+                        'transactionId' => $transaction->getId(),
+                        'transactionDescription' => $transaction->getDescription(),
+                        'transactionDate' => $transaction->getDate(),
+                        'transactionAmount' => $transaction->getAmount(),
+                        'transactionCategoryId' => $transaction->getCategoryId(),
+                        'ruleId' => $rule->getId(),
+                        'ruleName' => $rule->getName()
+                    ];
+                    $matchCount++;
                     break; // First matching rule wins
                 }
             }
