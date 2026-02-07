@@ -571,6 +571,36 @@ class BillController extends Controller {
     }
 
     /**
+     * Get annual overview of bills
+     * @NoAdminRequired
+     */
+    public function annualOverview(?int $year = null, $includeTransfers = 'false', ?string $billStatus = 'active'): DataResponse {
+        try {
+            // Default to current year if not specified
+            $year = $year ?? (int) date('Y');
+
+            // Validate year
+            if ($year < 2000 || $year > 2100) {
+                return new DataResponse(['error' => 'Invalid year'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Convert string parameters to boolean
+            $includeTransfersBool = $this->toBool($includeTransfers);
+
+            // Validate bill status
+            $validStatuses = ['active', 'inactive', 'all'];
+            if (!in_array($billStatus, $validStatuses)) {
+                $billStatus = 'active';
+            }
+
+            $overview = $this->service->getAnnualOverview($this->userId, $year, $includeTransfersBool, $billStatus);
+            return new DataResponse($overview);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to generate annual overview');
+        }
+    }
+
+    /**
      * Validate custom recurrence pattern JSON.
      *
      * @param string $pattern JSON pattern string
