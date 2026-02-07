@@ -36,11 +36,6 @@ export default class TransfersModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             this.transfers = await response.json();
-            console.log('Loaded transfers:', this.transfers);
-            console.log('Transfer count:', this.transfers ? this.transfers.length : 0);
-            if (this.transfers && this.transfers.length > 0) {
-                console.log('First transfer:', this.transfers[0]);
-            }
         } catch (error) {
             console.error('Failed to load transfers:', error);
             OC.Notification.showTemporary('Failed to load transfers');

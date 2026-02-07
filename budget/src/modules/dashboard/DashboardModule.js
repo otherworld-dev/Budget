@@ -1113,6 +1113,7 @@ export default class DashboardModule {
     updateNetWorthHistoryChart(snapshots) {
         const canvas = document.getElementById('net-worth-chart');
         const emptyState = document.getElementById('net-worth-chart-empty');
+        const statusEl = document.getElementById('net-worth-snapshot-status');
         if (!canvas) return;
 
         // Destroy existing chart
@@ -1124,12 +1125,16 @@ export default class DashboardModule {
         if (!snapshots || snapshots.length === 0) {
             canvas.style.display = 'none';
             if (emptyState) emptyState.style.display = 'block';
+            if (statusEl) statusEl.style.display = 'none';
             return;
         }
 
         // Show canvas, hide empty state
         canvas.style.display = 'block';
         if (emptyState) emptyState.style.display = 'none';
+
+        // Update status with last automatic snapshot info
+        this.updateNetWorthStatus(snapshots, statusEl);
 
         const currency = this.getPrimaryCurrency();
         const labels = snapshots.map(s => s.date);
@@ -1209,6 +1214,59 @@ export default class DashboardModule {
                 }
             }
         });
+    }
+
+    updateNetWorthStatus(snapshots, statusEl) {
+        if (!statusEl) return;
+
+        // Find the most recent automatic snapshot
+        const autoSnapshots = snapshots.filter(s => s.source === 'auto');
+        const lastAutoSnapshot = autoSnapshots.length > 0 ? autoSnapshots[autoSnapshots.length - 1] : null;
+
+        // Build status message
+        let statusHTML = '<div class="net-worth-status-content">';
+        statusHTML += '<span class="status-icon">📊</span>';
+
+        if (lastAutoSnapshot) {
+            const lastDate = new Date(lastAutoSnapshot.date);
+            const now = new Date();
+            const hoursAgo = Math.floor((now - lastDate) / (1000 * 60 * 60));
+            const daysAgo = Math.floor(hoursAgo / 24);
+
+            let timeAgoText;
+            if (daysAgo === 0) {
+                if (hoursAgo === 0) {
+                    timeAgoText = 'just now';
+                } else if (hoursAgo === 1) {
+                    timeAgoText = '1 hour ago';
+                } else {
+                    timeAgoText = `${hoursAgo} hours ago`;
+                }
+            } else if (daysAgo === 1) {
+                timeAgoText = 'yesterday';
+            } else {
+                timeAgoText = `${daysAgo} days ago`;
+            }
+
+            statusHTML += `<span class="status-text">Snapshots recorded automatically daily • Last: ${timeAgoText}</span>`;
+        } else {
+            statusHTML += '<span class="status-text">Snapshots recorded automatically daily</span>';
+        }
+
+        statusHTML += '<button id="record-net-worth-btn-inline" class="btn-link-small">Record now</button>';
+        statusHTML += '</div>';
+
+        statusEl.innerHTML = statusHTML;
+        statusEl.style.display = 'block';
+
+        // Wire up inline record button
+        const inlineBtn = document.getElementById('record-net-worth-btn-inline');
+        if (inlineBtn && !inlineBtn.hasAttribute('data-initialized')) {
+            inlineBtn.setAttribute('data-initialized', 'true');
+            inlineBtn.addEventListener('click', async () => {
+                await this.recordNetWorthSnapshot();
+            });
+        }
     }
 
     // ===========================

@@ -481,12 +481,16 @@ style('budget', 'budget-main');
                                 </div>
                             </div>
                         </div>
+                        <div id="net-worth-snapshot-status" class="net-worth-status"></div>
                         <div class="chart-container chart-container-medium">
                             <canvas id="net-worth-chart"></canvas>
                         </div>
                         <div id="net-worth-chart-empty" class="chart-empty-state" style="display: none;">
-                            <p>No history yet. Snapshots are recorded daily.</p>
-                            <button id="record-net-worth-btn" class="btn btn-secondary btn-small">Record Snapshot Now</button>
+                            <div class="empty-state-content">
+                                <p class="empty-state-title">No net worth history yet</p>
+                                <p class="empty-state-subtitle">Snapshots are recorded automatically every day. Your first snapshot will appear within 24 hours.</p>
+                                <button id="record-net-worth-btn" class="btn btn-secondary btn-small">Record snapshot now</button>
+                            </div>
                         </div>
                     </div>
 

@@ -548,6 +548,27 @@
     color: var(--color-text-maxcontrast);
 }
 
+.empty-state-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.empty-state-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-light);
+    margin: 0 0 4px 0;
+}
+
+.empty-state-subtitle {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin: 0 0 16px 0;
+    max-width: 400px;
+}
+
 .chart-empty-state p {
     margin-bottom: 16px;
 }
@@ -555,6 +576,48 @@
 .chart-empty-state .btn-small {
     padding: 6px 12px;
     font-size: 13px;
+}
+
+/* Net Worth Snapshot Status */
+.net-worth-status {
+    padding: 10px 16px;
+    background: var(--color-background-hover);
+    border-radius: var(--border-radius);
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+.net-worth-status-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.net-worth-status .status-icon {
+    font-size: 16px;
+}
+
+.net-worth-status .status-text {
+    color: var(--color-text-maxcontrast);
+    flex: 1;
+}
+
+.btn-link-small {
+    padding: 4px 8px;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-link-small:hover {
+    background: var(--color-background-dark);
+    border-color: var(--color-primary-element);
+    color: var(--color-primary-element);
 }
 
 .spending-chart-wrapper {

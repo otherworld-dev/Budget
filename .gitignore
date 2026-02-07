@@ -29,3 +29,9 @@ import.qif
 # Claude
 .claude/
 CLAUDE.md
+
+# Sample data (for testing/screenshots)
+sample_data/
+budget_sample_data*.zip
+import_supplemental_data.js
+SAMPLE_DATA_README.md
