@@ -108,6 +108,33 @@ class BillMapper extends QBMapper {
     }
 
     /**
+     * Find bills or transfers based on type
+     * @param string $userId
+     * @param bool|null $isTransfer null = all, true = only transfers, false = only bills
+     * @param bool|null $isActive null = all, true = only active, false = only inactive
+     * @return Bill[]
+     */
+    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        if ($isTransfer !== null) {
+            $qb->andWhere($qb->expr()->eq('is_transfer', $qb->createNamedParameter($isTransfer, IQueryBuilder::PARAM_BOOL)));
+        }
+
+        if ($isActive !== null) {
+            $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter($isActive, IQueryBuilder::PARAM_BOOL)));
+        }
+
+        $qb->orderBy('next_due_date', 'ASC')
+            ->addOrderBy('name', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Find overdue bills (next_due_date < today)
      * @return Bill[]
      */

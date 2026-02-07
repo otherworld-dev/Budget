@@ -93,6 +93,16 @@ style('budget', 'budget-main');
                 Bills
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="transfers">
+            <a href="#transfers" class="nav-icon-transfers svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
+                    </svg>
+                </span>
+                Transfers
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="savings-goals">
             <a href="#savings-goals" class="nav-icon-savings svg">
                 <span class="app-navigation-entry-icon">
@@ -1997,6 +2007,11 @@ style('budget', 'budget-main');
                     <button id="cancel-detected-btn" class="secondary">Cancel</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Transfers View -->
+        <div id="transfers-view" class="view">
+            <!-- Content will be rendered by TransfersModule -->
         </div>
 
         <!-- Rules View -->

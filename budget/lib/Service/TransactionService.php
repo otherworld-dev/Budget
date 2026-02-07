@@ -106,8 +106,8 @@ class TransactionService {
      * @param string $userId User ID
      * @param Bill $bill The bill to create transaction from
      * @param string|null $transactionDate Optional date override (uses bill's nextDueDate if not provided)
-     * @return Transaction The created transaction
-     * @throws \Exception if bill has no account
+     * @return Transaction The created transaction (for transfers, returns the withdrawal transaction)
+     * @throws \Exception if bill has no account or if transfer has no destination account
      */
     public function createFromBill(
         string $userId,
@@ -120,6 +120,52 @@ class TransactionService {
 
         $date = $transactionDate ?? $bill->getNextDueDate();
 
+        // Handle transfers - create paired transactions
+        if ($bill->getIsTransfer()) {
+            if (!$bill->getDestinationAccountId()) {
+                throw new \Exception('Transfer must have a destination account');
+            }
+
+            // Create withdrawal from source account
+            $withdrawal = $this->create(
+                userId: $userId,
+                accountId: $bill->getAccountId(),
+                date: $date,
+                description: $bill->getName(),
+                amount: $bill->getAmount(),
+                type: 'debit',
+                categoryId: $bill->getCategoryId(),
+                vendor: null,
+                reference: null,
+                notes: "Auto-generated transfer: {$bill->getName()}",
+                importId: null,
+                billId: $bill->getId()
+            );
+
+            // Create deposit to destination account
+            $deposit = $this->create(
+                userId: $userId,
+                accountId: $bill->getDestinationAccountId(),
+                date: $date,
+                description: $bill->getName(),
+                amount: $bill->getAmount(),
+                type: 'credit',
+                categoryId: $bill->getCategoryId(),
+                vendor: null,
+                reference: null,
+                notes: "Auto-generated transfer: {$bill->getName()}",
+                importId: null,
+                billId: $bill->getId()
+            );
+
+            // Link the two transactions
+            $this->linkTransactions($withdrawal->getId(), $deposit->getId(), $userId);
+
+            // Return the withdrawal transaction
+            return $withdrawal;
+        }
+
+        // Handle regular bills - create single transaction
         return $this->create(
             userId: $userId,
             accountId: $bill->getAccountId(),

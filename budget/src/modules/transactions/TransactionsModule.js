@@ -933,7 +933,7 @@ export default class TransactionsModule {
             const currentValue = toAccountSelect.value;
 
             // Clear and rebuild options
-            toAccountSelect.innerHTML = '<option value="">Choose destination account</option>';
+            toAccountSelect.innerHTML = '<option value="">Select account...</option>';
             this.accounts.forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;

@@ -25,8 +25,8 @@ export default class BillsModule {
             // Load summary first
             await this.loadBillsSummary();
 
-            // Load all bills
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills'), {
+            // Load all bills (excluding transfers)
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false'), {
                 headers: { 'requesttoken': OC.requestToken }
             });
 

@@ -61,6 +61,9 @@ export default class Router {
                 case 'bills':
                     this.app.loadBillsView();
                     break;
+                case 'transfers':
+                    this.app.loadTransfersView();
+                    break;
                 case 'rules':
                     this.app.loadRulesView();
                     break;
@@ -112,6 +115,9 @@ export default class Router {
                 break;
             case 'bills':
                 this.app.loadBillsView();
+                break;
+            case 'transfers':
+                this.app.loadTransfersView();
                 break;
             case 'rules':
                 this.app.loadRulesView();
