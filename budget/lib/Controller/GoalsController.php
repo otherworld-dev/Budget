@@ -73,7 +73,8 @@ class GoalsController extends Controller {
         float $currentAmount = 0.0,
         ?int $targetMonths = null,
         ?string $description = null,
-        ?string $targetDate = null
+        ?string $targetDate = null,
+        ?int $tagId = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -117,6 +118,11 @@ class GoalsController extends Controller {
                 return new DataResponse(['error' => 'Current amount cannot be negative'], Http::STATUS_BAD_REQUEST);
             }
 
+            // Validate tagId if provided
+            if ($tagId !== null && $tagId <= 0) {
+                return new DataResponse(['error' => 'Invalid tag ID'], Http::STATUS_BAD_REQUEST);
+            }
+
             $goal = $this->service->create(
                 $this->userId,
                 $name,
@@ -124,7 +130,8 @@ class GoalsController extends Controller {
                 $targetMonths,
                 $currentAmount,
                 $description,
-                $targetDate
+                $targetDate,
+                $tagId
             );
             return new DataResponse($goal, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -143,7 +150,8 @@ class GoalsController extends Controller {
         int $targetMonths = null,
         float $currentAmount = null,
         string $description = null,
-        string $targetDate = null
+        string $targetDate = null,
+        int $tagId = null
     ): DataResponse {
         try {
             // Validate name if provided
@@ -187,6 +195,15 @@ class GoalsController extends Controller {
                 return new DataResponse(['error' => 'Current amount cannot be negative'], Http::STATUS_BAD_REQUEST);
             }
 
+            // Validate tagId if provided
+            if ($tagId !== null && $tagId <= 0) {
+                return new DataResponse(['error' => 'Invalid tag ID'], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Detect if tagId was explicitly sent in the request body
+            $params = $this->request->getParams();
+            $updateTagId = array_key_exists('tagId', $params);
+
             $goal = $this->service->update(
                 $id,
                 $this->userId,
@@ -195,7 +212,9 @@ class GoalsController extends Controller {
                 $targetMonths,
                 $currentAmount,
                 $description,
-                $targetDate
+                $targetDate,
+                $tagId,
+                $updateTagId
             );
             return new DataResponse($goal);
         } catch (\Exception $e) {

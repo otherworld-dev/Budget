@@ -6,27 +6,32 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\SavingsGoal;
 use OCA\Budget\Db\SavingsGoalMapper;
+use OCA\Budget\Db\TransactionTagMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 
 class GoalsService {
     private SavingsGoalMapper $mapper;
+    private TransactionTagMapper $transactionTagMapper;
 
-    public function __construct(SavingsGoalMapper $mapper) {
+    public function __construct(SavingsGoalMapper $mapper, TransactionTagMapper $transactionTagMapper) {
         $this->mapper = $mapper;
+        $this->transactionTagMapper = $transactionTagMapper;
     }
 
     /**
      * @return SavingsGoal[]
      */
     public function findAll(string $userId): array {
-        return $this->mapper->findAll($userId);
+        $goals = $this->mapper->findAll($userId);
+        return $this->enrichWithTagAmounts($goals, $userId);
     }
 
     /**
      * @throws DoesNotExistException
      */
     public function find(int $id, string $userId): SavingsGoal {
-        return $this->mapper->find($id, $userId);
+        $goal = $this->mapper->find($id, $userId);
+        return $this->enrichGoalWithTagAmount($goal, $userId);
     }
 
     public function create(
@@ -36,19 +41,22 @@ class GoalsService {
         ?int $targetMonths = null,
         float $currentAmount = 0.0,
         ?string $description = null,
-        ?string $targetDate = null
+        ?string $targetDate = null,
+        ?int $tagId = null
     ): SavingsGoal {
         $goal = new SavingsGoal();
         $goal->setUserId($userId);
         $goal->setName($name);
         $goal->setTargetAmount($targetAmount);
-        $goal->setCurrentAmount($currentAmount);
+        $goal->setCurrentAmount($tagId !== null ? 0.0 : $currentAmount);
         $goal->setTargetMonths($targetMonths);
         $goal->setDescription($description);
         $goal->setTargetDate($targetDate);
+        $goal->setTagId($tagId);
         $goal->setCreatedAt(date('Y-m-d H:i:s'));
 
-        return $this->mapper->insert($goal);
+        $inserted = $this->mapper->insert($goal);
+        return $this->enrichGoalWithTagAmount($inserted, $userId);
     }
 
     /**
@@ -62,7 +70,9 @@ class GoalsService {
         ?int $targetMonths = null,
         ?float $currentAmount = null,
         ?string $description = null,
-        ?string $targetDate = null
+        ?string $targetDate = null,
+        ?int $tagId = null,
+        bool $updateTagId = false
     ): SavingsGoal {
         $goal = $this->mapper->find($id, $userId);
 
@@ -75,9 +85,6 @@ class GoalsService {
         if ($targetMonths !== null) {
             $goal->setTargetMonths($targetMonths);
         }
-        if ($currentAmount !== null) {
-            $goal->setCurrentAmount($currentAmount);
-        }
         if ($description !== null) {
             $goal->setDescription($description);
         }
@@ -85,7 +92,17 @@ class GoalsService {
             $goal->setTargetDate($targetDate);
         }
 
-        return $this->mapper->update($goal);
+        if ($updateTagId) {
+            $goal->setTagId($tagId);
+        }
+
+        // Only update currentAmount if goal is not tag-linked
+        if ($goal->getTagId() === null && $currentAmount !== null) {
+            $goal->setCurrentAmount($currentAmount);
+        }
+
+        $updated = $this->mapper->update($goal);
+        return $this->enrichGoalWithTagAmount($updated, $userId);
     }
 
     /**
@@ -100,7 +117,7 @@ class GoalsService {
      * @throws DoesNotExistException
      */
     public function getProgress(int $id, string $userId): array {
-        $goal = $this->mapper->find($id, $userId);
+        $goal = $this->find($id, $userId);
 
         $targetAmount = $goal->getTargetAmount();
         $currentAmount = $goal->getCurrentAmount();
@@ -139,7 +156,7 @@ class GoalsService {
      * @throws DoesNotExistException
      */
     public function getForecast(int $id, string $userId): array {
-        $goal = $this->mapper->find($id, $userId);
+        $goal = $this->find($id, $userId);
         $progress = $this->getProgress($id, $userId);
 
         $recommendations = [];
@@ -161,5 +178,45 @@ class GoalsService {
             'probabilityOfSuccess' => $progress['onTrack'] ? 85.0 : 50.0,
             'recommendations' => $recommendations,
         ];
+    }
+
+    /**
+     * For tag-linked goals, replace stored currentAmount with
+     * the calculated sum from tagged transactions.
+     *
+     * @param SavingsGoal[] $goals
+     * @param string $userId
+     * @return SavingsGoal[]
+     */
+    private function enrichWithTagAmounts(array $goals, string $userId): array {
+        $tagIds = [];
+        foreach ($goals as $goal) {
+            if ($goal->getTagId() !== null) {
+                $tagIds[] = $goal->getTagId();
+            }
+        }
+
+        if (empty($tagIds)) {
+            return $goals;
+        }
+
+        $sums = $this->transactionTagMapper->sumTransactionAmountsByTags($tagIds, $userId);
+
+        foreach ($goals as $goal) {
+            $tagId = $goal->getTagId();
+            if ($tagId !== null) {
+                $goal->setCurrentAmount($sums[$tagId] ?? 0.0);
+            }
+        }
+
+        return $goals;
+    }
+
+    private function enrichGoalWithTagAmount(SavingsGoal $goal, string $userId): SavingsGoal {
+        if ($goal->getTagId() !== null) {
+            $sum = $this->transactionTagMapper->sumTransactionAmountsByTag($goal->getTagId(), $userId);
+            $goal->setCurrentAmount($sum);
+        }
+        return $goal;
     }
 }

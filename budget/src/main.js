@@ -2952,7 +2952,9 @@ class BudgetApp {
             'edit-tag-set-modal',
             'factory-reset-modal',
             'rule-modal',
-            'apply-rules-modal'
+            'apply-rules-modal',
+            'goal-modal',
+            'add-to-goal-modal'
         ];
 
         modalIds.forEach(modalId => {

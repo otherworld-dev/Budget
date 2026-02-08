@@ -57,4 +57,20 @@ class SavingsGoalMapper extends QBMapper {
 
         return $qb->executeStatement();
     }
+
+    /**
+     * Clear tag references when a tag is deleted.
+     * Sets tag_id to NULL for any goals linked to the given tag.
+     *
+     * @param int $tagId
+     * @return int Number of updated rows
+     */
+    public function clearTagReference(int $tagId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('tag_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+            ->where($qb->expr()->eq('tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)));
+
+        return $qb->executeStatement();
+    }
 }

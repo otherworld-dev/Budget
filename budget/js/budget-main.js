@@ -31934,6 +31934,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -31953,6 +31956,7 @@ var SavingsModule = /*#__PURE__*/function () {
     _classCallCheck(this, SavingsModule);
     this.app = app;
     this._eventsSetup = false;
+    this._allTagSets = [];
   }
 
   // Getters for app state
@@ -32010,8 +32014,9 @@ var SavingsModule = /*#__PURE__*/function () {
                 this._eventsSetup = true;
               }
 
-              // Populate account dropdown in modal
+              // Populate dropdowns in modal
               this.populateGoalAccountDropdown();
+              this.populateGoalTagDropdown();
               _context.n = 5;
               break;
             case 4:
@@ -32067,6 +32072,7 @@ var SavingsModule = /*#__PURE__*/function () {
         var target = parseFloat(goal.targetAmount || goal.target_amount) || 0;
         var percentage = target > 0 ? Math.min(current / target * 100, 100) : 0;
         var isCompleted = current >= target;
+        var isTagLinked = goal.tagId != null;
         var color = goal.color || '#0082c9';
         var targetDate = goal.targetDate || goal.target_date;
         var targetDateText = '';
@@ -32088,7 +32094,15 @@ var SavingsModule = /*#__PURE__*/function () {
             }));
           }
         }
-        return "\n                <div class=\"goal-card ".concat(isCompleted ? 'completed' : '', "\" data-goal-id=\"").concat(goal.id, "\">\n                    <div class=\"goal-card-header\">\n                        <div class=\"goal-card-title\">\n                            <span class=\"goal-color-indicator\" style=\"background: ").concat(color, "\"></span>\n                            <h3 class=\"goal-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(goal.name), "</h3>\n                        </div>\n                        <div class=\"goal-card-actions\">\n                            <button class=\"edit-goal-btn\" title=\"Edit\" data-goal-id=\"").concat(goal.id, "\">\n                                <span class=\"icon-rename\"></span>\n                            </button>\n                            <button class=\"delete-goal-btn delete-btn\" title=\"Delete\" data-goal-id=\"").concat(goal.id, "\">\n                                <span class=\"icon-delete\"></span>\n                            </button>\n                        </div>\n                    </div>\n\n                    <div class=\"goal-progress-section\">\n                        <div class=\"goal-progress-bar\">\n                            <div class=\"goal-progress-fill\" style=\"width: ").concat(percentage, "%; background: ").concat(isCompleted ? 'linear-gradient(90deg, #2e7d32, #43a047)' : "linear-gradient(90deg, ".concat(color, ", ").concat(color, "dd)"), "\"></div>\n                        </div>\n                        <div class=\"goal-amounts\">\n                            <span class=\"goal-current-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(current, null, _this.settings), "</span>\n                            <span class=\"goal-percentage\">").concat(percentage.toFixed(0), "%</span>\n                            <span class=\"goal-target-amount\">of ").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(target, null, _this.settings), "</span>\n                        </div>\n                    </div>\n\n                    <div class=\"goal-footer\">\n                        ").concat(targetDateText ? "<span class=\"goal-target-date\"><span class=\"icon-calendar\"></span> ".concat(targetDateText, "</span>") : '<span></span>', "\n                        ").concat(isCompleted ? '<span class="goal-completed-badge"><span class="icon-checkmark"></span> Goal reached!</span>' : "<button class=\"goal-add-money-btn\" data-goal-id=\"".concat(goal.id, "\">+ Add money</button>"), "\n                    </div>\n                </div>\n            ");
+        var footerAction;
+        if (isCompleted) {
+          footerAction = '<span class="goal-completed-badge"><span class="icon-checkmark"></span> Goal reached!</span>';
+        } else if (isTagLinked) {
+          footerAction = '<span class="goal-auto-tracked"><span class="icon-tag"></span> Auto-tracked</span>';
+        } else {
+          footerAction = "<button class=\"goal-add-money-btn\" data-goal-id=\"".concat(goal.id, "\">+ Add money</button>");
+        }
+        return "\n                <div class=\"goal-card ".concat(isCompleted ? 'completed' : '', "\" data-goal-id=\"").concat(goal.id, "\">\n                    <div class=\"goal-card-header\">\n                        <div class=\"goal-card-title\">\n                            <span class=\"goal-color-indicator\" style=\"background: ").concat(color, "\"></span>\n                            <h3 class=\"goal-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(goal.name), "</h3>\n                        </div>\n                        <div class=\"goal-card-actions\">\n                            <button class=\"edit-goal-btn\" title=\"Edit\" data-goal-id=\"").concat(goal.id, "\">\n                                <span class=\"icon-rename\"></span>\n                            </button>\n                            <button class=\"delete-goal-btn delete-btn\" title=\"Delete\" data-goal-id=\"").concat(goal.id, "\">\n                                <span class=\"icon-delete\"></span>\n                            </button>\n                        </div>\n                    </div>\n\n                    <div class=\"goal-progress-section\">\n                        <div class=\"goal-progress-bar\">\n                            <div class=\"goal-progress-fill\" style=\"width: ").concat(percentage, "%; background: ").concat(isCompleted ? 'linear-gradient(90deg, #2e7d32, #43a047)' : "linear-gradient(90deg, ".concat(color, ", ").concat(color, "dd)"), "\"></div>\n                        </div>\n                        <div class=\"goal-amounts\">\n                            <span class=\"goal-current-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(current, null, _this.settings), "</span>\n                            <span class=\"goal-percentage\">").concat(percentage.toFixed(0), "%</span>\n                            <span class=\"goal-target-amount\">of ").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(target, null, _this.settings), "</span>\n                        </div>\n                    </div>\n\n                    <div class=\"goal-footer\">\n                        ").concat(targetDateText ? "<span class=\"goal-target-date\"><span class=\"icon-calendar\"></span> ".concat(targetDateText, "</span>") : '<span></span>', "\n                        ").concat(footerAction, "\n                    </div>\n                </div>\n            ");
       }).join('');
     }
   }, {
@@ -32100,7 +32114,8 @@ var SavingsModule = /*#__PURE__*/function () {
         _document$getElementB3,
         _document$getElementB4,
         _document$getElementB5,
-        _document$getElementB6;
+        _document$getElementB6,
+        _document$getElementB7;
       // Add goal button
       (_document$getElementB = document.getElementById('add-goal-btn')) === null || _document$getElementB === void 0 || _document$getElementB.addEventListener('click', function () {
         _this2.showGoalModal();
@@ -32166,13 +32181,56 @@ var SavingsModule = /*#__PURE__*/function () {
         }
       });
 
+      // Goal modal cancel buttons
+      var goalModal = document.getElementById('goal-modal');
+      if (goalModal) {
+        goalModal.querySelectorAll('.cancel-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            goalModal.style.display = 'none';
+          });
+        });
+      }
+
+      // Add money modal cancel buttons
+      var addToGoalModal = document.getElementById('add-to-goal-modal');
+      if (addToGoalModal) {
+        addToGoalModal.querySelectorAll('.cancel-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            addToGoalModal.style.display = 'none';
+          });
+        });
+      }
+
+      // Tag dropdown change - toggle current amount field
+      (_document$getElementB6 = document.getElementById('goal-tag')) === null || _document$getElementB6 === void 0 || _document$getElementB6.addEventListener('change', function (e) {
+        _this2.updateCurrentAmountFieldState(e.target.value !== '');
+      });
+
       // Color preview
-      (_document$getElementB6 = document.getElementById('goal-color')) === null || _document$getElementB6 === void 0 || _document$getElementB6.addEventListener('input', function (e) {
+      (_document$getElementB7 = document.getElementById('goal-color')) === null || _document$getElementB7 === void 0 || _document$getElementB7.addEventListener('input', function (e) {
         var preview = document.getElementById('goal-color-preview');
         if (preview) {
           preview.style.backgroundColor = e.target.value;
         }
       });
+    }
+  }, {
+    key: "updateCurrentAmountFieldState",
+    value: function updateCurrentAmountFieldState(tagLinked) {
+      var currentAmountInput = document.getElementById('goal-current');
+      var hint = document.getElementById('goal-tag-hint');
+      if (currentAmountInput) {
+        currentAmountInput.disabled = tagLinked;
+        if (tagLinked) {
+          currentAmountInput.value = '';
+          currentAmountInput.placeholder = 'Auto-calculated from tag';
+        } else {
+          currentAmountInput.placeholder = '0.00';
+        }
+      }
+      if (hint) {
+        hint.style.display = tagLinked ? 'block' : 'none';
+      }
     }
   }, {
     key: "populateGoalAccountDropdown",
@@ -32183,6 +32241,83 @@ var SavingsModule = /*#__PURE__*/function () {
         return "<option value=\"".concat(a.id, "\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(a.name), "</option>");
       }).join('') : '');
     }
+  }, {
+    key: "populateGoalTagDropdown",
+    value: function () {
+      var _populateGoalTagDropdown = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
+        var dropdown, response, html, _iterator, _step, tagSet, _iterator2, _step2, tag, _t2;
+        return _regenerator().w(function (_context4) {
+          while (1) switch (_context4.p = _context4.n) {
+            case 0:
+              dropdown = document.getElementById('goal-tag');
+              if (dropdown) {
+                _context4.n = 1;
+                break;
+              }
+              return _context4.a(2);
+            case 1:
+              _context4.p = 1;
+              _context4.n = 2;
+              return fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 2:
+              response = _context4.v;
+              if (response.ok) {
+                _context4.n = 3;
+                break;
+              }
+              throw new Error("HTTP ".concat(response.status));
+            case 3:
+              _context4.n = 4;
+              return response.json();
+            case 4:
+              this._allTagSets = _context4.v;
+              html = '<option value="">No linked tag</option>';
+              _iterator = _createForOfIteratorHelper(this._allTagSets);
+              try {
+                for (_iterator.s(); !(_step = _iterator.n()).done;) {
+                  tagSet = _step.value;
+                  if (tagSet.tags && tagSet.tags.length > 0) {
+                    html += "<optgroup label=\"".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "\">");
+                    _iterator2 = _createForOfIteratorHelper(tagSet.tags);
+                    try {
+                      for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+                        tag = _step2.value;
+                        html += "<option value=\"".concat(tag.id, "\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "</option>");
+                      }
+                    } catch (err) {
+                      _iterator2.e(err);
+                    } finally {
+                      _iterator2.f();
+                    }
+                    html += '</optgroup>';
+                  }
+                }
+              } catch (err) {
+                _iterator.e(err);
+              } finally {
+                _iterator.f();
+              }
+              dropdown.innerHTML = html;
+              _context4.n = 6;
+              break;
+            case 5:
+              _context4.p = 5;
+              _t2 = _context4.v;
+              console.error('Failed to load tags for goal dropdown:', _t2);
+            case 6:
+              return _context4.a(2);
+          }
+        }, _callee4, this, [[1, 5]]);
+      }));
+      function populateGoalTagDropdown() {
+        return _populateGoalTagDropdown.apply(this, arguments);
+      }
+      return populateGoalTagDropdown;
+    }()
   }, {
     key: "showGoalModal",
     value: function showGoalModal() {
@@ -32198,6 +32333,13 @@ var SavingsModule = /*#__PURE__*/function () {
       document.getElementById('goal-id').value = '';
       document.getElementById('goal-color').value = '#0082c9';
 
+      // Reset tag dropdown and current amount field state
+      var tagDropdown = document.getElementById('goal-tag');
+      if (tagDropdown) {
+        tagDropdown.value = '';
+      }
+      this.updateCurrentAmountFieldState(false);
+
       // Populate if editing
       if (goal) {
         document.getElementById('goal-id').value = goal.id;
@@ -32206,19 +32348,26 @@ var SavingsModule = /*#__PURE__*/function () {
         document.getElementById('goal-current').value = goal.currentAmount || goal.current_amount || 0;
         document.getElementById('goal-target-date').value = goal.targetDate || goal.target_date || '';
         document.getElementById('goal-notes').value = goal.description || '';
+
+        // Set tag dropdown
+        if (tagDropdown && goal.tagId) {
+          tagDropdown.value = goal.tagId;
+          this.updateCurrentAmountFieldState(true);
+        }
       }
       modal.style.display = 'flex';
     }
   }, {
     key: "saveGoal",
     value: function () {
-      var _saveGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
-        var form, goalId, targetDateValue, descriptionValue, data, url, response, _t2;
-        return _regenerator().w(function (_context4) {
-          while (1) switch (_context4.p = _context4.n) {
+      var _saveGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
+        var _document$getElementB8;
+        var goalId, tagValue, targetDateValue, descriptionValue, data, url, response, errorData, _t3;
+        return _regenerator().w(function (_context5) {
+          while (1) switch (_context5.p = _context5.n) {
             case 0:
-              form = document.getElementById('goal-form');
               goalId = document.getElementById('goal-id').value;
+              tagValue = (_document$getElementB8 = document.getElementById('goal-tag')) === null || _document$getElementB8 === void 0 ? void 0 : _document$getElementB8.value;
               targetDateValue = document.getElementById('goal-target-date').value;
               descriptionValue = document.getElementById('goal-notes').value;
               data = {
@@ -32226,11 +32375,12 @@ var SavingsModule = /*#__PURE__*/function () {
                 targetAmount: parseFloat(document.getElementById('goal-target').value) || 0,
                 currentAmount: parseFloat(document.getElementById('goal-current').value) || 0,
                 targetDate: targetDateValue || null,
-                description: descriptionValue || null
+                description: descriptionValue || null,
+                tagId: tagValue ? parseInt(tagValue) : null
               };
-              _context4.p = 1;
+              _context5.p = 1;
               url = goalId ? OC.generateUrl("/apps/budget/api/savings-goals/".concat(goalId)) : OC.generateUrl('/apps/budget/api/savings-goals');
-              _context4.n = 2;
+              _context5.n = 2;
               return fetch(url, {
                 method: goalId ? 'PUT' : 'POST',
                 headers: {
@@ -32240,29 +32390,37 @@ var SavingsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(data)
               });
             case 2:
-              response = _context4.v;
+              response = _context5.v;
               if (response.ok) {
-                _context4.n = 3;
+                _context5.n = 4;
                 break;
               }
-              throw new Error("HTTP ".concat(response.status));
+              _context5.n = 3;
+              return response.json()["catch"](function () {
+                return {};
+              });
             case 3:
+              errorData = _context5.v;
+              console.error('Save goal error response:', response.status, errorData);
+              OC.Notification.showTemporary(errorData.error || 'Failed to save goal');
+              return _context5.a(2);
+            case 4:
               document.getElementById('goal-modal').style.display = 'none';
               OC.Notification.showTemporary(goalId ? 'Goal updated' : 'Goal created');
-              _context4.n = 4;
+              _context5.n = 5;
               return this.loadSavingsGoalsView();
-            case 4:
-              _context4.n = 6;
-              break;
             case 5:
-              _context4.p = 5;
-              _t2 = _context4.v;
-              console.error('Failed to save goal:', _t2);
-              OC.Notification.showTemporary('Failed to save goal');
+              _context5.n = 7;
+              break;
             case 6:
-              return _context4.a(2);
+              _context5.p = 6;
+              _t3 = _context5.v;
+              console.error('Failed to save goal:', _t3);
+              OC.Notification.showTemporary('Failed to save goal');
+            case 7:
+              return _context5.a(2);
           }
-        }, _callee4, this, [[1, 5]]);
+        }, _callee5, this, [[1, 6]]);
       }));
       function saveGoal() {
         return _saveGoal.apply(this, arguments);
@@ -32283,19 +32441,19 @@ var SavingsModule = /*#__PURE__*/function () {
   }, {
     key: "deleteGoal",
     value: function () {
-      var _deleteGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(goalId) {
-        var response, _t3;
-        return _regenerator().w(function (_context5) {
-          while (1) switch (_context5.p = _context5.n) {
+      var _deleteGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(goalId) {
+        var response, _t4;
+        return _regenerator().w(function (_context6) {
+          while (1) switch (_context6.p = _context6.n) {
             case 0:
               if (confirm('Are you sure you want to delete this savings goal?')) {
-                _context5.n = 1;
+                _context6.n = 1;
                 break;
               }
-              return _context5.a(2);
+              return _context6.a(2);
             case 1:
-              _context5.p = 1;
-              _context5.n = 2;
+              _context6.p = 1;
+              _context6.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/savings-goals/".concat(goalId)), {
                 method: 'DELETE',
                 headers: {
@@ -32303,28 +32461,28 @@ var SavingsModule = /*#__PURE__*/function () {
                 }
               });
             case 2:
-              response = _context5.v;
+              response = _context6.v;
               if (response.ok) {
-                _context5.n = 3;
+                _context6.n = 3;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 3:
               OC.Notification.showTemporary('Goal deleted');
-              _context5.n = 4;
+              _context6.n = 4;
               return this.loadSavingsGoalsView();
             case 4:
-              _context5.n = 6;
+              _context6.n = 6;
               break;
             case 5:
-              _context5.p = 5;
-              _t3 = _context5.v;
-              console.error('Failed to delete goal:', _t3);
+              _context6.p = 5;
+              _t4 = _context6.v;
+              console.error('Failed to delete goal:', _t4);
               OC.Notification.showTemporary('Failed to delete goal');
             case 6:
-              return _context5.a(2);
+              return _context6.a(2);
           }
-        }, _callee5, this, [[1, 5]]);
+        }, _callee6, this, [[1, 5]]);
       }));
       function deleteGoal(_x3) {
         return _deleteGoal.apply(this, arguments);
@@ -32339,6 +32497,12 @@ var SavingsModule = /*#__PURE__*/function () {
         return g.id === goalId;
       });
       if (!goal) return;
+
+      // Guard against tag-linked goals
+      if (goal.tagId) {
+        OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+        return;
+      }
       var modal = document.getElementById('add-to-goal-modal');
       document.getElementById('add-to-goal-name').textContent = goal.name;
       document.getElementById('add-to-goal-id').value = goalId;
@@ -32348,34 +32512,41 @@ var SavingsModule = /*#__PURE__*/function () {
   }, {
     key: "addMoneyToGoal",
     value: function () {
-      var _addMoneyToGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+      var _addMoneyToGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
         var _this$savingsGoals3;
-        var goalId, amount, goal, currentAmount, newAmount, response, _t4;
-        return _regenerator().w(function (_context6) {
-          while (1) switch (_context6.p = _context6.n) {
+        var goalId, amount, goal, currentAmount, newAmount, response, _t5;
+        return _regenerator().w(function (_context7) {
+          while (1) switch (_context7.p = _context7.n) {
             case 0:
               goalId = document.getElementById('add-to-goal-id').value;
               amount = parseFloat(document.getElementById('add-amount').value) || 0;
               if (!(amount <= 0)) {
-                _context6.n = 1;
+                _context7.n = 1;
                 break;
               }
               OC.Notification.showTemporary('Please enter a valid amount');
-              return _context6.a(2);
+              return _context7.a(2);
             case 1:
               goal = (_this$savingsGoals3 = this.savingsGoals) === null || _this$savingsGoals3 === void 0 ? void 0 : _this$savingsGoals3.find(function (g) {
                 return g.id === parseInt(goalId);
               });
               if (goal) {
-                _context6.n = 2;
+                _context7.n = 2;
                 break;
               }
-              return _context6.a(2);
+              return _context7.a(2);
             case 2:
+              if (!goal.tagId) {
+                _context7.n = 3;
+                break;
+              }
+              OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+              return _context7.a(2);
+            case 3:
               currentAmount = parseFloat(goal.currentAmount || goal.current_amount) || 0;
               newAmount = currentAmount + amount;
-              _context6.p = 3;
-              _context6.n = 4;
+              _context7.p = 4;
+              _context7.n = 5;
               return fetch(OC.generateUrl("/apps/budget/api/savings-goals/".concat(goalId)), {
                 method: 'PUT',
                 headers: {
@@ -32386,30 +32557,30 @@ var SavingsModule = /*#__PURE__*/function () {
                   currentAmount: newAmount
                 })
               });
-            case 4:
-              response = _context6.v;
+            case 5:
+              response = _context7.v;
               if (response.ok) {
-                _context6.n = 5;
+                _context7.n = 6;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
-            case 5:
+            case 6:
               document.getElementById('add-to-goal-modal').style.display = 'none';
               OC.Notification.showTemporary("Added ".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(amount, null, this.settings), " to goal"));
-              _context6.n = 6;
+              _context7.n = 7;
               return this.loadSavingsGoalsView();
-            case 6:
-              _context6.n = 8;
-              break;
             case 7:
-              _context6.p = 7;
-              _t4 = _context6.v;
-              console.error('Failed to add money to goal:', _t4);
-              OC.Notification.showTemporary('Failed to add money to goal');
+              _context7.n = 9;
+              break;
             case 8:
-              return _context6.a(2);
+              _context7.p = 8;
+              _t5 = _context7.v;
+              console.error('Failed to add money to goal:', _t5);
+              OC.Notification.showTemporary('Failed to add money to goal');
+            case 9:
+              return _context7.a(2);
           }
-        }, _callee6, this, [[3, 7]]);
+        }, _callee7, this, [[4, 8]]);
       }));
       function addMoneyToGoal() {
         return _addMoneyToGoal.apply(this, arguments);
@@ -44392,7 +44563,7 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "hideModals",
     value: function hideModals() {
-      var modalIds = ['transaction-modal', 'account-modal', 'category-modal', 'split-modal', 'matching-modal', 'bulk-match-modal', 'add-tag-set-modal', 'add-tag-modal', 'edit-tag-set-modal', 'factory-reset-modal', 'rule-modal', 'apply-rules-modal'];
+      var modalIds = ['transaction-modal', 'account-modal', 'category-modal', 'split-modal', 'matching-modal', 'bulk-match-modal', 'add-tag-set-modal', 'add-tag-modal', 'edit-tag-set-modal', 'factory-reset-modal', 'rule-modal', 'apply-rules-modal', 'goal-modal', 'add-to-goal-modal'];
       modalIds.forEach(function (modalId) {
         var modal = document.getElementById(modalId);
         if (modal) {

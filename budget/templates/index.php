@@ -2264,7 +2264,6 @@ style('budget', 'budget-main');
             <div class="modal-content modal-medium">
                 <div class="modal-header">
                     <h3 id="goal-modal-title">Add Savings Goal</h3>
-                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
                 </div>
                 <form id="goal-form" class="modal-form">
                     <div class="form-group">
@@ -2295,6 +2294,17 @@ style('budget', 'budget-main');
                             <label for="goal-target-date">Target Date (optional)</label>
                             <input type="date" id="goal-target-date" name="targetDate">
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goal-tag">Linked Tag (optional)</label>
+                        <select id="goal-tag" name="tagId">
+                            <option value="">No linked tag</option>
+                            <!-- Tag options populated dynamically -->
+                        </select>
+                        <p class="form-hint" id="goal-tag-hint" style="display: none; margin-top: 4px; font-size: 12px; color: #888;">
+                            Current amount will be automatically calculated from tagged transactions.
+                        </p>
                     </div>
 
                     <div class="form-group">

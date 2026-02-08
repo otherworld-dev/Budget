@@ -8,6 +8,7 @@ export default class SavingsModule {
     constructor(app) {
         this.app = app;
         this._eventsSetup = false;
+        this._allTagSets = [];
     }
 
     // Getters for app state
@@ -34,8 +35,9 @@ export default class SavingsModule {
                 this._eventsSetup = true;
             }
 
-            // Populate account dropdown in modal
+            // Populate dropdowns in modal
             this.populateGoalAccountDropdown();
+            this.populateGoalTagDropdown();
         } catch (error) {
             console.error('Failed to load savings goals:', error);
             OC.Notification.showTemporary('Failed to load savings goals');
@@ -73,6 +75,7 @@ export default class SavingsModule {
             const target = parseFloat(goal.targetAmount || goal.target_amount) || 0;
             const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
             const isCompleted = current >= target;
+            const isTagLinked = goal.tagId != null;
             const color = goal.color || '#0082c9';
             const targetDate = goal.targetDate || goal.target_date;
 
@@ -91,6 +94,15 @@ export default class SavingsModule {
                 } else {
                     targetDateText = `Target: ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
                 }
+            }
+
+            let footerAction;
+            if (isCompleted) {
+                footerAction = '<span class="goal-completed-badge"><span class="icon-checkmark"></span> Goal reached!</span>';
+            } else if (isTagLinked) {
+                footerAction = '<span class="goal-auto-tracked"><span class="icon-tag"></span> Auto-tracked</span>';
+            } else {
+                footerAction = `<button class="goal-add-money-btn" data-goal-id="${goal.id}">+ Add money</button>`;
             }
 
             return `
@@ -123,10 +135,7 @@ export default class SavingsModule {
 
                     <div class="goal-footer">
                         ${targetDateText ? `<span class="goal-target-date"><span class="icon-calendar"></span> ${targetDateText}</span>` : '<span></span>'}
-                        ${isCompleted ?
-                            '<span class="goal-completed-badge"><span class="icon-checkmark"></span> Goal reached!</span>' :
-                            `<button class="goal-add-money-btn" data-goal-id="${goal.id}">+ Add money</button>`
-                        }
+                        ${footerAction}
                     </div>
                 </div>
             `;
@@ -174,6 +183,31 @@ export default class SavingsModule {
             }
         });
 
+        // Goal modal cancel buttons
+        const goalModal = document.getElementById('goal-modal');
+        if (goalModal) {
+            goalModal.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    goalModal.style.display = 'none';
+                });
+            });
+        }
+
+        // Add money modal cancel buttons
+        const addToGoalModal = document.getElementById('add-to-goal-modal');
+        if (addToGoalModal) {
+            addToGoalModal.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    addToGoalModal.style.display = 'none';
+                });
+            });
+        }
+
+        // Tag dropdown change - toggle current amount field
+        document.getElementById('goal-tag')?.addEventListener('change', (e) => {
+            this.updateCurrentAmountFieldState(e.target.value !== '');
+        });
+
         // Color preview
         document.getElementById('goal-color')?.addEventListener('input', (e) => {
             const preview = document.getElementById('goal-color-preview');
@@ -181,6 +215,24 @@ export default class SavingsModule {
                 preview.style.backgroundColor = e.target.value;
             }
         });
+    }
+
+    updateCurrentAmountFieldState(tagLinked) {
+        const currentAmountInput = document.getElementById('goal-current');
+        const hint = document.getElementById('goal-tag-hint');
+
+        if (currentAmountInput) {
+            currentAmountInput.disabled = tagLinked;
+            if (tagLinked) {
+                currentAmountInput.value = '';
+                currentAmountInput.placeholder = 'Auto-calculated from tag';
+            } else {
+                currentAmountInput.placeholder = '0.00';
+            }
+        }
+        if (hint) {
+            hint.style.display = tagLinked ? 'block' : 'none';
+        }
     }
 
     populateGoalAccountDropdown() {
@@ -191,6 +243,34 @@ export default class SavingsModule {
             (Array.isArray(this.accounts) ? this.accounts.map(a =>
                 `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`
             ).join('') : '');
+    }
+
+    async populateGoalTagDropdown() {
+        const dropdown = document.getElementById('goal-tag');
+        if (!dropdown) return;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            this._allTagSets = await response.json();
+
+            let html = '<option value="">No linked tag</option>';
+            for (const tagSet of this._allTagSets) {
+                if (tagSet.tags && tagSet.tags.length > 0) {
+                    html += `<optgroup label="${dom.escapeHtml(tagSet.name)}">`;
+                    for (const tag of tagSet.tags) {
+                        html += `<option value="${tag.id}">${dom.escapeHtml(tag.name)}</option>`;
+                    }
+                    html += '</optgroup>';
+                }
+            }
+            dropdown.innerHTML = html;
+        } catch (error) {
+            console.error('Failed to load tags for goal dropdown:', error);
+        }
     }
 
     showGoalModal(goal = null) {
@@ -207,6 +287,13 @@ export default class SavingsModule {
         document.getElementById('goal-id').value = '';
         document.getElementById('goal-color').value = '#0082c9';
 
+        // Reset tag dropdown and current amount field state
+        const tagDropdown = document.getElementById('goal-tag');
+        if (tagDropdown) {
+            tagDropdown.value = '';
+        }
+        this.updateCurrentAmountFieldState(false);
+
         // Populate if editing
         if (goal) {
             document.getElementById('goal-id').value = goal.id;
@@ -215,14 +302,20 @@ export default class SavingsModule {
             document.getElementById('goal-current').value = goal.currentAmount || goal.current_amount || 0;
             document.getElementById('goal-target-date').value = goal.targetDate || goal.target_date || '';
             document.getElementById('goal-notes').value = goal.description || '';
+
+            // Set tag dropdown
+            if (tagDropdown && goal.tagId) {
+                tagDropdown.value = goal.tagId;
+                this.updateCurrentAmountFieldState(true);
+            }
         }
 
         modal.style.display = 'flex';
     }
 
     async saveGoal() {
-        const form = document.getElementById('goal-form');
         const goalId = document.getElementById('goal-id').value;
+        const tagValue = document.getElementById('goal-tag')?.value;
 
         const targetDateValue = document.getElementById('goal-target-date').value;
         const descriptionValue = document.getElementById('goal-notes').value;
@@ -232,7 +325,8 @@ export default class SavingsModule {
             targetAmount: parseFloat(document.getElementById('goal-target').value) || 0,
             currentAmount: parseFloat(document.getElementById('goal-current').value) || 0,
             targetDate: targetDateValue || null,
-            description: descriptionValue || null
+            description: descriptionValue || null,
+            tagId: tagValue ? parseInt(tagValue) : null
         };
 
         try {
@@ -249,7 +343,12 @@ export default class SavingsModule {
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Save goal error response:', response.status, errorData);
+                OC.Notification.showTemporary(errorData.error || 'Failed to save goal');
+                return;
+            }
 
             document.getElementById('goal-modal').style.display = 'none';
             OC.Notification.showTemporary(goalId ? 'Goal updated' : 'Goal created');
@@ -292,6 +391,12 @@ export default class SavingsModule {
         const goal = this.savingsGoals?.find(g => g.id === goalId);
         if (!goal) return;
 
+        // Guard against tag-linked goals
+        if (goal.tagId) {
+            OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+            return;
+        }
+
         const modal = document.getElementById('add-to-goal-modal');
         document.getElementById('add-to-goal-name').textContent = goal.name;
         document.getElementById('add-to-goal-id').value = goalId;
@@ -311,6 +416,12 @@ export default class SavingsModule {
 
         const goal = this.savingsGoals?.find(g => g.id === parseInt(goalId));
         if (!goal) return;
+
+        // Guard against tag-linked goals
+        if (goal.tagId) {
+            OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+            return;
+        }
 
         const currentAmount = parseFloat(goal.currentAmount || goal.current_amount) || 0;
         const newAmount = currentAmount + amount;

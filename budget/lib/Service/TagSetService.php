@@ -6,10 +6,12 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSet;
 use OCA\Budget\Db\TagSetMapper;
+use OCA\Budget\Db\TransactionTagMapper;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -18,15 +20,21 @@ use OCP\AppFramework\Db\Entity;
 class TagSetService extends AbstractCrudService {
     private TagMapper $tagMapper;
     private CategoryMapper $categoryMapper;
+    private TransactionTagMapper $transactionTagMapper;
+    private SavingsGoalMapper $savingsGoalMapper;
 
     public function __construct(
         TagSetMapper $mapper,
         TagMapper $tagMapper,
-        CategoryMapper $categoryMapper
+        CategoryMapper $categoryMapper,
+        TransactionTagMapper $transactionTagMapper,
+        SavingsGoalMapper $savingsGoalMapper
     ) {
         $this->mapper = $mapper;
         $this->tagMapper = $tagMapper;
         $this->categoryMapper = $categoryMapper;
+        $this->transactionTagMapper = $transactionTagMapper;
+        $this->savingsGoalMapper = $savingsGoalMapper;
     }
 
     /**
@@ -160,6 +168,9 @@ class TagSetService extends AbstractCrudService {
     public function deleteTag(int $tagId, string $userId): void {
         $tag = $this->tagMapper->find($tagId, $userId);
 
+        // Clear tag references on savings goals linked to this tag
+        $this->savingsGoalMapper->clearTagReference($tagId);
+
         // Delete associated transaction tags first (cascade delete)
         $this->transactionTagMapper->deleteByTag($tagId);
 
@@ -184,6 +195,8 @@ class TagSetService extends AbstractCrudService {
         // Cascade delete: Delete all tags in this tag set
         $tags = $this->tagMapper->findByTagSet($entity->getId());
         foreach ($tags as $tag) {
+            // Clear savings goal references to this tag
+            $this->savingsGoalMapper->clearTagReference($tag->getId());
             // Delete associated transaction tags first
             $this->transactionTagMapper->deleteByTag($tag->getId());
             // Then delete the tag itself

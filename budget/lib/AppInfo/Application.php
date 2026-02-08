@@ -46,7 +46,8 @@ class Application extends App implements IBootstrap {
 
         $context->registerService(\OCA\Budget\Service\GoalsService::class, function($c) {
             return new \OCA\Budget\Service\GoalsService(
-                $c->get(\OCA\Budget\Db\SavingsGoalMapper::class)
+                $c->get(\OCA\Budget\Db\SavingsGoalMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class)
             );
         });
         $context->registerServiceAlias('GoalsService', \OCA\Budget\Service\GoalsService::class);
@@ -344,7 +345,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\TagSetMapper::class),
                 $c->get(\OCA\Budget\Db\TagMapper::class),
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionTagMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class),
+                $c->get(\OCA\Budget\Db\SavingsGoalMapper::class)
             );
         });
         $context->registerServiceAlias('TagSetService', \OCA\Budget\Service\TagSetService::class);
