@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-02-08
+
+### Added
+- **Tag-linked savings goals**: Link savings goals to tags so current amount is automatically calculated from the sum of tagged transactions
+  - Tag dropdown in goal modal with options grouped by tag set
+  - Auto-tracked badge and disabled manual amount entry for linked goals
+  - Goals without a linked tag continue to use manual tracking
+- **Tag selection in bills**: Assign tags from category tag sets when creating or editing bills
+  - Dynamic tag dropdowns load based on selected category
+  - Tags stored on bill entity and applied to generated transactions
+- **Tag selection in recurring transfers**: Assign category and tags to recurring transfers
+  - Category dropdown and dynamic tag selectors in transfer modal
+  - "Create transactions now" checkbox to immediately generate tagged transactions
+  - Tags automatically applied to transactions created via auto-pay
+
+### Fixed
+- Budget period conversion rounding errors and inconsistent summary cards ([#35](https://github.com/otherworld-dev/budget/issues/35))
+  - Increased `budget_amount` column precision from DECIMAL(15,2) to DECIMAL(15,6) for accurate intermediate conversions
+  - Removed premature 2-decimal rounding in budget proration; round only for display
+  - Normalized all category budgets to monthly in summary cards for consistent totals
+- Goal modal form groups missing top margin spacing
+
 ## [2.1.2] - 2026-02-07
 
 ### Fixed
