@@ -4133,6 +4133,8 @@ style('budget', 'budget-main');
                 <small id="bill-category-help" class="form-text">Categorize this bill (optional)</small>
             </div>
 
+            <div id="bill-tags-container"></div>
+
             <div class="form-group">
                 <label for="bill-account">Pay From Account</label>
                 <select id="bill-account" aria-describedby="bill-account-help">

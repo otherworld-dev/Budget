@@ -252,6 +252,14 @@ export default class BillsModule {
             });
         }
 
+        // Category change listener - load tag sets for selected category
+        const billCategory = document.getElementById('bill-category');
+        if (billCategory) {
+            billCategory.addEventListener('change', () => {
+                this.loadBillTagSets(billCategory.value || null, null);
+            });
+        }
+
         // Account dropdown change (enable/disable auto-pay checkbox)
         const billAccount = document.getElementById('bill-account');
         const autoPayCheckbox = document.getElementById('bill-auto-pay');
@@ -362,6 +370,15 @@ export default class BillsModule {
             const autoPayFailed = bill.autoPayFailed ?? bill.auto_pay_failed ?? false;
             document.getElementById('bill-auto-pay').checked = autoPayEnabled;
             document.getElementById('auto-pay-failed-warning').style.display = autoPayFailed ? 'block' : 'none';
+
+            // Load tag sets for bill's category
+            const categoryId = bill.categoryId || bill.category_id;
+            if (categoryId) {
+                this.loadBillTagSets(categoryId, bill);
+            } else {
+                const tagsContainer = document.getElementById('bill-tags-container');
+                if (tagsContainer) tagsContainer.innerHTML = '';
+            }
         } else {
             title.textContent = 'Add Bill';
             // Clear all month checkboxes for new bill
@@ -375,6 +392,10 @@ export default class BillsModule {
             // Reset auto-pay fields for new bill
             document.getElementById('bill-auto-pay').checked = false;
             document.getElementById('auto-pay-failed-warning').style.display = 'none';
+
+            // Clear tag sets
+            const tagsContainer = document.getElementById('bill-tags-container');
+            if (tagsContainer) tagsContainer.innerHTML = '';
         }
 
         this.updateBillFormFields();
@@ -474,7 +495,8 @@ export default class BillsModule {
             reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null,
             createTransaction: document.getElementById('bill-create-transaction')?.checked || false,
             transactionDate: document.getElementById('bill-transaction-date')?.value || null,
-            autoPayEnabled: document.getElementById('bill-auto-pay')?.checked || false
+            autoPayEnabled: document.getElementById('bill-auto-pay')?.checked || false,
+            tagIds: this.getSelectedBillTagIds()
         };
 
         // Add custom recurrence pattern if frequency is custom
@@ -808,6 +830,86 @@ export default class BillsModule {
      * Set custom months checkboxes from JSON pattern.
      * @param {string} pattern JSON pattern string
      */
+    async loadBillTagSets(categoryId, existingBill = null) {
+        const container = document.getElementById('bill-tags-container');
+        if (!container) return;
+
+        if (!categoryId) {
+            container.innerHTML = '';
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const tagSets = await response.json();
+
+            if (!tagSets || tagSets.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            // Get existing tag IDs if editing
+            const existingTagIds = existingBill?.tagIds || [];
+
+            let html = '';
+            tagSets.forEach(tagSet => {
+                html += `
+                    <div class="form-group tag-set-selector">
+                        <label class="tag-set-label">${dom.escapeHtml(tagSet.name)}</label>
+                        <div class="tag-options" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                            ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
+                                <label class="tag-option" style="cursor: pointer;">
+                                    <input type="checkbox" class="bill-tag-checkbox"
+                                           value="${tag.id}"
+                                           data-tag-set-id="${tagSet.id}"
+                                           ${existingTagIds.includes(tag.id) ? 'checked' : ''}
+                                           style="display: none;">
+                                    <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ${existingTagIds.includes(tag.id) ? '1' : '0.5'};">
+                                        ${dom.escapeHtml(tag.name)}
+                                    </span>
+                                </label>
+                            `).join('') : '<span style="color: #999; font-size: 11px; font-style: italic;">No tags defined</span>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Add click handlers for tag selection (one per tag set)
+            container.querySelectorAll('.bill-tag-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const tagSetId = e.target.dataset.tagSetId;
+                    // Deselect other tags in same tag set (radio-like behavior)
+                    if (e.target.checked) {
+                        container.querySelectorAll(`.bill-tag-checkbox[data-tag-set-id="${tagSetId}"]`).forEach(cb => {
+                            if (cb !== e.target) {
+                                cb.checked = false;
+                                cb.closest('.tag-option').querySelector('.tag-badge').style.opacity = '0.5';
+                            }
+                        });
+                    }
+                    // Update visual state
+                    e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
+                });
+            });
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+            container.innerHTML = '';
+        }
+    }
+
+    getSelectedBillTagIds() {
+        const container = document.getElementById('bill-tags-container');
+        if (!container) return [];
+        return Array.from(container.querySelectorAll('.bill-tag-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
+    }
+
     setCustomMonthsFromPattern(pattern) {
         // Clear all checkboxes first
         document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);

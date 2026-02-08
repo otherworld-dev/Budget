@@ -18812,6 +18812,14 @@ var BillsModule = /*#__PURE__*/function () {
         });
       }
 
+      // Category change listener - load tag sets for selected category
+      var billCategory = document.getElementById('bill-category');
+      if (billCategory) {
+        billCategory.addEventListener('change', function () {
+          _this2.loadBillTagSets(billCategory.value || null, null);
+        });
+      }
+
       // Account dropdown change (enable/disable auto-pay checkbox)
       var billAccount = document.getElementById('bill-account');
       var autoPayCheckbox = document.getElementById('bill-auto-pay');
@@ -18929,6 +18937,15 @@ var BillsModule = /*#__PURE__*/function () {
         var autoPayFailed = (_ref4 = (_bill$autoPayFailed2 = bill.autoPayFailed) !== null && _bill$autoPayFailed2 !== void 0 ? _bill$autoPayFailed2 : bill.auto_pay_failed) !== null && _ref4 !== void 0 ? _ref4 : false;
         document.getElementById('bill-auto-pay').checked = autoPayEnabled;
         document.getElementById('auto-pay-failed-warning').style.display = autoPayFailed ? 'block' : 'none';
+
+        // Load tag sets for bill's category
+        var categoryId = bill.categoryId || bill.category_id;
+        if (categoryId) {
+          this.loadBillTagSets(categoryId, bill);
+        } else {
+          var tagsContainer = document.getElementById('bill-tags-container');
+          if (tagsContainer) tagsContainer.innerHTML = '';
+        }
       } else {
         title.textContent = 'Add Bill';
         // Clear all month checkboxes for new bill
@@ -18944,6 +18961,10 @@ var BillsModule = /*#__PURE__*/function () {
         // Reset auto-pay fields for new bill
         document.getElementById('bill-auto-pay').checked = false;
         document.getElementById('auto-pay-failed-warning').style.display = 'none';
+
+        // Clear tag sets
+        var _tagsContainer = document.getElementById('bill-tags-container');
+        if (_tagsContainer) _tagsContainer.innerHTML = '';
       }
       this.updateBillFormFields();
       modal.style.display = 'flex';
@@ -19049,7 +19070,8 @@ var BillsModule = /*#__PURE__*/function () {
                 reminderDays: reminderValue !== '' ? parseInt(reminderValue) : null,
                 createTransaction: ((_document$getElementB = document.getElementById('bill-create-transaction')) === null || _document$getElementB === void 0 ? void 0 : _document$getElementB.checked) || false,
                 transactionDate: ((_document$getElementB2 = document.getElementById('bill-transaction-date')) === null || _document$getElementB2 === void 0 ? void 0 : _document$getElementB2.value) || null,
-                autoPayEnabled: ((_document$getElementB3 = document.getElementById('bill-auto-pay')) === null || _document$getElementB3 === void 0 ? void 0 : _document$getElementB3.checked) || false
+                autoPayEnabled: ((_document$getElementB3 = document.getElementById('bill-auto-pay')) === null || _document$getElementB3 === void 0 ? void 0 : _document$getElementB3.checked) || false,
+                tagIds: this.getSelectedBillTagIds()
               }; // Add custom recurrence pattern if frequency is custom
               if (!(frequency === 'custom')) {
                 _context3.n = 2;
@@ -19577,6 +19599,115 @@ var BillsModule = /*#__PURE__*/function () {
      * Set custom months checkboxes from JSON pattern.
      * @param {string} pattern JSON pattern string
      */
+  }, {
+    key: "loadBillTagSets",
+    value: (function () {
+      var _loadBillTagSets = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(categoryId) {
+        var existingBill,
+          container,
+          response,
+          tagSets,
+          existingTagIds,
+          html,
+          _args0 = arguments,
+          _t0;
+        return _regenerator().w(function (_context0) {
+          while (1) switch (_context0.p = _context0.n) {
+            case 0:
+              existingBill = _args0.length > 1 && _args0[1] !== undefined ? _args0[1] : null;
+              container = document.getElementById('bill-tags-container');
+              if (container) {
+                _context0.n = 1;
+                break;
+              }
+              return _context0.a(2);
+            case 1:
+              if (categoryId) {
+                _context0.n = 2;
+                break;
+              }
+              container.innerHTML = '';
+              return _context0.a(2);
+            case 2:
+              _context0.p = 2;
+              _context0.n = 3;
+              return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 3:
+              response = _context0.v;
+              if (response.ok) {
+                _context0.n = 4;
+                break;
+              }
+              throw new Error("HTTP ".concat(response.status));
+            case 4:
+              _context0.n = 5;
+              return response.json();
+            case 5:
+              tagSets = _context0.v;
+              if (!(!tagSets || tagSets.length === 0)) {
+                _context0.n = 6;
+                break;
+              }
+              container.innerHTML = '';
+              return _context0.a(2);
+            case 6:
+              // Get existing tag IDs if editing
+              existingTagIds = (existingBill === null || existingBill === void 0 ? void 0 : existingBill.tagIds) || [];
+              html = '';
+              tagSets.forEach(function (tagSet) {
+                html += "\n                    <div class=\"form-group tag-set-selector\">\n                        <label class=\"tag-set-label\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "</label>\n                        <div class=\"tag-options\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;\">\n                            ").concat(tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(function (tag) {
+                  return "\n                                <label class=\"tag-option\" style=\"cursor: pointer;\">\n                                    <input type=\"checkbox\" class=\"bill-tag-checkbox\"\n                                           value=\"".concat(tag.id, "\"\n                                           data-tag-set-id=\"").concat(tagSet.id, "\"\n                                           ").concat(existingTagIds.includes(tag.id) ? 'checked' : '', "\n                                           style=\"display: none;\">\n                                    <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ").concat(existingTagIds.includes(tag.id) ? '1' : '0.5', ";\">\n                                        ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                    </span>\n                                </label>\n                            ");
+                }).join('') : '<span style="color: #999; font-size: 11px; font-style: italic;">No tags defined</span>', "\n                        </div>\n                    </div>\n                ");
+              });
+              container.innerHTML = html;
+
+              // Add click handlers for tag selection (one per tag set)
+              container.querySelectorAll('.bill-tag-checkbox').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function (e) {
+                  var tagSetId = e.target.dataset.tagSetId;
+                  // Deselect other tags in same tag set (radio-like behavior)
+                  if (e.target.checked) {
+                    container.querySelectorAll(".bill-tag-checkbox[data-tag-set-id=\"".concat(tagSetId, "\"]")).forEach(function (cb) {
+                      if (cb !== e.target) {
+                        cb.checked = false;
+                        cb.closest('.tag-option').querySelector('.tag-badge').style.opacity = '0.5';
+                      }
+                    });
+                  }
+                  // Update visual state
+                  e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
+                });
+              });
+              _context0.n = 8;
+              break;
+            case 7:
+              _context0.p = 7;
+              _t0 = _context0.v;
+              console.error('Failed to load tag sets:', _t0);
+              container.innerHTML = '';
+            case 8:
+              return _context0.a(2);
+          }
+        }, _callee0, null, [[2, 7]]);
+      }));
+      function loadBillTagSets(_x4) {
+        return _loadBillTagSets.apply(this, arguments);
+      }
+      return loadBillTagSets;
+    }())
+  }, {
+    key: "getSelectedBillTagIds",
+    value: function getSelectedBillTagIds() {
+      var container = document.getElementById('bill-tags-container');
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('.bill-tag-checkbox:checked')).map(function (cb) {
+        return parseInt(cb.value);
+      });
+    }
   }, {
     key: "setCustomMonthsFromPattern",
     value: function setCustomMonthsFromPattern(pattern) {
