@@ -444,6 +444,23 @@ export default class TransfersModule {
                         </div>
 
                         <div class="form-group">
+                            <label for="transfer-category">Category</label>
+                            <select id="transfer-category" class="form-control">
+                                <option value="">No category</option>
+                                ${this.categories
+                                    .filter(c => c.type === 'expense')
+                                    .map(cat => `
+                                        <option value="${cat.id}" ${isEdit && transfer.categoryId === cat.id ? 'selected' : ''}>
+                                            ${dom.escapeHtml(cat.name)}
+                                        </option>
+                                    `).join('')}
+                            </select>
+                            <small class="form-hint">Category for created transactions (optional)</small>
+                        </div>
+
+                        <div id="transfer-tags-container"></div>
+
+                        <div class="form-group">
                             <label for="transfer-notes">Notes</label>
                             <textarea id="transfer-notes" class="form-control" rows="3"
                                       placeholder="Optional notes...">${isEdit && transfer.notes ? dom.escapeHtml(transfer.notes) : ''}</textarea>
@@ -451,9 +468,24 @@ export default class TransfersModule {
 
                         <div class="form-group">
                             <label class="checkbox-label">
+                                <input type="checkbox" id="transfer-create-transaction"
+                                       ${isEdit ? '' : ''}>
+                                <span>Also create transactions now</span>
+                            </label>
+                            <small class="form-hint">Creates paired debit/credit transactions immediately</small>
+                        </div>
+
+                        <div class="form-group" id="transfer-transaction-date-group" style="display: none;">
+                            <label for="transfer-transaction-date">Transaction Date</label>
+                            <input type="date" id="transfer-transaction-date" class="form-control">
+                            <small class="form-hint">Leave empty to use next due date</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
                                 <input type="checkbox" id="transfer-auto-pay"
                                        ${isEdit && transfer.autoPayEnabled ? 'checked' : ''}>
-                                <span>Enable auto-pay (automatically create transactions)</span>
+                                <span>Enable auto-pay (automatically create transactions when due)</span>
                             </label>
                         </div>
 
@@ -491,6 +523,29 @@ export default class TransfersModule {
             }
         }, 100);
 
+        // Category change listener - load tag sets for selected category
+        const categorySelect = document.getElementById('transfer-category');
+        if (categorySelect) {
+            categorySelect.addEventListener('change', () => {
+                this.loadTransferTagSets(categorySelect.value || null, isEdit ? transfer : null);
+            });
+            // Load tag sets for pre-selected category (edit mode)
+            if (categorySelect.value) {
+                this.loadTransferTagSets(categorySelect.value, isEdit ? transfer : null);
+            }
+        }
+
+        // Create transaction checkbox (show/hide date field)
+        const createTransactionCheckbox = document.getElementById('transfer-create-transaction');
+        if (createTransactionCheckbox) {
+            createTransactionCheckbox.addEventListener('change', (e) => {
+                const dateGroup = document.getElementById('transfer-transaction-date-group');
+                if (dateGroup) {
+                    dateGroup.style.display = e.target.checked ? 'block' : 'none';
+                }
+            });
+        }
+
         // Setup modal event listeners
         const modalOverlay = document.querySelector('.budget-modal-overlay');
         const form = document.getElementById('transfer-form');
@@ -525,7 +580,11 @@ export default class TransfersModule {
         const dueDay = document.getElementById('transfer-due-day').value ?
                        parseInt(document.getElementById('transfer-due-day').value) : null;
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
+        const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
+        const tagIds = this.getSelectedTagIds();
         const notes = document.getElementById('transfer-notes').value || null;
+        const createTransaction = document.getElementById('transfer-create-transaction')?.checked || false;
+        const transactionDate = document.getElementById('transfer-transaction-date')?.value || null;
         const autoPayEnabled = document.getElementById('transfer-auto-pay').checked;
 
         // Debug logging
@@ -563,7 +622,11 @@ export default class TransfersModule {
             destinationAccountId: toAccountId,
             dueDay,
             transferDescriptionPattern,
+            categoryId,
+            tagIds,
             notes,
+            createTransaction,
+            transactionDate,
             autoPayEnabled,
             isTransfer: true
         };
@@ -718,6 +781,86 @@ export default class TransfersModule {
             'yearly': 'Yearly'
         };
         return map[frequency] || frequency;
+    }
+
+    async loadTransferTagSets(categoryId, existingTransfer = null) {
+        const container = document.getElementById('transfer-tags-container');
+        if (!container) return;
+
+        if (!categoryId) {
+            container.innerHTML = '';
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const tagSets = await response.json();
+
+            if (!tagSets || tagSets.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            // Get existing tag IDs if editing
+            const existingTagIds = existingTransfer?.tagIds || [];
+
+            let html = '';
+            tagSets.forEach(tagSet => {
+                html += `
+                    <div class="form-group tag-set-selector">
+                        <label class="tag-set-label">${dom.escapeHtml(tagSet.name)}</label>
+                        <div class="tag-options" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                            ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
+                                <label class="tag-option" style="cursor: pointer;">
+                                    <input type="checkbox" class="transfer-tag-checkbox"
+                                           value="${tag.id}"
+                                           data-tag-set-id="${tagSet.id}"
+                                           ${existingTagIds.includes(tag.id) ? 'checked' : ''}
+                                           style="display: none;">
+                                    <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ${existingTagIds.includes(tag.id) ? '1' : '0.5'};">
+                                        ${dom.escapeHtml(tag.name)}
+                                    </span>
+                                </label>
+                            `).join('') : '<span style="color: #999; font-size: 11px; font-style: italic;">No tags defined</span>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Add click handlers for tag selection (one per tag set)
+            container.querySelectorAll('.transfer-tag-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const tagSetId = e.target.dataset.tagSetId;
+                    // Deselect other tags in same tag set (radio-like behavior)
+                    if (e.target.checked) {
+                        container.querySelectorAll(`.transfer-tag-checkbox[data-tag-set-id="${tagSetId}"]`).forEach(cb => {
+                            if (cb !== e.target) {
+                                cb.checked = false;
+                                cb.closest('.tag-option').querySelector('.tag-badge').style.opacity = '0.5';
+                            }
+                        });
+                    }
+                    // Update visual state
+                    e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
+                });
+            });
+        } catch (error) {
+            console.error('Failed to load tag sets:', error);
+            container.innerHTML = '';
+        }
+    }
+
+    getSelectedTagIds() {
+        const container = document.getElementById('transfer-tags-container');
+        if (!container) return [];
+        return Array.from(container.querySelectorAll('.transfer-tag-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
     }
 
     getMonthlyEquivalent(transfer) {

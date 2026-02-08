@@ -124,6 +124,7 @@ class BillController extends Controller {
             $isTransfer = $data['isTransfer'] ?? false;
             $destinationAccountId = isset($data['destinationAccountId']) ? (int) $data['destinationAccountId'] : null;
             $transferDescriptionPattern = $data['transferDescriptionPattern'] ?? null;
+            $tagIds = isset($data['tagIds']) && is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
 
             // Validate auto-pay requires account
             if ($autoPayEnabled && $accountId === null) {
@@ -230,7 +231,8 @@ class BillController extends Controller {
                 $autoPayEnabled,
                 $isTransfer,
                 $destinationAccountId,
-                $transferDescriptionPattern
+                $transferDescriptionPattern,
+                $tagIds
             );
 
             return new DataResponse($bill, Http::STATUS_CREATED);
@@ -378,6 +380,10 @@ class BillController extends Controller {
             }
             if (array_key_exists('transferDescriptionPattern', $data)) {
                 $updates['transferDescriptionPattern'] = $data['transferDescriptionPattern'];
+            }
+            if (array_key_exists('tagIds', $data)) {
+                $tagIds = is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
+                $updates['tagIds'] = empty($tagIds) ? null : json_encode(array_values($tagIds));
             }
 
             // Validate transfer constraints if being updated

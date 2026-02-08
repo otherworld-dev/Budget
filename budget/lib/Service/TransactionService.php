@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
@@ -161,12 +162,19 @@ class TransactionService {
             // Link the two transactions
             $this->linkTransactions($withdrawal->getId(), $deposit->getId(), $userId);
 
+            // Apply bill's tags to both transactions
+            $tagIds = $bill->getTagIdsArray();
+            if (!empty($tagIds)) {
+                $this->applyTagsToTransaction($withdrawal->getId(), $tagIds);
+                $this->applyTagsToTransaction($deposit->getId(), $tagIds);
+            }
+
             // Return the withdrawal transaction
             return $withdrawal;
         }
 
         // Handle regular bills - create single transaction
-        return $this->create(
+        $transaction = $this->create(
             userId: $userId,
             accountId: $bill->getAccountId(),
             date: $date,
@@ -180,6 +188,30 @@ class TransactionService {
             importId: null,
             billId: $bill->getId()
         );
+
+        // Apply bill's tags to the transaction
+        $tagIds = $bill->getTagIdsArray();
+        if (!empty($tagIds)) {
+            $this->applyTagsToTransaction($transaction->getId(), $tagIds);
+        }
+
+        return $transaction;
+    }
+
+    /**
+     * Apply tag IDs to a transaction (used when creating transactions from bills).
+     * @param int $transactionId
+     * @param int[] $tagIds
+     */
+    private function applyTagsToTransaction(int $transactionId, array $tagIds): void {
+        $now = date('Y-m-d H:i:s');
+        foreach ($tagIds as $tagId) {
+            $transactionTag = new TransactionTag();
+            $transactionTag->setTransactionId($transactionId);
+            $transactionTag->setTagId((int) $tagId);
+            $transactionTag->setCreatedAt($now);
+            $this->transactionTagMapper->insert($transactionTag);
+        }
     }
 
     public function update(int $id, string $userId, array $updates): Transaction {
