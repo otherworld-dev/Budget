@@ -13121,7 +13121,8 @@ button.danger:hover {
     font-size: 13px;
 }
 
-.budget-modal .form-row .form-group {
+.budget-modal .form-row .form-group,
+#goal-modal .form-row .form-group {
     margin-top: 15px;
 }
 
