@@ -114,7 +114,8 @@ class BillService {
         bool $autoPayEnabled = false,
         bool $isTransfer = false,
         ?int $destinationAccountId = null,
-        ?string $transferDescriptionPattern = null
+        ?string $transferDescriptionPattern = null,
+        array $tagIds = []
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
@@ -150,6 +151,7 @@ class BillService {
         $bill->setIsTransfer($isTransfer);
         $bill->setDestinationAccountId($destinationAccountId);
         $bill->setTransferDescriptionPattern($transferDescriptionPattern);
+        $bill->setTagIdsArray($tagIds);
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);

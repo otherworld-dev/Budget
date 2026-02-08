@@ -54,6 +54,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setDestinationAccountId(?int $destinationAccountId)
  * @method string|null getTransferDescriptionPattern()
  * @method void setTransferDescriptionPattern(?string $transferDescriptionPattern)
+ * @method string|null getTagIds()
+ * @method void setTagIds(?string $tagIds)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
@@ -78,6 +80,7 @@ class Bill extends Entity implements JsonSerializable {
     protected $isTransfer;        // Flag to distinguish transfers from bills
     protected $destinationAccountId;  // Target account for transfers
     protected $transferDescriptionPattern;  // Optional description pattern for matching
+    protected $tagIds;                     // JSON array of tag IDs to apply to created transactions
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -92,6 +95,27 @@ class Bill extends Entity implements JsonSerializable {
         $this->addType('autoPayFailed', 'boolean');
         $this->addType('isTransfer', 'boolean');
         $this->addType('destinationAccountId', 'integer');
+    }
+
+    /**
+     * Get tag IDs as an array (decoded from JSON).
+     * @return int[]
+     */
+    public function getTagIdsArray(): array {
+        $raw = $this->getTagIds();
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? array_map('intval', $decoded) : [];
+    }
+
+    /**
+     * Set tag IDs from an array (encodes to JSON).
+     * @param int[] $tagIds
+     */
+    public function setTagIdsArray(array $tagIds): void {
+        $this->setTagIds(empty($tagIds) ? null : json_encode(array_values(array_map('intval', $tagIds))));
     }
 
     public function jsonSerialize(): array {
@@ -119,6 +143,7 @@ class Bill extends Entity implements JsonSerializable {
             'isTransfer' => $this->getIsTransfer() ?? false,
             'destinationAccountId' => $this->getDestinationAccountId(),
             'transferDescriptionPattern' => $this->getTransferDescriptionPattern(),
+            'tagIds' => $this->getTagIdsArray(),
         ];
     }
 }

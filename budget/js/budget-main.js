@@ -39055,7 +39055,11 @@ var TransfersModule = /*#__PURE__*/function () {
         return "\n                                        <option value=\"".concat(account.id, "\" ").concat(isEdit && transfer.accountId === account.id ? 'selected' : '', ">\n                                            ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(account.name), "\n                                        </option>\n                                    ");
       }).join(''), "\n                                </select>\n                            </div>\n                            <div class=\"form-group\">\n                                <label for=\"recurring-transfer-to-account\">To Account *</label>\n                                <select id=\"recurring-transfer-to-account\" class=\"form-control\" required>\n                                    <option value=\"\">Select account...</option>\n                                    ").concat(this.accounts.map(function (account) {
         return "\n                                        <option value=\"".concat(account.id, "\" ").concat(isEdit && transfer.destinationAccountId === account.id ? 'selected' : '', ">\n                                            ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(account.name), "\n                                        </option>\n                                    ");
-      }).join(''), "\n                                </select>\n                            </div>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-due-day\">Day of Month (1-31)</label>\n                            <input type=\"number\" id=\"transfer-due-day\" class=\"form-control\"\n                                   min=\"1\" max=\"31\" placeholder=\"e.g., 15\"\n                                   value=\"").concat(isEdit && transfer.dueDay ? transfer.dueDay : '', "\">\n                            <small class=\"form-hint\">Leave empty for weekly transfers</small>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-description-pattern\">Transaction Description Pattern (Optional)</label>\n                            <input type=\"text\" id=\"transfer-description-pattern\" class=\"form-control\"\n                                   placeholder=\"e.g., Savings Transfer\"\n                                   value=\"").concat(isEdit && transfer.transferDescriptionPattern ? _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(transfer.transferDescriptionPattern) : '', "\">\n                            <small class=\"form-hint\">Used to match imported transactions</small>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-notes\">Notes</label>\n                            <textarea id=\"transfer-notes\" class=\"form-control\" rows=\"3\"\n                                      placeholder=\"Optional notes...\">").concat(isEdit && transfer.notes ? _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(transfer.notes) : '', "</textarea>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label class=\"checkbox-label\">\n                                <input type=\"checkbox\" id=\"transfer-auto-pay\"\n                                       ").concat(isEdit && transfer.autoPayEnabled ? 'checked' : '', ">\n                                <span>Enable auto-pay (automatically create transactions)</span>\n                            </label>\n                        </div>\n\n                        <div class=\"budget-modal-footer\">\n                            <button type=\"button\" class=\"button secondary\" id=\"cancel-transfer\">Cancel</button>\n                            <button type=\"submit\" class=\"button primary\">\n                                ").concat(isEdit ? 'Update Transfer' : 'Add Transfer', "\n                            </button>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        ");
+      }).join(''), "\n                                </select>\n                            </div>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-due-day\">Day of Month (1-31)</label>\n                            <input type=\"number\" id=\"transfer-due-day\" class=\"form-control\"\n                                   min=\"1\" max=\"31\" placeholder=\"e.g., 15\"\n                                   value=\"").concat(isEdit && transfer.dueDay ? transfer.dueDay : '', "\">\n                            <small class=\"form-hint\">Leave empty for weekly transfers</small>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-description-pattern\">Transaction Description Pattern (Optional)</label>\n                            <input type=\"text\" id=\"transfer-description-pattern\" class=\"form-control\"\n                                   placeholder=\"e.g., Savings Transfer\"\n                                   value=\"").concat(isEdit && transfer.transferDescriptionPattern ? _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(transfer.transferDescriptionPattern) : '', "\">\n                            <small class=\"form-hint\">Used to match imported transactions</small>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-category\">Category</label>\n                            <select id=\"transfer-category\" class=\"form-control\">\n                                <option value=\"\">No category</option>\n                                ").concat(this.categories.filter(function (c) {
+        return c.type === 'expense';
+      }).map(function (cat) {
+        return "\n                                        <option value=\"".concat(cat.id, "\" ").concat(isEdit && transfer.categoryId === cat.id ? 'selected' : '', ">\n                                            ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(cat.name), "\n                                        </option>\n                                    ");
+      }).join(''), "\n                            </select>\n                            <small class=\"form-hint\">Category for created transactions (optional)</small>\n                        </div>\n\n                        <div id=\"transfer-tags-container\"></div>\n\n                        <div class=\"form-group\">\n                            <label for=\"transfer-notes\">Notes</label>\n                            <textarea id=\"transfer-notes\" class=\"form-control\" rows=\"3\"\n                                      placeholder=\"Optional notes...\">").concat(isEdit && transfer.notes ? _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(transfer.notes) : '', "</textarea>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label class=\"checkbox-label\">\n                                <input type=\"checkbox\" id=\"transfer-create-transaction\"\n                                       ").concat(isEdit ? '' : '', ">\n                                <span>Also create transactions now</span>\n                            </label>\n                            <small class=\"form-hint\">Creates paired debit/credit transactions immediately</small>\n                        </div>\n\n                        <div class=\"form-group\" id=\"transfer-transaction-date-group\" style=\"display: none;\">\n                            <label for=\"transfer-transaction-date\">Transaction Date</label>\n                            <input type=\"date\" id=\"transfer-transaction-date\" class=\"form-control\">\n                            <small class=\"form-hint\">Leave empty to use next due date</small>\n                        </div>\n\n                        <div class=\"form-group\">\n                            <label class=\"checkbox-label\">\n                                <input type=\"checkbox\" id=\"transfer-auto-pay\"\n                                       ").concat(isEdit && transfer.autoPayEnabled ? 'checked' : '', ">\n                                <span>Enable auto-pay (automatically create transactions when due)</span>\n                            </label>\n                        </div>\n\n                        <div class=\"budget-modal-footer\">\n                            <button type=\"button\" class=\"button secondary\" id=\"cancel-transfer\">Cancel</button>\n                            <button type=\"submit\" class=\"button primary\">\n                                ").concat(isEdit ? 'Update Transfer' : 'Add Transfer', "\n                            </button>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        ");
 
       // Remove existing modal if any
       var existingModal = document.querySelector('.budget-modal-overlay');
@@ -39079,6 +39083,29 @@ var TransfersModule = /*#__PURE__*/function () {
           }
         }
       }, 100);
+
+      // Category change listener - load tag sets for selected category
+      var categorySelect = document.getElementById('transfer-category');
+      if (categorySelect) {
+        categorySelect.addEventListener('change', function () {
+          _this5.loadTransferTagSets(categorySelect.value || null, isEdit ? transfer : null);
+        });
+        // Load tag sets for pre-selected category (edit mode)
+        if (categorySelect.value) {
+          this.loadTransferTagSets(categorySelect.value, isEdit ? transfer : null);
+        }
+      }
+
+      // Create transaction checkbox (show/hide date field)
+      var createTransactionCheckbox = document.getElementById('transfer-create-transaction');
+      if (createTransactionCheckbox) {
+        createTransactionCheckbox.addEventListener('change', function (e) {
+          var dateGroup = document.getElementById('transfer-transaction-date-group');
+          if (dateGroup) {
+            dateGroup.style.display = e.target.checked ? 'block' : 'none';
+          }
+        });
+      }
 
       // Setup modal event listeners
       var modalOverlay = document.querySelector('.budget-modal-overlay');
@@ -39121,6 +39148,7 @@ var TransfersModule = /*#__PURE__*/function () {
     key: "saveTransfer",
     value: function () {
       var _saveTransfer = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
+        var _document$getElementB2, _document$getElementB3, _document$getElementB4;
         var existingTransfer,
           name,
           amount,
@@ -39129,7 +39157,11 @@ var TransfersModule = /*#__PURE__*/function () {
           toAccountId,
           dueDay,
           transferDescriptionPattern,
+          categoryId,
+          tagIds,
           notes,
+          createTransaction,
+          transactionDate,
           autoPayEnabled,
           data,
           url,
@@ -39149,7 +39181,11 @@ var TransfersModule = /*#__PURE__*/function () {
               toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
               dueDay = document.getElementById('transfer-due-day').value ? parseInt(document.getElementById('transfer-due-day').value) : null;
               transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
+              categoryId = (_document$getElementB2 = document.getElementById('transfer-category')) !== null && _document$getElementB2 !== void 0 && _document$getElementB2.value ? parseInt(document.getElementById('transfer-category').value) : null;
+              tagIds = this.getSelectedTagIds();
               notes = document.getElementById('transfer-notes').value || null;
+              createTransaction = ((_document$getElementB3 = document.getElementById('transfer-create-transaction')) === null || _document$getElementB3 === void 0 ? void 0 : _document$getElementB3.checked) || false;
+              transactionDate = ((_document$getElementB4 = document.getElementById('transfer-transaction-date')) === null || _document$getElementB4 === void 0 ? void 0 : _document$getElementB4.value) || null;
               autoPayEnabled = document.getElementById('transfer-auto-pay').checked; // Debug logging
               console.log('Transfer form values:', {
                 name: name,
@@ -39191,7 +39227,11 @@ var TransfersModule = /*#__PURE__*/function () {
                 destinationAccountId: toAccountId,
                 dueDay: dueDay,
                 transferDescriptionPattern: transferDescriptionPattern,
+                categoryId: categoryId,
+                tagIds: tagIds,
                 notes: notes,
+                createTransaction: createTransaction,
+                transactionDate: transactionDate,
                 autoPayEnabled: autoPayEnabled,
                 isTransfer: true
               };
@@ -39444,6 +39484,115 @@ var TransfersModule = /*#__PURE__*/function () {
         'yearly': 'Yearly'
       };
       return map[frequency] || frequency;
+    }
+  }, {
+    key: "loadTransferTagSets",
+    value: function () {
+      var _loadTransferTagSets = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(categoryId) {
+        var existingTransfer,
+          container,
+          response,
+          tagSets,
+          existingTagIds,
+          html,
+          _args9 = arguments,
+          _t6;
+        return _regenerator().w(function (_context9) {
+          while (1) switch (_context9.p = _context9.n) {
+            case 0:
+              existingTransfer = _args9.length > 1 && _args9[1] !== undefined ? _args9[1] : null;
+              container = document.getElementById('transfer-tags-container');
+              if (container) {
+                _context9.n = 1;
+                break;
+              }
+              return _context9.a(2);
+            case 1:
+              if (categoryId) {
+                _context9.n = 2;
+                break;
+              }
+              container.innerHTML = '';
+              return _context9.a(2);
+            case 2:
+              _context9.p = 2;
+              _context9.n = 3;
+              return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 3:
+              response = _context9.v;
+              if (response.ok) {
+                _context9.n = 4;
+                break;
+              }
+              throw new Error("HTTP ".concat(response.status));
+            case 4:
+              _context9.n = 5;
+              return response.json();
+            case 5:
+              tagSets = _context9.v;
+              if (!(!tagSets || tagSets.length === 0)) {
+                _context9.n = 6;
+                break;
+              }
+              container.innerHTML = '';
+              return _context9.a(2);
+            case 6:
+              // Get existing tag IDs if editing
+              existingTagIds = (existingTransfer === null || existingTransfer === void 0 ? void 0 : existingTransfer.tagIds) || [];
+              html = '';
+              tagSets.forEach(function (tagSet) {
+                html += "\n                    <div class=\"form-group tag-set-selector\">\n                        <label class=\"tag-set-label\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "</label>\n                        <div class=\"tag-options\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;\">\n                            ").concat(tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(function (tag) {
+                  return "\n                                <label class=\"tag-option\" style=\"cursor: pointer;\">\n                                    <input type=\"checkbox\" class=\"transfer-tag-checkbox\"\n                                           value=\"".concat(tag.id, "\"\n                                           data-tag-set-id=\"").concat(tagSet.id, "\"\n                                           ").concat(existingTagIds.includes(tag.id) ? 'checked' : '', "\n                                           style=\"display: none;\">\n                                    <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ").concat(existingTagIds.includes(tag.id) ? '1' : '0.5', ";\">\n                                        ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                    </span>\n                                </label>\n                            ");
+                }).join('') : '<span style="color: #999; font-size: 11px; font-style: italic;">No tags defined</span>', "\n                        </div>\n                    </div>\n                ");
+              });
+              container.innerHTML = html;
+
+              // Add click handlers for tag selection (one per tag set)
+              container.querySelectorAll('.transfer-tag-checkbox').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function (e) {
+                  var tagSetId = e.target.dataset.tagSetId;
+                  // Deselect other tags in same tag set (radio-like behavior)
+                  if (e.target.checked) {
+                    container.querySelectorAll(".transfer-tag-checkbox[data-tag-set-id=\"".concat(tagSetId, "\"]")).forEach(function (cb) {
+                      if (cb !== e.target) {
+                        cb.checked = false;
+                        cb.closest('.tag-option').querySelector('.tag-badge').style.opacity = '0.5';
+                      }
+                    });
+                  }
+                  // Update visual state
+                  e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
+                });
+              });
+              _context9.n = 8;
+              break;
+            case 7:
+              _context9.p = 7;
+              _t6 = _context9.v;
+              console.error('Failed to load tag sets:', _t6);
+              container.innerHTML = '';
+            case 8:
+              return _context9.a(2);
+          }
+        }, _callee9, null, [[2, 7]]);
+      }));
+      function loadTransferTagSets(_x5) {
+        return _loadTransferTagSets.apply(this, arguments);
+      }
+      return loadTransferTagSets;
+    }()
+  }, {
+    key: "getSelectedTagIds",
+    value: function getSelectedTagIds() {
+      var container = document.getElementById('transfer-tags-container');
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('.transfer-tag-checkbox:checked')).map(function (cb) {
+        return parseInt(cb.value);
+      });
     }
   }, {
     key: "getMonthlyEquivalent",
