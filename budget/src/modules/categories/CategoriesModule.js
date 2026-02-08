@@ -1241,7 +1241,7 @@ export default class CategoriesModule {
                         <input type="number"
                                class="budget-input"
                                data-category-id="${category.id}"
-                               value="${budget || ''}"
+                               value="${budget ? Math.round(budget * 100) / 100 : ''}"
                                placeholder="0.00"
                                step="0.01"
                                min="0">
@@ -1416,10 +1416,13 @@ export default class CategoriesModule {
 
         categories.forEach(cat => {
             const budget = parseFloat(cat.budgetAmount) || 0;
+            const period = cat.budgetPeriod || 'monthly';
+            // Normalize to monthly so the summary cards stay consistent
+            const monthlyBudget = formatters.prorateBudget(budget, period, 'monthly');
             const spent = this.categorySpending[cat.id] || 0;
 
             if (budget > 0) {
-                totalBudgeted += budget;
+                totalBudgeted += monthlyBudget;
                 categoriesWithBudget++;
             }
             totalSpent += spent;

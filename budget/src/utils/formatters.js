@@ -357,6 +357,6 @@ export function prorateBudget(amount, fromPeriod, toPeriod) {
     // Convert to yearly amount first
     const yearlyAmount = amount * yearlyMultipliers[fromPeriod];
 
-    // Convert from yearly to target period
+    // Convert from yearly to target period (full precision preserved for storage)
     return yearlyAmount / yearlyMultipliers[toPeriod];
 }
