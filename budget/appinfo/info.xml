@@ -45,7 +45,8 @@ Track your spending habits, manage savings, and forecast future account balances
     <category>organization</category>
     <bugs>https://github.com/otherworld-dev/budget/issues</bugs>
     <repository>https://github.com/otherworld-dev/budget</repository>
-    <screenshot>https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard.png</screenshot>
+    <funding>https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2</funding>
+    <screenshot small-thumbnail="https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard-thumb.png">https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard.png</screenshot>
     <dependencies>
         <php min-version="8.1" />
         <nextcloud min-version="30" max-version="35" />
