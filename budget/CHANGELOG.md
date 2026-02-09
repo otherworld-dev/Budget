@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-02-09
+
+### Fixed
+- Cannot update account after creation when IBAN or other banking details are provided ([#38](https://github.com/otherworld-dev/budget/issues/38))
+  - Encrypted banking fields (IBAN, account number, routing number, sort code, SWIFT/BIC) exceeded column length limits
+  - Widened all encrypted columns from 10-100 chars to 512 chars to accommodate AES-CBC encrypted output (~232 chars)
+
 ## [2.2.0] - 2026-02-08
 
 ### Added
