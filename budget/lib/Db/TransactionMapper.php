@@ -256,7 +256,8 @@ class TransactionMapper extends QBMapper {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        bool $excludeTransfers = false
     ): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('c.id', 'c.name', 'c.color', 'c.icon')
@@ -269,6 +270,10 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')));
+
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
 
         // Apply tag filtering if requested
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
@@ -427,7 +432,8 @@ class TransactionMapper extends QBMapper {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        bool $excludeTransfers = false
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -448,6 +454,10 @@ class TransactionMapper extends QBMapper {
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
         // Apply tag filtering if requested
@@ -518,6 +528,50 @@ class TransactionMapper extends QBMapper {
         }
 
         return $summaries;
+    }
+
+    /**
+     * Get aggregate transfer totals (linked transactions) for a user in a date range.
+     * Used to subtract transfers from all-accounts aggregation to avoid double-counting.
+     *
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
+     * @return array{income: float, expenses: float}
+     */
+    public function getTransferTotals(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
+                'income'
+            )
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
+                'expenses'
+            )
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
+
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
+        $result = $qb->executeQuery();
+        $row = $result->fetch();
+        $result->closeCursor();
+
+        return [
+            'income' => (float)($row['income'] ?? 0),
+            'expenses' => (float)($row['expenses'] ?? 0),
+        ];
     }
 
     /**
@@ -685,7 +739,8 @@ class TransactionMapper extends QBMapper {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        bool $excludeTransfers = false
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -707,6 +762,10 @@ class TransactionMapper extends QBMapper {
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
         // Apply tag filtering if requested

@@ -608,15 +608,18 @@ export default class AccountsModule {
             return { ...transaction, balanceAtTime };
         }).reverse();
 
+        const today = new Date().toISOString().split('T')[0];
         tbody.innerHTML = transactionsWithBalance.map(transaction => {
             const amount = parseFloat(transaction.amount) || 0;
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
             const category = this.categories?.find(c => c.id === transaction.categoryId);
+            const isPending = transaction.date > today;
+            const pendingBadge = isPending ? '<span class="pending-badge">Pending</span>' : '';
 
             return `
-                <tr class="transaction-row" data-transaction-id="${transaction.id}">
+                <tr class="transaction-row${isPending ? ' pending-transaction' : ''}" data-transaction-id="${transaction.id}">
                     <td class="date-column">
-                        <span class="transaction-date">${this.formatDate(transaction.date)}</span>
+                        <span class="transaction-date">${this.formatDate(transaction.date)}</span>${pendingBadge}
                     </td>
                     <td class="description-column">
                         <div class="transaction-description">
@@ -809,6 +812,7 @@ export default class AccountsModule {
         this.accountFilters = {
             category: document.getElementById('account-filter-category')?.value || '',
             type: document.getElementById('account-filter-type')?.value || '',
+            status: document.getElementById('account-filter-status')?.value || '',
             dateFrom: document.getElementById('account-filter-date-from')?.value || '',
             dateTo: document.getElementById('account-filter-date-to')?.value || '',
             amountMin: document.getElementById('account-filter-amount-min')?.value || '',
@@ -825,6 +829,7 @@ export default class AccountsModule {
         // Clear all filter inputs
         document.getElementById('account-filter-category').value = '';
         document.getElementById('account-filter-type').value = '';
+        document.getElementById('account-filter-status').value = '';
         document.getElementById('account-filter-date-from').value = '';
         document.getElementById('account-filter-date-to').value = '';
         document.getElementById('account-filter-amount-min').value = '';

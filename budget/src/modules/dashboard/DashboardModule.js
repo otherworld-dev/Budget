@@ -147,6 +147,11 @@ export default class DashboardModule {
             this.updateBudgetRemainingHero(budgetData);
             this.updateBudgetHealthHero(budgetAlerts);
 
+            // Per-Account Hero Tiles
+            this._lastSummary = summary;
+            this.updateAccountIncomeHero(summary);
+            this.updateAccountExpensesHero(summary);
+
             // Phase 1: Update New Widget Tiles (use existing data)
             if (trendData.spending) {
                 this.updateTopCategoriesWidget(trendData.spending);
@@ -170,6 +175,11 @@ export default class DashboardModule {
 
             // Setup dashboard controls
             this.setupDashboardControls();
+
+            // Populate account selectors (trend chart has "All Accounts" default in HTML)
+            this.populateAccountSelector('trend-account-select');
+            this.populateAccountSelector('hero-account-income-select');
+            this.populateAccountSelector('hero-account-expenses-select');
 
             // Apply dashboard widget order (must be before visibility)
             this.applyDashboardOrder();
@@ -309,6 +319,74 @@ export default class DashboardModule {
                 }
             }
         }
+    }
+
+    // ===========================
+    // Per-Account Hero Tiles
+    // ===========================
+
+    populateAccountSelector(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select || select.hasAttribute('data-populated')) return;
+        select.setAttribute('data-populated', 'true');
+
+        // "All Accounts" option is already in template HTML for selects that need it
+        this.accounts.forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            option.textContent = account.name;
+            select.appendChild(option);
+        });
+
+        // Restore saved selection
+        const savedValue = this.dashboardConfig.hero?.settings?.[selectId];
+        if (savedValue && select.querySelector(`option[value="${savedValue}"]`)) {
+            select.value = savedValue;
+        }
+    }
+
+    updateAccountIncomeHero(summary) {
+        summary = summary || this._lastSummary;
+        if (!summary?.accounts) return;
+
+        const select = document.getElementById('hero-account-income-select');
+        const valueEl = document.getElementById('hero-account-income-value');
+        if (!select || !valueEl) return;
+
+        const selectedId = select.value || (summary.accounts[0]?.id);
+        if (!selectedId) return;
+
+        const accountData = summary.accounts.find(a => a.id == selectedId);
+        if (accountData) {
+            const currency = accountData.currency || this.getPrimaryCurrency();
+            valueEl.textContent = this.formatCurrency(accountData.income || 0, currency);
+        }
+    }
+
+    updateAccountExpensesHero(summary) {
+        summary = summary || this._lastSummary;
+        if (!summary?.accounts) return;
+
+        const select = document.getElementById('hero-account-expenses-select');
+        const valueEl = document.getElementById('hero-account-expenses-value');
+        if (!select || !valueEl) return;
+
+        const selectedId = select.value || (summary.accounts[0]?.id);
+        if (!selectedId) return;
+
+        const accountData = summary.accounts.find(a => a.id == selectedId);
+        if (accountData) {
+            const currency = accountData.currency || this.getPrimaryCurrency();
+            valueEl.textContent = this.formatCurrency(accountData.expenses || 0, currency);
+        }
+    }
+
+    async saveHeroAccountSelection(selectId, accountId) {
+        if (!this.dashboardConfig.hero.settings) {
+            this.dashboardConfig.hero.settings = {};
+        }
+        this.dashboardConfig.hero.settings[selectId] = accountId;
+        await this.saveDashboardVisibility();
     }
 
     updateBudgetRemainingHero(budgetData) {
@@ -1274,13 +1352,27 @@ export default class DashboardModule {
     // ===========================
 
     setupDashboardControls() {
+        // Trend account selector
+        const trendAccountSelect = document.getElementById('trend-account-select');
+        if (trendAccountSelect && !trendAccountSelect.hasAttribute('data-initialized')) {
+            trendAccountSelect.setAttribute('data-initialized', 'true');
+            trendAccountSelect.addEventListener('change', async () => {
+                const periodSelect = document.getElementById('trend-period-select');
+                const months = periodSelect ? parseInt(periodSelect.value) : 6;
+                const accountId = trendAccountSelect.value || null;
+                await this.refreshTrendChart(months, accountId);
+            });
+        }
+
         // Trend period selector
         const trendPeriodSelect = document.getElementById('trend-period-select');
         if (trendPeriodSelect && !trendPeriodSelect.hasAttribute('data-initialized')) {
             trendPeriodSelect.setAttribute('data-initialized', 'true');
             trendPeriodSelect.addEventListener('change', async (e) => {
                 const months = parseInt(e.target.value);
-                await this.refreshTrendChart(months);
+                const accountSelect = document.getElementById('trend-account-select');
+                const accountId = accountSelect ? (accountSelect.value || null) : null;
+                await this.refreshTrendChart(months, accountId);
             });
         }
 
@@ -1318,15 +1410,36 @@ export default class DashboardModule {
                 await this.recordNetWorthSnapshot();
             });
         }
+
+        // Per-account hero tile selectors
+        ['hero-account-income-select', 'hero-account-expenses-select'].forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select && !select.hasAttribute('data-initialized')) {
+                select.setAttribute('data-initialized', 'true');
+                select.addEventListener('change', () => {
+                    if (selectId.includes('income')) {
+                        this.updateAccountIncomeHero();
+                    } else {
+                        this.updateAccountExpensesHero();
+                    }
+                    this.saveHeroAccountSelection(selectId, select.value);
+                });
+            }
+        });
     }
 
-    async refreshTrendChart(months) {
+    async refreshTrendChart(months, accountId = null) {
         try {
             const startDate = new Date();
             startDate.setMonth(startDate.getMonth() - months);
 
+            let url = `/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(startDate)}`;
+            if (accountId) {
+                url += `&accountId=${accountId}`;
+            }
+
             const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(startDate)}`),
+                OC.generateUrl(url),
                 { headers: { 'requesttoken': OC.requestToken } }
             );
             const data = await response.json();
@@ -1443,7 +1556,8 @@ export default class DashboardModule {
 
             return {
                 order: mergedOrder,
-                visibility: { ...defaults.visibility, ...saved.visibility }
+                visibility: { ...defaults.visibility, ...saved.visibility },
+                settings: saved.settings || {}
             };
         } catch (e) {
             console.error('Failed to parse dashboard config', e);

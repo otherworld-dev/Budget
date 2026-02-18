@@ -372,6 +372,39 @@ style('budget', 'budget-main');
                     </div>
                 </div>
 
+                <!-- Per-Account Hero Tiles -->
+                <div class="hero-card hero-account-income" data-widget-id="accountIncome" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon income">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <div class="hero-label-row">
+                            <span class="hero-label">Account Income</span>
+                            <select id="hero-account-income-select" class="hero-inline-select"></select>
+                        </div>
+                        <span id="hero-account-income-value" class="hero-value income">--</span>
+                        <span id="hero-account-income-change" class="hero-change"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-account-expenses" data-widget-id="accountExpenses" data-widget-category="hero" style="display: none;">
+                    <div class="hero-icon expenses">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <div class="hero-label-row">
+                            <span class="hero-label">Account Expenses</span>
+                            <select id="hero-account-expenses-select" class="hero-inline-select"></select>
+                        </div>
+                        <span id="hero-account-expenses-value" class="hero-value expenses">--</span>
+                        <span id="hero-account-expenses-change" class="hero-change"></span>
+                    </div>
+                </div>
+
                 <!-- Phase 2: Lazy-Loaded Hero Tiles -->
                 <div class="hero-card hero-uncategorized" data-widget-id="uncategorizedCount" data-widget-category="hero" style="display: none;">
                     <div class="hero-icon">
@@ -436,6 +469,10 @@ style('budget', 'budget-main');
                         <div class="card-header">
                             <h3>Income vs Expenses</h3>
                             <div class="card-header-controls">
+                                <select id="trend-account-select" class="card-select">
+                                    <option value="">All Accounts</option>
+                                    <!-- Populated dynamically by JS -->
+                                </select>
                                 <select id="trend-period-select" class="card-select">
                                     <option value="6">Last 6 Months</option>
                                     <option value="12">Last 12 Months</option>
@@ -1049,6 +1086,14 @@ style('budget', 'budget-main');
                                 </select>
                             </div>
                             <div class="filter-group">
+                                <label for="account-filter-status">Status</label>
+                                <select id="account-filter-status">
+                                    <option value="">All</option>
+                                    <option value="cleared">Cleared</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
                                 <label for="account-filter-date-from">From Date</label>
                                 <input type="date" id="account-filter-date-from">
                             </div>
@@ -1170,6 +1215,15 @@ style('budget', 'budget-main');
                                 <option value="">All Types</option>
                                 <option value="credit">Income</option>
                                 <option value="debit">Expense</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filter-status">Status</label>
+                            <select id="filter-status">
+                                <option value="">All</option>
+                                <option value="cleared">Cleared</option>
+                                <option value="pending">Pending</option>
                             </select>
                         </div>
 
