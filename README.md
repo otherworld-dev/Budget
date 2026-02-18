@@ -11,7 +11,7 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 ## What's New in v2.1.0
 
 **Automation & Planning Release** - Advanced Rules, Bill Automation & Transfer Tracking
-- **Advanced Rules Engine** - Visual query builder for complex boolean matching criteria with nested AND/OR/NOT operators
+- **Advanced Rules Engine** - Visual query builder for complex boolean matching criteria with nested AND/OR/NOT ocoperators
 - **Bills Calendar Report** - Annual overview showing which months bills are due with heatmap visualization
 - **Recurring Transfers** - Track recurring transfers between accounts with auto-pay support
 - **Auto-Pay Bills** - Automatically mark bills as paid when due date arrives with notifications

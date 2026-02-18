@@ -112,6 +112,16 @@ class ReportAggregator {
             $totalExpenses += $accountExpenses;
         }
 
+        // Exclude transfers from aggregate totals (all-accounts view only)
+        // Transfers are zero-sum across accounts and should not inflate income/expenses
+        if ($accountId === null) {
+            $transferTotals = $this->transactionMapper->getTransferTotals(
+                $userId, $startDate, $endDate, $tagIds, $includeUntagged
+            );
+            $totalIncome -= $transferTotals['income'];
+            $totalExpenses -= $transferTotals['expenses'];
+        }
+
         $summary['totals']['totalIncome'] = $totalIncome;
         $summary['totals']['totalExpenses'] = $totalExpenses;
         $summary['totals']['netIncome'] = $totalIncome - $totalExpenses;
@@ -122,13 +132,16 @@ class ReportAggregator {
             $summary['totals']['averageDaily']['expenses'] = $totalExpenses / $days;
         }
 
+        $excludeTransfers = $accountId === null;
+
         // Get spending breakdown
         $summary['spending'] = $this->transactionMapper->getSpendingSummary(
             $userId,
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $excludeTransfers
         );
 
         // Generate trend data
@@ -280,7 +293,8 @@ class ReportAggregator {
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $accountId === null
         );
 
         $totals = ['income' => 0, 'expenses' => 0, 'net' => 0];
@@ -319,13 +333,15 @@ class ReportAggregator {
         bool $includeUntagged = true
     ): array {
         // Single query to get all monthly data at once
+        // Exclude transfers in all-accounts view to avoid double-counting
         $monthlyData = $this->transactionMapper->getMonthlyTrendData(
             $userId,
             $accountId,
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $accountId === null
         );
 
         // Index by month for quick lookup

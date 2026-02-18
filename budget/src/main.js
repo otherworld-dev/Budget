@@ -1191,6 +1191,15 @@ class BudgetApp {
             filtered = filtered.filter(t => t.amount <= max);
         }
 
+        if (this.transactionFilters.status) {
+            const today = new Date().toISOString().split('T')[0];
+            if (this.transactionFilters.status === 'pending') {
+                filtered = filtered.filter(t => t.date > today);
+            } else if (this.transactionFilters.status === 'cleared') {
+                filtered = filtered.filter(t => t.date <= today);
+            }
+        }
+
         // Apply sorting
         if (this.currentSort?.field) {
             filtered.sort((a, b) => {

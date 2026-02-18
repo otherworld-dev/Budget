@@ -186,9 +186,18 @@ export default class SettingsModule {
 
         // Get currency symbol
         const currencySymbols = {
-            'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$',
-            'AUD': 'A$', 'JPY': '¥', 'CHF': 'CHF', 'CNY': '¥',
-            'INR': '₹', 'MXN': '$'
+            'USD': '$', 'CAD': 'C$', 'MXN': 'MX$', 'BRL': 'R$',
+            'ARS': 'AR$', 'CLP': 'CL$', 'COP': 'CO$', 'PEN': 'S/',
+            'EUR': '€', 'GBP': '£', 'CHF': 'CHF', 'SEK': 'kr',
+            'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł', 'CZK': 'Kč',
+            'HUF': 'Ft', 'RON': 'lei', 'UAH': '₴', 'ISK': 'kr',
+            'RUB': '₽', 'TRY': '₺', 'JPY': '¥', 'CNY': '¥',
+            'KRW': '₩', 'INR': '₹', 'IDR': 'Rp', 'THB': '฿',
+            'PHP': '₱', 'MYR': 'RM', 'VND': '₫', 'TWD': 'NT$',
+            'SGD': 'S$', 'HKD': 'HK$', 'PKR': 'Rs', 'BDT': '৳',
+            'AUD': 'A$', 'NZD': 'NZ$', 'AED': 'AED', 'SAR': 'SAR',
+            'ILS': '₪', 'EGP': 'E£', 'NGN': '₦', 'KES': 'KSh',
+            'ZAR': 'R',
         };
         const symbol = currencySymbols[defaultCurrency] || '$';
 

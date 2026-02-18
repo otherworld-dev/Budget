@@ -15,6 +15,10 @@ export const DASHBOARD_WIDGETS = {
         budgetRemaining: { id: 'hero-budget-remaining', name: 'Budget Remaining', size: 'hero', defaultVisible: false, category: 'budgeting' },
         budgetHealth: { id: 'hero-budget-health', name: 'Budget Health', size: 'hero', defaultVisible: false, category: 'budgeting' },
 
+        // Per-Account Views
+        accountIncome: { id: 'hero-account-income', name: 'Account Income', size: 'hero', defaultVisible: false, category: 'accounts' },
+        accountExpenses: { id: 'hero-account-expenses', name: 'Account Expenses', size: 'hero', defaultVisible: false, category: 'accounts' },
+
         // Phase 2 - Moderate Complexity (lazy loaded)
         uncategorizedCount: { id: 'hero-uncategorized', name: 'Uncategorized', size: 'hero', defaultVisible: false, category: 'alerts' },
         lowBalanceAlert: { id: 'hero-low-balance', name: 'Low Balance Alert', size: 'hero', defaultVisible: false, category: 'alerts' },

@@ -86,7 +86,7 @@ export default class TransactionsModule {
 
         // Filter controls
         const filterControls = [
-            'filter-account', 'filter-category', 'filter-type',
+            'filter-account', 'filter-category', 'filter-type', 'filter-status',
             'filter-date-from', 'filter-date-to', 'filter-amount-min',
             'filter-amount-max', 'filter-search'
         ];
@@ -336,6 +336,7 @@ export default class TransactionsModule {
             account: document.getElementById('filter-account')?.value || '',
             category: document.getElementById('filter-category')?.value || '',
             type: document.getElementById('filter-type')?.value || '',
+            status: document.getElementById('filter-status')?.value || '',
             dateFrom: document.getElementById('filter-date-from')?.value || '',
             dateTo: document.getElementById('filter-date-to')?.value || '',
             amountMin: document.getElementById('filter-amount-min')?.value || '',
@@ -350,7 +351,7 @@ export default class TransactionsModule {
 
     clearFilters() {
         const filterInputs = [
-            'filter-account', 'filter-category', 'filter-type',
+            'filter-account', 'filter-category', 'filter-type', 'filter-status',
             'filter-date-from', 'filter-date-to', 'filter-amount-min',
             'filter-amount-max', 'filter-search'
         ];
@@ -865,18 +866,22 @@ export default class TransactionsModule {
 
     // Rendering
     renderTransactionsTable(transactions) {
+        const today = new Date().toISOString().split('T')[0];
         return transactions.map(t => {
             const isSplit = t.isSplit || t.is_split;
+            const isPending = t.date > today;
+            const rowClasses = [isSplit ? 'split-transaction' : '', isPending ? 'pending-transaction' : ''].filter(Boolean).join(' ');
             const categoryDisplay = isSplit
                 ? '<span class="split-indicator" title="This transaction is split across multiple categories">Split</span>'
                 : (t.categoryName ? `<span class="category-name">${this.escapeHtml(t.categoryName)}</span>` : '-');
+            const pendingBadge = isPending ? '<span class="pending-badge">Pending</span>' : '';
 
             return `
-            <tr class="${isSplit ? 'split-transaction' : ''}">
+            <tr class="${rowClasses}">
                 <td class="select-column">
                     <input type="checkbox" class="transaction-checkbox" data-transaction-id="${t.id}">
                 </td>
-                <td>${this.formatDate(t.date)}</td>
+                <td>${this.formatDate(t.date)}${pendingBadge}</td>
                 <td>${this.escapeHtml(t.description)}</td>
                 <td>${categoryDisplay}</td>
                 <td class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</td>

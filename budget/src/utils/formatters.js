@@ -9,27 +9,55 @@
  * Prefix currencies have no space, suffix currencies have a space before the symbol
  */
 const CURRENCY_CONFIG = {
+    // Americas
     'USD': { symbol: '$', position: 'prefix' },
+    'CAD': { symbol: 'C$', position: 'prefix' },
+    'MXN': { symbol: 'MX$', position: 'prefix' },
+    'BRL': { symbol: 'R$', position: 'prefix' },
+    'ARS': { symbol: 'AR$', position: 'prefix' },
+    'CLP': { symbol: 'CL$', position: 'prefix' },
+    'COP': { symbol: 'CO$', position: 'prefix' },
+    'PEN': { symbol: 'S/', position: 'prefix' },
+    // Europe
     'EUR': { symbol: '€', position: 'prefix' },
     'GBP': { symbol: '£', position: 'prefix' },
-    'CAD': { symbol: 'C$', position: 'prefix' },
-    'AUD': { symbol: 'A$', position: 'prefix' },
+    'CHF': { symbol: 'CHF', position: 'suffix' },
+    'SEK': { symbol: 'kr', position: 'suffix' },
+    'NOK': { symbol: 'kr', position: 'suffix' },
+    'DKK': { symbol: 'kr', position: 'suffix' },
+    'PLN': { symbol: 'zł', position: 'suffix' },
+    'CZK': { symbol: 'Kč', position: 'suffix' },
+    'HUF': { symbol: 'Ft', position: 'suffix' },
+    'RON': { symbol: 'lei', position: 'suffix' },
+    'UAH': { symbol: '₴', position: 'prefix' },
+    'ISK': { symbol: 'kr', position: 'suffix' },
+    'RUB': { symbol: '₽', position: 'prefix' },
+    'TRY': { symbol: '₺', position: 'prefix' },
+    // Asia-Pacific
     'JPY': { symbol: '¥', position: 'prefix' },
-    'CHF': { symbol: 'CHF', position: 'suffix' },  // ISO 4217 standard
     'CNY': { symbol: '¥', position: 'prefix' },
-    'SEK': { symbol: 'kr', position: 'suffix' },   // Swedish krona
-    'NOK': { symbol: 'kr', position: 'suffix' },   // Norwegian krone
-    'DKK': { symbol: 'kr', position: 'suffix' },   // Danish krone
-    'MXN': { symbol: '$', position: 'prefix' },
-    'NZD': { symbol: 'NZ$', position: 'prefix' },
+    'KRW': { symbol: '₩', position: 'prefix' },
+    'INR': { symbol: '₹', position: 'prefix' },
+    'IDR': { symbol: 'Rp', position: 'prefix' },
+    'THB': { symbol: '฿', position: 'prefix' },
+    'PHP': { symbol: '₱', position: 'prefix' },
+    'MYR': { symbol: 'RM', position: 'prefix' },
+    'VND': { symbol: '₫', position: 'suffix' },
+    'TWD': { symbol: 'NT$', position: 'prefix' },
     'SGD': { symbol: 'S$', position: 'prefix' },
     'HKD': { symbol: 'HK$', position: 'prefix' },
+    'PKR': { symbol: 'Rs', position: 'prefix' },
+    'BDT': { symbol: '৳', position: 'prefix' },
+    'AUD': { symbol: 'A$', position: 'prefix' },
+    'NZD': { symbol: 'NZ$', position: 'prefix' },
+    // Middle East & Africa
+    'AED': { symbol: 'AED', position: 'prefix' },
+    'SAR': { symbol: 'SAR', position: 'prefix' },
+    'ILS': { symbol: '₪', position: 'prefix' },
+    'EGP': { symbol: 'E£', position: 'prefix' },
+    'NGN': { symbol: '₦', position: 'prefix' },
+    'KES': { symbol: 'KSh', position: 'prefix' },
     'ZAR': { symbol: 'R', position: 'prefix' },
-    'INR': { symbol: '₹', position: 'prefix' },
-    'BRL': { symbol: 'R$', position: 'prefix' },
-    'RUB': { symbol: '₽', position: 'prefix' },
-    'KRW': { symbol: '₩', position: 'prefix' },
-    'TRY': { symbol: '₺', position: 'prefix' }
 };
 
 /**

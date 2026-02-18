@@ -8,54 +8,113 @@ namespace OCA\Budget\Enum;
  * Currency enum for supported ISO 4217 currency codes.
  */
 enum Currency: string {
+    // Americas
     case USD = 'USD';  // US Dollar
+    case CAD = 'CAD';  // Canadian Dollar
+    case MXN = 'MXN';  // Mexican Peso
+    case BRL = 'BRL';  // Brazilian Real
+    case ARS = 'ARS';  // Argentine Peso
+    case CLP = 'CLP';  // Chilean Peso
+    case COP = 'COP';  // Colombian Peso
+    case PEN = 'PEN';  // Peruvian Sol
+
+    // Europe
     case EUR = 'EUR';  // Euro
     case GBP = 'GBP';  // British Pound
-    case CAD = 'CAD';  // Canadian Dollar
-    case AUD = 'AUD';  // Australian Dollar
-    case JPY = 'JPY';  // Japanese Yen
     case CHF = 'CHF';  // Swiss Franc
-    case CNY = 'CNY';  // Chinese Yuan
     case SEK = 'SEK';  // Swedish Krona
     case NOK = 'NOK';  // Norwegian Krone
     case DKK = 'DKK';  // Danish Krone
-    case MXN = 'MXN';  // Mexican Peso
-    case NZD = 'NZD';  // New Zealand Dollar
+    case PLN = 'PLN';  // Polish Zloty
+    case CZK = 'CZK';  // Czech Koruna
+    case HUF = 'HUF';  // Hungarian Forint
+    case RON = 'RON';  // Romanian Leu
+    case UAH = 'UAH';  // Ukrainian Hryvnia
+    case ISK = 'ISK';  // Icelandic Krona
+    case RUB = 'RUB';  // Russian Ruble
+    case TRY = 'TRY';  // Turkish Lira
+
+    // Asia-Pacific
+    case JPY = 'JPY';  // Japanese Yen
+    case CNY = 'CNY';  // Chinese Yuan
+    case KRW = 'KRW';  // South Korean Won
+    case INR = 'INR';  // Indian Rupee
+    case IDR = 'IDR';  // Indonesian Rupiah
+    case THB = 'THB';  // Thai Baht
+    case PHP = 'PHP';  // Philippine Peso
+    case MYR = 'MYR';  // Malaysian Ringgit
+    case VND = 'VND';  // Vietnamese Dong
+    case TWD = 'TWD';  // New Taiwan Dollar
     case SGD = 'SGD';  // Singapore Dollar
     case HKD = 'HKD';  // Hong Kong Dollar
+    case PKR = 'PKR';  // Pakistani Rupee
+    case BDT = 'BDT';  // Bangladeshi Taka
+    case AUD = 'AUD';  // Australian Dollar
+    case NZD = 'NZD';  // New Zealand Dollar
+
+    // Middle East & Africa
+    case AED = 'AED';  // UAE Dirham
+    case SAR = 'SAR';  // Saudi Riyal
+    case ILS = 'ILS';  // Israeli New Shekel
+    case EGP = 'EGP';  // Egyptian Pound
+    case NGN = 'NGN';  // Nigerian Naira
+    case KES = 'KES';  // Kenyan Shilling
     case ZAR = 'ZAR';  // South African Rand
-    case INR = 'INR';  // Indian Rupee
-    case BRL = 'BRL';  // Brazilian Real
-    case RUB = 'RUB';  // Russian Ruble
-    case KRW = 'KRW';  // South Korean Won
-    case TRY = 'TRY';  // Turkish Lira
 
     /**
      * Get the currency symbol.
      */
     public function symbol(): string {
         return match ($this) {
+            // Americas
             self::USD => '$',
+            self::CAD => 'C$',
+            self::MXN => 'MX$',
+            self::BRL => 'R$',
+            self::ARS => 'AR$',
+            self::CLP => 'CL$',
+            self::COP => 'CO$',
+            self::PEN => 'S/',
+            // Europe
             self::EUR => '€',
             self::GBP => '£',
-            self::CAD => 'C$',
-            self::AUD => 'A$',
-            self::JPY => '¥',
             self::CHF => 'CHF',
-            self::CNY => '¥',
             self::SEK => 'kr',
             self::NOK => 'kr',
             self::DKK => 'kr',
-            self::MXN => '$',
-            self::NZD => 'NZ$',
+            self::PLN => 'zł',
+            self::CZK => 'Kč',
+            self::HUF => 'Ft',
+            self::RON => 'lei',
+            self::UAH => '₴',
+            self::ISK => 'kr',
+            self::RUB => '₽',
+            self::TRY => '₺',
+            // Asia-Pacific
+            self::JPY => '¥',
+            self::CNY => '¥',
+            self::KRW => '₩',
+            self::INR => '₹',
+            self::IDR => 'Rp',
+            self::THB => '฿',
+            self::PHP => '₱',
+            self::MYR => 'RM',
+            self::VND => '₫',
+            self::TWD => 'NT$',
             self::SGD => 'S$',
             self::HKD => 'HK$',
+            self::PKR => 'Rs',
+            self::BDT => '৳',
+            self::AUD => 'A$',
+            self::NZD => 'NZ$',
+            // Middle East & Africa
+            self::AED => 'AED',
+            self::SAR => 'SAR',
+            self::ILS => '₪',
+            self::EGP => 'E£',
+            self::NGN => '₦',
+            self::KES => 'KSh',
             self::ZAR => 'R',
-            self::INR => '₹',
-            self::BRL => 'R$',
-            self::RUB => '₽',
-            self::KRW => '₩',
-            self::TRY => '₺',
         };
     }
 
@@ -64,7 +123,7 @@ enum Currency: string {
      */
     public function decimals(): int {
         return match ($this) {
-            self::JPY, self::KRW => 0,
+            self::JPY, self::KRW, self::VND, self::CLP, self::ISK, self::HUF, self::IDR => 0,
             default => 2,
         };
     }
@@ -74,27 +133,55 @@ enum Currency: string {
      */
     public function name(): string {
         return match ($this) {
+            // Americas
             self::USD => 'US Dollar',
+            self::CAD => 'Canadian Dollar',
+            self::MXN => 'Mexican Peso',
+            self::BRL => 'Brazilian Real',
+            self::ARS => 'Argentine Peso',
+            self::CLP => 'Chilean Peso',
+            self::COP => 'Colombian Peso',
+            self::PEN => 'Peruvian Sol',
+            // Europe
             self::EUR => 'Euro',
             self::GBP => 'British Pound',
-            self::CAD => 'Canadian Dollar',
-            self::AUD => 'Australian Dollar',
-            self::JPY => 'Japanese Yen',
             self::CHF => 'Swiss Franc',
-            self::CNY => 'Chinese Yuan',
             self::SEK => 'Swedish Krona',
             self::NOK => 'Norwegian Krone',
             self::DKK => 'Danish Krone',
-            self::MXN => 'Mexican Peso',
-            self::NZD => 'New Zealand Dollar',
+            self::PLN => 'Polish Zloty',
+            self::CZK => 'Czech Koruna',
+            self::HUF => 'Hungarian Forint',
+            self::RON => 'Romanian Leu',
+            self::UAH => 'Ukrainian Hryvnia',
+            self::ISK => 'Icelandic Krona',
+            self::RUB => 'Russian Ruble',
+            self::TRY => 'Turkish Lira',
+            // Asia-Pacific
+            self::JPY => 'Japanese Yen',
+            self::CNY => 'Chinese Yuan',
+            self::KRW => 'South Korean Won',
+            self::INR => 'Indian Rupee',
+            self::IDR => 'Indonesian Rupiah',
+            self::THB => 'Thai Baht',
+            self::PHP => 'Philippine Peso',
+            self::MYR => 'Malaysian Ringgit',
+            self::VND => 'Vietnamese Dong',
+            self::TWD => 'New Taiwan Dollar',
             self::SGD => 'Singapore Dollar',
             self::HKD => 'Hong Kong Dollar',
+            self::PKR => 'Pakistani Rupee',
+            self::BDT => 'Bangladeshi Taka',
+            self::AUD => 'Australian Dollar',
+            self::NZD => 'New Zealand Dollar',
+            // Middle East & Africa
+            self::AED => 'UAE Dirham',
+            self::SAR => 'Saudi Riyal',
+            self::ILS => 'Israeli New Shekel',
+            self::EGP => 'Egyptian Pound',
+            self::NGN => 'Nigerian Naira',
+            self::KES => 'Kenyan Shilling',
             self::ZAR => 'South African Rand',
-            self::INR => 'Indian Rupee',
-            self::BRL => 'Brazilian Real',
-            self::RUB => 'Russian Ruble',
-            self::KRW => 'South Korean Won',
-            self::TRY => 'Turkish Lira',
         };
     }
 
