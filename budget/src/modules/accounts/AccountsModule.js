@@ -416,6 +416,12 @@ export default class AccountsModule {
             // Populate account overview
             this.populateAccountOverview(account);
 
+            // Initialize account-specific state for fresh view
+            this.accountCurrentPage = 1;
+            this.accountRowsPerPage = 50;
+            this.accountFilters = {};
+            this.accountSort = { field: 'date', direction: 'desc' };
+
             // Load account transactions and metrics
             await this.loadAccountTransactions(accountId);
             await this.loadAccountMetrics(accountId);
@@ -524,12 +530,6 @@ export default class AccountsModule {
 
     async loadAccountTransactions(accountId) {
         try {
-            // Initialize account-specific state
-            this.accountCurrentPage = 1;
-            this.accountRowsPerPage = 50;
-            this.accountFilters = {};
-            this.accountSort = { field: 'date', direction: 'desc' };
-
             // Build query for account-specific transactions
             const params = new URLSearchParams({
                 accountId: accountId,
@@ -538,6 +538,17 @@ export default class AccountsModule {
                 sort: this.accountSort.field,
                 direction: this.accountSort.direction
             });
+
+            // Apply active filters to query params
+            const filters = this.accountFilters || {};
+            if (filters.category) params.set('category', filters.category);
+            if (filters.type) params.set('type', filters.type);
+            if (filters.status) params.set('reconciled', filters.status === 'cleared' ? '1' : '0');
+            if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+            if (filters.dateTo) params.set('dateTo', filters.dateTo);
+            if (filters.amountMin) params.set('amountMin', filters.amountMin);
+            if (filters.amountMax) params.set('amountMax', filters.amountMax);
+            if (filters.search) params.set('search', filters.search);
 
             const response = await fetch(OC.generateUrl('/apps/budget/api/transactions?' + params.toString()), {
                 headers: { 'requesttoken': OC.requestToken }

@@ -16307,6 +16307,15 @@ var AccountsModule = /*#__PURE__*/function () {
               // Populate account overview
               this.populateAccountOverview(account);
 
+              // Initialize account-specific state for fresh view
+              this.accountCurrentPage = 1;
+              this.accountRowsPerPage = 50;
+              this.accountFilters = {};
+              this.accountSort = {
+                field: 'date',
+                direction: 'desc'
+              };
+
               // Load account transactions and metrics
               _context3.n = 2;
               return this.loadAccountTransactions(accountId);
@@ -16450,20 +16459,11 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccountTransactions",
     value: function () {
       var _loadAccountTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(accountId) {
-        var params, response, result, _t5;
+        var params, filters, response, result, _t5;
         return _regenerator().w(function (_context5) {
           while (1) switch (_context5.p = _context5.n) {
             case 0:
               _context5.p = 0;
-              // Initialize account-specific state
-              this.accountCurrentPage = 1;
-              this.accountRowsPerPage = 50;
-              this.accountFilters = {};
-              this.accountSort = {
-                field: 'date',
-                direction: 'desc'
-              };
-
               // Build query for account-specific transactions
               params = new URLSearchParams({
                 accountId: accountId,
@@ -16471,7 +16471,16 @@ var AccountsModule = /*#__PURE__*/function () {
                 page: this.accountCurrentPage,
                 sort: this.accountSort.field,
                 direction: this.accountSort.direction
-              });
+              }); // Apply active filters to query params
+              filters = this.accountFilters || {};
+              if (filters.category) params.set('category', filters.category);
+              if (filters.type) params.set('type', filters.type);
+              if (filters.status) params.set('reconciled', filters.status === 'cleared' ? '1' : '0');
+              if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+              if (filters.dateTo) params.set('dateTo', filters.dateTo);
+              if (filters.amountMin) params.set('amountMin', filters.amountMin);
+              if (filters.amountMax) params.set('amountMax', filters.amountMax);
+              if (filters.search) params.set('search', filters.search);
               _context5.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/transactions?' + params.toString()), {
                 headers: {
