@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError } from '../../utils/notifications.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -30,7 +31,7 @@ export default class SettingsModule {
             this.updateNumberFormatPreview();
         } catch (error) {
             console.error('Error loading settings:', error);
-            OC.Notification.showTemporary('Failed to load settings');
+            showError('Failed to load settings');
         }
     }
 
@@ -111,15 +112,10 @@ export default class SettingsModule {
             }
 
             const result = await response.json();
-            OC.Notification.showTemporary('Settings saved successfully');
+            showSuccess('Settings saved successfully');
 
             // Update stored settings to apply immediately
             Object.assign(this.settings, settings);
-
-            // Apply theme if changed
-            if (settings.theme_preference && this.app.applyTheme) {
-                this.app.applyTheme(settings.theme_preference);
-            }
 
             // Update account form currency default if needed
             this.updateAccountFormDefaults(settings);
@@ -130,7 +126,7 @@ export default class SettingsModule {
             }
         } catch (error) {
             console.error('Error saving settings:', error);
-            OC.Notification.showTemporary('Failed to save settings');
+            showError('Failed to save settings');
         }
     }
 
@@ -171,10 +167,10 @@ export default class SettingsModule {
             const result = await response.json();
             await this.populateSettings(result.defaults);
             this.updateNumberFormatPreview();
-            OC.Notification.showTemporary('Settings reset to defaults');
+            showSuccess('Settings reset to defaults');
         } catch (error) {
             console.error('Error resetting settings:', error);
-            OC.Notification.showTemporary('Failed to reset settings');
+            showError('Failed to reset settings');
         }
     }
 
@@ -294,7 +290,7 @@ export default class SettingsModule {
                     this.app.sessionToken = result.sessionToken;
                     localStorage.setItem('budget_session_token', result.sessionToken);
 
-                    OC.Notification.showTemporary('Password protection enabled');
+                    showSuccess('Password protection enabled');
                     modal.remove();
 
                     // Update UI
@@ -394,7 +390,7 @@ export default class SettingsModule {
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    OC.Notification.showTemporary('Password changed successfully');
+                    showSuccess('Password changed successfully');
                     modal.remove();
                 } else {
                     errorDiv.textContent = result.error || 'Failed to change password';
@@ -477,7 +473,7 @@ export default class SettingsModule {
                     const passwordConfig = document.getElementById('password-protection-config');
                     if (passwordConfig) passwordConfig.style.display = 'none';
 
-                    OC.Notification.showTemporary('Password protection disabled');
+                    showSuccess('Password protection disabled');
                     modal.remove();
                 } else {
                     errorDiv.textContent = result.error || 'Failed to disable password protection';
@@ -605,7 +601,7 @@ export default class SettingsModule {
             this.closeFactoryResetModal();
 
             // Show success message
-            OC.Notification.showTemporary('Factory reset completed successfully. All data has been deleted.');
+            showSuccess('Factory reset completed successfully. All data has been deleted.');
 
             // Reload the page to show empty state
             setTimeout(() => {
@@ -622,7 +618,7 @@ export default class SettingsModule {
                 confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
             }
 
-            OC.Notification.showTemporary(error.message || 'Failed to perform factory reset');
+            showError(error.message || 'Failed to perform factory reset');
         }
     }
 }

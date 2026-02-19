@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 
 export default class SharedExpensesModule {
     constructor(app) {
@@ -238,7 +239,7 @@ export default class SharedExpensesModule {
         const email = document.getElementById('contact-email').value.trim();
 
         if (!name) {
-            OC.Notification.showTemporary('Name is required');
+            showWarning('Name is required');
             return;
         }
 
@@ -259,12 +260,12 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to save contact');
 
             this.closeModal(document.getElementById('contact-modal'));
-            OC.Notification.showTemporary(id ? 'Contact updated' : 'Contact added');
+            showSuccess(id ? 'Contact updated' : 'Contact added');
             await this.loadBalanceSummary();
             await this.loadContacts();
         } catch (error) {
             console.error('Failed to save contact:', error);
-            OC.Notification.showTemporary('Failed to save contact');
+            showError('Failed to save contact');
         }
     }
 
@@ -288,12 +289,12 @@ export default class SharedExpensesModule {
 
             if (!response.ok) throw new Error('Failed to delete contact');
 
-            OC.Notification.showTemporary('Contact deleted');
+            showSuccess('Contact deleted');
             await this.loadBalanceSummary();
             await this.loadContacts();
         } catch (error) {
             console.error('Failed to delete contact:', error);
-            OC.Notification.showTemporary('Failed to delete contact');
+            showError('Failed to delete contact');
         }
     }
 
@@ -350,7 +351,7 @@ export default class SharedExpensesModule {
             document.getElementById('contact-details-modal').style.display = 'flex';
         } catch (error) {
             console.error('Failed to load contact details:', error);
-            OC.Notification.showTemporary('Failed to load contact details');
+            showError('Failed to load contact details');
         }
     }
 
@@ -430,7 +431,7 @@ export default class SharedExpensesModule {
         const notes = document.getElementById('settlement-notes').value.trim();
 
         if (!amount || !date) {
-            OC.Notification.showTemporary('Amount and date are required');
+            showWarning('Amount and date are required');
             return;
         }
 
@@ -447,11 +448,11 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to record settlement');
 
             this.closeModal(document.getElementById('settlement-modal'));
-            OC.Notification.showTemporary('Settlement recorded');
+            showSuccess('Settlement recorded');
             await this.loadBalanceSummary();
         } catch (error) {
             console.error('Failed to record settlement:', error);
-            OC.Notification.showTemporary('Failed to record settlement');
+            showError('Failed to record settlement');
         }
     }
 
@@ -474,11 +475,11 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to settle');
 
             this.closeModal(document.getElementById('contact-details-modal'));
-            OC.Notification.showTemporary('All expenses settled');
+            showSuccess('All expenses settled');
             await this.loadBalanceSummary();
         } catch (error) {
             console.error('Failed to settle:', error);
-            OC.Notification.showTemporary('Failed to settle expenses');
+            showError('Failed to settle expenses');
         }
     }
 
@@ -492,7 +493,7 @@ export default class SharedExpensesModule {
 
         // Check if there are any contacts
         if (!this.contacts || this.contacts.length === 0) {
-            OC.Notification.showTemporary('Please add contacts first in Shared Expenses');
+            showWarning('Please add contacts first in Shared Expenses');
             return;
         }
 
@@ -521,7 +522,7 @@ export default class SharedExpensesModule {
         const notes = document.getElementById('share-notes').value.trim();
 
         if (!contactId) {
-            OC.Notification.showTemporary('Please select a contact');
+            showWarning('Please select a contact');
             return;
         }
 
@@ -534,7 +535,7 @@ export default class SharedExpensesModule {
             } else {
                 const amount = parseFloat(document.getElementById('share-amount').value);
                 if (!amount) {
-                    OC.Notification.showTemporary('Amount is required for custom splits');
+                    showWarning('Amount is required for custom splits');
                     return;
                 }
                 url = OC.generateUrl('/apps/budget/api/shared/shares');
@@ -553,11 +554,11 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to share expense');
 
             this.closeModal(document.getElementById('share-expense-modal'));
-            OC.Notification.showTemporary('Expense shared');
+            showSuccess('Expense shared');
             await this.loadBalanceSummary();
         } catch (error) {
             console.error('Failed to share expense:', error);
-            OC.Notification.showTemporary('Failed to share expense');
+            showError('Failed to share expense');
         }
     }
 

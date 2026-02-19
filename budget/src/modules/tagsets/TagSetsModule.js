@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
 
 export default class TagSetsModule {
     constructor(app) {
@@ -189,10 +190,10 @@ export default class TagSetsModule {
                 try {
                     await this.createTagSet(categoryId, name, description);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    OC.Notification.showTemporary('Tag set created successfully');
+                    showSuccess('Tag set created successfully');
                 } catch (error) {
                     console.error('Failed to create tag set:', error);
-                    OC.Notification.showTemporary('Failed to create tag set');
+                    showError('Failed to create tag set');
                 }
             });
         });
@@ -206,10 +207,10 @@ export default class TagSetsModule {
                 try {
                     await this.deleteTagSet(tagSetId);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    OC.Notification.showTemporary('Tag set deleted');
+                    showSuccess('Tag set deleted');
                 } catch (error) {
                     console.error('Failed to delete tag set:', error);
-                    OC.Notification.showTemporary('Failed to delete tag set');
+                    showError('Failed to delete tag set');
                 }
             });
         });
@@ -226,10 +227,10 @@ export default class TagSetsModule {
                 try {
                     await this.createTag(tagSetId, name, color);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    OC.Notification.showTemporary('Tag created successfully');
+                    showSuccess('Tag created successfully');
                 } catch (error) {
                     console.error('Failed to create tag:', error);
-                    OC.Notification.showTemporary('Failed to create tag');
+                    showError('Failed to create tag');
                 }
             });
         });
@@ -245,10 +246,10 @@ export default class TagSetsModule {
                 try {
                     await this.deleteTag(tagId, tagSetId);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    OC.Notification.showTemporary('Tag deleted');
+                    showSuccess('Tag deleted');
                 } catch (error) {
                     console.error('Failed to delete tag:', error);
-                    OC.Notification.showTemporary('Failed to delete tag');
+                    showError('Failed to delete tag');
                 }
             });
         });
@@ -766,7 +767,7 @@ export default class TagSetsModule {
         if (this.app.showNotification) {
             return this.app.showNotification(message, type);
         }
-        // Fallback to OC notification
-        OC.Notification.showTemporary(message);
+        // Fallback to notifications utility
+        showInfo(message);
     }
 }

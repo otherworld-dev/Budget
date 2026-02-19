@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -40,7 +41,7 @@ export default class SavingsModule {
             this.populateGoalTagDropdown();
         } catch (error) {
             console.error('Failed to load savings goals:', error);
-            OC.Notification.showTemporary('Failed to load savings goals');
+            showError('Failed to load savings goals');
         }
     }
 
@@ -346,16 +347,16 @@ export default class SavingsModule {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 console.error('Save goal error response:', response.status, errorData);
-                OC.Notification.showTemporary(errorData.error || 'Failed to save goal');
+                showError(errorData.error || 'Failed to save goal');
                 return;
             }
 
             document.getElementById('goal-modal').style.display = 'none';
-            OC.Notification.showTemporary(goalId ? 'Goal updated' : 'Goal created');
+            showSuccess(goalId ? 'Goal updated' : 'Goal created');
             await this.loadSavingsGoalsView();
         } catch (error) {
             console.error('Failed to save goal:', error);
-            OC.Notification.showTemporary('Failed to save goal');
+            showError('Failed to save goal');
         }
     }
 
@@ -379,11 +380,11 @@ export default class SavingsModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            OC.Notification.showTemporary('Goal deleted');
+            showSuccess('Goal deleted');
             await this.loadSavingsGoalsView();
         } catch (error) {
             console.error('Failed to delete goal:', error);
-            OC.Notification.showTemporary('Failed to delete goal');
+            showError('Failed to delete goal');
         }
     }
 
@@ -393,7 +394,7 @@ export default class SavingsModule {
 
         // Guard against tag-linked goals
         if (goal.tagId) {
-            OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+            showInfo('This goal is auto-tracked via a tag');
             return;
         }
 
@@ -410,7 +411,7 @@ export default class SavingsModule {
         const amount = parseFloat(document.getElementById('add-amount').value) || 0;
 
         if (amount <= 0) {
-            OC.Notification.showTemporary('Please enter a valid amount');
+            showWarning('Please enter a valid amount');
             return;
         }
 
@@ -419,7 +420,7 @@ export default class SavingsModule {
 
         // Guard against tag-linked goals
         if (goal.tagId) {
-            OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+            showInfo('This goal is auto-tracked via a tag');
             return;
         }
 
@@ -439,11 +440,11 @@ export default class SavingsModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             document.getElementById('add-to-goal-modal').style.display = 'none';
-            OC.Notification.showTemporary(`Added ${formatters.formatCurrency(amount, null, this.settings)} to goal`);
+            showSuccess(`Added ${formatters.formatCurrency(amount, null, this.settings)} to goal`);
             await this.loadSavingsGoalsView();
         } catch (error) {
             console.error('Failed to add money to goal:', error);
-            OC.Notification.showTemporary('Failed to add money to goal');
+            showError('Failed to add money to goal');
         }
     }
 }

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
+import { showSuccess, showError } from '../../utils/notifications.js';
 
 export default class ReportsModule {
     constructor(app) {
@@ -359,7 +360,7 @@ export default class ReportsModule {
             }
         } catch (error) {
             console.error('Failed to generate report:', error);
-            OC.Notification.showTemporary('Failed to generate report');
+            showError('Failed to generate report');
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
@@ -838,7 +839,7 @@ export default class ReportsModule {
 
         } catch (error) {
             console.error('Failed to generate YoY comparison:', error);
-            OC.Notification.showTemporary('Failed to generate comparison');
+            showError('Failed to generate comparison');
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
@@ -1030,10 +1031,10 @@ export default class ReportsModule {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            OC.Notification.showTemporary(`Report exported as ${format.toUpperCase()}`);
+            showSuccess(`Report exported as ${format.toUpperCase()}`);
         } catch (error) {
             console.error('Export failed:', error);
-            OC.Notification.showTemporary('Failed to export report');
+            showError('Failed to export report');
         }
     }
 
@@ -1149,7 +1150,7 @@ export default class ReportsModule {
 
         } catch (error) {
             console.error('Failed to generate bills calendar:', error);
-            OC.Notification.showTemporary('Failed to generate bills calendar');
+            showError('Failed to generate bills calendar');
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }

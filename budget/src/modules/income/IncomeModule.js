@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -45,7 +46,7 @@ export default class IncomeModule {
             this.populateIncomeModalDropdowns();
         } catch (error) {
             console.error('Failed to load recurring income:', error);
-            OC.Notification.showTemporary('Failed to load recurring income');
+            showError('Failed to load recurring income');
         }
     }
 
@@ -410,11 +411,11 @@ export default class IncomeModule {
             }
 
             this.hideIncomeModal();
-            OC.Notification.showTemporary(isNew ? 'Income source created successfully' : 'Income source updated successfully');
+            showSuccess(isNew ? 'Income source created successfully' : 'Income source updated successfully');
             await this.loadIncomeView();
         } catch (error) {
             console.error('Failed to save income:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to save income');
+            showError(error.message || 'Failed to save income');
         }
     }
 
@@ -431,11 +432,11 @@ export default class IncomeModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            OC.Notification.showTemporary('Income source deleted successfully');
+            showSuccess('Income source deleted successfully');
             await this.loadIncomeView();
         } catch (error) {
             console.error('Failed to delete income:', error);
-            OC.Notification.showTemporary('Failed to delete income');
+            showError('Failed to delete income');
         }
     }
 
@@ -488,7 +489,7 @@ export default class IncomeModule {
 
         } catch (error) {
             console.error('Failed to mark income as received:', error);
-            OC.Notification.showTemporary('Failed to mark income as received');
+            showError('Failed to mark income as received');
         }
     }
 
@@ -528,10 +529,10 @@ export default class IncomeModule {
             // Reload the view
             await this.loadIncomeView();
 
-            OC.Notification.showTemporary('Action undone');
+            showSuccess('Action undone');
         } catch (error) {
             console.error('Failed to undo mark received:', error);
-            OC.Notification.showTemporary(`Failed to undo action: ${error.message}`);
+            showError(`Failed to undo action: ${error.message}`);
         }
     }
 
@@ -605,7 +606,7 @@ export default class IncomeModule {
             const detected = await response.json();
 
             if (detected.length === 0) {
-                OC.Notification.showTemporary('No recurring income patterns found in your transactions');
+                showInfo('No recurring income patterns found in your transactions');
                 return;
             }
 
@@ -614,7 +615,7 @@ export default class IncomeModule {
             document.getElementById('detected-income-panel').style.display = 'flex';
         } catch (error) {
             console.error('Failed to detect income:', error);
-            OC.Notification.showTemporary('Failed to detect recurring income');
+            showError('Failed to detect recurring income');
         } finally {
             detectBtn.disabled = false;
             detectBtn.innerHTML = '<span class="icon-search" aria-hidden="true"></span> Detect Income';
@@ -656,7 +657,7 @@ export default class IncomeModule {
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-income-', '')));
 
         if (selectedIndices.length === 0) {
-            OC.Notification.showTemporary('Please select at least one income source to add');
+            showWarning('Please select at least one income source to add');
             return;
         }
 
@@ -677,11 +678,11 @@ export default class IncomeModule {
             const result = await response.json();
 
             document.getElementById('detected-income-panel').style.display = 'none';
-            OC.Notification.showTemporary(`${result.created} income sources added successfully`);
+            showSuccess(`${result.created} income sources added successfully`);
             await this.loadIncomeView();
         } catch (error) {
             console.error('Failed to add income:', error);
-            OC.Notification.showTemporary('Failed to add selected income sources');
+            showError('Failed to add selected income sources');
         }
     }
 }

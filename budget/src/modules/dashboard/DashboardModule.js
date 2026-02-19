@@ -13,6 +13,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
 import { DASHBOARD_WIDGETS } from '../../config/dashboardWidgets.js';
+import { showSuccess, showError } from '../../utils/notifications.js';
 
 export default class DashboardModule {
     constructor(app) {
@@ -1511,7 +1512,7 @@ export default class DashboardModule {
             );
             if (!response.ok) throw new Error('Failed to record snapshot');
 
-            OC.Notification.showTemporary('Net worth snapshot recorded');
+            showSuccess('Net worth snapshot recorded');
 
             // Refresh the chart with current period
             const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
@@ -1519,7 +1520,7 @@ export default class DashboardModule {
             await this.refreshNetWorthChart(days);
         } catch (error) {
             console.error('Failed to record net worth snapshot:', error);
-            OC.Notification.showTemporary('Failed to record snapshot');
+            showError('Failed to record snapshot');
         }
     }
 
@@ -1687,7 +1688,7 @@ export default class DashboardModule {
 
         } catch (error) {
             console.error('Failed to save dashboard config:', error);
-            OC.Notification.showTemporary('Failed to save dashboard layout');
+            showError('Failed to save dashboard layout');
         }
     }
 
@@ -1961,7 +1962,7 @@ export default class DashboardModule {
 
         } catch (error) {
             console.error('Failed to save lock state:', error);
-            OC.Notification.showTemporary('Failed to save dashboard lock state');
+            showError('Failed to save dashboard lock state');
         }
     }
 
@@ -2383,7 +2384,7 @@ export default class DashboardModule {
 
         } catch (error) {
             console.error('Failed to save widget order:', error);
-            OC.Notification.showTemporary('Failed to save widget order');
+            showError('Failed to save widget order');
         }
 
         // Reorder DOM elements after config is saved

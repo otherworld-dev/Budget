@@ -3574,17 +3574,6 @@ style('budget', 'budget-main');
                             </select>
                         </div>
 
-                        <div class="setting-item">
-                            <label for="setting-theme-preference">
-                                <strong>Theme</strong>
-                                <small>Color scheme preference</small>
-                            </label>
-                            <select id="setting-theme-preference" class="setting-input">
-                                <option value="system">Follow Nextcloud theme</option>
-                                <option value="light">Light theme</option>
-                                <option value="dark">Dark theme</option>
-                            </select>
-                        </div>
                     </div>
                 </div>
 

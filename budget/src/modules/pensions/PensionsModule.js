@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError } from '../../utils/notifications.js';
 import Chart from 'chart.js/auto';
 
 export default class PensionsModule {
@@ -25,7 +26,7 @@ export default class PensionsModule {
             this.setupPensionEventListeners();
         } catch (error) {
             console.error('Failed to load pensions view:', error);
-            OC.Notification.showTemporary('Failed to load pensions');
+            showError('Failed to load pensions');
         }
     }
 
@@ -383,9 +384,9 @@ export default class PensionsModule {
             this.closePensionModal();
             await this.loadPensions();
             this.renderPensions();
-            OC.Notification.showTemporary(pensionId ? 'Pension updated' : 'Pension added');
+            showSuccess(pensionId ? 'Pension updated' : 'Pension added');
         } catch (error) {
-            OC.Notification.showTemporary(error.message);
+            showError(error.message);
         }
     }
 
@@ -408,9 +409,9 @@ export default class PensionsModule {
             await this.loadPensions();
             this.renderPensions();
             this.closePensionDetails();
-            OC.Notification.showTemporary('Pension deleted');
+            showSuccess('Pension deleted');
         } catch (error) {
-            OC.Notification.showTemporary(error.message);
+            showError(error.message);
         }
     }
 
@@ -655,9 +656,9 @@ export default class PensionsModule {
             await this.loadPensions();
             this.renderPensions();
             await this.showPensionDetails(parseInt(pensionId));
-            OC.Notification.showTemporary('Balance updated');
+            showSuccess('Balance updated');
         } catch (error) {
-            OC.Notification.showTemporary(error.message);
+            showError(error.message);
         }
     }
 
@@ -702,9 +703,9 @@ export default class PensionsModule {
 
             this.closeContributionModal();
             await this.showPensionDetails(parseInt(pensionId));
-            OC.Notification.showTemporary('Contribution logged');
+            showSuccess('Contribution logged');
         } catch (error) {
-            OC.Notification.showTemporary(error.message);
+            showError(error.message);
         }
     }
 

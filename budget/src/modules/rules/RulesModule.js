@@ -5,6 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { CriteriaBuilder } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 
 export default class RulesModule {
     constructor(app) {
@@ -72,7 +73,7 @@ export default class RulesModule {
             await this.loadRules();
         } catch (error) {
             console.error('Failed to load rules view:', error);
-            OC.Notification.showTemporary('Failed to load rules');
+            showError('Failed to load rules');
         }
     }
 
@@ -393,10 +394,10 @@ export default class RulesModule {
 
                 rule = await response.json();
                 console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
-                OC.Notification.showTemporary('This rule has been upgraded to the new format with advanced features');
+                showSuccess('This rule has been upgraded to the new format with advanced features');
             } catch (error) {
                 console.error('Failed to migrate rule:', error);
-                OC.Notification.showTemporary('Failed to upgrade rule format');
+                showError('Failed to upgrade rule format');
                 return;
             }
         }
@@ -525,13 +526,13 @@ export default class RulesModule {
     async previewRule() {
         // Validate criteria from CriteriaBuilder
         if (!this.criteriaBuilder) {
-            OC.Notification.showTemporary('Error: CriteriaBuilder not initialized');
+            showError('Error: CriteriaBuilder not initialized');
             return;
         }
 
         const validation = this.criteriaBuilder.validate();
         if (!validation.valid) {
-            OC.Notification.showTemporary('Invalid criteria: ' + validation.errors.join(', '));
+            showError('Invalid criteria: ' + validation.errors.join(', '));
             return;
         }
 
@@ -575,7 +576,7 @@ export default class RulesModule {
 
         } catch (error) {
             console.error('Failed to preview rule:', error);
-            OC.Notification.showTemporary('Failed to preview rule: ' + error.message);
+            showError('Failed to preview rule: ' + error.message);
             previewSection.style.display = 'none';
         } finally {
             previewBtn.disabled = false;
@@ -683,18 +684,18 @@ export default class RulesModule {
             this.displayRunResults(result);
 
             if (result.success > 0) {
-                OC.Notification.showTemporary(`Rule applied: ${result.success} transaction(s) updated`);
+                showSuccess(`Rule applied: ${result.success} transaction(s) updated`);
                 // Reload transactions if we're on the transactions view
                 if (this.currentView === 'transactions') {
                     await this.loadTransactions();
                 }
             } else {
-                OC.Notification.showTemporary('No transactions were updated');
+                showInfo('No transactions were updated');
             }
 
         } catch (error) {
             console.error('Failed to run rule:', error);
-            OC.Notification.showTemporary('Failed to run rule: ' + error.message);
+            showError('Failed to run rule: ' + error.message);
         } finally {
             runBtn.disabled = false;
             runBtn.textContent = 'Run Rule Now';
@@ -851,13 +852,13 @@ export default class RulesModule {
 
         // Validate criteria from CriteriaBuilder
         if (!this.criteriaBuilder) {
-            OC.Notification.showTemporary('Error: CriteriaBuilder not initialized');
+            showError('Error: CriteriaBuilder not initialized');
             return;
         }
 
         const validation = this.criteriaBuilder.validate();
         if (!validation.valid) {
-            OC.Notification.showTemporary('Invalid criteria: ' + validation.errors.join(', '));
+            showError('Invalid criteria: ' + validation.errors.join(', '));
             return;
         }
 
@@ -865,13 +866,13 @@ export default class RulesModule {
 
         // Validate actions from ActionBuilder
         if (!this.actionBuilder) {
-            OC.Notification.showTemporary('Error: ActionBuilder not initialized');
+            showError('Error: ActionBuilder not initialized');
             return;
         }
 
         const actionsValidation = this.actionBuilder.validate();
         if (!actionsValidation.valid) {
-            OC.Notification.showTemporary('Invalid actions: ' + actionsValidation.errors.join(', '));
+            showError('Invalid actions: ' + actionsValidation.errors.join(', '));
             return;
         }
 
@@ -907,12 +908,12 @@ export default class RulesModule {
                 throw new Error(error.error || 'Failed to save rule');
             }
 
-            OC.Notification.showTemporary(isEdit ? 'Rule updated successfully' : 'Rule created successfully');
+            showSuccess(isEdit ? 'Rule updated successfully' : 'Rule created successfully');
             this.hideModals();
             await this.loadRules();
         } catch (error) {
             console.error('Failed to save rule:', error);
-            OC.Notification.showTemporary('Failed to save rule: ' + error.message);
+            showError('Failed to save rule: ' + error.message);
         }
     }
 
@@ -928,7 +929,7 @@ export default class RulesModule {
             this.showRuleModal(rule);
         } catch (error) {
             console.error('Failed to load rule:', error);
-            OC.Notification.showTemporary('Failed to load rule');
+            showError('Failed to load rule');
         }
     }
 
@@ -943,11 +944,11 @@ export default class RulesModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            OC.Notification.showTemporary('Rule deleted successfully');
+            showSuccess('Rule deleted successfully');
             await this.loadRules();
         } catch (error) {
             console.error('Failed to delete rule:', error);
-            OC.Notification.showTemporary('Failed to delete rule');
+            showError('Failed to delete rule');
         }
     }
 
@@ -983,10 +984,10 @@ export default class RulesModule {
                 row.classList.toggle('inactive', !active);
             }
 
-            OC.Notification.showTemporary(active ? 'Rule enabled' : 'Rule disabled');
+            showSuccess(active ? 'Rule enabled' : 'Rule disabled');
         } catch (error) {
             console.error('Failed to toggle rule:', error);
-            OC.Notification.showTemporary('Failed to update rule: ' + error.message);
+            showError('Failed to update rule: ' + error.message);
             // Revert the checkbox
             await this.loadRules();
         }
@@ -1085,7 +1086,7 @@ export default class RulesModule {
 
             if (resultsDiv) resultsDiv.style.display = 'block';
 
-            OC.Notification.showTemporary(`Rules applied: ${result.success} updated, ${result.skipped} skipped, ${result.failed} failed`);
+            showSuccess(`Rules applied: ${result.success} updated, ${result.skipped} skipped, ${result.failed} failed`);
 
             // Refresh transactions if we're on that view
             if (this.currentView === 'transactions') {
@@ -1094,7 +1095,7 @@ export default class RulesModule {
 
         } catch (error) {
             console.error('Failed to apply rules:', error);
-            OC.Notification.showTemporary('Failed to apply rules');
+            showError('Failed to apply rules');
         } finally {
             executeBtn.disabled = false;
             executeBtn.textContent = 'Apply Rules';

@@ -2,6 +2,7 @@
  * Categories Module - Category management, budgets, and tree visualization
  */
 import * as formatters from '../../utils/formatters.js';
+import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -80,7 +81,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to load categories:', error);
-            OC.Notification.showTemporary('Failed to load categories');
+            showError('Failed to load categories');
         }
     }
 
@@ -436,14 +437,14 @@ export default class CategoriesModule {
             if (response.ok) {
                 // Reload categories to reflect changes
                 await this.loadCategories();
-                OC.Notification.showTemporary('Category reordered successfully');
+                showSuccess('Category reordered successfully');
             } else {
                 throw new Error('Failed to reorder category');
             }
 
         } catch (error) {
             console.error('Failed to reorder category:', error);
-            OC.Notification.showTemporary('Failed to reorder category');
+            showError('Failed to reorder category');
         }
     }
 
@@ -755,7 +756,7 @@ export default class CategoriesModule {
             });
 
             if (response.ok) {
-                OC.Notification.showTemporary('Category deleted successfully');
+                showSuccess('Category deleted successfully');
                 this.selectedCategory = null;
                 await this.loadCategories();
                 await this.app.loadInitialData();
@@ -766,7 +767,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to delete category:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to delete category');
+            showError(error.message || 'Failed to delete category');
         }
     }
 
@@ -787,7 +788,7 @@ export default class CategoriesModule {
             });
 
             if (response.ok) {
-                OC.Notification.showTemporary('Category deleted successfully');
+                showSuccess('Category deleted successfully');
                 if (this.selectedCategory?.id === categoryId) {
                     this.selectedCategory = null;
                     this.showCategoryDetailsEmpty();
@@ -801,7 +802,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to delete category:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to delete category');
+            showError(error.message || 'Failed to delete category');
         }
     }
 
@@ -854,7 +855,7 @@ export default class CategoriesModule {
         }
 
         if (deleted > 0) {
-            OC.Notification.showTemporary(`${deleted} categor${deleted === 1 ? 'y' : 'ies'} deleted successfully`);
+            showSuccess(`${deleted} categor${deleted === 1 ? 'y' : 'ies'} deleted successfully`);
             this.selectedCategory = null;
             this.showCategoryDetailsEmpty();
             await this.loadCategories();
@@ -862,7 +863,7 @@ export default class CategoriesModule {
         }
 
         if (errors.length > 0) {
-            OC.Notification.showTemporary(`Failed to delete: ${errors.join(', ')}`);
+            showError(`Failed to delete: ${errors.join(', ')}`);
         }
 
         this.updateBulkCategoryActions();
@@ -948,7 +949,7 @@ export default class CategoriesModule {
         const color = document.getElementById('category-color').value;
 
         if (!name) {
-            OC.Notification.showTemporary('Category name is required');
+            showWarning('Category name is required');
             return;
         }
 
@@ -977,7 +978,7 @@ export default class CategoriesModule {
 
             if (response.ok) {
                 const savedCategory = await response.json();
-                OC.Notification.showTemporary(isEdit ? 'Category updated successfully' : 'Category created successfully');
+                showSuccess(isEdit ? 'Category updated successfully' : 'Category created successfully');
                 this.app.hideModals();
                 await this.loadCategories();
                 await this.app.loadInitialData();
@@ -993,7 +994,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to save category:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to save category');
+            showError(error.message || 'Failed to save category');
         }
     }
 
@@ -1009,7 +1010,7 @@ export default class CategoriesModule {
             });
 
             if (response.ok) {
-                OC.Notification.showTemporary('Default categories created successfully');
+                showSuccess('Default categories created successfully');
                 await this.loadCategories();
                 await this.app.loadInitialData();
             } else {
@@ -1018,7 +1019,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to create default categories:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to create default categories');
+            showError(error.message || 'Failed to create default categories');
         }
     }
 
@@ -1386,7 +1387,7 @@ export default class CategoriesModule {
                     await this.app.loadDashboard();
                 }
 
-                OC.Notification.showTemporary('Budget updated');
+                showSuccess('Budget updated');
             } else {
                 // Try to get detailed error message
                 let errorMessage = 'Failed to update budget';
@@ -1402,7 +1403,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to save budget:', error);
-            OC.Notification.showTemporary(`Failed to update budget: ${error.message}`);
+            showError(`Failed to update budget: ${error.message}`);
         }
     }
 
