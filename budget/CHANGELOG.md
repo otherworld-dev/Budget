@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-02-19
+
+### Added
+- **Pending transaction indicator**: Future-dated transactions display with muted opacity, italic text, and an orange "Pending" badge ([#39](https://github.com/otherworld-dev/budget/issues/39))
+  - Status filter (All / Cleared / Pending) in main transactions and account detail views
+- **Expanded currency support**: Added 25+ new currencies covering Americas, Europe, Asia-Pacific, Middle East, and Africa (45 total)
+- **Custom toast notifications**: Built-in toast notification system replacing deprecated `OC.Notification` calls
+
+### Fixed
+- Account detail filters (category, type, status, date range, amount range, search) not passed to transactions API ([#43](https://github.com/otherworld-dev/budget/issues/43))
+- PostgreSQL compatibility: cast date column to CHAR before SUBSTR for month extraction ([#41](https://github.com/otherworld-dev/budget/issues/41))
+- Reports: exclude transfers from aggregate income/expense totals in all-accounts view to prevent double-counting
+
+### Removed
+- Non-functional in-app theme toggle (light/dark/system) — the app correctly inherits Nextcloud's global theme via CSS variables ([#44](https://github.com/otherworld-dev/budget/issues/44))
+- Hardcoded dark mode CSS overrides from rules builder components
+
 ## [2.2.1] - 2026-02-09
 
 ### Fixed

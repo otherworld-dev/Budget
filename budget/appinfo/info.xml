@@ -37,7 +37,7 @@ Track your spending habits, manage savings, and forecast future account balances
 * Nextcloud 30 or higher
 * PHP 8.1 or higher
     ]]></description>
-    <version>2.2.1</version>
+    <version>2.3.0</version>
     <licence>AGPL-3.0-or-later</licence>
     <author mail="adam@otherworld.dev" homepage="https://otherworld.dev">Adam Morgan</author>
     <namespace>Budget</namespace>
