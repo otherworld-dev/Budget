@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 
 export default class TransfersModule {
     constructor(app) {
@@ -38,7 +39,7 @@ export default class TransfersModule {
             this.transfers = await response.json();
         } catch (error) {
             console.error('Failed to load transfers:', error);
-            OC.Notification.showTemporary('Failed to load transfers');
+            showError('Failed to load transfers');
         }
     }
 
@@ -600,17 +601,17 @@ export default class TransfersModule {
 
         // Validation
         if (!fromAccountId || isNaN(fromAccountId)) {
-            OC.Notification.showTemporary('Please select a source account');
+            showWarning('Please select a source account');
             return false;
         }
 
         if (!toAccountId || isNaN(toAccountId)) {
-            OC.Notification.showTemporary('Please select a destination account');
+            showWarning('Please select a destination account');
             return false;
         }
 
         if (fromAccountId === toAccountId) {
-            OC.Notification.showTemporary('Cannot transfer to the same account');
+            showWarning('Cannot transfer to the same account');
             return false;
         }
 
@@ -652,7 +653,7 @@ export default class TransfersModule {
                 throw new Error(error.error || 'Failed to save transfer');
             }
 
-            OC.Notification.showTemporary(
+            showSuccess(
                 existingTransfer ? 'Transfer updated' : 'Transfer added'
             );
 
@@ -662,7 +663,7 @@ export default class TransfersModule {
             return true;
         } catch (error) {
             console.error('Failed to save transfer:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to save transfer');
+            showError(error.message || 'Failed to save transfer');
             return false;
         }
     }
@@ -680,14 +681,14 @@ export default class TransfersModule {
 
             if (!response.ok) throw new Error('Failed to delete transfer');
 
-            OC.Notification.showTemporary('Transfer deleted');
+            showSuccess('Transfer deleted');
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
         } catch (error) {
             console.error('Failed to delete transfer:', error);
-            OC.Notification.showTemporary('Failed to delete transfer');
+            showError('Failed to delete transfer');
         }
     }
 
@@ -709,7 +710,7 @@ export default class TransfersModule {
 
             if (!response.ok) throw new Error('Failed to update transfer');
 
-            OC.Notification.showTemporary(
+            showSuccess(
                 transfer.isActive ? 'Transfer deactivated' : 'Transfer activated'
             );
 
@@ -718,7 +719,7 @@ export default class TransfersModule {
             this.updateSummary();
         } catch (error) {
             console.error('Failed to toggle transfer:', error);
-            OC.Notification.showTemporary('Failed to update transfer');
+            showError('Failed to update transfer');
         }
     }
 
@@ -743,14 +744,14 @@ export default class TransfersModule {
 
             if (!response.ok) throw new Error('Failed to mark transfer as paid');
 
-            OC.Notification.showTemporary('Transfer marked as paid');
+            showSuccess('Transfer marked as paid');
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
-            OC.Notification.showTemporary('Failed to mark transfer as paid');
+            showError('Failed to mark transfer as paid');
         }
     }
 

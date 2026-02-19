@@ -10,6 +10,7 @@ import * as dom from './utils/dom.js';
 import * as helpers from './utils/helpers.js';
 import * as validators from './utils/validators.js';
 import ApiClient from './utils/api.js';
+import { showSuccess, showError, showWarning, showInfo } from './utils/notifications.js';
 
 // Configuration
 import { DASHBOARD_WIDGETS } from './config/dashboardWidgets.js';
@@ -587,33 +588,6 @@ class BudgetApp {
         delete textElement.dataset.originalText;
     }
 
-
-    applyTheme(themePreference) {
-        const appContainer = document.getElementById('app-content-wrapper');
-        if (!appContainer) return;
-
-        // Remove existing theme classes
-        appContainer.classList.remove('theme-light', 'theme-dark', 'theme-system');
-
-        // Apply theme based on preference
-        switch (themePreference) {
-            case 'light':
-                appContainer.classList.add('theme-light');
-                appContainer.setAttribute('data-theme', 'light');
-                break;
-            case 'dark':
-                appContainer.classList.add('theme-dark');
-                appContainer.setAttribute('data-theme', 'dark');
-                break;
-            case 'system':
-            default:
-                // Follow Nextcloud's theme (remove overrides)
-                appContainer.classList.add('theme-system');
-                appContainer.removeAttribute('data-theme');
-                break;
-        }
-    }
-
     async loadInitialData() {
         try {
             // Load all initial data in parallel for better performance
@@ -641,10 +615,6 @@ class BudgetApp {
                 this.dashboardConfig.hero = this.parseDashboardConfig(this.settings.dashboard_hero_config, 'hero');
                 this.dashboardConfig.widgets = this.parseDashboardConfig(this.settings.dashboard_widgets_config, 'widgets');
 
-                // Apply theme preference on load
-                if (this.settings.theme_preference) {
-                    this.applyTheme(this.settings.theme_preference);
-                }
             }
 
             if (optionsResponse.ok) {
@@ -666,7 +636,7 @@ class BudgetApp {
             this.populateCurrencyDropdowns();
         } catch (error) {
             console.error('Failed to load initial data:', error);
-            OC.Notification.showTemporary('Failed to load data');
+            showError('Failed to load data');
         }
     }
 
@@ -1159,7 +1129,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to load transactions:', error);
-            OC.Notification.showTemporary('Failed to load transactions');
+            showError('Failed to load transactions');
         }
     }
 
@@ -1515,7 +1485,7 @@ class BudgetApp {
                     this.sessionToken = result.sessionToken;
                     localStorage.setItem('budget_session_token', result.sessionToken);
 
-                    OC.Notification.showTemporary('Password protection enabled');
+                    showSuccess('Password protection enabled');
                     modal.remove();
 
                     // Update UI
@@ -1615,7 +1585,7 @@ class BudgetApp {
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    OC.Notification.showTemporary('Password changed successfully');
+                    showSuccess('Password changed successfully');
                     modal.remove();
                 } else {
                     errorDiv.textContent = result.error || 'Failed to change password';
@@ -1698,7 +1668,7 @@ class BudgetApp {
                     const passwordConfig = document.getElementById('password-protection-config');
                     if (passwordConfig) passwordConfig.style.display = 'none';
 
-                    OC.Notification.showTemporary('Password protection disabled');
+                    showSuccess('Password protection disabled');
                     modal.remove();
                 } else {
                     errorDiv.textContent = result.error || 'Failed to disable password protection';
@@ -1825,7 +1795,7 @@ class BudgetApp {
             this.closeFactoryResetModal();
 
             // Show success message
-            OC.Notification.showTemporary('Factory reset completed successfully. All data has been deleted.');
+            showSuccess('Factory reset completed successfully. All data has been deleted.');
 
             // Reload the page to show empty state
             setTimeout(() => {
@@ -1842,7 +1812,7 @@ class BudgetApp {
                 confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
             }
 
-            OC.Notification.showTemporary(error.message || 'Failed to perform factory reset');
+            showError(error.message || 'Failed to perform factory reset');
         }
     }
 
@@ -1948,10 +1918,10 @@ class BudgetApp {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            OC.Notification.showTemporary('Export completed successfully');
+            showSuccess('Export completed successfully');
         } catch (error) {
             console.error('Export error:', error);
-            OC.Notification.showTemporary('Failed to export data: ' + error.message);
+            showError('Failed to export data: ' + error.message);
         } finally {
             exportBtn.disabled = false;
             exportBtn.innerHTML = originalText;
@@ -1960,7 +1930,7 @@ class BudgetApp {
 
     async handleMigrationFileSelect(file) {
         if (!file.name.endsWith('.zip')) {
-            OC.Notification.showTemporary('Please select a ZIP file');
+            showWarning('Please select a ZIP file');
             return;
         }
 
@@ -2021,7 +1991,7 @@ class BudgetApp {
             preview.style.display = 'block';
         } catch (error) {
             console.error('Preview error:', error);
-            OC.Notification.showTemporary('Failed to preview file: ' + error.message);
+            showError('Failed to preview file: ' + error.message);
             this.resetMigrationUI();
         }
     }
@@ -2033,7 +2003,7 @@ class BudgetApp {
 
     async confirmMigrationImport() {
         if (!this.migrationFile) {
-            OC.Notification.showTemporary('No file selected');
+            showWarning('No file selected');
             return;
         }
 
@@ -2092,7 +2062,7 @@ class BudgetApp {
 
             // Reload application data
             this.loadInitialData();
-            OC.Notification.showTemporary('Import completed successfully');
+            showSuccess('Import completed successfully');
         } catch (error) {
             console.error('Import error:', error);
 
@@ -2373,7 +2343,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to calculate payoff plan:', error);
-            OC.Notification.showTemporary('Failed to calculate payoff plan');
+            showError('Failed to calculate payoff plan');
         }
     }
 
@@ -2452,7 +2422,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to compare strategies:', error);
-            OC.Notification.showTemporary('Failed to compare strategies');
+            showError('Failed to compare strategies');
         }
     }
 
@@ -2579,7 +2549,7 @@ class BudgetApp {
     async showMatchingModal(transactionId) {
         const transaction = this.transactions?.find(t => t.id === transactionId);
         if (!transaction) {
-            OC.Notification.showTemporary('Transaction not found');
+            showWarning('Transaction not found');
             return;
         }
 
@@ -2647,13 +2617,13 @@ class BudgetApp {
     async handleLinkMatch(sourceId, targetId) {
         try {
             await this.linkTransactions(sourceId, targetId);
-            OC.Notification.showTemporary('Transactions linked as transfer');
+            showSuccess('Transactions linked as transfer');
 
             // Close modal and refresh transactions
             document.getElementById('matching-modal').style.display = 'none';
             await this.loadTransactions();
         } catch (error) {
-            OC.Notification.showTemporary(error.message || 'Failed to link transactions');
+            showError(error.message || 'Failed to link transactions');
         }
     }
 
@@ -2667,10 +2637,10 @@ class BudgetApp {
 
         try {
             await this.unlinkTransaction(transactionId);
-            OC.Notification.showTemporary('Transaction unlinked');
+            showSuccess('Transaction unlinked');
             await this.loadTransactions();
         } catch (error) {
-            OC.Notification.showTemporary(error.message || 'Failed to unlink transaction');
+            showError(error.message || 'Failed to unlink transaction');
         }
     }
 
@@ -2682,7 +2652,7 @@ class BudgetApp {
     async showSplitModal(transactionId) {
         const transaction = this.transactions?.find(t => t.id === transactionId);
         if (!transaction) {
-            OC.Notification.showTemporary('Transaction not found');
+            showWarning('Transaction not found');
             return;
         }
 
@@ -2870,13 +2840,13 @@ class BudgetApp {
 
         // Validate
         if (splits.length < 2) {
-            OC.Notification.showTemporary('A split transaction must have at least 2 parts');
+            showWarning('A split transaction must have at least 2 parts');
             return;
         }
 
         const splitTotal = splits.reduce((sum, s) => sum + s.amount, 0);
         if (Math.abs(splitTotal - totalAmount) > 0.01) {
-            OC.Notification.showTemporary(`Split amounts (${splitTotal.toFixed(2)}) must equal transaction amount (${totalAmount.toFixed(2)})`);
+            showWarning(`Split amounts (${splitTotal.toFixed(2)}) must equal transaction amount (${totalAmount.toFixed(2)})`);
             return;
         }
 
@@ -2896,11 +2866,11 @@ class BudgetApp {
             }
 
             this.hideSplitModal();
-            OC.Notification.showTemporary('Transaction split successfully');
+            showSuccess('Transaction split successfully');
             await this.loadTransactions();
         } catch (error) {
             console.error('Failed to save splits:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to save splits');
+            showError(error.message || 'Failed to save splits');
         }
     }
 
@@ -2927,11 +2897,11 @@ class BudgetApp {
             }
 
             this.hideSplitModal();
-            OC.Notification.showTemporary('Transaction unsplit successfully');
+            showSuccess('Transaction unsplit successfully');
             await this.loadTransactions();
         } catch (error) {
             console.error('Failed to unsplit transaction:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to unsplit transaction');
+            showError(error.message || 'Failed to unsplit transaction');
         }
     }
 
@@ -3165,9 +3135,9 @@ class BudgetApp {
                 document.getElementById('auto-matched-section').style.display = 'none';
             }
 
-            OC.Notification.showTemporary('Match undone');
+            showSuccess('Match undone');
         } catch (error) {
-            OC.Notification.showTemporary(error.message || 'Failed to undo match');
+            showError(error.message || 'Failed to undo match');
         }
     }
 
@@ -3179,7 +3149,7 @@ class BudgetApp {
         const selectedRadio = reviewItem.querySelector(`input[name="review-match-${index}"]:checked`);
 
         if (!selectedRadio) {
-            OC.Notification.showTemporary('Please select a match first');
+            showWarning('Please select a match first');
             return;
         }
 
@@ -3206,9 +3176,9 @@ class BudgetApp {
                 document.getElementById('needs-review-section').style.display = 'none';
             }
 
-            OC.Notification.showTemporary('Transactions linked');
+            showSuccess('Transactions linked');
         } catch (error) {
-            OC.Notification.showTemporary(error.message || 'Failed to link transactions');
+            showError(error.message || 'Failed to link transactions');
         }
     }
 
@@ -3374,7 +3344,7 @@ class BudgetApp {
         // Prevent hiding all columns (enforce minimum 1 visible)
         const visibleCount = Object.values(this.columnVisibility).filter(v => v).length;
         if (!visible && visibleCount <= 1) {
-            OC.Notification.showTemporary('At least one column must remain visible');
+            showWarning('At least one column must remain visible');
             document.getElementById(`col-toggle-${columnKey}`).checked = true;
             return;
         }
@@ -3408,7 +3378,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to save column visibility:', error);
-            OC.Notification.showTemporary('Failed to save column preferences');
+            showError('Failed to save column preferences');
 
             // Revert on failure
             this.columnVisibility[columnKey] = !visible;

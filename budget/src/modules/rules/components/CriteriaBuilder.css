@@ -245,38 +245,3 @@
 		margin-left: 12px;
 	}
 }
-
-/* Dark mode support (if Nextcloud uses it) */
-@media (prefers-color-scheme: dark) {
-	.criteria-group {
-		background: #2a2a2a;
-		border-color: #444;
-	}
-
-	.criteria-group .criteria-group {
-		background: #1e1e1e;
-		border-color: #555;
-	}
-
-	.criteria-condition {
-		background: #2a2a2a;
-		border-color: #444;
-	}
-
-	.condition-field,
-	.condition-match-type,
-	.condition-pattern,
-	.group-operator {
-		background: #1e1e1e;
-		border-color: #555;
-		color: #e0e0e0;
-	}
-
-	.negate-checkbox {
-		background: #3a3a3a;
-	}
-
-	.negate-checkbox:hover {
-		background: #4a4a4a;
-	}
-}

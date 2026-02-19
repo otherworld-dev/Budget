@@ -31,7 +31,6 @@ class SettingController extends Controller {
         'number_format_decimals' => '2',
         'number_format_decimal_sep' => '.',
         'number_format_thousands_sep' => ',',
-        'theme_preference' => 'system',
         'notification_budget_alert' => 'true',
         'notification_forecast_warning' => 'true',
         'import_auto_apply_rules' => 'true',
@@ -275,11 +274,6 @@ class SettingController extends Controller {
             'first_day_of_week' => [
                 ['value' => '0', 'label' => 'Sunday'],
                 ['value' => '1', 'label' => 'Monday'],
-            ],
-            'theme_preferences' => [
-                ['value' => 'system', 'label' => 'Follow Nextcloud theme'],
-                ['value' => 'light', 'label' => 'Light theme'],
-                ['value' => 'dark', 'label' => 'Dark theme'],
             ],
             'budget_periods' => [
                 ['value' => 'weekly', 'label' => 'Weekly'],

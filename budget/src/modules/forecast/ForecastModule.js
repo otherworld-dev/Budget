@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import Chart from 'chart.js/auto';
+import { showError } from '../../utils/notifications.js';
 
 export default class ForecastModule {
     constructor(app) {
@@ -94,7 +95,7 @@ export default class ForecastModule {
         } catch (error) {
             console.error('Failed to load forecast:', error);
             if (loadingEl) loadingEl.style.display = 'none';
-            OC.Notification.showTemporary('Failed to load forecast data');
+            showError('Failed to load forecast data');
         }
     }
 

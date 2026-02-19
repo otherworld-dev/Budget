@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -45,7 +46,7 @@ export default class BillsModule {
             this.populateBillModalDropdowns();
         } catch (error) {
             console.error('Failed to load bills:', error);
-            OC.Notification.showTemporary('Failed to load bills');
+            showError('Failed to load bills');
         }
     }
 
@@ -503,7 +504,7 @@ export default class BillsModule {
         if (frequency === 'custom') {
             const customPattern = this.getCustomMonthsPattern();
             if (!customPattern) {
-                OC.Notification.showTemporary('Please select at least one month for custom frequency');
+                showWarning('Please select at least one month for custom frequency');
                 return;
             }
             billData.customRecurrencePattern = customPattern;
@@ -533,11 +534,11 @@ export default class BillsModule {
             }
 
             this.hideBillModal();
-            OC.Notification.showTemporary(isNew ? 'Bill created successfully' : 'Bill updated successfully');
+            showSuccess(isNew ? 'Bill created successfully' : 'Bill updated successfully');
             await this.loadBillsView();
         } catch (error) {
             console.error('Failed to save bill:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to save bill');
+            showError(error.message || 'Failed to save bill');
         }
     }
 
@@ -553,7 +554,7 @@ export default class BillsModule {
             this.showBillModal(bill);
         } catch (error) {
             console.error('Failed to load bill:', error);
-            OC.Notification.showTemporary('Failed to load bill');
+            showError('Failed to load bill');
         }
     }
 
@@ -570,11 +571,11 @@ export default class BillsModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            OC.Notification.showTemporary('Bill deleted successfully');
+            showSuccess('Bill deleted successfully');
             await this.loadBillsView();
         } catch (error) {
             console.error('Failed to delete bill:', error);
-            OC.Notification.showTemporary('Failed to delete bill');
+            showError('Failed to delete bill');
         }
     }
 
@@ -624,7 +625,7 @@ export default class BillsModule {
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
-            OC.Notification.showTemporary('Failed to mark bill as paid');
+            showError('Failed to mark bill as paid');
         }
     }
 
@@ -658,10 +659,10 @@ export default class BillsModule {
             this._undoData = null;
             await this.loadBillsView();
 
-            OC.Notification.showTemporary('Action undone');
+            showSuccess('Action undone');
         } catch (error) {
             console.error('Failed to undo mark paid:', error);
-            OC.Notification.showTemporary(`Failed to undo action: ${error.message}`);
+            showError(`Failed to undo action: ${error.message}`);
         }
     }
 
@@ -732,7 +733,7 @@ export default class BillsModule {
             const detected = await response.json();
 
             if (!detected || detected.length === 0) {
-                OC.Notification.showTemporary('No recurring transactions detected');
+                showInfo('No recurring transactions detected');
                 return;
             }
 
@@ -740,7 +741,7 @@ export default class BillsModule {
             document.getElementById('detected-bills-panel').style.display = 'flex';
         } catch (error) {
             console.error('Failed to detect bills:', error);
-            OC.Notification.showTemporary('Failed to detect recurring bills');
+            showError('Failed to detect recurring bills');
         } finally {
             detectBtn.disabled = false;
             detectBtn.innerHTML = '<span class="icon-search" aria-hidden="true"></span> Detect Bills';
@@ -780,7 +781,7 @@ export default class BillsModule {
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-', '')));
 
         if (selectedIndices.length === 0) {
-            OC.Notification.showTemporary('Please select at least one bill to add');
+            showWarning('Please select at least one bill to add');
             return;
         }
 
@@ -800,11 +801,11 @@ export default class BillsModule {
 
             const result = await response.json();
             document.getElementById('detected-bills-panel').style.display = 'none';
-            OC.Notification.showTemporary(`${result.created} bills added successfully`);
+            showSuccess(`${result.created} bills added successfully`);
             await this.loadBillsView();
         } catch (error) {
             console.error('Failed to add bills:', error);
-            OC.Notification.showTemporary('Failed to add selected bills');
+            showError('Failed to add selected bills');
         }
     }
 

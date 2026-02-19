@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 
 export default class ImportModule {
     constructor(app) {
@@ -77,7 +78,7 @@ export default class ImportModule {
             }
         } catch (error) {
             console.error('Failed to upload file:', error);
-            OC.Notification.showTemporary('Failed to upload file');
+            showError('Failed to upload file');
         }
     }
 
@@ -217,7 +218,7 @@ export default class ImportModule {
         if (!delimiterSelect) return;
 
         this.currentDelimiter = delimiterSelect.value;
-        OC.Notification.showTemporary('Delimiter changed. File will be re-parsed in the next step.');
+        showInfo('Delimiter changed. File will be re-parsed in the next step.');
     }
 
     populateColumnMappings(columns) {
@@ -361,7 +362,7 @@ export default class ImportModule {
         if (this.currentImportStep === 1) {
             // Step 1 → 2: File should be uploaded
             if (!this.currentImportData) {
-                OC.Notification.showTemporary('Please select a file first');
+                showWarning('Please select a file first');
                 return;
             }
             this.setImportStep(2);
@@ -479,14 +480,14 @@ export default class ImportModule {
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
             if (Object.keys(accountMapping).length === 0) {
-                OC.Notification.showTemporary('Please map at least one account');
+                showWarning('Please map at least one account');
                 return;
             }
             requestBody.accountMapping = accountMapping;
         } else {
             const accountId = document.getElementById('import-account')?.value;
             if (!accountId) {
-                OC.Notification.showTemporary('Please select an account first');
+                showWarning('Please select an account first');
                 return;
             }
             requestBody.accountId = parseInt(accountId);
@@ -514,7 +515,7 @@ export default class ImportModule {
             }
         } catch (error) {
             console.error('Failed to process import data:', error);
-            OC.Notification.showTemporary('Failed to process import data: ' + error.message);
+            showError('Failed to process import data: ' + error.message);
         }
     }
 
@@ -728,7 +729,7 @@ export default class ImportModule {
 
     async executeImport() {
         if (!this.currentImportData?.fileId) {
-            OC.Notification.showTemporary('No file data available');
+            showError('No file data available');
             return;
         }
 
@@ -747,14 +748,14 @@ export default class ImportModule {
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
             if (Object.keys(accountMapping).length === 0) {
-                OC.Notification.showTemporary('Please map at least one account');
+                showWarning('Please map at least one account');
                 return;
             }
             requestBody.accountMapping = accountMapping;
         } else {
             const accountId = document.getElementById('import-account').value;
             if (!accountId) {
-                OC.Notification.showTemporary('Please select an account');
+                showWarning('Please select an account');
                 return;
             }
             requestBody.accountId = parseInt(accountId);
@@ -786,7 +787,7 @@ export default class ImportModule {
             }
 
             if (response.ok) {
-                OC.Notification.showTemporary(`Successfully imported ${result.imported} transactions (${result.skipped} skipped)`);
+                showSuccess(`Successfully imported ${result.imported} transactions (${result.skipped} skipped)`);
                 this.resetImportWizard();
                 this.loadTransactions();
             } else {
@@ -794,7 +795,7 @@ export default class ImportModule {
             }
         } catch (error) {
             console.error('Failed to execute import:', error);
-            OC.Notification.showTemporary('Failed to import transactions: ' + error.message);
+            showError('Failed to import transactions: ' + error.message);
         } finally {
             // Restore button state
             importBtn.disabled = false;
@@ -922,7 +923,7 @@ export default class ImportModule {
             }
         } catch (error) {
             console.error('Failed to download import:', error);
-            OC.Notification.showTemporary('Failed to download import file');
+            showError('Failed to download import file');
         }
     }
 
@@ -942,7 +943,7 @@ export default class ImportModule {
 
             if (response.ok) {
                 const result = await response.json();
-                OC.Notification.showTemporary(`Rolled back ${result.deleted} transactions`);
+                showSuccess(`Rolled back ${result.deleted} transactions`);
                 this.loadImportHistory();
                 this.loadTransactions();
             } else {
@@ -951,7 +952,7 @@ export default class ImportModule {
             }
         } catch (error) {
             console.error('Failed to rollback import:', error);
-            OC.Notification.showTemporary('Failed to rollback import: ' + error.message);
+            showError('Failed to rollback import: ' + error.message);
         }
     }
 }

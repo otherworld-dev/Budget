@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 
 export default class AccountsModule {
     constructor(app) {
@@ -431,7 +432,7 @@ export default class AccountsModule {
 
         } catch (error) {
             console.error('Failed to show account details:', error);
-            OC.Notification.showTemporary('Failed to load account details');
+            showError('Failed to load account details');
         }
     }
 
@@ -868,13 +869,13 @@ export default class AccountsModule {
 
     finishReconciliation() {
         if (!this.reconcileData || !this.reconcileData.isBalanced) {
-            OC.Notification.showTemporary('Cannot finish reconciliation - balances do not match');
+            showWarning('Cannot finish reconciliation - balances do not match');
             return;
         }
 
         // Mark all checked transactions as reconciled and finish reconciliation
         this.cancelReconciliation();
-        OC.Notification.showTemporary('Reconciliation completed successfully');
+        showSuccess('Reconciliation completed successfully');
     }
 
     async loadCategories() {
@@ -938,26 +939,26 @@ export default class AccountsModule {
 
         if (!accountId) {
             if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
-                OC.Notification.showTemporary('No accounts available. Please create an account first.');
+                showWarning('No accounts available. Please create an account first.');
                 return;
             }
-            OC.Notification.showTemporary('Please select an account');
+            showWarning('Please select an account');
             return;
         }
         if (!date) {
-            OC.Notification.showTemporary('Please enter a date');
+            showWarning('Please enter a date');
             return;
         }
         if (!type) {
-            OC.Notification.showTemporary('Please select a transaction type');
+            showWarning('Please select a transaction type');
             return;
         }
         if (amount === null || amount <= 0) {
-            OC.Notification.showTemporary('Please enter a valid amount');
+            showWarning('Please enter a valid amount');
             return;
         }
         if (!description) {
-            OC.Notification.showTemporary('Please enter a description');
+            showWarning('Please enter a description');
             return;
         }
 
@@ -1001,7 +1002,7 @@ export default class AccountsModule {
                     await this.saveTransactionTags(savedTransactionId, selectedTagIds);
                 }
 
-                OC.Notification.showTemporary('Transaction saved successfully');
+                showSuccess('Transaction saved successfully');
                 this.hideModals();
                 this.loadTransactions();
                 // Also reload account transactions if we're on account details view
@@ -1023,7 +1024,7 @@ export default class AccountsModule {
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
-            OC.Notification.showTemporary(error.message || 'Failed to save transaction');
+            showError(error.message || 'Failed to save transaction');
         }
     }
 
@@ -1207,13 +1208,13 @@ export default class AccountsModule {
 
             if (!nameElement) {
                 console.error('Account name element not found');
-                OC.Notification.showTemporary('Form error: Account name field not found');
+                showError('Form error: Account name field not found');
                 return;
             }
 
             if (!typeElement) {
                 console.error('Account type element not found');
-                OC.Notification.showTemporary('Form error: Account type field not found');
+                showError('Form error: Account type field not found');
                 return;
             }
 
@@ -1272,28 +1273,28 @@ export default class AccountsModule {
             // Validate required fields on frontend
             if (!formData.name || formData.name === '') {
                 console.error('Account name is empty');
-                OC.Notification.showTemporary('Please enter an account name');
+                showWarning('Please enter an account name');
                 nameElement.focus();
                 return;
             }
 
             if (!formData.type || formData.type === '') {
                 console.error('Account type is empty');
-                OC.Notification.showTemporary('Please select an account type');
+                showWarning('Please select an account type');
                 typeElement.focus();
                 return;
             }
 
             // Validate account name length
             if (formData.name.length > 255) {
-                OC.Notification.showTemporary('Account name is too long (maximum 255 characters)');
+                showWarning('Account name is too long (maximum 255 characters)');
                 nameElement.focus();
                 return;
             }
 
             // Validate numeric fields
             if (isNaN(formData.balance)) {
-                OC.Notification.showTemporary('Please enter a valid balance amount');
+                showWarning('Please enter a valid balance amount');
                 document.getElementById('account-balance').focus();
                 return;
             }
@@ -1325,7 +1326,7 @@ export default class AccountsModule {
                     }
                 }
 
-                OC.Notification.showTemporary('Account saved successfully');
+                showSuccess('Account saved successfully');
                 this.hideModals();
                 await this.loadAccounts();
                 await this.loadInitialData(); // Refresh dropdowns
@@ -1370,7 +1371,7 @@ export default class AccountsModule {
 
             // Show specific error message if available
             const errorMsg = error.message || 'Unknown error occurred';
-            OC.Notification.showTemporary(`Failed to save account: ${errorMsg}`);
+            showError(`Failed to save account: ${errorMsg}`);
 
             // Don't hide modal on error so user can fix and retry
         }
@@ -1454,7 +1455,7 @@ export default class AccountsModule {
             document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
         } catch (error) {
             console.error('Failed to load account data:', error);
-            OC.Notification.showTemporary('Failed to load account data');
+            showError('Failed to load account data');
         }
     }
 
@@ -1493,7 +1494,7 @@ export default class AccountsModule {
             });
 
             if (response.ok) {
-                OC.Notification.showTemporary('Account deleted successfully');
+                showSuccess('Account deleted successfully');
                 await this.loadAccounts();
                 await this.loadInitialData(); // Refresh dropdowns
 
@@ -1507,7 +1508,7 @@ export default class AccountsModule {
             }
         } catch (error) {
             console.error('Failed to delete account:', error);
-            OC.Notification.showTemporary('Failed to delete account: ' + error.message);
+            showError('Failed to delete account: ' + error.message);
         }
     }
 

@@ -15778,6 +15778,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
@@ -15801,6 +15802,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Accounts Module - Account management and visualization
  */
+
 
 
 var AccountsModule = /*#__PURE__*/function () {
@@ -16331,7 +16333,7 @@ var AccountsModule = /*#__PURE__*/function () {
               _context3.p = 4;
               _t4 = _context3.v;
               console.error('Failed to show account details:', _t4);
-              OC.Notification.showTemporary('Failed to load account details');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load account details');
             case 5:
               return _context3.a(2);
           }
@@ -16810,13 +16812,13 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "finishReconciliation",
     value: function finishReconciliation() {
       if (!this.reconcileData || !this.reconcileData.isBalanced) {
-        OC.Notification.showTemporary('Cannot finish reconciliation - balances do not match');
+        (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Cannot finish reconciliation - balances do not match');
         return;
       }
 
       // Mark all checked transactions as reconciled and finish reconciliation
       this.cancelReconciliation();
-      OC.Notification.showTemporary('Reconciliation completed successfully');
+      (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Reconciliation completed successfully');
     }
   }, {
     key: "loadCategories",
@@ -16910,38 +16912,38 @@ var AccountsModule = /*#__PURE__*/function () {
                 _context8.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('No accounts available. Please create an account first.');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('No accounts available. Please create an account first.');
               return _context8.a(2);
             case 1:
-              OC.Notification.showTemporary('Please select an account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select an account');
               return _context8.a(2);
             case 2:
               if (date) {
                 _context8.n = 3;
                 break;
               }
-              OC.Notification.showTemporary('Please enter a date');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please enter a date');
               return _context8.a(2);
             case 3:
               if (type) {
                 _context8.n = 4;
                 break;
               }
-              OC.Notification.showTemporary('Please select a transaction type');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a transaction type');
               return _context8.a(2);
             case 4:
               if (!(amount === null || amount <= 0)) {
                 _context8.n = 5;
                 break;
               }
-              OC.Notification.showTemporary('Please enter a valid amount');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please enter a valid amount');
               return _context8.a(2);
             case 5:
               if (description) {
                 _context8.n = 6;
                 break;
               }
-              OC.Notification.showTemporary('Please enter a description');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please enter a description');
               return _context8.a(2);
             case 6:
               formData = {
@@ -16986,7 +16988,7 @@ var AccountsModule = /*#__PURE__*/function () {
               _context8.n = 10;
               return this.saveTransactionTags(savedTransactionId, selectedTagIds);
             case 10:
-              OC.Notification.showTemporary('Transaction saved successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction saved successfully');
               this.hideModals();
               this.loadTransactions();
               // Also reload account transactions if we're on account details view
@@ -17020,7 +17022,7 @@ var AccountsModule = /*#__PURE__*/function () {
               _context8.p = 17;
               _t8 = _context8.v;
               console.error('Failed to save transaction:', _t8);
-              OC.Notification.showTemporary(_t8.message || 'Failed to save transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t8.message || 'Failed to save transaction');
             case 18:
               return _context8.a(2);
           }
@@ -17264,7 +17266,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 break;
               }
               console.error('Account name element not found');
-              OC.Notification.showTemporary('Form error: Account name field not found');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Form error: Account name field not found');
               return _context0.a(2);
             case 1:
               if (typeElement) {
@@ -17272,7 +17274,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 break;
               }
               console.error('Account type element not found');
-              OC.Notification.showTemporary('Form error: Account type field not found');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Form error: Account type field not found');
               return _context0.a(2);
             case 2:
               // Helper function to safely get and clean form values
@@ -17327,7 +17329,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 break;
               }
               console.error('Account name is empty');
-              OC.Notification.showTemporary('Please enter an account name');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please enter an account name');
               nameElement.focus();
               return _context0.a(2);
             case 3:
@@ -17336,7 +17338,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 break;
               }
               console.error('Account type is empty');
-              OC.Notification.showTemporary('Please select an account type');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select an account type');
               typeElement.focus();
               return _context0.a(2);
             case 4:
@@ -17344,7 +17346,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 _context0.n = 5;
                 break;
               }
-              OC.Notification.showTemporary('Account name is too long (maximum 255 characters)');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Account name is too long (maximum 255 characters)');
               nameElement.focus();
               return _context0.a(2);
             case 5:
@@ -17352,7 +17354,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 _context0.n = 6;
                 break;
               }
-              OC.Notification.showTemporary('Please enter a valid balance amount');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please enter a valid balance amount');
               document.getElementById('account-balance').focus();
               return _context0.a(2);
             case 6:
@@ -17389,7 +17391,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 result = JSON.parse(text);
               }
             case 9:
-              OC.Notification.showTemporary('Account saved successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Account saved successfully');
               this.hideModals();
               _context0.n = 10;
               return this.loadAccounts();
@@ -17459,7 +17461,7 @@ var AccountsModule = /*#__PURE__*/function () {
 
               // Show specific error message if available
               errorMsg = _t10.message || 'Unknown error occurred';
-              OC.Notification.showTemporary("Failed to save account: ".concat(errorMsg));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to save account: ".concat(errorMsg));
 
               // Don't hide modal on error so user can fix and retry
             case 22:
@@ -17573,7 +17575,7 @@ var AccountsModule = /*#__PURE__*/function () {
               _context1.p = 3;
               _t11 = _context1.v;
               console.error('Failed to load account data:', _t11);
-              OC.Notification.showTemporary('Failed to load account data');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load account data');
             case 4:
               return _context1.a(2);
           }
@@ -17647,7 +17649,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 _context11.n = 6;
                 break;
               }
-              OC.Notification.showTemporary('Account deleted successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Account deleted successfully');
               _context11.n = 3;
               return this.loadAccounts();
             case 3:
@@ -17676,7 +17678,7 @@ var AccountsModule = /*#__PURE__*/function () {
               _context11.p = 9;
               _t12 = _context11.v;
               console.error('Failed to delete account:', _t12);
-              OC.Notification.showTemporary('Failed to delete account: ' + _t12.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete account: ' + _t12.message);
             case 10:
               return _context11.a(2);
           }
@@ -18530,6 +18532,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -18543,6 +18546,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Bills Module - Recurring bill tracking and detection
  */
+
 
 
 var BillsModule = /*#__PURE__*/function () {
@@ -18625,7 +18629,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context.p = 5;
               _t = _context.v;
               console.error('Failed to load bills:', _t);
-              OC.Notification.showTemporary('Failed to load bills');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load bills');
             case 6:
               return _context.a(2);
           }
@@ -19111,7 +19115,7 @@ var BillsModule = /*#__PURE__*/function () {
                 _context3.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select at least one month for custom frequency');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select at least one month for custom frequency');
               return _context3.a(2);
             case 1:
               billData.customRecurrencePattern = customPattern;
@@ -19148,7 +19152,7 @@ var BillsModule = /*#__PURE__*/function () {
               throw new Error(errorMessage);
             case 6:
               this.hideBillModal();
-              OC.Notification.showTemporary(isNew ? 'Bill created successfully' : 'Bill updated successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(isNew ? 'Bill created successfully' : 'Bill updated successfully');
               _context3.n = 7;
               return this.loadBillsView();
             case 7:
@@ -19158,7 +19162,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context3.p = 8;
               _t3 = _context3.v;
               console.error('Failed to save bill:', _t3);
-              OC.Notification.showTemporary(_t3.message || 'Failed to save bill');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t3.message || 'Failed to save bill');
             case 9:
               return _context3.a(2);
           }
@@ -19203,7 +19207,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context4.p = 4;
               _t4 = _context4.v;
               console.error('Failed to load bill:', _t4);
-              OC.Notification.showTemporary('Failed to load bill');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load bill');
             case 5:
               return _context4.a(2);
           }
@@ -19244,7 +19248,7 @@ var BillsModule = /*#__PURE__*/function () {
               }
               throw new Error("HTTP ".concat(response.status));
             case 3:
-              OC.Notification.showTemporary('Bill deleted successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Bill deleted successfully');
               _context5.n = 4;
               return this.loadBillsView();
             case 4:
@@ -19254,7 +19258,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context5.p = 5;
               _t5 = _context5.v;
               console.error('Failed to delete bill:', _t5);
-              OC.Notification.showTemporary('Failed to delete bill');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete bill');
             case 6:
               return _context5.a(2);
           }
@@ -19331,7 +19335,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context6.p = 5;
               _t6 = _context6.v;
               console.error('Failed to mark bill as paid:', _t6);
-              OC.Notification.showTemporary('Failed to mark bill as paid');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to mark bill as paid');
             case 6:
               return _context6.a(2);
           }
@@ -19391,14 +19395,14 @@ var BillsModule = /*#__PURE__*/function () {
               _context7.n = 5;
               return this.loadBillsView();
             case 5:
-              OC.Notification.showTemporary('Action undone');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Action undone');
               _context7.n = 7;
               break;
             case 6:
               _context7.p = 6;
               _t7 = _context7.v;
               console.error('Failed to undo mark paid:', _t7);
-              OC.Notification.showTemporary("Failed to undo action: ".concat(_t7.message));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to undo action: ".concat(_t7.message));
             case 7:
               return _context7.a(2);
           }
@@ -19490,7 +19494,7 @@ var BillsModule = /*#__PURE__*/function () {
                 _context8.n = 5;
                 break;
               }
-              OC.Notification.showTemporary('No recurring transactions detected');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showInfo)('No recurring transactions detected');
               return _context8.a(2);
             case 5:
               this.renderDetectedBills(detected);
@@ -19501,7 +19505,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context8.p = 6;
               _t8 = _context8.v;
               console.error('Failed to detect bills:', _t8);
-              OC.Notification.showTemporary('Failed to detect recurring bills');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to detect recurring bills');
             case 7:
               _context8.p = 7;
               detectBtn.disabled = false;
@@ -19548,7 +19552,7 @@ var BillsModule = /*#__PURE__*/function () {
                 _context9.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select at least one bill to add');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select at least one bill to add');
               return _context9.a(2);
             case 1:
               billsToAdd = selectedIndices.map(function (i) {
@@ -19579,7 +19583,7 @@ var BillsModule = /*#__PURE__*/function () {
             case 5:
               result = _context9.v;
               document.getElementById('detected-bills-panel').style.display = 'none';
-              OC.Notification.showTemporary("".concat(result.created, " bills added successfully"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("".concat(result.created, " bills added successfully"));
               _context9.n = 6;
               return this.loadBillsView();
             case 6:
@@ -19589,7 +19593,7 @@ var BillsModule = /*#__PURE__*/function () {
               _context9.p = 7;
               _t9 = _context9.v;
               console.error('Failed to add bills:', _t9);
-              OC.Notification.showTemporary('Failed to add selected bills');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to add selected bills');
             case 8:
               return _context9.a(2);
           }
@@ -19775,6 +19779,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ CategoriesModule)
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regeneratorValues(e) { if (null != e) { var t = e["function" == typeof Symbol && Symbol.iterator || "@@iterator"], r = 0; if (t) return t.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) return { next: function next() { return e && r >= e.length && (e = void 0), { value: e && e[r++], done: !e }; } }; } throw new TypeError(_typeof(e) + " is not iterable"); }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -19800,6 +19805,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Categories Module - Category management, budgets, and tree visualization
  */
+
 
 var CategoriesModule = /*#__PURE__*/function () {
   function CategoriesModule(app) {
@@ -19908,7 +19914,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context.p = 4;
               _t = _context.v;
               console.error('Failed to load categories:', _t);
-              OC.Notification.showTemporary('Failed to load categories');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)('Failed to load categories');
             case 5:
               return _context.a(2);
           }
@@ -20275,7 +20281,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context2.n = 3;
               return this.loadCategories();
             case 3:
-              OC.Notification.showTemporary('Category reordered successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)('Category reordered successfully');
               _context2.n = 5;
               break;
             case 4:
@@ -20287,7 +20293,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context2.p = 6;
               _t2 = _context2.v;
               console.error('Failed to reorder category:', _t2);
-              OC.Notification.showTemporary('Failed to reorder category');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)('Failed to reorder category');
             case 7:
               return _context2.a(2);
           }
@@ -20685,7 +20691,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 _context6.n = 6;
                 break;
               }
-              OC.Notification.showTemporary('Category deleted successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)('Category deleted successfully');
               this.selectedCategory = null;
               _context6.n = 4;
               return this.loadCategories();
@@ -20709,7 +20715,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context6.p = 9;
               _t4 = _context6.v;
               console.error('Failed to delete category:', _t4);
-              OC.Notification.showTemporary(_t4.message || 'Failed to delete category');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(_t4.message || 'Failed to delete category');
             case 10:
               return _context6.a(2);
           }
@@ -20750,7 +20756,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 _context7.n = 5;
                 break;
               }
-              OC.Notification.showTemporary('Category deleted successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)('Category deleted successfully');
               if (((_this$selectedCategor = this.selectedCategory) === null || _this$selectedCategor === void 0 ? void 0 : _this$selectedCategor.id) === categoryId) {
                 this.selectedCategory = null;
                 this.showCategoryDetailsEmpty();
@@ -20777,7 +20783,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context7.p = 8;
               _t5 = _context7.v;
               console.error('Failed to delete category:', _t5);
-              OC.Notification.showTemporary(_t5.message || 'Failed to delete category');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(_t5.message || 'Failed to delete category');
             case 9:
               return _context7.a(2);
           }
@@ -20886,7 +20892,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 _context8.n = 17;
                 break;
               }
-              OC.Notification.showTemporary("".concat(deleted, " categor").concat(deleted === 1 ? 'y' : 'ies', " deleted successfully"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)("".concat(deleted, " categor").concat(deleted === 1 ? 'y' : 'ies', " deleted successfully"));
               this.selectedCategory = null;
               this.showCategoryDetailsEmpty();
               _context8.n = 16;
@@ -20896,7 +20902,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               return this.app.loadInitialData();
             case 17:
               if (errors.length > 0) {
-                OC.Notification.showTemporary("Failed to delete: ".concat(errors.join(', ')));
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)("Failed to delete: ".concat(errors.join(', ')));
               }
               this.updateBulkCategoryActions();
             case 18:
@@ -21001,7 +21007,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 _context9.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Category name is required');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showWarning)('Category name is required');
               return _context9.a(2);
             case 1:
               categoryData = {
@@ -21033,7 +21039,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               return response.json();
             case 4:
               savedCategory = _context9.v;
-              OC.Notification.showTemporary(isEdit ? 'Category updated successfully' : 'Category created successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)(isEdit ? 'Category updated successfully' : 'Category created successfully');
               this.app.hideModals();
               _context9.n = 5;
               return this.loadCategories();
@@ -21061,7 +21067,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context9.p = 10;
               _t8 = _context9.v;
               console.error('Failed to save category:', _t8);
-              OC.Notification.showTemporary(_t8.message || 'Failed to save category');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(_t8.message || 'Failed to save category');
             case 11:
               return _context9.a(2);
           }
@@ -21096,7 +21102,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 _context0.n = 4;
                 break;
               }
-              OC.Notification.showTemporary('Default categories created successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)('Default categories created successfully');
               _context0.n = 2;
               return this.loadCategories();
             case 2:
@@ -21118,7 +21124,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context0.p = 7;
               _t9 = _context0.v;
               console.error('Failed to create default categories:', _t9);
-              OC.Notification.showTemporary(_t9.message || 'Failed to create default categories');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(_t9.message || 'Failed to create default categories');
             case 8:
               return _context0.a(2);
           }
@@ -21609,7 +21615,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context15.n = 2;
               return this.app.loadDashboard();
             case 2:
-              OC.Notification.showTemporary('Budget updated');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)('Budget updated');
               _context15.n = 8;
               break;
             case 3:
@@ -21638,7 +21644,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context15.p = 9;
               _t12 = _context15.v;
               console.error('Failed to save budget:', _t12);
-              OC.Notification.showTemporary("Failed to update budget: ".concat(_t12.message));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)("Failed to update budget: ".concat(_t12.message));
             case 10:
               return _context15.a(2);
           }
@@ -21716,6 +21722,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
 /* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
 /* harmony import */ var _config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../config/dashboardWidgets.js */ "./src/config/dashboardWidgets.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
@@ -21749,6 +21756,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * - Dashboard customization (drag & drop, show/hide tiles)
  * - Chart rendering (spending, trends, net worth history)
  */
+
 
 
 
@@ -23478,7 +23486,7 @@ var DashboardModule = /*#__PURE__*/function () {
               }
               throw new Error('Failed to record snapshot');
             case 2:
-              OC.Notification.showTemporary('Net worth snapshot recorded');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)('Net worth snapshot recorded');
 
               // Refresh the chart with current period
               activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
@@ -23492,7 +23500,7 @@ var DashboardModule = /*#__PURE__*/function () {
               _context10.p = 4;
               _t11 = _context10.v;
               console.error('Failed to record net worth snapshot:', _t11);
-              OC.Notification.showTemporary('Failed to record snapshot');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to record snapshot');
             case 5:
               return _context10.a(2);
           }
@@ -23759,7 +23767,7 @@ var DashboardModule = /*#__PURE__*/function () {
               _context14.p = 3;
               _t12 = _context14.v;
               console.error('Failed to save dashboard config:', _t12);
-              OC.Notification.showTemporary('Failed to save dashboard layout');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to save dashboard layout');
             case 4:
               return _context14.a(2);
           }
@@ -24223,7 +24231,7 @@ var DashboardModule = /*#__PURE__*/function () {
               _context17.p = 4;
               _t18 = _context17.v;
               console.error('Failed to save lock state:', _t18);
-              OC.Notification.showTemporary('Failed to save dashboard lock state');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to save dashboard lock state');
             case 5:
               return _context17.a(2);
           }
@@ -24613,7 +24621,7 @@ var DashboardModule = /*#__PURE__*/function () {
               _context18.p = 7;
               _t19 = _context18.v;
               console.error('Failed to save widget order:', _t19);
-              OC.Notification.showTemporary('Failed to save widget order');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to save widget order');
             case 8:
               // Reorder DOM elements after config is saved
               this.applyDashboardOrder();
@@ -24648,6 +24656,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -24661,6 +24670,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Forecast Module - Balance forecasting and trend analysis
  */
+
 
 
 var ForecastModule = /*#__PURE__*/function () {
@@ -24769,7 +24779,7 @@ var ForecastModule = /*#__PURE__*/function () {
               _t = _context.v;
               console.error('Failed to load forecast:', _t);
               if (loadingEl) loadingEl.style.display = 'none';
-              OC.Notification.showTemporary('Failed to load forecast data');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load forecast data');
             case 7:
               return _context.a(2);
           }
@@ -25101,6 +25111,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
@@ -25120,6 +25131,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Import Module - Bank statement import with CSV/OFX/QIF support
  */
+
 
 
 var ImportModule = /*#__PURE__*/function () {
@@ -25236,7 +25248,7 @@ var ImportModule = /*#__PURE__*/function () {
               _context.p = 6;
               _t = _context.v;
               console.error('Failed to upload file:', _t);
-              OC.Notification.showTemporary('Failed to upload file');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to upload file');
             case 7:
               return _context.a(2);
           }
@@ -25398,7 +25410,7 @@ var ImportModule = /*#__PURE__*/function () {
       var delimiterSelect = document.getElementById('csv-delimiter');
       if (!delimiterSelect) return;
       this.currentDelimiter = delimiterSelect.value;
-      OC.Notification.showTemporary('Delimiter changed. File will be re-parsed in the next step.');
+      (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showInfo)('Delimiter changed. File will be re-parsed in the next step.');
     }
   }, {
     key: "populateColumnMappings",
@@ -25558,7 +25570,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context2.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select a file first');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a file first');
               return _context2.a(2);
             case 1:
               this.setImportStep(2);
@@ -25701,7 +25713,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context3.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please map at least one account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please map at least one account');
               return _context3.a(2);
             case 1:
               requestBody.accountMapping = accountMapping;
@@ -25713,7 +25725,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context3.n = 3;
                 break;
               }
-              OC.Notification.showTemporary('Please select an account first');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select an account first');
               return _context3.a(2);
             case 3:
               requestBody.accountId = parseInt(accountId);
@@ -25757,7 +25769,7 @@ var ImportModule = /*#__PURE__*/function () {
               _context3.p = 10;
               _t2 = _context3.v;
               console.error('Failed to process import data:', _t2);
-              OC.Notification.showTemporary('Failed to process import data: ' + _t2.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to process import data: ' + _t2.message);
             case 11:
               return _context3.a(2);
           }
@@ -25980,7 +25992,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context5.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('No file data available');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('No file data available');
               return _context5.a(2);
             case 1:
               mapping = this.getCurrentMapping();
@@ -26001,7 +26013,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context5.n = 2;
                 break;
               }
-              OC.Notification.showTemporary('Please map at least one account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please map at least one account');
               return _context5.a(2);
             case 2:
               requestBody.accountMapping = accountMapping;
@@ -26013,7 +26025,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context5.n = 4;
                 break;
               }
-              OC.Notification.showTemporary('Please select an account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select an account');
               return _context5.a(2);
             case 4:
               requestBody.accountId = parseInt(accountId);
@@ -26053,7 +26065,7 @@ var ImportModule = /*#__PURE__*/function () {
                 _context5.n = 12;
                 break;
               }
-              OC.Notification.showTemporary("Successfully imported ".concat(result.imported, " transactions (").concat(result.skipped, " skipped)"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully imported ".concat(result.imported, " transactions (").concat(result.skipped, " skipped)"));
               this.resetImportWizard();
               this.loadTransactions();
               _context5.n = 13;
@@ -26067,7 +26079,7 @@ var ImportModule = /*#__PURE__*/function () {
               _context5.p = 14;
               _t5 = _context5.v;
               console.error('Failed to execute import:', _t5);
-              OC.Notification.showTemporary('Failed to import transactions: ' + _t5.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to import transactions: ' + _t5.message);
             case 15:
               _context5.p = 15;
               // Restore button state
@@ -26240,7 +26252,7 @@ var ImportModule = /*#__PURE__*/function () {
               _context7.p = 5;
               _t7 = _context7.v;
               console.error('Failed to download import:', _t7);
-              OC.Notification.showTemporary('Failed to download import file');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to download import file');
             case 6:
               return _context7.a(2);
           }
@@ -26284,7 +26296,7 @@ var ImportModule = /*#__PURE__*/function () {
               return response.json();
             case 3:
               result = _context8.v;
-              OC.Notification.showTemporary("Rolled back ".concat(result.deleted, " transactions"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Rolled back ".concat(result.deleted, " transactions"));
               this.loadImportHistory();
               this.loadTransactions();
               _context8.n = 6;
@@ -26302,7 +26314,7 @@ var ImportModule = /*#__PURE__*/function () {
               _context8.p = 7;
               _t8 = _context8.v;
               console.error('Failed to rollback import:', _t8);
-              OC.Notification.showTemporary('Failed to rollback import: ' + _t8.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to rollback import: ' + _t8.message);
             case 8:
               return _context8.a(2);
           }
@@ -26331,6 +26343,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -26344,6 +26357,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Income Module - Recurring income tracking and detection
  */
+
 
 
 var IncomeModule = /*#__PURE__*/function () {
@@ -26426,7 +26440,7 @@ var IncomeModule = /*#__PURE__*/function () {
               _context.p = 5;
               _t = _context.v;
               console.error('Failed to load recurring income:', _t);
-              OC.Notification.showTemporary('Failed to load recurring income');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load recurring income');
             case 6:
               return _context.a(2);
           }
@@ -26812,7 +26826,7 @@ var IncomeModule = /*#__PURE__*/function () {
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 3:
               this.hideIncomeModal();
-              OC.Notification.showTemporary(isNew ? 'Income source created successfully' : 'Income source updated successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(isNew ? 'Income source created successfully' : 'Income source updated successfully');
               _context3.n = 4;
               return this.loadIncomeView();
             case 4:
@@ -26822,7 +26836,7 @@ var IncomeModule = /*#__PURE__*/function () {
               _context3.p = 5;
               _t3 = _context3.v;
               console.error('Failed to save income:', _t3);
-              OC.Notification.showTemporary(_t3.message || 'Failed to save income');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t3.message || 'Failed to save income');
             case 6:
               return _context3.a(2);
           }
@@ -26863,7 +26877,7 @@ var IncomeModule = /*#__PURE__*/function () {
               }
               throw new Error("HTTP ".concat(response.status));
             case 3:
-              OC.Notification.showTemporary('Income source deleted successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Income source deleted successfully');
               _context4.n = 4;
               return this.loadIncomeView();
             case 4:
@@ -26873,7 +26887,7 @@ var IncomeModule = /*#__PURE__*/function () {
               _context4.p = 5;
               _t4 = _context4.v;
               console.error('Failed to delete income:', _t4);
-              OC.Notification.showTemporary('Failed to delete income');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete income');
             case 6:
               return _context4.a(2);
           }
@@ -26957,7 +26971,7 @@ var IncomeModule = /*#__PURE__*/function () {
               _context5.p = 5;
               _t5 = _context5.v;
               console.error('Failed to mark income as received:', _t5);
-              OC.Notification.showTemporary('Failed to mark income as received');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to mark income as received');
             case 6:
               return _context5.a(2);
           }
@@ -27023,14 +27037,14 @@ var IncomeModule = /*#__PURE__*/function () {
               _context6.n = 5;
               return this.loadIncomeView();
             case 5:
-              OC.Notification.showTemporary('Action undone');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Action undone');
               _context6.n = 7;
               break;
             case 6:
               _context6.p = 6;
               _t6 = _context6.v;
               console.error('Failed to undo mark received:', _t6);
-              OC.Notification.showTemporary("Failed to undo action: ".concat(_t6.message));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to undo action: ".concat(_t6.message));
             case 7:
               return _context6.a(2);
           }
@@ -27127,7 +27141,7 @@ var IncomeModule = /*#__PURE__*/function () {
                 _context7.n = 5;
                 break;
               }
-              OC.Notification.showTemporary('No recurring income patterns found in your transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showInfo)('No recurring income patterns found in your transactions');
               return _context7.a(2);
             case 5:
               this._detectedIncome = detected;
@@ -27139,7 +27153,7 @@ var IncomeModule = /*#__PURE__*/function () {
               _context7.p = 6;
               _t7 = _context7.v;
               console.error('Failed to detect income:', _t7);
-              OC.Notification.showTemporary('Failed to detect recurring income');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to detect recurring income');
             case 7:
               _context7.p = 7;
               detectBtn.disabled = false;
@@ -27183,7 +27197,7 @@ var IncomeModule = /*#__PURE__*/function () {
                 _context8.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select at least one income source to add');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select at least one income source to add');
               return _context8.a(2);
             case 1:
               incomeToAdd = selectedIndices.map(function (i) {
@@ -27214,7 +27228,7 @@ var IncomeModule = /*#__PURE__*/function () {
             case 5:
               result = _context8.v;
               document.getElementById('detected-income-panel').style.display = 'none';
-              OC.Notification.showTemporary("".concat(result.created, " income sources added successfully"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("".concat(result.created, " income sources added successfully"));
               _context8.n = 6;
               return this.loadIncomeView();
             case 6:
@@ -27224,7 +27238,7 @@ var IncomeModule = /*#__PURE__*/function () {
               _context8.p = 7;
               _t8 = _context8.v;
               console.error('Failed to add income:', _t8);
-              OC.Notification.showTemporary('Failed to add selected income sources');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to add selected income sources');
             case 8:
               return _context8.a(2);
           }
@@ -27253,7 +27267,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
-/* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
+/* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -27267,6 +27282,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Pensions Module - Pension tracking and projection
  */
+
 
 
 
@@ -27323,7 +27339,7 @@ var PensionsModule = /*#__PURE__*/function () {
               _context.p = 2;
               _t = _context.v;
               console.error('Failed to load pensions view:', _t);
-              OC.Notification.showTemporary('Failed to load pensions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load pensions');
             case 3:
               return _context.a(2);
           }
@@ -27769,13 +27785,13 @@ var PensionsModule = /*#__PURE__*/function () {
               return this.loadPensions();
             case 5:
               this.renderPensions();
-              OC.Notification.showTemporary(pensionId ? 'Pension updated' : 'Pension added');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(pensionId ? 'Pension updated' : 'Pension added');
               _context5.n = 7;
               break;
             case 6:
               _context5.p = 6;
               _t2 = _context5.v;
-              OC.Notification.showTemporary(_t2.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t2.message);
             case 7:
               return _context5.a(2);
           }
@@ -27825,13 +27841,13 @@ var PensionsModule = /*#__PURE__*/function () {
             case 5:
               this.renderPensions();
               this.closePensionDetails();
-              OC.Notification.showTemporary('Pension deleted');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Pension deleted');
               _context6.n = 7;
               break;
             case 6:
               _context6.p = 6;
               _t3 = _context6.v;
-              OC.Notification.showTemporary(_t3.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t3.message);
             case 7:
               return _context6.a(2);
           }
@@ -27947,7 +27963,7 @@ var PensionsModule = /*#__PURE__*/function () {
               if (this.charts.pensionBalance) {
                 this.charts.pensionBalance.destroy();
               }
-              this.charts.pensionBalance = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
+              this.charts.pensionBalance = new chart_js_auto__WEBPACK_IMPORTED_MODULE_3__["default"](ctx, {
                 type: 'line',
                 data: {
                   labels: data.labels,
@@ -28029,7 +28045,7 @@ var PensionsModule = /*#__PURE__*/function () {
               if (this.charts.pensionProjection) {
                 this.charts.pensionProjection.destroy();
               }
-              this.charts.pensionProjection = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
+              this.charts.pensionProjection = new chart_js_auto__WEBPACK_IMPORTED_MODULE_3__["default"](ctx, {
                 type: 'line',
                 data: {
                   labels: data.labels,
@@ -28202,13 +28218,13 @@ var PensionsModule = /*#__PURE__*/function () {
               _context1.n = 6;
               return this.showPensionDetails(parseInt(pensionId));
             case 6:
-              OC.Notification.showTemporary('Balance updated');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Balance updated');
               _context1.n = 8;
               break;
             case 7:
               _context1.p = 7;
               _t7 = _context1.v;
-              OC.Notification.showTemporary(_t7.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t7.message);
             case 8:
               return _context1.a(2);
           }
@@ -28275,13 +28291,13 @@ var PensionsModule = /*#__PURE__*/function () {
               _context10.n = 5;
               return this.showPensionDetails(parseInt(pensionId));
             case 5:
-              OC.Notification.showTemporary('Contribution logged');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Contribution logged');
               _context10.n = 7;
               break;
             case 6:
               _context10.p = 6;
               _t8 = _context10.v;
-              OC.Notification.showTemporary(_t8.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t8.message);
             case 7:
               return _context10.a(2);
           }
@@ -28341,6 +28357,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
 /* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
@@ -28367,6 +28384,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Reports Module - Financial reporting and analysis
  */
+
 
 
 
@@ -28794,7 +28812,7 @@ var ReportsModule = /*#__PURE__*/function () {
               _context3.p = 11;
               _t3 = _context3.v;
               console.error('Failed to generate report:', _t3);
-              OC.Notification.showTemporary('Failed to generate report');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to generate report');
             case 12:
               _context3.p = 12;
               if (loadingEl) loadingEl.style.display = 'none';
@@ -29362,7 +29380,7 @@ var ReportsModule = /*#__PURE__*/function () {
               _context7.p = 9;
               _t5 = _context7.v;
               console.error('Failed to generate YoY comparison:', _t5);
-              OC.Notification.showTemporary('Failed to generate comparison');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to generate comparison');
             case 10:
               _context7.p = 10;
               if (loadingEl) loadingEl.style.display = 'none';
@@ -29541,14 +29559,14 @@ var ReportsModule = /*#__PURE__*/function () {
               a.click();
               document.body.removeChild(a);
               window.URL.revokeObjectURL(url);
-              OC.Notification.showTemporary("Report exported as ".concat(format.toUpperCase()));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)("Report exported as ".concat(format.toUpperCase()));
               _context8.n = 6;
               break;
             case 5:
               _context8.p = 5;
               _t6 = _context8.v;
               console.error('Export failed:', _t6);
-              OC.Notification.showTemporary('Failed to export report');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to export report');
             case 6:
               return _context8.a(2);
           }
@@ -29685,7 +29703,7 @@ var ReportsModule = /*#__PURE__*/function () {
               _context9.p = 5;
               _t7 = _context9.v;
               console.error('Failed to generate bills calendar:', _t7);
-              OC.Notification.showTemporary('Failed to generate bills calendar');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to generate bills calendar');
             case 6:
               _context9.p = 6;
               if (loadingEl) loadingEl.style.display = 'none';
@@ -29835,6 +29853,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
 /* harmony import */ var _components_CriteriaBuilder_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/CriteriaBuilder.js */ "./src/modules/rules/components/CriteriaBuilder.js");
 /* harmony import */ var _components_ActionBuilder_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/ActionBuilder.js */ "./src/modules/rules/components/ActionBuilder.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -29851,6 +29870,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Rules Module - Transaction auto-categorization rules
  */
+
 
 
 
@@ -29957,7 +29977,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context2.p = 3;
               _t = _context2.v;
               console.error('Failed to load rules view:', _t);
-              OC.Notification.showTemporary('Failed to load rules');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to load rules');
             case 4:
               return _context2.a(2);
           }
@@ -30336,14 +30356,14 @@ var RulesModule = /*#__PURE__*/function () {
             case 5:
               rule = _context4.v;
               console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
-              OC.Notification.showTemporary('This rule has been upgraded to the new format with advanced features');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)('This rule has been upgraded to the new format with advanced features');
               _context4.n = 7;
               break;
             case 6:
               _context4.p = 6;
               _t3 = _context4.v;
               console.error('Failed to migrate rule:', _t3);
-              OC.Notification.showTemporary('Failed to upgrade rule format');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to upgrade rule format');
               return _context4.a(2);
             case 7:
               // Store current rule reference
@@ -30505,7 +30525,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context6.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Error: CriteriaBuilder not initialized');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Error: CriteriaBuilder not initialized');
               return _context6.a(2);
             case 1:
               validation = this.criteriaBuilder.validate();
@@ -30513,7 +30533,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context6.n = 2;
                 break;
               }
-              OC.Notification.showTemporary('Invalid criteria: ' + validation.errors.join(', '));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Invalid criteria: ' + validation.errors.join(', '));
               return _context6.a(2);
             case 2:
               criteria = this.criteriaBuilder.getCriteria(); // Show loading state
@@ -30569,7 +30589,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context6.p = 9;
               _t4 = _context6.v;
               console.error('Failed to preview rule:', _t4);
-              OC.Notification.showTemporary('Failed to preview rule: ' + _t4.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to preview rule: ' + _t4.message);
               previewSection.style.display = 'none';
             case 10:
               _context6.p = 10;
@@ -30699,7 +30719,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context7.n = 10;
                 break;
               }
-              OC.Notification.showTemporary("Rule applied: ".concat(result.success, " transaction(s) updated"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)("Rule applied: ".concat(result.success, " transaction(s) updated"));
               // Reload transactions if we're on the transactions view
               if (!(this.currentView === 'transactions')) {
                 _context7.n = 9;
@@ -30711,7 +30731,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context7.n = 11;
               break;
             case 10:
-              OC.Notification.showTemporary('No transactions were updated');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showInfo)('No transactions were updated');
             case 11:
               _context7.n = 13;
               break;
@@ -30719,7 +30739,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context7.p = 12;
               _t5 = _context7.v;
               console.error('Failed to run rule:', _t5);
-              OC.Notification.showTemporary('Failed to run rule: ' + _t5.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to run rule: ' + _t5.message);
             case 13:
               _context7.p = 13;
               runBtn.disabled = false;
@@ -30899,7 +30919,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context9.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Error: CriteriaBuilder not initialized');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Error: CriteriaBuilder not initialized');
               return _context9.a(2);
             case 1:
               validation = this.criteriaBuilder.validate();
@@ -30907,7 +30927,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context9.n = 2;
                 break;
               }
-              OC.Notification.showTemporary('Invalid criteria: ' + validation.errors.join(', '));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Invalid criteria: ' + validation.errors.join(', '));
               return _context9.a(2);
             case 2:
               criteria = this.criteriaBuilder.getCriteria(); // Validate actions from ActionBuilder
@@ -30915,7 +30935,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context9.n = 3;
                 break;
               }
-              OC.Notification.showTemporary('Error: ActionBuilder not initialized');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Error: ActionBuilder not initialized');
               return _context9.a(2);
             case 3:
               actionsValidation = this.actionBuilder.validate();
@@ -30923,7 +30943,7 @@ var RulesModule = /*#__PURE__*/function () {
                 _context9.n = 4;
                 break;
               }
-              OC.Notification.showTemporary('Invalid actions: ' + actionsValidation.errors.join(', '));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Invalid actions: ' + actionsValidation.errors.join(', '));
               return _context9.a(2);
             case 4:
               actions = this.actionBuilder.getActions();
@@ -30960,7 +30980,7 @@ var RulesModule = /*#__PURE__*/function () {
               error = _context9.v;
               throw new Error(error.error || 'Failed to save rule');
             case 8:
-              OC.Notification.showTemporary(isEdit ? 'Rule updated successfully' : 'Rule created successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)(isEdit ? 'Rule updated successfully' : 'Rule created successfully');
               this.hideModals();
               _context9.n = 9;
               return this.loadRules();
@@ -30971,7 +30991,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context9.p = 10;
               _t6 = _context9.v;
               console.error('Failed to save rule:', _t6);
-              OC.Notification.showTemporary('Failed to save rule: ' + _t6.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to save rule: ' + _t6.message);
             case 11:
               return _context9.a(2);
           }
@@ -31016,7 +31036,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context0.p = 4;
               _t7 = _context0.v;
               console.error('Failed to load rule:', _t7);
-              OC.Notification.showTemporary('Failed to load rule');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to load rule');
             case 5:
               return _context0.a(2);
           }
@@ -31057,7 +31077,7 @@ var RulesModule = /*#__PURE__*/function () {
               }
               throw new Error("HTTP ".concat(response.status));
             case 3:
-              OC.Notification.showTemporary('Rule deleted successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)('Rule deleted successfully');
               _context1.n = 4;
               return this.loadRules();
             case 4:
@@ -31067,7 +31087,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context1.p = 5;
               _t8 = _context1.v;
               console.error('Failed to delete rule:', _t8);
-              OC.Notification.showTemporary('Failed to delete rule');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to delete rule');
             case 6:
               return _context1.a(2);
           }
@@ -31128,14 +31148,14 @@ var RulesModule = /*#__PURE__*/function () {
               if (row) {
                 row.classList.toggle('inactive', !active);
               }
-              OC.Notification.showTemporary(active ? 'Rule enabled' : 'Rule disabled');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)(active ? 'Rule enabled' : 'Rule disabled');
               _context10.n = 6;
               break;
             case 5:
               _context10.p = 5;
               _t9 = _context10.v;
               console.error('Failed to toggle rule:', _t9);
-              OC.Notification.showTemporary('Failed to update rule: ' + _t9.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to update rule: ' + _t9.message);
               // Revert the checkbox
               _context10.n = 6;
               return this.loadRules();
@@ -31294,7 +31314,7 @@ var RulesModule = /*#__PURE__*/function () {
               document.getElementById('result-skipped-count').textContent = result.skipped;
               document.getElementById('result-failed-count').textContent = result.failed;
               if (resultsDiv) resultsDiv.style.display = 'block';
-              OC.Notification.showTemporary("Rules applied: ".concat(result.success, " updated, ").concat(result.skipped, " skipped, ").concat(result.failed, " failed"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showSuccess)("Rules applied: ".concat(result.success, " updated, ").concat(result.skipped, " skipped, ").concat(result.failed, " failed"));
 
               // Refresh transactions if we're on that view
               if (!(this.currentView === 'transactions')) {
@@ -31310,7 +31330,7 @@ var RulesModule = /*#__PURE__*/function () {
               _context13.p = 7;
               _t0 = _context13.v;
               console.error('Failed to apply rules:', _t0);
-              OC.Notification.showTemporary('Failed to apply rules');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to apply rules');
             case 8:
               _context13.p = 8;
               executeBtn.disabled = false;
@@ -32241,6 +32261,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
 function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
@@ -32257,6 +32278,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Savings Module - Savings goals tracking and management
  */
+
 
 
 var SavingsModule = /*#__PURE__*/function () {
@@ -32331,7 +32353,7 @@ var SavingsModule = /*#__PURE__*/function () {
               _context.p = 4;
               _t = _context.v;
               console.error('Failed to load savings goals:', _t);
-              OC.Notification.showTemporary('Failed to load savings goals');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load savings goals');
             case 5:
               return _context.a(2);
           }
@@ -32710,11 +32732,11 @@ var SavingsModule = /*#__PURE__*/function () {
             case 3:
               errorData = _context5.v;
               console.error('Save goal error response:', response.status, errorData);
-              OC.Notification.showTemporary(errorData.error || 'Failed to save goal');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(errorData.error || 'Failed to save goal');
               return _context5.a(2);
             case 4:
               document.getElementById('goal-modal').style.display = 'none';
-              OC.Notification.showTemporary(goalId ? 'Goal updated' : 'Goal created');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(goalId ? 'Goal updated' : 'Goal created');
               _context5.n = 5;
               return this.loadSavingsGoalsView();
             case 5:
@@ -32724,7 +32746,7 @@ var SavingsModule = /*#__PURE__*/function () {
               _context5.p = 6;
               _t3 = _context5.v;
               console.error('Failed to save goal:', _t3);
-              OC.Notification.showTemporary('Failed to save goal');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to save goal');
             case 7:
               return _context5.a(2);
           }
@@ -32776,7 +32798,7 @@ var SavingsModule = /*#__PURE__*/function () {
               }
               throw new Error("HTTP ".concat(response.status));
             case 3:
-              OC.Notification.showTemporary('Goal deleted');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Goal deleted');
               _context6.n = 4;
               return this.loadSavingsGoalsView();
             case 4:
@@ -32786,7 +32808,7 @@ var SavingsModule = /*#__PURE__*/function () {
               _context6.p = 5;
               _t4 = _context6.v;
               console.error('Failed to delete goal:', _t4);
-              OC.Notification.showTemporary('Failed to delete goal');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete goal');
             case 6:
               return _context6.a(2);
           }
@@ -32808,7 +32830,7 @@ var SavingsModule = /*#__PURE__*/function () {
 
       // Guard against tag-linked goals
       if (goal.tagId) {
-        OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+        (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showInfo)('This goal is auto-tracked via a tag');
         return;
       }
       var modal = document.getElementById('add-to-goal-modal');
@@ -32832,7 +32854,7 @@ var SavingsModule = /*#__PURE__*/function () {
                 _context7.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please enter a valid amount');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please enter a valid amount');
               return _context7.a(2);
             case 1:
               goal = (_this$savingsGoals3 = this.savingsGoals) === null || _this$savingsGoals3 === void 0 ? void 0 : _this$savingsGoals3.find(function (g) {
@@ -32848,7 +32870,7 @@ var SavingsModule = /*#__PURE__*/function () {
                 _context7.n = 3;
                 break;
               }
-              OC.Notification.showTemporary('This goal is auto-tracked via a tag');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showInfo)('This goal is auto-tracked via a tag');
               return _context7.a(2);
             case 3:
               currentAmount = parseFloat(goal.currentAmount || goal.current_amount) || 0;
@@ -32874,7 +32896,7 @@ var SavingsModule = /*#__PURE__*/function () {
               throw new Error("HTTP ".concat(response.status));
             case 6:
               document.getElementById('add-to-goal-modal').style.display = 'none';
-              OC.Notification.showTemporary("Added ".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(amount, null, this.settings), " to goal"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Added ".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(amount, null, this.settings), " to goal"));
               _context7.n = 7;
               return this.loadSavingsGoalsView();
             case 7:
@@ -32884,7 +32906,7 @@ var SavingsModule = /*#__PURE__*/function () {
               _context7.p = 8;
               _t5 = _context7.v;
               console.error('Failed to add money to goal:', _t5);
-              OC.Notification.showTemporary('Failed to add money to goal');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to add money to goal');
             case 9:
               return _context7.a(2);
           }
@@ -32913,6 +32935,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
@@ -32929,6 +32952,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Settings Module - User preferences and configuration
  */
+
 
 
 var SettingsModule = /*#__PURE__*/function () {
@@ -32983,7 +33007,7 @@ var SettingsModule = /*#__PURE__*/function () {
               _context.p = 5;
               _t = _context.v;
               console.error('Error loading settings:', _t);
-              OC.Notification.showTemporary('Failed to load settings');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load settings');
             case 6:
               return _context.a(2);
           }
@@ -33119,15 +33143,10 @@ var SettingsModule = /*#__PURE__*/function () {
               return response.json();
             case 3:
               result = _context4.v;
-              OC.Notification.showTemporary('Settings saved successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Settings saved successfully');
 
               // Update stored settings to apply immediately
               Object.assign(this.settings, settings);
-
-              // Apply theme if changed
-              if (settings.theme_preference && this.app.applyTheme) {
-                this.app.applyTheme(settings.theme_preference);
-              }
 
               // Update account form currency default if needed
               this.updateAccountFormDefaults(settings);
@@ -33142,7 +33161,7 @@ var SettingsModule = /*#__PURE__*/function () {
               _context4.p = 4;
               _t3 = _context4.v;
               console.error('Error saving settings:', _t3);
-              OC.Notification.showTemporary('Failed to save settings');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to save settings');
             case 5:
               return _context4.a(2);
           }
@@ -33206,14 +33225,14 @@ var SettingsModule = /*#__PURE__*/function () {
               return this.populateSettings(result.defaults);
             case 5:
               this.updateNumberFormatPreview();
-              OC.Notification.showTemporary('Settings reset to defaults');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Settings reset to defaults');
               _context5.n = 7;
               break;
             case 6:
               _context5.p = 6;
               _t4 = _context5.v;
               console.error('Error resetting settings:', _t4);
-              OC.Notification.showTemporary('Failed to reset settings');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to reset settings');
             case 7:
               return _context5.a(2);
           }
@@ -33358,7 +33377,7 @@ var SettingsModule = /*#__PURE__*/function () {
                   // Store session token
                   _this.app.sessionToken = result.sessionToken;
                   localStorage.setItem('budget_session_token', result.sessionToken);
-                  OC.Notification.showTemporary('Password protection enabled');
+                  (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Password protection enabled');
                   modal.remove();
 
                   // Update UI
@@ -33447,7 +33466,7 @@ var SettingsModule = /*#__PURE__*/function () {
               case 3:
                 result = _context7.v;
                 if (response.ok && result.success) {
-                  OC.Notification.showTemporary('Password changed successfully');
+                  (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Password changed successfully');
                   modal.remove();
                 } else {
                   errorDiv.textContent = result.error || 'Failed to change password';
@@ -33525,7 +33544,7 @@ var SettingsModule = /*#__PURE__*/function () {
                   if (passwordToggle) passwordToggle.checked = false;
                   passwordConfig = document.getElementById('password-protection-config');
                   if (passwordConfig) passwordConfig.style.display = 'none';
-                  OC.Notification.showTemporary('Password protection disabled');
+                  (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Password protection disabled');
                   modal.remove();
                 } else {
                   errorDiv.textContent = result.error || 'Failed to disable password protection';
@@ -33678,7 +33697,7 @@ var SettingsModule = /*#__PURE__*/function () {
               this.closeFactoryResetModal();
 
               // Show success message
-              OC.Notification.showTemporary('Factory reset completed successfully. All data has been deleted.');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Factory reset completed successfully. All data has been deleted.');
 
               // Reload the page to show empty state
               setTimeout(function () {
@@ -33697,7 +33716,7 @@ var SettingsModule = /*#__PURE__*/function () {
                 _confirmBtn.disabled = false;
                 _confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
               }
-              OC.Notification.showTemporary(_t8.message || 'Failed to perform factory reset');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t8.message || 'Failed to perform factory reset');
             case 5:
               return _context9.a(2);
           }
@@ -33726,6 +33745,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -33739,6 +33759,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Shared Expenses Module - Split expenses and settlements tracking
  */
+
 
 
 var SharedExpensesModule = /*#__PURE__*/function () {
@@ -34041,7 +34062,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 _context4.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Name is required');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Name is required');
               return _context4.a(2);
             case 1:
               _context4.p = 1;
@@ -34067,7 +34088,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               throw new Error('Failed to save contact');
             case 3:
               this.closeModal(document.getElementById('contact-modal'));
-              OC.Notification.showTemporary(id ? 'Contact updated' : 'Contact added');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(id ? 'Contact updated' : 'Contact added');
               _context4.n = 4;
               return this.loadBalanceSummary();
             case 4:
@@ -34080,7 +34101,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               _context4.p = 6;
               _t3 = _context4.v;
               console.error('Failed to save contact:', _t3);
-              OC.Notification.showTemporary('Failed to save contact');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to save contact');
             case 7:
               return _context4.a(2);
           }
@@ -34146,7 +34167,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               }
               throw new Error('Failed to delete contact');
             case 3:
-              OC.Notification.showTemporary('Contact deleted');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Contact deleted');
               _context6.n = 4;
               return this.loadBalanceSummary();
             case 4:
@@ -34159,7 +34180,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               _context6.p = 6;
               _t4 = _context6.v;
               console.error('Failed to delete contact:', _t4);
-              OC.Notification.showTemporary('Failed to delete contact');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete contact');
             case 7:
               return _context6.a(2);
           }
@@ -34245,7 +34266,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               _context7.p = 4;
               _t5 = _context7.v;
               console.error('Failed to load contact details:', _t5);
-              OC.Notification.showTemporary('Failed to load contact details');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load contact details');
             case 5:
               return _context7.a(2);
           }
@@ -34325,7 +34346,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 _context8.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Amount and date are required');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Amount and date are required');
               return _context8.a(2);
             case 1:
               _context8.p = 1;
@@ -34352,7 +34373,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               throw new Error('Failed to record settlement');
             case 3:
               this.closeModal(document.getElementById('settlement-modal'));
-              OC.Notification.showTemporary('Settlement recorded');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Settlement recorded');
               _context8.n = 4;
               return this.loadBalanceSummary();
             case 4:
@@ -34362,7 +34383,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               _context8.p = 5;
               _t6 = _context8.v;
               console.error('Failed to record settlement:', _t6);
-              OC.Notification.showTemporary('Failed to record settlement');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to record settlement');
             case 6:
               return _context8.a(2);
           }
@@ -34409,7 +34430,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               throw new Error('Failed to settle');
             case 3:
               this.closeModal(document.getElementById('contact-details-modal'));
-              OC.Notification.showTemporary('All expenses settled');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('All expenses settled');
               _context9.n = 4;
               return this.loadBalanceSummary();
             case 4:
@@ -34419,7 +34440,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               _context9.p = 5;
               _t7 = _context9.v;
               console.error('Failed to settle:', _t7);
-              OC.Notification.showTemporary('Failed to settle expenses');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to settle expenses');
             case 6:
               return _context9.a(2);
           }
@@ -34451,7 +34472,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 _context0.n = 2;
                 break;
               }
-              OC.Notification.showTemporary('Please add contacts first in Shared Expenses');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please add contacts first in Shared Expenses');
               return _context0.a(2);
             case 2:
               document.getElementById('share-transaction-id').value = transaction.id;
@@ -34495,7 +34516,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 _context1.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select a contact');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a contact');
               return _context1.a(2);
             case 1:
               _context1.p = 1;
@@ -34517,7 +34538,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 _context1.n = 3;
                 break;
               }
-              OC.Notification.showTemporary('Amount is required for custom splits');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Amount is required for custom splits');
               return _context1.a(2);
             case 3:
               url = OC.generateUrl('/apps/budget/api/shared/shares');
@@ -34546,7 +34567,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               throw new Error('Failed to share expense');
             case 6:
               this.closeModal(document.getElementById('share-expense-modal'));
-              OC.Notification.showTemporary('Expense shared');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Expense shared');
               _context1.n = 7;
               return this.loadBalanceSummary();
             case 7:
@@ -34556,7 +34577,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               _context1.p = 8;
               _t8 = _context1.v;
               console.error('Failed to share expense:', _t8);
-              OC.Notification.showTemporary('Failed to share expense');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to share expense');
             case 9:
               return _context1.a(2);
           }
@@ -34601,6 +34622,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -34614,6 +34636,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Tag Sets Module - Category tag management and transaction tagging
  */
+
 
 
 var TagSetsModule = /*#__PURE__*/function () {
@@ -34918,14 +34941,14 @@ var TagSetsModule = /*#__PURE__*/function () {
                 _context5.n = 4;
                 return _this2.renderCategoryTagSetsUI(categoryId);
               case 4:
-                OC.Notification.showTemporary('Tag set created successfully');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag set created successfully');
                 _context5.n = 6;
                 break;
               case 5:
                 _context5.p = 5;
                 _t4 = _context5.v;
                 console.error('Failed to create tag set:', _t4);
-                OC.Notification.showTemporary('Failed to create tag set');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to create tag set');
               case 6:
                 return _context5.a(2);
             }
@@ -34954,14 +34977,14 @@ var TagSetsModule = /*#__PURE__*/function () {
                 _context6.n = 3;
                 return _this2.renderCategoryTagSetsUI(categoryId);
               case 3:
-                OC.Notification.showTemporary('Tag set deleted');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag set deleted');
                 _context6.n = 5;
                 break;
               case 4:
                 _context6.p = 4;
                 _t5 = _context6.v;
                 console.error('Failed to delete tag set:', _t5);
-                OC.Notification.showTemporary('Failed to delete tag set');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete tag set');
               case 5:
                 return _context6.a(2);
             }
@@ -34992,14 +35015,14 @@ var TagSetsModule = /*#__PURE__*/function () {
                 _context7.n = 4;
                 return _this2.renderCategoryTagSetsUI(categoryId);
               case 4:
-                OC.Notification.showTemporary('Tag created successfully');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag created successfully');
                 _context7.n = 6;
                 break;
               case 5:
                 _context7.p = 5;
                 _t6 = _context7.v;
                 console.error('Failed to create tag:', _t6);
-                OC.Notification.showTemporary('Failed to create tag');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to create tag');
               case 6:
                 return _context7.a(2);
             }
@@ -35029,14 +35052,14 @@ var TagSetsModule = /*#__PURE__*/function () {
                 _context8.n = 3;
                 return _this2.renderCategoryTagSetsUI(categoryId);
               case 3:
-                OC.Notification.showTemporary('Tag deleted');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag deleted');
                 _context8.n = 5;
                 break;
               case 4:
                 _context8.p = 4;
                 _t7 = _context8.v;
                 console.error('Failed to delete tag:', _t7);
-                OC.Notification.showTemporary('Failed to delete tag');
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete tag');
               case 5:
                 return _context8.a(2);
             }
@@ -35803,8 +35826,8 @@ var TagSetsModule = /*#__PURE__*/function () {
       if (this.app.showNotification) {
         return this.app.showNotification(message, type);
       }
-      // Fallback to OC notification
-      OC.Notification.showTemporary(message);
+      // Fallback to notifications utility
+      (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showInfo)(message);
     }
   }]);
 }();
@@ -35824,6 +35847,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
 function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
@@ -35848,6 +35872,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * - Transaction splits
  * - Reconciliation mode
  */
+
 
 
 
@@ -36384,14 +36409,12 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 4:
               result = _context.v;
               if (result.success > 0) {
-                OC.Notification.showTemporary("Successfully deleted ".concat(result.success, " transaction(s)"));
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully deleted ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
                 this.app.loadTransactions();
               }
               if (result.failed > 0) {
-                OC.Notification.showTemporary("Failed to delete ".concat(result.failed, " transaction(s)"), {
-                  type: 'error'
-                });
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to delete ".concat(result.failed, " transaction(s)"));
               }
               _context.n = 6;
               break;
@@ -36399,7 +36422,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context.p = 5;
               _t = _context.v;
               console.error('Bulk deletion failed:', _t);
-              OC.Notification.showTemporary('Failed to delete transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete transactions');
             case 6:
               return _context.a(2);
           }
@@ -36450,14 +36473,12 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 4:
               result = _context2.v;
               if (result.success > 0) {
-                OC.Notification.showTemporary("Successfully reconciled ".concat(result.success, " transaction(s)"));
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully reconciled ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
                 this.app.loadTransactions();
               }
               if (result.failed > 0) {
-                OC.Notification.showTemporary("Failed to reconcile ".concat(result.failed, " transaction(s)"), {
-                  type: 'error'
-                });
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to reconcile ".concat(result.failed, " transaction(s)"));
               }
               _context2.n = 6;
               break;
@@ -36465,7 +36486,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context2.p = 5;
               _t2 = _context2.v;
               console.error('Bulk reconcile failed:', _t2);
-              OC.Notification.showTemporary('Failed to reconcile transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to reconcile transactions');
             case 6:
               return _context2.a(2);
           }
@@ -36516,14 +36537,12 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 4:
               result = _context3.v;
               if (result.success > 0) {
-                OC.Notification.showTemporary("Successfully unreconciled ".concat(result.success, " transaction(s)"));
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully unreconciled ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
                 this.app.loadTransactions();
               }
               if (result.failed > 0) {
-                OC.Notification.showTemporary("Failed to unreconcile ".concat(result.failed, " transaction(s)"), {
-                  type: 'error'
-                });
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to unreconcile ".concat(result.failed, " transaction(s)"));
               }
               _context3.n = 6;
               break;
@@ -36531,7 +36550,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context3.p = 5;
               _t3 = _context3.v;
               console.error('Bulk unreconcile failed:', _t3);
-              OC.Notification.showTemporary('Failed to unreconcile transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to unreconcile transactions');
             case 6:
               return _context3.a(2);
           }
@@ -36595,7 +36614,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context4.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please fill in at least one field to update');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please fill in at least one field to update');
               return _context4.a(2);
             case 1:
               if (confirm("Are you sure you want to update ".concat(this.selectedTransactions.size, " transactions?"))) {
@@ -36624,7 +36643,7 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 4:
               result = _context4.v;
               if (result.success > 0) {
-                OC.Notification.showTemporary("Successfully updated ".concat(result.success, " transaction(s)"));
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully updated ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
                 this.app.loadTransactions();
 
@@ -36632,9 +36651,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 document.getElementById('bulk-edit-modal').style.display = 'none';
               }
               if (result.failed > 0) {
-                OC.Notification.showTemporary("Failed to update ".concat(result.failed, " transaction(s)"), {
-                  type: 'error'
-                });
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to update ".concat(result.failed, " transaction(s)"));
               }
               _context4.n = 6;
               break;
@@ -36642,7 +36659,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context4.p = 5;
               _t4 = _context4.v;
               console.error('Bulk edit failed:', _t4);
-              OC.Notification.showTemporary('Failed to update transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to update transactions');
             case 6:
               return _context4.a(2);
           }
@@ -36684,7 +36701,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context5.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please fill in all reconciliation fields');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please fill in all reconciliation fields');
               return _context5.a(2);
             case 1:
               _context5.p = 1;
@@ -36760,14 +36777,14 @@ var TransactionsModule = /*#__PURE__*/function () {
               // Hide reconcile panel and show reconcile info
               document.getElementById('reconcile-panel').style.display = 'none';
               this.showReconcileInfo(result);
-              OC.Notification.showTemporary('Reconciliation mode started');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Reconciliation mode started');
               _context5.n = 10;
               break;
             case 9:
               _context5.p = 9;
               _t6 = _context5.v;
               console.error('Reconciliation failed:', _t6);
-              OC.Notification.showTemporary('Failed to start reconciliation: ' + _t6.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to start reconciliation: ' + _t6.message);
             case 10:
               return _context5.a(2);
           }
@@ -37097,14 +37114,14 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context8.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select destination account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select destination account');
               return _context8.a(2);
             case 1:
               if (!(toAccountId === accountId)) {
                 _context8.n = 2;
                 break;
               }
-              OC.Notification.showTemporary('Cannot transfer to same account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Cannot transfer to same account');
               return _context8.a(2);
             case 2:
               _context8.p = 2;
@@ -37199,7 +37216,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               throw new Error(_error2.error || 'Failed to link transfer transactions');
             case 13:
               // Success
-              OC.Notification.showTemporary('Transfer created successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transfer created successfully');
               this.app.hideModals();
               _context8.n = 14;
               return this.app.loadTransactions();
@@ -37222,7 +37239,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context8.p = 18;
               _t8 = _context8.v;
               console.error('Transfer creation failed:', _t8);
-              OC.Notification.showTemporary(_t8.message || 'Failed to create transfer');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t8.message || 'Failed to create transfer');
               return _context8.a(2);
             case 19:
               // Build request data for regular expense/income transactions
@@ -37271,7 +37288,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context8.n = 29;
                 break;
               }
-              OC.Notification.showTemporary(id ? 'Transaction updated' : 'Transaction created');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(id ? 'Transaction updated' : 'Transaction created');
               this.app.hideModals();
               _context8.n = 25;
               return this.app.loadTransactions();
@@ -37304,7 +37321,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context8.p = 32;
               _t9 = _context8.v;
               console.error('Failed to save transaction:', _t9);
-              OC.Notification.showTemporary(_t9.message || 'Failed to save transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t9.message || 'Failed to save transaction');
             case 33:
               return _context8.a(2);
           }
@@ -37343,7 +37360,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context9.n = 6;
                 break;
               }
-              OC.Notification.showTemporary('Transaction deleted');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction deleted');
               _context9.n = 3;
               return this.app.loadTransactions();
             case 3:
@@ -37366,7 +37383,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context9.p = 7;
               _t0 = _context9.v;
               console.error('Failed to delete transaction:', _t0);
-              OC.Notification.showTemporary('Failed to delete transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete transaction');
             case 8:
               return _context9.a(2);
           }
@@ -37531,7 +37548,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context11.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Transaction not found');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Transaction not found');
               return _context11.a(2);
             case 1:
               modal = document.getElementById('matching-modal');
@@ -37608,7 +37625,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context12.n = 1;
               return this.linkTransactions(sourceId, targetId);
             case 1:
-              OC.Notification.showTemporary('Transactions linked as transfer');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transactions linked as transfer');
 
               // Close modal and refresh transactions
               document.getElementById('matching-modal').style.display = 'none';
@@ -37620,7 +37637,7 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 3:
               _context12.p = 3;
               _t13 = _context12.v;
-              OC.Notification.showTemporary(_t13.message || 'Failed to link transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t13.message || 'Failed to link transactions');
             case 4:
               return _context12.a(2);
           }
@@ -37649,7 +37666,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context13.n = 2;
               return this.unlinkTransaction(transactionId);
             case 2:
-              OC.Notification.showTemporary('Transaction unlinked');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction unlinked');
               _context13.n = 3;
               return this.app.loadTransactions();
             case 3:
@@ -37658,7 +37675,7 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 4:
               _context13.p = 4;
               _t14 = _context13.v;
-              OC.Notification.showTemporary(_t14.message || 'Failed to unlink transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t14.message || 'Failed to unlink transaction');
             case 5:
               return _context13.a(2);
           }
@@ -37687,7 +37704,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context14.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Transaction not found');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Transaction not found');
               return _context14.a(2);
             case 1:
               modal = document.getElementById('split-modal');
@@ -37886,7 +37903,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context16.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('A split transaction must have at least 2 parts');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('A split transaction must have at least 2 parts');
               return _context16.a(2);
             case 1:
               splitTotal = splits.reduce(function (sum, s) {
@@ -37896,7 +37913,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context16.n = 2;
                 break;
               }
-              OC.Notification.showTemporary("Split amounts (".concat(splitTotal.toFixed(2), ") must equal transaction amount (").concat(totalAmount.toFixed(2), ")"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)("Split amounts (".concat(splitTotal.toFixed(2), ") must equal transaction amount (").concat(totalAmount.toFixed(2), ")"));
               return _context16.a(2);
             case 2:
               _context16.p = 2;
@@ -37924,7 +37941,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 5:
               this.hideSplitModal();
-              OC.Notification.showTemporary('Transaction split successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction split successfully');
               _context16.n = 6;
               return this.app.loadTransactions();
             case 6:
@@ -37934,7 +37951,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context16.p = 7;
               _t16 = _context16.v;
               console.error('Failed to save splits:', _t16);
-              OC.Notification.showTemporary(_t16.message || 'Failed to save splits');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t16.message || 'Failed to save splits');
             case 8:
               return _context16.a(2);
           }
@@ -37982,7 +37999,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 4:
               this.hideSplitModal();
-              OC.Notification.showTemporary('Transaction unsplit successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction unsplit successfully');
               _context17.n = 5;
               return this.app.loadTransactions();
             case 5:
@@ -37992,7 +38009,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context17.p = 6;
               _t17 = _context17.v;
               console.error('Failed to unsplit transaction:', _t17);
-              OC.Notification.showTemporary(_t17.message || 'Failed to unsplit transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t17.message || 'Failed to unsplit transaction');
             case 7:
               return _context17.a(2);
           }
@@ -38187,13 +38204,13 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (autoMatchedList.children.length === 0) {
                 document.getElementById('auto-matched-section').style.display = 'none';
               }
-              OC.Notification.showTemporary('Match undone');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Match undone');
               _context20.n = 3;
               break;
             case 2:
               _context20.p = 2;
               _t19 = _context20.v;
-              OC.Notification.showTemporary(_t19.message || 'Failed to undo match');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t19.message || 'Failed to undo match');
             case 3:
               return _context20.a(2);
           }
@@ -38218,7 +38235,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                 _context21.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select a match first');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a match first');
               return _context21.a(2);
             case 1:
               targetId = parseInt(selectedRadio.value);
@@ -38242,13 +38259,13 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (needsReviewList.children.length === 0) {
                 document.getElementById('needs-review-section').style.display = 'none';
               }
-              OC.Notification.showTemporary('Transactions linked');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transactions linked');
               _context21.n = 5;
               break;
             case 4:
               _context21.p = 4;
               _t20 = _context21.v;
-              OC.Notification.showTemporary(_t20.message || 'Failed to link transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t20.message || 'Failed to link transactions');
             case 5:
               return _context21.a(2);
           }
@@ -38958,7 +38975,7 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 6:
               this.app.renderEnhancedTransactionsTable();
               this.app.applyColumnVisibility();
-              OC.Notification.showTemporary('Transaction updated');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction updated');
               _context25.n = 8;
               break;
             case 7:
@@ -38970,7 +38987,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               _context25.p = 9;
               _t24 = _context25.v;
               console.error('Failed to save inline edit:', _t24);
-              OC.Notification.showTemporary('Failed to update transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to update transaction');
               this.cancelInlineEdit(cell);
             case 10:
               return _context25.a(2);
@@ -39050,6 +39067,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -39063,6 +39081,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /**
  * Transfers Module - Recurring transfer tracking between accounts
  */
+
 
 
 var TransfersModule = /*#__PURE__*/function () {
@@ -39164,7 +39183,7 @@ var TransfersModule = /*#__PURE__*/function () {
               _context3.p = 4;
               _t = _context3.v;
               console.error('Failed to load transfers:', _t);
-              OC.Notification.showTemporary('Failed to load transfers');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load transfers');
             case 5:
               return _context3.a(2);
           }
@@ -39550,21 +39569,21 @@ var TransfersModule = /*#__PURE__*/function () {
                 _context5.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select a source account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a source account');
               return _context5.a(2, false);
             case 1:
               if (!(!toAccountId || isNaN(toAccountId))) {
                 _context5.n = 2;
                 break;
               }
-              OC.Notification.showTemporary('Please select a destination account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a destination account');
               return _context5.a(2, false);
             case 2:
               if (!(fromAccountId === toAccountId)) {
                 _context5.n = 3;
                 break;
               }
-              OC.Notification.showTemporary('Cannot transfer to the same account');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Cannot transfer to the same account');
               return _context5.a(2, false);
             case 3:
               data = {
@@ -39607,7 +39626,7 @@ var TransfersModule = /*#__PURE__*/function () {
               error = _context5.v;
               throw new Error(error.error || 'Failed to save transfer');
             case 7:
-              OC.Notification.showTemporary(existingTransfer ? 'Transfer updated' : 'Transfer added');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(existingTransfer ? 'Transfer updated' : 'Transfer added');
               _context5.n = 8;
               return this.loadTransfers();
             case 8:
@@ -39618,7 +39637,7 @@ var TransfersModule = /*#__PURE__*/function () {
               _context5.p = 9;
               _t2 = _context5.v;
               console.error('Failed to save transfer:', _t2);
-              OC.Notification.showTemporary(_t2.message || 'Failed to save transfer');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t2.message || 'Failed to save transfer');
               return _context5.a(2, false);
           }
         }, _callee5, this, [[4, 9]]);
@@ -39658,7 +39677,7 @@ var TransfersModule = /*#__PURE__*/function () {
               }
               throw new Error('Failed to delete transfer');
             case 3:
-              OC.Notification.showTemporary('Transfer deleted');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transfer deleted');
               _context6.n = 4;
               return this.loadTransfers();
             case 4:
@@ -39670,7 +39689,7 @@ var TransfersModule = /*#__PURE__*/function () {
               _context6.p = 5;
               _t3 = _context6.v;
               console.error('Failed to delete transfer:', _t3);
-              OC.Notification.showTemporary('Failed to delete transfer');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete transfer');
             case 6:
               return _context6.a(2);
           }
@@ -39718,7 +39737,7 @@ var TransfersModule = /*#__PURE__*/function () {
               }
               throw new Error('Failed to update transfer');
             case 3:
-              OC.Notification.showTemporary(transfer.isActive ? 'Transfer deactivated' : 'Transfer activated');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(transfer.isActive ? 'Transfer deactivated' : 'Transfer activated');
               _context7.n = 4;
               return this.loadTransfers();
             case 4:
@@ -39730,7 +39749,7 @@ var TransfersModule = /*#__PURE__*/function () {
               _context7.p = 5;
               _t4 = _context7.v;
               console.error('Failed to toggle transfer:', _t4);
-              OC.Notification.showTemporary('Failed to update transfer');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to update transfer');
             case 6:
               return _context7.a(2);
           }
@@ -39780,7 +39799,7 @@ var TransfersModule = /*#__PURE__*/function () {
               }
               throw new Error('Failed to mark transfer as paid');
             case 3:
-              OC.Notification.showTemporary('Transfer marked as paid');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transfer marked as paid');
               _context8.n = 4;
               return this.loadTransfers();
             case 4:
@@ -39792,7 +39811,7 @@ var TransfersModule = /*#__PURE__*/function () {
               _context8.p = 5;
               _t5 = _context8.v;
               console.error('Failed to mark transfer as paid:', _t5);
-              OC.Notification.showTemporary('Failed to mark transfer as paid');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to mark transfer as paid');
             case 6:
               return _context8.a(2);
           }
@@ -40874,6 +40893,81 @@ function debounce(func, wait) {
 
 /***/ }),
 
+/***/ "./src/utils/notifications.js":
+/*!************************************!*\
+  !*** ./src/utils/notifications.js ***!
+  \************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   showError: () => (/* binding */ showError),
+/* harmony export */   showInfo: () => (/* binding */ showInfo),
+/* harmony export */   showSuccess: () => (/* binding */ showSuccess),
+/* harmony export */   showWarning: () => (/* binding */ showWarning)
+/* harmony export */ });
+/**
+ * Toast notification utilities
+ * Replaces deprecated OC.Notification.showTemporary()
+ */
+
+var TOAST_TIMEOUT = 7000;
+function getContainer() {
+  var container = document.getElementById('budget-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'budget-toast-container';
+    document.body.appendChild(container);
+  }
+  return container;
+}
+function showToast(message, type) {
+  var container = getContainer();
+  var toast = document.createElement('div');
+  toast.className = "budget-toast budget-toast-".concat(type);
+  toast.textContent = message;
+  toast.addEventListener('click', function () {
+    return dismiss(toast);
+  });
+  container.appendChild(toast);
+
+  // Trigger entrance animation on next frame
+  requestAnimationFrame(function () {
+    return toast.classList.add('budget-toast--visible');
+  });
+  setTimeout(function () {
+    return dismiss(toast);
+  }, TOAST_TIMEOUT);
+}
+function dismiss(toast) {
+  if (toast.classList.contains('budget-toast--dismissing')) return;
+  toast.classList.add('budget-toast--dismissing');
+  toast.classList.remove('budget-toast--visible');
+  toast.addEventListener('transitionend', function () {
+    return toast.remove();
+  }, {
+    once: true
+  });
+  // Fallback removal if transitionend doesn't fire
+  setTimeout(function () {
+    return toast.remove();
+  }, 500);
+}
+function showSuccess(message) {
+  showToast(message, 'success');
+}
+function showError(message) {
+  showToast(message, 'error');
+}
+function showWarning(message) {
+  showToast(message, 'warning');
+}
+function showInfo(message) {
+  showToast(message, 'info');
+}
+
+/***/ }),
+
 /***/ "./src/utils/validators.js":
 /*!*********************************!*\
   !*** ./src/utils/validators.js ***!
@@ -41162,25 +41256,26 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_helpers_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./utils/helpers.js */ "./src/utils/helpers.js");
 /* harmony import */ var _utils_validators_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./utils/validators.js */ "./src/utils/validators.js");
 /* harmony import */ var _utils_api_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./utils/api.js */ "./src/utils/api.js");
-/* harmony import */ var _config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./config/dashboardWidgets.js */ "./src/config/dashboardWidgets.js");
-/* harmony import */ var _core_Router_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./core/Router.js */ "./src/core/Router.js");
-/* harmony import */ var _modules_auth_AuthModule_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./modules/auth/AuthModule.js */ "./src/modules/auth/AuthModule.js");
-/* harmony import */ var _modules_dashboard_DashboardModule_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./modules/dashboard/DashboardModule.js */ "./src/modules/dashboard/DashboardModule.js");
-/* harmony import */ var _modules_transactions_TransactionsModule_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./modules/transactions/TransactionsModule.js */ "./src/modules/transactions/TransactionsModule.js");
-/* harmony import */ var _modules_pensions_PensionsModule_js__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./modules/pensions/PensionsModule.js */ "./src/modules/pensions/PensionsModule.js");
-/* harmony import */ var _modules_savings_SavingsModule_js__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./modules/savings/SavingsModule.js */ "./src/modules/savings/SavingsModule.js");
-/* harmony import */ var _modules_income_IncomeModule_js__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./modules/income/IncomeModule.js */ "./src/modules/income/IncomeModule.js");
-/* harmony import */ var _modules_bills_BillsModule_js__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./modules/bills/BillsModule.js */ "./src/modules/bills/BillsModule.js");
-/* harmony import */ var _modules_transfers_TransfersModule_js__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./modules/transfers/TransfersModule.js */ "./src/modules/transfers/TransfersModule.js");
-/* harmony import */ var _modules_settings_SettingsModule_js__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./modules/settings/SettingsModule.js */ "./src/modules/settings/SettingsModule.js");
-/* harmony import */ var _modules_shared_expenses_SharedExpensesModule_js__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./modules/shared-expenses/SharedExpensesModule.js */ "./src/modules/shared-expenses/SharedExpensesModule.js");
-/* harmony import */ var _modules_tagsets_TagSetsModule_js__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./modules/tagsets/TagSetsModule.js */ "./src/modules/tagsets/TagSetsModule.js");
-/* harmony import */ var _modules_rules_RulesModule_js__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./modules/rules/RulesModule.js */ "./src/modules/rules/RulesModule.js");
-/* harmony import */ var _modules_forecast_ForecastModule_js__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./modules/forecast/ForecastModule.js */ "./src/modules/forecast/ForecastModule.js");
-/* harmony import */ var _modules_reports_ReportsModule_js__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./modules/reports/ReportsModule.js */ "./src/modules/reports/ReportsModule.js");
-/* harmony import */ var _modules_import_ImportModule_js__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./modules/import/ImportModule.js */ "./src/modules/import/ImportModule.js");
-/* harmony import */ var _modules_accounts_AccountsModule_js__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ./modules/accounts/AccountsModule.js */ "./src/modules/accounts/AccountsModule.js");
-/* harmony import */ var _modules_categories_CategoriesModule_js__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ./modules/categories/CategoriesModule.js */ "./src/modules/categories/CategoriesModule.js");
+/* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./utils/notifications.js */ "./src/utils/notifications.js");
+/* harmony import */ var _config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./config/dashboardWidgets.js */ "./src/config/dashboardWidgets.js");
+/* harmony import */ var _core_Router_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./core/Router.js */ "./src/core/Router.js");
+/* harmony import */ var _modules_auth_AuthModule_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./modules/auth/AuthModule.js */ "./src/modules/auth/AuthModule.js");
+/* harmony import */ var _modules_dashboard_DashboardModule_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./modules/dashboard/DashboardModule.js */ "./src/modules/dashboard/DashboardModule.js");
+/* harmony import */ var _modules_transactions_TransactionsModule_js__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./modules/transactions/TransactionsModule.js */ "./src/modules/transactions/TransactionsModule.js");
+/* harmony import */ var _modules_pensions_PensionsModule_js__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./modules/pensions/PensionsModule.js */ "./src/modules/pensions/PensionsModule.js");
+/* harmony import */ var _modules_savings_SavingsModule_js__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./modules/savings/SavingsModule.js */ "./src/modules/savings/SavingsModule.js");
+/* harmony import */ var _modules_income_IncomeModule_js__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./modules/income/IncomeModule.js */ "./src/modules/income/IncomeModule.js");
+/* harmony import */ var _modules_bills_BillsModule_js__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./modules/bills/BillsModule.js */ "./src/modules/bills/BillsModule.js");
+/* harmony import */ var _modules_transfers_TransfersModule_js__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./modules/transfers/TransfersModule.js */ "./src/modules/transfers/TransfersModule.js");
+/* harmony import */ var _modules_settings_SettingsModule_js__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./modules/settings/SettingsModule.js */ "./src/modules/settings/SettingsModule.js");
+/* harmony import */ var _modules_shared_expenses_SharedExpensesModule_js__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./modules/shared-expenses/SharedExpensesModule.js */ "./src/modules/shared-expenses/SharedExpensesModule.js");
+/* harmony import */ var _modules_tagsets_TagSetsModule_js__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./modules/tagsets/TagSetsModule.js */ "./src/modules/tagsets/TagSetsModule.js");
+/* harmony import */ var _modules_rules_RulesModule_js__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./modules/rules/RulesModule.js */ "./src/modules/rules/RulesModule.js");
+/* harmony import */ var _modules_forecast_ForecastModule_js__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./modules/forecast/ForecastModule.js */ "./src/modules/forecast/ForecastModule.js");
+/* harmony import */ var _modules_reports_ReportsModule_js__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./modules/reports/ReportsModule.js */ "./src/modules/reports/ReportsModule.js");
+/* harmony import */ var _modules_import_ImportModule_js__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ./modules/import/ImportModule.js */ "./src/modules/import/ImportModule.js");
+/* harmony import */ var _modules_accounts_AccountsModule_js__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ./modules/accounts/AccountsModule.js */ "./src/modules/accounts/AccountsModule.js");
+/* harmony import */ var _modules_categories_CategoriesModule_js__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! ./modules/categories/CategoriesModule.js */ "./src/modules/categories/CategoriesModule.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
@@ -41211,6 +41306,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
 
 // Utilities
+
 
 
 
@@ -41295,26 +41391,26 @@ var BudgetApp = /*#__PURE__*/function () {
     this.rules = [];
 
     // Initialize core infrastructure
-    this.router = new _core_Router_js__WEBPACK_IMPORTED_MODULE_7__["default"](this);
+    this.router = new _core_Router_js__WEBPACK_IMPORTED_MODULE_8__["default"](this);
 
     // Initialize modules
-    this.authModule = new _modules_auth_AuthModule_js__WEBPACK_IMPORTED_MODULE_8__["default"](this);
-    this.dashboardModule = new _modules_dashboard_DashboardModule_js__WEBPACK_IMPORTED_MODULE_9__["default"](this);
-    this.transactionsModule = new _modules_transactions_TransactionsModule_js__WEBPACK_IMPORTED_MODULE_10__["default"](this);
-    this.pensionsModule = new _modules_pensions_PensionsModule_js__WEBPACK_IMPORTED_MODULE_11__["default"](this);
-    this.savingsModule = new _modules_savings_SavingsModule_js__WEBPACK_IMPORTED_MODULE_12__["default"](this);
-    this.incomeModule = new _modules_income_IncomeModule_js__WEBPACK_IMPORTED_MODULE_13__["default"](this);
-    this.billsModule = new _modules_bills_BillsModule_js__WEBPACK_IMPORTED_MODULE_14__["default"](this);
-    this.transfersModule = new _modules_transfers_TransfersModule_js__WEBPACK_IMPORTED_MODULE_15__["default"](this);
-    this.settingsModule = new _modules_settings_SettingsModule_js__WEBPACK_IMPORTED_MODULE_16__["default"](this);
-    this.sharedExpensesModule = new _modules_shared_expenses_SharedExpensesModule_js__WEBPACK_IMPORTED_MODULE_17__["default"](this);
-    this.tagSetsModule = new _modules_tagsets_TagSetsModule_js__WEBPACK_IMPORTED_MODULE_18__["default"](this);
-    this.rulesModule = new _modules_rules_RulesModule_js__WEBPACK_IMPORTED_MODULE_19__["default"](this);
-    this.forecastModule = new _modules_forecast_ForecastModule_js__WEBPACK_IMPORTED_MODULE_20__["default"](this);
-    this.reportsModule = new _modules_reports_ReportsModule_js__WEBPACK_IMPORTED_MODULE_21__["default"](this);
-    this.importModule = new _modules_import_ImportModule_js__WEBPACK_IMPORTED_MODULE_22__["default"](this);
-    this.accountsModule = new _modules_accounts_AccountsModule_js__WEBPACK_IMPORTED_MODULE_23__["default"](this);
-    this.categoriesModule = new _modules_categories_CategoriesModule_js__WEBPACK_IMPORTED_MODULE_24__["default"](this);
+    this.authModule = new _modules_auth_AuthModule_js__WEBPACK_IMPORTED_MODULE_9__["default"](this);
+    this.dashboardModule = new _modules_dashboard_DashboardModule_js__WEBPACK_IMPORTED_MODULE_10__["default"](this);
+    this.transactionsModule = new _modules_transactions_TransactionsModule_js__WEBPACK_IMPORTED_MODULE_11__["default"](this);
+    this.pensionsModule = new _modules_pensions_PensionsModule_js__WEBPACK_IMPORTED_MODULE_12__["default"](this);
+    this.savingsModule = new _modules_savings_SavingsModule_js__WEBPACK_IMPORTED_MODULE_13__["default"](this);
+    this.incomeModule = new _modules_income_IncomeModule_js__WEBPACK_IMPORTED_MODULE_14__["default"](this);
+    this.billsModule = new _modules_bills_BillsModule_js__WEBPACK_IMPORTED_MODULE_15__["default"](this);
+    this.transfersModule = new _modules_transfers_TransfersModule_js__WEBPACK_IMPORTED_MODULE_16__["default"](this);
+    this.settingsModule = new _modules_settings_SettingsModule_js__WEBPACK_IMPORTED_MODULE_17__["default"](this);
+    this.sharedExpensesModule = new _modules_shared_expenses_SharedExpensesModule_js__WEBPACK_IMPORTED_MODULE_18__["default"](this);
+    this.tagSetsModule = new _modules_tagsets_TagSetsModule_js__WEBPACK_IMPORTED_MODULE_19__["default"](this);
+    this.rulesModule = new _modules_rules_RulesModule_js__WEBPACK_IMPORTED_MODULE_20__["default"](this);
+    this.forecastModule = new _modules_forecast_ForecastModule_js__WEBPACK_IMPORTED_MODULE_21__["default"](this);
+    this.reportsModule = new _modules_reports_ReportsModule_js__WEBPACK_IMPORTED_MODULE_22__["default"](this);
+    this.importModule = new _modules_import_ImportModule_js__WEBPACK_IMPORTED_MODULE_23__["default"](this);
+    this.accountsModule = new _modules_accounts_AccountsModule_js__WEBPACK_IMPORTED_MODULE_24__["default"](this);
+    this.categoriesModule = new _modules_categories_CategoriesModule_js__WEBPACK_IMPORTED_MODULE_25__["default"](this);
     this.init();
   }
   return _createClass(BudgetApp, [{
@@ -41822,33 +41918,6 @@ var BudgetApp = /*#__PURE__*/function () {
       delete textElement.dataset.originalText;
     }
   }, {
-    key: "applyTheme",
-    value: function applyTheme(themePreference) {
-      var appContainer = document.getElementById('app-content-wrapper');
-      if (!appContainer) return;
-
-      // Remove existing theme classes
-      appContainer.classList.remove('theme-light', 'theme-dark', 'theme-system');
-
-      // Apply theme based on preference
-      switch (themePreference) {
-        case 'light':
-          appContainer.classList.add('theme-light');
-          appContainer.setAttribute('data-theme', 'light');
-          break;
-        case 'dark':
-          appContainer.classList.add('theme-dark');
-          appContainer.setAttribute('data-theme', 'dark');
-          break;
-        case 'system':
-        default:
-          // Follow Nextcloud's theme (remove overrides)
-          appContainer.classList.add('theme-system');
-          appContainer.removeAttribute('data-theme');
-          break;
-      }
-    }
-  }, {
     key: "loadInitialData",
     value: function () {
       var _loadInitialData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
@@ -41888,11 +41957,6 @@ var BudgetApp = /*#__PURE__*/function () {
               // Parse dashboard config
               this.dashboardConfig.hero = this.parseDashboardConfig(this.settings.dashboard_hero_config, 'hero');
               this.dashboardConfig.widgets = this.parseDashboardConfig(this.settings.dashboard_widgets_config, 'widgets');
-
-              // Apply theme preference on load
-              if (this.settings.theme_preference) {
-                this.applyTheme(this.settings.theme_preference);
-              }
             case 3:
               if (!optionsResponse.ok) {
                 _context2.n = 5;
@@ -41930,7 +41994,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context2.p = 9;
               _t = _context2.v;
               console.error('Failed to load initial data:', _t);
-              OC.Notification.showTemporary('Failed to load data');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to load data');
             case 10:
               return _context2.a(2);
           }
@@ -42707,13 +42771,13 @@ var BudgetApp = /*#__PURE__*/function () {
               if (autoMatchedList.children.length === 0) {
                 document.getElementById('auto-matched-section').style.display = 'none';
               }
-              OC.Notification.showTemporary('Match undone');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Match undone');
               _context25.n = 3;
               break;
             case 2:
               _context25.p = 2;
               _t3 = _context25.v;
-              OC.Notification.showTemporary(_t3.message || 'Failed to undo match');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t3.message || 'Failed to undo match');
             case 3:
               return _context25.a(2);
           }
@@ -42742,7 +42806,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context26.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select a match first');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Please select a match first');
               return _context26.a(2);
             case 1:
               targetId = parseInt(selectedRadio.value);
@@ -42766,13 +42830,13 @@ var BudgetApp = /*#__PURE__*/function () {
               if (needsReviewList.children.length === 0) {
                 document.getElementById('needs-review-section').style.display = 'none';
               }
-              OC.Notification.showTemporary('Transactions linked');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transactions linked');
               _context26.n = 5;
               break;
             case 4:
               _context26.p = 4;
               _t4 = _context26.v;
-              OC.Notification.showTemporary(_t4.message || 'Failed to link transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t4.message || 'Failed to link transactions');
             case 5:
               return _context26.a(2);
           }
@@ -42907,7 +42971,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context27.p = 6;
               _t5 = _context27.v;
               console.error('Failed to load transactions:', _t5);
-              OC.Notification.showTemporary('Failed to load transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to load transactions');
             case 7:
               return _context27.a(2);
           }
@@ -43321,7 +43385,7 @@ var BudgetApp = /*#__PURE__*/function () {
                   // Store session token
                   _this1.sessionToken = result.sessionToken;
                   localStorage.setItem('budget_session_token', result.sessionToken);
-                  OC.Notification.showTemporary('Password protection enabled');
+                  (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Password protection enabled');
                   modal.remove();
 
                   // Update UI
@@ -43410,7 +43474,7 @@ var BudgetApp = /*#__PURE__*/function () {
               case 3:
                 result = _context35.v;
                 if (response.ok && result.success) {
-                  OC.Notification.showTemporary('Password changed successfully');
+                  (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Password changed successfully');
                   modal.remove();
                 } else {
                   errorDiv.textContent = result.error || 'Failed to change password';
@@ -43488,7 +43552,7 @@ var BudgetApp = /*#__PURE__*/function () {
                   if (passwordToggle) passwordToggle.checked = false;
                   passwordConfig = document.getElementById('password-protection-config');
                   if (passwordConfig) passwordConfig.style.display = 'none';
-                  OC.Notification.showTemporary('Password protection disabled');
+                  (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Password protection disabled');
                   modal.remove();
                 } else {
                   errorDiv.textContent = result.error || 'Failed to disable password protection';
@@ -43639,7 +43703,7 @@ var BudgetApp = /*#__PURE__*/function () {
               this.closeFactoryResetModal();
 
               // Show success message
-              OC.Notification.showTemporary('Factory reset completed successfully. All data has been deleted.');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Factory reset completed successfully. All data has been deleted.');
 
               // Reload the page to show empty state
               setTimeout(function () {
@@ -43658,7 +43722,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _confirmBtn.disabled = false;
                 _confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
               }
-              OC.Notification.showTemporary(_t9.message || 'Failed to perform factory reset');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t9.message || 'Failed to perform factory reset');
             case 5:
               return _context37.a(2);
           }
@@ -43786,14 +43850,14 @@ var BudgetApp = /*#__PURE__*/function () {
               a.click();
               window.URL.revokeObjectURL(url);
               document.body.removeChild(a);
-              OC.Notification.showTemporary('Export completed successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Export completed successfully');
               _context38.n = 6;
               break;
             case 5:
               _context38.p = 5;
               _t0 = _context38.v;
               console.error('Export error:', _t0);
-              OC.Notification.showTemporary('Failed to export data: ' + _t0.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to export data: ' + _t0.message);
             case 6:
               _context38.p = 6;
               exportBtn.disabled = false;
@@ -43821,7 +43885,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context39.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Please select a ZIP file');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Please select a ZIP file');
               return _context39.a(2);
             case 1:
               this.migrationFile = file;
@@ -43884,7 +43948,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context39.p = 6;
               _t1 = _context39.v;
               console.error('Preview error:', _t1);
-              OC.Notification.showTemporary('Failed to preview file: ' + _t1.message);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to preview file: ' + _t1.message);
               this.resetMigrationUI();
             case 7:
               return _context39.a(2);
@@ -43914,7 +43978,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context40.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('No file selected');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('No file selected');
               return _context40.a(2);
             case 1:
               if (confirm('This will PERMANENTLY DELETE all your existing data and replace it with the imported data.\n\nAre you absolutely sure you want to continue?')) {
@@ -43961,7 +44025,7 @@ var BudgetApp = /*#__PURE__*/function () {
 
               // Reload application data
               this.loadInitialData();
-              OC.Notification.showTemporary('Import completed successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Import completed successfully');
               _context40.n = 8;
               break;
             case 7:
@@ -44462,7 +44526,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context55.p = 5;
               _t14 = _context55.v;
               console.error('Failed to calculate payoff plan:', _t14);
-              OC.Notification.showTemporary('Failed to calculate payoff plan');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to calculate payoff plan');
             case 6:
               return _context55.a(2);
           }
@@ -44554,7 +44618,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context56.p = 5;
               _t15 = _context56.v;
               console.error('Failed to compare strategies:', _t15);
-              OC.Notification.showTemporary('Failed to compare strategies');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to compare strategies');
             case 6:
               return _context56.a(2);
           }
@@ -44725,7 +44789,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context59.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Transaction not found');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Transaction not found');
               return _context59.a(2);
             case 1:
               modal = document.getElementById('matching-modal');
@@ -44806,7 +44870,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context60.n = 1;
               return this.linkTransactions(sourceId, targetId);
             case 1:
-              OC.Notification.showTemporary('Transactions linked as transfer');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transactions linked as transfer');
 
               // Close modal and refresh transactions
               document.getElementById('matching-modal').style.display = 'none';
@@ -44818,7 +44882,7 @@ var BudgetApp = /*#__PURE__*/function () {
             case 3:
               _context60.p = 3;
               _t19 = _context60.v;
-              OC.Notification.showTemporary(_t19.message || 'Failed to link transactions');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t19.message || 'Failed to link transactions');
             case 4:
               return _context60.a(2);
           }
@@ -44851,7 +44915,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context61.n = 2;
               return this.unlinkTransaction(transactionId);
             case 2:
-              OC.Notification.showTemporary('Transaction unlinked');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transaction unlinked');
               _context61.n = 3;
               return this.loadTransactions();
             case 3:
@@ -44860,7 +44924,7 @@ var BudgetApp = /*#__PURE__*/function () {
             case 4:
               _context61.p = 4;
               _t20 = _context61.v;
-              OC.Notification.showTemporary(_t20.message || 'Failed to unlink transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t20.message || 'Failed to unlink transaction');
             case 5:
               return _context61.a(2);
           }
@@ -44893,7 +44957,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context62.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('Transaction not found');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Transaction not found');
               return _context62.a(2);
             case 1:
               modal = document.getElementById('split-modal');
@@ -45028,7 +45092,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context63.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('A split transaction must have at least 2 parts');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('A split transaction must have at least 2 parts');
               return _context63.a(2);
             case 1:
               splitTotal = splits.reduce(function (sum, s) {
@@ -45038,7 +45102,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context63.n = 2;
                 break;
               }
-              OC.Notification.showTemporary("Split amounts (".concat(splitTotal.toFixed(2), ") must equal transaction amount (").concat(totalAmount.toFixed(2), ")"));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)("Split amounts (".concat(splitTotal.toFixed(2), ") must equal transaction amount (").concat(totalAmount.toFixed(2), ")"));
               return _context63.a(2);
             case 2:
               _context63.p = 2;
@@ -45066,7 +45130,7 @@ var BudgetApp = /*#__PURE__*/function () {
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 5:
               this.hideSplitModal();
-              OC.Notification.showTemporary('Transaction split successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transaction split successfully');
               _context63.n = 6;
               return this.loadTransactions();
             case 6:
@@ -45076,7 +45140,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context63.p = 7;
               _t22 = _context63.v;
               console.error('Failed to save splits:', _t22);
-              OC.Notification.showTemporary(_t22.message || 'Failed to save splits');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t22.message || 'Failed to save splits');
             case 8:
               return _context63.a(2);
           }
@@ -45128,7 +45192,7 @@ var BudgetApp = /*#__PURE__*/function () {
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 4:
               this.hideSplitModal();
-              OC.Notification.showTemporary('Transaction unsplit successfully');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transaction unsplit successfully');
               _context64.n = 5;
               return this.loadTransactions();
             case 5:
@@ -45138,7 +45202,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context64.p = 6;
               _t23 = _context64.v;
               console.error('Failed to unsplit transaction:', _t23);
-              OC.Notification.showTemporary(_t23.message || 'Failed to unsplit transaction');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t23.message || 'Failed to unsplit transaction');
             case 7:
               return _context64.a(2);
           }
@@ -45629,7 +45693,7 @@ var BudgetApp = /*#__PURE__*/function () {
                 _context79.n = 1;
                 break;
               }
-              OC.Notification.showTemporary('At least one column must remain visible');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('At least one column must remain visible');
               document.getElementById("col-toggle-".concat(columnKey)).checked = true;
               return _context79.a(2);
             case 1:
@@ -45668,7 +45732,7 @@ var BudgetApp = /*#__PURE__*/function () {
               _context79.p = 5;
               _t25 = _context79.v;
               console.error('Failed to save column visibility:', _t25);
-              OC.Notification.showTemporary('Failed to save column preferences');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to save column preferences');
 
               // Revert on failure
               this.columnVisibility[columnKey] = !visible;
