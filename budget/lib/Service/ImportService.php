@@ -337,7 +337,7 @@ class ImportService {
             'preview' => $rawPreview,
             'columns' => $columns,
             'sourceAccounts' => $sourceAccounts,
-            'recordCount' => $this->parserFactory->countRows($content, $format),
+            'recordCount' => $this->parserFactory->countRows($content, $format, $delimiter),
             'size' => $fileSize,
             'delimiter' => $format === 'csv' ? $delimiter : null,
         ];
