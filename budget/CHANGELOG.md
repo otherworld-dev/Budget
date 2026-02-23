@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-02-22
+
+### Fixed
+- CSV import crash (`array_combine()` error) when bank exports include metadata preamble rows before column headers (e.g. Swiss bank CSVs) ([#11](https://github.com/otherworld-dev/budget/issues/11))
+- UTF-8 BOM in CSV files polluting the first column header name
+
 ## [2.3.0] - 2026-02-19
 
 ### Added
