@@ -628,12 +628,11 @@ export default class DashboardModule {
             return;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const todayStr = formatters.getTodayDateString();
 
         container.innerHTML = bills.slice(0, 5).map(bill => {
-            const dueDate = new Date(bill.nextDueDate || bill.next_due_date);
-            const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+            const dueDateStr = bill.nextDueDate || bill.next_due_date;
+            const daysUntilDue = formatters.daysBetweenDates(todayStr, dueDateStr);
 
             let statusClass = '';
             let dueText = '';
@@ -648,7 +647,7 @@ export default class DashboardModule {
                 statusClass = 'due-soon';
                 dueText = `Due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`;
             } else {
-                dueText = `Due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                dueText = `Due ${formatters.parseLocalDate(dueDateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
             }
 
             return `

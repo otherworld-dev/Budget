@@ -218,7 +218,7 @@ export default class TransfersModule {
         transfersList.innerHTML = this.transfers.map(transfer => {
             const dueDate = transfer.nextDueDate || transfer.next_due_date;
             const isPaid = this.isTransferPaidThisMonth(transfer);
-            const isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date();
+            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
             const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
 
             let statusClass = '';
@@ -307,7 +307,7 @@ export default class TransfersModule {
 
             const dueDate = transfer.nextDueDate || transfer.next_due_date;
             const isPaid = this.isTransferPaidThisMonth(transfer);
-            const isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date();
+            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
             const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
 
             let show = false;
@@ -767,10 +767,7 @@ export default class TransfersModule {
     }
 
     isDueSoon(dueDate, days = 7) {
-        const due = new Date(dueDate);
-        const now = new Date();
-        const diffTime = due - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dueDate);
         return diffDays >= 0 && diffDays <= days;
     }
 
@@ -779,7 +776,9 @@ export default class TransfersModule {
             'weekly': 'Weekly',
             'monthly': 'Monthly',
             'quarterly': 'Quarterly',
-            'yearly': 'Yearly'
+            'semi-annually': 'Semi-Annually',
+            'yearly': 'Yearly',
+            'one-time': 'One-Time'
         };
         return map[frequency] || frequency;
     }

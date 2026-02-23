@@ -152,9 +152,7 @@ export default class IncomeModule {
     }
 
     isExpectedSoon(dateStr) {
-        const expectedDate = new Date(dateStr);
-        const now = new Date();
-        const diffDays = Math.ceil((expectedDate - now) / (1000 * 60 * 60 * 24));
+        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dateStr);
         return diffDays >= 0 && diffDays <= 7;
     }
 

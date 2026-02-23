@@ -95,6 +95,16 @@ class FrequencyCalculator {
                 }
                 return $next->format('Y-m-d');
 
+            case 'one-time':
+                $day = $dueDay ?? 1;
+                $month = $dueMonth ?? 1;
+                $next = clone $baseDate;
+                $next->setDate((int)$next->format('Y'), $month, min($day, 28));
+                if ($next <= $today) {
+                    $next->modify('+1 year');
+                }
+                return $next->format('Y-m-d');
+
             case 'custom':
                 return $this->calculateCustomNextDueDate($customPattern, $dueDay, $fromDate);
 
@@ -139,6 +149,7 @@ class FrequencyCalculator {
             'monthly' => $amount,
             'quarterly' => $amount / 3,
             'yearly' => $amount / 12,
+            'one-time' => $amount / 12,
             default => $amount,
         };
     }
@@ -186,6 +197,7 @@ class FrequencyCalculator {
             'monthly' => 12,
             'quarterly' => 4,
             'yearly' => 1,
+            'one-time' => 1,
             default => 12,
         };
     }

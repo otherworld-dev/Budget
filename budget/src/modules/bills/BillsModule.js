@@ -85,7 +85,7 @@ export default class BillsModule {
         billsList.innerHTML = bills.map(bill => {
             const dueDate = bill.nextDueDate || bill.next_due_date;
             const isPaid = this.isBillPaidThisMonth(bill);
-            const isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date();
+            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
             const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
 
             let statusClass = '';
@@ -110,7 +110,8 @@ export default class BillsModule {
                 'monthly': 'Monthly',
                 'quarterly': 'Quarterly',
                 'semi-annually': 'Semi-Annually',
-                'yearly': 'Yearly'
+                'yearly': 'Yearly',
+                'one-time': 'One-Time'
             };
             const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
 
@@ -166,9 +167,7 @@ export default class BillsModule {
     }
 
     isDueSoon(dateStr) {
-        const dueDate = new Date(dateStr);
-        const now = new Date();
-        const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dateStr);
         return diffDays >= 0 && diffDays <= 7;
     }
 
@@ -421,7 +420,7 @@ export default class BillsModule {
             customMonthsGroup.style.display = 'block';
             dueDayGroup.style.display = 'block';
             dueMonthGroup.style.display = 'none';
-        } else if (frequency === 'yearly') {
+        } else if (frequency === 'yearly' || frequency === 'one-time') {
             customMonthsGroup.style.display = 'none';
             dueDayGroup.style.display = 'block';
             dueMonthGroup.style.display = 'block';

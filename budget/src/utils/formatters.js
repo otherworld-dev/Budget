@@ -291,6 +291,32 @@ export function getMonthEnd(year, month) {
 }
 
 /**
+ * Parse a YYYY-MM-DD date string as local midnight (not UTC).
+ * Avoids timezone issues where new Date("YYYY-MM-DD") creates UTC midnight.
+ *
+ * @param {string} dateStr - Date string in YYYY-MM-DD format
+ * @returns {Date} Date object at local midnight
+ */
+export function parseLocalDate(dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
+/**
+ * Calculate the number of days between two YYYY-MM-DD date strings.
+ * Positive result means dateStr2 is after dateStr1.
+ *
+ * @param {string} dateStr1 - First date (YYYY-MM-DD)
+ * @param {string} dateStr2 - Second date (YYYY-MM-DD)
+ * @returns {number} Number of days between dates
+ */
+export function daysBetweenDates(dateStr1, dateStr2) {
+    const date1 = parseLocalDate(dateStr1);
+    const date2 = parseLocalDate(dateStr2);
+    return Math.round((date2 - date1) / (1000 * 60 * 60 * 24));
+}
+
+/**
  * Get date range for a budget period.
  *
  * @param {string} period - Period type: 'weekly', 'monthly', 'quarterly', 'yearly'

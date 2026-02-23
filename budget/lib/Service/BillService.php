@@ -260,19 +260,26 @@ class BillService {
         $paidDate = $paidDate ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
 
-        $nextDue = $this->frequencyCalculator->calculateNextDueDate(
-            $bill->getFrequency(),
-            $bill->getDueDay(),
-            $bill->getDueMonth(),
-            $bill->getNextDueDate(),
-            $bill->getCustomRecurrencePattern()
-        );
-        $bill->setNextDueDate($nextDue);
+        // Auto-deactivate one-time bills after payment
+        if ($bill->getFrequency() === 'one-time') {
+            $bill->setIsActive(false);
+            $bill->setNextDueDate(null);
+        } else {
+            $nextDue = $this->frequencyCalculator->calculateNextDueDate(
+                $bill->getFrequency(),
+                $bill->getDueDay(),
+                $bill->getDueMonth(),
+                $bill->getNextDueDate(),
+                $bill->getCustomRecurrencePattern()
+            );
+            $bill->setNextDueDate($nextDue);
+        }
 
         $bill = $this->mapper->update($bill);
 
         // Auto-create transaction for next occurrence if bill has account
-        if ($createNextTransaction && $bill->getAccountId() !== null) {
+        // Skip for one-time bills since there is no next occurrence
+        if ($createNextTransaction && $bill->getFrequency() !== 'one-time' && $bill->getAccountId() !== null) {
             try {
                 $this->transactionService->createFromBill($userId, $bill, null);
             } catch (\Exception $e) {
@@ -301,6 +308,7 @@ class BillService {
             'monthly' => 0.0,
             'quarterly' => 0.0,
             'yearly' => 0.0,
+            'one-time' => 0.0,
         ];
 
         $today = date('Y-m-d');
@@ -620,6 +628,14 @@ class BillService {
                 // Only occurs in the specified month
                 $month = $dueMonth ?? 1;
                 $occurrences[$month] = true;
+                break;
+
+            case 'one-time':
+                // One-time bills only occur in their specified month
+                $month = $dueMonth ?? 1;
+                if ($month >= 1 && $month <= 12) {
+                    $occurrences[$month] = true;
+                }
                 break;
 
             case 'custom':

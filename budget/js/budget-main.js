@@ -18704,7 +18704,7 @@ var BillsModule = /*#__PURE__*/function () {
         var _ref, _bill$autoPayEnabled, _ref2, _bill$autoPayFailed;
         var dueDate = bill.nextDueDate || bill.next_due_date;
         var isPaid = _this.isBillPaidThisMonth(bill);
-        var isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date();
+        var isOverdue = !isPaid && dueDate && dueDate < _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
         var isDueSoon = !isPaid && !isOverdue && dueDate && _this.isDueSoon(dueDate);
         var statusClass = '';
         var statusText = '';
@@ -18727,7 +18727,8 @@ var BillsModule = /*#__PURE__*/function () {
           'monthly': 'Monthly',
           'quarterly': 'Quarterly',
           'semi-annually': 'Semi-Annually',
-          'yearly': 'Yearly'
+          'yearly': 'Yearly',
+          'one-time': 'One-Time'
         };
         var frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
         var autoPayEnabled = (_ref = (_bill$autoPayEnabled = bill.autoPayEnabled) !== null && _bill$autoPayEnabled !== void 0 ? _bill$autoPayEnabled : bill.auto_pay_enabled) !== null && _ref !== void 0 ? _ref : false;
@@ -18747,9 +18748,7 @@ var BillsModule = /*#__PURE__*/function () {
   }, {
     key: "isDueSoon",
     value: function isDueSoon(dateStr) {
-      var dueDate = new Date(dateStr);
-      var now = new Date();
-      var diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+      var diffDays = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.daysBetweenDates(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString(), dateStr);
       return diffDays >= 0 && diffDays <= 7;
     }
   }, {
@@ -19023,7 +19022,7 @@ var BillsModule = /*#__PURE__*/function () {
         customMonthsGroup.style.display = 'block';
         dueDayGroup.style.display = 'block';
         dueMonthGroup.style.display = 'none';
-      } else if (frequency === 'yearly') {
+      } else if (frequency === 'yearly' || frequency === 'one-time') {
         customMonthsGroup.style.display = 'none';
         dueDayGroup.style.display = 'block';
         dueMonthGroup.style.display = 'block';
@@ -22529,11 +22528,10 @@ var DashboardModule = /*#__PURE__*/function () {
         container.innerHTML = '<div class="empty-state-small">No upcoming bills</div>';
         return;
       }
-      var today = new Date();
-      today.setHours(0, 0, 0, 0);
+      var todayStr = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
       container.innerHTML = bills.slice(0, 5).map(function (bill) {
-        var dueDate = new Date(bill.nextDueDate || bill.next_due_date);
-        var daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        var dueDateStr = bill.nextDueDate || bill.next_due_date;
+        var daysUntilDue = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.daysBetweenDates(todayStr, dueDateStr);
         var statusClass = '';
         var dueText = '';
         if (daysUntilDue < 0) {
@@ -22546,7 +22544,7 @@ var DashboardModule = /*#__PURE__*/function () {
           statusClass = 'due-soon';
           dueText = "Due in ".concat(daysUntilDue, " day").concat(daysUntilDue !== 1 ? 's' : '');
         } else {
-          dueText = "Due ".concat(dueDate.toLocaleDateString('en-US', {
+          dueText = "Due ".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.parseLocalDate(dueDateStr).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric'
           }));
@@ -26545,9 +26543,7 @@ var IncomeModule = /*#__PURE__*/function () {
   }, {
     key: "isExpectedSoon",
     value: function isExpectedSoon(dateStr) {
-      var expectedDate = new Date(dateStr);
-      var now = new Date();
-      var diffDays = Math.ceil((expectedDate - now) / (1000 * 60 * 60 * 24));
+      var diffDays = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.daysBetweenDates(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString(), dateStr);
       return diffDays >= 0 && diffDays <= 7;
     }
   }, {
@@ -39295,7 +39291,7 @@ var TransfersModule = /*#__PURE__*/function () {
         var _ref, _transfer$autoPayEnab, _ref2, _transfer$autoPayFail;
         var dueDate = transfer.nextDueDate || transfer.next_due_date;
         var isPaid = _this2.isTransferPaidThisMonth(transfer);
-        var isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date();
+        var isOverdue = !isPaid && dueDate && dueDate < _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
         var isDueSoon = !isPaid && !isOverdue && dueDate && _this2.isDueSoon(dueDate);
         var statusClass = '';
         var statusText = '';
@@ -39350,7 +39346,7 @@ var TransfersModule = /*#__PURE__*/function () {
         }
         var dueDate = transfer.nextDueDate || transfer.next_due_date;
         var isPaid = _this3.isTransferPaidThisMonth(transfer);
-        var isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date();
+        var isOverdue = !isPaid && dueDate && dueDate < _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
         var isDueSoon = !isPaid && !isOverdue && dueDate && _this3.isDueSoon(dueDate);
         var show = false;
         switch (filter) {
@@ -39835,10 +39831,7 @@ var TransfersModule = /*#__PURE__*/function () {
     key: "isDueSoon",
     value: function isDueSoon(dueDate) {
       var days = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 7;
-      var due = new Date(dueDate);
-      var now = new Date();
-      var diffTime = due - now;
-      var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      var diffDays = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.daysBetweenDates(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString(), dueDate);
       return diffDays >= 0 && diffDays <= days;
     }
   }, {
@@ -39848,7 +39841,9 @@ var TransfersModule = /*#__PURE__*/function () {
         'weekly': 'Weekly',
         'monthly': 'Monthly',
         'quarterly': 'Quarterly',
-        'yearly': 'Yearly'
+        'semi-annually': 'Semi-Annually',
+        'yearly': 'Yearly',
+        'one-time': 'One-Time'
       };
       return map[frequency] || frequency;
     }
@@ -40301,6 +40296,7 @@ function closeModal(modal) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   daysBetweenDates: () => (/* binding */ daysBetweenDates),
 /* harmony export */   formatAccountType: () => (/* binding */ formatAccountType),
 /* harmony export */   formatCurrency: () => (/* binding */ formatCurrency),
 /* harmony export */   formatCurrencyCompact: () => (/* binding */ formatCurrencyCompact),
@@ -40312,6 +40308,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getPeriodDateRange: () => (/* binding */ getPeriodDateRange),
 /* harmony export */   getPrimaryCurrency: () => (/* binding */ getPrimaryCurrency),
 /* harmony export */   getTodayDateString: () => (/* binding */ getTodayDateString),
+/* harmony export */   parseLocalDate: () => (/* binding */ parseLocalDate),
 /* harmony export */   prorateBudget: () => (/* binding */ prorateBudget)
 /* harmony export */ });
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -40753,6 +40750,36 @@ function getMonthStart(year, month) {
 function getMonthEnd(year, month) {
   var lastDay = new Date(year, month, 0).getDate();
   return "".concat(year, "-").concat(String(month).padStart(2, '0'), "-").concat(String(lastDay).padStart(2, '0'));
+}
+
+/**
+ * Parse a YYYY-MM-DD date string as local midnight (not UTC).
+ * Avoids timezone issues where new Date("YYYY-MM-DD") creates UTC midnight.
+ *
+ * @param {string} dateStr - Date string in YYYY-MM-DD format
+ * @returns {Date} Date object at local midnight
+ */
+function parseLocalDate(dateStr) {
+  var _dateStr$split$map = dateStr.split('-').map(Number),
+    _dateStr$split$map2 = _slicedToArray(_dateStr$split$map, 3),
+    year = _dateStr$split$map2[0],
+    month = _dateStr$split$map2[1],
+    day = _dateStr$split$map2[2];
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Calculate the number of days between two YYYY-MM-DD date strings.
+ * Positive result means dateStr2 is after dateStr1.
+ *
+ * @param {string} dateStr1 - First date (YYYY-MM-DD)
+ * @param {string} dateStr2 - Second date (YYYY-MM-DD)
+ * @returns {number} Number of days between dates
+ */
+function daysBetweenDates(dateStr1, dateStr2) {
+  var date1 = parseLocalDate(dateStr1);
+  var date2 = parseLocalDate(dateStr2);
+  return Math.round((date2 - date1) / (1000 * 60 * 60 * 24));
 }
 
 /**
