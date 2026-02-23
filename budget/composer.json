@@ -10,6 +10,7 @@
     ],
     "require": {
         "php": "^8.1",
+        "ext-bcmath": "*",
         "tecnickcom/tcpdf": "^6.6"
     },
     "require-dev": {
