@@ -162,6 +162,7 @@ class AccountController extends Controller {
             $sortCode = !empty($data['sortCode']) ? trim($data['sortCode']) : null;
             $iban = !empty($data['iban']) ? trim($data['iban']) : null;
             $swiftBic = !empty($data['swiftBic']) ? trim($data['swiftBic']) : null;
+            $walletAddress = !empty($data['walletAddress']) ? trim($data['walletAddress']) : null;
             $accountHolderName = !empty($data['accountHolderName']) ? trim($data['accountHolderName']) : null;
             $openingDate = !empty($data['openingDate']) ? $data['openingDate'] : null;
 
@@ -216,7 +217,8 @@ class AccountController extends Controller {
                 $interestRate,
                 $creditLimit,
                 $overdraftLimit,
-                $minimumPayment
+                $minimumPayment,
+                $walletAddress
             );
 
             // Audit log the account creation
@@ -340,6 +342,16 @@ class AccountController extends Controller {
                 }
             } elseif (array_key_exists('swiftBic', $data) && $data['swiftBic'] === '') {
                 $updates['swiftBic'] = null;
+            }
+
+            // Handle wallet address (encrypted, skip if masked)
+            if (isset($data['walletAddress']) && $data['walletAddress'] !== '') {
+                $value = trim($data['walletAddress']);
+                if (strpos($value, '...') === false && strpos($value, '[DECRYPTION FAILED]') === false) {
+                    $updates['walletAddress'] = $value;
+                }
+            } elseif (array_key_exists('walletAddress', $data) && $data['walletAddress'] === '') {
+                $updates['walletAddress'] = null;
             }
 
             // Handle other fields

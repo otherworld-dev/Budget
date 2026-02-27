@@ -16021,7 +16021,7 @@ var AccountsModule = /*#__PURE__*/function () {
       };
 
       // Categorize accounts into assets and liabilities
-      var assetTypes = ['checking', 'savings', 'investment', 'cash'];
+      var assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency'];
       var liabilityTypes = ['credit_card', 'loan'];
       var assets = accounts.filter(function (acc) {
         return assetTypes.includes(getField(acc, 'type'));
@@ -17306,13 +17306,14 @@ var AccountsModule = /*#__PURE__*/function () {
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true)
               }; // Sensitive fields: only include if user entered a value
               // For edits, empty means "keep existing" - don't send to avoid overwriting
-              sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic'];
+              sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic', 'walletAddress'];
               sensitiveFieldIds = {
                 accountNumber: 'form-account-number',
                 routingNumber: 'form-routing-number',
                 sortCode: 'form-sort-code',
                 iban: 'form-iban',
-                swiftBic: 'form-swift-bic'
+                swiftBic: 'form-swift-bic',
+                walletAddress: 'form-wallet-address'
               };
               sensitiveFields.forEach(function (field) {
                 var value = getFormValue(sensitiveFieldIds[field]);
@@ -17552,6 +17553,9 @@ var AccountsModule = /*#__PURE__*/function () {
               }, {
                 id: 'form-swift-bic',
                 hasValue: !!account.swiftBic
+              }, {
+                id: 'form-wallet-address',
+                hasValue: !!account.walletAddress
               }];
               sensitiveFields.forEach(function (field) {
                 var element = document.getElementById(field.id);
@@ -17693,7 +17697,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "setupAccountTypeConditionals",
     value: function () {
       var _setupAccountTypeConditionals = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12() {
-        var accountType, currency, requirements, response, _t13, _t14;
+        var accountType, currency, requirements, response, walletGroup, balanceInput, _balanceInput, _t13, _t14;
         return _regenerator().w(function (_context12) {
           while (1) switch (_context12.p = _context12.n) {
             case 0:
@@ -17726,7 +17730,7 @@ var AccountsModule = /*#__PURE__*/function () {
               console.warn('Failed to load banking requirements:', _t13);
             case 5:
               _t14 = accountType;
-              _context12.n = _t14 === 'checking' ? 6 : _t14 === 'savings' ? 6 : _t14 === 'credit_card' ? 7 : _t14 === 'loan' ? 8 : _t14 === 'investment' ? 9 : _t14 === 'cash' ? 10 : 11;
+              _context12.n = _t14 === 'checking' ? 6 : _t14 === 'savings' ? 6 : _t14 === 'credit_card' ? 7 : _t14 === 'loan' ? 8 : _t14 === 'investment' ? 9 : _t14 === 'cash' ? 10 : _t14 === 'cryptocurrency' ? 11 : 12;
               break;
             case 6:
               // Show banking fields based on currency
@@ -17744,26 +17748,46 @@ var AccountsModule = /*#__PURE__*/function () {
               if (accountType === 'savings') {
                 document.getElementById('interest-rate-group').style.display = 'block';
               }
-              return _context12.a(3, 11);
+              return _context12.a(3, 12);
             case 7:
               // Show credit card specific fields
               document.getElementById('credit-limit-group').style.display = 'block';
               document.getElementById('interest-rate-group').style.display = 'block';
-              return _context12.a(3, 11);
+              return _context12.a(3, 12);
             case 8:
               // Show loan specific fields
               document.getElementById('interest-rate-group').style.display = 'block';
-              return _context12.a(3, 11);
+              return _context12.a(3, 12);
             case 9:
               // Show investment account fields
               document.getElementById('swift-bic-group').style.display = 'block';
               if (requirements.iban) {
                 document.getElementById('iban-group').style.display = 'block';
               }
-              return _context12.a(3, 11);
+              return _context12.a(3, 12);
             case 10:
-              return _context12.a(3, 11);
+              return _context12.a(3, 12);
             case 11:
+              // Show wallet address field only
+              walletGroup = document.getElementById('wallet-address-group');
+              if (walletGroup) {
+                walletGroup.style.display = 'block';
+              }
+              // Update balance step for crypto precision
+              balanceInput = document.getElementById('account-balance');
+              if (balanceInput) {
+                balanceInput.step = '0.00000001';
+              }
+              return _context12.a(3, 12);
+            case 12:
+              // Reset balance step to fiat default for non-crypto types
+              if (accountType !== 'cryptocurrency') {
+                _balanceInput = document.getElementById('account-balance');
+                if (_balanceInput) {
+                  _balanceInput.step = '0.01';
+                }
+              }
+            case 13:
               return _context12.a(2);
           }
         }, _callee12, null, [[1, 4]]);
@@ -18026,6 +18050,11 @@ var AccountsModule = /*#__PURE__*/function () {
           icon: 'icon-category-monitoring',
           color: '#9013FE',
           label: 'Cash'
+        },
+        'cryptocurrency': {
+          icon: 'icon-link',
+          color: '#F7931A',
+          label: 'Cryptocurrency'
         }
       };
       return typeMap[accountType] || {
@@ -40511,6 +40540,132 @@ var CURRENCY_CONFIG = {
   'ZAR': {
     symbol: 'R',
     position: 'prefix'
+  },
+  // Cryptocurrencies (suffix position: "0.50000000 BTC")
+  'BTC': {
+    symbol: 'BTC',
+    position: 'suffix',
+    decimals: 8
+  },
+  'ETH': {
+    symbol: 'ETH',
+    position: 'suffix',
+    decimals: 8
+  },
+  'XRP': {
+    symbol: 'XRP',
+    position: 'suffix',
+    decimals: 6
+  },
+  'SOL': {
+    symbol: 'SOL',
+    position: 'suffix',
+    decimals: 8
+  },
+  'ADA': {
+    symbol: 'ADA',
+    position: 'suffix',
+    decimals: 6
+  },
+  'DOGE': {
+    symbol: 'DOGE',
+    position: 'suffix',
+    decimals: 8
+  },
+  'DOT': {
+    symbol: 'DOT',
+    position: 'suffix',
+    decimals: 8
+  },
+  'LTC': {
+    symbol: 'LTC',
+    position: 'suffix',
+    decimals: 8
+  },
+  'LINK': {
+    symbol: 'LINK',
+    position: 'suffix',
+    decimals: 8
+  },
+  'AVAX': {
+    symbol: 'AVAX',
+    position: 'suffix',
+    decimals: 8
+  },
+  'UNI': {
+    symbol: 'UNI',
+    position: 'suffix',
+    decimals: 8
+  },
+  'ATOM': {
+    symbol: 'ATOM',
+    position: 'suffix',
+    decimals: 6
+  },
+  'XLM': {
+    symbol: 'XLM',
+    position: 'suffix',
+    decimals: 7
+  },
+  'ALGO': {
+    symbol: 'ALGO',
+    position: 'suffix',
+    decimals: 6
+  },
+  'NEAR': {
+    symbol: 'NEAR',
+    position: 'suffix',
+    decimals: 8
+  },
+  'FIL': {
+    symbol: 'FIL',
+    position: 'suffix',
+    decimals: 8
+  },
+  'APT': {
+    symbol: 'APT',
+    position: 'suffix',
+    decimals: 8
+  },
+  'ARB': {
+    symbol: 'ARB',
+    position: 'suffix',
+    decimals: 8
+  },
+  'OP': {
+    symbol: 'OP',
+    position: 'suffix',
+    decimals: 8
+  },
+  'USDT': {
+    symbol: 'USDT',
+    position: 'suffix',
+    decimals: 6
+  },
+  'USDC': {
+    symbol: 'USDC',
+    position: 'suffix',
+    decimals: 6
+  },
+  'DAI': {
+    symbol: 'DAI',
+    position: 'suffix',
+    decimals: 8
+  },
+  'BNB': {
+    symbol: 'BNB',
+    position: 'suffix',
+    decimals: 8
+  },
+  'MATIC': {
+    symbol: 'MATIC',
+    position: 'suffix',
+    decimals: 8
+  },
+  'SHIB': {
+    symbol: 'SHIB',
+    position: 'suffix',
+    decimals: 8
   }
 };
 
@@ -40524,7 +40679,12 @@ var CURRENCY_CONFIG = {
 function formatCurrency(amount, currency, settings) {
   var _settings$number_form;
   var currencyCode = currency || getPrimaryCurrency([], settings);
-  var decimals = parseInt(settings.number_format_decimals) || 2;
+  var config = CURRENCY_CONFIG[currencyCode] || {
+    symbol: currencyCode,
+    position: 'prefix'
+  };
+  // Use currency-native decimals for crypto, user setting for fiat
+  var decimals = config.decimals !== undefined ? config.decimals : parseInt(settings.number_format_decimals) || 2;
   var decimalSep = settings.number_format_decimal_sep || '.';
   var thousandsSep = (_settings$number_form = settings.number_format_thousands_sep) !== null && _settings$number_form !== void 0 ? _settings$number_form : ',';
 
@@ -40533,12 +40693,6 @@ function formatCurrency(amount, currency, settings) {
   var parts = absAmount.toFixed(decimals).split('.');
   var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
   var decPart = parts[1] || '';
-
-  // Get currency configuration (symbol + position)
-  var config = CURRENCY_CONFIG[currencyCode] || {
-    symbol: currencyCode,
-    position: 'prefix'
-  };
   var symbol = config.symbol,
     position = config.position;
   var formattedNumber = decimals > 0 ? "".concat(intPart).concat(decimalSep).concat(decPart) : intPart;
@@ -40639,7 +40793,8 @@ function formatAccountType(type) {
     cash: 'Cash',
     loan: 'Loan',
     mortgage: 'Mortgage',
-    pension: 'Pension'
+    pension: 'Pension',
+    cryptocurrency: 'Cryptocurrency'
   };
   return typeNames[type] || type.replace(/_/g, ' ').replace(/\b\w/g, function (c) {
     return c.toUpperCase();

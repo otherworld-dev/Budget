@@ -61,6 +61,33 @@ enum Currency: string {
     case KES = 'KES';  // Kenyan Shilling
     case ZAR = 'ZAR';  // South African Rand
 
+    // Cryptocurrencies
+    case BTC = 'BTC';    // Bitcoin
+    case ETH = 'ETH';    // Ethereum
+    case XRP = 'XRP';    // Ripple
+    case SOL = 'SOL';    // Solana
+    case ADA = 'ADA';    // Cardano
+    case DOGE = 'DOGE';  // Dogecoin
+    case DOT = 'DOT';    // Polkadot
+    case LTC = 'LTC';    // Litecoin
+    case LINK = 'LINK';  // Chainlink
+    case AVAX = 'AVAX';  // Avalanche
+    case UNI = 'UNI';    // Uniswap
+    case ATOM = 'ATOM';  // Cosmos
+    case XLM = 'XLM';    // Stellar
+    case ALGO = 'ALGO';  // Algorand
+    case NEAR = 'NEAR';  // NEAR Protocol
+    case FIL = 'FIL';    // Filecoin
+    case APT = 'APT';    // Aptos
+    case ARB = 'ARB';    // Arbitrum
+    case OP = 'OP';      // Optimism
+    case USDT = 'USDT';  // Tether
+    case USDC = 'USDC';  // USD Coin
+    case DAI = 'DAI';    // Dai
+    case BNB = 'BNB';    // BNB
+    case MATIC = 'MATIC'; // Polygon
+    case SHIB = 'SHIB';  // Shiba Inu
+
     /**
      * Get the currency symbol.
      */
@@ -115,6 +142,32 @@ enum Currency: string {
             self::NGN => '₦',
             self::KES => 'KSh',
             self::ZAR => 'R',
+            // Cryptocurrencies (use ticker as symbol)
+            self::BTC => 'BTC',
+            self::ETH => 'ETH',
+            self::XRP => 'XRP',
+            self::SOL => 'SOL',
+            self::ADA => 'ADA',
+            self::DOGE => 'DOGE',
+            self::DOT => 'DOT',
+            self::LTC => 'LTC',
+            self::LINK => 'LINK',
+            self::AVAX => 'AVAX',
+            self::UNI => 'UNI',
+            self::ATOM => 'ATOM',
+            self::XLM => 'XLM',
+            self::ALGO => 'ALGO',
+            self::NEAR => 'NEAR',
+            self::FIL => 'FIL',
+            self::APT => 'APT',
+            self::ARB => 'ARB',
+            self::OP => 'OP',
+            self::USDT => 'USDT',
+            self::USDC => 'USDC',
+            self::DAI => 'DAI',
+            self::BNB => 'BNB',
+            self::MATIC => 'MATIC',
+            self::SHIB => 'SHIB',
         };
     }
 
@@ -124,6 +177,11 @@ enum Currency: string {
     public function decimals(): int {
         return match ($this) {
             self::JPY, self::KRW, self::VND, self::CLP, self::ISK, self::HUF, self::IDR => 0,
+            self::XRP, self::ADA, self::ATOM, self::ALGO, self::USDT, self::USDC => 6,
+            self::XLM => 7,
+            self::BTC, self::ETH, self::SOL, self::DOGE, self::DOT, self::LTC,
+            self::LINK, self::AVAX, self::UNI, self::NEAR, self::FIL, self::APT,
+            self::ARB, self::OP, self::DAI, self::BNB, self::MATIC, self::SHIB => 8,
             default => 2,
         };
     }
@@ -182,6 +240,46 @@ enum Currency: string {
             self::NGN => 'Nigerian Naira',
             self::KES => 'Kenyan Shilling',
             self::ZAR => 'South African Rand',
+            // Cryptocurrencies
+            self::BTC => 'Bitcoin',
+            self::ETH => 'Ethereum',
+            self::XRP => 'Ripple',
+            self::SOL => 'Solana',
+            self::ADA => 'Cardano',
+            self::DOGE => 'Dogecoin',
+            self::DOT => 'Polkadot',
+            self::LTC => 'Litecoin',
+            self::LINK => 'Chainlink',
+            self::AVAX => 'Avalanche',
+            self::UNI => 'Uniswap',
+            self::ATOM => 'Cosmos',
+            self::XLM => 'Stellar',
+            self::ALGO => 'Algorand',
+            self::NEAR => 'NEAR Protocol',
+            self::FIL => 'Filecoin',
+            self::APT => 'Aptos',
+            self::ARB => 'Arbitrum',
+            self::OP => 'Optimism',
+            self::USDT => 'Tether',
+            self::USDC => 'USD Coin',
+            self::DAI => 'Dai',
+            self::BNB => 'BNB',
+            self::MATIC => 'Polygon',
+            self::SHIB => 'Shiba Inu',
+        };
+    }
+
+    /**
+     * Check if this currency is a cryptocurrency.
+     */
+    public function isCrypto(): bool {
+        return match ($this) {
+            self::BTC, self::ETH, self::XRP, self::SOL, self::ADA, self::DOGE,
+            self::DOT, self::LTC, self::LINK, self::AVAX, self::UNI, self::ATOM,
+            self::XLM, self::ALGO, self::NEAR, self::FIL, self::APT, self::ARB,
+            self::OP, self::USDT, self::USDC, self::DAI, self::BNB, self::MATIC,
+            self::SHIB => true,
+            default => false,
         };
     }
 

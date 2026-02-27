@@ -151,7 +151,7 @@ export default class AccountsModule {
         };
 
         // Categorize accounts into assets and liabilities
-        const assetTypes = ['checking', 'savings', 'investment', 'cash'];
+        const assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency'];
         const liabilityTypes = ['credit_card', 'loan'];
 
         const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
@@ -1252,13 +1252,14 @@ export default class AccountsModule {
 
             // Sensitive fields: only include if user entered a value
             // For edits, empty means "keep existing" - don't send to avoid overwriting
-            const sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic'];
+            const sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic', 'walletAddress'];
             const sensitiveFieldIds = {
                 accountNumber: 'form-account-number',
                 routingNumber: 'form-routing-number',
                 sortCode: 'form-sort-code',
                 iban: 'form-iban',
-                swiftBic: 'form-swift-bic'
+                swiftBic: 'form-swift-bic',
+                walletAddress: 'form-wallet-address'
             };
 
             sensitiveFields.forEach(field => {
@@ -1433,7 +1434,8 @@ export default class AccountsModule {
                 { id: 'form-routing-number', hasValue: !!account.routingNumber },
                 { id: 'form-sort-code', hasValue: !!account.sortCode },
                 { id: 'form-iban', hasValue: !!account.iban },
-                { id: 'form-swift-bic', hasValue: !!account.swiftBic }
+                { id: 'form-swift-bic', hasValue: !!account.swiftBic },
+                { id: 'form-wallet-address', hasValue: !!account.walletAddress }
             ];
 
             sensitiveFields.forEach(field => {
@@ -1576,6 +1578,27 @@ export default class AccountsModule {
             case 'cash':
                 // No additional fields for cash accounts
                 break;
+
+            case 'cryptocurrency':
+                // Show wallet address field only
+                const walletGroup = document.getElementById('wallet-address-group');
+                if (walletGroup) {
+                    walletGroup.style.display = 'block';
+                }
+                // Update balance step for crypto precision
+                const balanceInput = document.getElementById('account-balance');
+                if (balanceInput) {
+                    balanceInput.step = '0.00000001';
+                }
+                break;
+        }
+
+        // Reset balance step to fiat default for non-crypto types
+        if (accountType !== 'cryptocurrency') {
+            const balanceInput = document.getElementById('account-balance');
+            if (balanceInput) {
+                balanceInput.step = '0.01';
+            }
         }
     }
 
@@ -1769,6 +1792,11 @@ export default class AccountsModule {
                 icon: 'icon-category-monitoring',
                 color: '#9013FE',
                 label: 'Cash'
+            },
+            'cryptocurrency': {
+                icon: 'icon-link',
+                color: '#F7931A',
+                label: 'Cryptocurrency'
             }
         };
 

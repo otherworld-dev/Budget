@@ -15,6 +15,7 @@ enum AccountType: string {
     case LOAN = 'loan';
     case CASH = 'cash';
     case MONEY_MARKET = 'money_market';
+    case CRYPTOCURRENCY = 'cryptocurrency';
 
     /**
      * Check if this account type typically has a negative balance (liability).
@@ -69,6 +70,7 @@ enum AccountType: string {
             self::LOAN => 'Loan',
             self::CASH => 'Cash',
             self::MONEY_MARKET => 'Money Market',
+            self::CRYPTOCURRENCY => 'Cryptocurrency',
         };
     }
 

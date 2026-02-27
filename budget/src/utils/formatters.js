@@ -58,6 +58,32 @@ const CURRENCY_CONFIG = {
     'NGN': { symbol: '₦', position: 'prefix' },
     'KES': { symbol: 'KSh', position: 'prefix' },
     'ZAR': { symbol: 'R', position: 'prefix' },
+    // Cryptocurrencies (suffix position: "0.50000000 BTC")
+    'BTC': { symbol: 'BTC', position: 'suffix', decimals: 8 },
+    'ETH': { symbol: 'ETH', position: 'suffix', decimals: 8 },
+    'XRP': { symbol: 'XRP', position: 'suffix', decimals: 6 },
+    'SOL': { symbol: 'SOL', position: 'suffix', decimals: 8 },
+    'ADA': { symbol: 'ADA', position: 'suffix', decimals: 6 },
+    'DOGE': { symbol: 'DOGE', position: 'suffix', decimals: 8 },
+    'DOT': { symbol: 'DOT', position: 'suffix', decimals: 8 },
+    'LTC': { symbol: 'LTC', position: 'suffix', decimals: 8 },
+    'LINK': { symbol: 'LINK', position: 'suffix', decimals: 8 },
+    'AVAX': { symbol: 'AVAX', position: 'suffix', decimals: 8 },
+    'UNI': { symbol: 'UNI', position: 'suffix', decimals: 8 },
+    'ATOM': { symbol: 'ATOM', position: 'suffix', decimals: 6 },
+    'XLM': { symbol: 'XLM', position: 'suffix', decimals: 7 },
+    'ALGO': { symbol: 'ALGO', position: 'suffix', decimals: 6 },
+    'NEAR': { symbol: 'NEAR', position: 'suffix', decimals: 8 },
+    'FIL': { symbol: 'FIL', position: 'suffix', decimals: 8 },
+    'APT': { symbol: 'APT', position: 'suffix', decimals: 8 },
+    'ARB': { symbol: 'ARB', position: 'suffix', decimals: 8 },
+    'OP': { symbol: 'OP', position: 'suffix', decimals: 8 },
+    'USDT': { symbol: 'USDT', position: 'suffix', decimals: 6 },
+    'USDC': { symbol: 'USDC', position: 'suffix', decimals: 6 },
+    'DAI': { symbol: 'DAI', position: 'suffix', decimals: 8 },
+    'BNB': { symbol: 'BNB', position: 'suffix', decimals: 8 },
+    'MATIC': { symbol: 'MATIC', position: 'suffix', decimals: 8 },
+    'SHIB': { symbol: 'SHIB', position: 'suffix', decimals: 8 },
 };
 
 /**
@@ -69,7 +95,9 @@ const CURRENCY_CONFIG = {
  */
 export function formatCurrency(amount, currency, settings) {
     const currencyCode = currency || getPrimaryCurrency([], settings);
-    const decimals = parseInt(settings.number_format_decimals) || 2;
+    const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
+    // Use currency-native decimals for crypto, user setting for fiat
+    const decimals = config.decimals !== undefined ? config.decimals : (parseInt(settings.number_format_decimals) || 2);
     const decimalSep = settings.number_format_decimal_sep || '.';
     const thousandsSep = settings.number_format_thousands_sep ?? ',';
 
@@ -79,8 +107,6 @@ export function formatCurrency(amount, currency, settings) {
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
     const decPart = parts[1] || '';
 
-    // Get currency configuration (symbol + position)
-    const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
     const { symbol, position } = config;
 
     const formattedNumber = decimals > 0 ? `${intPart}${decimalSep}${decPart}` : intPart;
@@ -183,7 +209,8 @@ export function formatAccountType(type) {
         cash: 'Cash',
         loan: 'Loan',
         mortgage: 'Mortgage',
-        pension: 'Pension'
+        pension: 'Pension',
+        cryptocurrency: 'Cryptocurrency'
     };
     return typeNames[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

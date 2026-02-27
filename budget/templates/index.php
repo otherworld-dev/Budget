@@ -3982,6 +3982,7 @@ style('budget', 'budget-main');
                         <option value="investment">Investment Account</option>
                         <option value="loan">Loan Account</option>
                         <option value="cash">Cash</option>
+                        <option value="cryptocurrency">Cryptocurrency</option>
                     </select>
                     <small id="account-type-help" class="form-text">Select the type of account</small>
                 </div>
@@ -4057,6 +4058,12 @@ style('budget', 'budget-main');
                     <label for="form-swift-bic">SWIFT/BIC Code</label>
                     <input type="text" id="form-swift-bic" aria-describedby="form-swift-bic-help" maxlength="11">
                     <small id="form-swift-bic-help" class="form-text">SWIFT/BIC code for international transfers</small>
+                </div>
+
+                <div class="form-group conditional" id="wallet-address-group">
+                    <label for="form-wallet-address">Wallet Address</label>
+                    <input type="text" id="form-wallet-address" aria-describedby="form-wallet-address-help" maxlength="255">
+                    <small id="form-wallet-address-help" class="form-text">Your wallet or exchange address (stored encrypted)</small>
                 </div>
             </div>
 
