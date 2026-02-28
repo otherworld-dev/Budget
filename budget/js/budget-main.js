@@ -18730,7 +18730,7 @@ var BillsModule = /*#__PURE__*/function () {
       }
       emptyBills.style.display = 'none';
       billsList.innerHTML = bills.map(function (bill) {
-        var _ref, _bill$autoPayEnabled, _ref2, _bill$autoPayFailed;
+        var _ref, _bill$autoPayEnabled, _ref2, _bill$autoPayFailed, _ref3, _bill$remainingPaymen, _ref4, _bill$endDate;
         var dueDate = bill.nextDueDate || bill.next_due_date;
         var isPaid = _this.isBillPaidThisMonth(bill);
         var isOverdue = !isPaid && dueDate && dueDate < _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
@@ -18762,7 +18762,9 @@ var BillsModule = /*#__PURE__*/function () {
         var frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
         var autoPayEnabled = (_ref = (_bill$autoPayEnabled = bill.autoPayEnabled) !== null && _bill$autoPayEnabled !== void 0 ? _bill$autoPayEnabled : bill.auto_pay_enabled) !== null && _ref !== void 0 ? _ref : false;
         var autoPayFailed = (_ref2 = (_bill$autoPayFailed = bill.autoPayFailed) !== null && _bill$autoPayFailed !== void 0 ? _bill$autoPayFailed : bill.auto_pay_failed) !== null && _ref2 !== void 0 ? _ref2 : false;
-        return "\n                <div class=\"bill-card ".concat(statusClass, "\" data-bill-id=\"").concat(bill.id, "\" data-status=\"").concat(statusClass, "\">\n                    <div class=\"bill-header\">\n                        <div class=\"bill-info\">\n                            <h4 class=\"bill-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(bill.name), "</h4>\n                            <span class=\"bill-frequency\">").concat(frequencyLabel, "</span>\n                        </div>\n                        <div class=\"bill-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(bill.amount, null, _this.settings), "</div>\n                    </div>\n                    <div class=\"bill-details\">\n                        <div class=\"bill-due-date\">\n                            <span class=\"icon-calendar\" aria-hidden=\"true\"></span>\n                            ").concat(dueDate ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(dueDate, _this.settings) : 'No due date', "\n                        </div>\n                        <div class=\"bill-status ").concat(statusClass, "\">\n                            <span class=\"status-badge\">").concat(statusText, "</span>\n                            ").concat(autoPayEnabled ? "<span class=\"status-badge auto-pay\" title=\"Auto-pay enabled\" style=\"background: #007bff; margin-left: 5px;\"><span class=\"icon-checkmark\"></span> Auto-pay</span>" : '', "\n                            ").concat(autoPayFailed ? "<span class=\"status-badge auto-pay-failed\" title=\"Auto-pay failed - disabled\" style=\"background: #ffc107; color: #856404; margin-left: 5px;\"><span class=\"icon-error\"></span> Auto-pay Failed</span>" : '', "\n                        </div>\n                    </div>\n                    <div class=\"bill-actions\">\n                        ").concat(!isPaid ? "\n                            <button class=\"bill-action-btn bill-paid-btn\" data-bill-id=\"".concat(bill.id, "\" title=\"Mark as paid\">\n                                <span class=\"icon-checkmark\" aria-hidden=\"true\"></span>\n                                Mark Paid\n                            </button>\n                        ") : '', "\n                        <button class=\"bill-action-btn bill-edit-btn\" data-bill-id=\"").concat(bill.id, "\" title=\"Edit bill\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"bill-action-btn bill-delete-btn\" data-bill-id=\"").concat(bill.id, "\" title=\"Delete bill\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            ");
+        var remainingPayments = (_ref3 = (_bill$remainingPaymen = bill.remainingPayments) !== null && _bill$remainingPaymen !== void 0 ? _bill$remainingPaymen : bill.remaining_payments) !== null && _ref3 !== void 0 ? _ref3 : null;
+        var endDate = (_ref4 = (_bill$endDate = bill.endDate) !== null && _bill$endDate !== void 0 ? _bill$endDate : bill.end_date) !== null && _ref4 !== void 0 ? _ref4 : null;
+        return "\n                <div class=\"bill-card ".concat(statusClass, "\" data-bill-id=\"").concat(bill.id, "\" data-status=\"").concat(statusClass, "\">\n                    <div class=\"bill-header\">\n                        <div class=\"bill-info\">\n                            <h4 class=\"bill-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(bill.name), "</h4>\n                            <span class=\"bill-frequency\">").concat(frequencyLabel, "</span>\n                        </div>\n                        <div class=\"bill-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(bill.amount, null, _this.settings), "</div>\n                    </div>\n                    <div class=\"bill-details\">\n                        <div class=\"bill-due-date\">\n                            <span class=\"icon-calendar\" aria-hidden=\"true\"></span>\n                            ").concat(dueDate ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(dueDate, _this.settings) : 'No due date', "\n                        </div>\n                        <div class=\"bill-status ").concat(statusClass, "\">\n                            <span class=\"status-badge\">").concat(statusText, "</span>\n                            ").concat(autoPayEnabled ? "<span class=\"status-badge auto-pay\" title=\"Auto-pay enabled\" style=\"background: #007bff; margin-left: 5px;\"><span class=\"icon-checkmark\"></span> Auto-pay</span>" : '', "\n                            ").concat(autoPayFailed ? "<span class=\"status-badge auto-pay-failed\" title=\"Auto-pay failed - disabled\" style=\"background: #ffc107; color: #856404; margin-left: 5px;\"><span class=\"icon-error\"></span> Auto-pay Failed</span>" : '', "\n                            ").concat(remainingPayments !== null ? "<span class=\"status-badge\" title=\"Remaining payments\" style=\"background: #6c757d; margin-left: 5px;\">".concat(remainingPayments, " left</span>") : '', "\n                            ").concat(endDate ? "<span class=\"status-badge\" title=\"Ends ".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(endDate, _this.settings), "\" style=\"background: #6c757d; margin-left: 5px;\">Ends ").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(endDate, _this.settings), "</span>") : '', "\n                        </div>\n                    </div>\n                    <div class=\"bill-actions\">\n                        ").concat(!isPaid ? "\n                            <button class=\"bill-action-btn bill-paid-btn\" data-bill-id=\"".concat(bill.id, "\" title=\"Mark as paid\">\n                                <span class=\"icon-checkmark\" aria-hidden=\"true\"></span>\n                                Mark Paid\n                            </button>\n                        ") : '', "\n                        <button class=\"bill-action-btn bill-edit-btn\" data-bill-id=\"").concat(bill.id, "\" title=\"Edit bill\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"bill-action-btn bill-delete-btn\" data-bill-id=\"").concat(bill.id, "\" title=\"Delete bill\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            ");
       }).join('');
     }
   }, {
@@ -18962,7 +18964,7 @@ var BillsModule = /*#__PURE__*/function () {
       form.reset();
       document.getElementById('bill-id').value = '';
       if (bill) {
-        var _bill$reminderDays, _ref3, _bill$autoPayEnabled2, _ref4, _bill$autoPayFailed2;
+        var _bill$reminderDays, _bill$remainingPaymen2, _ref5, _bill$autoPayEnabled2, _ref6, _bill$autoPayFailed2;
         title.textContent = 'Edit Bill';
         document.getElementById('bill-id').value = bill.id;
         document.getElementById('bill-name').value = bill.name || '';
@@ -18988,14 +18990,19 @@ var BillsModule = /*#__PURE__*/function () {
           });
         }
 
+        // Set end date / remaining payments
+        document.getElementById('bill-end-date').value = bill.endDate || bill.end_date || '';
+        var remainingPayments = (_bill$remainingPaymen2 = bill.remainingPayments) !== null && _bill$remainingPaymen2 !== void 0 ? _bill$remainingPaymen2 : bill.remaining_payments;
+        document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
+
         // Reset transaction creation fields for edit mode
         document.getElementById('bill-create-transaction').checked = false;
         document.getElementById('bill-transaction-date').value = '';
         document.getElementById('transaction-date-group').style.display = 'none';
 
         // Set auto-pay fields
-        var autoPayEnabled = (_ref3 = (_bill$autoPayEnabled2 = bill.autoPayEnabled) !== null && _bill$autoPayEnabled2 !== void 0 ? _bill$autoPayEnabled2 : bill.auto_pay_enabled) !== null && _ref3 !== void 0 ? _ref3 : false;
-        var autoPayFailed = (_ref4 = (_bill$autoPayFailed2 = bill.autoPayFailed) !== null && _bill$autoPayFailed2 !== void 0 ? _bill$autoPayFailed2 : bill.auto_pay_failed) !== null && _ref4 !== void 0 ? _ref4 : false;
+        var autoPayEnabled = (_ref5 = (_bill$autoPayEnabled2 = bill.autoPayEnabled) !== null && _bill$autoPayEnabled2 !== void 0 ? _bill$autoPayEnabled2 : bill.auto_pay_enabled) !== null && _ref5 !== void 0 ? _ref5 : false;
+        var autoPayFailed = (_ref6 = (_bill$autoPayFailed2 = bill.autoPayFailed) !== null && _bill$autoPayFailed2 !== void 0 ? _bill$autoPayFailed2 : bill.auto_pay_failed) !== null && _ref6 !== void 0 ? _ref6 : false;
         document.getElementById('bill-auto-pay').checked = autoPayEnabled;
         document.getElementById('auto-pay-failed-warning').style.display = autoPayFailed ? 'block' : 'none';
 
@@ -19013,6 +19020,10 @@ var BillsModule = /*#__PURE__*/function () {
         document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(function (cb) {
           return cb.checked = false;
         });
+
+        // Clear end date / remaining payments
+        document.getElementById('bill-end-date').value = '';
+        document.getElementById('bill-remaining-payments').value = '';
 
         // Reset transaction creation fields for new bill
         document.getElementById('bill-create-transaction').checked = false;
@@ -19045,6 +19056,8 @@ var BillsModule = /*#__PURE__*/function () {
       var dueDayGroup = document.getElementById('due-day-group');
       var dueMonthGroup = document.getElementById('due-month-group');
       var customMonthsGroup = document.getElementById('custom-months-group');
+      var endDateGroup = document.getElementById('end-date-group');
+      var remainingPaymentsGroup = document.getElementById('remaining-payments-group');
 
       // Show/hide custom months selector for custom frequency
       if (frequency === 'custom') {
@@ -19060,6 +19073,11 @@ var BillsModule = /*#__PURE__*/function () {
         dueDayGroup.style.display = 'block';
         dueMonthGroup.style.display = 'none';
       }
+
+      // Hide end date/remaining payments for one-time (already auto-deactivates)
+      var isOneTime = frequency === 'one-time';
+      if (endDateGroup) endDateGroup.style.display = isOneTime ? 'none' : 'block';
+      if (remainingPaymentsGroup) remainingPaymentsGroup.style.display = isOneTime ? 'none' : 'block';
 
       // Update due day label based on frequency
       var dueDayLabel = dueDayGroup.querySelector('label');
@@ -19132,7 +19150,9 @@ var BillsModule = /*#__PURE__*/function () {
                 createTransaction: ((_document$getElementB = document.getElementById('bill-create-transaction')) === null || _document$getElementB === void 0 ? void 0 : _document$getElementB.checked) || false,
                 transactionDate: ((_document$getElementB2 = document.getElementById('bill-transaction-date')) === null || _document$getElementB2 === void 0 ? void 0 : _document$getElementB2.value) || null,
                 autoPayEnabled: ((_document$getElementB3 = document.getElementById('bill-auto-pay')) === null || _document$getElementB3 === void 0 ? void 0 : _document$getElementB3.checked) || false,
-                tagIds: this.getSelectedBillTagIds()
+                tagIds: this.getSelectedBillTagIds(),
+                endDate: document.getElementById('bill-end-date').value || null,
+                remainingPayments: document.getElementById('bill-remaining-payments').value ? parseInt(document.getElementById('bill-remaining-payments').value) : null
               }; // Add custom recurrence pattern if frequency is custom
               if (!(frequency === 'custom')) {
                 _context3.n = 2;

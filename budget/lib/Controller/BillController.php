@@ -125,6 +125,8 @@ class BillController extends Controller {
             $destinationAccountId = isset($data['destinationAccountId']) ? (int) $data['destinationAccountId'] : null;
             $transferDescriptionPattern = $data['transferDescriptionPattern'] ?? null;
             $tagIds = isset($data['tagIds']) && is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
+            $endDate = $data['endDate'] ?? null;
+            $remainingPayments = isset($data['remainingPayments']) ? (int) $data['remainingPayments'] : null;
 
             // Validate auto-pay requires account
             if ($autoPayEnabled && $accountId === null) {
@@ -213,6 +215,21 @@ class BillController extends Controller {
                 }
             }
 
+            // Validate endDate if provided
+            if ($endDate !== null && $endDate !== '') {
+                $endDateValidation = $this->validationService->validateDate($endDate, 'End date', false);
+                if (!$endDateValidation['valid']) {
+                    return new DataResponse(['error' => $endDateValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+            } else {
+                $endDate = null;
+            }
+
+            // Validate remainingPayments if provided
+            if ($remainingPayments !== null && $remainingPayments < 1) {
+                return new DataResponse(['error' => 'Remaining payments must be at least 1'], Http::STATUS_BAD_REQUEST);
+            }
+
             $bill = $this->service->create(
                 $this->userId,
                 $name,
@@ -232,7 +249,9 @@ class BillController extends Controller {
                 $isTransfer,
                 $destinationAccountId,
                 $transferDescriptionPattern,
-                $tagIds
+                $tagIds,
+                $endDate,
+                $remainingPayments
             );
 
             return new DataResponse($bill, Http::STATUS_CREATED);
@@ -384,6 +403,28 @@ class BillController extends Controller {
             if (array_key_exists('tagIds', $data)) {
                 $tagIds = is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
                 $updates['tagIds'] = empty($tagIds) ? null : json_encode(array_values($tagIds));
+            }
+            if (array_key_exists('endDate', $data)) {
+                if ($data['endDate'] !== null && $data['endDate'] !== '') {
+                    $endDateValidation = $this->validationService->validateDate($data['endDate'], 'End date', false);
+                    if (!$endDateValidation['valid']) {
+                        return new DataResponse(['error' => $endDateValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['endDate'] = $data['endDate'];
+                } else {
+                    $updates['endDate'] = null;
+                }
+            }
+            if (array_key_exists('remainingPayments', $data)) {
+                if ($data['remainingPayments'] !== null && $data['remainingPayments'] !== '') {
+                    $remaining = (int) $data['remainingPayments'];
+                    if ($remaining < 1) {
+                        return new DataResponse(['error' => 'Remaining payments must be at least 1'], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['remainingPayments'] = $remaining;
+                } else {
+                    $updates['remainingPayments'] = null;
+                }
             }
 
             // Validate transfer constraints if being updated

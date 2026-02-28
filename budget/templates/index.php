@@ -4206,6 +4206,18 @@ style('budget', 'budget-main');
                 <small id="bill-notes-help" class="form-text">Any additional notes (optional)</small>
             </div>
 
+            <div class="form-group" id="end-date-group">
+                <label for="bill-end-date">End Date</label>
+                <input type="date" id="bill-end-date" aria-describedby="bill-end-date-help">
+                <small id="bill-end-date-help" class="form-text">Bill will automatically stop after this date (optional)</small>
+            </div>
+
+            <div class="form-group" id="remaining-payments-group">
+                <label for="bill-remaining-payments">Remaining Payments</label>
+                <input type="number" id="bill-remaining-payments" min="1" aria-describedby="bill-remaining-payments-help" placeholder="e.g., 10">
+                <small id="bill-remaining-payments-help" class="form-text">Number of payments left before bill auto-deactivates (optional)</small>
+            </div>
+
             <div class="form-group">
                 <label for="bill-reminder-days">Reminder</label>
                 <select id="bill-reminder-days" aria-describedby="bill-reminder-help">

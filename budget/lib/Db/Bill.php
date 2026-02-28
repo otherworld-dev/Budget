@@ -56,6 +56,10 @@ use OCP\AppFramework\Db\Entity;
  * @method void setTransferDescriptionPattern(?string $transferDescriptionPattern)
  * @method string|null getTagIds()
  * @method void setTagIds(?string $tagIds)
+ * @method string|null getEndDate()
+ * @method void setEndDate(?string $endDate)
+ * @method int|null getRemainingPayments()
+ * @method void setRemainingPayments(?int $remainingPayments)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
@@ -81,6 +85,8 @@ class Bill extends Entity implements JsonSerializable {
     protected $destinationAccountId;  // Target account for transfers
     protected $transferDescriptionPattern;  // Optional description pattern for matching
     protected $tagIds;                     // JSON array of tag IDs to apply to created transactions
+    protected $endDate;                    // Optional end date for auto-deactivation
+    protected $remainingPayments;          // Optional countdown of payments before auto-deactivation
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -95,6 +101,7 @@ class Bill extends Entity implements JsonSerializable {
         $this->addType('autoPayFailed', 'boolean');
         $this->addType('isTransfer', 'boolean');
         $this->addType('destinationAccountId', 'integer');
+        $this->addType('remainingPayments', 'integer');
     }
 
     /**
@@ -144,6 +151,8 @@ class Bill extends Entity implements JsonSerializable {
             'destinationAccountId' => $this->getDestinationAccountId(),
             'transferDescriptionPattern' => $this->getTransferDescriptionPattern(),
             'tagIds' => $this->getTagIdsArray(),
+            'endDate' => $this->getEndDate(),
+            'remainingPayments' => $this->getRemainingPayments(),
         ];
     }
 }

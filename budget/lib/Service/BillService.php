@@ -115,7 +115,9 @@ class BillService {
         bool $isTransfer = false,
         ?int $destinationAccountId = null,
         ?string $transferDescriptionPattern = null,
-        array $tagIds = []
+        array $tagIds = [],
+        ?string $endDate = null,
+        ?int $remainingPayments = null
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
@@ -152,6 +154,8 @@ class BillService {
         $bill->setDestinationAccountId($destinationAccountId);
         $bill->setTransferDescriptionPattern($transferDescriptionPattern);
         $bill->setTagIdsArray($tagIds);
+        $bill->setEndDate($endDate);
+        $bill->setRemainingPayments($remainingPayments);
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);
@@ -273,13 +277,31 @@ class BillService {
                 $bill->getCustomRecurrencePattern()
             );
             $bill->setNextDueDate($nextDue);
+
+            // Decrement remaining payments if set
+            $remaining = $bill->getRemainingPayments();
+            if ($remaining !== null) {
+                $remaining--;
+                $bill->setRemainingPayments($remaining);
+                if ($remaining <= 0) {
+                    $bill->setIsActive(false);
+                    $bill->setNextDueDate(null);
+                }
+            }
+
+            // Deactivate if next due date exceeds end date
+            $endDate = $bill->getEndDate();
+            if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
+                $bill->setIsActive(false);
+                $bill->setNextDueDate(null);
+            }
         }
 
         $bill = $this->mapper->update($bill);
 
         // Auto-create transaction for next occurrence if bill has account
-        // Skip for one-time bills since there is no next occurrence
-        if ($createNextTransaction && $bill->getFrequency() !== 'one-time' && $bill->getAccountId() !== null) {
+        // Skip for deactivated bills (one-time, end date reached, remaining payments exhausted)
+        if ($createNextTransaction && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $this->transactionService->createFromBill($userId, $bill, null);
             } catch (\Exception $e) {
@@ -651,6 +673,45 @@ class BillService {
                     }
                 }
                 break;
+        }
+
+        // Apply end date constraint: remove occurrences after end date
+        $endDate = $bill->getEndDate();
+        if ($endDate !== null) {
+            $endYear = (int) date('Y', strtotime($endDate));
+            $endMonth = (int) date('n', strtotime($endDate));
+
+            for ($month = 1; $month <= 12; $month++) {
+                if ($year > $endYear || ($year === $endYear && $month > $endMonth)) {
+                    $occurrences[$month] = false;
+                }
+            }
+        }
+
+        // Apply remaining payments constraint: cap number of future occurrences
+        $remaining = $bill->getRemainingPayments();
+        if ($remaining !== null && $remaining >= 0) {
+            $nextDueDate = $bill->getNextDueDate();
+            $nextDueYear = $nextDueDate ? (int) date('Y', strtotime($nextDueDate)) : $year;
+            $nextDueMonth = $nextDueDate ? (int) date('n', strtotime($nextDueDate)) : 1;
+
+            $count = 0;
+            for ($month = 1; $month <= 12; $month++) {
+                if (!$occurrences[$month]) {
+                    continue;
+                }
+
+                // Skip months before the next due date
+                if ($year < $nextDueYear || ($year === $nextDueYear && $month < $nextDueMonth)) {
+                    $occurrences[$month] = false;
+                    continue;
+                }
+
+                $count++;
+                if ($count > $remaining) {
+                    $occurrences[$month] = false;
+                }
+            }
         }
 
         return $occurrences;
