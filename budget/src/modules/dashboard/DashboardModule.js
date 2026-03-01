@@ -205,7 +205,10 @@ export default class DashboardModule {
 
     updateDashboardHero(summary) {
         const totals = summary.totals || {};
-        const currency = this.getPrimaryCurrency();
+        const currency = summary.baseCurrency || this.getPrimaryCurrency();
+
+        // Show conversion indicator if multi-currency conversion was applied
+        this.updateConversionIndicator(summary);
 
         // Net Worth (total balance across all accounts)
         const netWorthEl = document.getElementById('hero-net-worth-value');
@@ -302,7 +305,7 @@ export default class DashboardModule {
         const expenses = summary.totals.totalExpenses || 0;
         const cashFlow = income - expenses;
 
-        el.textContent = this.formatCurrency(cashFlow, this.getPrimaryCurrency());
+        el.textContent = this.formatCurrency(cashFlow, summary.baseCurrency || this.getPrimaryCurrency());
         el.className = `hero-value ${cashFlow >= 0 ? 'income' : 'expenses'}`;
 
         const changeEl = document.getElementById('hero-cash-flow-change');
@@ -444,6 +447,36 @@ export default class DashboardModule {
         if (changeEl) {
             changeEl.textContent = `${onTrack}/${totalBudgets} on track`;
         }
+    }
+
+    // ===========================
+    // Currency Conversion Indicator
+    // ===========================
+
+    updateConversionIndicator(summary) {
+        // Remove any existing indicator
+        const existing = document.getElementById('currency-conversion-indicator');
+        if (existing) existing.remove();
+
+        if (!summary.currencyConverted) return;
+
+        // Place indicator inside the net worth hero tile
+        const netWorthContent = document.querySelector('.hero-net-worth .hero-content');
+        if (!netWorthContent) return;
+
+        const indicator = document.createElement('span');
+        indicator.id = 'currency-conversion-indicator';
+        indicator.className = 'hero-subtext conversion-info';
+
+        const unconverted = summary.unconvertedCurrencies || [];
+        if (unconverted.length > 0) {
+            indicator.className = 'hero-subtext conversion-warning';
+            indicator.innerHTML = `&#9888; Rates unavailable for ${unconverted.join(', ')}`;
+        } else {
+            indicator.textContent = `Converted to ${summary.baseCurrency} at current rates`;
+        }
+
+        netWorthContent.appendChild(indicator);
     }
 
     // ===========================

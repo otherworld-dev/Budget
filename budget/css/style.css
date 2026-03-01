@@ -418,6 +418,15 @@
     margin-top: 4px;
 }
 
+/* Currency Conversion Indicator (inside hero tile) */
+.conversion-info {
+    opacity: 0.8;
+}
+
+.conversion-warning {
+    color: var(--color-warning);
+}
+
 /* Main Dashboard Grid - Two Column Layout */
 .dashboard-grid {
     display: grid;

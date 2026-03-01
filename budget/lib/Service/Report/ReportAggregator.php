@@ -7,31 +7,37 @@ namespace OCA\Budget\Service\Report;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Service\CurrencyConversionService;
 
 /**
  * Aggregates data to generate summary reports.
+ * Converts multi-currency accounts to the user's base currency for accurate totals.
  */
 class ReportAggregator {
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
     private ReportCalculator $calculator;
+    private CurrencyConversionService $conversionService;
 
     public function __construct(
         AccountMapper $accountMapper,
         TransactionMapper $transactionMapper,
         CategoryMapper $categoryMapper,
-        ReportCalculator $calculator
+        ReportCalculator $calculator,
+        CurrencyConversionService $conversionService
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
         $this->categoryMapper = $categoryMapper;
         $this->calculator = $calculator;
+        $this->conversionService = $conversionService;
     }
 
     /**
      * Generate a comprehensive financial summary.
      * OPTIMIZED: Uses single aggregated query instead of N+1 pattern.
+     * Multi-currency accounts are converted to the user's base currency for totals.
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
@@ -46,6 +52,16 @@ class ReportAggregator {
         $accounts = $accountId
             ? [$this->accountMapper->find($accountId, $userId)]
             : $this->accountMapper->findAll($userId);
+
+        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
+        $needsConversion = $accountId === null && $this->conversionService->needsConversion($accounts);
+        $unconvertedCurrencies = [];
+
+        // Build account → currency map for conversion
+        $currencyMap = [];
+        if ($needsConversion) {
+            $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
+        }
 
         $summary = [
             'period' => [
@@ -65,7 +81,10 @@ class ReportAggregator {
                 ]
             ],
             'spending' => [],
-            'trends' => []
+            'trends' => [],
+            'baseCurrency' => $baseCurrency,
+            'currencyConverted' => $needsConversion,
+            'unconvertedCurrencies' => []
         ];
 
         // Single aggregated query for all account summaries (replaces N+1 pattern)
@@ -107,6 +126,25 @@ class ReportAggregator {
                 'transactionCount' => $accountData['count']
             ];
 
+            // Convert to base currency for aggregation if needed
+            if ($needsConversion) {
+                $accountCurrency = $account->getCurrency() ?: 'USD';
+                if ($accountCurrency !== $baseCurrency) {
+                    $convertedBalance = $this->conversionService->convertToBaseFloat($currentBalance, $accountCurrency, $userId);
+                    $convertedIncome = $this->conversionService->convertToBaseFloat($accountIncome, $accountCurrency, $userId);
+                    $convertedExpenses = $this->conversionService->convertToBaseFloat($accountExpenses, $accountCurrency, $userId);
+
+                    // Detect if conversion failed (amount unchanged for non-zero value)
+                    if ($currentBalance != 0 && (float)$convertedBalance === (float)$currentBalance) {
+                        $unconvertedCurrencies[] = $accountCurrency;
+                    }
+
+                    $currentBalance = $convertedBalance;
+                    $accountIncome = $convertedIncome;
+                    $accountExpenses = $convertedExpenses;
+                }
+            }
+
             $summary['totals']['currentBalance'] += $currentBalance;
             $totalIncome += $accountIncome;
             $totalExpenses += $accountExpenses;
@@ -115,16 +153,33 @@ class ReportAggregator {
         // Exclude transfers from aggregate totals (all-accounts view only)
         // Transfers are zero-sum across accounts and should not inflate income/expenses
         if ($accountId === null) {
-            $transferTotals = $this->transactionMapper->getTransferTotals(
-                $userId, $startDate, $endDate, $tagIds, $includeUntagged
-            );
-            $totalIncome -= $transferTotals['income'];
-            $totalExpenses -= $transferTotals['expenses'];
+            if ($needsConversion) {
+                // Per-account transfer totals so we can convert each account's transfers
+                $transfersByAccount = $this->transactionMapper->getTransferTotalsByAccount(
+                    $userId, $startDate, $endDate, $tagIds, $includeUntagged
+                );
+                $transferIncome = 0;
+                $transferExpenses = 0;
+                foreach ($transfersByAccount as $accId => $transfers) {
+                    $accCurrency = $currencyMap[$accId] ?? $baseCurrency;
+                    $transferIncome += $this->conversionService->convertToBaseFloat($transfers['income'], $accCurrency, $userId);
+                    $transferExpenses += $this->conversionService->convertToBaseFloat($transfers['expenses'], $accCurrency, $userId);
+                }
+                $totalIncome -= $transferIncome;
+                $totalExpenses -= $transferExpenses;
+            } else {
+                $transferTotals = $this->transactionMapper->getTransferTotals(
+                    $userId, $startDate, $endDate, $tagIds, $includeUntagged
+                );
+                $totalIncome -= $transferTotals['income'];
+                $totalExpenses -= $transferTotals['expenses'];
+            }
         }
 
         $summary['totals']['totalIncome'] = $totalIncome;
         $summary['totals']['totalExpenses'] = $totalExpenses;
         $summary['totals']['netIncome'] = $totalIncome - $totalExpenses;
+        $summary['unconvertedCurrencies'] = array_values(array_unique($unconvertedCurrencies));
 
         $days = $summary['period']['days'];
         if ($days > 0) {
@@ -144,7 +199,7 @@ class ReportAggregator {
             $excludeTransfers
         );
 
-        // Generate trend data
+        // Generate trend data (with currency conversion for multi-account view)
         $summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged);
 
         return $summary;
@@ -276,6 +331,7 @@ class ReportAggregator {
 
     /**
      * Generate cash flow report by month.
+     * Multi-currency accounts are converted to base currency in all-accounts view.
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
@@ -287,15 +343,28 @@ class ReportAggregator {
         array $tagIds = [],
         bool $includeUntagged = true
     ): array {
-        $cashFlow = $this->transactionMapper->getCashFlowByMonth(
-            $userId,
-            $accountId,
-            $startDate,
-            $endDate,
-            $tagIds,
-            $includeUntagged,
-            $accountId === null
-        );
+        $excludeTransfers = $accountId === null;
+
+        // Check if multi-currency conversion is needed
+        if ($accountId === null) {
+            $accounts = $this->accountMapper->findAll($userId);
+            $needsConversion = $this->conversionService->needsConversion($accounts);
+
+            if ($needsConversion) {
+                $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
+                $cashFlow = $this->convertCashFlowByAccount(
+                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers
+                );
+            } else {
+                $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+                );
+            }
+        } else {
+            $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+                $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+            );
+        }
 
         $totals = ['income' => 0, 'expenses' => 0, 'net' => 0];
         foreach ($cashFlow as $month) {
@@ -319,8 +388,53 @@ class ReportAggregator {
     }
 
     /**
+     * Convert per-account-per-month cash flow data to base currency and aggregate by month.
+     *
+     * @param array<int, string> $currencyMap accountId → currency code
+     */
+    private function convertCashFlowByAccount(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $currencyMap,
+        array $tagIds,
+        bool $includeUntagged,
+        bool $excludeTransfers
+    ): array {
+        $perAccountData = $this->transactionMapper->getCashFlowByMonthByAccount(
+            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+        );
+
+        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
+        $byMonth = [];
+
+        foreach ($perAccountData as $row) {
+            $month = $row['month'];
+            $accCurrency = $currencyMap[$row['account_id']] ?? $baseCurrency;
+
+            $income = $this->conversionService->convertToBaseFloat($row['income'], $accCurrency, $userId);
+            $expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
+
+            if (!isset($byMonth[$month])) {
+                $byMonth[$month] = ['month' => $month, 'income' => 0, 'expenses' => 0, 'net' => 0];
+            }
+            $byMonth[$month]['income'] += $income;
+            $byMonth[$month]['expenses'] += $expenses;
+        }
+
+        // Recalculate net after aggregation
+        foreach ($byMonth as &$monthData) {
+            $monthData['net'] = $monthData['income'] - $monthData['expenses'];
+        }
+        unset($monthData);
+
+        ksort($byMonth);
+        return array_values($byMonth);
+    }
+
+    /**
      * Generate monthly trend data for charts.
-     * OPTIMIZED: Uses single aggregated query instead of N×M queries (months × accounts).
+     * Multi-currency accounts are converted to base currency in all-accounts view.
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
      */
@@ -332,22 +446,35 @@ class ReportAggregator {
         array $tagIds = [],
         bool $includeUntagged = true
     ): array {
-        // Single query to get all monthly data at once
-        // Exclude transfers in all-accounts view to avoid double-counting
-        $monthlyData = $this->transactionMapper->getMonthlyTrendData(
-            $userId,
-            $accountId,
-            $startDate,
-            $endDate,
-            $tagIds,
-            $includeUntagged,
-            $accountId === null
-        );
+        $excludeTransfers = $accountId === null;
 
-        // Index by month for quick lookup
-        $dataByMonth = [];
-        foreach ($monthlyData as $row) {
-            $dataByMonth[$row['month']] = $row;
+        // Check if multi-currency conversion is needed
+        if ($accountId === null) {
+            $accounts = $this->accountMapper->findAll($userId);
+            $needsConversion = $this->conversionService->needsConversion($accounts);
+
+            if ($needsConversion) {
+                $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
+                $dataByMonth = $this->convertTrendDataByAccount(
+                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers
+                );
+            } else {
+                $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+                );
+                $dataByMonth = [];
+                foreach ($monthlyData as $row) {
+                    $dataByMonth[$row['month']] = $row;
+                }
+            }
+        } else {
+            $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+                $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false
+            );
+            $dataByMonth = [];
+            foreach ($monthlyData as $row) {
+                $dataByMonth[$row['month']] = $row;
+            }
         }
 
         $trends = [
@@ -373,6 +500,45 @@ class ReportAggregator {
         }
 
         return $trends;
+    }
+
+    /**
+     * Convert per-account-per-month trend data to base currency and aggregate by month.
+     *
+     * @param array<int, string> $currencyMap accountId → currency code
+     * @return array<string, array{income: float, expenses: float}> month → totals
+     */
+    private function convertTrendDataByAccount(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $currencyMap,
+        array $tagIds,
+        bool $includeUntagged,
+        bool $excludeTransfers
+    ): array {
+        $perAccountData = $this->transactionMapper->getMonthlyTrendDataByAccount(
+            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+        );
+
+        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
+        $byMonth = [];
+
+        foreach ($perAccountData as $row) {
+            $month = $row['month'];
+            $accCurrency = $currencyMap[$row['account_id']] ?? $baseCurrency;
+
+            $income = $this->conversionService->convertToBaseFloat($row['income'], $accCurrency, $userId);
+            $expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
+
+            if (!isset($byMonth[$month])) {
+                $byMonth[$month] = ['income' => 0, 'expenses' => 0];
+            }
+            $byMonth[$month]['income'] += $income;
+            $byMonth[$month]['expenses'] += $expenses;
+        }
+
+        return $byMonth;
     }
 
     /**

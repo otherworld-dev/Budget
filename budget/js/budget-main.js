@@ -22208,7 +22208,10 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "updateDashboardHero",
     value: function updateDashboardHero(summary) {
       var totals = summary.totals || {};
-      var currency = this.getPrimaryCurrency();
+      var currency = summary.baseCurrency || this.getPrimaryCurrency();
+
+      // Show conversion indicator if multi-currency conversion was applied
+      this.updateConversionIndicator(summary);
 
       // Net Worth (total balance across all accounts)
       var netWorthEl = document.getElementById('hero-net-worth-value');
@@ -22302,7 +22305,7 @@ var DashboardModule = /*#__PURE__*/function () {
       var income = summary.totals.totalIncome || 0;
       var expenses = summary.totals.totalExpenses || 0;
       var cashFlow = income - expenses;
-      el.textContent = this.formatCurrency(cashFlow, this.getPrimaryCurrency());
+      el.textContent = this.formatCurrency(cashFlow, summary.baseCurrency || this.getPrimaryCurrency());
       el.className = "hero-value ".concat(cashFlow >= 0 ? 'income' : 'expenses');
       var changeEl = document.getElementById('hero-cash-flow-change');
       if (changeEl && summary.trends) {
@@ -22456,6 +22459,33 @@ var DashboardModule = /*#__PURE__*/function () {
       if (changeEl) {
         changeEl.textContent = "".concat(onTrack, "/").concat(totalBudgets, " on track");
       }
+    }
+
+    // ===========================
+    // Currency Conversion Indicator
+    // ===========================
+  }, {
+    key: "updateConversionIndicator",
+    value: function updateConversionIndicator(summary) {
+      // Remove any existing indicator
+      var existing = document.getElementById('currency-conversion-indicator');
+      if (existing) existing.remove();
+      if (!summary.currencyConverted) return;
+
+      // Place indicator inside the net worth hero tile
+      var netWorthContent = document.querySelector('.hero-net-worth .hero-content');
+      if (!netWorthContent) return;
+      var indicator = document.createElement('span');
+      indicator.id = 'currency-conversion-indicator';
+      indicator.className = 'hero-subtext conversion-info';
+      var unconverted = summary.unconvertedCurrencies || [];
+      if (unconverted.length > 0) {
+        indicator.className = 'hero-subtext conversion-warning';
+        indicator.innerHTML = "&#9888; Rates unavailable for ".concat(unconverted.join(', '));
+      } else {
+        indicator.textContent = "Converted to ".concat(summary.baseCurrency, " at current rates");
+      }
+      netWorthContent.appendChild(indicator);
     }
 
     // ===========================

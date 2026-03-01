@@ -212,7 +212,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
-                $c->get(\OCA\Budget\Service\Report\ReportCalculator::class)
+                $c->get(\OCA\Budget\Service\Report\ReportCalculator::class),
+                $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
             );
         });
 
@@ -482,7 +483,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\NetWorthService(
                 $c->get(\OCA\Budget\Db\NetWorthSnapshotMapper::class),
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
             );
         });
         $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);
@@ -570,6 +572,32 @@ class Application extends App implements IBootstrap {
             );
         });
         $context->registerServiceAlias('SharedExpenseService', \OCA\Budget\Service\SharedExpenseService::class);
+
+        // ==========================================
+        // Exchange Rate Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\ExchangeRateMapper::class, function($c) {
+            return new \OCA\Budget\Db\ExchangeRateMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('ExchangeRateMapper', \OCA\Budget\Db\ExchangeRateMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\ExchangeRateService::class, function($c) {
+            return new \OCA\Budget\Service\ExchangeRateService(
+                $c->get(\OCA\Budget\Db\ExchangeRateMapper::class),
+                $c->get(\OCP\Http\Client\IClientService::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+        $context->registerServiceAlias('ExchangeRateService', \OCA\Budget\Service\ExchangeRateService::class);
+
+        $context->registerService(\OCA\Budget\Service\CurrencyConversionService::class, function($c) {
+            return new \OCA\Budget\Service\CurrencyConversionService(
+                $c->get(\OCA\Budget\Service\ExchangeRateService::class),
+                $c->get(\OCA\Budget\Service\SettingService::class)
+            );
+        });
+        $context->registerServiceAlias('CurrencyConversionService', \OCA\Budget\Service\CurrencyConversionService::class);
     }
 
     public function boot(IBootContext $context): void {

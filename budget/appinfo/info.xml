@@ -63,5 +63,6 @@ Track your spending habits, manage savings, and forecast future account balances
         <job>OCA\Budget\BackgroundJob\CleanupImportFilesJob</job>
         <job>OCA\Budget\BackgroundJob\CleanupAuditLogsJob</job>
         <job>OCA\Budget\BackgroundJob\BillReminderJob</job>
+        <job>OCA\Budget\BackgroundJob\ExchangeRateUpdateJob</job>
     </background-jobs>
 </info>

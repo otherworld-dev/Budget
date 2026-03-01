@@ -575,6 +575,58 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Get aggregate transfer totals grouped by account.
+     * Used for currency-aware transfer deduction in multi-currency aggregation.
+     *
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
+     * @return array<int, array{income: float, expenses: float}> accountId => totals
+     */
+    public function getTransferTotalsByAccount(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.account_id')
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
+                'income'
+            )
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
+                'expenses'
+            )
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
+
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
+        $qb->groupBy('t.account_id');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        $totals = [];
+        foreach ($data as $row) {
+            $totals[(int)$row['account_id']] = [
+                'income' => (float)($row['income'] ?? 0),
+                'expenses' => (float)($row['expenses'] ?? 0),
+            ];
+        }
+
+        return $totals;
+    }
+
+    /**
      * Get spending totals for multiple categories at once (avoids N+1)
      * @param int[] $categoryIds
      * @return array<int, float> categoryId => total spending
@@ -782,6 +834,117 @@ class TransactionMapper extends QBMapper {
             'month' => $row['month'],
             'income' => (float)$row['income'],
             'expenses' => (float)$row['expenses']
+        ], $data);
+    }
+
+    /**
+     * Get monthly trend data grouped by account for currency conversion.
+     * Returns per-account-per-month rows so the aggregator can convert before summing.
+     *
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
+     * @return array<int, array{month: string, account_id: int, income: float, expenses: float}>
+     */
+    public function getMonthlyTrendDataByAccount(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true,
+        bool $excludeTransfers = false
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.account_id')
+            ->addSelect($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month'))
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
+                'income'
+            )
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
+                'expenses'
+            )
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
+
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
+        $qb->groupBy('t.account_id', $qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)'))
+            ->orderBy($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)'), 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'month' => $row['month'],
+            'account_id' => (int)$row['account_id'],
+            'income' => (float)$row['income'],
+            'expenses' => (float)$row['expenses']
+        ], $data);
+    }
+
+    /**
+     * Get cash flow by month grouped by account for currency conversion.
+     * Returns per-account-per-month rows so the aggregator can convert before summing.
+     *
+     * @param int[] $tagIds Optional tag filter (OR logic)
+     * @param bool $includeUntagged Include untagged transactions when filtering by tags
+     * @return array<int, array{month: string, account_id: int, income: float, expenses: float, net: float}>
+     */
+    public function getCashFlowByMonthByAccount(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        array $tagIds = [],
+        bool $includeUntagged = true,
+        bool $excludeTransfers = false
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.account_id')
+            ->addSelect($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month'))
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
+                'income'
+            )
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
+                'expenses'
+            )
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
+
+        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
+        $qb->groupBy('t.account_id', $qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)'))
+            ->orderBy($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)'), 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'month' => $row['month'],
+            'account_id' => (int)$row['account_id'],
+            'income' => (float)$row['income'],
+            'expenses' => (float)$row['expenses'],
+            'net' => (float)$row['income'] - (float)$row['expenses']
         ], $data);
     }
 
