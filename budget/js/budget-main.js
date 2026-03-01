@@ -40395,7 +40395,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   formatCurrencyCompact: () => (/* binding */ formatCurrencyCompact),
 /* harmony export */   formatDate: () => (/* binding */ formatDate),
 /* harmony export */   formatDateForAPI: () => (/* binding */ formatDateForAPI),
-/* harmony export */   getAccountsHash: () => (/* binding */ getAccountsHash),
 /* harmony export */   getMonthEnd: () => (/* binding */ getMonthEnd),
 /* harmony export */   getMonthStart: () => (/* binding */ getMonthStart),
 /* harmony export */   getPeriodDateRange: () => (/* binding */ getPeriodDateRange),
@@ -40777,35 +40776,7 @@ function formatCurrency(amount, currency, settings) {
  * @returns {string} Primary currency code
  */
 function getPrimaryCurrency(accounts, settings) {
-  // Get default currency from settings (matches backend SettingController default of 'GBP')
-  var defaultCurrency = (settings === null || settings === void 0 ? void 0 : settings.default_currency) || 'GBP';
-
-  // Default fallback to user's setting
-  if (!Array.isArray(accounts) || accounts.length === 0) {
-    return defaultCurrency;
-  }
-
-  // Weight currencies by absolute balance (same logic as backend ForecastService)
-  var currencyWeights = {};
-  accounts.forEach(function (account) {
-    var currency = account.currency || defaultCurrency;
-    var balance = Math.abs(parseFloat(account.balance) || 0);
-    currencyWeights[currency] = (currencyWeights[currency] || 0) + balance;
-  });
-
-  // Find currency with highest weight
-  var primaryCurrency = defaultCurrency;
-  var maxWeight = 0;
-  for (var _i = 0, _Object$entries = Object.entries(currencyWeights); _i < _Object$entries.length; _i++) {
-    var _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2),
-      currency = _Object$entries$_i[0],
-      weight = _Object$entries$_i[1];
-    if (weight > maxWeight) {
-      maxWeight = weight;
-      primaryCurrency = currency;
-    }
-  }
-  return primaryCurrency;
+  return (settings === null || settings === void 0 ? void 0 : settings.default_currency) || 'GBP';
 }
 
 /**
@@ -40911,18 +40882,6 @@ function formatCurrencyCompact(value, currency, settings) {
   } else {
     return "".concat(sign).concat(symbol).concat(formattedNumber).concat(suffix);
   }
-}
-
-/**
- * Generate hash of accounts for caching purposes
- * @param {array} accounts - Array of account objects
- * @returns {string} Hash string
- */
-function getAccountsHash(accounts) {
-  if (!Array.isArray(accounts)) return '';
-  return accounts.map(function (a) {
-    return "".concat(a.id, ":").concat(a.currency, ":").concat(a.balance);
-  }).join('|');
 }
 
 /**
@@ -46147,23 +46106,7 @@ var BudgetApp = /*#__PURE__*/function () {
     key: "getPrimaryCurrency",
     value: function getPrimaryCurrency() {
       var _this$settings;
-      // Get default currency from settings
-      var defaultCurrency = ((_this$settings = this.settings) === null || _this$settings === void 0 ? void 0 : _this$settings.default_currency) || 'GBP';
-
-      // Return cached value if accounts and settings haven't changed
-      var currentHash = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_1__.getAccountsHash(this.accounts);
-      if (this._primaryCurrencyCache && this._accountsHash === currentHash && this._settingsCurrencyCache === defaultCurrency) {
-        return this._primaryCurrencyCache;
-      }
-
-      // Get primary currency from utility
-      var primaryCurrency = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_1__.getPrimaryCurrency(this.accounts, this.settings);
-
-      // Cache the result
-      this._primaryCurrencyCache = primaryCurrency;
-      this._accountsHash = currentHash;
-      this._settingsCurrencyCache = defaultCurrency;
-      return primaryCurrency;
+      return ((_this$settings = this.settings) === null || _this$settings === void 0 ? void 0 : _this$settings.default_currency) || 'GBP';
     }
   }, {
     key: "formatDate",

@@ -127,33 +127,7 @@ export function formatCurrency(amount, currency, settings) {
  * @returns {string} Primary currency code
  */
 export function getPrimaryCurrency(accounts, settings) {
-    // Get default currency from settings (matches backend SettingController default of 'GBP')
-    const defaultCurrency = settings?.default_currency || 'GBP';
-
-    // Default fallback to user's setting
-    if (!Array.isArray(accounts) || accounts.length === 0) {
-        return defaultCurrency;
-    }
-
-    // Weight currencies by absolute balance (same logic as backend ForecastService)
-    const currencyWeights = {};
-    accounts.forEach(account => {
-        const currency = account.currency || defaultCurrency;
-        const balance = Math.abs(parseFloat(account.balance) || 0);
-        currencyWeights[currency] = (currencyWeights[currency] || 0) + balance;
-    });
-
-    // Find currency with highest weight
-    let primaryCurrency = defaultCurrency;
-    let maxWeight = 0;
-    for (const [currency, weight] of Object.entries(currencyWeights)) {
-        if (weight > maxWeight) {
-            maxWeight = weight;
-            primaryCurrency = currency;
-        }
-    }
-
-    return primaryCurrency;
+    return settings?.default_currency || 'GBP';
 }
 
 /**
@@ -261,15 +235,6 @@ export function formatCurrencyCompact(value, currency, settings) {
     }
 }
 
-/**
- * Generate hash of accounts for caching purposes
- * @param {array} accounts - Array of account objects
- * @returns {string} Hash string
- */
-export function getAccountsHash(accounts) {
-    if (!Array.isArray(accounts)) return '';
-    return accounts.map(a => `${a.id}:${a.currency}:${a.balance}`).join('|');
-}
 
 /**
  * Format a Date object as YYYY-MM-DD without timezone conversion.

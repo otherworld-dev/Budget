@@ -3441,26 +3441,7 @@ class BudgetApp {
     }
 
     getPrimaryCurrency() {
-        // Get default currency from settings
-        const defaultCurrency = this.settings?.default_currency || 'GBP';
-
-        // Return cached value if accounts and settings haven't changed
-        const currentHash = formatters.getAccountsHash(this.accounts);
-        if (this._primaryCurrencyCache &&
-            this._accountsHash === currentHash &&
-            this._settingsCurrencyCache === defaultCurrency) {
-            return this._primaryCurrencyCache;
-        }
-
-        // Get primary currency from utility
-        const primaryCurrency = formatters.getPrimaryCurrency(this.accounts, this.settings);
-
-        // Cache the result
-        this._primaryCurrencyCache = primaryCurrency;
-        this._accountsHash = currentHash;
-        this._settingsCurrencyCache = defaultCurrency;
-
-        return primaryCurrency;
+        return this.settings?.default_currency || 'GBP';
     }
 
     formatDate(dateStr) {
