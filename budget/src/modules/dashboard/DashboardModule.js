@@ -778,7 +778,7 @@ export default class DashboardModule {
     }
 
     updatePensionsSummary(summary) {
-        const currency = this.getPrimaryCurrency();
+        const currency = summary.baseCurrency || this.getPrimaryCurrency();
         const pensionWorth = summary.totalPensionWorth || 0;
         const projectedIncome = summary.totalProjectedIncome || 0;
         const count = summary.pensionCount || 0;

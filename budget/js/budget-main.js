@@ -22680,7 +22680,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updatePensionsSummary",
     value: function updatePensionsSummary(summary) {
-      var currency = this.getPrimaryCurrency();
+      var currency = summary.baseCurrency || this.getPrimaryCurrency();
       var pensionWorth = summary.totalPensionWorth || 0;
       var projectedIncome = summary.totalProjectedIncome || 0;
       var count = summary.pensionCount || 0;
