@@ -27756,12 +27756,17 @@ var PensionsModule = /*#__PURE__*/function () {
       var type = document.getElementById('pension-type').value;
       var dcFields = document.getElementById('dc-pension-fields');
       var dbFields = document.getElementById('db-pension-fields');
-      if (type === 'defined_benefit' || type === 'state') {
+      var isDB = type === 'defined_benefit' || type === 'state';
+      if (isDB) {
         dcFields.style.display = 'none';
-        dbFields.style.display = 'block';
+        dcFields.classList.add('hidden');
+        dbFields.style.display = '';
+        dbFields.classList.remove('hidden');
       } else {
-        dcFields.style.display = 'block';
+        dcFields.style.display = '';
+        dcFields.classList.remove('hidden');
         dbFields.style.display = 'none';
+        dbFields.classList.add('hidden');
       }
     }
   }, {
@@ -27786,8 +27791,12 @@ var PensionsModule = /*#__PURE__*/function () {
         if (pension.isDefinedContribution) {
           document.getElementById('pension-balance').value = pension.currentBalance || '';
           document.getElementById('pension-monthly').value = pension.monthlyContribution || '';
+          document.getElementById('pension-return').value = pension.expectedReturnRate || '';
+          document.getElementById('pension-retirement-age').value = pension.retirementAge || '';
         } else {
           document.getElementById('pension-income').value = pension.annualIncome || '';
+          document.getElementById('pension-transfer').value = pension.transferValue || '';
+          document.getElementById('pension-db-retirement-age').value = pension.retirementAge || '';
         }
         this.togglePensionFields();
       } else {
@@ -27826,9 +27835,12 @@ var PensionsModule = /*#__PURE__*/function () {
               if (isDefinedContribution) {
                 data.currentBalance = formData.get('currentBalance') ? parseFloat(formData.get('currentBalance')) : null;
                 data.monthlyContribution = formData.get('monthlyContribution') ? parseFloat(formData.get('monthlyContribution')) : null;
+                data.expectedReturnRate = formData.get('expectedReturnRate') ? parseFloat(formData.get('expectedReturnRate')) : null;
+                data.retirementAge = formData.get('retirementAge') ? parseInt(formData.get('retirementAge'), 10) : null;
               } else {
                 data.annualIncome = formData.get('annualIncome') ? parseFloat(formData.get('annualIncome')) : null;
-                data.startDate = formData.get('startDate') || null;
+                data.transferValue = formData.get('transferValue') ? parseFloat(formData.get('transferValue')) : null;
+                data.retirementAge = formData.get('retirementAge') ? parseInt(formData.get('retirementAge'), 10) : null;
               }
               _context5.p = 1;
               url = pensionId ? OC.generateUrl("/apps/budget/api/pensions/".concat(pensionId)) : OC.generateUrl('/apps/budget/api/pensions');
@@ -45440,7 +45452,7 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "hideModals",
     value: function hideModals() {
-      var modalIds = ['transaction-modal', 'account-modal', 'category-modal', 'split-modal', 'matching-modal', 'bulk-match-modal', 'add-tag-set-modal', 'add-tag-modal', 'edit-tag-set-modal', 'factory-reset-modal', 'rule-modal', 'apply-rules-modal', 'goal-modal', 'add-to-goal-modal'];
+      var modalIds = ['transaction-modal', 'account-modal', 'category-modal', 'split-modal', 'matching-modal', 'bulk-match-modal', 'add-tag-set-modal', 'add-tag-modal', 'edit-tag-set-modal', 'factory-reset-modal', 'rule-modal', 'apply-rules-modal', 'goal-modal', 'add-to-goal-modal', 'pension-modal', 'pension-balance-modal', 'pension-contribution-modal'];
       modalIds.forEach(function (modalId) {
         var modal = document.getElementById(modalId);
         if (modal) {

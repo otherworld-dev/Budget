@@ -3131,21 +3131,34 @@ style('budget', 'budget-main');
         </div>
 
         <!-- Pension Modal (Add/Edit) -->
-        <div id="pension-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-medium">
-                <div class="modal-header">
-                    <h3 id="pension-modal-title">Add Pension</h3>
+        <div id="pension-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="pension-modal-title" aria-hidden="true">
+            <div class="modal-content">
+                <div class="pension-modal-header">
+                    <div class="pension-modal-title-row">
+                        <div class="pension-modal-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                            </svg>
+                        </div>
+                        <h3 id="pension-modal-title">Add Pension</h3>
+                    </div>
                     <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
                 </div>
-                <form id="pension-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="pension-name">Pension Name *</label>
-                        <input type="text" id="pension-name" name="name" required placeholder="e.g., Company Pension, Vanguard SIPP">
-                    </div>
+                <form id="pension-form">
+                    <input type="hidden" id="pension-id" name="id" value="">
 
-                    <div class="form-row">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h4>Basic Information</h4>
+
                         <div class="form-group">
-                            <label for="pension-type">Pension Type *</label>
+                            <label for="pension-name">Pension Name <span class="required">*</span></label>
+                            <input type="text" id="pension-name" name="name" required placeholder="e.g., Company Pension, Vanguard SIPP" maxlength="255">
+                            <small class="form-text">A descriptive name for this pension</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension-type">Pension Type <span class="required">*</span></label>
                             <select id="pension-type" name="type" required>
                                 <option value="workplace">Workplace Pension</option>
                                 <option value="personal">Personal Pension</option>
@@ -3153,57 +3166,15 @@ style('budget', 'budget-main');
                                 <option value="defined_benefit">Defined Benefit</option>
                                 <option value="state">State Pension</option>
                             </select>
+                            <small class="form-text">Determines which fields are available below</small>
                         </div>
+
                         <div class="form-group">
                             <label for="pension-provider">Provider</label>
-                            <input type="text" id="pension-provider" name="provider" placeholder="e.g., Scottish Widows">
-                        </div>
-                    </div>
-
-                    <!-- DC Pension Fields -->
-                    <div id="dc-pension-fields">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="pension-balance">Current Balance</label>
-                                <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
-                            </div>
-                            <div class="form-group">
-                                <label for="pension-monthly">Monthly Contribution</label>
-                                <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
-                            </div>
+                            <input type="text" id="pension-provider" name="provider" placeholder="e.g., Scottish Widows, Aviva" maxlength="255">
+                            <small class="form-text">Pension provider or scheme administrator</small>
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="pension-return">Expected Annual Return (%)</label>
-                                <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
-                            </div>
-                            <div class="form-group">
-                                <label for="pension-retirement-age">Retirement Age</label>
-                                <input type="number" id="pension-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- DB/State Pension Fields -->
-                    <div id="db-pension-fields" style="display: none;">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="pension-income">Projected Annual Income</label>
-                                <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
-                            </div>
-                            <div class="form-group">
-                                <label for="pension-transfer">Transfer Value</label>
-                                <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="pension-db-retirement-age">Retirement Age</label>
-                            <input type="number" id="pension-db-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
                         <div class="form-group">
                             <label for="pension-currency">Currency</label>
                             <select id="pension-currency" name="currency">
@@ -3214,7 +3185,57 @@ style('budget', 'budget-main');
                         </div>
                     </div>
 
-                    <input type="hidden" id="pension-id" name="id" value="">
+                    <!-- DC Pension Fields -->
+                    <div id="dc-pension-fields" class="form-section pension-fields-section">
+                        <h4>Financial Details</h4>
+
+                        <div class="form-group">
+                            <label for="pension-balance">Current Balance</label>
+                            <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
+                            <small class="form-text">Current total value of the pension pot</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension-monthly">Monthly Contribution</label>
+                            <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
+                            <small class="form-text">Combined employee and employer contribution</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension-return">Expected Annual Return (%)</label>
+                            <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
+                            <small class="form-text">Estimated yearly growth rate for projections</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension-retirement-age">Retirement Age</label>
+                            <input type="number" id="pension-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                            <small class="form-text">Age you plan to start drawing this pension</small>
+                        </div>
+                    </div>
+
+                    <!-- DB/State Pension Fields -->
+                    <div id="db-pension-fields" class="form-section pension-fields-section" style="display: none;">
+                        <h4>Income Details</h4>
+
+                        <div class="form-group">
+                            <label for="pension-income">Projected Annual Income</label>
+                            <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
+                            <small class="form-text">Expected yearly income at retirement</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension-transfer">Transfer Value</label>
+                            <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
+                            <small class="form-text">Cash equivalent transfer value (CETV) if known</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension-db-retirement-age">Retirement Age</label>
+                            <input type="number" id="pension-db-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                            <small class="form-text">Normal retirement age for this scheme</small>
+                        </div>
+                    </div>
 
                     <div class="modal-actions">
                         <button type="button" class="cancel-btn">Cancel</button>

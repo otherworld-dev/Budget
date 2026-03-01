@@ -288,13 +288,18 @@ export default class PensionsModule {
         const type = document.getElementById('pension-type').value;
         const dcFields = document.getElementById('dc-pension-fields');
         const dbFields = document.getElementById('db-pension-fields');
+        const isDB = type === 'defined_benefit' || type === 'state';
 
-        if (type === 'defined_benefit' || type === 'state') {
+        if (isDB) {
             dcFields.style.display = 'none';
-            dbFields.style.display = 'block';
+            dcFields.classList.add('hidden');
+            dbFields.style.display = '';
+            dbFields.classList.remove('hidden');
         } else {
-            dcFields.style.display = 'block';
+            dcFields.style.display = '';
+            dcFields.classList.remove('hidden');
             dbFields.style.display = 'none';
+            dbFields.classList.add('hidden');
         }
     }
 
@@ -319,8 +324,12 @@ export default class PensionsModule {
             if (pension.isDefinedContribution) {
                 document.getElementById('pension-balance').value = pension.currentBalance || '';
                 document.getElementById('pension-monthly').value = pension.monthlyContribution || '';
+                document.getElementById('pension-return').value = pension.expectedReturnRate || '';
+                document.getElementById('pension-retirement-age').value = pension.retirementAge || '';
             } else {
                 document.getElementById('pension-income').value = pension.annualIncome || '';
+                document.getElementById('pension-transfer').value = pension.transferValue || '';
+                document.getElementById('pension-db-retirement-age').value = pension.retirementAge || '';
             }
 
             this.togglePensionFields();
@@ -357,9 +366,12 @@ export default class PensionsModule {
         if (isDefinedContribution) {
             data.currentBalance = formData.get('currentBalance') ? parseFloat(formData.get('currentBalance')) : null;
             data.monthlyContribution = formData.get('monthlyContribution') ? parseFloat(formData.get('monthlyContribution')) : null;
+            data.expectedReturnRate = formData.get('expectedReturnRate') ? parseFloat(formData.get('expectedReturnRate')) : null;
+            data.retirementAge = formData.get('retirementAge') ? parseInt(formData.get('retirementAge'), 10) : null;
         } else {
             data.annualIncome = formData.get('annualIncome') ? parseFloat(formData.get('annualIncome')) : null;
-            data.startDate = formData.get('startDate') || null;
+            data.transferValue = formData.get('transferValue') ? parseFloat(formData.get('transferValue')) : null;
+            data.retirementAge = formData.get('retirementAge') ? parseInt(formData.get('retirementAge'), 10) : null;
         }
 
         try {

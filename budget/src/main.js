@@ -2913,7 +2913,10 @@ class BudgetApp {
             'rule-modal',
             'apply-rules-modal',
             'goal-modal',
-            'add-to-goal-modal'
+            'add-to-goal-modal',
+            'pension-modal',
+            'pension-balance-modal',
+            'pension-contribution-modal'
         ];
 
         modalIds.forEach(modalId => {
