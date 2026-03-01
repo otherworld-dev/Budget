@@ -36454,6 +36454,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (result.success > 0) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully deleted ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
               }
               if (result.failed > 0) {
@@ -36518,6 +36519,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (result.success > 0) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully reconciled ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
               }
               if (result.failed > 0) {
@@ -36582,6 +36584,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (result.success > 0) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully unreconciled ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
               }
               if (result.failed > 0) {
@@ -36688,6 +36691,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (result.success > 0) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully updated ".concat(result.success, " transaction(s)"));
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
 
                 // Close modal
@@ -43185,40 +43189,14 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "applyClientSideFilters",
     value: function applyClientSideFilters() {
-      var _this7 = this,
-        _this$currentSort;
+      var _this$currentSort,
+        _this7 = this;
       if (!this.transactions || !this.transactionFilters) return;
       var filtered = _toConsumableArray(this.transactions);
 
-      // Apply filters that weren't handled by backend
-      if (this.transactionFilters.category) {
-        if (this.transactionFilters.category === 'uncategorized') {
-          filtered = filtered.filter(function (t) {
-            return !t.categoryId;
-          });
-        } else {
-          filtered = filtered.filter(function (t) {
-            return t.categoryId === parseInt(_this7.transactionFilters.category);
-          });
-        }
-      }
-      if (this.transactionFilters.type) {
-        filtered = filtered.filter(function (t) {
-          return t.type === _this7.transactionFilters.type;
-        });
-      }
-      if (this.transactionFilters.amountMin) {
-        var min = parseFloat(this.transactionFilters.amountMin);
-        filtered = filtered.filter(function (t) {
-          return t.amount >= min;
-        });
-      }
-      if (this.transactionFilters.amountMax) {
-        var max = parseFloat(this.transactionFilters.amountMax);
-        filtered = filtered.filter(function (t) {
-          return t.amount <= max;
-        });
-      }
+      // Category, type, and amount filters are handled server-side.
+      // Only apply filters here that the backend doesn't support.
+
       if (this.transactionFilters.status) {
         var today = new Date().toISOString().split('T')[0];
         if (this.transactionFilters.status === 'pending') {

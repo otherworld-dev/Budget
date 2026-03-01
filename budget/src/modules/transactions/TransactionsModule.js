@@ -520,6 +520,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(`Successfully deleted ${result.success} transaction(s)`);
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
 
@@ -559,6 +560,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(`Successfully reconciled ${result.success} transaction(s)`);
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
 
@@ -598,6 +600,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(`Successfully unreconciled ${result.success} transaction(s)`);
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
 
@@ -683,6 +686,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(`Successfully updated ${result.success} transaction(s)`);
                 this.selectedTransactions.clear();
+                this.app.currentPage = 1;
                 this.app.loadTransactions();
 
                 // Close modal

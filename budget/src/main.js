@@ -1138,28 +1138,8 @@ class BudgetApp {
 
         let filtered = [...this.transactions];
 
-        // Apply filters that weren't handled by backend
-        if (this.transactionFilters.category) {
-            if (this.transactionFilters.category === 'uncategorized') {
-                filtered = filtered.filter(t => !t.categoryId);
-            } else {
-                filtered = filtered.filter(t => t.categoryId === parseInt(this.transactionFilters.category));
-            }
-        }
-
-        if (this.transactionFilters.type) {
-            filtered = filtered.filter(t => t.type === this.transactionFilters.type);
-        }
-
-        if (this.transactionFilters.amountMin) {
-            const min = parseFloat(this.transactionFilters.amountMin);
-            filtered = filtered.filter(t => t.amount >= min);
-        }
-
-        if (this.transactionFilters.amountMax) {
-            const max = parseFloat(this.transactionFilters.amountMax);
-            filtered = filtered.filter(t => t.amount <= max);
-        }
+        // Category, type, and amount filters are handled server-side.
+        // Only apply filters here that the backend doesn't support.
 
         if (this.transactionFilters.status) {
             const today = new Date().toISOString().split('T')[0];

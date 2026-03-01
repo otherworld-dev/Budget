@@ -57,7 +57,7 @@ class TransactionController extends Controller {
         ?string $search = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
-        ?int $category = null,
+        ?string $category = null,
         ?string $type = null,
         ?float $amountMin = null,
         ?float $amountMax = null,
