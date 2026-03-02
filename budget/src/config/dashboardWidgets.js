@@ -8,6 +8,7 @@ export const DASHBOARD_WIDGETS = {
         expenses: { id: 'hero-expenses', name: 'Expenses This Month', size: 'hero', defaultVisible: true },
         savings: { id: 'hero-savings', name: 'Net Savings', size: 'hero', defaultVisible: true },
         pension: { id: 'hero-pension', name: 'Pension Worth', size: 'hero', defaultVisible: true },
+        assets: { id: 'hero-assets', name: 'Assets Worth', size: 'hero', defaultVisible: true },
 
         // Phase 1 - Quick Wins (use existing data)
         savingsRate: { id: 'hero-savings-rate', name: 'Savings Rate', size: 'hero', defaultVisible: false, category: 'insights' },

@@ -23,6 +23,7 @@ import AuthModule from './modules/auth/AuthModule.js';
 import DashboardModule from './modules/dashboard/DashboardModule.js';
 import TransactionsModule from './modules/transactions/TransactionsModule.js';
 import PensionsModule from './modules/pensions/PensionsModule.js';
+import AssetsModule from './modules/assets/AssetsModule.js';
 import SavingsModule from './modules/savings/SavingsModule.js';
 import IncomeModule from './modules/income/IncomeModule.js';
 import BillsModule from './modules/bills/BillsModule.js';
@@ -45,6 +46,8 @@ class BudgetApp {
         this.transactions = [];
         this.pensions = [];
         this.currentPension = null;
+        this.assets = [];
+        this.currentAsset = null;
         this.charts = {};
         this.settings = {};
         this.options = {}; // Available options (currencies, date formats, etc.) from /api/settings/options
@@ -91,6 +94,7 @@ class BudgetApp {
         this.dashboardModule = new DashboardModule(this);
         this.transactionsModule = new TransactionsModule(this);
         this.pensionsModule = new PensionsModule(this);
+        this.assetsModule = new AssetsModule(this);
         this.savingsModule = new SavingsModule(this);
         this.incomeModule = new IncomeModule(this);
         this.billsModule = new BillsModule(this);
@@ -2916,7 +2920,9 @@ class BudgetApp {
             'add-to-goal-modal',
             'pension-modal',
             'pension-balance-modal',
-            'pension-contribution-modal'
+            'pension-contribution-modal',
+            'asset-modal',
+            'asset-value-modal'
         ];
 
         modalIds.forEach(modalId => {
@@ -3274,6 +3280,94 @@ class BudgetApp {
 
     async loadDashboardPensionSummary() {
         return this.pensionsModule.loadDashboardPensionSummary();
+    }
+
+    // =====================
+    // Assets Methods
+    // =====================
+
+    async loadAssetsView() {
+        return this.assetsModule.loadAssetsView();
+    }
+
+    async loadAssets() {
+        return this.assetsModule.loadAssets();
+    }
+
+    async loadAssetSummary() {
+        return this.assetsModule.loadAssetSummary();
+    }
+
+    async loadAssetProjection() {
+        return this.assetsModule.loadAssetProjection();
+    }
+
+    renderAssets() {
+        return this.assetsModule.renderAssets();
+    }
+
+    renderAssetCard(asset) {
+        return this.assetsModule.renderAssetCard(asset);
+    }
+
+    updateAssetsSummary(summary) {
+        return this.assetsModule.updateAssetsSummary(summary);
+    }
+
+    updateAssetsProjection(projection) {
+        return this.assetsModule.updateAssetsProjection(projection);
+    }
+
+    setupAssetEventListeners() {
+        return this.assetsModule.setupAssetEventListeners();
+    }
+
+    showAssetModal(assetId = null) {
+        return this.assetsModule.showAssetModal(assetId);
+    }
+
+    closeAssetModal() {
+        return this.assetsModule.closeAssetModal();
+    }
+
+    async saveAsset() {
+        return this.assetsModule.saveAsset();
+    }
+
+    async deleteAsset(assetId) {
+        return this.assetsModule.deleteAsset(assetId);
+    }
+
+    async showAssetDetails(assetId) {
+        return this.assetsModule.showAssetDetails(assetId);
+    }
+
+    closeAssetDetails() {
+        return this.assetsModule.closeAssetDetails();
+    }
+
+    async loadAssetValueChart(assetId) {
+        return this.assetsModule.loadAssetValueChart(assetId);
+    }
+
+    async loadAssetProjectionChart(assetId) {
+        return this.assetsModule.loadAssetProjectionChart(assetId);
+    }
+
+    showValueModal() {
+        return this.assetsModule.showValueModal();
+    }
+
+    closeValueModal() {
+        return this.assetsModule.closeValueModal();
+    }
+
+    async saveValueUpdate() {
+        return this.assetsModule.saveValueUpdate();
+    }
+
+    async loadDashboardAssetSummary() {
+        return this.assetsModule.loadDashboardAssetSummary();
     }
 
     parseColumnVisibility(settingValue) {

@@ -9464,6 +9464,15 @@ tr.pending-transaction:hover {
     color: #6366f1;
 }
 
+/* Dashboard Hero - Assets Card */
+.hero-icon.assets {
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.1));
+}
+
+.hero-icon.assets svg {
+    color: var(--color-primary-element, #0082c9);
+}
+
 /* Pensions Summary */
 .pensions-summary {
     display: grid;
@@ -9889,6 +9898,144 @@ tr.pending-transaction:hover {
     }
 
     #pension-modal form {
+        padding: 16px;
+    }
+}
+
+/* ========================================
+   Asset Modal Styles
+   ======================================== */
+
+#asset-modal .modal-content {
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.asset-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    background: var(--color-main-background);
+    z-index: 1;
+}
+
+.asset-modal-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.asset-modal-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary-element, #0082c9);
+    flex-shrink: 0;
+}
+
+.asset-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+#asset-modal form {
+    padding: 24px;
+}
+
+#asset-modal .form-section {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border-dark);
+}
+
+#asset-modal .form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+#asset-modal .form-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-primary-element);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Two-column grid for form sections on wider screens */
+@media (min-width: 500px) {
+    #asset-modal .form-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 20px;
+        align-items: start;
+    }
+
+    #asset-modal .form-section h4 {
+        grid-column: 1 / -1;
+    }
+
+    #asset-modal .form-section .form-group {
+        margin-bottom: 15px;
+    }
+}
+
+/* Modal actions - sticky at bottom */
+#asset-modal .modal-actions {
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+    margin-top: 8px;
+}
+
+/* Value Update Modal */
+#asset-value-modal .modal-content {
+    max-width: 420px;
+    padding: 0;
+}
+
+#asset-value-modal .asset-modal-header {
+    padding: 16px 20px 12px;
+}
+
+.asset-value-form-body {
+    padding: 20px 24px;
+}
+
+.asset-value-hint {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    line-height: 1.5;
+}
+
+#asset-value-modal .modal-actions {
+    padding: 12px 24px 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #asset-modal .modal-content {
+        padding: 0;
+    }
+
+    .asset-modal-header {
+        padding: 16px;
+    }
+
+    #asset-modal form {
         padding: 16px;
     }
 }

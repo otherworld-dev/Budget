@@ -133,6 +133,16 @@ style('budget', 'budget-main');
                 Pensions
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="assets">
+            <a href="#assets" class="nav-icon-assets svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
+                    </svg>
+                </span>
+                Assets
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="shared-expenses">
             <a href="#shared-expenses" class="nav-icon-split svg">
                 <span class="app-navigation-entry-icon">
@@ -314,6 +324,19 @@ style('budget', 'budget-main');
                         <span class="hero-label">Pension Worth</span>
                         <span id="hero-pension-value" class="hero-value">--</span>
                         <span id="hero-pension-count" class="hero-subtext"></span>
+                    </div>
+                </div>
+
+                <div class="hero-card hero-assets" data-widget-id="assets" data-widget-category="hero">
+                    <div class="hero-icon assets">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
+                        </svg>
+                    </div>
+                    <div class="hero-content">
+                        <span class="hero-label">Assets Worth</span>
+                        <span id="hero-assets-value" class="hero-value">--</span>
+                        <span id="hero-assets-count" class="hero-subtext"></span>
                     </div>
                 </div>
 
@@ -3294,6 +3317,276 @@ style('budget', 'budget-main');
                     <div class="modal-actions">
                         <button type="button" class="cancel-btn">Cancel</button>
                         <button type="submit" class="primary">Log</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Assets View -->
+        <div id="assets-view" class="view">
+            <div class="view-header">
+                <h2>Assets</h2>
+                <button id="add-asset-btn" class="primary" aria-label="Add new asset">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    Add Asset
+                </button>
+            </div>
+
+            <!-- Info Notice -->
+            <div class="assets-notice" style="background-color: rgba(100, 116, 139, 0.08); border: 1px solid rgba(100, 116, 139, 0.15); border-radius: 4px; padding: 12px 16px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(100, 116, 139, 0.6)" style="flex-shrink: 0; margin-top: 2px;">
+                    <path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                </svg>
+                <div style="color: rgba(100, 116, 139, 0.85); font-size: 14px;">
+                    <strong>Note:</strong> Track non-cash assets like property, vehicles, and collectibles. Asset values and projections are estimates based on annual appreciation/depreciation rates. Actual values may vary depending on market conditions.
+                </div>
+            </div>
+
+            <!-- Assets Summary Cards -->
+            <div class="assets-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="assets-total-worth">--</div>
+                        <div class="summary-label">Total Asset Worth</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="assets-projected-value">--</div>
+                        <div class="summary-label">Projected Value (10yr)</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3"/>
+                        </svg>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="assets-count">0</div>
+                        <div class="summary-label">Total Assets</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assets List -->
+            <div class="assets-container">
+                <div id="assets-list" class="assets-list">
+                    <!-- Asset cards will be rendered here -->
+                </div>
+
+                <div class="empty-assets" id="empty-assets" style="display: none;">
+                    <div class="empty-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5;">
+                            <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
+                        </svg>
+                        <h3>No assets yet</h3>
+                        <p>Track your non-cash assets like property, vehicles, and collectibles to see your full net worth.</p>
+                        <button class="primary" id="empty-assets-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Add Your First Asset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asset Detail Panel (shown when an asset is selected) -->
+            <div id="asset-detail-panel" class="asset-detail-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3 id="asset-detail-name">Asset Details</h3>
+                    <div class="panel-actions">
+                        <button id="asset-edit-btn" class="icon-button" title="Edit asset">
+                            <span class="icon-rename" aria-hidden="true"></span>
+                        </button>
+                        <button id="asset-close-btn" class="icon-button" title="Close">
+                            <span class="icon-close" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="asset-detail-summary">
+                        <div class="detail-item">
+                            <span class="detail-label">Current Value</span>
+                            <span class="detail-value" id="asset-detail-value">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Type</span>
+                            <span class="detail-value" id="asset-detail-type">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Purchase Price</span>
+                            <span class="detail-value" id="asset-detail-purchase-price">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Purchase Date</span>
+                            <span class="detail-value" id="asset-detail-purchase-date">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Annual Change Rate</span>
+                            <span class="detail-value" id="asset-detail-rate">--</span>
+                        </div>
+                    </div>
+
+                    <div class="asset-detail-actions">
+                        <button id="update-value-btn" class="secondary">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Update Value
+                        </button>
+                    </div>
+
+                    <!-- Value History Chart -->
+                    <div class="asset-chart-section">
+                        <h4>Value History</h4>
+                        <div class="chart-container">
+                            <canvas id="asset-value-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Projection Chart -->
+                    <div class="asset-chart-section">
+                        <h4>Projected Value</h4>
+                        <div class="chart-container">
+                            <canvas id="asset-projection-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset Modal (Add/Edit) -->
+        <div id="asset-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="asset-modal-title" aria-hidden="true">
+            <div class="modal-content">
+                <div class="asset-modal-header">
+                    <div class="asset-modal-title-row">
+                        <div class="asset-modal-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
+                            </svg>
+                        </div>
+                        <h3 id="asset-modal-title">Add Asset</h3>
+                    </div>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="asset-form">
+                    <input type="hidden" id="asset-id" name="id" value="">
+
+                    <!-- Asset Identity -->
+                    <div class="form-section">
+                        <h4>Asset Details</h4>
+
+                        <div class="form-group">
+                            <label for="asset-name">Name <span class="required">*</span></label>
+                            <input type="text" id="asset-name" name="name" required placeholder="e.g., 42 Maple Street, Tesla Model 3" maxlength="255">
+                            <small class="form-text">A descriptive name for this asset</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="asset-type">Type <span class="required">*</span></label>
+                            <select id="asset-type" name="type" required>
+                                <option value="real_estate">Real Estate</option>
+                                <option value="vehicle">Vehicle</option>
+                                <option value="jewelry">Jewelry</option>
+                                <option value="collectibles">Collectibles</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="asset-description">Description</label>
+                            <textarea id="asset-description" name="description" rows="2" placeholder="Optional notes about this asset"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Valuation -->
+                    <div class="form-section">
+                        <h4>Valuation</h4>
+
+                        <div class="form-group">
+                            <label for="asset-current-value">Current Value</label>
+                            <input type="number" id="asset-current-value" name="currentValue" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text">Today's estimated market value</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="asset-currency">Currency</label>
+                            <select id="asset-currency" name="currency">
+                                <option value="GBP">GBP</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="asset-purchase-price">Purchase Price</label>
+                            <input type="number" id="asset-purchase-price" name="purchasePrice" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text">Original acquisition cost</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="asset-purchase-date">Purchase Date</label>
+                            <input type="date" id="asset-purchase-date" name="purchaseDate">
+                        </div>
+                    </div>
+
+                    <!-- Growth -->
+                    <div class="form-section">
+                        <h4>Growth / Depreciation</h4>
+
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="asset-annual-change-rate">Annual Change Rate (%)</label>
+                            <input type="number" id="asset-annual-change-rate" name="annualChangeRate" step="0.1" placeholder="e.g., 3.5">
+                            <small class="form-text">Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., -15). Used for value projections.</small>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary" id="save-asset-btn">Save Asset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Asset Value Update Modal -->
+        <div id="asset-value-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="asset-value-modal-title" aria-hidden="true">
+            <div class="modal-content">
+                <div class="asset-modal-header">
+                    <div class="asset-modal-title-row">
+                        <div class="asset-modal-icon asset-modal-icon-update">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                            </svg>
+                        </div>
+                        <h3 id="asset-value-modal-title">Update Value</h3>
+                    </div>
+                    <button class="modal-close cancel-btn" aria-label="Close">&times;</button>
+                </div>
+                <form id="asset-value-form">
+                    <div class="asset-value-form-body">
+                        <p class="asset-value-hint">Record a new valuation for this asset. This creates a snapshot in the value history.</p>
+                        <div class="form-group">
+                            <label for="asset-value-date">Date <span class="required">*</span></label>
+                            <input type="date" id="asset-value-date" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="asset-value-amount">Value <span class="required">*</span></label>
+                            <input type="number" id="asset-value-amount" name="value" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+                        <input type="hidden" id="asset-value-asset-id" name="assetId" value="">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary">Update Value</button>
                     </div>
                 </form>
             </div>

@@ -68,7 +68,7 @@ export default class DashboardModule {
             const cacheBuster = Date.now();
 
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, netWorthResponse, alertsResponse, debtResponse] = await Promise.all([
+            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse] = await Promise.all([
                 // Current month summary for hero stats
                 fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${startOfMonth}&endDate=${endOfMonth}&_=${cacheBuster}`), {
                     headers: { 'requesttoken': OC.requestToken }
@@ -92,6 +92,9 @@ export default class DashboardModule {
                 fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
                     headers: { 'requesttoken': OC.requestToken }
                 }).catch(() => ({ ok: false })),
+                fetch(OC.generateUrl('/apps/budget/api/assets/summary'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false })),
                 fetch(OC.generateUrl('/apps/budget/api/net-worth/snapshots?days=30'), {
                     headers: { 'requesttoken': OC.requestToken }
                 }).catch(() => ({ ok: false })),
@@ -111,6 +114,7 @@ export default class DashboardModule {
             const budgetData = budgetDataRaw && typeof budgetDataRaw === 'object' ? budgetDataRaw : { categories: [] };
             const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
             const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
+            const assetSummary = assetResponse.ok ? await assetResponse.json() : { totalAssetWorth: 0, assetCount: 0 };
             const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
             const budgetAlerts = alertsResponse.ok ? await alertsResponse.json() : [];
             const debtSummary = debtResponse.ok ? await debtResponse.json() : null;
@@ -138,6 +142,9 @@ export default class DashboardModule {
 
             // Update Pension Dashboard Card
             this.updatePensionsSummary(pensionSummary);
+
+            // Update Assets Dashboard Card
+            this.updateAssetsSummary(assetSummary);
 
             // Update Debt Payoff Dashboard Card
             this.updateDebtPayoffWidget(debtSummary);
@@ -818,6 +825,33 @@ export default class DashboardModule {
                 subtext += ` · ${this.formatCurrency(projectedIncome, currency)}/yr income`;
             }
             heroPensionCount.textContent = subtext;
+        }
+    }
+
+    updateAssetsSummary(summary) {
+        const currency = summary.baseCurrency || this.getPrimaryCurrency();
+        const assetWorth = summary.totalAssetWorth || 0;
+        const count = summary.assetCount || 0;
+
+        const worthEl = document.getElementById('assets-total-worth');
+        const countEl = document.getElementById('assets-count');
+
+        if (worthEl) {
+            worthEl.textContent = this.formatCurrency(assetWorth, currency);
+        }
+        if (countEl) {
+            countEl.textContent = count;
+        }
+
+        // Update dashboard hero card
+        const heroAssetsValue = document.getElementById('hero-assets-value');
+        const heroAssetsCount = document.getElementById('hero-assets-count');
+
+        if (heroAssetsValue) {
+            heroAssetsValue.textContent = this.formatCurrency(assetWorth, currency);
+        }
+        if (heroAssetsCount) {
+            heroAssetsCount.textContent = count === 1 ? '1 asset' : `${count} assets`;
         }
     }
 

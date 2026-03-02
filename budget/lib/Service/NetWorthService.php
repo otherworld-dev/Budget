@@ -9,6 +9,7 @@ use OCA\Budget\Db\NetWorthSnapshot;
 use OCA\Budget\Db\NetWorthSnapshotMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
+use OCA\Budget\Service\AssetService;
 
 class NetWorthService {
     /**
@@ -21,17 +22,20 @@ class NetWorthService {
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
     private CurrencyConversionService $conversionService;
+    private AssetService $assetService;
 
     public function __construct(
         NetWorthSnapshotMapper $snapshotMapper,
         AccountMapper $accountMapper,
         TransactionMapper $transactionMapper,
-        CurrencyConversionService $conversionService
+        CurrencyConversionService $conversionService,
+        AssetService $assetService
     ) {
         $this->snapshotMapper = $snapshotMapper;
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
         $this->conversionService = $conversionService;
+        $this->assetService = $assetService;
     }
 
     /**
@@ -87,6 +91,15 @@ class NetWorthService {
                 // Assets: add balance directly
                 $totalAssets = MoneyCalculator::add($totalAssets, $balance);
             }
+        }
+
+        // Include non-cash assets in total assets
+        try {
+            $assetSummary = $this->assetService->getSummary($userId);
+            $assetWorth = (string)($assetSummary['totalAssetWorth'] ?? 0);
+            $totalAssets = MoneyCalculator::add($totalAssets, $assetWorth);
+        } catch (\Exception $e) {
+            // Graceful fallback if assets table doesn't exist yet
         }
 
         $netWorth = MoneyCalculator::subtract($totalAssets, $totalLiabilities);

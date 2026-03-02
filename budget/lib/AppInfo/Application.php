@@ -473,6 +473,37 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('PensionProjector', \OCA\Budget\Service\PensionProjector::class);
 
         // ==========================================
+        // Asset Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\AssetMapper::class, function($c) {
+            return new \OCA\Budget\Db\AssetMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('AssetMapper', \OCA\Budget\Db\AssetMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\AssetSnapshotMapper::class, function($c) {
+            return new \OCA\Budget\Db\AssetSnapshotMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('AssetSnapshotMapper', \OCA\Budget\Db\AssetSnapshotMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\AssetService::class, function($c) {
+            return new \OCA\Budget\Service\AssetService(
+                $c->get(\OCA\Budget\Db\AssetMapper::class),
+                $c->get(\OCA\Budget\Db\AssetSnapshotMapper::class),
+                $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
+            );
+        });
+        $context->registerServiceAlias('AssetService', \OCA\Budget\Service\AssetService::class);
+
+        $context->registerService(\OCA\Budget\Service\AssetProjector::class, function($c) {
+            return new \OCA\Budget\Service\AssetProjector(
+                $c->get(\OCA\Budget\Db\AssetMapper::class),
+                $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
+            );
+        });
+        $context->registerServiceAlias('AssetProjector', \OCA\Budget\Service\AssetProjector::class);
+
+        // ==========================================
         // Net Worth Services
         // ==========================================
 
@@ -486,7 +517,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\NetWorthSnapshotMapper::class),
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
-                $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
+                $c->get(\OCA\Budget\Service\CurrencyConversionService::class),
+                $c->get(\OCA\Budget\Service\AssetService::class)
             );
         });
         $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);

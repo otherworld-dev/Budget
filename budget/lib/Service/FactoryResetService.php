@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\AssetMapper;
+use OCA\Budget\Db\AssetSnapshotMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ContactMapper;
@@ -43,6 +45,8 @@ class FactoryResetService {
         private PensionContributionMapper $pensionContributionMapper,
         private PensionSnapshotMapper $pensionSnapshotMapper,
         private NetWorthSnapshotMapper $netWorthSnapshotMapper,
+        private AssetMapper $assetMapper,
+        private AssetSnapshotMapper $assetSnapshotMapper,
         private IDBConnection $db
     ) {
     }
@@ -74,13 +78,15 @@ class FactoryResetService {
             $counts['bills'] = $this->safeDelete($this->billMapper, $userId);
             $counts['recurringIncome'] = $this->safeDelete($this->recurringIncomeMapper, $userId);
 
-            // Level 3: Child pension data (depend on pension accounts)
+            // Level 3: Child pension/asset data (depend on parent accounts)
             $counts['pensionContributions'] = $this->safeDelete($this->pensionContributionMapper, $userId);
             $counts['pensionSnapshots'] = $this->safeDelete($this->pensionSnapshotMapper, $userId);
+            $counts['assetSnapshots'] = $this->safeDelete($this->assetSnapshotMapper, $userId);
 
             // Level 4: Independent entities
             $counts['accounts'] = $this->safeDelete($this->accountMapper, $userId);
             $counts['pensionAccounts'] = $this->safeDelete($this->pensionAccountMapper, $userId);
+            $counts['assets'] = $this->safeDelete($this->assetMapper, $userId);
             $counts['contacts'] = $this->safeDelete($this->contactMapper, $userId);
             $counts['savingsGoals'] = $this->safeDelete($this->savingsGoalMapper, $userId);
 
