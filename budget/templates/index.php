@@ -1991,7 +1991,7 @@ style('budget', 'budget-main');
         <!-- Bills View -->
         <div id="bills-view" class="view">
             <div class="view-header">
-                <h2>Recurring Bills</h2>
+                <h2>Bills</h2>
                 <div class="view-controls">
                     <button id="detect-bills-btn" class="secondary" title="Auto-detect recurring bills from transactions">
                         <span class="icon-search" aria-hidden="true"></span>
