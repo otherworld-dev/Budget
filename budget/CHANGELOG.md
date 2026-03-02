@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-03-02
+
+### Added
+- **Assets section**: Track non-cash assets (real estate, vehicles, jewelry, collectibles) with value snapshots, appreciation/depreciation projections, and net worth integration ([#52](https://github.com/otherworld-dev/budget/issues/52))
+  - CRUD management with 11 REST endpoints
+  - Value history charts and projection charts
+  - Dashboard hero tile for total asset worth
+  - Net worth and factory reset integration
+
+### Fixed
+- Parent category dropdown showing wrong type when creating Income categories ([#53](https://github.com/otherworld-dev/budget/issues/53))
+
 ## [2.4.0] - 2026-03-02
 
 ### Added
