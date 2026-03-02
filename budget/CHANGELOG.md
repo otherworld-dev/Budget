@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-03-02
+
+### Added
+- **Cryptocurrency account type**: Static cryptocurrency tracking with 25 supported currencies (BTC, ETH, XRP, SOL, DOGE, etc.), correct decimal precision, and encrypted wallet address field ([#47](https://github.com/otherworld-dev/budget/issues/47))
+- **Multi-currency dashboard aggregations**: Hero tiles, net worth, trend data, and cash flow reports convert all account values to the user's default currency before summing. Exchange rates fetched from ECB (fiat) and CoinGecko (crypto) with daily background updates ([#52](https://github.com/otherworld-dev/budget/issues/52))
+- **Recurring bill end dates**: Optional end date or remaining payment count on bills; bills auto-deactivate when conditions are met and annual overview respects constraints ([#46](https://github.com/otherworld-dev/budget/issues/46))
+- **Unit tests**: 133 new tests across AccountService, AuthService, CategoryService, TagSetService, and TransactionService
+
+### Fixed
+- Bill mark-as-paid now uses the bill's due date instead of today's date, preventing wrong billing period from being marked paid ([#51](https://github.com/otherworld-dev/budget/issues/51))
+- Bill status badge colors use explicit values instead of Nextcloud CSS variables for reliable contrast ([#51](https://github.com/otherworld-dev/budget/issues/51))
+- Blank pagination pages after bulk actions caused by `?int` category parameter discarding 'uncategorized' string value; reset page to 1 after bulk operations ([#50](https://github.com/otherworld-dev/budget/issues/50))
+- CSV date parsing for DD/MM/YYYY format ([#48](https://github.com/otherworld-dev/budget/issues/48))
+- Bill date timezone bug and added one-time bill frequency ([#39](https://github.com/otherworld-dev/budget/issues/39))
+- Pension edit modal redesigned with form-section layout; fixed missing field persistence for expectedReturnRate, retirementAge, and transferValue
+- Pension summary and projections now convert to base currency before aggregating
+- Dashboard pension worth tile uses base currency instead of first account's currency
+- `getPrimaryCurrency()` replaced with user's `default_currency` setting instead of balance-weighted heuristic
+- Income summary API returns correct keys for page tiles (expectedThisMonth, monthlyTotal, receivedThisMonth, activeCount)
+
+### Changed
+- Added `ext-bcmath` PHP extension dependency
+
 ## [2.3.1] - 2026-02-22
 
 ### Fixed
