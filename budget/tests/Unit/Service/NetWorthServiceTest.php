@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\NetWorthSnapshotMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\AssetService;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\NetWorthService;
 use PHPUnit\Framework\TestCase;
@@ -18,18 +19,22 @@ class NetWorthServiceTest extends TestCase {
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
 	private CurrencyConversionService $conversionService;
+	private AssetService $assetService;
 
 	protected function setUp(): void {
 		$this->snapshotMapper = $this->createMock(NetWorthSnapshotMapper::class);
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
 		$this->conversionService = $this->createMock(CurrencyConversionService::class);
+		$this->assetService = $this->createMock(AssetService::class);
+		$this->assetService->method('getSummary')->willReturn(['totalAssetWorth' => 0]);
 
 		$this->service = new NetWorthService(
 			$this->snapshotMapper,
 			$this->accountMapper,
 			$this->transactionMapper,
-			$this->conversionService
+			$this->conversionService,
+			$this->assetService
 		);
 	}
 
