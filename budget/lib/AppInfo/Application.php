@@ -177,7 +177,8 @@ class Application extends App implements IBootstrap {
 
         $context->registerService(\OCA\Budget\Service\Import\ImportRuleApplicator::class, function($c) {
             return new \OCA\Budget\Service\Import\ImportRuleApplicator(
-                $c->get(\OCA\Budget\Db\ImportRuleMapper::class)
+                $c->get(\OCA\Budget\Db\ImportRuleMapper::class),
+                $c->get(\OCA\Budget\Service\Import\CriteriaEvaluator::class)
             );
         });
 

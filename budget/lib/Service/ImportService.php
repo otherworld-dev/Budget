@@ -522,7 +522,7 @@ class ImportService {
                         $transaction['categoryId'] ?? null,
                         $transaction['vendor'] ?? null,
                         $transaction['reference'] ?? null,
-                        null,
+                        $transaction['notes'] ?? null,
                         $importId
                     );
 
@@ -590,7 +590,7 @@ class ImportService {
                     $transaction['categoryId'] ?? null,
                     $transaction['vendor'] ?? null,
                     $transaction['reference'] ?? null,
-                    null,
+                    $transaction['notes'] ?? null,
                     $importId
                 );
 

@@ -60,56 +60,6 @@ class ImportRuleMapper extends QBMapper {
     }
 
     /**
-     * Find matching rule for transaction
-     */
-    public function findMatchingRule(string $userId, array $transactionData): ?ImportRule {
-        $rules = $this->findActive($userId);
-        
-        foreach ($rules as $rule) {
-            if ($this->matchesRule($rule, $transactionData)) {
-                return $rule;
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Check if transaction matches rule
-     */
-    private function matchesRule(ImportRule $rule, array $data): bool {
-        $field = $rule->getField();
-        $pattern = $rule->getPattern();
-        $matchType = $rule->getMatchType();
-        
-        if (!isset($data[$field])) {
-            return false;
-        }
-        
-        $value = $data[$field];
-        
-        switch ($matchType) {
-            case 'contains':
-                return stripos($value, $pattern) !== false;
-            
-            case 'starts_with':
-                return stripos($value, $pattern) === 0;
-            
-            case 'ends_with':
-                return substr(strtolower($value), -strlen($pattern)) === strtolower($pattern);
-            
-            case 'equals':
-                return strtolower($value) === strtolower($pattern);
-            
-            case 'regex':
-                return preg_match('/' . $pattern . '/i', $value) === 1;
-            
-            default:
-                return false;
-        }
-    }
-
-    /**
      * Delete all import rules for a user
      *
      * @param string $userId
