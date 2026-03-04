@@ -1154,7 +1154,8 @@ export default class CategoriesModule {
                 if (categoryIds.length === 0) continue;
 
                 // Get date range for this period
-                const dateRange = formatters.getPeriodDateRange(period);
+                const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
+                const dateRange = formatters.getPeriodDateRange(period, startDay);
 
                 // Fetch spending for this period
                 const response = await fetch(
@@ -1325,7 +1326,8 @@ export default class CategoriesModule {
     async recalculateCategorySpending(categoryId, period) {
         try {
             // Get date range for the period
-            const dateRange = formatters.getPeriodDateRange(period);
+            const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
+            const dateRange = formatters.getPeriodDateRange(period, startDay);
 
             // Fetch spending for this category in the period
             const response = await fetch(

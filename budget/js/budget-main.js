@@ -22339,7 +22339,8 @@ var CategoriesModule = /*#__PURE__*/function () {
               // Fetch spending for each period
               _context12.p = 2;
               _loop = /*#__PURE__*/_regenerator().m(function _loop() {
-                var _Object$entries$_i, period, categoryIds, dateRange, response, spendingData;
+                var _this11$app$settings;
+                var _Object$entries$_i, period, categoryIds, startDay, dateRange, response, spendingData;
                 return _regenerator().w(function (_context11) {
                   while (1) switch (_context11.n) {
                     case 0:
@@ -22351,7 +22352,8 @@ var CategoriesModule = /*#__PURE__*/function () {
                       return _context11.a(2, 1);
                     case 1:
                       // Get date range for this period
-                      dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period); // Fetch spending for this period
+                      startDay = period === 'monthly' ? parseInt(((_this11$app$settings = _this11.app.settings) === null || _this11$app$settings === void 0 ? void 0 : _this11$app$settings.budget_start_day) || '1', 10) : 1;
+                      dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay); // Fetch spending for this period
                       _context11.n = 2;
                       return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
                         headers: {
@@ -22533,13 +22535,14 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "recalculateCategorySpending",
     value: function () {
       var _recalculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(categoryId, period) {
-        var dateRange, response, spendingData, categorySpending, spent, _t10;
+        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t10;
         return _regenerator().w(function (_context14) {
           while (1) switch (_context14.p = _context14.n) {
             case 0:
               _context14.p = 0;
               // Get date range for the period
-              dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period); // Fetch spending for this category in the period
+              startDay = period === 'monthly' ? parseInt(((_this$app$settings = this.app.settings) === null || _this$app$settings === void 0 ? void 0 : _this$app$settings.budget_start_day) || '1', 10) : 1;
+              dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay); // Fetch spending for this category in the period
               _context14.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
                 headers: {
@@ -42473,9 +42476,11 @@ function daysBetweenDates(dateStr1, dateStr2) {
  * Get date range for a budget period.
  *
  * @param {string} period - Period type: 'weekly', 'monthly', 'quarterly', 'yearly'
+ * @param {number} [startDay=1] - Day of month when budget cycle starts (1-31, monthly only)
  * @returns {object} Object with {start, end, label} date strings
  */
 function getPeriodDateRange(period) {
+  var startDay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
   var now = new Date();
   switch (period) {
     case 'weekly':
@@ -42498,16 +42503,57 @@ function getPeriodDateRange(period) {
       }
     case 'monthly':
       {
-        // 1st to last day of current month
-        var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        if (startDay <= 1) {
+          // Default: 1st to last day of current month
+          var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          return {
+            start: formatDateForAPI(monthStart),
+            end: formatDateForAPI(monthEnd),
+            label: now.toLocaleDateString('en-US', {
+              month: 'long',
+              year: 'numeric'
+            })
+          };
+        }
+
+        // Custom start day: clamp to days in month
+        var currentDay = now.getDate();
+        var daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        var effectiveStartDay = Math.min(startDay, daysInCurrentMonth);
+        var periodStart, periodEnd;
+        if (currentDay >= effectiveStartDay) {
+          // Period started this month
+          periodStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
+
+          // End is day before start day next month
+          var nextMonth = now.getMonth() + 1;
+          var daysInNextMonth = new Date(now.getFullYear(), nextMonth + 1, 0).getDate();
+          var nextStartDay = Math.min(startDay, daysInNextMonth);
+          var nextPeriodStart = new Date(now.getFullYear(), nextMonth, nextStartDay);
+          periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
+        } else {
+          // Period started last month
+          var prevMonth = now.getMonth() - 1;
+          var daysInPrevMonth = new Date(now.getFullYear(), prevMonth + 1, 0).getDate();
+          var prevStartDay = Math.min(startDay, daysInPrevMonth);
+          periodStart = new Date(now.getFullYear(), prevMonth, prevStartDay);
+
+          // End is day before start day this month
+          var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
+          periodEnd = new Date(thisMonthStart.getTime() - 86400000);
+        }
+        var label = periodStart.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        }) + " \u2013 " + periodEnd.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
         return {
-          start: formatDateForAPI(monthStart),
-          end: formatDateForAPI(monthEnd),
-          label: now.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric'
-          })
+          start: formatDateForAPI(periodStart),
+          end: formatDateForAPI(periodEnd),
+          label: label
         };
       }
     case 'quarterly':
@@ -42536,7 +42582,7 @@ function getPeriodDateRange(period) {
       }
     default:
       // Default to monthly
-      return getPeriodDateRange('monthly');
+      return getPeriodDateRange('monthly', startDay);
   }
 }
 

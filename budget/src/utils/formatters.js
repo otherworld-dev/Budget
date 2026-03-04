@@ -312,9 +312,10 @@ export function daysBetweenDates(dateStr1, dateStr2) {
  * Get date range for a budget period.
  *
  * @param {string} period - Period type: 'weekly', 'monthly', 'quarterly', 'yearly'
+ * @param {number} [startDay=1] - Day of month when budget cycle starts (1-31, monthly only)
  * @returns {object} Object with {start, end, label} date strings
  */
-export function getPeriodDateRange(period) {
+export function getPeriodDateRange(period, startDay = 1) {
     const now = new Date();
 
     switch (period) {
@@ -336,14 +337,55 @@ export function getPeriodDateRange(period) {
         }
 
         case 'monthly': {
-            // 1st to last day of current month
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            if (startDay <= 1) {
+                // Default: 1st to last day of current month
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+                return {
+                    start: formatDateForAPI(monthStart),
+                    end: formatDateForAPI(monthEnd),
+                    label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                };
+            }
+
+            // Custom start day: clamp to days in month
+            const currentDay = now.getDate();
+            const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const effectiveStartDay = Math.min(startDay, daysInCurrentMonth);
+
+            let periodStart, periodEnd;
+
+            if (currentDay >= effectiveStartDay) {
+                // Period started this month
+                periodStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
+
+                // End is day before start day next month
+                const nextMonth = now.getMonth() + 1;
+                const daysInNextMonth = new Date(now.getFullYear(), nextMonth + 1, 0).getDate();
+                const nextStartDay = Math.min(startDay, daysInNextMonth);
+                const nextPeriodStart = new Date(now.getFullYear(), nextMonth, nextStartDay);
+                periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
+            } else {
+                // Period started last month
+                const prevMonth = now.getMonth() - 1;
+                const daysInPrevMonth = new Date(now.getFullYear(), prevMonth + 1, 0).getDate();
+                const prevStartDay = Math.min(startDay, daysInPrevMonth);
+                periodStart = new Date(now.getFullYear(), prevMonth, prevStartDay);
+
+                // End is day before start day this month
+                const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
+                periodEnd = new Date(thisMonthStart.getTime() - 86400000);
+            }
+
+            const label = periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                + ' \u2013 '
+                + periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
             return {
-                start: formatDateForAPI(monthStart),
-                end: formatDateForAPI(monthEnd),
-                label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                start: formatDateForAPI(periodStart),
+                end: formatDateForAPI(periodEnd),
+                label
             };
         }
 
@@ -375,7 +417,7 @@ export function getPeriodDateRange(period) {
 
         default:
             // Default to monthly
-            return getPeriodDateRange('monthly');
+            return getPeriodDateRange('monthly', startDay);
     }
 }
 

@@ -12,6 +12,7 @@ class BudgetAlertService {
     private CategoryMapper $categoryMapper;
     private TransactionMapper $transactionMapper;
     private TransactionSplitMapper $splitMapper;
+    private SettingService $settingService;
 
     // Alert thresholds
     private const WARNING_THRESHOLD = 0.80;  // 80%
@@ -20,11 +21,13 @@ class BudgetAlertService {
     public function __construct(
         CategoryMapper $categoryMapper,
         TransactionMapper $transactionMapper,
-        TransactionSplitMapper $splitMapper
+        TransactionSplitMapper $splitMapper,
+        SettingService $settingService
     ) {
         $this->categoryMapper = $categoryMapper;
         $this->transactionMapper = $transactionMapper;
         $this->splitMapper = $splitMapper;
+        $this->settingService = $settingService;
     }
 
     /**
@@ -44,7 +47,8 @@ class BudgetAlertService {
         }
 
         // Calculate date ranges for each period type
-        $periodRanges = $this->calculatePeriodRanges();
+        $startDay = $this->getBudgetStartDay($userId);
+        $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
             $period = $category->getBudgetPeriod() ?? 'monthly';
@@ -114,7 +118,8 @@ class BudgetAlertService {
             return [];
         }
 
-        $periodRanges = $this->calculatePeriodRanges();
+        $startDay = $this->getBudgetStartDay($userId);
+        $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
             $period = $category->getBudgetPeriod() ?? 'monthly';
@@ -201,25 +206,36 @@ class BudgetAlertService {
     }
 
     /**
+     * Get the user's configured budget start day (1-31).
+     */
+    private function getBudgetStartDay(string $userId): int {
+        $value = $this->settingService->get($userId, 'budget_start_day');
+        $startDay = $value !== null ? (int) $value : 1;
+        return max(1, min(31, $startDay));
+    }
+
+    /**
+     * Get the current date. Overridable in tests.
+     */
+    protected function getNow(): \DateTime {
+        return new \DateTime();
+    }
+
+    /**
      * Calculate period date ranges.
      */
-    private function calculatePeriodRanges(): array {
-        $now = new \DateTime();
+    private function calculatePeriodRanges(int $startDay = 1): array {
+        $now = $this->getNow();
         $ranges = [];
 
-        // Monthly: 1st to last day of current month
-        $monthStart = new \DateTime($now->format('Y-m-01'));
-        $monthEnd = new \DateTime($now->format('Y-m-t'));
-        $ranges['monthly'] = [
-            'start' => $monthStart->format('Y-m-d'),
-            'end' => $monthEnd->format('Y-m-d'),
-            'label' => $now->format('F Y'),
-        ];
+        // Monthly: custom start day support
+        $monthlyRange = $this->calculateMonthlyRange($now, $startDay);
+        $ranges['monthly'] = $monthlyRange;
 
         // Weekly: Monday to Sunday of current week
-        $weekStart = new \DateTime();
+        $weekStart = clone $now;
         $weekStart->modify('monday this week');
-        $weekEnd = new \DateTime();
+        $weekEnd = clone $now;
         $weekEnd->modify('sunday this week');
         $ranges['weekly'] = [
             'start' => $weekStart->format('Y-m-d'),
@@ -248,6 +264,73 @@ class BudgetAlertService {
         ];
 
         return $ranges;
+    }
+
+    /**
+     * Calculate the monthly period range given a start day.
+     * Clamps start day to the number of days in the month.
+     */
+    private function calculateMonthlyRange(\DateTime $now, int $startDay): array {
+        if ($startDay === 1) {
+            // Default behavior: 1st to last day of month
+            $monthStart = new \DateTime($now->format('Y-m-01'));
+            $monthEnd = new \DateTime($now->format('Y-m-t'));
+            return [
+                'start' => $monthStart->format('Y-m-d'),
+                'end' => $monthEnd->format('Y-m-d'),
+                'label' => $now->format('F Y'),
+            ];
+        }
+
+        $currentDay = (int) $now->format('j');
+        $year = (int) $now->format('Y');
+        $month = (int) $now->format('n');
+
+        // Clamp start day to days in current month
+        $daysInCurrentMonth = (int) $now->format('t');
+        $effectiveStartDay = min($startDay, $daysInCurrentMonth);
+
+        if ($currentDay >= $effectiveStartDay) {
+            // Period started this month
+            $periodStart = new \DateTime(sprintf('%04d-%02d-%02d', $year, $month, $effectiveStartDay));
+
+            // End is day before start day next month
+            $nextMonth = $month + 1;
+            $nextYear = $year;
+            if ($nextMonth > 12) {
+                $nextMonth = 1;
+                $nextYear++;
+            }
+            $daysInNextMonth = (int) (new \DateTime(sprintf('%04d-%02d-01', $nextYear, $nextMonth)))->format('t');
+            $effectiveNextStartDay = min($startDay, $daysInNextMonth);
+            $nextPeriodStart = new \DateTime(sprintf('%04d-%02d-%02d', $nextYear, $nextMonth, $effectiveNextStartDay));
+            $periodEnd = clone $nextPeriodStart;
+            $periodEnd->modify('-1 day');
+        } else {
+            // Period started last month
+            $prevMonth = $month - 1;
+            $prevYear = $year;
+            if ($prevMonth < 1) {
+                $prevMonth = 12;
+                $prevYear--;
+            }
+            $daysInPrevMonth = (int) (new \DateTime(sprintf('%04d-%02d-01', $prevYear, $prevMonth)))->format('t');
+            $effectivePrevStartDay = min($startDay, $daysInPrevMonth);
+            $periodStart = new \DateTime(sprintf('%04d-%02d-%02d', $prevYear, $prevMonth, $effectivePrevStartDay));
+
+            // End is day before start day this month
+            $thisPeriodEnd = new \DateTime(sprintf('%04d-%02d-%02d', $year, $month, $effectiveStartDay));
+            $periodEnd = clone $thisPeriodEnd;
+            $periodEnd->modify('-1 day');
+        }
+
+        $label = $periodStart->format('M j') . ' – ' . $periodEnd->format('M j');
+
+        return [
+            'start' => $periodStart->format('Y-m-d'),
+            'end' => $periodEnd->format('Y-m-d'),
+            'label' => $label,
+        ];
     }
 
     /**

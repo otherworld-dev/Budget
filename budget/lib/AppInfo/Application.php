@@ -550,7 +550,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\BudgetAlertService(
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionSplitMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionSplitMapper::class),
+                $c->get(\OCA\Budget\Service\SettingService::class)
             );
         });
         $context->registerServiceAlias('BudgetAlertService', \OCA\Budget\Service\BudgetAlertService::class);

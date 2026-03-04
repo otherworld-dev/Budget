@@ -3964,6 +3964,15 @@ style('budget', 'budget-main');
                                 <option value="yearly">Yearly</option>
                             </select>
                         </div>
+
+                        <div class="setting-item">
+                            <label for="setting-budget-start-day">
+                                <strong><?php p($l->t('Budget Cycle Start Day')); ?></strong>
+                                <small><?php p($l->t('Day of the month when your budget cycle resets (1 = first of month, 31 = last day). Useful for aligning budgets with payday.')); ?></small>
+                            </label>
+                            <input type="number" id="setting-budget-start-day" class="setting-input"
+                                   min="1" max="31" step="1" value="1">
+                        </div>
                     </div>
                 </div>
 

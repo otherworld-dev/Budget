@@ -37,6 +37,7 @@ class SettingController extends Controller {
         'import_skip_duplicates' => 'true',
         'export_default_format' => 'csv',
         'budget_period' => 'monthly',
+        'budget_start_day' => '1',
         'dashboard_hero_config' => '{"order":["netWorth","income","expenses","savings","pension"],"visibility":{"netWorth":true,"income":true,"expenses":true,"savings":true,"pension":true}}',
         'dashboard_widgets_config' => '{"order":["trendChart","spendingChart","netWorthHistory","recentTransactions","accounts","budgetAlerts","upcomingBills","budgetProgress","savingsGoals","debtPayoff"],"visibility":{"trendChart":true,"spendingChart":true,"netWorthHistory":true,"recentTransactions":true,"accounts":true,"budgetAlerts":true,"upcomingBills":true,"budgetProgress":true,"savingsGoals":true,"debtPayoff":true}}',
         'dashboard_locked' => 'true', // Dashboard starts locked
