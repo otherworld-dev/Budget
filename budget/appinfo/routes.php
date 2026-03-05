@@ -117,6 +117,7 @@ return [
         ['name' => 'bill#detect', 'url' => '/api/bills/detect', 'verb' => 'GET'],
         ['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
         ['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
+        ['name' => 'bill#exportCalendar', 'url' => '/api/bills/export-calendar', 'verb' => 'POST'],
         ['name' => 'bill#show', 'url' => '/api/bills/{id}', 'verb' => 'GET'],
         ['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
         ['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
@@ -200,6 +201,7 @@ return [
         ['name' => 'yearOverYear#compareYears', 'url' => '/api/yoy/years', 'verb' => 'GET'],
         ['name' => 'yearOverYear#compareCategories', 'url' => '/api/yoy/categories', 'verb' => 'GET'],
         ['name' => 'yearOverYear#monthlyTrends', 'url' => '/api/yoy/trends', 'verb' => 'GET'],
+        ['name' => 'yearOverYear#export', 'url' => '/api/yoy/export', 'verb' => 'POST'],
 
         // Shared Expense routes - contacts
         ['name' => 'sharedExpense#contacts', 'url' => '/api/shared/contacts', 'verb' => 'GET'],

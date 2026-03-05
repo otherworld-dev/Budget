@@ -30092,6 +30092,14 @@ var ReportsModule = /*#__PURE__*/function () {
         });
       }
 
+      // Account change - auto-regenerate report
+      var accountSelect = document.getElementById('report-account');
+      if (accountSelect) {
+        accountSelect.addEventListener('change', function () {
+          return _this.generateReport();
+        });
+      }
+
       // Export buttons
       (_document$getElementB = document.getElementById('export-csv-btn')) === null || _document$getElementB === void 0 || _document$getElementB.addEventListener('click', function () {
         return _this.exportReport('csv');
@@ -31126,18 +31134,90 @@ var ReportsModule = /*#__PURE__*/function () {
     key: "exportReport",
     value: function () {
       var _exportReport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(format) {
-        var _document$getElementB12, _document$getElementB13, _document$getElementB14, _document$getElementB15;
-        var reportType, startDate, endDate, accountId, response, blob, filename, url, a, _t6;
+        var _document$getElementB12;
+        var reportType, response, blob, filename, url, a, _t6;
         return _regenerator().w(function (_context8) {
           while (1) switch (_context8.p = _context8.n) {
             case 0:
               reportType = ((_document$getElementB12 = document.getElementById('report-type')) === null || _document$getElementB12 === void 0 ? void 0 : _document$getElementB12.value) || 'summary';
+              _context8.p = 1;
+              if (!(reportType === 'yoy')) {
+                _context8.n = 3;
+                break;
+              }
+              _context8.n = 2;
+              return this.exportYoYReport(format);
+            case 2:
+              response = _context8.v;
+              _context8.n = 7;
+              break;
+            case 3:
+              if (!(reportType === 'bills-calendar')) {
+                _context8.n = 5;
+                break;
+              }
+              _context8.n = 4;
+              return this.exportBillsCalendarReport(format);
+            case 4:
+              response = _context8.v;
+              _context8.n = 7;
+              break;
+            case 5:
+              _context8.n = 6;
+              return this.exportStandardReport(format, reportType);
+            case 6:
+              response = _context8.v;
+            case 7:
+              if (response.ok) {
+                _context8.n = 8;
+                break;
+              }
+              throw new Error('Export failed');
+            case 8:
+              _context8.n = 9;
+              return response.blob();
+            case 9:
+              blob = _context8.v;
+              filename = "".concat(reportType, "_report_").concat(new Date().toISOString().split('T')[0], ".").concat(format); // Trigger download
+              url = window.URL.createObjectURL(blob);
+              a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)("Report exported as ".concat(format.toUpperCase()));
+              _context8.n = 11;
+              break;
+            case 10:
+              _context8.p = 10;
+              _t6 = _context8.v;
+              console.error('Export failed:', _t6);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to export report');
+            case 11:
+              return _context8.a(2);
+          }
+        }, _callee8, this, [[1, 10]]);
+      }));
+      function exportReport(_x4) {
+        return _exportReport.apply(this, arguments);
+      }
+      return exportReport;
+    }()
+  }, {
+    key: "exportStandardReport",
+    value: function () {
+      var _exportStandardReport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(format, reportType) {
+        var _document$getElementB13, _document$getElementB14, _document$getElementB15;
+        var startDate, endDate, accountId;
+        return _regenerator().w(function (_context9) {
+          while (1) switch (_context9.n) {
+            case 0:
               startDate = (_document$getElementB13 = document.getElementById('report-start-date')) === null || _document$getElementB13 === void 0 ? void 0 : _document$getElementB13.value;
               endDate = (_document$getElementB14 = document.getElementById('report-end-date')) === null || _document$getElementB14 === void 0 ? void 0 : _document$getElementB14.value;
               accountId = ((_document$getElementB15 = document.getElementById('report-account')) === null || _document$getElementB15 === void 0 ? void 0 : _document$getElementB15.value) || '';
-              _context8.p = 1;
-              _context8.n = 2;
-              return fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
+              return _context9.a(2, fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
                 method: 'POST',
                 headers: {
                   'requesttoken': OC.requestToken,
@@ -31150,45 +31230,82 @@ var ReportsModule = /*#__PURE__*/function () {
                   endDate: endDate,
                   accountId: accountId || null
                 })
-              });
-            case 2:
-              response = _context8.v;
-              if (response.ok) {
-                _context8.n = 3;
-                break;
-              }
-              throw new Error('Export failed');
-            case 3:
-              _context8.n = 4;
-              return response.blob();
-            case 4:
-              blob = _context8.v;
-              filename = "".concat(reportType, "_report_").concat(new Date().toISOString().split('T')[0], ".").concat(format); // Trigger download
-              url = window.URL.createObjectURL(blob);
-              a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              window.URL.revokeObjectURL(url);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)("Report exported as ".concat(format.toUpperCase()));
-              _context8.n = 6;
-              break;
-            case 5:
-              _context8.p = 5;
-              _t6 = _context8.v;
-              console.error('Export failed:', _t6);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to export report');
-            case 6:
-              return _context8.a(2);
+              }));
           }
-        }, _callee8, null, [[1, 5]]);
+        }, _callee9);
       }));
-      function exportReport(_x4) {
-        return _exportReport.apply(this, arguments);
+      function exportStandardReport(_x5, _x6) {
+        return _exportStandardReport.apply(this, arguments);
       }
-      return exportReport;
+      return exportStandardReport;
+    }()
+  }, {
+    key: "exportYoYReport",
+    value: function () {
+      var _exportYoYReport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(format) {
+        var _document$getElementB16, _document$getElementB17, _document$getElementB18, _document$getElementB19;
+        var comparisonType, years, month, accountId;
+        return _regenerator().w(function (_context0) {
+          while (1) switch (_context0.n) {
+            case 0:
+              comparisonType = ((_document$getElementB16 = document.getElementById('yoy-comparison-type')) === null || _document$getElementB16 === void 0 ? void 0 : _document$getElementB16.value) || 'years';
+              years = ((_document$getElementB17 = document.getElementById('yoy-years')) === null || _document$getElementB17 === void 0 ? void 0 : _document$getElementB17.value) || 3;
+              month = ((_document$getElementB18 = document.getElementById('yoy-month')) === null || _document$getElementB18 === void 0 ? void 0 : _document$getElementB18.value) || new Date().getMonth() + 1;
+              accountId = ((_document$getElementB19 = document.getElementById('report-account')) === null || _document$getElementB19 === void 0 ? void 0 : _document$getElementB19.value) || '';
+              return _context0.a(2, fetch(OC.generateUrl('/apps/budget/api/yoy/export'), {
+                method: 'POST',
+                headers: {
+                  'requesttoken': OC.requestToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  comparisonType: comparisonType,
+                  format: format,
+                  years: parseInt(years),
+                  month: parseInt(month),
+                  accountId: accountId || null
+                })
+              }));
+          }
+        }, _callee0);
+      }));
+      function exportYoYReport(_x7) {
+        return _exportYoYReport.apply(this, arguments);
+      }
+      return exportYoYReport;
+    }()
+  }, {
+    key: "exportBillsCalendarReport",
+    value: function () {
+      var _exportBillsCalendarReport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(format) {
+        var _document$getElementB20, _document$getElementB21, _document$getElementB22;
+        var year, billStatus, includeTransfers;
+        return _regenerator().w(function (_context1) {
+          while (1) switch (_context1.n) {
+            case 0:
+              year = ((_document$getElementB20 = document.getElementById('bills-calendar-year')) === null || _document$getElementB20 === void 0 ? void 0 : _document$getElementB20.value) || new Date().getFullYear();
+              billStatus = ((_document$getElementB21 = document.getElementById('bills-calendar-status')) === null || _document$getElementB21 === void 0 ? void 0 : _document$getElementB21.value) || 'active';
+              includeTransfers = ((_document$getElementB22 = document.getElementById('bills-calendar-include-transfers')) === null || _document$getElementB22 === void 0 ? void 0 : _document$getElementB22.checked) || false;
+              return _context1.a(2, fetch(OC.generateUrl('/apps/budget/api/bills/export-calendar'), {
+                method: 'POST',
+                headers: {
+                  'requesttoken': OC.requestToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  format: format,
+                  year: parseInt(year),
+                  billStatus: billStatus,
+                  includeTransfers: includeTransfers.toString()
+                })
+              }));
+          }
+        }, _callee1);
+      }));
+      function exportBillsCalendarReport(_x8) {
+        return _exportBillsCalendarReport.apply(this, arguments);
+      }
+      return exportBillsCalendarReport;
     }() // ==========================================
     // Bills Calendar Report Functions
     // ==========================================
@@ -31255,46 +31372,46 @@ var ReportsModule = /*#__PURE__*/function () {
   }, {
     key: "generateBillsCalendar",
     value: function () {
-      var _generateBillsCalendar = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-        var _document$getElementB16, _document$getElementB17, _document$getElementB18;
-        var year, billStatus, includeTransfers, loadingEl, _document$getElementB19, params, response, data, view, _t7;
-        return _regenerator().w(function (_context9) {
-          while (1) switch (_context9.p = _context9.n) {
+      var _generateBillsCalendar = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
+        var _document$getElementB23, _document$getElementB24, _document$getElementB25;
+        var year, billStatus, includeTransfers, loadingEl, _document$getElementB26, params, response, data, view, _t7;
+        return _regenerator().w(function (_context10) {
+          while (1) switch (_context10.p = _context10.n) {
             case 0:
-              year = ((_document$getElementB16 = document.getElementById('bills-calendar-year')) === null || _document$getElementB16 === void 0 ? void 0 : _document$getElementB16.value) || new Date().getFullYear();
-              billStatus = ((_document$getElementB17 = document.getElementById('bills-calendar-status')) === null || _document$getElementB17 === void 0 ? void 0 : _document$getElementB17.value) || 'active';
-              includeTransfers = ((_document$getElementB18 = document.getElementById('bills-calendar-include-transfers')) === null || _document$getElementB18 === void 0 ? void 0 : _document$getElementB18.checked) || false; // Show loading
+              year = ((_document$getElementB23 = document.getElementById('bills-calendar-year')) === null || _document$getElementB23 === void 0 ? void 0 : _document$getElementB23.value) || new Date().getFullYear();
+              billStatus = ((_document$getElementB24 = document.getElementById('bills-calendar-status')) === null || _document$getElementB24 === void 0 ? void 0 : _document$getElementB24.value) || 'active';
+              includeTransfers = ((_document$getElementB25 = document.getElementById('bills-calendar-include-transfers')) === null || _document$getElementB25 === void 0 ? void 0 : _document$getElementB25.checked) || false; // Show loading
               loadingEl = document.getElementById('report-loading');
               if (loadingEl) loadingEl.style.display = 'flex';
-              _context9.p = 1;
+              _context10.p = 1;
               params = new URLSearchParams({
                 year: year.toString(),
                 billStatus: billStatus,
                 includeTransfers: includeTransfers.toString()
               });
-              _context9.n = 2;
+              _context10.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/bills/annual-overview?".concat(params)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context9.v;
+              response = _context10.v;
               if (response.ok) {
-                _context9.n = 3;
+                _context10.n = 3;
                 break;
               }
               throw new Error('Failed to fetch bills calendar data');
             case 3:
-              _context9.n = 4;
+              _context10.n = 4;
               return response.json();
             case 4:
-              data = _context9.v;
+              data = _context10.v;
               // Render monthly totals chart
               this.renderBillsCalendarChart(data.monthlyTotals);
 
               // Get current view
-              view = ((_document$getElementB19 = document.getElementById('bills-calendar-view')) === null || _document$getElementB19 === void 0 ? void 0 : _document$getElementB19.value) || 'table';
+              view = ((_document$getElementB26 = document.getElementById('bills-calendar-view')) === null || _document$getElementB26 === void 0 ? void 0 : _document$getElementB26.value) || 'table';
               if (view === 'table') {
                 this.renderBillsCalendarTable(data.bills, data.monthlyTotals);
               } else {
@@ -31310,21 +31427,21 @@ var ReportsModule = /*#__PURE__*/function () {
                 document.getElementById('bills-calendar-table-container').style.display = 'none';
                 document.getElementById('bills-calendar-heatmap-container').style.display = '';
               }
-              _context9.n = 6;
+              _context10.n = 6;
               break;
             case 5:
-              _context9.p = 5;
-              _t7 = _context9.v;
+              _context10.p = 5;
+              _t7 = _context10.v;
               console.error('Failed to generate bills calendar:', _t7);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)('Failed to generate bills calendar');
             case 6:
-              _context9.p = 6;
+              _context10.p = 6;
               if (loadingEl) loadingEl.style.display = 'none';
-              return _context9.f(6);
+              return _context10.f(6);
             case 7:
-              return _context9.a(2);
+              return _context10.a(2);
           }
-        }, _callee9, this, [[1, 5, 6, 7]]);
+        }, _callee10, this, [[1, 5, 6, 7]]);
       }));
       function generateBillsCalendar() {
         return _generateBillsCalendar.apply(this, arguments);

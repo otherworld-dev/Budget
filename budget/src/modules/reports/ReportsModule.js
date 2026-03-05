@@ -78,6 +78,12 @@ export default class ReportsModule {
             typeSelect.addEventListener('change', () => this.generateReport());
         }
 
+        // Account change - auto-regenerate report
+        const accountSelect = document.getElementById('report-account');
+        if (accountSelect) {
+            accountSelect.addEventListener('change', () => this.generateReport());
+        }
+
         // Export buttons
         document.getElementById('export-csv-btn')?.addEventListener('click', () => this.exportReport('csv'));
         document.getElementById('export-pdf-btn')?.addEventListener('click', () => this.exportReport('pdf'));
@@ -998,25 +1004,17 @@ export default class ReportsModule {
 
     async exportReport(format) {
         const reportType = document.getElementById('report-type')?.value || 'summary';
-        const startDate = document.getElementById('report-start-date')?.value;
-        const endDate = document.getElementById('report-end-date')?.value;
-        const accountId = document.getElementById('report-account')?.value || '';
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    type: reportType,
-                    format,
-                    startDate,
-                    endDate,
-                    accountId: accountId || null
-                })
-            });
+            let response;
+
+            if (reportType === 'yoy') {
+                response = await this.exportYoYReport(format);
+            } else if (reportType === 'bills-calendar') {
+                response = await this.exportBillsCalendarReport(format);
+            } else {
+                response = await this.exportStandardReport(format, reportType);
+            }
 
             if (!response.ok) throw new Error('Export failed');
 
@@ -1038,6 +1036,69 @@ export default class ReportsModule {
             console.error('Export failed:', error);
             showError('Failed to export report');
         }
+    }
+
+    async exportStandardReport(format, reportType) {
+        const startDate = document.getElementById('report-start-date')?.value;
+        const endDate = document.getElementById('report-end-date')?.value;
+        const accountId = document.getElementById('report-account')?.value || '';
+
+        return fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
+            method: 'POST',
+            headers: {
+                'requesttoken': OC.requestToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                type: reportType,
+                format,
+                startDate,
+                endDate,
+                accountId: accountId || null
+            })
+        });
+    }
+
+    async exportYoYReport(format) {
+        const comparisonType = document.getElementById('yoy-comparison-type')?.value || 'years';
+        const years = document.getElementById('yoy-years')?.value || 3;
+        const month = document.getElementById('yoy-month')?.value || new Date().getMonth() + 1;
+        const accountId = document.getElementById('report-account')?.value || '';
+
+        return fetch(OC.generateUrl('/apps/budget/api/yoy/export'), {
+            method: 'POST',
+            headers: {
+                'requesttoken': OC.requestToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                comparisonType,
+                format,
+                years: parseInt(years),
+                month: parseInt(month),
+                accountId: accountId || null
+            })
+        });
+    }
+
+    async exportBillsCalendarReport(format) {
+        const year = document.getElementById('bills-calendar-year')?.value || new Date().getFullYear();
+        const billStatus = document.getElementById('bills-calendar-status')?.value || 'active';
+        const includeTransfers = document.getElementById('bills-calendar-include-transfers')?.checked || false;
+
+        return fetch(OC.generateUrl('/apps/budget/api/bills/export-calendar'), {
+            method: 'POST',
+            headers: {
+                'requesttoken': OC.requestToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                format,
+                year: parseInt(year),
+                billStatus,
+                includeTransfers: includeTransfers.toString()
+            })
+        });
     }
 
     // ==========================================

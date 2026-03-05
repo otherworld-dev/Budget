@@ -12,6 +12,7 @@ use OCA\Budget\Traits\InputValidationTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
+use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
@@ -645,6 +646,173 @@ class BillController extends Controller {
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to generate annual overview');
         }
+    }
+
+    /**
+     * Export bills calendar as CSV or PDF.
+     * @NoAdminRequired
+     */
+    public function exportCalendar(
+        string $format = 'csv',
+        ?int $year = null,
+        $includeTransfers = 'false',
+        ?string $billStatus = 'active'
+    ): DataDownloadResponse|DataResponse {
+        try {
+            $year = $year ?? (int) date('Y');
+            if ($year < 2000 || $year > 2100) {
+                return new DataResponse(['error' => 'Invalid year'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $includeTransfersBool = $this->toBool($includeTransfers);
+            $validStatuses = ['active', 'inactive', 'all'];
+            if (!in_array($billStatus, $validStatuses)) {
+                $billStatus = 'active';
+            }
+
+            $data = $this->service->getAnnualOverview($this->userId, $year, $includeTransfersBool, $billStatus);
+
+            if ($format === 'pdf') {
+                $result = $this->exportCalendarToPdf($data);
+            } else {
+                $result = $this->exportCalendarToCsv($data);
+            }
+
+            return new DataDownloadResponse(
+                $result['stream'],
+                $result['filename'],
+                $result['contentType']
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to export bills calendar');
+        }
+    }
+
+    private function exportCalendarToCsv(array $data): array {
+        $csv = fopen('php://memory', 'w');
+        $year = $data['year'] ?? date('Y');
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // Header
+        $header = ['Bill', 'Amount', 'Frequency'];
+        foreach ($months as $m) {
+            $header[] = $m;
+        }
+        $header[] = 'Annual Total';
+        fputcsv($csv, $header);
+
+        // Bill rows
+        foreach ($data['bills'] ?? [] as $bill) {
+            $row = [
+                $bill['name'] ?? '',
+                $bill['amount'] ?? 0,
+                $bill['frequency'] ?? '',
+            ];
+
+            $annualTotal = 0;
+            for ($m = 1; $m <= 12; $m++) {
+                $occurs = !empty($bill['occurrences'][$m]);
+                $row[] = $occurs ? number_format((float)($bill['amount'] ?? 0), 2) : '';
+                if ($occurs) {
+                    $annualTotal += (float)($bill['amount'] ?? 0);
+                }
+            }
+            $row[] = number_format($annualTotal, 2);
+            fputcsv($csv, $row);
+        }
+
+        // Monthly totals row
+        $totalsRow = ['Total', '', ''];
+        $grandTotal = 0;
+        for ($m = 1; $m <= 12; $m++) {
+            $total = $data['monthlyTotals'][$m] ?? 0;
+            $totalsRow[] = number_format($total, 2);
+            $grandTotal += $total;
+        }
+        $totalsRow[] = number_format($grandTotal, 2);
+        fputcsv($csv, $totalsRow);
+
+        rewind($csv);
+        $content = stream_get_contents($csv);
+        fclose($csv);
+
+        return [
+            'stream' => $content,
+            'contentType' => 'text/csv',
+            'filename' => "bills_calendar_{$year}_" . date('Y-m-d') . '.csv',
+        ];
+    }
+
+    private function exportCalendarToPdf(array $data): array {
+        if (!class_exists('TCPDF')) {
+            return $this->exportCalendarToCsv($data);
+        }
+
+        $year = $data['year'] ?? date('Y');
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetCreator('Nextcloud Budget');
+        $pdf->SetTitle("Bills Calendar {$year}");
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(true);
+        $pdf->SetMargins(10, 10, 10);
+        $pdf->SetAutoPageBreak(true, 20);
+        $pdf->AddPage();
+
+        $pdf->SetFont('helvetica', 'B', 14);
+        $pdf->Cell(0, 8, "Bills Calendar {$year}", 0, 1, 'C');
+        $pdf->Ln(3);
+
+        // Column widths for landscape A4 (277mm usable)
+        $nameW = 45;
+        $amtW = 20;
+        $monthW = 16;
+        $totalW = 20;
+
+        // Header
+        $pdf->SetFont('helvetica', 'B', 7);
+        $pdf->Cell($nameW, 5, 'Bill', 1, 0, 'L');
+        $pdf->Cell($amtW, 5, 'Amount', 1, 0, 'R');
+        foreach ($months as $m) {
+            $pdf->Cell($monthW, 5, $m, 1, 0, 'C');
+        }
+        $pdf->Cell($totalW, 5, 'Annual', 1, 1, 'R');
+
+        // Data rows
+        $pdf->SetFont('helvetica', '', 7);
+        foreach ($data['bills'] ?? [] as $bill) {
+            $pdf->Cell($nameW, 5, $bill['name'] ?? '', 1, 0, 'L');
+            $pdf->Cell($amtW, 5, number_format((float)($bill['amount'] ?? 0), 2), 1, 0, 'R');
+
+            $annualTotal = 0;
+            for ($m = 1; $m <= 12; $m++) {
+                $occurs = !empty($bill['occurrences'][$m]);
+                $pdf->Cell($monthW, 5, $occurs ? number_format((float)($bill['amount'] ?? 0), 2) : '', 1, 0, 'R');
+                if ($occurs) {
+                    $annualTotal += (float)($bill['amount'] ?? 0);
+                }
+            }
+            $pdf->Cell($totalW, 5, number_format($annualTotal, 2), 1, 1, 'R');
+        }
+
+        // Totals row
+        $pdf->SetFont('helvetica', 'B', 7);
+        $pdf->Cell($nameW, 5, 'Total', 1, 0, 'L');
+        $pdf->Cell($amtW, 5, '', 1, 0, 'R');
+        $grandTotal = 0;
+        for ($m = 1; $m <= 12; $m++) {
+            $total = $data['monthlyTotals'][$m] ?? 0;
+            $pdf->Cell($monthW, 5, number_format($total, 2), 1, 0, 'R');
+            $grandTotal += $total;
+        }
+        $pdf->Cell($totalW, 5, number_format($grandTotal, 2), 1, 1, 'R');
+
+        return [
+            'stream' => $pdf->Output('', 'S'),
+            'contentType' => 'application/pdf',
+            'filename' => "bills_calendar_{$year}_" . date('Y-m-d') . '.pdf',
+        ];
     }
 
     /**
