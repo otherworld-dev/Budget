@@ -8,16 +8,13 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.4.0
+## What's New in v2.6.0
 
-**Assets, Crypto & Multi-Currency Release**
-- **Assets Section** - Track non-liquid assets (real estate, vehicles, jewelry, collectibles) with value history, appreciation/depreciation projections, and net worth integration
-- **Cryptocurrency Accounts** - Static crypto tracking with 25 supported currencies (BTC, ETH, SOL, DOGE, etc.) and correct decimal precision
-- **Multi-Currency Dashboard** - Hero tiles, net worth, trends, and cash flow automatically convert to your default currency using ECB and CoinGecko exchange rates
-- **Recurring Bill End Dates** - Set end dates or remaining payment counts; bills auto-deactivate when complete
-- **Tag-Linked Savings Goals** - Link goals to tags so current amounts auto-calculate from tagged transactions
-- **Pending Transaction Indicators** - Future-dated transactions display with visual pending status and filterable status column
-- **133 Unit Tests** - Comprehensive test coverage across core services
+- **Configurable Budget Cycle Start Day** - Set a custom start day for budget periods instead of always using the 1st of the month
+- **Exchange Rate Support for Non-ECB Currencies** - Currencies not covered by the European Central Bank now fetch rates from fallback providers
+- **Transaction Status Column** - Scheduled future transactions can be excluded from reports and balance calculations
+- **Report Fixes** - Account filtering, year-over-year filtering, and export errors resolved
+- **Light Theme Fix** - Category text now readable in light theme
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
@@ -109,7 +106,7 @@ See the [full changelog](budget/CHANGELOG.md) for details.
 
 ## Requirements
 
-- Nextcloud 30 - 32
+- Nextcloud 30 - 35
 - PHP 8.1+
 - MySQL/MariaDB, PostgreSQL, or SQLite
 
