@@ -143,7 +143,7 @@ class ReportExporter {
             fputcsv($handle, ['']);
             fputcsv($handle, ['Comparison vs Previous Period']);
             foreach ($data['comparison']['changes'] as $key => $change) {
-                fputcsv($handle, [ucfirst($key) . ' Change', $change['percentage'] . '% ' . $change['direction']]);
+                fputcsv($handle, [ucfirst($key) . ' Change', ($change['percentage'] ?? 0) . '% ' . ($change['direction'] ?? '')]);
             }
         }
 
@@ -153,11 +153,11 @@ class ReportExporter {
 
         foreach ($data['accounts'] ?? [] as $account) {
             fputcsv($handle, [
-                $account['name'],
-                $account['balance'],
-                $account['income'],
-                $account['expenses'],
-                $account['net']
+                $account['name'] ?? '',
+                $account['balance'] ?? 0,
+                $account['income'] ?? 0,
+                $account['expenses'] ?? 0,
+                $account['net'] ?? 0
             ]);
         }
     }
@@ -170,12 +170,13 @@ class ReportExporter {
 
         $total = $data['totals']['amount'] ?? 0;
 
-        foreach ($data['data'] as $item) {
-            $pct = $total > 0 ? round(($item['total'] / $total) * 100, 1) : 0;
+        foreach ($data['data'] ?? [] as $item) {
+            $itemTotal = (float)($item['total'] ?? 0);
+            $pct = $total > 0 ? round(($itemTotal / $total) * 100, 1) : 0;
             fputcsv($handle, [
                 $item['name'] ?? 'Unknown',
-                $item['total'],
-                $item['count'],
+                $itemTotal,
+                $item['count'] ?? 0,
                 $pct . '%'
             ]);
         }
@@ -191,13 +192,13 @@ class ReportExporter {
         fputcsv($handle, ['Month', 'Income', 'Expenses', 'Net', 'Cumulative']);
 
         $cumulative = 0;
-        foreach ($data['data'] as $month) {
-            $cumulative += $month['net'];
+        foreach ($data['data'] ?? [] as $month) {
+            $cumulative += (float)($month['net'] ?? 0);
             fputcsv($handle, [
-                $month['month'],
-                $month['income'],
-                $month['expenses'],
-                $month['net'],
+                $month['month'] ?? '',
+                $month['income'] ?? 0,
+                $month['expenses'] ?? 0,
+                $month['net'] ?? 0,
                 $cumulative
             ]);
         }
@@ -216,11 +217,11 @@ class ReportExporter {
     private function writeIncomeCsv($handle, array $data): void {
         fputcsv($handle, ['Source', 'Amount', 'Transactions']);
 
-        foreach ($data['data'] as $item) {
+        foreach ($data['data'] ?? [] as $item) {
             fputcsv($handle, [
                 $item['name'] ?? 'Unknown',
-                $item['total'],
-                $item['count']
+                $item['total'] ?? 0,
+                $item['count'] ?? 0
             ]);
         }
 
@@ -236,12 +237,12 @@ class ReportExporter {
 
         foreach ($data['categories'] ?? [] as $category) {
             fputcsv($handle, [
-                $category['categoryName'],
-                $category['budgeted'],
-                $category['spent'],
-                $category['remaining'],
-                round($category['percentage'], 1) . '%',
-                $category['status']
+                $category['categoryName'] ?? '',
+                $category['budgeted'] ?? 0,
+                $category['spent'] ?? 0,
+                $category['remaining'] ?? 0,
+                round($category['percentage'] ?? 0, 1) . '%',
+                $category['status'] ?? ''
             ]);
         }
 
@@ -281,9 +282,10 @@ class ReportExporter {
             $pdf->SetFont('helvetica', '', 10);
 
             foreach ($data['comparison']['changes'] as $key => $change) {
-                $arrow = $change['direction'] === 'up' ? '+' : ($change['direction'] === 'down' ? '-' : '');
+                $direction = $change['direction'] ?? '';
+                $arrow = $direction === 'up' ? '+' : ($direction === 'down' ? '-' : '');
                 $pdf->Cell(80, 6, ucfirst($key) . ':', 0, 0);
-                $pdf->Cell(60, 6, $arrow . $change['percentage'] . '%', 0, 1, 'R');
+                $pdf->Cell(60, 6, $arrow . ($change['percentage'] ?? 0) . '%', 0, 1, 'R');
             }
         }
 
@@ -303,11 +305,11 @@ class ReportExporter {
 
             $pdf->SetFont('helvetica', '', 9);
             foreach ($data['accounts'] as $account) {
-                $pdf->Cell(50, 6, $account['name'], 1, 0, 'L');
-                $pdf->Cell(30, 6, $this->formatNumber($account['income']), 1, 0, 'R');
-                $pdf->Cell(30, 6, $this->formatNumber($account['expenses']), 1, 0, 'R');
-                $pdf->Cell(30, 6, $this->formatNumber($account['net']), 1, 0, 'R');
-                $pdf->Cell(30, 6, $this->formatNumber($account['balance']), 1, 1, 'R');
+                $pdf->Cell(50, 6, $account['name'] ?? '', 1, 0, 'L');
+                $pdf->Cell(30, 6, $this->formatNumber($account['income'] ?? 0), 1, 0, 'R');
+                $pdf->Cell(30, 6, $this->formatNumber($account['expenses'] ?? 0), 1, 0, 'R');
+                $pdf->Cell(30, 6, $this->formatNumber($account['net'] ?? 0), 1, 0, 'R');
+                $pdf->Cell(30, 6, $this->formatNumber($account['balance'] ?? 0), 1, 1, 'R');
             }
         }
     }
@@ -329,11 +331,12 @@ class ReportExporter {
         $pdf->SetFont('helvetica', '', 9);
         $total = $data['totals']['amount'] ?? 0;
 
-        foreach ($data['data'] as $item) {
-            $pct = $total > 0 ? round(($item['total'] / $total) * 100, 1) : 0;
+        foreach ($data['data'] ?? [] as $item) {
+            $itemTotal = (float)($item['total'] ?? 0);
+            $pct = $total > 0 ? round(($itemTotal / $total) * 100, 1) : 0;
             $pdf->Cell(60, 6, $item['name'] ?? 'Unknown', 1, 0, 'L');
-            $pdf->Cell(40, 6, $this->formatNumber($item['total']), 1, 0, 'R');
-            $pdf->Cell(40, 6, $item['count'], 1, 0, 'R');
+            $pdf->Cell(40, 6, $this->formatNumber($itemTotal), 1, 0, 'R');
+            $pdf->Cell(40, 6, $item['count'] ?? 0, 1, 0, 'R');
             $pdf->Cell(40, 6, $pct . '%', 1, 1, 'R');
         }
 
@@ -378,13 +381,13 @@ class ReportExporter {
         $pdf->SetFont('helvetica', '', 9);
         $cumulative = 0;
 
-        foreach ($data['data'] as $month) {
-            $cumulative += $month['net'];
-            $monthLabel = $this->calculator->formatMonthLabel($month['month']);
+        foreach ($data['data'] ?? [] as $month) {
+            $cumulative += (float)($month['net'] ?? 0);
+            $monthLabel = $this->calculator->formatMonthLabel($month['month'] ?? '');
             $pdf->Cell(35, 6, $monthLabel, 1, 0, 'L');
-            $pdf->Cell(35, 6, $this->formatNumber($month['income']), 1, 0, 'R');
-            $pdf->Cell(35, 6, $this->formatNumber($month['expenses']), 1, 0, 'R');
-            $pdf->Cell(35, 6, $this->formatNumber($month['net']), 1, 0, 'R');
+            $pdf->Cell(35, 6, $this->formatNumber($month['income'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(35, 6, $this->formatNumber($month['expenses'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(35, 6, $this->formatNumber($month['net'] ?? 0), 1, 0, 'R');
             $pdf->Cell(35, 6, $this->formatNumber($cumulative), 1, 1, 'R');
         }
     }
@@ -402,10 +405,10 @@ class ReportExporter {
         $pdf->Cell(50, 6, 'Transactions', 1, 1, 'R');
 
         $pdf->SetFont('helvetica', '', 9);
-        foreach ($data['data'] as $item) {
+        foreach ($data['data'] ?? [] as $item) {
             $pdf->Cell(70, 6, $item['name'] ?? 'Unknown', 1, 0, 'L');
-            $pdf->Cell(50, 6, $this->formatNumber($item['total']), 1, 0, 'R');
-            $pdf->Cell(50, 6, $item['count'], 1, 1, 'R');
+            $pdf->Cell(50, 6, $this->formatNumber($item['total'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(50, 6, $item['count'] ?? 0, 1, 1, 'R');
         }
 
         // Totals
@@ -432,12 +435,12 @@ class ReportExporter {
 
         $pdf->SetFont('helvetica', '', 9);
         foreach ($data['categories'] ?? [] as $category) {
-            $pdf->Cell(40, 6, $category['categoryName'], 1, 0, 'L');
-            $pdf->Cell(30, 6, $this->formatNumber($category['budgeted']), 1, 0, 'R');
-            $pdf->Cell(30, 6, $this->formatNumber($category['spent']), 1, 0, 'R');
-            $pdf->Cell(30, 6, $this->formatNumber($category['remaining']), 1, 0, 'R');
-            $pdf->Cell(25, 6, round($category['percentage'], 1) . '%', 1, 0, 'R');
-            $pdf->Cell(25, 6, ucfirst($category['status']), 1, 1, 'C');
+            $pdf->Cell(40, 6, $category['categoryName'] ?? '', 1, 0, 'L');
+            $pdf->Cell(30, 6, $this->formatNumber($category['budgeted'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(30, 6, $this->formatNumber($category['spent'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(30, 6, $this->formatNumber($category['remaining'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(25, 6, round($category['percentage'] ?? 0, 1) . '%', 1, 0, 'R');
+            $pdf->Cell(25, 6, ucfirst($category['status'] ?? ''), 1, 1, 'C');
         }
 
         // Totals

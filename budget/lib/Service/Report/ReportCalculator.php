@@ -31,7 +31,7 @@ class ReportCalculator {
         string $startDate,
         string $endDate
     ): array {
-        return $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate);
+        return $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, $accountId);
     }
 
     /**

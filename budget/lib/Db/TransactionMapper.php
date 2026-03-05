@@ -86,7 +86,7 @@ class TransactionMapper extends QBMapper {
      * Find all transactions for a user within a date range (across all accounts)
      * @return Transaction[]
      */
-    public function findAllByUserAndDateRange(string $userId, string $startDate, string $endDate): array {
+    public function findAllByUserAndDateRange(string $userId, string $startDate, string $endDate, ?int $accountId = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
@@ -96,6 +96,10 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->orderBy('t.date', 'DESC')
             ->addOrderBy('t.id', 'DESC');
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
 
         return $this->findEntities($qb);
     }
@@ -257,6 +261,7 @@ class TransactionMapper extends QBMapper {
         string $userId,
         string $startDate,
         string $endDate,
+        ?int $accountId = null,
         array $tagIds = [],
         bool $includeUntagged = true,
         bool $excludeTransfers = false
@@ -274,6 +279,10 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')));
 
         $this->excludeScheduledFuture($qb);
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
 
         if ($excludeTransfers) {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
@@ -1184,7 +1193,7 @@ class TransactionMapper extends QBMapper {
      * Get spending for a single category within a date range for a user.
      * Only counts non-split debit transactions.
      */
-    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate): float {
+    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null): float {
         $qb = $this->db->getQueryBuilder();
 
         $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
@@ -1201,6 +1210,10 @@ class TransactionMapper extends QBMapper {
             ));
 
         $this->excludeScheduledFuture($qb);
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
 
         $result = $qb->executeQuery();
         $row = $result->fetch();

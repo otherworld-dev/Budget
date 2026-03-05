@@ -2934,7 +2934,7 @@ style('budget', 'budget-main');
                         </div>
                         <div class="control-group">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" id="bills-calendar-include-transfers">
+                                <input type="checkbox" id="bills-calendar-include-transfers" checked>
                                 <span>Include Recurring Transfers</span>
                             </label>
                         </div>

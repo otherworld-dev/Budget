@@ -194,6 +194,7 @@ class ReportAggregator {
             $userId,
             $startDate,
             $endDate,
+            $accountId,
             $tagIds,
             $includeUntagged,
             $excludeTransfers

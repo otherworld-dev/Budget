@@ -30934,33 +30934,35 @@ var ReportsModule = /*#__PURE__*/function () {
     key: "generateYoYComparison",
     value: function () {
       var _generateYoYComparison = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-        var _document$getElementB7, _document$getElementB8, _document$getElementB9, _document$getElementB0, _document$getElementB1, _document$getElementB10;
-        var comparisonType, years, month, loadingEl, endpoint, response, data, _t4, _t5;
+        var _document$getElementB7, _document$getElementB8, _document$getElementB9, _document$getElementB0, _document$getElementB1, _document$getElementB10, _document$getElementB11;
+        var comparisonType, years, month, accountId, loadingEl, accountParam, endpoint, response, data, _t4, _t5;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.p = _context7.n) {
             case 0:
               comparisonType = ((_document$getElementB7 = document.getElementById('yoy-comparison-type')) === null || _document$getElementB7 === void 0 ? void 0 : _document$getElementB7.value) || 'years';
               years = ((_document$getElementB8 = document.getElementById('yoy-years')) === null || _document$getElementB8 === void 0 ? void 0 : _document$getElementB8.value) || 3;
-              month = ((_document$getElementB9 = document.getElementById('yoy-month')) === null || _document$getElementB9 === void 0 ? void 0 : _document$getElementB9.value) || new Date().getMonth() + 1; // Show loading
+              month = ((_document$getElementB9 = document.getElementById('yoy-month')) === null || _document$getElementB9 === void 0 ? void 0 : _document$getElementB9.value) || new Date().getMonth() + 1;
+              accountId = ((_document$getElementB0 = document.getElementById('report-account')) === null || _document$getElementB0 === void 0 ? void 0 : _document$getElementB0.value) || ''; // Show loading
               loadingEl = document.getElementById('report-loading');
               if (loadingEl) loadingEl.style.display = 'flex';
 
               // Hide all YoY sections
-              (_document$getElementB0 = document.getElementById('yoy-summary')) === null || _document$getElementB0 === void 0 || _document$getElementB0.style.setProperty('display', 'none');
-              (_document$getElementB1 = document.getElementById('yoy-chart-container')) === null || _document$getElementB1 === void 0 || _document$getElementB1.style.setProperty('display', 'none');
-              (_document$getElementB10 = document.getElementById('yoy-category-table-container')) === null || _document$getElementB10 === void 0 || _document$getElementB10.style.setProperty('display', 'none');
+              (_document$getElementB1 = document.getElementById('yoy-summary')) === null || _document$getElementB1 === void 0 || _document$getElementB1.style.setProperty('display', 'none');
+              (_document$getElementB10 = document.getElementById('yoy-chart-container')) === null || _document$getElementB10 === void 0 || _document$getElementB10.style.setProperty('display', 'none');
+              (_document$getElementB11 = document.getElementById('yoy-category-table-container')) === null || _document$getElementB11 === void 0 || _document$getElementB11.style.setProperty('display', 'none');
               _context7.p = 1;
+              accountParam = accountId ? "&accountId=".concat(accountId) : '';
               _t4 = comparisonType;
               _context7.n = _t4 === 'month' ? 2 : _t4 === 'categories' ? 3 : 4;
               break;
             case 2:
-              endpoint = "/apps/budget/api/yoy/month?month=".concat(month, "&years=").concat(years);
+              endpoint = "/apps/budget/api/yoy/month?month=".concat(month, "&years=").concat(years).concat(accountParam);
               return _context7.a(3, 5);
             case 3:
-              endpoint = "/apps/budget/api/yoy/categories?years=".concat(years);
+              endpoint = "/apps/budget/api/yoy/categories?years=".concat(years).concat(accountParam);
               return _context7.a(3, 5);
             case 4:
-              endpoint = "/apps/budget/api/yoy/years?years=".concat(years);
+              endpoint = "/apps/budget/api/yoy/years?years=".concat(years).concat(accountParam);
             case 5:
               _context7.n = 6;
               return fetch(OC.generateUrl(endpoint), {
@@ -31124,15 +31126,15 @@ var ReportsModule = /*#__PURE__*/function () {
     key: "exportReport",
     value: function () {
       var _exportReport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(format) {
-        var _document$getElementB11, _document$getElementB12, _document$getElementB13, _document$getElementB14;
+        var _document$getElementB12, _document$getElementB13, _document$getElementB14, _document$getElementB15;
         var reportType, startDate, endDate, accountId, response, blob, filename, url, a, _t6;
         return _regenerator().w(function (_context8) {
           while (1) switch (_context8.p = _context8.n) {
             case 0:
-              reportType = ((_document$getElementB11 = document.getElementById('report-type')) === null || _document$getElementB11 === void 0 ? void 0 : _document$getElementB11.value) || 'summary';
-              startDate = (_document$getElementB12 = document.getElementById('report-start-date')) === null || _document$getElementB12 === void 0 ? void 0 : _document$getElementB12.value;
-              endDate = (_document$getElementB13 = document.getElementById('report-end-date')) === null || _document$getElementB13 === void 0 ? void 0 : _document$getElementB13.value;
-              accountId = ((_document$getElementB14 = document.getElementById('report-account')) === null || _document$getElementB14 === void 0 ? void 0 : _document$getElementB14.value) || '';
+              reportType = ((_document$getElementB12 = document.getElementById('report-type')) === null || _document$getElementB12 === void 0 ? void 0 : _document$getElementB12.value) || 'summary';
+              startDate = (_document$getElementB13 = document.getElementById('report-start-date')) === null || _document$getElementB13 === void 0 ? void 0 : _document$getElementB13.value;
+              endDate = (_document$getElementB14 = document.getElementById('report-end-date')) === null || _document$getElementB14 === void 0 ? void 0 : _document$getElementB14.value;
+              accountId = ((_document$getElementB15 = document.getElementById('report-account')) === null || _document$getElementB15 === void 0 ? void 0 : _document$getElementB15.value) || '';
               _context8.p = 1;
               _context8.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
@@ -31254,14 +31256,14 @@ var ReportsModule = /*#__PURE__*/function () {
     key: "generateBillsCalendar",
     value: function () {
       var _generateBillsCalendar = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-        var _document$getElementB15, _document$getElementB16, _document$getElementB17;
-        var year, billStatus, includeTransfers, loadingEl, _document$getElementB18, params, response, data, view, _t7;
+        var _document$getElementB16, _document$getElementB17, _document$getElementB18;
+        var year, billStatus, includeTransfers, loadingEl, _document$getElementB19, params, response, data, view, _t7;
         return _regenerator().w(function (_context9) {
           while (1) switch (_context9.p = _context9.n) {
             case 0:
-              year = ((_document$getElementB15 = document.getElementById('bills-calendar-year')) === null || _document$getElementB15 === void 0 ? void 0 : _document$getElementB15.value) || new Date().getFullYear();
-              billStatus = ((_document$getElementB16 = document.getElementById('bills-calendar-status')) === null || _document$getElementB16 === void 0 ? void 0 : _document$getElementB16.value) || 'active';
-              includeTransfers = ((_document$getElementB17 = document.getElementById('bills-calendar-include-transfers')) === null || _document$getElementB17 === void 0 ? void 0 : _document$getElementB17.checked) || false; // Show loading
+              year = ((_document$getElementB16 = document.getElementById('bills-calendar-year')) === null || _document$getElementB16 === void 0 ? void 0 : _document$getElementB16.value) || new Date().getFullYear();
+              billStatus = ((_document$getElementB17 = document.getElementById('bills-calendar-status')) === null || _document$getElementB17 === void 0 ? void 0 : _document$getElementB17.value) || 'active';
+              includeTransfers = ((_document$getElementB18 = document.getElementById('bills-calendar-include-transfers')) === null || _document$getElementB18 === void 0 ? void 0 : _document$getElementB18.checked) || false; // Show loading
               loadingEl = document.getElementById('report-loading');
               if (loadingEl) loadingEl.style.display = 'flex';
               _context9.p = 1;
@@ -31292,7 +31294,7 @@ var ReportsModule = /*#__PURE__*/function () {
               this.renderBillsCalendarChart(data.monthlyTotals);
 
               // Get current view
-              view = ((_document$getElementB18 = document.getElementById('bills-calendar-view')) === null || _document$getElementB18 === void 0 ? void 0 : _document$getElementB18.value) || 'table';
+              view = ((_document$getElementB19 = document.getElementById('bills-calendar-view')) === null || _document$getElementB19 === void 0 ? void 0 : _document$getElementB19.value) || 'table';
               if (view === 'table') {
                 this.renderBillsCalendarTable(data.bills, data.monthlyTotals);
               } else {
