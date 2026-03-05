@@ -13,7 +13,7 @@ use OCP\IDBConnection;
  */
 class ManualExchangeRateMapper extends QBMapper {
     public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_manual_exchange_rates', ManualExchangeRate::class);
+        parent::__construct($db, 'budget_manual_rates', ManualExchangeRate::class);
     }
 
     /**

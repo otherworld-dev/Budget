@@ -18,8 +18,8 @@ class Version001000038Date20260303 extends SimpleMigrationStep {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_manual_exchange_rates')) {
-            $table = $schema->createTable('budget_manual_exchange_rates');
+        if (!$schema->hasTable('budget_manual_rates')) {
+            $table = $schema->createTable('budget_manual_rates');
 
             $table->addColumn('id', Types::BIGINT, [
                 'autoincrement' => true,
@@ -50,8 +50,8 @@ class Version001000038Date20260303 extends SimpleMigrationStep {
             ]);
 
             $table->setPrimaryKey(['id']);
-            $table->addUniqueIndex(['user_id', 'currency'], 'budget_manual_rate_usr_curr');
-            $table->addIndex(['user_id'], 'budget_manual_rate_user_idx');
+            $table->addUniqueIndex(['user_id', 'currency'], 'budget_mrate_usr_curr');
+            $table->addIndex(['user_id'], 'budget_mrate_user_idx');
         }
 
         return $schema;

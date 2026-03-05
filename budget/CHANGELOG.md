@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-03-05
+
+### Fixed
+- Database migration failure: table name `budget_manual_exchange_rates` exceeded Nextcloud's 27-character limit ([#62](https://github.com/otherworld-dev/budget/issues/62))
+
 ## [2.6.0] - 2026-03-05
 
 ### Added
