@@ -16039,7 +16039,7 @@ var AccountsModule = /*#__PURE__*/function () {
       };
 
       // Categorize accounts into assets and liabilities
-      var assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency'];
+      var assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency', 'money_market'];
       var liabilityTypes = ['credit_card', 'loan'];
       var assets = accounts.filter(function (acc) {
         return assetTypes.includes(getField(acc, 'type'));
@@ -17314,7 +17314,6 @@ var AccountsModule = /*#__PURE__*/function () {
               formData = {
                 name: getFormValue('account-name', ''),
                 type: getFormValue('account-type', ''),
-                balance: getFormValue('account-balance', 0, true),
                 currency: getFormValue('account-currency', 'USD'),
                 institution: getFormValue('account-institution'),
                 accountHolderName: getFormValue('account-holder-name'),
@@ -17322,7 +17321,12 @@ var AccountsModule = /*#__PURE__*/function () {
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true)
-              }; // Sensitive fields: only include if user entered a value
+              }; // Only include balance on create — on edit, balance is managed by transactions
+              if (!isEdit) {
+                formData.balance = getFormValue('account-balance', 0, true);
+              }
+
+              // Sensitive fields: only include if user entered a value
               // For edits, empty means "keep existing" - don't send to avoid overwriting
               sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic', 'walletAddress'];
               sensitiveFieldIds = {
@@ -17369,7 +17373,7 @@ var AccountsModule = /*#__PURE__*/function () {
               nameElement.focus();
               return _context0.a(2);
             case 5:
-              if (!isNaN(formData.balance)) {
+              if (!(!isEdit && isNaN(formData.balance))) {
                 _context0.n = 6;
                 break;
               }
@@ -17530,7 +17534,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccountData",
     value: function () {
       var _loadAccountData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(accountId) {
-        var response, account, sensitiveFields, _t11;
+        var response, account, balanceField, sensitiveFields, _t11;
         return _regenerator().w(function (_context1) {
           while (1) switch (_context1.p = _context1.n) {
             case 0:
@@ -17550,7 +17554,14 @@ var AccountsModule = /*#__PURE__*/function () {
               document.getElementById('account-id').value = account.id;
               document.getElementById('account-name').value = account.name;
               document.getElementById('account-type').value = account.type;
-              document.getElementById('account-balance').value = account.balance;
+
+              // Balance is managed by transactions — show as read-only on edit
+              balanceField = document.getElementById('account-balance');
+              if (balanceField) {
+                balanceField.value = account.balance;
+                balanceField.disabled = true;
+                balanceField.title = 'Balance is calculated from transactions';
+              }
               document.getElementById('account-currency').value = account.currency;
               document.getElementById('account-institution').value = account.institution || '';
 
@@ -17623,7 +17634,11 @@ var AccountsModule = /*#__PURE__*/function () {
       var balance = document.getElementById('account-balance');
       if (accountId) accountId.value = '';
       if (currency) currency.value = ((_this$settings = this.settings) === null || _this$settings === void 0 ? void 0 : _this$settings.default_currency) || 'GBP';
-      if (balance) balance.value = '0';
+      if (balance) {
+        balance.value = '0';
+        balance.disabled = false;
+        balance.title = '';
+      }
     }
   }, {
     key: "editAccount",
@@ -26803,6 +26818,21 @@ var ImportModule = /*#__PURE__*/function () {
     value: function loadTransactions() {
       return this.app.loadTransactions();
     }
+  }, {
+    key: "getCategoryLabel",
+    value: function getCategoryLabel(transaction) {
+      var _transaction$appliedR;
+      if (transaction.categoryId && this.categories) {
+        var cat = this.categories.find(function (c) {
+          return c.id === transaction.categoryId;
+        });
+        if (cat) return cat.name;
+      }
+      if ((_transaction$appliedR = transaction.appliedRule) !== null && _transaction$appliedR !== void 0 && _transaction$appliedR.name) {
+        return "Rule: ".concat(transaction.appliedRule.name);
+      }
+      return 'Uncategorized';
+    }
 
     // ============================================
     // Import Module Methods
@@ -27413,7 +27443,7 @@ var ImportModule = /*#__PURE__*/function () {
         var amount = parseFloat(transaction.amount) || 0;
         var isDuplicate = transaction.isDuplicate || false;
         var statusBadge = isDuplicate ? '<span class="status-badge status-error">Duplicate</span>' : '<span class="status-badge status-success">New</span>';
-        row.innerHTML = "\n                <td>\n                    <input type=\"checkbox\" ".concat(isDuplicate ? '' : 'checked', " data-row-index=\"").concat((_transaction$rowIndex = transaction.rowIndex) !== null && _transaction$rowIndex !== void 0 ? _transaction$rowIndex : index, "\">\n                </td>\n                <td>").concat(transaction.date || '', "</td>\n                <td>").concat(transaction.description || '', "</td>\n                <td class=\"").concat(amount >= 0 ? 'positive' : 'negative', "\">\n                    ").concat(_this3.formatCurrency(amount), "\n                </td>\n                <td>").concat(transaction.ruleName || 'Uncategorized', "</td>\n                <td>\n                    ").concat(statusBadge, "\n                </td>\n            ");
+        row.innerHTML = "\n                <td>\n                    <input type=\"checkbox\" ".concat(isDuplicate ? '' : 'checked', " data-row-index=\"").concat((_transaction$rowIndex = transaction.rowIndex) !== null && _transaction$rowIndex !== void 0 ? _transaction$rowIndex : index, "\">\n                </td>\n                <td>").concat(transaction.date || '', "</td>\n                <td>").concat(transaction.description || '', "</td>\n                <td class=\"").concat(amount >= 0 ? 'positive' : 'negative', "\">\n                    ").concat(_this3.formatCurrency(amount), "\n                </td>\n                <td>").concat(_this3.getCategoryLabel(transaction), "</td>\n                <td>\n                    ").concat(statusBadge, "\n                </td>\n            ");
         tbody.appendChild(row);
       });
       document.getElementById('preview-info').textContent = "Showing ".concat(Math.min(50, transactions.length), " of ").concat(transactions.length);
@@ -27669,6 +27699,7 @@ var ImportModule = /*#__PURE__*/function () {
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("Successfully imported ".concat(result.imported, " transactions (").concat(result.skipped, " skipped)"));
               this.resetImportWizard();
               this.loadTransactions();
+              this.app.loadAccounts();
               _context5.n = 13;
               break;
             case 12:

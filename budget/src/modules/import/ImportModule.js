@@ -52,6 +52,17 @@ export default class ImportModule {
         return this.app.loadTransactions();
     }
 
+    getCategoryLabel(transaction) {
+        if (transaction.categoryId && this.categories) {
+            const cat = this.categories.find(c => c.id === transaction.categoryId);
+            if (cat) return cat.name;
+        }
+        if (transaction.appliedRule?.name) {
+            return `Rule: ${transaction.appliedRule.name}`;
+        }
+        return 'Uncategorized';
+    }
+
     // ============================================
     // Import Module Methods
     // ============================================
@@ -559,7 +570,7 @@ export default class ImportModule {
                 <td class="${amount >= 0 ? 'positive' : 'negative'}">
                     ${this.formatCurrency(amount)}
                 </td>
-                <td>${transaction.ruleName || 'Uncategorized'}</td>
+                <td>${this.getCategoryLabel(transaction)}</td>
                 <td>
                     ${statusBadge}
                 </td>
@@ -790,6 +801,7 @@ export default class ImportModule {
                 showSuccess(`Successfully imported ${result.imported} transactions (${result.skipped} skipped)`);
                 this.resetImportWizard();
                 this.loadTransactions();
+                this.app.loadAccounts();
             } else {
                 throw new Error(result.error || 'Import failed');
             }

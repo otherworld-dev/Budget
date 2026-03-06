@@ -354,10 +354,8 @@ class AccountController extends Controller {
                 $updates['walletAddress'] = null;
             }
 
-            // Handle other fields
-            if (isset($data['balance'])) {
-                $updates['balance'] = (float) $data['balance'];
-            }
+            // Balance is not updatable via edit — it is managed by TransactionService
+            // to prevent corruption from the adjusted (display) balance being written back.
             // Only update accountNumber if it's not a masked value (contains asterisks)
             if (isset($data['accountNumber'])) {
                 $value = trim($data['accountNumber']);

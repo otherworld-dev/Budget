@@ -663,4 +663,421 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertFalse($result['valid']);
 		$this->assertStringContainsString('invalid category', strtolower($result['errors'][0]));
 	}
+
+	public function testValidateInvalidAccountId(): void {
+		$this->accountMapper->method('find')
+			->willThrowException(new \Exception('Account not found'));
+
+		$actions = [
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_account',
+					'value' => 999,
+					'behavior' => 'always',
+					'priority' => 100
+				]
+			]
+		];
+
+		$result = $this->applicator->validateActions($actions, 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('invalid account', strtolower($result['errors'][0]));
+	}
+
+	public function testValidateInvalidTransactionType(): void {
+		$actions = [
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_type',
+					'value' => 'bogus',
+					'behavior' => 'always',
+					'priority' => 100
+				]
+			]
+		];
+
+		$result = $this->applicator->validateActions($actions, 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString("invalid transaction type", strtolower($result['errors'][0]));
+	}
+
+	public function testValidateTagsMustBeArray(): void {
+		$actions = [
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'add_tags',
+					'value' => 'not-an-array',
+					'behavior' => 'merge',
+					'priority' => 100
+				]
+			]
+		];
+
+		$result = $this->applicator->validateActions($actions, 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('tags must be an array', strtolower($result['errors'][0]));
+	}
+
+	public function testValidateUnknownActionType(): void {
+		$actions = [
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'do_magic',
+					'value' => 'test',
+					'behavior' => 'always',
+					'priority' => 100
+				]
+			]
+		];
+
+		$result = $this->applicator->validateActions($actions, 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('unknown action type', strtolower($result['errors'][0]));
+	}
+
+	public function testValidateLegacyFormatAlwaysValid(): void {
+		$actions = ['categoryId' => 5, 'vendor' => 'Test'];
+
+		$result = $this->applicator->validateActions($actions, 'user123');
+
+		$this->assertTrue($result['valid']);
+		$this->assertEmpty($result['errors']);
+	}
+
+	// ===== Vendor if_empty Tests =====
+
+	public function testSetVendorIfEmptyWhenAlreadySet(): void {
+		$transaction = $this->createTransaction(['vendor' => 'Existing Vendor']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_vendor',
+					'value' => 'New Vendor',
+					'behavior' => 'if_empty',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('vendor', $changes);
+		$this->assertEquals('Existing Vendor', $transaction->getVendor());
+	}
+
+	public function testSetVendorIfEmptyWhenNull(): void {
+		$transaction = $this->createTransaction(['vendor' => null]);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_vendor',
+					'value' => 'New Vendor',
+					'behavior' => 'if_empty',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('vendor', $changes);
+		$this->assertEquals('New Vendor', $transaction->getVendor());
+	}
+
+	// ===== Reference if_empty Tests =====
+
+	public function testSetReferenceIfEmptyWhenAlreadySet(): void {
+		$transaction = $this->createTransaction(['reference' => 'REF-001']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_reference',
+					'value' => 'REF-NEW',
+					'behavior' => 'if_empty',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('reference', $changes);
+		$this->assertEquals('REF-001', $transaction->getReference());
+	}
+
+	// ===== Notes Append with Default Separator =====
+
+	public function testSetNotesAppendWithDefaultSeparator(): void {
+		$transaction = $this->createTransaction(['notes' => 'First']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_notes',
+					'value' => 'Second',
+					'behavior' => 'append',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		// Default separator is ' '
+		$this->assertEquals('First Second', $transaction->getNotes());
+	}
+
+	// ===== Legacy Format with Notes =====
+
+	public function testLegacyV1WithNotes(): void {
+		$transaction = $this->createTransaction(['notes' => null]);
+
+		$rule = $this->createRule([
+			'categoryId' => null,
+			'vendor' => null,
+			'notes' => 'Auto-tagged'
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('notes', $changes);
+		$this->assertEquals('Auto-tagged', $transaction->getNotes());
+	}
+
+	public function testLegacyV1SkipsNullAndEmptyValues(): void {
+		$transaction = $this->createTransaction();
+
+		$rule = $this->createRule([
+			'categoryId' => null,
+			'vendor' => '',
+			'notes' => ''
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertEmpty($changes);
+	}
+
+	// ===== Deferred Tag Actions =====
+
+	public function testAddTagsDeferredAction(): void {
+		$transaction = $this->createTransaction();
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'add_tags',
+					'value' => [1, 2, 3],
+					'behavior' => 'merge',
+					'priority' => 100
+				]
+			]
+		]);
+
+		// add_tags doesn't change the transaction directly
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('tags', $changes);
+	}
+
+	public function testApplyDeferredTagsMerge(): void {
+		$transaction = $this->createTransaction();
+		$transaction->setId(42);
+
+		$this->tagService->method('getTransactionTags')
+			->with(42, 'user123')
+			->willReturn([['tagId' => 1], ['tagId' => 2]]);
+
+		$this->tagService->expects($this->once())
+			->method('setTransactionTags')
+			->with(42, 'user123', $this->callback(function ($tagIds) {
+				sort($tagIds);
+				return $tagIds === [1, 2, 3, 4];
+			}));
+
+		$appliedActions = [
+			'_deferred_tags' => [
+				['tagIds' => [3, 4], 'behavior' => 'merge']
+			]
+		];
+
+		$changes = [];
+		$this->applicator->applyDeferredTagActions($transaction, $appliedActions, 'user123', $changes);
+
+		$this->assertArrayHasKey('tags', $changes);
+		$this->assertEquals([1, 2], $changes['tags']['old']);
+	}
+
+	public function testApplyDeferredTagsReplace(): void {
+		$transaction = $this->createTransaction();
+		$transaction->setId(42);
+
+		$this->tagService->method('getTransactionTags')
+			->with(42, 'user123')
+			->willReturn([['tagId' => 1], ['tagId' => 2]]);
+
+		$this->tagService->expects($this->once())
+			->method('setTransactionTags')
+			->with(42, 'user123', [5, 6]);
+
+		$appliedActions = [
+			'_deferred_tags' => [
+				['tagIds' => [5, 6], 'behavior' => 'replace']
+			]
+		];
+
+		$changes = [];
+		$this->applicator->applyDeferredTagActions($transaction, $appliedActions, 'user123', $changes);
+
+		$this->assertArrayHasKey('tags', $changes);
+		$this->assertEquals([5, 6], $changes['tags']['new']);
+	}
+
+	public function testApplyDeferredTagsNoop(): void {
+		$changes = [];
+		$this->applicator->applyDeferredTagActions(
+			$this->createTransaction(),
+			[], // No deferred tags
+			'user123',
+			$changes
+		);
+
+		$this->assertArrayNotHasKey('tags', $changes);
+	}
+
+	// ===== Empty Rules =====
+
+	public function testApplyEmptyRulesArray(): void {
+		$transaction = $this->createTransaction();
+
+		$changes = $this->applicator->applyRules($transaction, [], 'user123');
+
+		$this->assertEmpty($changes);
+	}
+
+	// ===== Unknown Action Type =====
+
+	public function testUnknownActionTypeLogsWarning(): void {
+		$transaction = $this->createTransaction();
+
+		$this->logger->expects($this->once())
+			->method('warning')
+			->with(
+				$this->stringContains('Unknown action type'),
+				$this->anything()
+			);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'do_magic',
+					'value' => 'test',
+					'behavior' => 'always',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertEmpty($changes);
+	}
+
+	// ===== Notes if_empty Behavior =====
+
+	public function testSetNotesIfEmptyWhenAlreadySet(): void {
+		$transaction = $this->createTransaction(['notes' => 'Existing']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_notes',
+					'value' => 'New',
+					'behavior' => 'if_empty',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('notes', $changes);
+		$this->assertEquals('Existing', $transaction->getNotes());
+	}
+
+	public function testSetNotesIfEmptyWhenEmptyString(): void {
+		$transaction = $this->createTransaction();
+		$transaction->setNotes('');
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_notes',
+					'value' => 'Filled',
+					'behavior' => 'if_empty',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('notes', $changes);
+		$this->assertEquals('Filled', $transaction->getNotes());
+	}
+
+	// ===== Action Priority Sorting =====
+
+	public function testActionsSortedByPriority(): void {
+		$transaction = $this->createTransaction([
+			'categoryId' => null,
+			'vendor' => null
+		]);
+
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(5));
+
+		// Actions listed in wrong order - should be sorted by priority
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_vendor',
+					'value' => 'Low Priority Vendor',
+					'behavior' => 'always',
+					'priority' => 10
+				],
+				[
+					'type' => 'set_category',
+					'value' => 5,
+					'behavior' => 'always',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		// Both should be applied regardless of order in array
+		$this->assertArrayHasKey('category', $changes);
+		$this->assertArrayHasKey('vendor', $changes);
+	}
 }

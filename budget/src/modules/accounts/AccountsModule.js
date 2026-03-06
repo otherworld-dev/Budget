@@ -151,7 +151,7 @@ export default class AccountsModule {
         };
 
         // Categorize accounts into assets and liabilities
-        const assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency'];
+        const assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency', 'money_market'];
         const liabilityTypes = ['credit_card', 'loan'];
 
         const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
@@ -1240,7 +1240,6 @@ export default class AccountsModule {
             const formData = {
                 name: getFormValue('account-name', ''),
                 type: getFormValue('account-type', ''),
-                balance: getFormValue('account-balance', 0, true),
                 currency: getFormValue('account-currency', 'USD'),
                 institution: getFormValue('account-institution'),
                 accountHolderName: getFormValue('account-holder-name'),
@@ -1249,6 +1248,11 @@ export default class AccountsModule {
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true)
             };
+
+            // Only include balance on create — on edit, balance is managed by transactions
+            if (!isEdit) {
+                formData.balance = getFormValue('account-balance', 0, true);
+            }
 
             // Sensitive fields: only include if user entered a value
             // For edits, empty means "keep existing" - don't send to avoid overwriting
@@ -1293,8 +1297,8 @@ export default class AccountsModule {
                 return;
             }
 
-            // Validate numeric fields
-            if (isNaN(formData.balance)) {
+            // Validate balance on create only (balance is managed by transactions on edit)
+            if (!isEdit && isNaN(formData.balance)) {
                 showWarning('Please enter a valid balance amount');
                 document.getElementById('account-balance').focus();
                 return;
@@ -1423,7 +1427,15 @@ export default class AccountsModule {
             document.getElementById('account-id').value = account.id;
             document.getElementById('account-name').value = account.name;
             document.getElementById('account-type').value = account.type;
-            document.getElementById('account-balance').value = account.balance;
+
+            // Balance is managed by transactions — show as read-only on edit
+            const balanceField = document.getElementById('account-balance');
+            if (balanceField) {
+                balanceField.value = account.balance;
+                balanceField.disabled = true;
+                balanceField.title = 'Balance is calculated from transactions';
+            }
+
             document.getElementById('account-currency').value = account.currency;
             document.getElementById('account-institution').value = account.institution || '';
 
@@ -1475,7 +1487,11 @@ export default class AccountsModule {
 
         if (accountId) accountId.value = '';
         if (currency) currency.value = this.settings?.default_currency || 'GBP';
-        if (balance) balance.value = '0';
+        if (balance) {
+            balance.value = '0';
+            balance.disabled = false;
+            balance.title = '';
+        }
     }
 
     async editAccount(id) {

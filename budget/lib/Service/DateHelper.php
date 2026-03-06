@@ -322,7 +322,8 @@ class DateHelper {
     public function getQuarterEnd(DateTimeInterface $date): DateTime {
         $quarter = $this->getQuarter($date);
         $month = $quarter * 3;
-        $lastDay = cal_days_in_month(CAL_GREGORIAN, $month, (int) $date->format('Y'));
+        $endDate = new DateTime(sprintf('%s-%02d-01', $date->format('Y'), $month));
+        $lastDay = (int) $endDate->format('t');
         return new DateTime($date->format('Y') . sprintf('-%02d-%02d 23:59:59', $month, $lastDay));
     }
 }
