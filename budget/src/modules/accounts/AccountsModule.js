@@ -1254,6 +1254,14 @@ export default class AccountsModule {
                 formData.balance = getFormValue('account-balance', 0, true);
             }
 
+            // Include opening balance on edit if changed
+            if (isEdit) {
+                const openingBalance = getFormValue('account-opening-balance', null, true);
+                if (openingBalance !== null) {
+                    formData.openingBalance = openingBalance;
+                }
+            }
+
             // Sensitive fields: only include if user entered a value
             // For edits, empty means "keep existing" - don't send to avoid overwriting
             const sensitiveFields = ['accountNumber', 'routingNumber', 'sortCode', 'iban', 'swiftBic', 'walletAddress'];
@@ -1435,6 +1443,18 @@ export default class AccountsModule {
                 balanceField.disabled = true;
                 balanceField.title = 'Balance is calculated from transactions';
             }
+            const balanceLabel = document.getElementById('account-balance-label');
+            if (balanceLabel) {
+                balanceLabel.textContent = 'Current Balance';
+            }
+
+            // Show opening balance field on edit
+            const openingBalanceGroup = document.getElementById('opening-balance-group');
+            const openingBalanceField = document.getElementById('account-opening-balance');
+            if (openingBalanceGroup && openingBalanceField) {
+                openingBalanceGroup.style.display = '';
+                openingBalanceField.value = account.openingBalance ?? 0;
+            }
 
             document.getElementById('account-currency').value = account.currency;
             document.getElementById('account-institution').value = account.institution || '';
@@ -1491,6 +1511,20 @@ export default class AccountsModule {
             balance.value = '0';
             balance.disabled = false;
             balance.title = '';
+        }
+        const balanceLabel = document.getElementById('account-balance-label');
+        if (balanceLabel) {
+            balanceLabel.textContent = 'Starting Balance';
+        }
+
+        // Hide opening balance field on new account form
+        const openingBalanceGroup = document.getElementById('opening-balance-group');
+        if (openingBalanceGroup) {
+            openingBalanceGroup.style.display = 'none';
+        }
+        const openingBalanceField = document.getElementById('account-opening-balance');
+        if (openingBalanceField) {
+            openingBalanceField.value = '0';
         }
     }
 

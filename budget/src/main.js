@@ -1341,6 +1341,9 @@ class BudgetApp {
         // Migration event listeners
         this.setupMigrationEventListeners();
 
+        // Recalculate balances event listener
+        this.setupRecalculateBalancesListener();
+
         // Factory reset event listeners
         this.setupFactoryResetEventListeners();
     }
@@ -1666,6 +1669,46 @@ class BudgetApp {
         });
 
         passwordInput.focus();
+    }
+
+    setupRecalculateBalancesListener() {
+        const btn = document.getElementById('recalculate-balances-btn');
+        if (!btn) return;
+
+        btn.addEventListener('click', async () => {
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Recalculating...';
+
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/setup/recalculate-balances'), {
+                    method: 'POST',
+                    headers: {
+                        'requesttoken': OC.requestToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Recalculation failed');
+                }
+
+                if (data.updated > 0) {
+                    showSuccess(`Recalculated ${data.updated} of ${data.total} account balances`);
+                    this.loadAccounts();
+                } else {
+                    showSuccess('All account balances are correct');
+                }
+            } catch (error) {
+                console.error('Failed to recalculate balances:', error);
+                showError('Failed to recalculate balances: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
     }
 
     setupFactoryResetEventListeners() {

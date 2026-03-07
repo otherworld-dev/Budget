@@ -19,6 +19,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setType(string $type)
  * @method float getBalance()
  * @method void setBalance(float $balance)
+ * @method float|null getOpeningBalance()
+ * @method void setOpeningBalance(?float $openingBalance)
  * @method string getCurrency()
  * @method void setCurrency(string $currency)
  * @method string|null getInstitution()
@@ -57,6 +59,7 @@ class Account extends Entity implements JsonSerializable {
     protected $name;
     protected $type;
     protected $balance;
+    protected $openingBalance;
     protected $currency;
     protected $institution;
 
@@ -90,6 +93,7 @@ class Account extends Entity implements JsonSerializable {
     public function __construct() {
         $this->addType('id', 'integer');
         $this->addType('balance', 'float');
+        $this->addType('openingBalance', 'float');
         $this->addType('interestRate', 'float');
         $this->addType('creditLimit', 'float');
         $this->addType('overdraftLimit', 'float');
@@ -133,6 +137,7 @@ class Account extends Entity implements JsonSerializable {
             'name' => $this->getName(),
             'type' => $this->getType(),
             'balance' => $this->getBalance(),
+            'openingBalance' => $this->getOpeningBalance(),
             'currency' => $this->getCurrency(),
             'institution' => $this->getInstitution(),
             'accountNumber' => $this->maskAccountNumber($this->getAccountNumber()),
@@ -164,6 +169,7 @@ class Account extends Entity implements JsonSerializable {
             'name' => $this->getName(),
             'type' => $this->getType(),
             'balance' => $this->getBalance(),
+            'openingBalance' => $this->getOpeningBalance(),
             'currency' => $this->getCurrency(),
             'institution' => $this->getInstitution(),
             'accountNumber' => $this->getAccountNumber(),

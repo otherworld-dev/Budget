@@ -246,6 +246,7 @@ return [
         ['name' => 'setup#removeDuplicateCategories', 'url' => '/api/setup/remove-duplicate-categories', 'verb' => 'POST'],
         ['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
         ['name' => 'setup#factoryReset', 'url' => '/api/setup/factory-reset', 'verb' => 'POST'],
+        ['name' => 'setup#recalculateBalances', 'url' => '/api/setup/recalculate-balances', 'verb' => 'POST'],
 
         // Settings routes - specific paths before {key} wildcard
         ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],

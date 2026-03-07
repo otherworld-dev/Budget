@@ -383,6 +383,9 @@ class AccountController extends Controller {
             if (isset($data['minimumPayment'])) {
                 $updates['minimumPayment'] = $data['minimumPayment'] !== '' ? (float) $data['minimumPayment'] : null;
             }
+            if (isset($data['openingBalance']) && $data['openingBalance'] !== '') {
+                $updates['openingBalance'] = (float) $data['openingBalance'];
+            }
 
             if (empty($updates)) {
                 return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);

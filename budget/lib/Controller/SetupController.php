@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\FactoryResetService;
@@ -27,6 +28,7 @@ class SetupController extends Controller {
         ImportRuleService $importRuleService,
         private FactoryResetService $factoryResetService,
         private AuditService $auditService,
+        private AccountService $accountService,
         string $userId
     ) {
         parent::__construct(Application::APP_ID, $request);
@@ -148,6 +150,32 @@ class SetupController extends Controller {
         } catch (\Exception $e) {
             return new DataResponse([
                 'error' => 'Factory reset failed: ' . $e->getMessage()
+            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Recalculate all account balances from opening_balance + transaction history.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 3, period: 300)]
+    public function recalculateBalances(): DataResponse {
+        try {
+            $results = $this->accountService->recalculateAllBalances($this->userId);
+
+            $this->auditService->log(
+                $this->userId,
+                'recalculate_balances',
+                'account',
+                0,
+                ['updated' => $results['updated'], 'total' => $results['total']]
+            );
+
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return new DataResponse([
+                'error' => 'Balance recalculation failed: ' . $e->getMessage()
             ], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }

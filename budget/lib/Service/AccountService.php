@@ -48,6 +48,7 @@ class AccountService extends AbstractCrudService {
         $account->setName($name);
         $account->setType($type);
         $account->setBalance($balance);
+        $account->setOpeningBalance($balance);
         $account->setCurrency($currency);
         $account->setInstitution($institution);
         $account->setAccountNumber($accountNumber);
@@ -220,6 +221,52 @@ class AccountService extends AbstractCrudService {
             'statementBalance' => $statementBalance,
             'difference' => MoneyCalculator::toFloat($difference),
             'isBalanced' => MoneyCalculator::equals($currentBalance, $statementBalanceStr, '0.01')
+        ];
+    }
+
+    /**
+     * Recalculate all account balances from opening_balance + transaction history.
+     *
+     * @return array{updated: int, accounts: array}
+     */
+    public function recalculateAllBalances(string $userId): array {
+        $accounts = $this->findAll($userId);
+        $updatedAccounts = [];
+        $updatedCount = 0;
+
+        foreach ($accounts as $account) {
+            $accountId = $account->getId();
+            $oldBalance = (string) $account->getBalance();
+            $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
+
+            // Sum all transactions for this account
+            $transactionNet = (string) $this->transactionMapper->getNetChangeAfterDate($accountId, '0000-01-01');
+
+            // new_balance = opening_balance + net transaction effect
+            $newBalance = MoneyCalculator::add($openingBalance, $transactionNet);
+
+            $diff = MoneyCalculator::subtract($newBalance, $oldBalance);
+            $changed = !MoneyCalculator::equals($newBalance, $oldBalance, '0.005');
+
+            if ($changed) {
+                $this->mapper->updateBalance($accountId, $newBalance, $userId);
+                $updatedCount++;
+            }
+
+            $updatedAccounts[] = [
+                'id' => $accountId,
+                'name' => $account->getName(),
+                'oldBalance' => MoneyCalculator::toFloat($oldBalance),
+                'newBalance' => MoneyCalculator::toFloat($newBalance),
+                'difference' => MoneyCalculator::toFloat($diff),
+                'changed' => $changed,
+            ];
+        }
+
+        return [
+            'updated' => $updatedCount,
+            'total' => count($accounts),
+            'accounts' => $updatedAccounts,
         ];
     }
 }

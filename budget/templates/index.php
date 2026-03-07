@@ -4275,6 +4275,23 @@ style('budget', 'budget-main');
                     </div>
                 </div>
 
+                <!-- Maintenance Section -->
+                <div class="settings-section">
+                    <h3>Maintenance</h3>
+                    <div class="settings-group">
+                        <div class="danger-zone-item">
+                            <div class="danger-zone-info">
+                                <h4>Recalculate Account Balances</h4>
+                                <p>Recalculates all account balances from their opening balance and transaction history. Use this if account balances appear incorrect.</p>
+                            </div>
+                            <button id="recalculate-balances-btn" class="secondary" type="button">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                Recalculate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Danger Zone Section -->
                 <div class="settings-section danger-zone">
                     <h3>Danger Zone</h3>
@@ -4419,10 +4436,16 @@ style('budget', 'budget-main');
                     <small id="account-type-help" class="form-text">Select the type of account</small>
                 </div>
 
+                <div class="form-group" id="opening-balance-group" style="display: none;">
+                    <label for="account-opening-balance">Opening Balance</label>
+                    <input type="number" id="account-opening-balance" step="0.01" aria-describedby="account-opening-balance-help">
+                    <small id="account-opening-balance-help" class="form-text">The starting balance when this account was created</small>
+                </div>
+
                 <div class="form-group">
-                    <label for="account-balance">Current Balance</label>
+                    <label for="account-balance" id="account-balance-label">Starting Balance</label>
                     <input type="number" id="account-balance" step="0.01" aria-describedby="account-balance-help">
-                    <small id="account-balance-help" class="form-text">Enter the current account balance</small>
+                    <small id="account-balance-help" class="form-text">The balance this account starts with</small>
                 </div>
 
                 <div class="form-group">
