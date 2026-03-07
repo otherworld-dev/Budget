@@ -94,6 +94,45 @@ class MigrationSchemaTest extends TestCase {
 		);
 	}
 
+	/**
+	 * Catch references to undefined class constants (e.g. IDBConnection::PARAM_INT).
+	 * Scans for FQN constant usage like \OCP\SomeClass::CONST and verifies the
+	 * constant exists, preventing runtime "Undefined constant" errors.
+	 */
+	public function testNoUndefinedClassConstants(): void {
+		$violations = [];
+
+		foreach (self::getMigrationFiles() as $file) {
+			$fileName = basename($file);
+			$content = file_get_contents($file);
+
+			// Match fully-qualified constant references: \Namespace\Class::CONSTANT
+			preg_match_all('/\\\\((?:[A-Z][A-Za-z0-9_]*\\\\)+[A-Z][A-Za-z0-9_]*)::([A-Z][A-Z0-9_]+)/', $content, $matches, PREG_SET_ORDER);
+
+			foreach ($matches as $match) {
+				$className = $match[1];
+				$constantName = $match[2];
+
+				if (!class_exists($className) && !interface_exists($className)) {
+					continue; // Can't check classes not autoloaded in test env
+				}
+
+				$ref = new \ReflectionClass($className);
+				if (!$ref->hasConstant($constantName)) {
+					$violations[] = sprintf(
+						'Undefined constant \\%s::%s in %s',
+						$className, $constantName, $fileName
+					);
+				}
+			}
+		}
+
+		$this->assertEmpty(
+			$violations,
+			"Migrations reference undefined class constants:\n- " . implode("\n- ", $violations)
+		);
+	}
+
 	public function testBooleanColumnsAreNullable(): void {
 		$violations = [];
 
