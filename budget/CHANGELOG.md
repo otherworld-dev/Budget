@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-03-07
+
+### Added
+- **Opening balance tracking**: New `opening_balance` column on accounts separates the initial balance from transaction-derived running totals. Existing accounts are back-calculated automatically during migration ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- **Recalculate Account Balances**: New maintenance tool in Settings recalculates all account balances from opening balance + transaction history ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- **Opening balance field on account edit**: Edit an account's opening balance directly; contextual labels show "Starting Balance" on create and "Current Balance" on edit
+- **Comprehensive unit test suite**: 1,045 tests covering all services, mappers, controllers, and edge cases
+
+### Fixed
+- Account balance corruption when editing account details — the display balance (excluding future transactions) was incorrectly written back as the stored balance ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- Import preview showing "Uncategorized" for all transactions despite matching import rules ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- Money market accounts invisible on Accounts page due to missing account type in filter ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- Account balances not refreshing after importing transactions ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- Year-over-Year report and Bills Calendar export functionality ([#62](https://github.com/otherworld-dev/budget/issues/62))
+- Dashboard charts auto-regenerate when switching accounts ([#62](https://github.com/otherworld-dev/budget/issues/62))
+
 ## [2.6.1] - 2026-03-05
 
 ### Fixed
