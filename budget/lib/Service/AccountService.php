@@ -80,6 +80,24 @@ class AccountService extends AbstractCrudService {
     }
 
     /**
+     * Override update to recalculate balance when opening_balance changes.
+     */
+    public function update(int $id, string $userId, array $updates): Entity {
+        $account = parent::update($id, $userId, $updates);
+
+        if (isset($updates['openingBalance'])) {
+            $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
+            $transactionNet = (string) $this->transactionMapper->getNetChangeAfterDate($id, '0000-01-01');
+            $newBalance = MoneyCalculator::add($openingBalance, $transactionNet);
+
+            $this->mapper->updateBalance($id, $newBalance, $userId);
+            $account = $this->find($id, $userId);
+        }
+
+        return $account;
+    }
+
+    /**
      * Get a single account with balance adjusted to exclude future transactions.
      *
      * @return array Account data array with adjusted balance

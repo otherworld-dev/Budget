@@ -128,9 +128,14 @@ class AccountMapper extends QBMapper {
             ->set('swift_bic', $qb->createNamedParameter($this->getEncryptedValue($entity, 'swiftBic')))
             ->set('account_holder_name', $qb->createNamedParameter($entity->getAccountHolderName()))
             ->set('opening_date', $qb->createNamedParameter($entity->getOpeningDate()))
+            ->set('opening_balance', $qb->createNamedParameter(
+                $entity->getOpeningBalance() !== null ? sprintf('%.2f', $entity->getOpeningBalance()) : null
+            ))
             ->set('interest_rate', $qb->createNamedParameter($entity->getInterestRate()))
             ->set('credit_limit', $qb->createNamedParameter($entity->getCreditLimit()))
             ->set('overdraft_limit', $qb->createNamedParameter($entity->getOverdraftLimit()))
+            ->set('minimum_payment', $qb->createNamedParameter($entity->getMinimumPayment()))
+            ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
             ->set('updated_at', $qb->createNamedParameter($entity->getUpdatedAt()))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($entity->getId(), IQueryBuilder::PARAM_INT)));
 
