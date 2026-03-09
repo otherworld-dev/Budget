@@ -99,6 +99,7 @@ class ReportAggregatorTest extends TestCase {
 
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('canConvert')->willReturn(true);
 		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
 
 		// Mock conversion for EUR account values
@@ -142,6 +143,7 @@ class ReportAggregatorTest extends TestCase {
 
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('canConvert')->willReturn(true);
 		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
 
 		$this->conversionService->method('convertToBaseFloat')

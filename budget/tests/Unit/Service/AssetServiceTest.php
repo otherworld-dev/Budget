@@ -214,6 +214,7 @@ class AssetServiceTest extends TestCase {
 
         $this->assetMapper->method('findAll')->willReturn([$house, $car, $ring]);
         $this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+        $this->conversionService->method('canConvert')->willReturn(true);
         $this->conversionService->method('convertToBaseFloat')->willReturn(4000.0); // 5000 USD → 4000 GBP
 
         $result = $this->service->getSummary('user1');
