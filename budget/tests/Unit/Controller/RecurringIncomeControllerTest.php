@@ -101,8 +101,29 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	public function testCreatePassesAllArguments(): void {
+		$income = $this->createMock(RecurringIncome::class);
+		$this->service->expects($this->once())
+			->method('create')
+			->with('user1', 'Salary', 3000.00, 'monthly', 15, 6, 5, 2, 'Salary', 'SALARY', 'bonus notes')
+			->willReturn($income);
+
+		$response = $this->controller->create(
+			'Salary', 3000.00, 'monthly', 15, 6, 5, 2, 'Employer', 'SALARY', 'bonus notes'
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
 	public function testCreateRejectsInvalidExpectedDay(): void {
 		$response = $this->controller->create('Salary', 3000.00, 'monthly', 32);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Expected day', $response->getData()['error']);
+	}
+
+	public function testCreateRejectsZeroExpectedDay(): void {
+		$response = $this->controller->create('Salary', 3000.00, 'monthly', 0);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertStringContainsString('Expected day', $response->getData()['error']);
@@ -113,6 +134,54 @@ class RecurringIncomeControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertStringContainsString('Expected month', $response->getData()['error']);
+	}
+
+	public function testCreateRejectsZeroExpectedMonth(): void {
+		$response = $this->controller->create('Salary', 3000.00, 'monthly', null, 0);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Expected month', $response->getData()['error']);
+	}
+
+	public function testCreateRejectsInvalidName(): void {
+		// Override the default mock for this test
+		$validationService = $this->createMock(ValidationService::class);
+		$validationService->method('validateName')
+			->willReturn(['valid' => false, 'error' => 'Name is required']);
+		$validationService->method('validateFrequency')
+			->willReturn(['valid' => true, 'formatted' => 'monthly']);
+
+		$controller = new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$validationService,
+			'user1',
+			$this->logger
+		);
+
+		$response = $controller->create('', 3000.00);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateRejectsInvalidFrequency(): void {
+		$validationService = $this->createMock(ValidationService::class);
+		$validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Salary']);
+		$validationService->method('validateFrequency')
+			->willReturn(['valid' => false, 'error' => 'Invalid frequency']);
+
+		$controller = new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$validationService,
+			'user1',
+			$this->logger
+		);
+
+		$response = $controller->create('Salary', 3000.00, 'invalid');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
 	public function testCreateHandlesServiceError(): void {
@@ -153,6 +222,26 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testUpcomingDefaultsDays(): void {
+		$this->service->expects($this->once())
+			->method('findUpcoming')
+			->with('user1', 30)
+			->willReturn([]);
+
+		$response = $this->controller->upcoming();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpcomingHandlesError(): void {
+		$this->service->method('findUpcoming')
+			->willThrowException(new \RuntimeException('error'));
+
+		$response = $this->controller->upcoming();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── expectedThisMonth ───────────────────────────────────────────
 
 	public function testExpectedThisMonthReturnsData(): void {
@@ -162,6 +251,15 @@ class RecurringIncomeControllerTest extends TestCase {
 		$response = $this->controller->expectedThisMonth();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testExpectedThisMonthHandlesError(): void {
+		$this->service->method('findExpectedThisMonth')
+			->willThrowException(new \RuntimeException('error'));
+
+		$response = $this->controller->expectedThisMonth();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
 	// ── summary ─────────────────────────────────────────────────────
@@ -175,6 +273,15 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testSummaryHandlesError(): void {
+		$this->service->method('getMonthlySummary')
+			->willThrowException(new \RuntimeException('error'));
+
+		$response = $this->controller->summary();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── markReceived ────────────────────────────────────────────────
 
 	public function testMarkReceivedReturnsIncome(): void {
@@ -186,6 +293,27 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testMarkReceivedWithoutDate(): void {
+		$income = $this->createMock(RecurringIncome::class);
+		$this->service->expects($this->once())
+			->method('markReceived')
+			->with(1, 'user1', null)
+			->willReturn($income);
+
+		$response = $this->controller->markReceived(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkReceivedHandlesError(): void {
+		$this->service->method('markReceived')
+			->willThrowException(new \RuntimeException('not found'));
+
+		$response = $this->controller->markReceived(999);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
 	// ── detect ──────────────────────────────────────────────────────
 
 	public function testDetectReturnsDetectedIncome(): void {
@@ -195,5 +323,25 @@ class RecurringIncomeControllerTest extends TestCase {
 		$response = $this->controller->detect(24);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDetectPassesDebugFlag(): void {
+		$this->service->expects($this->once())
+			->method('detectRecurringIncome')
+			->with('user1', 12, true)
+			->willReturn([]);
+
+		$response = $this->controller->detect(12, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDetectHandlesError(): void {
+		$this->service->method('detectRecurringIncome')
+			->willThrowException(new \RuntimeException('error'));
+
+		$response = $this->controller->detect();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 }

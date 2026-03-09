@@ -76,9 +76,9 @@ class EncryptionServiceTest extends TestCase {
 
 	public function testDecryptFailureReturnsNull(): void {
 		// The decrypt method catches exceptions and logs via \OC::$server
-		// which isn't available in unit tests. Skip if OC class doesn't exist.
-		if (!class_exists('\OC')) {
-			$this->markTestSkipped('Requires Nextcloud runtime (OC class) for error logging');
+		// which isn't available in unit tests. Skip if OC class or server not set up.
+		if (!class_exists('\OC') || \OC::$server === null) {
+			$this->markTestSkipped('Requires Nextcloud runtime (OC class with server) for error logging');
 		}
 
 		$this->crypto->expects($this->once())

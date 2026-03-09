@@ -47,6 +47,15 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertSame($rules, $response->getData());
 	}
 
+	public function testIndexReturnsEmptyArray(): void {
+		$this->service->method('findAll')->with('user1')->willReturn([]);
+
+		$response = $this->controller->index();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([], $response->getData());
+	}
+
 	public function testIndexHandlesError(): void {
 		$this->service->method('findAll')
 			->willThrowException(new \RuntimeException('error'));
@@ -117,6 +126,23 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertStringContainsString('Criteria required', $response->getData()['error']);
 	}
 
+	public function testCreateV2WithCriteriaSuccess(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+
+		$criteria = ['root' => ['operator' => 'AND', 'conditions' => []]];
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('create')->willReturn($rule);
+
+		$response = $this->controller->create(
+			'Test Rule',
+			schemaVersion: 2,
+			criteria: $criteria
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
 	public function testCreateRejectsInvalidField(): void {
 		$this->validationService->method('validateName')
 			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
@@ -151,6 +177,25 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertStringContainsString('Invalid match type', $response->getData()['error']);
 	}
 
+	public function testCreateV1WithRegexMatchType(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Regex Rule']);
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => true, 'sanitized' => 'grocery|food']);
+
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('create')->willReturn($rule);
+
+		$response = $this->controller->create(
+			'Regex Rule',
+			'grocery|food',
+			'description',
+			'regex'
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
 	public function testCreateRejectsInvalidName(): void {
 		$this->validationService->method('validateName')
 			->willReturn(['valid' => false, 'error' => 'Name is required']);
@@ -158,6 +203,107 @@ class ImportRuleControllerTest extends TestCase {
 		$response = $this->controller->create('');
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateRejectsInvalidPattern(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => false, 'error' => 'Pattern is invalid']);
+
+		$response = $this->controller->create(
+			'Test Rule',
+			'bad[pattern',
+			'description',
+			'contains'
+		);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Pattern is invalid', $response->getData()['error']);
+	}
+
+	public function testCreateWithVendorName(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => true, 'sanitized' => 'grocery']);
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => true, 'sanitized' => 'Kroger']);
+
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('create')->willReturn($rule);
+
+		$response = $this->controller->create(
+			'Test Rule',
+			'grocery',
+			'description',
+			'contains',
+			vendorName: 'Kroger'
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateWithInvalidVendorName(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => true, 'sanitized' => 'grocery']);
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => false, 'error' => 'Vendor name too long']);
+
+		$response = $this->controller->create(
+			'Test Rule',
+			'grocery',
+			'description',
+			'contains',
+			vendorName: str_repeat('x', 500)
+		);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Vendor name too long', $response->getData()['error']);
+	}
+
+	public function testCreateWithActionsVendor(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => true, 'sanitized' => 'grocery']);
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => true, 'sanitized' => 'Walmart']);
+
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('create')->willReturn($rule);
+
+		$response = $this->controller->create(
+			'Test Rule',
+			'grocery',
+			'description',
+			'contains',
+			actions: ['vendor' => 'Walmart']
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateWithInvalidActionsVendor(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => true, 'sanitized' => 'grocery']);
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => false, 'error' => 'Vendor invalid']);
+
+		$response = $this->controller->create(
+			'Test Rule',
+			'grocery',
+			'description',
+			'contains',
+			actions: ['vendor' => '<bad>']
+		);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Vendor invalid', $response->getData()['error']);
 	}
 
 	public function testCreateHandlesServiceError(): void {
@@ -204,6 +350,106 @@ class ImportRuleControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertStringContainsString('Invalid field', $response->getData()['error']);
+	}
+
+	public function testUpdateWithPattern(): void {
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => true, 'sanitized' => 'new_pattern']);
+
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('update')->willReturn($rule);
+
+		$response = $this->controller->update(1, pattern: 'new_pattern');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateWithValidMatchType(): void {
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('update')->willReturn($rule);
+
+		$response = $this->controller->update(1, matchType: 'exact');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateRejectsInvalidMatchType(): void {
+		$response = $this->controller->update(1, matchType: 'invalid_type');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Invalid match type', $response->getData()['error']);
+	}
+
+	public function testUpdateWithCriteriaAndSchemaVersion(): void {
+		$criteria = ['root' => ['operator' => 'AND', 'conditions' => []]];
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('update')->willReturn($rule);
+
+		$response = $this->controller->update(1, criteria: $criteria, schemaVersion: 2);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateWithMultipleFields(): void {
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Updated']);
+
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('update')->willReturn($rule);
+
+		$response = $this->controller->update(
+			1,
+			name: 'Updated',
+			categoryId: 5,
+			priority: 10,
+			active: true,
+			applyOnImport: false,
+			stopProcessing: false
+		);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateWithVendorName(): void {
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => true, 'sanitized' => 'Walmart']);
+
+		$rule = $this->createMock(ImportRule::class);
+		$this->service->method('update')->willReturn($rule);
+
+		$response = $this->controller->update(1, vendorName: 'Walmart');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateWithInvalidVendorName(): void {
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => false, 'error' => 'Vendor name too long']);
+
+		$response = $this->controller->update(1, vendorName: str_repeat('x', 500));
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Vendor name too long', $response->getData()['error']);
+	}
+
+	public function testUpdateWithInvalidActionsVendor(): void {
+		$this->validationService->method('validateVendor')
+			->willReturn(['valid' => false, 'error' => 'Vendor invalid']);
+
+		$response = $this->controller->update(1, actions: ['vendor' => '<bad>']);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Vendor invalid', $response->getData()['error']);
+	}
+
+	public function testUpdateWithInvalidPattern(): void {
+		$this->validationService->method('validatePattern')
+			->willReturn(['valid' => false, 'error' => 'Pattern is invalid']);
+
+		$response = $this->controller->update(1, pattern: 'bad[');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Pattern is invalid', $response->getData()['error']);
 	}
 
 	public function testUpdateHandlesError(): void {
@@ -281,6 +527,29 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testPreviewPassesFilterParameters(): void {
+		$expectedFilters = [
+			'accountId' => 5,
+			'startDate' => '2026-01-01',
+			'endDate' => '2026-03-31',
+			'uncategorizedOnly' => true,
+		];
+		$this->service->expects($this->once())
+			->method('previewRuleApplication')
+			->with('user1', [1], $expectedFilters)
+			->willReturn(['matchCount' => 3]);
+
+		$response = $this->controller->preview(
+			[1],
+			accountId: 5,
+			startDate: '2026-01-01',
+			endDate: '2026-03-31',
+			uncategorizedOnly: true
+		);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	// ── testUnsaved ─────────────────────────────────────────────────
 
 	public function testTestUnsavedReturnsResults(): void {
@@ -292,6 +561,15 @@ class ImportRuleControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame($results, $response->getData());
+	}
+
+	public function testTestUnsavedHandlesError(): void {
+		$this->service->method('testUnsavedRule')
+			->willThrowException(new \RuntimeException('evaluation error'));
+
+		$response = $this->controller->testUnsaved(['field' => 'description']);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
 	// ── apply ───────────────────────────────────────────────────────
@@ -313,6 +591,29 @@ class ImportRuleControllerTest extends TestCase {
 		$response = $this->controller->apply([]);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testApplyPassesFilterParameters(): void {
+		$expectedFilters = [
+			'accountId' => 3,
+			'startDate' => '2025-06-01',
+			'endDate' => '2025-12-31',
+			'uncategorizedOnly' => false,
+		];
+		$this->service->expects($this->once())
+			->method('applyRulesToTransactions')
+			->with('user1', [2, 5], $expectedFilters)
+			->willReturn(['success' => 10]);
+
+		$response = $this->controller->apply(
+			[2, 5],
+			accountId: 3,
+			startDate: '2025-06-01',
+			endDate: '2025-12-31',
+			uncategorizedOnly: false
+		);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	// ── migrate ─────────────────────────────────────────────────────
