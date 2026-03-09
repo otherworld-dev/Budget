@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-03-09
+
+### Fixed
+- **Multi-currency account totals**: Account list totals now correctly convert balances to the user's default currency; asset value editing saves properly ([#68](https://github.com/otherworld-dev/budget/issues/68))
+- **Action buttons disappearing**: Prevent action buttons from being pushed off-screen by long text in transaction and account views ([#69](https://github.com/otherworld-dev/budget/issues/69))
+- **Opening balance not persisting on edit**: Editing an account now correctly saves the opening balance and auto-recalculates the stored balance ([#64](https://github.com/otherworld-dev/budget/issues/64))
+- **Missing NetWorthSnapshotJob registration**: Background job was not registered in `info.xml`, preventing automatic net worth snapshots ([#67](https://github.com/otherworld-dev/budget/issues/67))
+
+### Improved
+- Manual exchange rate modal visual refinements for better readability and spacing
+
 ## [2.7.1] - 2026-03-07
 
 ### Fixed
