@@ -183,6 +183,24 @@ class CurrencyConversionService {
     }
 
     /**
+     * Check if a currency can be converted to the user's base currency.
+     * Returns true if both rates are available.
+     */
+    public function canConvert(string $fromCurrency, string $userId): bool {
+        $baseCurrency = strtoupper($this->getBaseCurrency($userId));
+        $fromCurrency = strtoupper($fromCurrency);
+
+        if ($fromCurrency === $baseCurrency) {
+            return true;
+        }
+
+        $fromRate = $this->getEffectiveRate($fromCurrency, $userId);
+        $toRate = $this->getEffectiveRate($baseCurrency, $userId);
+
+        return $fromRate !== null && $toRate !== null;
+    }
+
+    /**
      * Get the effective rate for a currency, checking manual overrides first.
      * Manual rates (per-user standing rates) take priority over automatic rates.
      *

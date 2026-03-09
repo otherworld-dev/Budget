@@ -199,6 +199,7 @@ class AssetService {
 
 		$totalAssetWorth = 0.0;
 		$assetsByType = [];
+		$unconvertedCurrencies = [];
 
 		foreach (Asset::VALID_TYPES as $type) {
 			$assetsByType[$type] = ['count' => 0, 'value' => 0.0];
@@ -207,8 +208,21 @@ class AssetService {
 		foreach ($assets as $asset) {
 			$assetCurrency = $asset->getCurrency() ?: $baseCurrency;
 			$value = $asset->getCurrentValue() ?? 0;
-			$convertedValue = $this->convertAmount($value, $assetCurrency, $baseCurrency, $userId);
 
+			// Skip assets whose currency cannot be converted to base
+			if ($value != 0
+				&& strtoupper($assetCurrency) !== strtoupper($baseCurrency)
+				&& !$this->conversionService->canConvert($assetCurrency, $userId)
+			) {
+				$unconvertedCurrencies[$assetCurrency] = true;
+				$type = $asset->getType();
+				if (isset($assetsByType[$type])) {
+					$assetsByType[$type]['count']++;
+				}
+				continue;
+			}
+
+			$convertedValue = $this->convertAmount($value, $assetCurrency, $baseCurrency, $userId);
 			$totalAssetWorth += $convertedValue;
 
 			$type = $asset->getType();
@@ -218,12 +232,18 @@ class AssetService {
 			}
 		}
 
-		return [
+		$result = [
 			'totalAssetWorth' => round($totalAssetWorth, 2),
 			'assetsByType' => $assetsByType,
 			'assetCount' => count($assets),
 			'baseCurrency' => $baseCurrency,
 		];
+
+		if (!empty($unconvertedCurrencies)) {
+			$result['unconvertedCurrencies'] = array_keys($unconvertedCurrencies);
+		}
+
+		return $result;
 	}
 
 	/**

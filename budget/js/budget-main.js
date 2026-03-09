@@ -15806,10 +15806,14 @@ function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread n
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
 function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
 function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
@@ -15961,19 +15965,30 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccounts",
     value: function () {
       var _loadAccounts = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-        var response, accounts, _t;
+        var _yield$Promise$all, _yield$Promise$all2, response, summaryResponse, accounts, summary, _t, _t2;
         return _regenerator().w(function (_context) {
           while (1) switch (_context.p = _context.n) {
             case 0:
               _context.p = 0;
               _context.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/accounts'), {
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/accounts'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
+              }), fetch(OC.generateUrl('/apps/budget/api/reports/summary'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })["catch"](function () {
+                return {
+                  ok: false
+                };
+              })]);
             case 1:
-              response = _context.v;
+              _yield$Promise$all = _context.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              response = _yield$Promise$all2[0];
+              summaryResponse = _yield$Promise$all2[1];
               if (response.ok) {
                 _context.n = 2;
                 break;
@@ -15997,26 +16012,40 @@ var AccountsModule = /*#__PURE__*/function () {
               console.error('API returned non-array:', accounts);
               throw new Error('API returned invalid data format');
             case 5:
+              if (!summaryResponse.ok) {
+                _context.n = 7;
+                break;
+              }
+              _context.n = 6;
+              return summaryResponse.json();
+            case 6:
+              _t = _context.v;
+              _context.n = 8;
+              break;
+            case 7:
+              _t = null;
+            case 8:
+              summary = _t;
               // Update the instance accounts array
               this.accounts = accounts;
 
               // Render the accounts page with new layout
-              this.renderAccountsPage(accounts);
+              this.renderAccountsPage(accounts, summary);
 
               // Also update account dropdowns
               this.populateAccountDropdowns();
               // Add click handlers for account cards
               this.setupAccountCardClickHandlers();
-              _context.n = 7;
+              _context.n = 10;
               break;
-            case 6:
-              _context.p = 6;
-              _t = _context.v;
-              console.error('Failed to load accounts:', _t);
-            case 7:
+            case 9:
+              _context.p = 9;
+              _t2 = _context.v;
+              console.error('Failed to load accounts:', _t2);
+            case 10:
               return _context.a(2);
           }
-        }, _callee, this, [[0, 6]]);
+        }, _callee, this, [[0, 9]]);
       }));
       function loadAccounts() {
         return _loadAccounts.apply(this, arguments);
@@ -16027,6 +16056,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "renderAccountsPage",
     value: function renderAccountsPage(accounts) {
       var _this = this;
+      var summary = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
       // Helper function to get field with both camelCase and snake_case support
       var getField = function getField(obj, camelName) {
         var snakeName = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
@@ -16048,18 +16078,22 @@ var AccountsModule = /*#__PURE__*/function () {
         return liabilityTypes.includes(getField(acc, 'type'));
       });
 
-      // Calculate totals
-      var primaryCurrency = this.getPrimaryCurrency();
+      // Use currency-converted totals from summary if available, otherwise fall back to raw sums
+      var primaryCurrency = (summary === null || summary === void 0 ? void 0 : summary.baseCurrency) || this.getPrimaryCurrency();
       var totalAssets = 0;
       var totalLiabilities = 0;
-      assets.forEach(function (acc) {
-        totalAssets += parseFloat(getField(acc, 'balance')) || 0;
-      });
-      liabilities.forEach(function (acc) {
-        // Liabilities are typically negative or represent debt
-        var balance = parseFloat(getField(acc, 'balance')) || 0;
-        totalLiabilities += Math.abs(balance);
-      });
+      if (summary !== null && summary !== void 0 && summary.totals) {
+        totalAssets = summary.totals.totalAssets || 0;
+        totalLiabilities = summary.totals.totalLiabilities || 0;
+      } else {
+        assets.forEach(function (acc) {
+          totalAssets += parseFloat(getField(acc, 'balance')) || 0;
+        });
+        liabilities.forEach(function (acc) {
+          var balance = parseFloat(getField(acc, 'balance')) || 0;
+          totalLiabilities += Math.abs(balance);
+        });
+      }
       var netWorth = totalAssets - totalLiabilities;
 
       // Update summary cards
@@ -16077,6 +16111,18 @@ var AccountsModule = /*#__PURE__*/function () {
       }
       if (assetsSubtotalEl) assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
       if (liabilitiesSubtotalEl) liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+
+      // Show warning for accounts with unconvertible currencies
+      var warningEl = document.getElementById('accounts-conversion-warning');
+      if (warningEl) {
+        var unconverted = (summary === null || summary === void 0 ? void 0 : summary.unconvertedCurrencies) || [];
+        if (unconverted.length > 0) {
+          warningEl.textContent = "Accounts in ".concat(unconverted.join(', '), " are excluded from totals because exchange rates are unavailable. Add rates in Settings > Exchange Rates.");
+          warningEl.style.display = 'block';
+        } else {
+          warningEl.style.display = 'none';
+        }
+      }
 
       // Render account cards for each section
       var assetsGrid = document.getElementById('accounts-assets-grid');
@@ -16129,7 +16175,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccountSparklines",
     value: function () {
       var _loadAccountSparklines = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(accounts) {
-        var _iterator, _step, account, accountId, endDate, startDate, response, transactions, balanceHistory, _t2, _t3;
+        var _iterator, _step, account, accountId, endDate, startDate, response, transactions, balanceHistory, _t3, _t4;
         return _regenerator().w(function (_context2) {
           while (1) switch (_context2.p = _context2.n) {
             case 0:
@@ -16186,8 +16232,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 9:
               _context2.p = 9;
-              _t2 = _context2.v;
-              console.error("Failed to load sparkline for account ".concat(account.id, ":"), _t2);
+              _t3 = _context2.v;
+              console.error("Failed to load sparkline for account ".concat(account.id, ":"), _t3);
             case 10:
               _context2.n = 2;
               break;
@@ -16196,8 +16242,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 12:
               _context2.p = 12;
-              _t3 = _context2.v;
-              _iterator.e(_t3);
+              _t4 = _context2.v;
+              _iterator.e(_t4);
             case 13:
               _context2.p = 13;
               _iterator.f();
@@ -16302,7 +16348,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "showAccountDetails",
     value: function () {
       var _showAccountDetails = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(accountId) {
-        var account, _t4;
+        var account, _t5;
         return _regenerator().w(function (_context3) {
           while (1) switch (_context3.p = _context3.n) {
             case 0:
@@ -16349,8 +16395,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context3.p = 4;
-              _t4 = _context3.v;
-              console.error('Failed to show account details:', _t4);
+              _t5 = _context3.v;
+              console.error('Failed to show account details:', _t5);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load account details');
             case 5:
               return _context3.a(2);
@@ -16479,7 +16525,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccountTransactions",
     value: function () {
       var _loadAccountTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(accountId) {
-        var params, filters, response, result, _t5;
+        var params, filters, response, result, _t6;
         return _regenerator().w(function (_context5) {
           while (1) switch (_context5.p = _context5.n) {
             case 0:
@@ -16539,8 +16585,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 6:
               _context5.p = 6;
-              _t5 = _context5.v;
-              console.error('Failed to load account transactions:', _t5);
+              _t6 = _context5.v;
+              console.error('Failed to load account transactions:', _t6);
               // Show empty state
               this.accountTransactions = [];
               this.renderAccountTransactions();
@@ -16842,7 +16888,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadCategories",
     value: function () {
       var _loadCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-        var response, categories, _t6;
+        var response, categories, _t7;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.p = _context7.n) {
             case 0:
@@ -16874,8 +16920,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context7.p = 4;
-              _t6 = _context7.v;
-              console.error('Failed to load categories:', _t6);
+              _t7 = _context7.v;
+              console.error('Failed to load categories:', _t7);
             case 5:
               // Always setup event listeners and render (even if fetch failed)
               this.setupCategoriesEventListeners();
@@ -16894,7 +16940,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "saveTransaction",
     value: function () {
       var _saveTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
-        var getFormValue, accountId, date, type, amount, description, formData, transactionId, url, method, response, result, savedTransactionId, selectedTagIds, errorMessage, errorData, _t7, _t8;
+        var getFormValue, accountId, date, type, amount, description, formData, transactionId, url, method, response, result, savedTransactionId, selectedTagIds, errorMessage, errorData, _t8, _t9;
         return _regenerator().w(function (_context8) {
           while (1) switch (_context8.p = _context8.n) {
             case 0:
@@ -17030,7 +17076,7 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 14:
               _context8.p = 14;
-              _t7 = _context8.v;
+              _t8 = _context8.v;
             case 15:
               throw new Error(errorMessage);
             case 16:
@@ -17038,9 +17084,9 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 17:
               _context8.p = 17;
-              _t8 = _context8.v;
-              console.error('Failed to save transaction:', _t8);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t8.message || 'Failed to save transaction');
+              _t9 = _context8.v;
+              console.error('Failed to save transaction:', _t9);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t9.message || 'Failed to save transaction');
             case 18:
               return _context8.a(2);
           }
@@ -17055,7 +17101,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "saveQuickAddTransaction",
     value: function () {
       var _saveQuickAddTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-        var getFormValue, accountId, date, type, amount, description, messageEl, formData, response, errorMessage, errorData, _t9, _t0;
+        var getFormValue, accountId, date, type, amount, description, messageEl, formData, response, errorMessage, errorData, _t0, _t1;
         return _regenerator().w(function (_context9) {
           while (1) switch (_context9.p = _context9.n) {
             case 0:
@@ -17178,7 +17224,7 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 12:
               _context9.p = 12;
-              _t9 = _context9.v;
+              _t0 = _context9.v;
             case 13:
               throw new Error(errorMessage);
             case 14:
@@ -17186,9 +17232,9 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 15:
               _context9.p = 15;
-              _t0 = _context9.v;
-              console.error('Failed to save quick add transaction:', _t0);
-              this.showQuickAddMessage(_t0.message || 'Failed to add transaction', 'error');
+              _t1 = _context9.v;
+              console.error('Failed to save quick add transaction:', _t1);
+              this.showQuickAddMessage(_t1.message || 'Failed to add transaction', 'error');
             case 16:
               return _context9.a(2);
           }
@@ -17271,7 +17317,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "saveAccount",
     value: function () {
       var _saveAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
-        var nameElement, typeElement, getFormValue, accountId, isEdit, formData, openingBalance, sensitiveFields, sensitiveFieldIds, url, method, response, result, contentType, text, detailsView, updatedAccount, errorMessage, _contentType, _text, errorData, errorMsg, _t1, _t10;
+        var nameElement, typeElement, getFormValue, accountId, isEdit, formData, openingBalance, sensitiveFields, sensitiveFieldIds, url, method, response, result, contentType, text, detailsView, updatedAccount, errorMessage, _contentType, _text, errorData, errorMsg, _t10, _t11;
         return _regenerator().w(function (_context0) {
           while (1) switch (_context0.p = _context0.n) {
             case 0:
@@ -17477,8 +17523,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 18:
               _context0.p = 18;
-              _t1 = _context0.v;
-              console.error('Error parsing response:', _t1);
+              _t10 = _context0.v;
+              console.error('Error parsing response:', _t10);
               errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
             case 19:
               throw new Error(errorMessage);
@@ -17487,11 +17533,11 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 21:
               _context0.p = 21;
-              _t10 = _context0.v;
-              console.error('Failed to save account:', _t10);
+              _t11 = _context0.v;
+              console.error('Failed to save account:', _t11);
 
               // Show specific error message if available
-              errorMsg = _t10.message || 'Unknown error occurred';
+              errorMsg = _t11.message || 'Unknown error occurred';
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to save account: ".concat(errorMsg));
 
               // Don't hide modal on error so user can fix and retry
@@ -17542,7 +17588,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccountData",
     value: function () {
       var _loadAccountData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(accountId) {
-        var response, account, balanceField, balanceLabel, openingBalanceGroup, openingBalanceField, _account$openingBalan, sensitiveFields, _t11;
+        var response, account, balanceField, balanceLabel, openingBalanceGroup, openingBalanceField, _account$openingBalan, sensitiveFields, _t12;
         return _regenerator().w(function (_context1) {
           while (1) switch (_context1.p = _context1.n) {
             case 0:
@@ -17626,8 +17672,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 3:
               _context1.p = 3;
-              _t11 = _context1.v;
-              console.error('Failed to load account data:', _t11);
+              _t12 = _context1.v;
+              console.error('Failed to load account data:', _t12);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load account data');
             case 4:
               return _context1.a(2);
@@ -17696,7 +17742,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "deleteAccount",
     value: function () {
       var _deleteAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(id) {
-        var response, error, _t12;
+        var response, error, _t13;
         return _regenerator().w(function (_context11) {
           while (1) switch (_context11.p = _context11.n) {
             case 0:
@@ -17747,9 +17793,9 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 9:
               _context11.p = 9;
-              _t12 = _context11.v;
-              console.error('Failed to delete account:', _t12);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete account: ' + _t12.message);
+              _t13 = _context11.v;
+              console.error('Failed to delete account:', _t13);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete account: ' + _t13.message);
             case 10:
               return _context11.a(2);
           }
@@ -17764,7 +17810,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "setupAccountTypeConditionals",
     value: function () {
       var _setupAccountTypeConditionals = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12() {
-        var accountType, currency, requirements, response, walletGroup, balanceInput, _balanceInput, _t13, _t14;
+        var accountType, currency, requirements, response, walletGroup, balanceInput, _balanceInput, _t14, _t15;
         return _regenerator().w(function (_context12) {
           while (1) switch (_context12.p = _context12.n) {
             case 0:
@@ -17793,11 +17839,11 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context12.p = 4;
-              _t13 = _context12.v;
-              console.warn('Failed to load banking requirements:', _t13);
+              _t14 = _context12.v;
+              console.warn('Failed to load banking requirements:', _t14);
             case 5:
-              _t14 = accountType;
-              _context12.n = _t14 === 'checking' ? 6 : _t14 === 'savings' ? 6 : _t14 === 'credit_card' ? 7 : _t14 === 'loan' ? 8 : _t14 === 'investment' ? 9 : _t14 === 'cash' ? 10 : _t14 === 'cryptocurrency' ? 11 : 12;
+              _t15 = accountType;
+              _context12.n = _t15 === 'checking' ? 6 : _t15 === 'savings' ? 6 : _t15 === 'credit_card' ? 7 : _t15 === 'loan' ? 8 : _t15 === 'investment' ? 9 : _t15 === 'cash' ? 10 : _t15 === 'cryptocurrency' ? 11 : 12;
               break;
             case 6:
               // Show banking fields based on currency
@@ -17868,7 +17914,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "setupInstitutionAutocomplete",
     value: function () {
       var _setupInstitutionAutocomplete = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
-        var input, suggestions, query, response, currency, currencyMap, region, banks, filteredBanks, _t15;
+        var input, suggestions, query, response, currency, currencyMap, region, banks, filteredBanks, _t16;
         return _regenerator().w(function (_context13) {
           while (1) switch (_context13.p = _context13.n) {
             case 0:
@@ -17925,8 +17971,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 5:
               _context13.p = 5;
-              _t15 = _context13.v;
-              console.warn('Failed to load banking institutions:', _t15);
+              _t16 = _context13.v;
+              console.warn('Failed to load banking institutions:', _t16);
               suggestions.style.display = 'none';
             case 6:
               return _context13.a(2);
@@ -17950,7 +17996,7 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "validateBankingField",
     value: function () {
       var _validateBankingField = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(fieldType, value, fieldId) {
-        var response, result, _t16;
+        var response, result, _t17;
         return _regenerator().w(function (_context14) {
           while (1) switch (_context14.p = _context14.n) {
             case 0:
@@ -17987,8 +18033,8 @@ var AccountsModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context14.p = 4;
-              _t16 = _context14.v;
-              console.warn("Failed to validate ".concat(fieldType, ":"), _t16);
+              _t17 = _context14.v;
+              console.warn("Failed to validate ".concat(fieldType, ":"), _t17);
             case 5:
               return _context14.a(2);
           }
@@ -18474,6 +18520,18 @@ var AssetsModule = /*#__PURE__*/function () {
       }
       if (heroAssetsCount) {
         heroAssetsCount.textContent = count === 1 ? '1 asset' : "".concat(count, " assets");
+      }
+
+      // Show warning for unconvertible currencies
+      var warningEl = document.getElementById('assets-conversion-warning');
+      if (warningEl) {
+        if (summary.unconvertedCurrencies && summary.unconvertedCurrencies.length > 0) {
+          var currencies = summary.unconvertedCurrencies.join(', ');
+          warningEl.textContent = "Some assets (".concat(currencies, ") are excluded from the total because exchange rates are unavailable. Add rates in Settings to include them.");
+          warningEl.style.display = 'block';
+        } else {
+          warningEl.style.display = 'none';
+        }
       }
     }
   }, {
@@ -19027,10 +19085,10 @@ var AssetsModule = /*#__PURE__*/function () {
       if (!this.currentAsset) return;
       var modal = document.getElementById('asset-value-modal');
       document.getElementById('asset-value-form').reset();
-      document.getElementById('value-asset-id').value = this.currentAsset.id;
-      document.getElementById('value-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('asset-value-asset-id').value = this.currentAsset.id;
+      document.getElementById('asset-value-date').value = new Date().toISOString().split('T')[0];
       if (this.currentAsset.currentValue) {
-        document.getElementById('value-amount').value = this.currentAsset.currentValue;
+        document.getElementById('asset-value-amount').value = this.currentAsset.currentValue;
       }
       modal.style.display = 'flex';
       modal.setAttribute('aria-hidden', 'false');
@@ -25994,6 +26052,7 @@ var ExchangeRatesModule = /*#__PURE__*/function () {
         'floatrates': 'FloatRates',
         'ecb': 'ECB',
         'coingecko': 'CoinGecko',
+        'reference': 'Reference',
         'manual': 'Manual',
         'none': 'None'
       };

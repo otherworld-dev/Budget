@@ -424,7 +424,12 @@
 }
 
 .conversion-warning {
-    color: var(--color-warning);
+    color: var(--color-warning-text, var(--color-warning));
+    background: var(--color-warning-element-light, rgba(250, 180, 40, 0.1));
+    padding: 10px 14px;
+    border-radius: var(--border-radius, 4px);
+    font-size: 13px;
+    margin-bottom: 12px;
 }
 
 /* Main Dashboard Grid - Two Column Layout */

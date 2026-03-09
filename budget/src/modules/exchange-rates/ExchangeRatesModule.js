@@ -165,6 +165,7 @@ export default class ExchangeRatesModule {
             'floatrates': 'FloatRates',
             'ecb': 'ECB',
             'coingecko': 'CoinGecko',
+            'reference': 'Reference',
             'manual': 'Manual',
             'none': 'None',
         };

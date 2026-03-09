@@ -102,6 +102,9 @@ class ReportAggregator {
 
         $totalIncome = 0;
         $totalExpenses = 0;
+        $totalAssets = 0;
+        $totalLiabilities = 0;
+        $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 
         foreach ($accounts as $account) {
             $currentAccountId = $account->getId();
@@ -130,22 +133,24 @@ class ReportAggregator {
             if ($needsConversion) {
                 $accountCurrency = $account->getCurrency() ?: 'USD';
                 if ($accountCurrency !== $baseCurrency) {
-                    $convertedBalance = $this->conversionService->convertToBaseFloat($currentBalance, $accountCurrency, $userId);
-                    $convertedIncome = $this->conversionService->convertToBaseFloat($accountIncome, $accountCurrency, $userId);
-                    $convertedExpenses = $this->conversionService->convertToBaseFloat($accountExpenses, $accountCurrency, $userId);
-
-                    // Detect if conversion failed (amount unchanged for non-zero value)
-                    if ($currentBalance != 0 && (float)$convertedBalance === (float)$currentBalance) {
+                    // Check if conversion is possible before attempting it
+                    if (!$this->conversionService->canConvert($accountCurrency, $userId)) {
                         $unconvertedCurrencies[] = $accountCurrency;
+                        continue;
                     }
 
-                    $currentBalance = $convertedBalance;
-                    $accountIncome = $convertedIncome;
-                    $accountExpenses = $convertedExpenses;
+                    $currentBalance = $this->conversionService->convertToBaseFloat($currentBalance, $accountCurrency, $userId);
+                    $accountIncome = $this->conversionService->convertToBaseFloat($accountIncome, $accountCurrency, $userId);
+                    $accountExpenses = $this->conversionService->convertToBaseFloat($accountExpenses, $accountCurrency, $userId);
                 }
             }
 
             $summary['totals']['currentBalance'] += $currentBalance;
+            if (in_array($account->getType(), $liabilityTypes, true)) {
+                $totalLiabilities += abs($currentBalance);
+            } else {
+                $totalAssets += $currentBalance;
+            }
             $totalIncome += $accountIncome;
             $totalExpenses += $accountExpenses;
         }
@@ -179,6 +184,8 @@ class ReportAggregator {
         $summary['totals']['totalIncome'] = $totalIncome;
         $summary['totals']['totalExpenses'] = $totalExpenses;
         $summary['totals']['netIncome'] = $totalIncome - $totalExpenses;
+        $summary['totals']['totalAssets'] = round($totalAssets, 2);
+        $summary['totals']['totalLiabilities'] = round($totalLiabilities, 2);
         $summary['unconvertedCurrencies'] = array_values(array_unique($unconvertedCurrencies));
 
         $days = $summary['period']['days'];

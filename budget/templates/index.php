@@ -917,6 +917,9 @@ style('budget', 'budget-main');
                 </div>
             </div>
 
+            <!-- Currency conversion warning -->
+            <div id="accounts-conversion-warning" class="conversion-warning" style="display: none;"></div>
+
             <!-- Assets Section -->
             <div id="accounts-assets-section" class="accounts-section">
                 <div class="section-header-row">
@@ -3388,6 +3391,8 @@ style('budget', 'budget-main');
                     </div>
                 </div>
             </div>
+
+            <div id="assets-conversion-warning" class="conversion-warning" style="display: none;"></div>
 
             <!-- Assets List -->
             <div class="assets-container">

@@ -64,6 +64,16 @@ class ExchangeRateController extends Controller {
                 ];
             }
 
+            // EUR is the reference currency (rate = 1.0) but has no DB row.
+            // Synthesize it so the UI can display a rate for EUR.
+            if (!isset($autoRatesData['EUR'])) {
+                $autoRatesData['EUR'] = [
+                    'ratePerEur' => '1.0000000000',
+                    'source' => 'reference',
+                    'date' => date('Y-m-d'),
+                ];
+            }
+
             // Get all manual rates for this user
             $manualRates = $this->manualRateService->getAllForUser($this->userId);
             $manualRatesData = [];

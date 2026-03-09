@@ -157,6 +157,18 @@ export default class AssetsModule {
         if (heroAssetsCount) {
             heroAssetsCount.textContent = count === 1 ? '1 asset' : `${count} assets`;
         }
+
+        // Show warning for unconvertible currencies
+        const warningEl = document.getElementById('assets-conversion-warning');
+        if (warningEl) {
+            if (summary.unconvertedCurrencies && summary.unconvertedCurrencies.length > 0) {
+                const currencies = summary.unconvertedCurrencies.join(', ');
+                warningEl.textContent = `Some assets (${currencies}) are excluded from the total because exchange rates are unavailable. Add rates in Settings to include them.`;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+        }
     }
 
     updateAssetsProjection(projection) {
@@ -550,11 +562,11 @@ export default class AssetsModule {
 
         const modal = document.getElementById('asset-value-modal');
         document.getElementById('asset-value-form').reset();
-        document.getElementById('value-asset-id').value = this.currentAsset.id;
-        document.getElementById('value-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('asset-value-asset-id').value = this.currentAsset.id;
+        document.getElementById('asset-value-date').value = new Date().toISOString().split('T')[0];
 
         if (this.currentAsset.currentValue) {
-            document.getElementById('value-amount').value = this.currentAsset.currentValue;
+            document.getElementById('asset-value-amount').value = this.currentAsset.currentValue;
         }
 
         modal.style.display = 'flex';

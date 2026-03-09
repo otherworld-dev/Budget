@@ -105,11 +105,15 @@ export default class AccountsModule {
 
     async loadAccounts() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            const [response, summaryResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/accounts'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/reports/summary'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }).catch(() => ({ ok: false }))
+            ]);
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -126,11 +130,13 @@ export default class AccountsModule {
                 throw new Error('API returned invalid data format');
             }
 
+            const summary = summaryResponse.ok ? await summaryResponse.json() : null;
+
             // Update the instance accounts array
             this.accounts = accounts;
 
             // Render the accounts page with new layout
-            this.renderAccountsPage(accounts);
+            this.renderAccountsPage(accounts, summary);
 
             // Also update account dropdowns
             this.populateAccountDropdowns();
@@ -141,7 +147,7 @@ export default class AccountsModule {
         }
     }
 
-    renderAccountsPage(accounts) {
+    renderAccountsPage(accounts, summary = null) {
         // Helper function to get field with both camelCase and snake_case support
         const getField = (obj, camelName, snakeName = null) => {
             if (!snakeName) {
@@ -157,20 +163,23 @@ export default class AccountsModule {
         const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
         const liabilities = accounts.filter(acc => liabilityTypes.includes(getField(acc, 'type')));
 
-        // Calculate totals
-        const primaryCurrency = this.getPrimaryCurrency();
+        // Use currency-converted totals from summary if available, otherwise fall back to raw sums
+        const primaryCurrency = summary?.baseCurrency || this.getPrimaryCurrency();
         let totalAssets = 0;
         let totalLiabilities = 0;
 
-        assets.forEach(acc => {
-            totalAssets += parseFloat(getField(acc, 'balance')) || 0;
-        });
-
-        liabilities.forEach(acc => {
-            // Liabilities are typically negative or represent debt
-            const balance = parseFloat(getField(acc, 'balance')) || 0;
-            totalLiabilities += Math.abs(balance);
-        });
+        if (summary?.totals) {
+            totalAssets = summary.totals.totalAssets || 0;
+            totalLiabilities = summary.totals.totalLiabilities || 0;
+        } else {
+            assets.forEach(acc => {
+                totalAssets += parseFloat(getField(acc, 'balance')) || 0;
+            });
+            liabilities.forEach(acc => {
+                const balance = parseFloat(getField(acc, 'balance')) || 0;
+                totalLiabilities += Math.abs(balance);
+            });
+        }
 
         const netWorth = totalAssets - totalLiabilities;
 
@@ -190,6 +199,18 @@ export default class AccountsModule {
         }
         if (assetsSubtotalEl) assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
         if (liabilitiesSubtotalEl) liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+
+        // Show warning for accounts with unconvertible currencies
+        const warningEl = document.getElementById('accounts-conversion-warning');
+        if (warningEl) {
+            const unconverted = summary?.unconvertedCurrencies || [];
+            if (unconverted.length > 0) {
+                warningEl.textContent = `Accounts in ${unconverted.join(', ')} are excluded from totals because exchange rates are unavailable. Add rates in Settings > Exchange Rates.`;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+        }
 
         // Render account cards for each section
         const assetsGrid = document.getElementById('accounts-assets-grid');
