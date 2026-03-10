@@ -3030,14 +3030,14 @@ button.danger:hover {
 }
 
 #column-config-btn {
-    background: var(--color-main-background) !important;
-    border: 1px solid var(--color-border-dark) !important;
+    background: var(--color-background-dark) !important;
+    border: 1px solid var(--color-border) !important;
     opacity: 1 !important;
 }
 
 #column-config-btn .icon-settings {
     opacity: 1 !important;
-    color: var(--color-main-text) !important;
+    filter: var(--background-invert-if-dark) !important;
     font-size: 18px;
 }
 
@@ -3047,7 +3047,7 @@ button.danger:hover {
 }
 
 #column-config-btn:hover .icon-settings {
-    color: var(--color-primary-element) !important;
+    filter: var(--background-invert-if-dark) !important;
 }
 
 .column-config-dropdown {
