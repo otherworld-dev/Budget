@@ -4177,6 +4177,20 @@ button.danger:hover {
     align-items: center;
 }
 
+#category-settings-btn {
+    background: var(--color-background-dark) !important;
+    border: 1px solid var(--color-border) !important;
+}
+
+#category-settings-btn .icon-settings {
+    filter: var(--background-invert-if-dark);
+}
+
+#category-settings-btn:hover {
+    background: var(--color-background-hover) !important;
+    border-color: var(--color-primary-element) !important;
+}
+
 .categories-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
