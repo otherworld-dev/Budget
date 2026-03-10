@@ -1015,8 +1015,14 @@ export default class CategoriesModule {
                 await this.loadCategories();
                 await this.app.loadInitialData();
             } else {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to create default categories');
+                let message = 'Failed to create default categories';
+                try {
+                    const error = await response.json();
+                    message = error.error || message;
+                } catch (e) {
+                    // Response wasn't JSON (e.g. server error page)
+                }
+                throw new Error(message);
             }
         } catch (error) {
             console.error('Failed to create default categories:', error);

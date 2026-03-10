@@ -22205,7 +22205,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "createDefaultCategories",
     value: function () {
       var _createDefaultCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
-        var response, error, _t9;
+        var response, message, error, _t9, _t0;
         return _regenerator().w(function (_context0) {
           while (1) switch (_context0.p = _context0.n) {
             case 0:
@@ -22232,26 +22232,35 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context0.n = 3;
               return this.app.loadInitialData();
             case 3:
-              _context0.n = 6;
+              _context0.n = 9;
               break;
             case 4:
-              _context0.n = 5;
+              message = 'Failed to create default categories';
+              _context0.p = 5;
+              _context0.n = 6;
               return response.json();
-            case 5:
-              error = _context0.v;
-              throw new Error(error.error || 'Failed to create default categories');
             case 6:
+              error = _context0.v;
+              message = error.error || message;
               _context0.n = 8;
               break;
             case 7:
               _context0.p = 7;
               _t9 = _context0.v;
-              console.error('Failed to create default categories:', _t9);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(_t9.message || 'Failed to create default categories');
             case 8:
+              throw new Error(message);
+            case 9:
+              _context0.n = 11;
+              break;
+            case 10:
+              _context0.p = 10;
+              _t0 = _context0.v;
+              console.error('Failed to create default categories:', _t0);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(_t0.message || 'Failed to create default categories');
+            case 11:
               return _context0.a(2);
           }
-        }, _callee0, this, [[0, 7]]);
+        }, _callee0, this, [[5, 7], [0, 10]]);
       }));
       function createDefaultCategories() {
         return _createDefaultCategories.apply(this, arguments);
@@ -22264,7 +22273,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "loadBudgetView",
     value: function () {
       var _loadBudgetView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
-        var response, _t0;
+        var response, _t1;
         return _regenerator().w(function (_context1) {
           while (1) switch (_context1.p = _context1.n) {
             case 0:
@@ -22309,8 +22318,8 @@ var CategoriesModule = /*#__PURE__*/function () {
               break;
             case 5:
               _context1.p = 5;
-              _t0 = _context1.v;
-              console.error('Failed to load categories for budget:', _t0);
+              _t1 = _context1.v;
+              console.error('Failed to load categories for budget:', _t1);
             case 6:
               _context1.n = 7;
               return this.calculateCategorySpending();
@@ -22411,7 +22420,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     value: function () {
       var _calculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
         var _this11 = this;
-        var allCategories, categoriesWithBudgets, categoriesByPeriod, _loop, _i, _Object$entries, _t1;
+        var allCategories, categoriesWithBudgets, categoriesByPeriod, _loop, _i, _Object$entries, _t10;
         return _regenerator().w(function (_context12) {
           while (1) switch (_context12.p = _context12.n) {
             case 0:
@@ -22510,8 +22519,8 @@ var CategoriesModule = /*#__PURE__*/function () {
               break;
             case 7:
               _context12.p = 7;
-              _t1 = _context12.v;
-              console.error('Failed to fetch category spending:', _t1);
+              _t10 = _context12.v;
+              console.error('Failed to fetch category spending:', _t10);
               this.categorySpending = {};
             case 8:
               return _context12.a(2);
@@ -22642,7 +22651,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "recalculateCategorySpending",
     value: function () {
       var _recalculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(categoryId, period) {
-        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t10;
+        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t11;
         return _regenerator().w(function (_context14) {
           while (1) switch (_context14.p = _context14.n) {
             case 0:
@@ -22681,8 +22690,8 @@ var CategoriesModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context14.p = 4;
-              _t10 = _context14.v;
-              console.error('Failed to recalculate spending:', _t10);
+              _t11 = _context14.v;
+              console.error('Failed to recalculate spending:', _t11);
             case 5:
               return _context14.a(2);
           }
@@ -22697,7 +22706,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "saveCategoryBudget",
     value: function () {
       var _saveCategoryBudget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(categoryId, updates) {
-        var response, category, errorMessage, errorData, _t11, _t12;
+        var response, category, errorMessage, errorData, _t12, _t13;
         return _regenerator().w(function (_context15) {
           while (1) switch (_context15.p = _context15.n) {
             case 0:
@@ -22759,7 +22768,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               break;
             case 6:
               _context15.p = 6;
-              _t11 = _context15.v;
+              _t12 = _context15.v;
               errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
             case 7:
               throw new Error(errorMessage);
@@ -22768,9 +22777,9 @@ var CategoriesModule = /*#__PURE__*/function () {
               break;
             case 9:
               _context15.p = 9;
-              _t12 = _context15.v;
-              console.error('Failed to save budget:', _t12);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)("Failed to update budget: ".concat(_t12.message));
+              _t13 = _context15.v;
+              console.error('Failed to save budget:', _t13);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)("Failed to update budget: ".concat(_t13.message));
             case 10:
               return _context15.a(2);
           }

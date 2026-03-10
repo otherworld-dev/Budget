@@ -324,14 +324,13 @@ class ImportRuleService {
                 $categoryId = null; // Would need to implement category lookup
                 
                 $rule = $this->create(
-                    $userId,
-                    $ruleData['name'],
-                    $ruleData['pattern'],
-                    $ruleData['field'],
-                    $ruleData['matchType'],
-                    $categoryId,
-                    null,
-                    $ruleData['priority']
+                    userId: $userId,
+                    name: $ruleData['name'],
+                    pattern: $ruleData['pattern'],
+                    field: $ruleData['field'],
+                    matchType: $ruleData['matchType'],
+                    categoryId: $categoryId,
+                    priority: $ruleData['priority']
                 );
                 
                 $created[] = $rule;
