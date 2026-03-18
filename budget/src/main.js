@@ -11,6 +11,7 @@ import * as helpers from './utils/helpers.js';
 import * as validators from './utils/validators.js';
 import ApiClient from './utils/api.js';
 import { showSuccess, showError, showWarning, showInfo } from './utils/notifications.js';
+import { initDatePickers } from './utils/datepicker.js';
 
 // Configuration
 import { DASHBOARD_WIDGETS } from './config/dashboardWidgets.js';
@@ -44,6 +45,8 @@ class BudgetApp {
         this.currentView = 'dashboard';
         this.accounts = [];
         this.categories = [];
+        this.categoryTree = [];
+        this.allCategories = [];
         this.transactions = [];
         this.pensions = [];
         this.currentPension = null;
@@ -636,7 +639,7 @@ class BudgetApp {
     async loadInitialData() {
         try {
             // Load all initial data in parallel for better performance
-            const [settingsResponse, accountsResponse, categoriesResponse, optionsResponse] = await Promise.all([
+            const [settingsResponse, accountsResponse, categoriesResponse, categoryTreeResponse, optionsResponse] = await Promise.all([
                 fetch(OC.generateUrl('/apps/budget/api/settings'), {
                     headers: this.getAuthHeaders()
                 }),
@@ -644,6 +647,9 @@ class BudgetApp {
                     headers: this.getAuthHeaders()
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/categories'), {
+                    headers: this.getAuthHeaders()
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                     headers: this.getAuthHeaders()
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/settings/options'), {
@@ -660,6 +666,8 @@ class BudgetApp {
                 this.dashboardConfig.hero = this.parseDashboardConfig(this.settings.dashboard_hero_config, 'hero');
                 this.dashboardConfig.widgets = this.parseDashboardConfig(this.settings.dashboard_widgets_config, 'widgets');
 
+                // Initialize flatpickr on all date inputs with user's format
+                initDatePickers(this.settings);
             }
 
             if (optionsResponse.ok) {
@@ -674,6 +682,12 @@ class BudgetApp {
 
             const categoriesData = await categoriesResponse.json();
             this.categories = Array.isArray(categoriesData) ? categoriesData : [];
+
+            if (categoryTreeResponse.ok) {
+                const treeData = await categoryTreeResponse.json();
+                this.categoryTree = Array.isArray(treeData) ? treeData : [];
+                this.allCategories = this.flattenCategories(this.categoryTree);
+            }
 
             // Populate dropdowns
             this.populateAccountDropdowns();
@@ -3618,6 +3632,16 @@ class BudgetApp {
     populateCategoryDropdowns() {
         // Stub method - dropdowns are populated by individual modules as needed
         // This is called from loadInitialData but doesn't need to do anything
+    }
+
+    flattenCategories(categories, result = []) {
+        categories.forEach(cat => {
+            result.push(cat);
+            if (cat.children && cat.children.length > 0) {
+                this.flattenCategories(cat.children, result);
+            }
+        });
+        return result;
     }
 
     populateCurrencyDropdowns() {

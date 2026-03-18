@@ -76,6 +76,10 @@ export default class CategoriesModule {
             if (response.ok) {
                 this.categoryTree = await response.json();
                 this.allCategories = this.flattenCategories(this.categoryTree);
+                // Sync to app-level state so other modules (e.g. TransactionsModule) can access it
+                this.app.categoryTree = this.categoryTree;
+                this.app.allCategories = this.allCategories;
+                this.app.categories = this.allCategories;
                 this.renderCategoriesTree();
                 this.setupCategoriesEventListeners();
             }
@@ -1059,6 +1063,9 @@ export default class CategoriesModule {
                 if (response.ok) {
                     this.categoryTree = await response.json();
                     this.allCategories = this.flattenCategories(this.categoryTree);
+                    this.app.categoryTree = this.categoryTree;
+                    this.app.allCategories = this.allCategories;
+                    this.app.categories = this.allCategories;
                 }
             } catch (error) {
                 console.error('Failed to load categories for budget:', error);

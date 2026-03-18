@@ -6,9 +6,8 @@ namespace OCA\Budget\BackgroundJob;
 
 use OCP\BackgroundJob\TimedJob;
 use OCP\AppFramework\Utility\ITimeFactory;
-use OCP\Files\IAppData;
+use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
-use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -19,9 +18,17 @@ use Psr\Log\LoggerInterface;
  */
 class CleanupImportFilesJob extends TimedJob {
     private const MAX_AGE_HOURS = 24;
+    private IAppDataFactory $appDataFactory;
+    private LoggerInterface $logger;
 
-    public function __construct(ITimeFactory $time) {
+    public function __construct(
+        ITimeFactory $time,
+        IAppDataFactory $appDataFactory,
+        LoggerInterface $logger
+    ) {
         parent::__construct($time);
+        $this->appDataFactory = $appDataFactory;
+        $this->logger = $logger;
 
         // Run every 6 hours
         $this->setInterval(6 * 60 * 60);
@@ -29,8 +36,7 @@ class CleanupImportFilesJob extends TimedJob {
     }
 
     protected function run($argument): void {
-        $appData = Server::get(IAppData::class);
-        $logger = Server::get(LoggerInterface::class);
+        $appData = $this->appDataFactory->get('budget');
 
         try {
             $importsFolder = $appData->getFolder('imports');
@@ -56,7 +62,7 @@ class CleanupImportFilesJob extends TimedJob {
                     }
                 } catch (\Exception $e) {
                     $errorCount++;
-                    $logger->warning(
+                    $this->logger->warning(
                         'Failed to delete import file: ' . $e->getMessage(),
                         [
                             'app' => 'budget',
@@ -67,13 +73,13 @@ class CleanupImportFilesJob extends TimedJob {
             }
 
             if ($deletedCount > 0 || $errorCount > 0) {
-                $logger->info(
+                $this->logger->info(
                     "Import file cleanup completed: {$deletedCount} deleted, {$errorCount} errors",
                     ['app' => 'budget']
                 );
             }
         } catch (\Exception $e) {
-            $logger->error(
+            $this->logger->error(
                 'Import file cleanup job failed: ' . $e->getMessage(),
                 [
                     'app' => 'budget',
