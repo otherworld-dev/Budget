@@ -18828,7 +18828,11 @@ var AccountsModule = /*#__PURE__*/function () {
       var netWorthEl = document.getElementById('summary-net-worth');
       var assetsSubtotalEl = document.getElementById('assets-subtotal');
       var liabilitiesSubtotalEl = document.getElementById('liabilities-subtotal');
-      if (totalAssetsEl) totalAssetsEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+      if (totalAssetsEl) {
+        totalAssetsEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+        totalAssetsEl.classList.toggle('positive', totalAssets >= 0);
+        totalAssetsEl.classList.toggle('negative', totalAssets < 0);
+      }
       if (totalLiabilitiesEl) totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
       if (netWorthEl) {
         netWorthEl.textContent = this.formatCurrency(netWorth, primaryCurrency);
@@ -18891,11 +18895,11 @@ var AccountsModule = /*#__PURE__*/function () {
       var typeInfo = this.getAccountTypeInfo(accountType);
       var healthStatus = this.getAccountHealthStatus(account);
 
-      // For liabilities (credit cards, loans), display balance differently
+      // For liabilities (credit cards, loans), show absolute value with "Owed" label
       var isLiability = ['credit_card', 'loan'].includes(accountType);
       var displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
-      var balanceClass = isLiability ? 'negative' : accountBalance >= 0 ? 'positive' : 'negative';
-      return "\n            <div class=\"account-card\" data-type=\"".concat(accountType, "\" data-account-id=\"").concat(accountId, "\">\n                <div class=\"account-card-header\">\n                    <div class=\"account-icon\" style=\"background-color: ").concat(typeInfo.color, ";\">\n                        <span class=\"").concat(typeInfo.icon, "\" aria-hidden=\"true\"></span>\n                    </div>\n                    <div class=\"account-details\">\n                        <h3 class=\"account-name\">").concat(accountName, "</h3>\n                        <div class=\"account-meta\">\n                            <span class=\"account-type-badge\">").concat(typeInfo.label, "</span>\n                            ").concat(institution ? "<span class=\"account-institution\">".concat(institution, "</span>") : '', "\n                        </div>\n                    </div>\n                </div>\n\n                <div class=\"account-card-balance\">\n                    <div class=\"balance-info\">\n                        <span class=\"balance-label\">").concat(isLiability ? 'Owed' : 'Balance', "</span>\n                        <span class=\"balance-amount ").concat(balanceClass, "\">\n                            ").concat(isLiability ? '-' : '').concat(this.formatCurrency(displayBalance, accountCurrency), "\n                        </span>\n                    </div>\n                    <div class=\"account-sparkline\" data-account-id=\"").concat(accountId, "\">\n                        <svg viewBox=\"0 0 80 32\" preserveAspectRatio=\"none\">\n                            <path class=\"sparkline-path neutral\" d=\"M0,16 L80,16\"></path>\n                        </svg>\n                    </div>\n                </div>\n\n                <div class=\"account-card-footer\">\n                    <div class=\"account-status\">\n                        <span class=\"account-status-dot ").concat(healthStatus["class"], "\"></span>\n                        <span>").concat(healthStatus.tooltip, "</span>\n                    </div>\n                    <div class=\"account-actions\">\n                        <button class=\"account-action-btn edit-btn edit-account-btn\" data-account-id=\"").concat(accountId, "\" title=\"Edit Account\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"account-action-btn delete-btn delete-account-btn\" data-account-id=\"").concat(accountId, "\" title=\"Delete Account\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            </div>\n        ");
+      var balanceClass = isLiability ? accountBalance === 0 ? 'positive' : 'negative' : accountBalance >= 0 ? 'positive' : 'negative';
+      return "\n            <div class=\"account-card\" data-type=\"".concat(accountType, "\" data-account-id=\"").concat(accountId, "\">\n                <div class=\"account-card-header\">\n                    <div class=\"account-icon\" style=\"background-color: ").concat(typeInfo.color, ";\">\n                        <span class=\"").concat(typeInfo.icon, "\" aria-hidden=\"true\"></span>\n                    </div>\n                    <div class=\"account-details\">\n                        <h3 class=\"account-name\">").concat(accountName, "</h3>\n                        <div class=\"account-meta\">\n                            <span class=\"account-type-badge\">").concat(typeInfo.label, "</span>\n                            ").concat(institution ? "<span class=\"account-institution\">".concat(institution, "</span>") : '', "\n                        </div>\n                    </div>\n                </div>\n\n                <div class=\"account-card-balance\">\n                    <div class=\"balance-info\">\n                        <span class=\"balance-label\">").concat(isLiability ? 'Owed' : 'Balance', "</span>\n                        <span class=\"balance-amount ").concat(balanceClass, "\">\n                            ").concat(this.formatCurrency(displayBalance, accountCurrency), "\n                        </span>\n                    </div>\n                    <div class=\"account-sparkline\" data-account-id=\"").concat(accountId, "\">\n                        <svg viewBox=\"0 0 80 32\" preserveAspectRatio=\"none\">\n                            <path class=\"sparkline-path neutral\" d=\"M0,16 L80,16\"></path>\n                        </svg>\n                    </div>\n                </div>\n\n                <div class=\"account-card-footer\">\n                    <div class=\"account-status\">\n                        <span class=\"account-status-dot ").concat(healthStatus["class"], "\"></span>\n                        <span>").concat(healthStatus.tooltip, "</span>\n                    </div>\n                    <div class=\"account-actions\">\n                        <button class=\"account-action-btn edit-btn edit-account-btn\" data-account-id=\"").concat(accountId, "\" title=\"Edit Account\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"account-action-btn delete-btn delete-account-btn\" data-account-id=\"").concat(accountId, "\" title=\"Delete Account\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            </div>\n        ");
     }
   }, {
     key: "loadAccountSparklines",
@@ -23131,7 +23135,7 @@ var BillsModule = /*#__PURE__*/function () {
     value: function () {
       var _markBillPaid = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(billId) {
         var _this3 = this;
-        var bill, previousPaidDate, response, _t6;
+        var bill, previousPaidDate, response, isOneTime, message, _t6;
         return _regenerator().w(function (_context6) {
           while (1) switch (_context6.p = _context6.n) {
             case 0:
@@ -23177,7 +23181,9 @@ var BillsModule = /*#__PURE__*/function () {
               if (this._undoTimer) {
                 clearTimeout(this._undoTimer);
               }
-              this.showUndoNotification('Bill marked as paid. Future transaction created.', function () {
+              isOneTime = bill.frequency === 'one-time';
+              message = isOneTime ? 'Bill marked as paid. Transaction created.' : 'Bill marked as paid. Future transaction created.';
+              this.showUndoNotification(message, function () {
                 return _this3.undoMarkBillPaid();
               });
               this._undoTimer = setTimeout(function () {

@@ -191,7 +191,11 @@ export default class AccountsModule {
         const assetsSubtotalEl = document.getElementById('assets-subtotal');
         const liabilitiesSubtotalEl = document.getElementById('liabilities-subtotal');
 
-        if (totalAssetsEl) totalAssetsEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+        if (totalAssetsEl) {
+            totalAssetsEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+            totalAssetsEl.classList.toggle('positive', totalAssets >= 0);
+            totalAssetsEl.classList.toggle('negative', totalAssets < 0);
+        }
         if (totalLiabilitiesEl) totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
         if (netWorthEl) {
             netWorthEl.textContent = this.formatCurrency(netWorth, primaryCurrency);
@@ -252,10 +256,12 @@ export default class AccountsModule {
         const typeInfo = this.getAccountTypeInfo(accountType);
         const healthStatus = this.getAccountHealthStatus(account);
 
-        // For liabilities (credit cards, loans), display balance differently
+        // For liabilities (credit cards, loans), show absolute value with "Owed" label
         const isLiability = ['credit_card', 'loan'].includes(accountType);
         const displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
-        const balanceClass = isLiability ? 'negative' : (accountBalance >= 0 ? 'positive' : 'negative');
+        const balanceClass = isLiability
+            ? (accountBalance === 0 ? 'positive' : 'negative')
+            : (accountBalance >= 0 ? 'positive' : 'negative');
 
         return `
             <div class="account-card" data-type="${accountType}" data-account-id="${accountId}">
@@ -276,7 +282,7 @@ export default class AccountsModule {
                     <div class="balance-info">
                         <span class="balance-label">${isLiability ? 'Owed' : 'Balance'}</span>
                         <span class="balance-amount ${balanceClass}">
-                            ${isLiability ? '-' : ''}${this.formatCurrency(displayBalance, accountCurrency)}
+                            ${this.formatCurrency(displayBalance, accountCurrency)}
                         </span>
                     </div>
                     <div class="account-sparkline" data-account-id="${accountId}">

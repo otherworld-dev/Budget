@@ -268,6 +268,16 @@ class BillService {
         $paidDate = $paidDate ?? $bill->getNextDueDate() ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
 
+        // Create a transaction for the current payment for one-time bills
+        // (Recurring bills already have a pre-scheduled transaction for the current period)
+        if ($bill->getFrequency() === 'one-time' && $createNextTransaction && $bill->getAccountId() !== null) {
+            try {
+                $this->transactionService->createFromBill($userId, $bill, $paidDate);
+            } catch (\Exception $e) {
+                error_log("Failed to create transaction for one-time bill {$id}: {$e->getMessage()}");
+            }
+        }
+
         // Auto-deactivate one-time bills after payment
         if ($bill->getFrequency() === 'one-time') {
             $bill->setIsActive(false);

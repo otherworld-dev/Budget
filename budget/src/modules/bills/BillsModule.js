@@ -636,7 +636,11 @@ export default class BillsModule {
                 clearTimeout(this._undoTimer);
             }
 
-            this.showUndoNotification('Bill marked as paid. Future transaction created.', () => this.undoMarkBillPaid());
+            const isOneTime = (bill.frequency === 'one-time');
+            const message = isOneTime
+                ? 'Bill marked as paid. Transaction created.'
+                : 'Bill marked as paid. Future transaction created.';
+            this.showUndoNotification(message, () => this.undoMarkBillPaid());
 
             this._undoTimer = setTimeout(() => {
                 this._undoData = null;
