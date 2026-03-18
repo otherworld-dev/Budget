@@ -13,6 +13,8 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
+import flatpickr from 'flatpickr';
 
 export default class TransactionsModule {
     constructor(app) {
@@ -360,7 +362,11 @@ export default class TransactionsModule {
         filterInputs.forEach(inputId => {
             const input = document.getElementById(inputId);
             if (input) {
-                input.value = '';
+                if (input._flatpickr) {
+                    input._flatpickr.clear();
+                } else {
+                    input.value = '';
+                }
             }
         });
 
@@ -966,7 +972,7 @@ export default class TransactionsModule {
             if (transaction) {
                 // Populate form with transaction data (editing mode)
                 document.getElementById('transaction-id').value = transaction.id;
-                document.getElementById('transaction-date').value = transaction.date;
+                setDateValue('transaction-date', transaction.date);
                 document.getElementById('transaction-account').value = transaction.accountId;
                 document.getElementById('transaction-type').value = transaction.type;
                 document.getElementById('transaction-amount').value = transaction.amount;
@@ -981,7 +987,7 @@ export default class TransactionsModule {
                 // Clear form (new transaction mode)
                 document.getElementById('transaction-form').reset();
                 document.getElementById('transaction-id').value = '';
-                document.getElementById('transaction-date').value = new Date().toISOString().split('T')[0];
+                setDateValue('transaction-date', formatters.getTodayDateString());
 
                 // Pre-select account if provided
                 if (preSelectedAccountId) {
@@ -1942,13 +1948,49 @@ export default class TransactionsModule {
 
     createDateEditor(cell, value) {
         const input = document.createElement('input');
-        input.type = 'date';
+        input.type = 'text';
         input.className = 'inline-edit-input';
-        input.value = value;
 
-        this.setupEditorEvents(input, cell, 'date');
         cell.innerHTML = '';
         cell.appendChild(input);
+
+        const dateFormat = this.app.settings?.date_format || 'Y-m-d';
+        const fp = flatpickr(input, {
+            dateFormat: dateFormat,
+            defaultDate: value,
+            allowInput: true,
+            disableMobile: true,
+        });
+
+        const getIsoDate = () => {
+            if (fp.selectedDates.length > 0) {
+                return fp.formatDate(fp.selectedDates[0], 'Y-m-d');
+            }
+            return value;
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                fp.destroy();
+                this.cancelInlineEdit(cell);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const isoDate = getIsoDate();
+                fp.destroy();
+                this.saveInlineEdit(cell, 'date', isoDate);
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (cell.classList.contains('editing') && !fp.isOpen) {
+                    const isoDate = getIsoDate();
+                    fp.destroy();
+                    this.saveInlineEdit(cell, 'date', isoDate);
+                }
+            }, 200);
+        });
+
         input.focus();
     }
 

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { initSingleDatePicker } from '../../utils/datepicker.js';
 
 export default class TransfersModule {
     constructor(app) {
@@ -510,6 +511,12 @@ export default class TransfersModule {
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // Initialize flatpickr on the transaction date input
+        const transferDateInput = document.getElementById('transfer-transaction-date');
+        if (transferDateInput) {
+            initSingleDatePicker(transferDateInput, this.app.settings);
+        }
+
         // Debug: Check if dropdowns are populated
         setTimeout(() => {
             const fromSelect = document.getElementById('recurring-transfer-from-account');
@@ -728,8 +735,7 @@ export default class TransfersModule {
         if (!transfer) return;
 
         try {
-            const now = new Date();
-            const formattedDate = now.toISOString().split('T')[0];
+            const formattedDate = formatters.getTodayDateString();
 
             const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}`), {
                 method: 'PUT',

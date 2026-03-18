@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -287,6 +288,7 @@ export default class SavingsModule {
         form.reset();
         document.getElementById('goal-id').value = '';
         document.getElementById('goal-color').value = '#0082c9';
+        clearDateValue('goal-target-date');
 
         // Reset tag dropdown and current amount field state
         const tagDropdown = document.getElementById('goal-tag');
@@ -301,7 +303,7 @@ export default class SavingsModule {
             document.getElementById('goal-name').value = goal.name;
             document.getElementById('goal-target').value = goal.targetAmount || goal.target_amount || '';
             document.getElementById('goal-current').value = goal.currentAmount || goal.current_amount || 0;
-            document.getElementById('goal-target-date').value = goal.targetDate || goal.target_date || '';
+            setDateValue('goal-target-date', goal.targetDate || goal.target_date || '');
             document.getElementById('goal-notes').value = goal.description || '';
 
             // Set tag dropdown

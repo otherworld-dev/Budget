@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { setDateValue } from '../../utils/datepicker.js';
 
 export default class SharedExpensesModule {
     constructor(app) {
@@ -408,7 +409,7 @@ export default class SharedExpensesModule {
             (balance > 0 ? `Owes you ${this.formatCurrency(balance)}` : `You owe ${this.formatCurrency(Math.abs(balance))}`);
 
         document.getElementById('settlement-amount').value = Math.abs(balance).toFixed(2);
-        document.getElementById('settlement-date').value = new Date().toISOString().split('T')[0];
+        setDateValue('settlement-date', formatters.getTodayDateString());
         document.getElementById('settlement-notes').value = '';
 
         // Ensure form submit handler is attached
@@ -462,7 +463,7 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const date = new Date().toISOString().split('T')[0];
+            const date = formatters.getTodayDateString();
             const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/settle`), {
                 method: 'POST',
                 headers: {

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -365,13 +366,13 @@ export default class BillsModule {
             }
 
             // Set end date / remaining payments
-            document.getElementById('bill-end-date').value = bill.endDate || bill.end_date || '';
+            setDateValue('bill-end-date', bill.endDate || bill.end_date || '');
             const remainingPayments = bill.remainingPayments ?? bill.remaining_payments;
             document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
 
             // Reset transaction creation fields for edit mode
             document.getElementById('bill-create-transaction').checked = false;
-            document.getElementById('bill-transaction-date').value = '';
+            clearDateValue('bill-transaction-date');
             document.getElementById('transaction-date-group').style.display = 'none';
 
             // Set auto-pay fields
@@ -394,12 +395,12 @@ export default class BillsModule {
             document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
 
             // Clear end date / remaining payments
-            document.getElementById('bill-end-date').value = '';
+            clearDateValue('bill-end-date');
             document.getElementById('bill-remaining-payments').value = '';
 
             // Reset transaction creation fields for new bill
             document.getElementById('bill-create-transaction').checked = false;
-            document.getElementById('bill-transaction-date').value = '';
+            clearDateValue('bill-transaction-date');
             document.getElementById('transaction-date-group').style.display = 'none';
 
             // Reset auto-pay fields for new bill

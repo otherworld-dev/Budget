@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
 
 export default class AssetsModule {
@@ -266,6 +267,7 @@ export default class AssetsModule {
         const title = document.getElementById('asset-modal-title');
 
         form.reset();
+        clearDateValue('asset-purchase-date');
 
         if (assetId) {
             const asset = this.assets.find(a => a.id === assetId);
@@ -279,7 +281,7 @@ export default class AssetsModule {
             document.getElementById('asset-currency').value = asset.currency || 'USD';
             document.getElementById('asset-current-value').value = asset.currentValue || '';
             document.getElementById('asset-purchase-price').value = asset.purchasePrice || '';
-            document.getElementById('asset-purchase-date').value = asset.purchaseDate || '';
+            setDateValue('asset-purchase-date', asset.purchaseDate || '');
             document.getElementById('asset-annual-rate').value = asset.annualChangeRate !== null ? (asset.annualChangeRate * 100) : '';
         } else {
             title.textContent = 'Add Asset';
@@ -563,7 +565,7 @@ export default class AssetsModule {
         const modal = document.getElementById('asset-value-modal');
         document.getElementById('asset-value-form').reset();
         document.getElementById('asset-value-asset-id').value = this.currentAsset.id;
-        document.getElementById('asset-value-date').value = new Date().toISOString().split('T')[0];
+        setDateValue('asset-value-date', formatters.getTodayDateString());
 
         if (this.currentAsset.currentValue) {
             document.getElementById('asset-value-amount').value = this.currentAsset.currentValue;

@@ -447,7 +447,7 @@ export default class IncomeModule {
             }
 
             const previousReceivedDate = income.lastReceivedDate || income.last_received_date || null;
-            const currentDate = new Date().toISOString().split('T')[0];
+            const currentDate = formatters.getTodayDateString();
 
             // Mark as received on the server
             const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}/received`), {

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 
 export default class AccountsModule {
     constructor(app) {
@@ -641,7 +642,7 @@ export default class AccountsModule {
             return { ...transaction, balanceAtTime };
         }).reverse();
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = formatters.getTodayDateString();
         tbody.innerHTML = transactionsWithBalance.map(transaction => {
             const amount = parseFloat(transaction.amount) || 0;
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
@@ -863,8 +864,8 @@ export default class AccountsModule {
         document.getElementById('account-filter-category').value = '';
         document.getElementById('account-filter-type').value = '';
         document.getElementById('account-filter-status').value = '';
-        document.getElementById('account-filter-date-from').value = '';
-        document.getElementById('account-filter-date-to').value = '';
+        clearDateValue('account-filter-date-from');
+        clearDateValue('account-filter-date-to');
         document.getElementById('account-filter-amount-min').value = '';
         document.getElementById('account-filter-amount-max').value = '';
         document.getElementById('account-filter-search').value = '';
@@ -1163,7 +1164,7 @@ export default class AccountsModule {
             // Set today's date as default
             const dateInput = document.getElementById('quick-add-date');
             if (dateInput) {
-                dateInput.value = formatters.getTodayDateString();
+                setDateValue(dateInput, formatters.getTodayDateString());
             }
         }
         // Hide message
@@ -1217,7 +1218,7 @@ export default class AccountsModule {
         // Set today's date as default
         const dateInput = document.getElementById('quick-add-date');
         if (dateInput && !dateInput.value) {
-            dateInput.value = formatters.getTodayDateString();
+            setDateValue(dateInput, formatters.getTodayDateString());
         }
     }
 
@@ -1504,7 +1505,7 @@ export default class AccountsModule {
             });
 
             document.getElementById('account-holder-name').value = account.accountHolderName || '';
-            document.getElementById('account-opening-date').value = account.openingDate || '';
+            setDateValue('account-opening-date', account.openingDate || '');
             document.getElementById('account-interest-rate').value = account.interestRate || '';
             document.getElementById('account-credit-limit').value = account.creditLimit || '';
             document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
@@ -1521,6 +1522,7 @@ export default class AccountsModule {
             return;
         }
         form.reset();
+        clearDateValue('account-opening-date');
 
         const accountId = document.getElementById('account-id');
         const currency = document.getElementById('account-currency');

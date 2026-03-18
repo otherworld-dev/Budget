@@ -5,6 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { setDateValue } from '../../utils/datepicker.js';
 
 export default class ReportsModule {
     constructor(app) {
@@ -118,10 +119,8 @@ export default class ReportsModule {
                 endDate = now;
         }
 
-        const startInput = document.getElementById('report-start-date');
-        const endInput = document.getElementById('report-end-date');
-        if (startInput) startInput.value = formatters.formatDateForAPI(startDate);
-        if (endInput) endInput.value = formatters.formatDateForAPI(endDate);
+        setDateValue('report-start-date', formatters.formatDateForAPI(startDate));
+        setDateValue('report-end-date', formatters.formatDateForAPI(endDate));
     }
 
     async loadReportsView() {
@@ -1019,7 +1018,7 @@ export default class ReportsModule {
             if (!response.ok) throw new Error('Export failed');
 
             const blob = await response.blob();
-            const filename = `${reportType}_report_${new Date().toISOString().split('T')[0]}.${format}`;
+            const filename = `${reportType}_report_${formatters.getTodayDateString()}.${format}`;
 
             // Trigger download
             const url = window.URL.createObjectURL(blob);

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { initDatePickers } from '../../utils/datepicker.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -119,6 +120,9 @@ export default class SettingsModule {
 
             // Update account form currency default if needed
             this.updateAccountFormDefaults(settings);
+
+            // Re-initialize date pickers with updated format
+            initDatePickers(this.app.settings);
 
             // Reload current view to apply setting changes (e.g., date format)
             if (this.app.reloadCurrentView) {

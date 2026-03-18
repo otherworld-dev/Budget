@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { setDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
 
 export default class PensionsModule {
@@ -628,7 +629,7 @@ export default class PensionsModule {
         const modal = document.getElementById('pension-balance-modal');
         document.getElementById('pension-balance-form').reset();
         document.getElementById('snapshot-pension-id').value = this.currentPension.id;
-        document.getElementById('snapshot-date').value = new Date().toISOString().split('T')[0];
+        setDateValue('snapshot-date', formatters.getTodayDateString());
 
         if (this.currentPension.currentBalance) {
             document.getElementById('snapshot-balance').value = this.currentPension.currentBalance;
@@ -680,7 +681,7 @@ export default class PensionsModule {
         const modal = document.getElementById('pension-contribution-modal');
         document.getElementById('pension-contribution-form').reset();
         document.getElementById('contribution-pension-id').value = this.currentPension.id;
-        document.getElementById('contribution-date').value = new Date().toISOString().split('T')[0];
+        setDateValue('contribution-date', formatters.getTodayDateString());
 
         modal.style.display = 'flex';
     }
