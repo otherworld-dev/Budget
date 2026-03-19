@@ -3420,7 +3420,7 @@ style('budget', 'budget-main');
                 <div class="panel-header">
                     <h3 id="asset-detail-name">Asset Details</h3>
                     <div class="panel-actions">
-                        <button id="asset-edit-btn" class="icon-button" title="Edit asset">
+                        <button id="asset-edit-detail-btn" class="icon-button" title="Edit asset">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
                         <button id="asset-close-btn" class="icon-button" title="Close">
