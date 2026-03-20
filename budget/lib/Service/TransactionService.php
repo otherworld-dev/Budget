@@ -115,14 +115,15 @@ class TransactionService {
     public function createFromBill(
         string $userId,
         Bill $bill,
-        ?string $transactionDate = null
+        ?string $transactionDate = null,
+        ?string $status = null
     ): Transaction {
         if (!$bill->getAccountId()) {
             throw new \Exception('Bill must have an account to create transaction');
         }
 
         $date = $transactionDate ?? $bill->getNextDueDate();
-        $status = ($date > date('Y-m-d')) ? 'scheduled' : 'cleared';
+        $status = $status ?? (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
 
         // Handle transfers - create paired transactions
         if ($bill->getIsTransfer()) {
