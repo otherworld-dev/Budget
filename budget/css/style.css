@@ -9380,6 +9380,17 @@ button.danger:hover {
     height: 12px;
 }
 
+.split-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    background: rgba(245, 127, 23, 0.12);
+    border-radius: 4px;
+    font-size: 11px;
+    color: #f57f17;
+    font-weight: 500;
+}
+
 /* Match button in actions column */
 .match-btn {
     background: none;

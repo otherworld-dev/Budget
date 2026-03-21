@@ -916,6 +916,10 @@ class BudgetApp {
             const linkedBadge = isLinked
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" title="Linked transfer - click to unlink">&#x1F517; Transfer</span>`
                 : '';
+            const isSplit = transaction.isSplit || transaction.is_split;
+            const splitBadge = isSplit
+                ? `<span class="split-indicator" title="Split transaction">Split</span>`
+                : '';
             const matchOption = !isLinked
                 ? `<option value="match">Match Transfer</option>`
                 : `<option value="unlink">Unlink Transfer</option>`;
@@ -941,6 +945,7 @@ class BudgetApp {
                             <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || 'No description'}</span>
                             ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
                             ${linkedBadge}
+                            ${splitBadge}
                         </div>
                     </td>
                     <td class="vendor-column editable-cell"
@@ -2776,6 +2781,13 @@ class BudgetApp {
             this.addSplitRow(splitsContainer, null, false);
         }
 
+        // Show/hide unsplit button and wire up handler
+        const unsplitBtn = document.getElementById('split-unsplit-btn');
+        if (unsplitBtn) {
+            unsplitBtn.style.display = isSplit ? '' : 'none';
+            unsplitBtn.onclick = () => this.unsplitTransaction();
+        }
+
         this.updateSplitRemaining();
         modal.style.display = 'flex';
     }
@@ -2824,7 +2836,14 @@ class BudgetApp {
         `;
 
         // Add event listeners
-        row.querySelector('.split-amount').addEventListener('input', () => this.updateSplitRemaining());
+        const amountInput = row.querySelector('.split-amount');
+        if (split && split.amount) {
+            amountInput.dataset.userEdited = 'true';
+        }
+        amountInput.addEventListener('input', () => {
+            amountInput.dataset.userEdited = 'true';
+            this.autoFillSplitRemaining(amountInput);
+        });
         row.querySelector('.split-remove-btn').addEventListener('click', (e) => {
             if (!e.currentTarget.classList.contains('disabled')) {
                 row.remove();
@@ -2871,6 +2890,39 @@ class BudgetApp {
             remainingEl.classList.toggle('over', remaining < -0.01);
             remainingEl.classList.toggle('balanced', Math.abs(remaining) < 0.01);
         }
+    }
+
+    /**
+     * Auto-fill remaining balance into the last non-edited split row
+     */
+    autoFillSplitRemaining(editedInput) {
+        const modal = document.getElementById('split-modal');
+        const totalAmount = parseFloat(modal?.dataset.totalAmount || 0);
+        const allInputs = Array.from(document.querySelectorAll('.split-amount'));
+
+        // Find the last input that wasn't manually edited by the user
+        // (excluding the one currently being edited)
+        let targetInput = null;
+        for (let i = allInputs.length - 1; i >= 0; i--) {
+            if (allInputs[i] !== editedInput && allInputs[i].dataset.userEdited !== 'true') {
+                targetInput = allInputs[i];
+                break;
+            }
+        }
+
+        if (targetInput) {
+            // Sum all manually-set amounts (excluding the auto-fill target)
+            const allocatedAmount = allInputs
+                .filter(input => input !== targetInput)
+                .reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+
+            const remaining = totalAmount - allocatedAmount;
+            if (remaining > 0) {
+                targetInput.value = remaining.toFixed(2);
+            }
+        }
+
+        this.updateSplitRemaining();
     }
 
     /**

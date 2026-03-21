@@ -47583,8 +47583,10 @@ var BudgetApp = /*#__PURE__*/function () {
         var formattedAmount = _this4.formatCurrency(transaction.amount, currency);
         var isLinked = transaction.linkedTransactionId != null;
         var linkedBadge = isLinked ? "<span class=\"linked-indicator\" data-transaction-id=\"".concat(transaction.id, "\" data-linked-id=\"").concat(transaction.linkedTransactionId, "\" title=\"Linked transfer - click to unlink\">&#x1F517; Transfer</span>") : '';
+        var isSplit = transaction.isSplit || transaction.is_split;
+        var splitBadge = isSplit ? "<span class=\"split-indicator\" title=\"Split transaction\">Split</span>" : '';
         var matchOption = !isLinked ? "<option value=\"match\">Match Transfer</option>" : "<option value=\"unlink\">Unlink Transfer</option>";
-        return "\n                <tr class=\"transaction-row ".concat(isLinked ? 'is-linked' : '', "\" data-transaction-id=\"").concat(transaction.id, "\">\n                    <td class=\"select-column\">\n                        <input type=\"checkbox\" class=\"transaction-checkbox\"\n                               data-transaction-id=\"").concat(transaction.id, "\"\n                               ").concat((_this4$transactionsMo = _this4.transactionsModule.selectedTransactions) !== null && _this4$transactionsMo !== void 0 && _this4$transactionsMo.has(transaction.id) ? 'checked' : '', ">\n                    </td>\n                    <td class=\"date-column editable-cell\"\n                        data-field=\"date\"\n                        data-value=\"").concat(transaction.date, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.formatDate(transaction.date), "</span>\n                    </td>\n                    <td class=\"description-column editable-cell\"\n                        data-field=\"description\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.description), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <div class=\"transaction-description\">\n                            <span class=\"primary-text cell-display\">").concat(_this4.escapeHtml(transaction.description) || 'No description', "</span>\n                            ").concat(transaction.reference ? "<span class=\"secondary-text\">".concat(_this4.escapeHtml(transaction.reference), "</span>") : '', "\n                            ").concat(linkedBadge, "\n                        </div>\n                    </td>\n                    <td class=\"vendor-column editable-cell\"\n                        data-field=\"vendor\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.vendor || ''), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.escapeHtml(transaction.vendor) || '-', "</span>\n                    </td>\n                    <td class=\"category-column editable-cell\"\n                        data-field=\"categoryId\"\n                        data-value=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"category-badge cell-display ").concat(category ? 'categorized' : 'uncategorized', "\">\n                            ").concat(category ? _this4.escapeHtml(category.name) : 'Uncategorized', "\n                        </span>\n                    </td>\n                    <td class=\"tags-column editable-cell\"\n                        data-field=\"tags\"\n                        data-value=\"").concat(_this4.getTransactionTagIds(transaction.id).join(','), "\"\n                        data-category-id=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">\n                            ").concat(_this4.renderTransactionTags(transaction.id), "\n                        </span>\n                    </td>\n                    <td class=\"amount-column editable-cell\"\n                        data-field=\"amount\"\n                        data-value=\"").concat(transaction.amount, "\"\n                        data-type=\"").concat(transaction.type, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"amount cell-display ").concat(typeClass, "\">").concat(formattedAmount, "</span>\n                    </td>\n                    <td class=\"account-column editable-cell\"\n                        data-field=\"accountId\"\n                        data-value=\"").concat(transaction.accountId, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"account-name cell-display\">").concat(account ? _this4.escapeHtml(account.name) : 'Unknown Account', "</span>\n                    </td>\n                    <td class=\"actions-column\">\n                        <div class=\"transaction-actions\">\n                            <button class=\"action-btn more-actions-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"More actions\">\n                                <span aria-hidden=\"true\">&#x22EE;</span>\n                            </button>\n                            <button class=\"action-btn edit-btn transaction-edit-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"Edit transaction\">\n                                <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                            </button>\n                            <button class=\"action-btn delete-btn transaction-delete-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"Delete transaction\">\n                                <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                            </button>\n                        </div>\n                    </td>\n                </tr>\n            ");
+        return "\n                <tr class=\"transaction-row ".concat(isLinked ? 'is-linked' : '', "\" data-transaction-id=\"").concat(transaction.id, "\">\n                    <td class=\"select-column\">\n                        <input type=\"checkbox\" class=\"transaction-checkbox\"\n                               data-transaction-id=\"").concat(transaction.id, "\"\n                               ").concat((_this4$transactionsMo = _this4.transactionsModule.selectedTransactions) !== null && _this4$transactionsMo !== void 0 && _this4$transactionsMo.has(transaction.id) ? 'checked' : '', ">\n                    </td>\n                    <td class=\"date-column editable-cell\"\n                        data-field=\"date\"\n                        data-value=\"").concat(transaction.date, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.formatDate(transaction.date), "</span>\n                    </td>\n                    <td class=\"description-column editable-cell\"\n                        data-field=\"description\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.description), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <div class=\"transaction-description\">\n                            <span class=\"primary-text cell-display\">").concat(_this4.escapeHtml(transaction.description) || 'No description', "</span>\n                            ").concat(transaction.reference ? "<span class=\"secondary-text\">".concat(_this4.escapeHtml(transaction.reference), "</span>") : '', "\n                            ").concat(linkedBadge, "\n                            ").concat(splitBadge, "\n                        </div>\n                    </td>\n                    <td class=\"vendor-column editable-cell\"\n                        data-field=\"vendor\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.vendor || ''), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.escapeHtml(transaction.vendor) || '-', "</span>\n                    </td>\n                    <td class=\"category-column editable-cell\"\n                        data-field=\"categoryId\"\n                        data-value=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"category-badge cell-display ").concat(category ? 'categorized' : 'uncategorized', "\">\n                            ").concat(category ? _this4.escapeHtml(category.name) : 'Uncategorized', "\n                        </span>\n                    </td>\n                    <td class=\"tags-column editable-cell\"\n                        data-field=\"tags\"\n                        data-value=\"").concat(_this4.getTransactionTagIds(transaction.id).join(','), "\"\n                        data-category-id=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">\n                            ").concat(_this4.renderTransactionTags(transaction.id), "\n                        </span>\n                    </td>\n                    <td class=\"amount-column editable-cell\"\n                        data-field=\"amount\"\n                        data-value=\"").concat(transaction.amount, "\"\n                        data-type=\"").concat(transaction.type, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"amount cell-display ").concat(typeClass, "\">").concat(formattedAmount, "</span>\n                    </td>\n                    <td class=\"account-column editable-cell\"\n                        data-field=\"accountId\"\n                        data-value=\"").concat(transaction.accountId, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"account-name cell-display\">").concat(account ? _this4.escapeHtml(account.name) : 'Unknown Account', "</span>\n                    </td>\n                    <td class=\"actions-column\">\n                        <div class=\"transaction-actions\">\n                            <button class=\"action-btn more-actions-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"More actions\">\n                                <span aria-hidden=\"true\">&#x22EE;</span>\n                            </button>\n                            <button class=\"action-btn edit-btn transaction-edit-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"Edit transaction\">\n                                <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                            </button>\n                            <button class=\"action-btn delete-btn transaction-delete-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"Delete transaction\">\n                                <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                            </button>\n                        </div>\n                    </td>\n                </tr>\n            ");
       }).join('');
     }
 
@@ -47786,8 +47788,13 @@ var BudgetApp = /*#__PURE__*/function () {
       row.innerHTML = "\n            <div class=\"split-field split-amount-field\">\n                <label>Amount</label>\n                <input type=\"number\" class=\"split-amount\" step=\"0.01\" min=\"0.01\"\n                       value=\"".concat(split ? split.amount : '', "\" placeholder=\"0.00\" required>\n            </div>\n            <div class=\"split-field split-category-field\">\n                <label>Category</label>\n                <select class=\"split-category\">\n                    <option value=\"\">Uncategorized</option>\n                    ").concat(this.getCategoryOptions(split === null || split === void 0 ? void 0 : split.categoryId, transactionType), "\n                </select>\n            </div>\n            <div class=\"split-field split-description-field\">\n                <label>Description</label>\n                <input type=\"text\" class=\"split-description\" maxlength=\"255\"\n                       value=\"").concat((split === null || split === void 0 ? void 0 : split.description) || '', "\" placeholder=\"Optional note\">\n            </div>\n            <div class=\"split-actions\">\n                <button type=\"button\" class=\"split-remove-btn ").concat(isFirst ? 'disabled' : '', "\"\n                        ").concat(isFirst ? 'disabled' : '', " title=\"Remove split\">\n                    <span class=\"icon-delete\"></span>\n                </button>\n            </div>\n        ");
 
       // Add event listeners
-      row.querySelector('.split-amount').addEventListener('input', function () {
-        return _this6.updateSplitRemaining();
+      var amountInput = row.querySelector('.split-amount');
+      if (split && split.amount) {
+        amountInput.dataset.userEdited = 'true';
+      }
+      amountInput.addEventListener('input', function () {
+        amountInput.dataset.userEdited = 'true';
+        _this6.autoFillSplitRemaining(amountInput);
       });
       row.querySelector('.split-remove-btn').addEventListener('click', function (e) {
         if (!e.currentTarget.classList.contains('disabled')) {
@@ -50097,7 +50104,7 @@ var BudgetApp = /*#__PURE__*/function () {
         var _this$transactions5,
           _this$accounts2,
           _this19 = this;
-        var transaction, modal, isSplit, titleEl, transactionInfoEl, splitsContainer, account, currency, splits, _t22;
+        var transaction, modal, isSplit, titleEl, transactionInfoEl, splitsContainer, account, currency, splits, unsplitBtn, _t22;
         return _regenerator().w(function (_context64) {
           while (1) switch (_context64.p = _context64.n) {
             case 0:
@@ -50168,6 +50175,14 @@ var BudgetApp = /*#__PURE__*/function () {
               this.addSplitRow(splitsContainer, null, true);
               this.addSplitRow(splitsContainer, null, false);
             case 8:
+              // Show/hide unsplit button and wire up handler
+              unsplitBtn = document.getElementById('split-unsplit-btn');
+              if (unsplitBtn) {
+                unsplitBtn.style.display = isSplit ? '' : 'none';
+                unsplitBtn.onclick = function () {
+                  return _this19.unsplitTransaction();
+                };
+              }
               this.updateSplitRemaining();
               modal.style.display = 'flex';
             case 9:
@@ -50218,6 +50233,40 @@ var BudgetApp = /*#__PURE__*/function () {
         remainingEl.classList.toggle('over', remaining < -0.01);
         remainingEl.classList.toggle('balanced', Math.abs(remaining) < 0.01);
       }
+    }
+
+    /**
+     * Auto-fill remaining balance into the last non-edited split row
+     */
+  }, {
+    key: "autoFillSplitRemaining",
+    value: function autoFillSplitRemaining(editedInput) {
+      var modal = document.getElementById('split-modal');
+      var totalAmount = parseFloat((modal === null || modal === void 0 ? void 0 : modal.dataset.totalAmount) || 0);
+      var allInputs = Array.from(document.querySelectorAll('.split-amount'));
+
+      // Find the last input that wasn't manually edited by the user
+      // (excluding the one currently being edited)
+      var targetInput = null;
+      for (var i = allInputs.length - 1; i >= 0; i--) {
+        if (allInputs[i] !== editedInput && allInputs[i].dataset.userEdited !== 'true') {
+          targetInput = allInputs[i];
+          break;
+        }
+      }
+      if (targetInput) {
+        // Sum all manually-set amounts (excluding the auto-fill target)
+        var allocatedAmount = allInputs.filter(function (input) {
+          return input !== targetInput;
+        }).reduce(function (sum, input) {
+          return sum + (parseFloat(input.value) || 0);
+        }, 0);
+        var remaining = totalAmount - allocatedAmount;
+        if (remaining > 0) {
+          targetInput.value = remaining.toFixed(2);
+        }
+      }
+      this.updateSplitRemaining();
     }
   }, {
     key: "saveSplits",
