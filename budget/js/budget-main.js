@@ -25211,7 +25211,7 @@ var CategoriesModule = /*#__PURE__*/function () {
       var goToCategoriesBtn = document.getElementById('empty-budget-go-categories-btn');
       if (goToCategoriesBtn) {
         goToCategoriesBtn.addEventListener('click', function () {
-          _this1.app.navigateTo('categories');
+          _this1.app.router.showView('categories');
         });
       }
     }
@@ -40163,6 +40163,19 @@ var TagSetsModule = /*#__PURE__*/function () {
         });
       });
 
+      // Edit Tag Set buttons
+      document.querySelectorAll('.edit-tag-set-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var tagSetId = parseInt(btn.dataset.tagSetId);
+          var tagSet = _this4.selectedCategoryTagSets.find(function (ts) {
+            return ts.id === tagSetId;
+          });
+          if (tagSet) {
+            _this4.showEditTagSetModal(tagSet, categoryId);
+          }
+        });
+      });
+
       // Delete Tag Set buttons
       document.querySelectorAll('.delete-tag-set-btn').forEach(function (btn) {
         btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
@@ -40282,13 +40295,129 @@ var TagSetsModule = /*#__PURE__*/function () {
       return saveTagSet;
     }()
     /**
+     * Update an existing tag set
+     */
+    )
+  }, {
+    key: "updateTagSet",
+    value: (function () {
+      var _updateTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(tagSetId, name, description) {
+        var response;
+        return _regenerator().w(function (_context18) {
+          while (1) switch (_context18.n) {
+            case 0:
+              _context18.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/tag-sets/".concat(tagSetId)), {
+                method: 'PUT',
+                headers: {
+                  'requesttoken': OC.requestToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  name: name,
+                  description: description || null
+                })
+              });
+            case 1:
+              response = _context18.v;
+              if (response.ok) {
+                _context18.n = 2;
+                break;
+              }
+              throw new Error('Failed to update tag set');
+            case 2:
+              _context18.n = 3;
+              return response.json();
+            case 3:
+              return _context18.a(2, _context18.v);
+          }
+        }, _callee18);
+      }));
+      function updateTagSet(_x18, _x19, _x20) {
+        return _updateTagSet.apply(this, arguments);
+      }
+      return updateTagSet;
+    }()
+    /**
+     * Show modal for editing a tag set
+     */
+    )
+  }, {
+    key: "showEditTagSetModal",
+    value: function showEditTagSetModal(tagSet, categoryId) {
+      var _this5 = this;
+      var modal = document.getElementById('edit-tag-set-modal');
+      if (!modal) {
+        console.error('Edit tag set modal not found');
+        return;
+      }
+      document.getElementById('edit-tag-set-id').value = tagSet.id;
+      document.getElementById('edit-tag-set-category-id').value = categoryId;
+      document.getElementById('edit-tag-set-name').value = tagSet.name;
+      document.getElementById('edit-tag-set-description').value = tagSet.description || '';
+      modal.style.display = 'flex';
+
+      // Setup form submission (remove old listener first)
+      var form = document.getElementById('edit-tag-set-form');
+      if (form) {
+        var newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+        newForm.addEventListener('submit', function (e) {
+          return _this5.saveEditTagSet(e);
+        });
+      }
+    }
+
+    /**
+     * Save edited tag set from the modal form
+     */
+  }, {
+    key: "saveEditTagSet",
+    value: (function () {
+      var _saveEditTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(e) {
+        var tagSetId, categoryId, name, description, _t10;
+        return _regenerator().w(function (_context19) {
+          while (1) switch (_context19.p = _context19.n) {
+            case 0:
+              e.preventDefault();
+              tagSetId = parseInt(document.getElementById('edit-tag-set-id').value);
+              categoryId = parseInt(document.getElementById('edit-tag-set-category-id').value);
+              name = document.getElementById('edit-tag-set-name').value;
+              description = document.getElementById('edit-tag-set-description').value;
+              _context19.p = 1;
+              _context19.n = 2;
+              return this.updateTagSet(tagSetId, name, description);
+            case 2:
+              this.hideModals();
+              _context19.n = 3;
+              return this.renderCategoryTagSetsList(categoryId);
+            case 3:
+              this.showNotification('Tag set updated successfully', 'success');
+              _context19.n = 5;
+              break;
+            case 4:
+              _context19.p = 4;
+              _t10 = _context19.v;
+              console.error('Failed to update tag set:', _t10);
+              this.showNotification('Failed to update tag set', 'error');
+            case 5:
+              return _context19.a(2);
+          }
+        }, _callee19, this, [[1, 4]]);
+      }));
+      function saveEditTagSet(_x21) {
+        return _saveEditTagSet.apply(this, arguments);
+      }
+      return saveEditTagSet;
+    }()
+    /**
      * Show modal for adding tag set
      */
     )
   }, {
     key: "showAddTagSetModal",
     value: function showAddTagSetModal(categoryId) {
-      var _this5 = this;
+      var _this6 = this;
       var modal = document.getElementById('add-tag-set-modal');
       if (!modal) {
         console.error('Add tag set modal not found');
@@ -40314,7 +40443,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
         newForm.addEventListener('submit', function (e) {
-          return _this5.saveTagSet(e);
+          return _this6.saveTagSet(e);
         });
       }
     }
@@ -40325,79 +40454,79 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "loadAllTransactionTags",
     value: (function () {
-      var _loadAllTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
-        var _this6 = this;
-        var tagPromises, results, _t10;
-        return _regenerator().w(function (_context19) {
-          while (1) switch (_context19.p = _context19.n) {
+      var _loadAllTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
+        var _this7 = this;
+        var tagPromises, results, _t11;
+        return _regenerator().w(function (_context21) {
+          while (1) switch (_context21.p = _context21.n) {
             case 0:
               if (!(!this.transactions || this.transactions.length === 0)) {
-                _context19.n = 1;
+                _context21.n = 1;
                 break;
               }
               this.transactionTags = {};
-              return _context19.a(2);
+              return _context21.a(2);
             case 1:
-              _context19.p = 1;
+              _context21.p = 1;
               // Load tags for each transaction
               tagPromises = this.transactions.map(/*#__PURE__*/function () {
-                var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(transaction) {
+                var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(transaction) {
                   var response, tags;
-                  return _regenerator().w(function (_context18) {
-                    while (1) switch (_context18.n) {
+                  return _regenerator().w(function (_context20) {
+                    while (1) switch (_context20.n) {
                       case 0:
-                        _context18.n = 1;
+                        _context20.n = 1;
                         return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transaction.id, "/tags")), {
                           headers: {
                             'requesttoken': OC.requestToken
                           }
                         });
                       case 1:
-                        response = _context18.v;
+                        response = _context20.v;
                         if (!response.ok) {
-                          _context18.n = 3;
+                          _context20.n = 3;
                           break;
                         }
-                        _context18.n = 2;
+                        _context20.n = 2;
                         return response.json();
                       case 2:
-                        tags = _context18.v;
-                        return _context18.a(2, {
+                        tags = _context20.v;
+                        return _context20.a(2, {
                           transactionId: transaction.id,
                           tags: Array.isArray(tags) ? tags : []
                         });
                       case 3:
-                        return _context18.a(2, {
+                        return _context20.a(2, {
                           transactionId: transaction.id,
                           tags: []
                         });
                     }
-                  }, _callee18);
+                  }, _callee20);
                 }));
-                return function (_x18) {
+                return function (_x22) {
                   return _ref8.apply(this, arguments);
                 };
               }());
-              _context19.n = 2;
+              _context21.n = 2;
               return Promise.all(tagPromises);
             case 2:
-              results = _context19.v;
+              results = _context21.v;
               // Store tags by transaction ID
               this.transactionTags = {};
               results.forEach(function (result) {
-                _this6.transactionTags[result.transactionId] = result.tags;
+                _this7.transactionTags[result.transactionId] = result.tags;
               });
-              _context19.n = 4;
+              _context21.n = 4;
               break;
             case 3:
-              _context19.p = 3;
-              _t10 = _context19.v;
-              console.error('Failed to load transaction tags:', _t10);
+              _context21.p = 3;
+              _t11 = _context21.v;
+              console.error('Failed to load transaction tags:', _t11);
               this.transactionTags = {};
             case 4:
-              return _context19.a(2);
+              return _context21.a(2);
           }
-        }, _callee19, this, [[1, 3]]);
+        }, _callee21, this, [[1, 3]]);
       }));
       function loadAllTransactionTags() {
         return _loadAllTransactionTags.apply(this, arguments);
@@ -40411,7 +40540,7 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "showAddTagModal",
     value: function showAddTagModal(tagSetId, categoryId) {
-      var _this7 = this;
+      var _this8 = this;
       var modal = document.getElementById('add-tag-modal');
       if (!modal) {
         console.error('Add tag modal not found');
@@ -40437,7 +40566,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
         newForm.addEventListener('submit', function (e) {
-          return _this7.saveTag(e);
+          return _this8.saveTag(e);
         });
       }
     }
@@ -40448,73 +40577,75 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTag",
     value: (function () {
-      var _saveTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(e) {
-        var tagSetId, categoryId, name, color, _t11;
-        return _regenerator().w(function (_context20) {
-          while (1) switch (_context20.p = _context20.n) {
+      var _saveTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(e) {
+        var tagSetId, categoryId, name, color, _t12;
+        return _regenerator().w(function (_context22) {
+          while (1) switch (_context22.p = _context22.n) {
             case 0:
               e.preventDefault();
               tagSetId = parseInt(document.getElementById('tag-set-id').value);
               categoryId = parseInt(document.getElementById('tag-category-id').value);
               name = document.getElementById('tag-name').value;
               color = document.getElementById('tag-color').value;
-              _context20.p = 1;
-              _context20.n = 2;
+              _context22.p = 1;
+              _context22.n = 2;
               return this.createTag(tagSetId, name, color);
             case 2:
               this.hideModals();
-              _context20.n = 3;
+              _context22.n = 3;
               return this.renderCategoryTagSetsList(categoryId);
             case 3:
               this.showNotification('Tag created successfully', 'success');
-              _context20.n = 5;
+              _context22.n = 5;
               break;
             case 4:
-              _context20.p = 4;
-              _t11 = _context20.v;
-              console.error('Failed to create tag:', _t11);
+              _context22.p = 4;
+              _t12 = _context22.v;
+              console.error('Failed to create tag:', _t12);
               this.showNotification('Failed to create tag', 'error');
             case 5:
-              return _context20.a(2);
+              return _context22.a(2);
           }
-        }, _callee20, this, [[1, 4]]);
+        }, _callee22, this, [[1, 4]]);
       }));
-      function saveTag(_x19) {
+      function saveTag(_x23) {
         return _saveTag.apply(this, arguments);
       }
       return saveTag;
     }()
     /**
-     * Setup event listeners for add tag modal
+     * Setup event listeners for tag modals
      */
     )
   }, {
     key: "setupAddTagModalListeners",
     value: function setupAddTagModalListeners() {
-      var _this8 = this;
+      var _this9 = this;
       var form = document.getElementById('add-tag-form');
       if (form) {
         form.addEventListener('submit', function (e) {
-          return _this8.saveTag(e);
+          return _this9.saveTag(e);
         });
       }
 
-      // Cancel buttons
-      document.querySelectorAll('.cancel-tag-btn').forEach(function (btn) {
+      // Cancel buttons for all tag modals
+      document.querySelectorAll('.cancel-tag-btn, .cancel-tag-set-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          return _this8.hideModals();
+          return _this9.hideModals();
         });
       });
 
-      // Close on background click
-      var modal = document.getElementById('add-tag-modal');
-      if (modal) {
-        modal.addEventListener('click', function (e) {
-          if (e.target === modal) {
-            _this8.hideModals();
-          }
-        });
-      }
+      // Close on background click for all tag modals
+      ['add-tag-modal', 'add-tag-set-modal', 'edit-tag-set-modal'].forEach(function (modalId) {
+        var modal = document.getElementById(modalId);
+        if (modal) {
+          modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+              _this9.hideModals();
+            }
+          });
+        }
+      });
     }
 
     // Delegate helper methods to app

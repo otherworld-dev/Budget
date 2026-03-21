@@ -5193,6 +5193,31 @@ style('budget', 'budget-main');
     </div>
 </div>
 
+<!-- Edit Tag Set Modal -->
+<div id="edit-tag-set-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Edit Tag Set</h3>
+        </div>
+        <form id="edit-tag-set-form" class="modal-form">
+            <input type="hidden" id="edit-tag-set-id" name="tagSetId">
+            <input type="hidden" id="edit-tag-set-category-id" name="categoryId">
+            <div class="form-group">
+                <label for="edit-tag-set-name">Tag Set Name *</label>
+                <input type="text" id="edit-tag-set-name" name="name" required placeholder="e.g., Activity, Equipment, Location">
+            </div>
+            <div class="form-group">
+                <label for="edit-tag-set-description">Description</label>
+                <input type="text" id="edit-tag-set-description" name="description" placeholder="Optional description">
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="primary">Save Changes</button>
+                <button type="button" class="secondary cancel-tag-set-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Transaction Matching Modal -->
 <div id="matching-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="matching-modal-title" aria-hidden="true">
     <div class="modal-content modal-wide">

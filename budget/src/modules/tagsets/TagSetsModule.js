@@ -519,6 +519,17 @@ export default class TagSetsModule {
             });
         });
 
+        // Edit Tag Set buttons
+        document.querySelectorAll('.edit-tag-set-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tagSetId = parseInt(btn.dataset.tagSetId);
+                const tagSet = this.selectedCategoryTagSets.find(ts => ts.id === tagSetId);
+                if (tagSet) {
+                    this.showEditTagSetModal(tagSet, categoryId);
+                }
+            });
+        });
+
         // Delete Tag Set buttons
         document.querySelectorAll('.delete-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -577,6 +588,74 @@ export default class TagSetsModule {
         } catch (error) {
             console.error('Failed to create tag set:', error);
             this.showNotification('Failed to create tag set', 'error');
+        }
+    }
+
+    /**
+     * Update an existing tag set
+     */
+    async updateTagSet(tagSetId, name, description) {
+        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}`), {
+            method: 'PUT',
+            headers: {
+                'requesttoken': OC.requestToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, description: description || null })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update tag set');
+        }
+
+        return await response.json();
+    }
+
+    /**
+     * Show modal for editing a tag set
+     */
+    showEditTagSetModal(tagSet, categoryId) {
+        const modal = document.getElementById('edit-tag-set-modal');
+        if (!modal) {
+            console.error('Edit tag set modal not found');
+            return;
+        }
+
+        document.getElementById('edit-tag-set-id').value = tagSet.id;
+        document.getElementById('edit-tag-set-category-id').value = categoryId;
+        document.getElementById('edit-tag-set-name').value = tagSet.name;
+        document.getElementById('edit-tag-set-description').value = tagSet.description || '';
+
+        modal.style.display = 'flex';
+
+        // Setup form submission (remove old listener first)
+        const form = document.getElementById('edit-tag-set-form');
+        if (form) {
+            const newForm = form.cloneNode(true);
+            form.parentNode.replaceChild(newForm, form);
+            newForm.addEventListener('submit', (e) => this.saveEditTagSet(e));
+        }
+    }
+
+    /**
+     * Save edited tag set from the modal form
+     */
+    async saveEditTagSet(e) {
+        e.preventDefault();
+
+        const tagSetId = parseInt(document.getElementById('edit-tag-set-id').value);
+        const categoryId = parseInt(document.getElementById('edit-tag-set-category-id').value);
+        const name = document.getElementById('edit-tag-set-name').value;
+        const description = document.getElementById('edit-tag-set-description').value;
+
+        try {
+            await this.updateTagSet(tagSetId, name, description);
+            this.hideModals();
+            await this.renderCategoryTagSetsList(categoryId);
+            this.showNotification('Tag set updated successfully', 'success');
+        } catch (error) {
+            console.error('Failed to update tag set:', error);
+            this.showNotification('Failed to update tag set', 'error');
         }
     }
 
@@ -713,7 +792,7 @@ export default class TagSetsModule {
     }
 
     /**
-     * Setup event listeners for add tag modal
+     * Setup event listeners for tag modals
      */
     setupAddTagModalListeners() {
         const form = document.getElementById('add-tag-form');
@@ -721,20 +800,22 @@ export default class TagSetsModule {
             form.addEventListener('submit', (e) => this.saveTag(e));
         }
 
-        // Cancel buttons
-        document.querySelectorAll('.cancel-tag-btn').forEach(btn => {
+        // Cancel buttons for all tag modals
+        document.querySelectorAll('.cancel-tag-btn, .cancel-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', () => this.hideModals());
         });
 
-        // Close on background click
-        const modal = document.getElementById('add-tag-modal');
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.hideModals();
-                }
-            });
-        }
+        // Close on background click for all tag modals
+        ['add-tag-modal', 'add-tag-set-modal', 'edit-tag-set-modal'].forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        this.hideModals();
+                    }
+                });
+            }
+        });
     }
 
     // Delegate helper methods to app

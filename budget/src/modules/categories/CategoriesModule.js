@@ -1109,7 +1109,7 @@ export default class CategoriesModule {
         const goToCategoriesBtn = document.getElementById('empty-budget-go-categories-btn');
         if (goToCategoriesBtn) {
             goToCategoriesBtn.addEventListener('click', () => {
-                this.app.navigateTo('categories');
+                this.app.router.showView('categories');
             });
         }
     }
