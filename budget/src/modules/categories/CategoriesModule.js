@@ -3,6 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import Chart from 'chart.js/auto';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -16,6 +17,7 @@ export default class CategoriesModule {
         this.budgetEventListenersSetup = false;
         this.categoryEventListenersSetup = false;
         this.categorySpending = {};
+        this.categoryChart = null;
     }
 
     // State proxies
@@ -483,6 +485,9 @@ export default class CategoriesModule {
         // Load and display analytics
         await this.loadCategoryAnalytics(category.id);
         await this.loadCategoryTransactions(category.id);
+
+        // Render spending chart
+        this.renderCategorySpendingChart(category.id);
     }
 
     updateCategoryOverview(category) {
@@ -534,6 +539,19 @@ export default class CategoriesModule {
 
         const trendEl = document.getElementById('category-trend');
         if (trendEl) trendEl.textContent = trend;
+
+        // Total spent in overview
+        const totalSpentEl = document.getElementById('category-total-spent-value');
+        if (totalSpentEl) totalSpentEl.textContent = this.formatCurrency(totalAmount);
+
+        // This month spending
+        const now = new Date();
+        const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const thisMonthTotal = categoryTransactions
+            .filter(t => t.date && t.date.startsWith(thisMonthKey))
+            .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
+        const thisMonthEl = document.getElementById('category-this-month');
+        if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(thisMonthTotal);
     }
 
     async loadCategoryTransactions(categoryId) {
@@ -564,12 +582,70 @@ export default class CategoriesModule {
         }
     }
 
+    renderCategorySpendingChart(categoryId) {
+        const canvas = document.getElementById('category-spending-chart');
+        if (!canvas) return;
+
+        if (this.categoryChart) {
+            this.categoryChart.destroy();
+            this.categoryChart = null;
+        }
+
+        const transactions = this.getCategoryTransactions(categoryId);
+
+        // Group by month (last 6 months)
+        const now = new Date();
+        const months = [];
+        const amounts = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = d.toLocaleDateString(undefined, { month: 'short' });
+            const monthTotal = transactions
+                .filter(t => t.date && t.date.startsWith(key))
+                .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
+            months.push(label);
+            amounts.push(monthTotal);
+        }
+
+        const chartColor = this.selectedCategory?.color || 'rgba(54, 162, 235, 0.7)';
+        const ctx = canvas.getContext('2d');
+        this.categoryChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [{
+                    data: amounts,
+                    backgroundColor: chartColor,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => this.formatCurrency(v) }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
     showCategoryDetailsEmpty() {
         const contentEl = document.getElementById('category-details-content');
         const emptyEl = document.getElementById('category-details-empty');
 
         if (contentEl) contentEl.style.display = 'none';
         if (emptyEl) emptyEl.style.display = 'flex';
+
+        if (this.categoryChart) {
+            this.categoryChart.destroy();
+            this.categoryChart = null;
+        }
     }
 
     toggleCategoryExpanded(categoryId) {

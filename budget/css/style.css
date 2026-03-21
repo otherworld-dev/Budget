@@ -4732,7 +4732,7 @@ button.danger:hover {
 
 .analytics-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
 }
 
@@ -4740,26 +4740,13 @@ button.danger:hover {
     background: var(--color-background-hover);
     border: 1px solid var(--color-border-dark);
     border-radius: 8px;
-    padding: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    padding: 12px 16px;
+    text-align: center;
+    transition: background-color 0.2s ease;
 }
 
-.analytics-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--color-primary-light);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.analytics-icon span {
-    font-size: 14px;
-    color: var(--color-primary);
+.analytics-card:hover {
+    background: var(--color-background-dark);
 }
 
 .analytics-content {
@@ -4778,6 +4765,78 @@ button.danger:hover {
     color: var(--color-text-lighter);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Category Total Spent */
+.category-total-spent {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.total-spent-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.total-spent-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-main-text);
+}
+
+/* Category Spending Chart */
+.category-chart-section h5 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-chart-container {
+    height: 200px;
+    position: relative;
+}
+
+/* Tag Sets Section */
+.category-tag-sets-section {
+    margin-bottom: 20px;
+}
+
+.category-tag-sets-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.category-tag-sets-section .section-header h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.category-tag-sets-section .section-header .primary.small {
+    padding: 4px 8px;
+    font-size: 12px;
+    height: auto;
+}
+
+.category-tag-sets-section .empty-state p {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin: 8px 0;
+}
+
+/* Section Dividers */
+.category-details-content > div + div {
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
 }
 
 /* Empty States */
@@ -4874,6 +4933,19 @@ button.danger:hover {
     .budget-overview {
         grid-template-columns: 1fr;
         gap: 12px;
+    }
+
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .category-overview {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .category-total-spent {
+        text-align: center;
     }
 }
 

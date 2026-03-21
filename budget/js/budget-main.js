@@ -23722,6 +23722,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/formatters.js */ "./src/utils/formatters.js");
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
+/* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regeneratorValues(e) { if (null != e) { var t = e["function" == typeof Symbol && Symbol.iterator || "@@iterator"], r = 0; if (t) return t.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) return { next: function next() { return e && r >= e.length && (e = void 0), { value: e && e[r++], done: !e }; } }; } throw new TypeError(_typeof(e) + " is not iterable"); }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -23749,6 +23750,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  */
 
 
+
 var CategoriesModule = /*#__PURE__*/function () {
   function CategoriesModule(app) {
     _classCallCheck(this, CategoriesModule);
@@ -23762,6 +23764,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     this.budgetEventListenersSetup = false;
     this.categoryEventListenersSetup = false;
     this.categorySpending = {};
+    this.categoryChart = null;
   }
 
   // State proxies
@@ -24291,6 +24294,9 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context3.n = 3;
               return this.loadCategoryTransactions(category.id);
             case 3:
+              // Render spending chart
+              this.renderCategorySpendingChart(category.id);
+            case 4:
               return _context3.a(2);
           }
         }, _callee3, this);
@@ -24363,6 +24369,21 @@ var CategoriesModule = /*#__PURE__*/function () {
       if (avgEl) avgEl.textContent = this.formatCurrency(avgAmount);
       var trendEl = document.getElementById('category-trend');
       if (trendEl) trendEl.textContent = trend;
+
+      // Total spent in overview
+      var totalSpentEl = document.getElementById('category-total-spent-value');
+      if (totalSpentEl) totalSpentEl.textContent = this.formatCurrency(totalAmount);
+
+      // This month spending
+      var now = new Date();
+      var thisMonthKey = "".concat(now.getFullYear(), "-").concat(String(now.getMonth() + 1).padStart(2, '0'));
+      var thisMonthTotal = categoryTransactions.filter(function (t) {
+        return t.date && t.date.startsWith(thisMonthKey);
+      }).reduce(function (sum, t) {
+        return sum + Math.abs(parseFloat(t.amount) || 0);
+      }, 0);
+      var thisMonthEl = document.getElementById('category-this-month');
+      if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(thisMonthTotal);
     }
   }, {
     key: "loadCategoryTransactions",
@@ -24410,12 +24431,88 @@ var CategoriesModule = /*#__PURE__*/function () {
       return loadCategoryTransactions;
     }()
   }, {
+    key: "renderCategorySpendingChart",
+    value: function renderCategorySpendingChart(categoryId) {
+      var _this$selectedCategor,
+        _this8 = this;
+      var canvas = document.getElementById('category-spending-chart');
+      if (!canvas) return;
+      if (this.categoryChart) {
+        this.categoryChart.destroy();
+        this.categoryChart = null;
+      }
+      var transactions = this.getCategoryTransactions(categoryId);
+
+      // Group by month (last 6 months)
+      var now = new Date();
+      var months = [];
+      var amounts = [];
+      var _loop = function _loop() {
+        var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        var key = "".concat(d.getFullYear(), "-").concat(String(d.getMonth() + 1).padStart(2, '0'));
+        var label = d.toLocaleDateString(undefined, {
+          month: 'short'
+        });
+        var monthTotal = transactions.filter(function (t) {
+          return t.date && t.date.startsWith(key);
+        }).reduce(function (sum, t) {
+          return sum + Math.abs(parseFloat(t.amount) || 0);
+        }, 0);
+        months.push(label);
+        amounts.push(monthTotal);
+      };
+      for (var i = 5; i >= 0; i--) {
+        _loop();
+      }
+      var chartColor = ((_this$selectedCategor = this.selectedCategory) === null || _this$selectedCategor === void 0 ? void 0 : _this$selectedCategor.color) || 'rgba(54, 162, 235, 0.7)';
+      var ctx = canvas.getContext('2d');
+      this.categoryChart = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
+        type: 'bar',
+        data: {
+          labels: months,
+          datasets: [{
+            data: amounts,
+            backgroundColor: chartColor,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function callback(v) {
+                  return _this8.formatCurrency(v);
+                }
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+  }, {
     key: "showCategoryDetailsEmpty",
     value: function showCategoryDetailsEmpty() {
       var contentEl = document.getElementById('category-details-content');
       var emptyEl = document.getElementById('category-details-empty');
       if (contentEl) contentEl.style.display = 'none';
       if (emptyEl) emptyEl.style.display = 'flex';
+      if (this.categoryChart) {
+        this.categoryChart.destroy();
+        this.categoryChart = null;
+      }
     }
   }, {
     key: "toggleCategoryExpanded",
@@ -24431,11 +24528,11 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "expandAllCategories",
     value: function expandAllCategories() {
-      var _this8 = this;
+      var _this9 = this;
       if (!this.expandedCategories) this.expandedCategories = new Set();
       var allCategories = this.getAllCategoryIds(this.categoryTree || []);
       allCategories.forEach(function (id) {
-        return _this8.expandedCategories.add(id);
+        return _this9.expandedCategories.add(id);
       });
       this.renderCategoriesTree();
     }
@@ -24676,7 +24773,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "deleteCategoryById",
     value: function () {
       var _deleteCategoryById = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(categoryId) {
-        var category, categoryName, response, _this$selectedCategor, error, _t5;
+        var category, categoryName, response, _this$selectedCategor2, error, _t5;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.p = _context7.n) {
             case 0:
@@ -24703,7 +24800,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)('Category deleted successfully');
-              if (((_this$selectedCategor = this.selectedCategory) === null || _this$selectedCategor === void 0 ? void 0 : _this$selectedCategor.id) === categoryId) {
+              if (((_this$selectedCategor2 = this.selectedCategory) === null || _this$selectedCategor2 === void 0 ? void 0 : _this$selectedCategor2.id) === categoryId) {
                 this.selectedCategory = null;
                 this.showCategoryDetailsEmpty();
               }
@@ -24876,12 +24973,12 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "selectAllCategories",
     value: function selectAllCategories() {
-      var _this9 = this;
+      var _this0 = this;
       var checkboxes = document.querySelectorAll('.category-checkbox');
       checkboxes.forEach(function (cb) {
         var categoryId = parseInt(cb.dataset.categoryId);
         cb.checked = true;
-        _this9.selectedCategoryIds.add(categoryId);
+        _this0.selectedCategoryIds.add(categoryId);
         cb.closest('.category-item').classList.add('checked');
       });
       this.updateBulkCategoryActions();
@@ -24913,7 +25010,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "populateCategoryParentDropdown",
     value: function populateCategoryParentDropdown() {
-      var _this0 = this;
+      var _this1 = this;
       var excludeId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
       var parentSelect = document.getElementById('category-parent');
       if (!parentSelect) return;
@@ -24925,7 +25022,7 @@ var CategoriesModule = /*#__PURE__*/function () {
         categories.forEach(function (cat) {
           // Only show categories of the same type, and exclude the current category and its children
           if (cat.type === currentType && cat.id !== excludeId) {
-            parentSelect.innerHTML += "<option value=\"".concat(cat.id, "\">").concat(prefix).concat(_this0.escapeHtml(cat.name), "</option>");
+            parentSelect.innerHTML += "<option value=\"".concat(cat.id, "\">").concat(prefix).concat(_this1.escapeHtml(cat.name), "</option>");
           }
           if (cat.children && cat.children.length > 0) {
             _addOptions(cat.children, prefix + '  ');
@@ -25168,7 +25265,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "setupBudgetEventListeners",
     value: function setupBudgetEventListeners() {
-      var _this1 = this;
+      var _this10 = this;
       // Budget type tabs
       document.querySelectorAll('.budget-tabs .tab-button').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
@@ -25176,9 +25273,9 @@ var CategoriesModule = /*#__PURE__*/function () {
             return b.classList.remove('active');
           });
           e.currentTarget.classList.add('active');
-          _this1.budgetType = e.currentTarget.dataset.budgetType;
-          _this1.renderBudgetTree();
-          _this1.updateBudgetSummary();
+          _this10.budgetType = e.currentTarget.dataset.budgetType;
+          _this10.renderBudgetTree();
+          _this10.updateBudgetSummary();
         });
       });
 
@@ -25190,12 +25287,12 @@ var CategoriesModule = /*#__PURE__*/function () {
             return _regenerator().w(function (_context10) {
               while (1) switch (_context10.n) {
                 case 0:
-                  _this1.budgetMonth = e.target.value;
+                  _this10.budgetMonth = e.target.value;
                   _context10.n = 1;
-                  return _this1.calculateCategorySpending();
+                  return _this10.calculateCategorySpending();
                 case 1:
-                  _this1.renderBudgetTree();
-                  _this1.updateBudgetSummary();
+                  _this10.renderBudgetTree();
+                  _this10.updateBudgetSummary();
                 case 2:
                   return _context10.a(2);
               }
@@ -25211,14 +25308,14 @@ var CategoriesModule = /*#__PURE__*/function () {
       var goToCategoriesBtn = document.getElementById('empty-budget-go-categories-btn');
       if (goToCategoriesBtn) {
         goToCategoriesBtn.addEventListener('click', function () {
-          _this1.app.router.showView('categories');
+          _this10.app.router.showView('categories');
         });
       }
     }
   }, {
     key: "populateBudgetMonthSelector",
     value: function populateBudgetMonthSelector() {
-      var _this10 = this;
+      var _this11 = this;
       var monthSelect = document.getElementById('budget-month');
       if (!monthSelect) return;
 
@@ -25238,15 +25335,15 @@ var CategoriesModule = /*#__PURE__*/function () {
         });
       }
       monthSelect.innerHTML = options.map(function (opt) {
-        return "<option value=\"".concat(opt.value, "\" ").concat(opt.value === _this10.budgetMonth ? 'selected' : '', ">").concat(opt.label, "</option>");
+        return "<option value=\"".concat(opt.value, "\" ").concat(opt.value === _this11.budgetMonth ? 'selected' : '', ">").concat(opt.label, "</option>");
       }).join('');
     }
   }, {
     key: "calculateCategorySpending",
     value: function () {
       var _calculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
-        var _this11 = this;
-        var allCategories, categoriesWithBudgets, categoriesByPeriod, _loop, _i, _Object$entries, _t10;
+        var _this12 = this;
+        var allCategories, categoriesWithBudgets, categoriesByPeriod, _loop2, _i, _Object$entries, _t10;
         return _regenerator().w(function (_context12) {
           while (1) switch (_context12.p = _context12.n) {
             case 0:
@@ -25280,8 +25377,8 @@ var CategoriesModule = /*#__PURE__*/function () {
 
               // Fetch spending for each period
               _context12.p = 2;
-              _loop = /*#__PURE__*/_regenerator().m(function _loop() {
-                var _this11$app$settings;
+              _loop2 = /*#__PURE__*/_regenerator().m(function _loop2() {
+                var _this12$app$settings;
                 var _Object$entries$_i, period, categoryIds, startDay, dateRange, response, spendingData;
                 return _regenerator().w(function (_context11) {
                   while (1) switch (_context11.n) {
@@ -25294,7 +25391,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                       return _context11.a(2, 1);
                     case 1:
                       // Get date range for this period
-                      startDay = period === 'monthly' ? parseInt(((_this11$app$settings = _this11.app.settings) === null || _this11$app$settings === void 0 ? void 0 : _this11$app$settings.budget_start_day) || '1', 10) : 1;
+                      startDay = period === 'monthly' ? parseInt(((_this12$app$settings = _this12.app.settings) === null || _this12$app$settings === void 0 ? void 0 : _this12$app$settings.budget_start_day) || '1', 10) : 1;
                       dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay); // Fetch spending for this period
                       _context11.n = 2;
                       return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
@@ -25315,13 +25412,13 @@ var CategoriesModule = /*#__PURE__*/function () {
                       // Map spending to categories
                       spendingData.forEach(function (item) {
                         if (categoryIds.includes(item.categoryId)) {
-                          _this11.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
+                          _this12.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
                         }
                       });
                     case 4:
                       return _context11.a(2);
                   }
-                }, _loop);
+                }, _loop2);
               });
               _i = 0, _Object$entries = Object.entries(categoriesByPeriod);
             case 3:
@@ -25329,7 +25426,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                 _context12.n = 6;
                 break;
               }
-              return _context12.d(_regeneratorValues(_loop()), 4);
+              return _context12.d(_regeneratorValues(_loop2()), 4);
             case 4:
               if (!_context12.v) {
                 _context12.n = 5;
@@ -25361,7 +25458,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "renderBudgetTree",
     value: function renderBudgetTree() {
-      var _this12 = this;
+      var _this13 = this;
       var treeContainer = document.getElementById('budget-tree');
       var emptyState = document.getElementById('empty-budget');
       var headerEl = document.querySelector('.budget-tree-header');
@@ -25369,7 +25466,7 @@ var CategoriesModule = /*#__PURE__*/function () {
 
       // Filter categories by type
       var filteredCategories = (this.categoryTree || []).filter(function (cat) {
-        return cat.type === _this12.budgetType;
+        return cat.type === _this13.budgetType;
       });
       if (filteredCategories.length === 0) {
         treeContainer.innerHTML = '';
@@ -25387,7 +25484,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "renderBudgetCategoryNodes",
     value: function renderBudgetCategoryNodes(categories) {
-      var _this13 = this;
+      var _this14 = this;
       var level = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
       return categories.map(function (category) {
         var hasChildren = category.children && category.children.length > 0;
@@ -25396,7 +25493,7 @@ var CategoriesModule = /*#__PURE__*/function () {
         var categoryPeriod = category.budgetPeriod || 'monthly';
 
         // Get spending for this category (already calculated for the period)
-        var spent = _this13.categorySpending[category.id] || 0;
+        var spent = _this14.categorySpending[category.id] || 0;
 
         // Get the stored budget amount
         var storedBudget = parseFloat(category.budgetAmount) || 0;
@@ -25409,20 +25506,20 @@ var CategoriesModule = /*#__PURE__*/function () {
         var progressStatus = 'good';
         if (percentage >= 100) progressStatus = 'over';else if (percentage >= 80) progressStatus = 'danger';else if (percentage >= 60) progressStatus = 'warning';
         var remainingClass = remaining > 0 ? 'positive' : remaining < 0 ? 'negative' : 'zero';
-        return "\n                <div class=\"budget-category-row ".concat(hasChildren ? 'parent-row' : '', "\" data-category-id=\"").concat(category.id, "\">\n                    <div class=\"budget-category-name level-").concat(level, "\" data-label=\"\">\n                        <span class=\"category-color\" style=\"background-color: ").concat(category.color || '#3b82f6', "\"></span>\n                        <span class=\"category-label\">").concat(category.name, "</span>\n                    </div>\n                    <div class=\"budget-input-wrapper\" data-label=\"Budget\">\n                        <input type=\"number\"\n                               class=\"budget-input\"\n                               data-category-id=\"").concat(category.id, "\"\n                               value=\"").concat(budget ? Math.round(budget * 100) / 100 : '', "\"\n                               placeholder=\"0.00\"\n                               step=\"0.01\"\n                               min=\"0\">\n                    </div>\n                    <div data-label=\"Period\">\n                        <select class=\"budget-period-select\" data-category-id=\"").concat(category.id, "\">\n                            <option value=\"monthly\" ").concat(category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : '', ">Monthly</option>\n                            <option value=\"weekly\" ").concat(category.budgetPeriod === 'weekly' ? 'selected' : '', ">Weekly</option>\n                            <option value=\"quarterly\" ").concat(category.budgetPeriod === 'quarterly' ? 'selected' : '', ">Quarterly</option>\n                            <option value=\"yearly\" ").concat(category.budgetPeriod === 'yearly' ? 'selected' : '', ">Yearly</option>\n                        </select>\n                    </div>\n                    <div class=\"budget-spent\" data-label=\"Spent\">\n                        ").concat(_this13.formatCurrency(spent), "\n                    </div>\n                    <div class=\"budget-remaining ").concat(remainingClass, "\" data-label=\"Remaining\">\n                        ").concat(budget > 0 ? _this13.formatCurrency(remaining) : '<span class="no-budget">—</span>', "\n                    </div>\n                    <div class=\"budget-progress-wrapper\" data-label=\"Progress\">\n                        ").concat(budget > 0 ? "\n                            <div class=\"budget-progress-bar\">\n                                <div class=\"budget-progress-fill ".concat(progressStatus, "\" style=\"width: ").concat(percentage, "%\"></div>\n                            </div>\n                            <span class=\"budget-progress-text\">").concat(Math.round(percentage), "%</span>\n                        ") : '<span class="no-budget">No budget set</span>', "\n                    </div>\n                </div>\n                ").concat(hasChildren ? _this13.renderBudgetCategoryNodes(category.children, level + 1) : '', "\n            ");
+        return "\n                <div class=\"budget-category-row ".concat(hasChildren ? 'parent-row' : '', "\" data-category-id=\"").concat(category.id, "\">\n                    <div class=\"budget-category-name level-").concat(level, "\" data-label=\"\">\n                        <span class=\"category-color\" style=\"background-color: ").concat(category.color || '#3b82f6', "\"></span>\n                        <span class=\"category-label\">").concat(category.name, "</span>\n                    </div>\n                    <div class=\"budget-input-wrapper\" data-label=\"Budget\">\n                        <input type=\"number\"\n                               class=\"budget-input\"\n                               data-category-id=\"").concat(category.id, "\"\n                               value=\"").concat(budget ? Math.round(budget * 100) / 100 : '', "\"\n                               placeholder=\"0.00\"\n                               step=\"0.01\"\n                               min=\"0\">\n                    </div>\n                    <div data-label=\"Period\">\n                        <select class=\"budget-period-select\" data-category-id=\"").concat(category.id, "\">\n                            <option value=\"monthly\" ").concat(category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : '', ">Monthly</option>\n                            <option value=\"weekly\" ").concat(category.budgetPeriod === 'weekly' ? 'selected' : '', ">Weekly</option>\n                            <option value=\"quarterly\" ").concat(category.budgetPeriod === 'quarterly' ? 'selected' : '', ">Quarterly</option>\n                            <option value=\"yearly\" ").concat(category.budgetPeriod === 'yearly' ? 'selected' : '', ">Yearly</option>\n                        </select>\n                    </div>\n                    <div class=\"budget-spent\" data-label=\"Spent\">\n                        ").concat(_this14.formatCurrency(spent), "\n                    </div>\n                    <div class=\"budget-remaining ").concat(remainingClass, "\" data-label=\"Remaining\">\n                        ").concat(budget > 0 ? _this14.formatCurrency(remaining) : '<span class="no-budget">—</span>', "\n                    </div>\n                    <div class=\"budget-progress-wrapper\" data-label=\"Progress\">\n                        ").concat(budget > 0 ? "\n                            <div class=\"budget-progress-bar\">\n                                <div class=\"budget-progress-fill ".concat(progressStatus, "\" style=\"width: ").concat(percentage, "%\"></div>\n                            </div>\n                            <span class=\"budget-progress-text\">").concat(Math.round(percentage), "%</span>\n                        ") : '<span class="no-budget">No budget set</span>', "\n                    </div>\n                </div>\n                ").concat(hasChildren ? _this14.renderBudgetCategoryNodes(category.children, level + 1) : '', "\n            ");
       }).join('');
     }
   }, {
     key: "setupBudgetInlineEditing",
     value: function setupBudgetInlineEditing() {
-      var _this14 = this;
+      var _this15 = this;
       // Budget amount inputs
       document.querySelectorAll('.budget-input').forEach(function (input) {
         var debounceTimer;
         input.addEventListener('change', function (e) {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(function () {
-            _this14.saveCategoryBudget(e.target.dataset.categoryId, {
+            _this15.saveCategoryBudget(e.target.dataset.categoryId, {
               budgetAmount: e.target.value || null
             });
           }, 300);
@@ -25441,7 +25538,7 @@ var CategoriesModule = /*#__PURE__*/function () {
                   categoryId = parseInt(e.target.dataset.categoryId);
                   newPeriod = e.target.value;
                   oldPeriod = e.target.dataset.oldPeriod || ((_e$target$querySelect = e.target.querySelector('option[selected]')) === null || _e$target$querySelect === void 0 ? void 0 : _e$target$querySelect.value) || 'monthly'; // Find the category to get current budget amount
-                  category = _this14.findCategoryById(categoryId);
+                  category = _this15.findCategoryById(categoryId);
                   if (category) {
                     _context13.n = 1;
                     break;
@@ -25452,13 +25549,13 @@ var CategoriesModule = /*#__PURE__*/function () {
                   currentPeriod = category.budgetPeriod || 'monthly'; // Pro-rate budget from current period to new period
                   proratedBudget = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.prorateBudget(currentBudget, currentPeriod, newPeriod); // Save both the new period and pro-rated amount
                   _context13.n = 2;
-                  return _this14.saveCategoryBudget(categoryId, {
+                  return _this15.saveCategoryBudget(categoryId, {
                     budgetPeriod: newPeriod,
                     budgetAmount: proratedBudget
                   });
                 case 2:
                   _context13.n = 3;
-                  return _this14.recalculateCategorySpending(categoryId, newPeriod);
+                  return _this15.recalculateCategorySpending(categoryId, newPeriod);
                 case 3:
                   // Update old period data attribute for next change
                   e.target.dataset.oldPeriod = newPeriod;
@@ -25619,9 +25716,9 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "updateBudgetSummary",
     value: function updateBudgetSummary() {
-      var _this15 = this;
+      var _this16 = this;
       var categories = this.flattenCategories(this.categoryTree || []).filter(function (cat) {
-        return cat.type === _this15.budgetType;
+        return cat.type === _this16.budgetType;
       });
       var totalBudgeted = 0;
       var totalSpent = 0;
@@ -25631,7 +25728,7 @@ var CategoriesModule = /*#__PURE__*/function () {
         var period = cat.budgetPeriod || 'monthly';
         // Normalize to monthly so the summary cards stay consistent
         var monthlyBudget = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.prorateBudget(budget, period, 'monthly');
-        var spent = _this15.categorySpending[cat.id] || 0;
+        var spent = _this16.categorySpending[cat.id] || 0;
         if (budget > 0) {
           totalBudgeted += monthlyBudget;
           categoriesWithBudget++;
@@ -25653,12 +25750,12 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "flattenCategories",
     value: function flattenCategories(categories) {
-      var _this16 = this;
+      var _this17 = this;
       var result = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
       categories.forEach(function (cat) {
         result.push(cat);
         if (cat.children && cat.children.length > 0) {
-          _this16.flattenCategories(cat.children, result);
+          _this17.flattenCategories(cat.children, result);
         }
       });
       return result;

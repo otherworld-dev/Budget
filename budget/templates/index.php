@@ -1553,6 +1553,49 @@ style('budget', 'budget-main');
                                     <span id="category-display-path" class="category-path"></span>
                                 </div>
                             </div>
+                            <div class="category-total-spent" id="category-total-spent">
+                                <span class="total-spent-label">Total Spent</span>
+                                <span class="total-spent-value" id="category-total-spent-value">$0</span>
+                            </div>
+                        </div>
+
+                        <!-- Category Analytics -->
+                        <div class="category-analytics-section">
+                            <h5>Analytics</h5>
+                            <div class="analytics-grid">
+                                <div class="analytics-card">
+                                    <div class="analytics-content">
+                                        <div class="analytics-value" id="total-transactions-count">0</div>
+                                        <div class="analytics-label">Transactions</div>
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <div class="analytics-content">
+                                        <div class="analytics-value" id="avg-transaction-amount">$0</div>
+                                        <div class="analytics-label">Average</div>
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <div class="analytics-content">
+                                        <div class="analytics-value" id="category-trend">—</div>
+                                        <div class="analytics-label">Trend</div>
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <div class="analytics-content">
+                                        <div class="analytics-value" id="category-this-month">$0</div>
+                                        <div class="analytics-label">This Month</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Spending Chart -->
+                        <div class="category-chart-section">
+                            <h5>Monthly Spending</h5>
+                            <div class="category-chart-container">
+                                <canvas id="category-spending-chart"></canvas>
+                            </div>
                         </div>
 
                         <!-- Recent Transactions -->
@@ -1568,52 +1611,17 @@ style('budget', 'budget-main');
                             </button>
                         </div>
 
-                        <!-- Category Analytics -->
-                        <div class="category-analytics-section">
-                            <h5>Analytics</h5>
-                            <div class="analytics-grid">
-                                <div class="analytics-card">
-                                    <div class="analytics-icon">
-                                        <span class="icon-category-integration" aria-hidden="true"></span>
-                                    </div>
-                                    <div class="analytics-content">
-                                        <div class="analytics-value" id="total-transactions-count">0</div>
-                                        <div class="analytics-label">Total Transactions</div>
-                                    </div>
-                                </div>
-                                <div class="analytics-card">
-                                    <div class="analytics-icon">
-                                        <span class="icon-activity" aria-hidden="true"></span>
-                                    </div>
-                                    <div class="analytics-content">
-                                        <div class="analytics-value" id="avg-transaction-amount">$0</div>
-                                        <div class="analytics-label">Average Amount</div>
-                                    </div>
-                                </div>
-                                <div class="analytics-card">
-                                    <div class="analytics-icon">
-                                        <span class="icon-trending" aria-hidden="true"></span>
-                                    </div>
-                                    <div class="analytics-content">
-                                        <div class="analytics-value" id="category-trend">—</div>
-                                        <div class="analytics-label">Monthly Trend</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Tag Sets Section -->
-                        <div class="category-tag-sets-section" style="margin-bottom: 20px;">
-                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <h5 style="margin: 0; font-size: 14px; font-weight: 600;">Tag Sets</h5>
-                                <button id="add-tag-set-btn-detail" class="primary small" title="Add new tag set"
-                                        style="padding: 4px 8px; font-size: 12px; height: auto;">
+                        <div class="category-tag-sets-section">
+                            <div class="section-header">
+                                <h5>Tag Sets</h5>
+                                <button id="add-tag-set-btn-detail" class="primary small" title="Add new tag set">
                                     <span class="icon-add" aria-hidden="true"></span> Add
                                 </button>
                             </div>
                             <div id="category-tag-sets-list" class="tag-sets-list">
                                 <div class="empty-state">
-                                    <p style="font-size: 13px; color: #999; margin: 8px 0;">No tag sets yet.</p>
+                                    <p>No tag sets yet.</p>
                                 </div>
                             </div>
                         </div>
