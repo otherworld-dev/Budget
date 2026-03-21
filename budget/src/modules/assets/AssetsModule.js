@@ -20,16 +20,6 @@ export default class AssetsModule {
     get settings() { return this.app.settings; }
     get charts() { return this.app.charts; }
 
-    static get TYPE_LABELS() {
-        return {
-            real_estate: 'Real Estate',
-            vehicle: 'Vehicle',
-            jewelry: 'Jewelry',
-            collectibles: 'Collectibles',
-            other: 'Other'
-        };
-    }
-
     async loadAssetsView() {
         try {
             await this.loadAssets();
@@ -90,9 +80,40 @@ export default class AssetsModule {
         });
     }
 
+    getAssetTypeInfo(type) {
+        const typeMap = {
+            real_estate: {
+                label: 'Real Estate',
+                color: '#2e7d32',
+                icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/></svg>'
+            },
+            vehicle: {
+                label: 'Vehicle',
+                color: '#1565c0',
+                icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5,11L6.5,6.5H17.5L19,11M17.5,16A1.5,1.5 0 0,1 16,14.5A1.5,1.5 0 0,1 17.5,13A1.5,1.5 0 0,1 19,14.5A1.5,1.5 0 0,1 17.5,16M6.5,16A1.5,1.5 0 0,1 5,14.5A1.5,1.5 0 0,1 6.5,13A1.5,1.5 0 0,1 8,14.5A1.5,1.5 0 0,1 6.5,16M18.92,6C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.28,5.42 5.08,6L3,12V20A1,1 0 0,0 4,21H5A1,1 0 0,0 6,20V19H18V20A1,1 0 0,0 19,21H20A1,1 0 0,0 21,20V12L18.92,6Z"/></svg>'
+            },
+            jewelry: {
+                label: 'Jewelry',
+                color: '#7b1fa2',
+                icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6,2L2,8L12,22L22,8L18,2H6M6.8,4H10.4L8.6,7.33L6.8,4M13.6,4H17.2L15.4,7.33L13.6,4M12,4.62L13.8,7.94H10.2L12,4.62M5.78,6.35L7.6,9.67L4.34,9.67L5.78,6.35M18.22,6.35L19.66,9.67H16.4L18.22,6.35M12,9.67L16.14,9.67L12,17.27L7.86,9.67H12Z"/></svg>'
+            },
+            collectibles: {
+                label: 'Collectibles',
+                color: '#f57f17',
+                icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"/></svg>'
+            },
+            other: {
+                label: 'Other',
+                color: '#546e7a',
+                icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z"/></svg>'
+            }
+        };
+        return typeMap[type] || typeMap.other;
+    }
+
     renderAssetCard(asset) {
         const currency = asset.currency || 'USD';
-        const typeLabel = AssetsModule.TYPE_LABELS[asset.type] || asset.type;
+        const typeInfo = this.getAssetTypeInfo(asset.type);
 
         let valueDisplay = '--';
         if (asset.currentValue !== null) {
@@ -104,30 +125,60 @@ export default class AssetsModule {
             const ratePercent = (asset.annualChangeRate * 100).toFixed(1);
             const rateClass = asset.annualChangeRate > 0 ? 'positive' : 'negative';
             const rateSign = asset.annualChangeRate > 0 ? '+' : '';
-            rateDisplay = `<span class="asset-rate ${rateClass}">${rateSign}${ratePercent}%/yr</span>`;
+            const arrowIcon = asset.annualChangeRate > 0
+                ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7,15L12,10L17,15H7Z"/></svg>'
+                : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7,10L12,15L17,10H7Z"/></svg>';
+            rateDisplay = `<span class="asset-rate ${rateClass}">${arrowIcon} ${rateSign}${ratePercent}%/yr</span>`;
         }
+
+        let purchaseInfo = '';
+        const purchaseParts = [];
+        if (asset.purchasePrice !== null && asset.purchasePrice !== undefined) {
+            purchaseParts.push(`Purchased at ${formatters.formatCurrency(asset.purchasePrice, currency, this.settings)}`);
+        }
+        if (asset.purchaseDate) {
+            purchaseParts.push(formatters.formatDate(asset.purchaseDate, this.settings));
+        }
+        if (purchaseParts.length > 0) {
+            purchaseInfo = `<div class="asset-purchase-info">${purchaseParts.join(' &middot; ')}</div>`;
+        }
+
+        const descriptionHtml = asset.description
+            ? `<div class="asset-description">${dom.escapeHtml(asset.description)}</div>`
+            : '';
 
         return `
             <div class="asset-card" data-id="${asset.id}">
                 <div class="asset-card-header">
-                    <h4 class="asset-name">${dom.escapeHtml(asset.name)}</h4>
-                    <span class="asset-type-badge asset-type-${asset.type}">${typeLabel}</span>
+                    <div class="asset-card-title">
+                        <span class="asset-type-icon" style="background: ${typeInfo.color}15; color: ${typeInfo.color}">
+                            ${typeInfo.icon}
+                        </span>
+                        <div>
+                            <h4 class="asset-name">${dom.escapeHtml(asset.name)}</h4>
+                            <span class="asset-type-badge">${typeInfo.label}</span>
+                        </div>
+                    </div>
+                    <div class="asset-card-actions">
+                        <button class="asset-edit-btn icon-button" title="Edit" data-id="${asset.id}">
+                            <span class="icon-rename" aria-hidden="true"></span>
+                        </button>
+                        <button class="asset-delete-btn icon-button delete-btn" title="Delete" data-id="${asset.id}">
+                            <span class="icon-delete" aria-hidden="true"></span>
+                        </button>
+                    </div>
                 </div>
                 <div class="asset-card-body">
-                    <div class="asset-value">${valueDisplay}</div>
+                    <div class="asset-value-section">
+                        <span class="asset-value-label">Current Value</span>
+                        <div class="asset-value">${valueDisplay}</div>
+                    </div>
                     ${rateDisplay}
-                    ${asset.description ? `<div class="asset-description">${dom.escapeHtml(asset.description)}</div>` : ''}
+                    ${purchaseInfo}
                 </div>
-                <div class="asset-card-actions">
-                    <button class="asset-view-btn icon-button" title="View details" data-id="${asset.id}">
-                        <span class="icon-info" aria-hidden="true"></span>
-                    </button>
-                    <button class="asset-edit-btn icon-button" title="Edit" data-id="${asset.id}">
-                        <span class="icon-rename" aria-hidden="true"></span>
-                    </button>
-                    <button class="asset-delete-btn icon-button" title="Delete" data-id="${asset.id}">
-                        <span class="icon-delete" aria-hidden="true"></span>
-                    </button>
+                <div class="asset-card-footer">
+                    ${descriptionHtml}
+                    <button class="asset-view-btn" data-id="${asset.id}">View Details &rarr;</button>
                 </div>
             </div>
         `;
@@ -240,10 +291,10 @@ export default class AssetsModule {
             };
         }
 
-        // Detail panel buttons
-        const closeDetailBtn = document.getElementById('asset-close-btn');
-        if (closeDetailBtn) {
-            closeDetailBtn.onclick = () => this.closeAssetDetails();
+        // Detail view buttons
+        const backBtn = document.getElementById('back-to-assets-btn');
+        if (backBtn) {
+            backBtn.onclick = () => this.closeAssetDetails();
         }
 
         const editDetailBtn = document.getElementById('asset-edit-detail-btn');
@@ -375,38 +426,71 @@ export default class AssetsModule {
         if (!asset) return;
 
         this.currentAsset = asset;
-
-        const panel = document.getElementById('asset-detail-panel');
-        const nameEl = document.getElementById('asset-detail-name');
         const currency = asset.currency || 'USD';
+        const typeInfo = this.getAssetTypeInfo(asset.type);
 
-        nameEl.textContent = asset.name;
+        // Hide assets list, show detail view
+        document.getElementById('assets-view').style.display = 'none';
+        document.getElementById('asset-details-view').style.display = 'block';
 
-        // Update detail fields
+        // Breadcrumb title
+        const nameEl = document.getElementById('asset-detail-name');
+        if (nameEl) nameEl.textContent = asset.name;
+
+        // Overview card
+        const iconEl = document.getElementById('asset-detail-icon');
+        if (iconEl) {
+            iconEl.style.background = `${typeInfo.color}15`;
+            iconEl.style.color = typeInfo.color;
+            iconEl.innerHTML = typeInfo.icon;
+        }
+
+        const displayName = document.getElementById('asset-detail-display-name');
+        if (displayName) displayName.textContent = asset.name;
+
+        const typeLabel = document.getElementById('asset-detail-type-label');
+        if (typeLabel) typeLabel.textContent = typeInfo.label;
+
+        const descEl = document.getElementById('asset-detail-description');
+        if (descEl) {
+            descEl.textContent = asset.description || '';
+            descEl.style.display = asset.description ? 'inline' : 'none';
+        }
+
+        // Balance section
         const detailValue = document.getElementById('asset-detail-value');
-        const detailType = document.getElementById('asset-detail-type');
-        const detailPurchasePrice = document.getElementById('asset-detail-purchase-price');
-        const detailPurchaseDate = document.getElementById('asset-detail-purchase-date');
-        const detailRate = document.getElementById('asset-detail-rate');
-
         if (detailValue) {
-            detailValue.textContent = asset.currentValue !== null
+            const val = asset.currentValue !== null
                 ? formatters.formatCurrency(asset.currentValue, currency, this.settings)
                 : '--';
+            detailValue.textContent = val;
+            detailValue.className = 'balance-amount' + (asset.currentValue >= 0 ? ' positive' : ' negative');
         }
-        if (detailType) {
-            detailType.textContent = AssetsModule.TYPE_LABELS[asset.type] || asset.type;
-        }
+
+        const detailPurchasePrice = document.getElementById('asset-detail-purchase-price');
         if (detailPurchasePrice) {
             detailPurchasePrice.textContent = asset.purchasePrice !== null
                 ? formatters.formatCurrency(asset.purchasePrice, currency, this.settings)
                 : '--';
         }
-        if (detailPurchaseDate) {
-            detailPurchaseDate.textContent = asset.purchaseDate
-                ? formatters.formatDate(asset.purchaseDate, this.settings)
-                : '--';
+
+        // Gain/Loss
+        const gainLossEl = document.getElementById('asset-detail-gain-loss');
+        if (gainLossEl) {
+            if (asset.currentValue !== null && asset.purchasePrice !== null && asset.purchasePrice > 0) {
+                const gain = asset.currentValue - asset.purchasePrice;
+                const pct = ((gain / asset.purchasePrice) * 100).toFixed(1);
+                const sign = gain >= 0 ? '+' : '';
+                gainLossEl.textContent = `${sign}${formatters.formatCurrency(gain, currency, this.settings)} (${sign}${pct}%)`;
+                gainLossEl.className = `balance-amount ${gain >= 0 ? 'positive' : 'negative'}`;
+            } else {
+                gainLossEl.textContent = '--';
+                gainLossEl.className = 'balance-amount';
+            }
         }
+
+        // Metrics
+        const detailRate = document.getElementById('asset-detail-rate');
         if (detailRate) {
             if (asset.annualChangeRate !== null && asset.annualChangeRate !== 0) {
                 const ratePercent = (asset.annualChangeRate * 100).toFixed(1);
@@ -417,18 +501,29 @@ export default class AssetsModule {
             }
         }
 
-        panel.classList.add('active');
+        const detailPurchaseDate = document.getElementById('asset-detail-purchase-date');
+        if (detailPurchaseDate) {
+            detailPurchaseDate.textContent = asset.purchaseDate
+                ? formatters.formatDate(asset.purchaseDate, this.settings)
+                : '--';
+        }
 
-        // Load charts
-        await this.loadAssetValueChart(assetId);
-        await this.loadAssetProjectionChart(assetId);
+        // Load charts and update projection/snapshot metrics
+        const [snapshots] = await Promise.all([
+            this.loadAssetValueChart(assetId),
+            this.loadAssetProjectionChart(assetId)
+        ]);
+
+        // Update snapshot count
+        const snapshotCountEl = document.getElementById('asset-detail-snapshots');
+        if (snapshotCountEl && snapshots) {
+            snapshotCountEl.textContent = snapshots.length;
+        }
     }
 
     closeAssetDetails() {
-        const panel = document.getElementById('asset-detail-panel');
-        if (panel) {
-            panel.classList.remove('active');
-        }
+        document.getElementById('asset-details-view').style.display = 'none';
+        document.getElementById('assets-view').style.display = 'block';
         this.currentAsset = null;
     }
 
@@ -438,11 +533,11 @@ export default class AssetsModule {
                 headers: { 'requesttoken': OC.requestToken }
             });
 
-            if (!response.ok) return;
+            if (!response.ok) return [];
 
             const snapshots = await response.json();
             const canvas = document.getElementById('asset-value-chart');
-            if (!canvas) return;
+            if (!canvas) return snapshots || [];
 
             const ctx = canvas.getContext('2d');
 
@@ -453,7 +548,7 @@ export default class AssetsModule {
 
             if (!snapshots || snapshots.length === 0) {
                 canvas.style.display = 'none';
-                return;
+                return snapshots || [];
             }
             canvas.style.display = '';
 
@@ -490,8 +585,10 @@ export default class AssetsModule {
                     }
                 }
             });
+            return snapshots;
         } catch (error) {
             console.error('Failed to load asset value chart:', error);
+            return [];
         }
     }
 
@@ -524,6 +621,13 @@ export default class AssetsModule {
             const lineColor = isAppreciating ? '#46ba61' : '#e9322d';
             const bgColor = isAppreciating ? 'rgba(70, 186, 97, 0.1)' : 'rgba(233, 50, 45, 0.1)';
             const currency = this.currentAsset?.currency || 'USD';
+
+            // Update 10yr projected value metric
+            const lastProjection = data.growthProjection[data.growthProjection.length - 1];
+            const projectedEl = document.getElementById('asset-detail-projected');
+            if (projectedEl && lastProjection) {
+                projectedEl.textContent = formatters.formatCurrency(lastProjection.value, currency, this.settings);
+            }
 
             this.charts.assetProjection = new Chart(ctx, {
                 type: 'line',

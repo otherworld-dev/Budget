@@ -3346,13 +3346,11 @@ style('budget', 'budget-main');
             </div>
 
             <!-- Info Notice -->
-            <div class="assets-notice" style="background-color: rgba(100, 116, 139, 0.08); border: 1px solid rgba(100, 116, 139, 0.15); border-radius: 4px; padding: 12px 16px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(100, 116, 139, 0.6)" style="flex-shrink: 0; margin-top: 2px;">
+            <div class="assets-notice">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
                 </svg>
-                <div style="color: rgba(100, 116, 139, 0.85); font-size: 14px;">
-                    <strong>Note:</strong> Track non-cash assets like property, vehicles, and collectibles. Asset values and projections are estimates based on annual appreciation/depreciation rates. Actual values may vary depending on market conditions.
-                </div>
+                <span>Track non-cash assets like property, vehicles, and collectibles. Values and projections are estimates based on annual appreciation/depreciation rates.</span>
             </div>
 
             <!-- Assets Summary Cards -->
@@ -3415,59 +3413,112 @@ style('budget', 'budget-main');
                 </div>
             </div>
 
-            <!-- Asset Detail Panel (shown when an asset is selected) -->
-            <div id="asset-detail-panel" class="asset-detail-panel" style="display: none;">
-                <div class="panel-header">
-                    <h3 id="asset-detail-name">Asset Details</h3>
-                    <div class="panel-actions">
-                        <button id="asset-edit-detail-btn" class="icon-button" title="Edit asset">
-                            <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button id="asset-close-btn" class="icon-button" title="Close">
-                            <span class="icon-close" aria-hidden="true"></span>
-                        </button>
+        </div>
+
+        <!-- Asset Details View (separate full-page view, like account-details-view) -->
+        <div id="asset-details-view" class="view" style="display: none;">
+            <div class="view-header">
+                <div class="breadcrumb">
+                    <button id="back-to-assets-btn" class="breadcrumb-back">
+                        <span class="icon-arrow-left" aria-hidden="true"></span>
+                        Assets
+                    </button>
+                    <span class="breadcrumb-separator">/</span>
+                    <h2 id="asset-detail-name">Asset Details</h2>
+                </div>
+                <div class="view-controls">
+                    <button id="update-value-btn" class="secondary" title="Update value">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;"><path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/></svg>
+                        Update Value
+                    </button>
+                    <button id="asset-edit-detail-btn" class="secondary" title="Edit asset">
+                        <span class="icon-rename" aria-hidden="true"></span>
+                        Edit
+                    </button>
+                </div>
+            </div>
+
+            <div class="asset-details-container">
+                <!-- Asset Overview Card -->
+                <div class="asset-overview-section">
+                    <div class="asset-overview-card">
+                        <div class="asset-overview-header">
+                            <div id="asset-detail-icon" class="asset-type-icon-lg"></div>
+                            <div class="asset-overview-info">
+                                <h3 id="asset-detail-display-name">Asset Name</h3>
+                                <div class="asset-overview-meta">
+                                    <span id="asset-detail-type-label" class="asset-type-badge-lg"></span>
+                                    <span id="asset-detail-description" class="asset-overview-description"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="asset-balance-section">
+                            <div class="balance-primary">
+                                <label>Current Value</label>
+                                <div id="asset-detail-value" class="balance-amount">--</div>
+                            </div>
+                            <div class="balance-secondary">
+                                <div class="balance-item">
+                                    <label>Purchase Price</label>
+                                    <div id="asset-detail-purchase-price" class="balance-amount">--</div>
+                                </div>
+                                <div class="balance-item">
+                                    <label>Gain / Loss</label>
+                                    <div id="asset-detail-gain-loss" class="balance-amount">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Asset Metrics -->
+                    <div class="asset-metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon" style="background: rgba(46, 125, 50, 0.1); color: #2e7d32;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/></svg>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="asset-detail-rate">--</div>
+                                <div class="metric-label">Annual Change Rate</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon" style="background: rgba(21, 101, 192, 0.1); color: #1565c0;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,10V12H7V10H9M13,10V12H11V10H13M17,10V12H15V10H17M19,3A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5C3.89,21 3,20.1 3,19V5A2,2 0 0,1 5,3H6V1H8V3H16V1H18V3H19M19,19V8H5V19H19M9,14V16H7V14H9M13,14V16H11V14H13M17,14V16H15V14H17Z"/></svg>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="asset-detail-purchase-date">--</div>
+                                <div class="metric-label">Purchase Date</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon" style="background: rgba(123, 31, 162, 0.1); color: #7b1fa2;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16Z"/></svg>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="asset-detail-projected">--</div>
+                                <div class="metric-label">10yr Projected Value</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon" style="background: rgba(245, 127, 23, 0.1); color: #f57f17;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11,17H13V11H11V17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M11,9H13V7H11V9Z"/></svg>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="asset-detail-snapshots">0</div>
+                                <div class="metric-label">Value Snapshots</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="panel-content">
-                    <div class="asset-detail-summary">
-                        <div class="detail-item">
-                            <span class="detail-label">Current Value</span>
-                            <span class="detail-value" id="asset-detail-value">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Type</span>
-                            <span class="detail-value" id="asset-detail-type">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Purchase Price</span>
-                            <span class="detail-value" id="asset-detail-purchase-price">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Purchase Date</span>
-                            <span class="detail-value" id="asset-detail-purchase-date">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Annual Change Rate</span>
-                            <span class="detail-value" id="asset-detail-rate">--</span>
-                        </div>
-                    </div>
 
-                    <div class="asset-detail-actions">
-                        <button id="update-value-btn" class="secondary">
-                            <span class="icon-add" aria-hidden="true"></span>
-                            Update Value
-                        </button>
-                    </div>
-
-                    <!-- Value History Chart -->
+                <!-- Charts Section -->
+                <div class="asset-charts-row">
                     <div class="asset-chart-section">
                         <h4>Value History</h4>
                         <div class="chart-container">
                             <canvas id="asset-value-chart"></canvas>
                         </div>
                     </div>
-
-                    <!-- Projection Chart -->
                     <div class="asset-chart-section">
                         <h4>Projected Value</h4>
                         <div class="chart-container">

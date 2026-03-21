@@ -10499,6 +10499,467 @@ tr.scheduled-transaction:hover {
     }
 }
 
+/* ==========================================
+   Assets Page Styles
+   ========================================== */
+
+/* Assets Notice */
+.assets-notice {
+    background-color: rgba(100, 116, 139, 0.08);
+    border: 1px solid rgba(100, 116, 139, 0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0 0 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    line-height: 1.5;
+}
+
+.assets-notice svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.6;
+}
+
+/* Assets Summary Grid */
+.assets-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+/* Assets List Grid */
+.assets-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+}
+
+/* Asset Card */
+.asset-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.asset-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: var(--color-primary-element);
+}
+
+/* Asset Card Header */
+.asset-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.asset-card-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.asset-type-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.asset-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    margin: 0 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.asset-type-badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-maxcontrast);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Asset Card Actions */
+.asset-card-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.asset-card:hover .asset-card-actions {
+    opacity: 1;
+}
+
+.asset-card-actions button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-maxcontrast);
+    transition: all 0.15s;
+}
+
+.asset-card-actions button:hover {
+    background: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
+.asset-card-actions button.delete-btn:hover {
+    background: rgba(198, 40, 40, 0.1);
+    color: #c62828;
+}
+
+/* Asset Card Body */
+.asset-card-body {
+    flex: 1;
+}
+
+.asset-value-section {
+    margin-bottom: 12px;
+}
+
+.asset-value-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 4px;
+}
+
+.asset-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-main-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.asset-rate {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+
+.asset-rate.positive {
+    background: rgba(46, 125, 50, 0.1);
+    color: #2e7d32;
+}
+
+.asset-rate.negative {
+    background: rgba(198, 40, 40, 0.1);
+    color: #c62828;
+}
+
+.asset-rate svg {
+    flex-shrink: 0;
+}
+
+.asset-purchase-info {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 8px;
+}
+
+/* Asset Card Footer */
+.asset-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid var(--color-border);
+    gap: 12px;
+}
+
+.asset-description {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    flex: 1;
+    min-width: 0;
+}
+
+.asset-view-btn {
+    padding: 6px 14px;
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element);
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.asset-view-btn:hover {
+    background: var(--color-primary);
+    color: white;
+}
+
+/* Asset Details View (full-page, matching account-details-view) */
+.asset-details-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.asset-overview-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.asset-overview-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.asset-type-icon-lg {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.asset-type-icon-lg svg {
+    width: 28px;
+    height: 28px;
+}
+
+.asset-overview-info h3 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.asset-type-badge-lg {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-maxcontrast);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.asset-overview-description {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin-left: 8px;
+}
+
+.asset-overview-meta {
+    display: flex;
+    align-items: center;
+}
+
+.asset-balance-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+.asset-balance-section .balance-primary label,
+.asset-balance-section .balance-item label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 4px;
+}
+
+.asset-balance-section .balance-amount {
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.asset-balance-section .balance-secondary {
+    display: flex;
+    gap: 32px;
+}
+
+.asset-balance-section .balance-secondary .balance-amount {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.asset-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.asset-metrics-grid .metric-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.asset-metrics-grid .metric-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.asset-metrics-grid .metric-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    margin-bottom: 2px;
+}
+
+.asset-metrics-grid .metric-label {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.asset-charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.asset-chart-section {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.asset-chart-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 16px;
+    color: var(--color-main-text);
+}
+
+.asset-chart-section .chart-container {
+    position: relative;
+    height: 280px;
+}
+
+@media (max-width: 1024px) {
+    .asset-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .asset-charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .asset-balance-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .asset-balance-section .balance-secondary {
+        gap: 20px;
+    }
+}
+
+/* Empty Assets State */
+.empty-assets {
+    text-align: center;
+    padding: 60px 40px;
+    background: var(--color-main-background);
+    border: 1px dashed var(--color-border);
+    border-radius: 12px;
+}
+
+.empty-assets .empty-content h3 {
+    margin: 20px 0 10px;
+    color: var(--color-main-text);
+}
+
+.empty-assets .empty-content p {
+    margin: 0 0 20px;
+    color: var(--color-text-maxcontrast);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Assets Responsive */
+@media (max-width: 768px) {
+    .assets-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .assets-list {
+        grid-template-columns: 1fr;
+    }
+
+    .asset-card-actions {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .assets-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .asset-card {
+        padding: 16px;
+    }
+}
+
 /* ========================================
    Split Transaction Modal Styles
    ======================================== */

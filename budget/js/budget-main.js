@@ -20994,10 +20994,14 @@ __webpack_require__.r(__webpack_exports__);
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
 function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
 function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -21214,10 +21218,42 @@ var AssetsModule = /*#__PURE__*/function () {
       });
     }
   }, {
+    key: "getAssetTypeInfo",
+    value: function getAssetTypeInfo(type) {
+      var typeMap = {
+        real_estate: {
+          label: 'Real Estate',
+          color: '#2e7d32',
+          icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/></svg>'
+        },
+        vehicle: {
+          label: 'Vehicle',
+          color: '#1565c0',
+          icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5,11L6.5,6.5H17.5L19,11M17.5,16A1.5,1.5 0 0,1 16,14.5A1.5,1.5 0 0,1 17.5,13A1.5,1.5 0 0,1 19,14.5A1.5,1.5 0 0,1 17.5,16M6.5,16A1.5,1.5 0 0,1 5,14.5A1.5,1.5 0 0,1 6.5,13A1.5,1.5 0 0,1 8,14.5A1.5,1.5 0 0,1 6.5,16M18.92,6C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.28,5.42 5.08,6L3,12V20A1,1 0 0,0 4,21H5A1,1 0 0,0 6,20V19H18V20A1,1 0 0,0 19,21H20A1,1 0 0,0 21,20V12L18.92,6Z"/></svg>'
+        },
+        jewelry: {
+          label: 'Jewelry',
+          color: '#7b1fa2',
+          icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6,2L2,8L12,22L22,8L18,2H6M6.8,4H10.4L8.6,7.33L6.8,4M13.6,4H17.2L15.4,7.33L13.6,4M12,4.62L13.8,7.94H10.2L12,4.62M5.78,6.35L7.6,9.67L4.34,9.67L5.78,6.35M18.22,6.35L19.66,9.67H16.4L18.22,6.35M12,9.67L16.14,9.67L12,17.27L7.86,9.67H12Z"/></svg>'
+        },
+        collectibles: {
+          label: 'Collectibles',
+          color: '#f57f17',
+          icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"/></svg>'
+        },
+        other: {
+          label: 'Other',
+          color: '#546e7a',
+          icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z"/></svg>'
+        }
+      };
+      return typeMap[type] || typeMap.other;
+    }
+  }, {
     key: "renderAssetCard",
     value: function renderAssetCard(asset) {
       var currency = asset.currency || 'USD';
-      var typeLabel = AssetsModule.TYPE_LABELS[asset.type] || asset.type;
+      var typeInfo = this.getAssetTypeInfo(asset.type);
       var valueDisplay = '--';
       if (asset.currentValue !== null) {
         valueDisplay = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(asset.currentValue, currency, this.settings);
@@ -21227,9 +21263,22 @@ var AssetsModule = /*#__PURE__*/function () {
         var ratePercent = (asset.annualChangeRate * 100).toFixed(1);
         var rateClass = asset.annualChangeRate > 0 ? 'positive' : 'negative';
         var rateSign = asset.annualChangeRate > 0 ? '+' : '';
-        rateDisplay = "<span class=\"asset-rate ".concat(rateClass, "\">").concat(rateSign).concat(ratePercent, "%/yr</span>");
+        var arrowIcon = asset.annualChangeRate > 0 ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7,15L12,10L17,15H7Z"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7,10L12,15L17,10H7Z"/></svg>';
+        rateDisplay = "<span class=\"asset-rate ".concat(rateClass, "\">").concat(arrowIcon, " ").concat(rateSign).concat(ratePercent, "%/yr</span>");
       }
-      return "\n            <div class=\"asset-card\" data-id=\"".concat(asset.id, "\">\n                <div class=\"asset-card-header\">\n                    <h4 class=\"asset-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(asset.name), "</h4>\n                    <span class=\"asset-type-badge asset-type-").concat(asset.type, "\">").concat(typeLabel, "</span>\n                </div>\n                <div class=\"asset-card-body\">\n                    <div class=\"asset-value\">").concat(valueDisplay, "</div>\n                    ").concat(rateDisplay, "\n                    ").concat(asset.description ? "<div class=\"asset-description\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(asset.description), "</div>") : '', "\n                </div>\n                <div class=\"asset-card-actions\">\n                    <button class=\"asset-view-btn icon-button\" title=\"View details\" data-id=\"").concat(asset.id, "\">\n                        <span class=\"icon-info\" aria-hidden=\"true\"></span>\n                    </button>\n                    <button class=\"asset-edit-btn icon-button\" title=\"Edit\" data-id=\"").concat(asset.id, "\">\n                        <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                    </button>\n                    <button class=\"asset-delete-btn icon-button\" title=\"Delete\" data-id=\"").concat(asset.id, "\">\n                        <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                    </button>\n                </div>\n            </div>\n        ");
+      var purchaseInfo = '';
+      var purchaseParts = [];
+      if (asset.purchasePrice !== null && asset.purchasePrice !== undefined) {
+        purchaseParts.push("Purchased at ".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(asset.purchasePrice, currency, this.settings)));
+      }
+      if (asset.purchaseDate) {
+        purchaseParts.push(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(asset.purchaseDate, this.settings));
+      }
+      if (purchaseParts.length > 0) {
+        purchaseInfo = "<div class=\"asset-purchase-info\">".concat(purchaseParts.join(' &middot; '), "</div>");
+      }
+      var descriptionHtml = asset.description ? "<div class=\"asset-description\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(asset.description), "</div>") : '';
+      return "\n            <div class=\"asset-card\" data-id=\"".concat(asset.id, "\">\n                <div class=\"asset-card-header\">\n                    <div class=\"asset-card-title\">\n                        <span class=\"asset-type-icon\" style=\"background: ").concat(typeInfo.color, "15; color: ").concat(typeInfo.color, "\">\n                            ").concat(typeInfo.icon, "\n                        </span>\n                        <div>\n                            <h4 class=\"asset-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(asset.name), "</h4>\n                            <span class=\"asset-type-badge\">").concat(typeInfo.label, "</span>\n                        </div>\n                    </div>\n                    <div class=\"asset-card-actions\">\n                        <button class=\"asset-edit-btn icon-button\" title=\"Edit\" data-id=\"").concat(asset.id, "\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"asset-delete-btn icon-button delete-btn\" title=\"Delete\" data-id=\"").concat(asset.id, "\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n                <div class=\"asset-card-body\">\n                    <div class=\"asset-value-section\">\n                        <span class=\"asset-value-label\">Current Value</span>\n                        <div class=\"asset-value\">").concat(valueDisplay, "</div>\n                    </div>\n                    ").concat(rateDisplay, "\n                    ").concat(purchaseInfo, "\n                </div>\n                <div class=\"asset-card-footer\">\n                    ").concat(descriptionHtml, "\n                    <button class=\"asset-view-btn\" data-id=\"").concat(asset.id, "\">View Details &rarr;</button>\n                </div>\n            </div>\n        ");
     }
   }, {
     key: "updateAssetsSummary",
@@ -21345,10 +21394,10 @@ var AssetsModule = /*#__PURE__*/function () {
         };
       }
 
-      // Detail panel buttons
-      var closeDetailBtn = document.getElementById('asset-close-btn');
-      if (closeDetailBtn) {
-        closeDetailBtn.onclick = function () {
+      // Detail view buttons
+      var backBtn = document.getElementById('back-to-assets-btn');
+      if (backBtn) {
+        backBtn.onclick = function () {
           return _this2.closeAssetDetails();
         };
       }
@@ -21533,7 +21582,7 @@ var AssetsModule = /*#__PURE__*/function () {
     key: "showAssetDetails",
     value: function () {
       var _showAssetDetails = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(assetId) {
-        var asset, panel, nameEl, currency, detailValue, detailType, detailPurchasePrice, detailPurchaseDate, detailRate, ratePercent, sign;
+        var asset, currency, typeInfo, nameEl, iconEl, displayName, typeLabel, descEl, detailValue, val, detailPurchasePrice, gainLossEl, gain, pct, sign, detailRate, ratePercent, _sign, detailPurchaseDate, _yield$Promise$all, _yield$Promise$all2, snapshots, snapshotCountEl;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.n) {
             case 0:
@@ -21547,46 +21596,87 @@ var AssetsModule = /*#__PURE__*/function () {
               return _context7.a(2);
             case 1:
               this.currentAsset = asset;
-              panel = document.getElementById('asset-detail-panel');
-              nameEl = document.getElementById('asset-detail-name');
               currency = asset.currency || 'USD';
-              nameEl.textContent = asset.name;
+              typeInfo = this.getAssetTypeInfo(asset.type); // Hide assets list, show detail view
+              document.getElementById('assets-view').style.display = 'none';
+              document.getElementById('asset-details-view').style.display = 'block';
 
-              // Update detail fields
+              // Breadcrumb title
+              nameEl = document.getElementById('asset-detail-name');
+              if (nameEl) nameEl.textContent = asset.name;
+
+              // Overview card
+              iconEl = document.getElementById('asset-detail-icon');
+              if (iconEl) {
+                iconEl.style.background = "".concat(typeInfo.color, "15");
+                iconEl.style.color = typeInfo.color;
+                iconEl.innerHTML = typeInfo.icon;
+              }
+              displayName = document.getElementById('asset-detail-display-name');
+              if (displayName) displayName.textContent = asset.name;
+              typeLabel = document.getElementById('asset-detail-type-label');
+              if (typeLabel) typeLabel.textContent = typeInfo.label;
+              descEl = document.getElementById('asset-detail-description');
+              if (descEl) {
+                descEl.textContent = asset.description || '';
+                descEl.style.display = asset.description ? 'inline' : 'none';
+              }
+
+              // Balance section
               detailValue = document.getElementById('asset-detail-value');
-              detailType = document.getElementById('asset-detail-type');
-              detailPurchasePrice = document.getElementById('asset-detail-purchase-price');
-              detailPurchaseDate = document.getElementById('asset-detail-purchase-date');
-              detailRate = document.getElementById('asset-detail-rate');
               if (detailValue) {
-                detailValue.textContent = asset.currentValue !== null ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(asset.currentValue, currency, this.settings) : '--';
+                val = asset.currentValue !== null ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(asset.currentValue, currency, this.settings) : '--';
+                detailValue.textContent = val;
+                detailValue.className = 'balance-amount' + (asset.currentValue >= 0 ? ' positive' : ' negative');
               }
-              if (detailType) {
-                detailType.textContent = AssetsModule.TYPE_LABELS[asset.type] || asset.type;
-              }
+              detailPurchasePrice = document.getElementById('asset-detail-purchase-price');
               if (detailPurchasePrice) {
                 detailPurchasePrice.textContent = asset.purchasePrice !== null ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(asset.purchasePrice, currency, this.settings) : '--';
               }
-              if (detailPurchaseDate) {
-                detailPurchaseDate.textContent = asset.purchaseDate ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(asset.purchaseDate, this.settings) : '--';
+
+              // Gain/Loss
+              gainLossEl = document.getElementById('asset-detail-gain-loss');
+              if (gainLossEl) {
+                if (asset.currentValue !== null && asset.purchasePrice !== null && asset.purchasePrice > 0) {
+                  gain = asset.currentValue - asset.purchasePrice;
+                  pct = (gain / asset.purchasePrice * 100).toFixed(1);
+                  sign = gain >= 0 ? '+' : '';
+                  gainLossEl.textContent = "".concat(sign).concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(gain, currency, this.settings), " (").concat(sign).concat(pct, "%)");
+                  gainLossEl.className = "balance-amount ".concat(gain >= 0 ? 'positive' : 'negative');
+                } else {
+                  gainLossEl.textContent = '--';
+                  gainLossEl.className = 'balance-amount';
+                }
               }
+
+              // Metrics
+              detailRate = document.getElementById('asset-detail-rate');
               if (detailRate) {
                 if (asset.annualChangeRate !== null && asset.annualChangeRate !== 0) {
                   ratePercent = (asset.annualChangeRate * 100).toFixed(1);
-                  sign = asset.annualChangeRate > 0 ? '+' : '';
-                  detailRate.textContent = "".concat(sign).concat(ratePercent, "%/year");
+                  _sign = asset.annualChangeRate > 0 ? '+' : '';
+                  detailRate.textContent = "".concat(_sign).concat(ratePercent, "%/year");
                 } else {
                   detailRate.textContent = '--';
                 }
               }
-              panel.classList.add('active');
+              detailPurchaseDate = document.getElementById('asset-detail-purchase-date');
+              if (detailPurchaseDate) {
+                detailPurchaseDate.textContent = asset.purchaseDate ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(asset.purchaseDate, this.settings) : '--';
+              }
 
-              // Load charts
+              // Load charts and update projection/snapshot metrics
               _context7.n = 2;
-              return this.loadAssetValueChart(assetId);
+              return Promise.all([this.loadAssetValueChart(assetId), this.loadAssetProjectionChart(assetId)]);
             case 2:
-              _context7.n = 3;
-              return this.loadAssetProjectionChart(assetId);
+              _yield$Promise$all = _context7.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 1);
+              snapshots = _yield$Promise$all2[0];
+              // Update snapshot count
+              snapshotCountEl = document.getElementById('asset-detail-snapshots');
+              if (snapshotCountEl && snapshots) {
+                snapshotCountEl.textContent = snapshots.length;
+              }
             case 3:
               return _context7.a(2);
           }
@@ -21600,10 +21690,8 @@ var AssetsModule = /*#__PURE__*/function () {
   }, {
     key: "closeAssetDetails",
     value: function closeAssetDetails() {
-      var panel = document.getElementById('asset-detail-panel');
-      if (panel) {
-        panel.classList.remove('active');
-      }
+      document.getElementById('asset-details-view').style.display = 'none';
+      document.getElementById('assets-view').style.display = 'block';
       this.currentAsset = null;
     }
   }, {
@@ -21628,7 +21716,7 @@ var AssetsModule = /*#__PURE__*/function () {
                 _context8.n = 2;
                 break;
               }
-              return _context8.a(2);
+              return _context8.a(2, []);
             case 2:
               _context8.n = 3;
               return response.json();
@@ -21639,7 +21727,7 @@ var AssetsModule = /*#__PURE__*/function () {
                 _context8.n = 4;
                 break;
               }
-              return _context8.a(2);
+              return _context8.a(2, snapshots || []);
             case 4:
               ctx = canvas.getContext('2d'); // Destroy existing chart
               if (this.charts.assetValue) {
@@ -21650,7 +21738,7 @@ var AssetsModule = /*#__PURE__*/function () {
                 break;
               }
               canvas.style.display = 'none';
-              return _context8.a(2);
+              return _context8.a(2, snapshots || []);
             case 5:
               canvas.style.display = '';
 
@@ -21694,14 +21782,12 @@ var AssetsModule = /*#__PURE__*/function () {
                   }
                 }
               });
-              _context8.n = 7;
-              break;
+              return _context8.a(2, snapshots);
             case 6:
               _context8.p = 6;
               _t4 = _context8.v;
               console.error('Failed to load asset value chart:', _t4);
-            case 7:
-              return _context8.a(2);
+              return _context8.a(2, []);
           }
         }, _callee8, this, [[0, 6]]);
       }));
@@ -21715,7 +21801,7 @@ var AssetsModule = /*#__PURE__*/function () {
     value: function () {
       var _loadAssetProjectionChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(assetId) {
         var _this4 = this;
-        var _this$currentAsset2, response, data, canvas, ctx, isAppreciating, lineColor, bgColor, currency, _t5;
+        var _this$currentAsset2, response, data, canvas, ctx, isAppreciating, lineColor, bgColor, currency, lastProjection, projectedEl, _t5;
         return _regenerator().w(function (_context9) {
           while (1) switch (_context9.p = _context9.n) {
             case 0:
@@ -21760,7 +21846,12 @@ var AssetsModule = /*#__PURE__*/function () {
               isAppreciating = (data.annualChangeRate || 0) >= 0;
               lineColor = isAppreciating ? '#46ba61' : '#e9322d';
               bgColor = isAppreciating ? 'rgba(70, 186, 97, 0.1)' : 'rgba(233, 50, 45, 0.1)';
-              currency = ((_this$currentAsset2 = this.currentAsset) === null || _this$currentAsset2 === void 0 ? void 0 : _this$currentAsset2.currency) || 'USD';
+              currency = ((_this$currentAsset2 = this.currentAsset) === null || _this$currentAsset2 === void 0 ? void 0 : _this$currentAsset2.currency) || 'USD'; // Update 10yr projected value metric
+              lastProjection = data.growthProjection[data.growthProjection.length - 1];
+              projectedEl = document.getElementById('asset-detail-projected');
+              if (projectedEl && lastProjection) {
+                projectedEl.textContent = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(lastProjection.value, currency, this.settings);
+              }
               this.charts.assetProjection = new chart_js_auto__WEBPACK_IMPORTED_MODULE_4__["default"](ctx, {
                 type: 'line',
                 data: {
@@ -21926,17 +22017,6 @@ var AssetsModule = /*#__PURE__*/function () {
       }
       return loadDashboardAssetSummary;
     }()
-  }], [{
-    key: "TYPE_LABELS",
-    get: function get() {
-      return {
-        real_estate: 'Real Estate',
-        vehicle: 'Vehicle',
-        jewelry: 'Jewelry',
-        collectibles: 'Collectibles',
-        other: 'Other'
-      };
-    }
   }]);
 }();
 
