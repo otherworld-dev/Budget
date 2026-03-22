@@ -2769,6 +2769,11 @@ button.danger:hover {
     opacity: 1;
 }
 
+#credit-limit-group,
+#account-form .form-section .form-group {
+    margin-top: 15px;
+}
+
 /* Enhanced Transactions Page Styles */
 
 /* Filters Panel */
