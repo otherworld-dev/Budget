@@ -5,21 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.8.0] - 2026-03-22
 
 ### Added
+- **Redesigned category details panel**: Spending breakdown chart with enhanced analytics showing monthly trends, top vendors, and budget progress ([#88](https://github.com/otherworld-dev/budget/issues/88))
+- **Redesigned assets page**: Styled asset cards with full-page detail view replacing the previous list layout
+- **Redesigned transaction actions**: More-actions dropdown replaced with a horizontal icon toolbar for faster access
 - **Consistent date formatting**: Replace native date inputs with flatpickr across the app so the user's chosen date format is used everywhere — transaction forms, filters, inline editing ([#72](https://github.com/otherworld-dev/budget/issues/72))
+- **Tag set editing**: Edit existing tag sets and tags with duplicate name validation ([#90](https://github.com/otherworld-dev/budget/issues/90))
+- **Inline amount editor**: Simplified to text-only input with automatic type detection based on sign (positive = income, negative = expense)
 
 ### Fixed
 - **Category dropdown not working**: Categories stopped appearing in transaction dropdown after a recent UI update ([#87](https://github.com/otherworld-dev/budget/issues/87))
 - **NC33 background job error**: Log error when starting Nextcloud 33 with Budget enabled ([#86](https://github.com/otherworld-dev/budget/issues/86))
-- **Interest rate limit**: Error saving account when interest rate exceeds 9.99% ([#74](https://github.com/otherworld-dev/budget/issues/74))
+- **Interest rate limit**: Error saving account when interest rate exceeds 9.99%; widened column precision from DECIMAL(5,4) to DECIMAL(7,4) ([#74](https://github.com/otherworld-dev/budget/issues/74))
 - **Liability sign/color inversion**: Liability account cards showed a forced negative sign on positive balances; Total Assets summary used static green color even when negative ([#85](https://github.com/otherworld-dev/budget/issues/85))
+- **Liability totals incorrect**: Totals now net credits against debt instead of using absolute values; cards distinguish owed vs credit balance
 - **One-time bill transactions not created**: Marking a one-time bill as paid did not create a transaction or deduct from account balance because the bill was deactivated before the transaction creation check ([#89](https://github.com/otherworld-dev/budget/issues/89))
+- **One-time bill payment date**: Payment transactions now use today's date and are marked as cleared instead of scheduled
 - **Dashboard tile reordering errors**: "Failed to save widget order" and "Failed to save dashboard lock state" errors caused by race conditions during rapid drag-and-drop; settings saves are now debounced ([#77](https://github.com/otherworld-dev/budget/issues/77))
+- **Add Tiles menu closing**: Menu no longer closes when selecting tiles
 - **Asset detail edit button broken**: Edit button in asset detail panel did nothing due to a button ID mismatch between template and JavaScript ([#76](https://github.com/otherworld-dev/budget/issues/76))
+- **Asset edit modal crash**: Annual rate field ID mismatch caused the modal to fail on open
 - **Split transaction cannot be undone**: The "Unsplit Transaction" button existed but was never shown or connected to its handler; now visible when editing a split transaction ([#75](https://github.com/otherworld-dev/budget/issues/75))
+- **Split indicator badge missing**: Split transactions now show the indicator badge; split modal auto-fills remaining balance
 - **Inline account change**: Support changing a transaction's account via inline edit ([#70](https://github.com/otherworld-dev/budget/issues/70))
+- **Transaction action buttons overflowing**: Prevent action buttons from being pushed into adjacent columns by long text; editable cell overlay no longer blocks the actions column
+- **Tag set edit button not wired up**: Edit button now works; fixed related categories navigation issue
+- **"Use Default Categories" failing**: JSON parse error when applying default categories
+- **Sidebar search overlap**: Search text no longer overlaps the search icon
+- **Theme consistency**: Category settings button, configure columns button, and reconciliation panel now use Nextcloud theme variables
 
 ## [2.7.2] - 2026-03-09
 
