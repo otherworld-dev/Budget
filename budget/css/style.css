@@ -3224,8 +3224,10 @@ button.danger:hover {
     width: 100px;
     text-align: center;
     white-space: nowrap;
-    position: relative;
-    z-index: 1;
+}
+
+.transactions-table.enhanced td.actions-column {
+    padding: 2px 4px;
 }
 
 /* Truncate cell content within fixed-layout table columns */
@@ -3299,12 +3301,13 @@ button.danger:hover {
 .transaction-actions {
     display: flex;
     gap: 2px;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 .action-btn {
     width: 24px;
     height: 24px;
+    min-width: 0;
     border: none;
     background: transparent;
     border-radius: 3px;
