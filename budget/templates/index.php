@@ -4633,9 +4633,9 @@ style('budget', 'budget-main');
             <input type="hidden" id="bill-id">
 
             <div class="form-group">
-                <label for="bill-name">Bill Name <span class="required">*</span></label>
+                <label for="bill-name">Bill Name / Vendor <span class="required">*</span></label>
                 <input type="text" id="bill-name" required aria-describedby="bill-name-help" maxlength="255" placeholder="e.g., Netflix, Rent, Electric Bill">
-                <small id="bill-name-help" class="form-text">Name of the recurring bill</small>
+                <small id="bill-name-help" class="form-text">Name of the vendor or recurring bill</small>
             </div>
 
             <div class="form-group">
