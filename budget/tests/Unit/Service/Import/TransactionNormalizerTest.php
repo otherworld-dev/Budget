@@ -83,6 +83,54 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertEqualsWithDelta(50.00, $result['amount'], 0.001);
 	}
 
+	public function testMapRowDualColumnEuropeanZeroExpenseIgnored(): void {
+		// Bug #95: European zero "0,00" was not recognized as zero,
+		// causing it to overwrite the valid income amount
+		$row = ['01.01.2026', '1,00', '0,00', 'Interest'];
+		$mapping = [
+			'date' => 0,
+			'description' => 3,
+			'incomeColumn' => 1,
+			'expenseColumn' => 2,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertEqualsWithDelta(1.00, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testMapRowDualColumnEuropeanZeroIncomeIgnored(): void {
+		$row = ['02.01.2026', '0,00', '30,00', 'Shopping'];
+		$mapping = [
+			'date' => 0,
+			'description' => 3,
+			'incomeColumn' => 1,
+			'expenseColumn' => 2,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertEqualsWithDelta(30.00, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testMapRowDualColumnEuropeanThousandsIncome(): void {
+		// "1.000,00" = 1000.00 in European format
+		$row = ['02.01.2026', '1.000,00', '0,00', 'Wage'];
+		$mapping = [
+			'date' => 0,
+			'description' => 3,
+			'incomeColumn' => 1,
+			'expenseColumn' => 2,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertEqualsWithDelta(1000.00, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
 	public function testMapRowThrowsWhenNoDate(): void {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('Date is required');

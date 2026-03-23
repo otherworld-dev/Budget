@@ -59,19 +59,26 @@ class TransactionNormalizer {
         $type = null;
 
         // Check for dual-column approach (income + expense)
+        // Parse amount first, then check numeric zero to handle all locale formats (0, 0.00, 0,00, etc.)
         if (!empty($mapping['incomeColumn']) && isset($row[$mapping['incomeColumn']])) {
             $incomeValue = trim($row[$mapping['incomeColumn']]);
-            if ($incomeValue !== '' && $incomeValue !== '0' && $incomeValue !== '0.00') {
-                $amount = $this->parseAmount($incomeValue);
-                $type = 'credit';
+            if ($incomeValue !== '') {
+                $parsed = $this->parseAmount($incomeValue);
+                if ($parsed != 0) {
+                    $amount = $parsed;
+                    $type = 'credit';
+                }
             }
         }
 
         if (!empty($mapping['expenseColumn']) && isset($row[$mapping['expenseColumn']])) {
             $expenseValue = trim($row[$mapping['expenseColumn']]);
-            if ($expenseValue !== '' && $expenseValue !== '0' && $expenseValue !== '0.00') {
-                $amount = $this->parseAmount($expenseValue);
-                $type = 'debit';
+            if ($expenseValue !== '') {
+                $parsed = $this->parseAmount($expenseValue);
+                if ($parsed != 0) {
+                    $amount = $parsed;
+                    $type = 'debit';
+                }
             }
         }
 
