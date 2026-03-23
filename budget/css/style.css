@@ -2968,7 +2968,7 @@ button.danger:hover {
 }
 
 .reconcile-stats .stat.balanced .amount {
-    color: var(--color-success, #28a745);
+    color: var(--color-success, #46ba61);
 }
 
 .reconcile-stats .stat.unbalanced .amount {
@@ -3324,7 +3324,7 @@ button.danger:hover {
 }
 
 .amount.positive {
-    color: #28a745;
+    color: #46ba61;
     font-weight: 600;
 }
 
@@ -4083,7 +4083,7 @@ button.danger:hover {
 }
 
 .transaction-balance.positive {
-    color: var(--color-success);
+    color: #46ba61;
 }
 
 .transaction-balance.negative {
@@ -4763,7 +4763,7 @@ button.danger:hover {
 }
 
 .transaction-amount.credit {
-    color: var(--color-success);
+    color: #46ba61;
 }
 
 .transaction-amount.debit {
@@ -6605,6 +6605,14 @@ button.danger:hover {
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+#account-transactions-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
 }
 
 .pagination-btn {
