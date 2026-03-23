@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.1] - 2026-03-23
+
+### Added
+- **Import and Export buttons on account details page**: Quick access to import statements and export transactions directly from account view
+- **Improved account reconciliation**: Adjustment transactions created automatically when reconciliation reveals a balance discrepancy; UX improvements to reconciliation flow
+
+### Fixed
+- Filter panel layout tidied up; removed unused more-actions button
+- Empty-state message now spans full table width in account transactions view
+- Account header condensed into a single row for cleaner layout
+- Dark green text colors brightened for dark mode readability across account pages and pagination
+- Account pagination centered properly
+- Correct error message shown when attempting to delete an account that still has transactions
+- Institution field not persisting on account edit due to duplicate element ID
+- Account form group spacing and credit limit field margin
+
 ## [2.8.0] - 2026-03-22
 
 ### Added
