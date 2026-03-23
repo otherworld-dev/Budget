@@ -959,9 +959,6 @@ style('budget', 'budget-main');
                         <span class="icon-checkmark" aria-hidden="true"></span>
                         Reconcile
                     </button>
-                    <button id="account-menu-btn" class="secondary" title="More actions">
-                        <span class="icon-more" aria-hidden="true"></span>
-                    </button>
                 </div>
             </div>
 

@@ -2782,7 +2782,7 @@ button.danger:hover {
     border: 1px solid var(--color-border);
     border-radius: 8px;
     margin-bottom: 20px;
-    padding: 20px;
+    padding: 16px;
     transition: all 0.3s ease;
 }
 
@@ -2795,31 +2795,35 @@ button.danger:hover {
 
 .filters-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 }
 
 .filter-group label {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
-    color: var(--color-main-text);
+    color: var(--color-text-maxcontrast);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .filter-group input,
 .filter-group select {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1px solid var(--color-border);
     border-radius: 4px;
     background: var(--color-main-background);
     color: var(--color-main-text);
-    font-size: 14px;
+    font-size: 13px;
+    height: 34px;
+    box-sizing: border-box;
 }
 
 .filter-group input:focus,
@@ -2831,7 +2835,7 @@ button.danger:hover {
 
 .filters-actions {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     justify-content: flex-end;
 }
 
@@ -3701,7 +3705,7 @@ button.danger:hover {
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .filters-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .table-header {
