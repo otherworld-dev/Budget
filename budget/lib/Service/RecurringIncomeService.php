@@ -17,15 +17,18 @@ class RecurringIncomeService {
     private RecurringIncomeMapper $mapper;
     private FrequencyCalculator $frequencyCalculator;
     private RecurringIncomeDetector $recurringDetector;
+    private TransactionService $transactionService;
 
     public function __construct(
         RecurringIncomeMapper $mapper,
         FrequencyCalculator $frequencyCalculator,
-        RecurringIncomeDetector $recurringDetector
+        RecurringIncomeDetector $recurringDetector,
+        TransactionService $transactionService
     ) {
         $this->mapper = $mapper;
         $this->frequencyCalculator = $frequencyCalculator;
         $this->recurringDetector = $recurringDetector;
+        $this->transactionService = $transactionService;
     }
 
     /**
@@ -150,8 +153,11 @@ class RecurringIncomeService {
     /**
      * Mark income as received and advance to next expected date.
      */
-    public function markReceived(int $id, string $userId, ?string $receivedDate = null): RecurringIncome {
+    public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false): RecurringIncome {
         $income = $this->find($id, $userId);
+
+        // Capture the current expected date before advancing (used as transaction date)
+        $transactionDate = $income->getNextExpectedDate() ?? date('Y-m-d');
 
         $received = $receivedDate ?? date('Y-m-d');
         $income->setLastReceivedDate($received);
@@ -164,7 +170,18 @@ class RecurringIncomeService {
         );
         $income->setNextExpectedDate($nextExpected);
 
-        return $this->mapper->update($income);
+        $income = $this->mapper->update($income);
+
+        // Create a cleared transaction for the received income if requested
+        if ($createTransaction && $income->getAccountId() !== null) {
+            try {
+                $this->transactionService->createFromIncome($userId, $income, $transactionDate, 'cleared');
+            } catch (\Exception $e) {
+                error_log("Failed to create transaction for income {$id}: {$e->getMessage()}");
+            }
+        }
+
+        return $income;
     }
 
     /**

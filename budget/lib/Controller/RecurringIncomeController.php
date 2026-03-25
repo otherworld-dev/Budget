@@ -262,7 +262,10 @@ class RecurringIncomeController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markReceived(int $id, ?string $receivedDate = null): DataResponse {
         try {
-            $income = $this->service->markReceived($id, $this->userId, $receivedDate);
+            $params = $this->request->getParams();
+            $createTransaction = (bool) ($params['createTransaction'] ?? false);
+
+            $income = $this->service->markReceived($id, $this->userId, $receivedDate, $createTransaction);
             return new DataResponse($income);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, 'Recurring income', ['incomeId' => $id]);

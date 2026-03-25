@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Db\RecurringIncome;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 
@@ -203,6 +204,42 @@ class TransactionService {
         }
 
         return $transaction;
+    }
+
+    /**
+     * Create a transaction from a recurring income entry.
+     *
+     * @param string $userId User ID
+     * @param RecurringIncome $income The recurring income to create transaction from
+     * @param string|null $transactionDate Optional date override (uses income's nextExpectedDate if not provided)
+     * @param string|null $status Optional status override (auto-determined from date if not provided)
+     * @return Transaction The created transaction
+     * @throws \Exception if income has no account
+     */
+    public function createFromIncome(
+        string $userId,
+        RecurringIncome $income,
+        ?string $transactionDate = null,
+        ?string $status = null
+    ): Transaction {
+        if (!$income->getAccountId()) {
+            throw new \Exception('Income must have an account to create transaction');
+        }
+
+        $date = $transactionDate ?? $income->getNextExpectedDate();
+        $status = $status ?? (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
+
+        return $this->create(
+            userId: $userId,
+            accountId: $income->getAccountId(),
+            date: $date,
+            description: $income->getName(),
+            amount: $income->getAmount(),
+            type: 'credit',
+            categoryId: $income->getCategoryId(),
+            notes: "Auto-generated from income: {$income->getName()}",
+            status: $status
+        );
     }
 
     /**

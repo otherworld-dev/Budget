@@ -6,9 +6,11 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCA\Budget\Service\RecurringIncomeService;
+use OCA\Budget\Service\TransactionService;
 use PHPUnit\Framework\TestCase;
 
 class RecurringIncomeServiceTest extends TestCase {
@@ -16,16 +18,19 @@ class RecurringIncomeServiceTest extends TestCase {
     private RecurringIncomeMapper $mapper;
     private FrequencyCalculator $frequencyCalculator;
     private RecurringIncomeDetector $recurringDetector;
+    private TransactionService $transactionService;
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(RecurringIncomeMapper::class);
         $this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
         $this->recurringDetector = $this->createMock(RecurringIncomeDetector::class);
+        $this->transactionService = $this->createMock(TransactionService::class);
 
         $this->service = new RecurringIncomeService(
             $this->mapper,
             $this->frequencyCalculator,
-            $this->recurringDetector
+            $this->recurringDetector,
+            $this->transactionService
         );
     }
 
@@ -42,6 +47,8 @@ class RecurringIncomeServiceTest extends TestCase {
             'autoDetectPattern' => null,
             'lastReceivedDate' => null,
             'nextExpectedDate' => '2026-04-25',
+            'accountId' => null,
+            'categoryId' => null,
         ];
         $data = array_merge($defaults, $overrides);
 
@@ -55,6 +62,8 @@ class RecurringIncomeServiceTest extends TestCase {
         $income->setAutoDetectPattern($data['autoDetectPattern']);
         $income->setLastReceivedDate($data['lastReceivedDate']);
         $income->setNextExpectedDate($data['nextExpectedDate']);
+        $income->setAccountId($data['accountId']);
+        $income->setCategoryId($data['categoryId']);
 
         return $income;
     }
@@ -121,6 +130,60 @@ class RecurringIncomeServiceTest extends TestCase {
             });
 
         $this->service->markReceived(1, 'user1', '2026-03-25');
+    }
+
+    public function testMarkReceivedCreatesTransactionWhenRequested(): void {
+        $income = $this->makeIncome(['accountId' => 10, 'categoryId' => 5, 'nextExpectedDate' => '2026-03-25']);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+        $tx = new Transaction();
+        $tx->setId(1);
+        $this->transactionService->expects($this->once())
+            ->method('createFromIncome')
+            ->with('user1', $income, '2026-03-25', 'cleared')
+            ->willReturn($tx);
+
+        $this->service->markReceived(1, 'user1', '2026-03-25', true);
+    }
+
+    public function testMarkReceivedDoesNotCreateTransactionByDefault(): void {
+        $income = $this->makeIncome(['accountId' => 10]);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+        $this->transactionService->expects($this->never())->method('createFromIncome');
+
+        $this->service->markReceived(1, 'user1', '2026-03-25');
+    }
+
+    public function testMarkReceivedSkipsTransactionWhenNoAccount(): void {
+        $income = $this->makeIncome(['accountId' => null]);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+        $this->transactionService->expects($this->never())->method('createFromIncome');
+
+        $this->service->markReceived(1, 'user1', '2026-03-25', true);
+    }
+
+    public function testMarkReceivedStillSucceedsIfTransactionCreationFails(): void {
+        $income = $this->makeIncome(['accountId' => 10, 'nextExpectedDate' => '2026-03-25']);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+        $this->transactionService->method('createFromIncome')
+            ->willThrowException(new \Exception('DB error'));
+
+        // Should not throw - markReceived should succeed despite transaction failure
+        $result = $this->service->markReceived(1, 'user1', '2026-03-25', true);
+        $this->assertEquals('2026-03-25', $result->getLastReceivedDate());
+        $this->assertEquals('2026-04-25', $result->getNextExpectedDate());
     }
 
     // ===== getMonthlySummary =====

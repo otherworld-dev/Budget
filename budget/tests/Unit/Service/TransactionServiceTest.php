@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTagMapper;
@@ -480,6 +481,100 @@ class TransactionServiceTest extends TestCase {
         $this->accountMapper->method('updateBalance')->willReturn($account);
 
         $this->service->createFromBill('user1', $bill, '2026-03-15');
+    }
+
+    // ===== createFromIncome() =====
+
+    private function makeIncome(array $overrides = []): RecurringIncome {
+        $income = new RecurringIncome();
+        $defaults = [
+            'id' => 1,
+            'userId' => 'user1',
+            'name' => 'Salary',
+            'amount' => 3000.00,
+            'accountId' => 10,
+            'categoryId' => 5,
+            'nextExpectedDate' => '2026-03-25',
+        ];
+        $data = array_merge($defaults, $overrides);
+
+        $income->setId($data['id']);
+        $income->setUserId($data['userId']);
+        $income->setName($data['name']);
+        $income->setAmount($data['amount']);
+        $income->setAccountId($data['accountId']);
+        $income->setCategoryId($data['categoryId']);
+        $income->setNextExpectedDate($data['nextExpectedDate']);
+        return $income;
+    }
+
+    public function testCreateFromIncomeCreatesCreditTransaction(): void {
+        $income = $this->makeIncome();
+        $account = $this->makeAccount();
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $this->mapper->expects($this->once())
+            ->method('insert')
+            ->willReturnCallback(function (Transaction $tx) {
+                $this->assertEquals('Salary', $tx->getDescription());
+                $this->assertEquals('credit', $tx->getType());
+                $this->assertEquals(3000.00, $tx->getAmount());
+                $this->assertEquals(10, $tx->getAccountId());
+                $this->assertEquals(5, $tx->getCategoryId());
+                $this->assertEquals('2026-03-25', $tx->getDate());
+                $this->assertStringContainsString('Auto-generated from income', $tx->getNotes());
+                $tx->setId(1);
+                return $tx;
+            });
+        $this->accountMapper->method('updateBalance')->willReturn($account);
+
+        $result = $this->service->createFromIncome('user1', $income);
+
+        $this->assertEquals('credit', $result->getType());
+        $this->assertEquals(3000.00, $result->getAmount());
+    }
+
+    public function testCreateFromIncomeThrowsWithoutAccount(): void {
+        $income = $this->makeIncome(['accountId' => null]);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('must have an account');
+
+        $this->service->createFromIncome('user1', $income);
+    }
+
+    public function testCreateFromIncomeUsesOverrideDate(): void {
+        $income = $this->makeIncome(['nextExpectedDate' => '2026-03-25']);
+        $account = $this->makeAccount();
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $this->mapper->expects($this->once())
+            ->method('insert')
+            ->willReturnCallback(function (Transaction $tx) {
+                $this->assertEquals('2026-04-01', $tx->getDate());
+                $tx->setId(1);
+                return $tx;
+            });
+        $this->accountMapper->method('updateBalance')->willReturn($account);
+
+        $this->service->createFromIncome('user1', $income, '2026-04-01');
+    }
+
+    public function testCreateFromIncomeUsesScheduledStatusForFutureDate(): void {
+        $income = $this->makeIncome(['nextExpectedDate' => '2099-12-31']);
+        $account = $this->makeAccount();
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $this->mapper->expects($this->once())
+            ->method('insert')
+            ->willReturnCallback(function (Transaction $tx) {
+                $this->assertEquals('scheduled', $tx->getStatus());
+                $tx->setId(1);
+                return $tx;
+            });
+        $this->accountMapper->method('updateBalance')->willReturn($account);
+
+        $this->service->createFromIncome('user1', $income);
     }
 
     // ===== linkTransactions() =====

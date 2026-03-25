@@ -502,8 +502,8 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markPaid(int $id, ?string $paidDate = null): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true) ?? [];
-            $createNextTransaction = $data['createNextTransaction'] ?? true;
+            $params = $this->request->getParams();
+            $createNextTransaction = (bool) ($params['createNextTransaction'] ?? false);
 
             $bill = $this->service->markPaid($id, $this->userId, $paidDate, $createNextTransaction);
             return new DataResponse($bill);

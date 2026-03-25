@@ -31895,7 +31895,7 @@ var IncomeModule = /*#__PURE__*/function () {
     value: function () {
       var _markIncomeReceived = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(incomeId) {
         var _this3 = this;
-        var income, previousReceivedDate, currentDate, response, _t5;
+        var income, previousReceivedDate, currentDate, response, message, _t5;
         return _regenerator().w(function (_context5) {
           while (1) switch (_context5.p = _context5.n) {
             case 0:
@@ -31920,7 +31920,8 @@ var IncomeModule = /*#__PURE__*/function () {
                   'requesttoken': OC.requestToken
                 },
                 body: JSON.stringify({
-                  receivedDate: currentDate
+                  receivedDate: currentDate,
+                  createTransaction: true
                 })
               });
             case 2:
@@ -31948,7 +31949,8 @@ var IncomeModule = /*#__PURE__*/function () {
               }
 
               // Show notification with undo option
-              this.showUndoNotification('Income marked as received', function () {
+              message = income.accountId ? 'Income marked as received. Transaction created.' : 'Income marked as received.';
+              this.showUndoNotification(message, function () {
                 return _this3.undoMarkReceived();
               });
 

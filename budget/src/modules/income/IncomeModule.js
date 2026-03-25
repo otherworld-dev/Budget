@@ -456,7 +456,7 @@ export default class IncomeModule {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken
                 },
-                body: JSON.stringify({ receivedDate: currentDate })
+                body: JSON.stringify({ receivedDate: currentDate, createTransaction: true })
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -477,7 +477,10 @@ export default class IncomeModule {
             }
 
             // Show notification with undo option
-            this.showUndoNotification('Income marked as received', () => this.undoMarkReceived());
+            const message = income.accountId
+                ? 'Income marked as received. Transaction created.'
+                : 'Income marked as received.';
+            this.showUndoNotification(message, () => this.undoMarkReceived());
 
             // Set timer to clear undo data after 5 seconds
             this._undoTimer = setTimeout(() => {
