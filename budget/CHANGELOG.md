@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.3] - 2026-03-25
+
+### Added
+- **Create transaction when marking recurring income as received**: Marking income as received now automatically creates a corresponding transaction in the linked account, so income appears in transaction history and reports ([#99](https://github.com/otherworld-dev/budget/issues/99))
+
+### Fixed
+- **2-digit year dates in CSV import**: CSV files using 2-digit year date formats (e.g. `25.03.26`) are now parsed correctly ([#100](https://github.com/otherworld-dev/budget/issues/100))
+
 ## [2.8.2] - 2026-03-23
 
 ### Added
