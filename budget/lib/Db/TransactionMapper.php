@@ -992,7 +992,7 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Find potential transfer matches for a transaction
-     * Matches on: same amount, opposite type, different account, within date window
+     * Matches on: same amount, opposite type, different account, same currency, within date window
      *
      * @return Transaction[]
      */
@@ -1003,6 +1003,7 @@ class TransactionMapper extends QBMapper {
         float $amount,
         string $type,
         string $date,
+        string $currency,
         int $dateWindowDays = 3
     ): array {
         $qb = $this->db->getQueryBuilder();
@@ -1025,6 +1026,8 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('t.amount', $qb->createNamedParameter($amount)))
             // Opposite type (debit in one account, credit in another)
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($oppositeType)))
+            // Same currency
+            ->andWhere($qb->expr()->eq('a.currency', $qb->createNamedParameter($currency)))
             // Within date window
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
@@ -1143,6 +1146,8 @@ class TransactionMapper extends QBMapper {
 
         // For each unlinked transaction, find potential matches
         $transactionsWithMatches = [];
+        // Cache account info to avoid repeated queries
+        $accountCache = [];
         foreach ($unlinkedTransactions as $tx) {
             $matches = $this->findPotentialMatches(
                 $userId,
@@ -1151,26 +1156,47 @@ class TransactionMapper extends QBMapper {
                 (float)$tx['amount'],
                 $tx['type'],
                 $tx['date'],
+                $tx['account_currency'],
                 $dateWindowDays
             );
 
             if (count($matches) > 0) {
-                // Convert Transaction entities to arrays and add account info
+                // Collect unique account IDs we need info for
+                $neededAccountIds = [];
+                foreach ($matches as $match) {
+                    $aid = $match->getAccountId();
+                    if (!isset($accountCache[$aid])) {
+                        $neededAccountIds[$aid] = true;
+                    }
+                }
+
+                // Batch-fetch account info for any uncached accounts
+                if (!empty($neededAccountIds)) {
+                    $accountQb = $this->db->getQueryBuilder();
+                    $accountQb->select('id', 'name', 'currency')
+                        ->from('budget_accounts')
+                        ->where($accountQb->expr()->in('id', $accountQb->createNamedParameter(
+                            array_map('intval', array_keys($neededAccountIds)),
+                            IQueryBuilder::PARAM_INT_ARRAY
+                        )));
+                    $accountResult = $accountQb->executeQuery();
+                    while ($row = $accountResult->fetch()) {
+                        $accountCache[(int)$row['id']] = [
+                            'name' => $row['name'],
+                            'currency' => $row['currency']
+                        ];
+                    }
+                    $accountResult->closeCursor();
+                }
+
+                // Convert Transaction entities to arrays with account info
                 $matchArrays = [];
                 foreach ($matches as $match) {
                     $matchArray = $match->jsonSerialize();
-                    // Get account info for the match
-                    $matchAccountQb = $this->db->getQueryBuilder();
-                    $matchAccountQb->select('name', 'currency')
-                        ->from('budget_accounts')
-                        ->where($matchAccountQb->expr()->eq('id', $matchAccountQb->createNamedParameter($match->getAccountId(), IQueryBuilder::PARAM_INT)));
-                    $matchAccountResult = $matchAccountQb->executeQuery();
-                    $matchAccount = $matchAccountResult->fetch();
-                    $matchAccountResult->closeCursor();
-
-                    if ($matchAccount) {
-                        $matchArray['accountName'] = $matchAccount['name'];
-                        $matchArray['accountCurrency'] = $matchAccount['currency'];
+                    $aid = $match->getAccountId();
+                    if (isset($accountCache[$aid])) {
+                        $matchArray['accountName'] = $accountCache[$aid]['name'];
+                        $matchArray['accountCurrency'] = $accountCache[$aid]['currency'];
                     }
                     $matchArrays[] = $matchArray;
                 }

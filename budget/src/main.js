@@ -267,11 +267,13 @@ class BudgetApp {
         // Modal cancel button
         document.querySelectorAll('.cancel-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // Check if closing bulk match modal - refresh transactions
+                // Check if closing bulk match modal - refresh transactions if matches were changed
                 const bulkMatchModal = document.getElementById('bulk-match-modal');
                 if (bulkMatchModal && bulkMatchModal.style.display !== 'none' && bulkMatchModal.contains(e.target)) {
                     this.hideModals();
-                    this.loadTransactions();
+                    if (this.transactionsModule?._bulkMatchDirty) {
+                        this.loadTransactions();
+                    }
                 } else {
                     this.hideModals();
                 }
@@ -427,6 +429,10 @@ class BudgetApp {
                 const transactionId = parseInt(e.target.getAttribute('data-tx-id'));
                 const index = parseInt(e.target.getAttribute('data-index'));
                 this.handleBulkMatchLink(transactionId, index);
+            } else if (e.target.id === 'start-scan-btn') {
+                this.startBulkMatchScan();
+            } else if (e.target.id === 'confirm-selected-btn') {
+                this.handleConfirmSelected();
             } else if (e.target.classList.contains('autocomplete-item')) {
                 const bankName = e.target.getAttribute('data-bank-name');
                 this.selectInstitution(bankName);
@@ -1086,8 +1092,12 @@ class BudgetApp {
         return this.transactionsModule.addSplitRow(container, split, isFirst);
     }
 
-    async bulkMatchTransactions() {
-        return this.transactionsModule.bulkMatchTransactions();
+    async startBulkMatchScan() {
+        return this.transactionsModule.startScan();
+    }
+
+    async handleConfirmSelected() {
+        return this.transactionsModule.handleConfirmSelected();
     }
 
     async handleBulkMatchUndo(transactionId) {
@@ -3082,246 +3092,6 @@ class BudgetApp {
         });
     }
 
-    // ===== Bulk Transaction Matching Methods =====
-
-    /**
-     * API call to bulk match transactions
-     */
-    async bulkMatchTransactions() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
-            method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || `HTTP ${response.status}`);
-        }
-        return await response.json();
-    }
-
-    /**
-     * Show the bulk match modal and execute bulk matching
-     */
-    async showBulkMatchModal() {
-        const modal = document.getElementById('bulk-match-modal');
-        const loadingEl = document.getElementById('bulk-match-loading');
-        const resultsEl = document.getElementById('bulk-match-results');
-        const emptyEl = document.getElementById('bulk-match-empty');
-        const autoMatchedSection = document.getElementById('auto-matched-section');
-        const needsReviewSection = document.getElementById('needs-review-section');
-        const autoMatchedList = document.getElementById('auto-matched-list');
-        const needsReviewList = document.getElementById('needs-review-list');
-
-        // Reset state
-        loadingEl.style.display = 'flex';
-        resultsEl.style.display = 'none';
-        emptyEl.style.display = 'none';
-        autoMatchedSection.style.display = 'none';
-        needsReviewSection.style.display = 'none';
-        autoMatchedList.innerHTML = '';
-        needsReviewList.innerHTML = '';
-
-        // Show modal
-        modal.style.display = 'flex';
-
-        try {
-            const result = await this.bulkMatchTransactions();
-            loadingEl.style.display = 'none';
-            resultsEl.style.display = 'block';
-
-            // Update summary counts
-            document.getElementById('auto-matched-count').textContent = result.stats.autoMatchedCount;
-            document.getElementById('needs-review-count').textContent = result.stats.needsReviewCount;
-
-            // Check if no results
-            if (result.stats.autoMatchedCount === 0 && result.stats.needsReviewCount === 0) {
-                emptyEl.style.display = 'flex';
-                return;
-            }
-
-            // Render auto-matched pairs
-            if (result.autoMatched && result.autoMatched.length > 0) {
-                autoMatchedSection.style.display = 'block';
-                autoMatchedList.innerHTML = result.autoMatched.map(pair => this.renderAutoMatchedPair(pair)).join('');
-            }
-
-            // Render needs review items
-            if (result.needsReview && result.needsReview.length > 0) {
-                needsReviewSection.style.display = 'block';
-                needsReviewList.innerHTML = result.needsReview.map((item, index) => this.renderNeedsReviewItem(item, index)).join('');
-            }
-
-        } catch (error) {
-            loadingEl.style.display = 'none';
-            resultsEl.style.display = 'block';
-            emptyEl.style.display = 'flex';
-            emptyEl.querySelector('p').textContent = error.message || 'Failed to match transactions. Please try again.';
-        }
-    }
-
-    /**
-     * Render an auto-matched pair in the bulk match modal
-     */
-    renderAutoMatchedPair(pair) {
-        const tx = pair.transaction;
-        const linked = pair.linkedTo;
-
-        const txCurrency = tx.account_currency || this.getPrimaryCurrency();
-        const linkedCurrency = linked.accountCurrency || this.getPrimaryCurrency();
-
-        const txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
-        const linkedTypeClass = linked.type === 'credit' ? 'positive' : 'negative';
-
-        return `
-            <div class="bulk-match-pair" data-tx-id="${tx.id}" data-linked-id="${linked.id}">
-                <div class="pair-transaction">
-                    <span class="pair-date">${this.formatDate(tx.date)}</span>
-                    <span class="pair-description">${this.escapeHtml(tx.description)}</span>
-                    <div class="pair-details">
-                        <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
-                    </div>
-                </div>
-                <span class="pair-arrow">↔</span>
-                <div class="pair-transaction">
-                    <span class="pair-date">${this.formatDate(linked.date)}</span>
-                    <span class="pair-description">${this.escapeHtml(linked.description)}</span>
-                    <div class="pair-details">
-                        <span class="pair-amount ${linkedTypeClass}">${this.formatCurrency(linked.amount, linkedCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(linked.accountName)}</span>
-                    </div>
-                </div>
-                <button class="undo-match-btn" data-tx-id="${tx.id}">Undo</button>
-            </div>
-        `;
-    }
-
-    /**
-     * Render a needs-review item in the bulk match modal
-     */
-    renderNeedsReviewItem(item, index) {
-        const tx = item.transaction;
-        const txCurrency = tx.account_currency || this.getPrimaryCurrency();
-        const txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
-
-        const matchesHtml = item.matches.map((match) => {
-            const matchCurrency = match.accountCurrency || this.getPrimaryCurrency();
-            const matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
-
-            return `
-                <label class="review-match-option">
-                    <input type="radio" name="review-match-${index}" value="${match.id}">
-                    <div class="match-info">
-                        <div class="match-info-main">
-                            <span class="match-date">${this.formatDate(match.date)}</span>
-                            <span class="match-description">${this.escapeHtml(match.description)}</span>
-                        </div>
-                        <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
-                    </div>
-                </label>
-            `;
-        }).join('');
-
-        return `
-            <div class="bulk-review-item" data-tx-id="${tx.id}" data-index="${index}">
-                <div class="review-source">
-                    <div class="review-source-info">
-                        <span class="review-source-date">${this.formatDate(tx.date)}</span>
-                        <span class="review-source-description">${this.escapeHtml(tx.description)}</span>
-                        <div class="review-source-details">
-                            <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="review-matches-label">Select a match (${item.matchCount} options):</div>
-                <div class="review-matches">
-                    ${matchesHtml}
-                </div>
-                <button class="link-selected-btn" data-tx-id="${tx.id}" data-index="${index}" disabled>Link Selected</button>
-            </div>
-        `;
-    }
-
-    /**
-     * Handle undo of an auto-matched pair from bulk match modal
-     */
-    async handleBulkMatchUndo(transactionId) {
-        try {
-            await this.unlinkTransaction(transactionId);
-
-            // Remove the pair from the UI
-            const pairEl = document.querySelector(`.bulk-match-pair[data-tx-id="${transactionId}"]`);
-            if (pairEl) {
-                pairEl.remove();
-            }
-
-            // Update count
-            const countEl = document.getElementById('auto-matched-count');
-            const currentCount = parseInt(countEl.textContent);
-            countEl.textContent = currentCount - 1;
-
-            // Check if section is now empty
-            const autoMatchedList = document.getElementById('auto-matched-list');
-            if (autoMatchedList.children.length === 0) {
-                document.getElementById('auto-matched-section').style.display = 'none';
-            }
-
-            showSuccess('Match undone');
-        } catch (error) {
-            showError(error.message || 'Failed to undo match');
-        }
-    }
-
-    /**
-     * Handle linking a selected match from review section
-     */
-    async handleBulkMatchLink(transactionId, index) {
-        const reviewItem = document.querySelector(`.bulk-review-item[data-index="${index}"]`);
-        const selectedRadio = reviewItem.querySelector(`input[name="review-match-${index}"]:checked`);
-
-        if (!selectedRadio) {
-            showWarning('Please select a match first');
-            return;
-        }
-
-        const targetId = parseInt(selectedRadio.value);
-
-        try {
-            await this.linkTransactions(transactionId, targetId);
-
-            // Remove the review item from the UI
-            reviewItem.remove();
-
-            // Update counts
-            const reviewCountEl = document.getElementById('needs-review-count');
-            const autoCountEl = document.getElementById('auto-matched-count');
-            const currentReviewCount = parseInt(reviewCountEl.textContent);
-            const currentAutoCount = parseInt(autoCountEl.textContent);
-
-            reviewCountEl.textContent = currentReviewCount - 1;
-            autoCountEl.textContent = currentAutoCount + 1;
-
-            // Check if review section is now empty
-            const needsReviewList = document.getElementById('needs-review-list');
-            if (needsReviewList.children.length === 0) {
-                document.getElementById('needs-review-section').style.display = 'none';
-            }
-
-            showSuccess('Transactions linked');
-        } catch (error) {
-            showError(error.message || 'Failed to link transactions');
-        }
-    }
-
-    /**
-     * Escape HTML to prevent XSS (utility method)
-     */
     // =====================
     // Pensions Methods
     // =====================

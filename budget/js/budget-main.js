@@ -43814,21 +43814,24 @@ var TransactionsModule = /*#__PURE__*/function () {
       }
     }
 
-    // Bulk matching
+    // ===== Bulk Transfer Matching =====
   }, {
-    key: "bulkMatchTransactions",
+    key: "scanForMatches",
     value: function () {
-      var _bulkMatchTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
-        var response, error;
+      var _scanForMatches = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
+        var dateWindow,
+          response,
+          error,
+          _args20 = arguments;
         return _regenerator().w(function (_context20) {
           while (1) switch (_context20.n) {
             case 0:
+              dateWindow = _args20.length > 0 && _args20[0] !== undefined ? _args20[0] : 3;
               _context20.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
-                method: 'POST',
+              return fetch(OC.generateUrl("/apps/budget/api/transactions/scan-matches?dateWindow=".concat(dateWindow)), {
+                method: 'GET',
                 headers: {
-                  'requesttoken': OC.requestToken,
-                  'Content-Type': 'application/json'
+                  'requesttoken': OC.requestToken
                 }
               });
             case 1:
@@ -43850,92 +43853,291 @@ var TransactionsModule = /*#__PURE__*/function () {
           }
         }, _callee20);
       }));
-      function bulkMatchTransactions() {
-        return _bulkMatchTransactions.apply(this, arguments);
+      function scanForMatches() {
+        return _scanForMatches.apply(this, arguments);
       }
-      return bulkMatchTransactions;
+      return scanForMatches;
     }()
   }, {
-    key: "showBulkMatchModal",
+    key: "bulkLinkPairs",
     value: function () {
-      var _showBulkMatchModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
-        var _this12 = this;
-        var modal, loadingEl, resultsEl, emptyEl, autoMatchedSection, needsReviewSection, autoMatchedList, needsReviewList, result, _t20;
+      var _bulkLinkPairs = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(pairs) {
+        var response, error;
         return _regenerator().w(function (_context21) {
-          while (1) switch (_context21.p = _context21.n) {
+          while (1) switch (_context21.n) {
             case 0:
-              modal = document.getElementById('bulk-match-modal');
-              loadingEl = document.getElementById('bulk-match-loading');
-              resultsEl = document.getElementById('bulk-match-results');
-              emptyEl = document.getElementById('bulk-match-empty');
-              autoMatchedSection = document.getElementById('auto-matched-section');
-              needsReviewSection = document.getElementById('needs-review-section');
-              autoMatchedList = document.getElementById('auto-matched-list');
-              needsReviewList = document.getElementById('needs-review-list'); // Reset state
-              loadingEl.style.display = 'flex';
-              resultsEl.style.display = 'none';
-              emptyEl.style.display = 'none';
-              autoMatchedSection.style.display = 'none';
-              needsReviewSection.style.display = 'none';
-              autoMatchedList.innerHTML = '';
-              needsReviewList.innerHTML = '';
-
-              // Show modal
-              modal.style.display = 'flex';
-              _context21.p = 1;
-              _context21.n = 2;
-              return this.bulkMatchTransactions();
-            case 2:
-              result = _context21.v;
-              loadingEl.style.display = 'none';
-              resultsEl.style.display = 'block';
-
-              // Update summary counts
-              document.getElementById('auto-matched-count').textContent = result.stats.autoMatchedCount;
-              document.getElementById('needs-review-count').textContent = result.stats.needsReviewCount;
-
-              // Check if no results
-              if (!(result.stats.autoMatchedCount === 0 && result.stats.needsReviewCount === 0)) {
+              _context21.n = 1;
+              return fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-link'), {
+                method: 'POST',
+                headers: {
+                  'requesttoken': OC.requestToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  pairs: pairs
+                })
+              });
+            case 1:
+              response = _context21.v;
+              if (response.ok) {
                 _context21.n = 3;
                 break;
               }
-              emptyEl.style.display = 'flex';
-              return _context21.a(2);
+              _context21.n = 2;
+              return response.json();
+            case 2:
+              error = _context21.v;
+              throw new Error(error.error || "HTTP ".concat(response.status));
             case 3:
-              // Render auto-matched pairs
-              if (result.autoMatched && result.autoMatched.length > 0) {
+              _context21.n = 4;
+              return response.json();
+            case 4:
+              return _context21.a(2, _context21.v);
+          }
+        }, _callee21);
+      }));
+      function bulkLinkPairs(_x16) {
+        return _bulkLinkPairs.apply(this, arguments);
+      }
+      return bulkLinkPairs;
+    }()
+  }, {
+    key: "showBulkMatchModal",
+    value: function showBulkMatchModal() {
+      var modal = document.getElementById('bulk-match-modal');
+      var configEl = document.getElementById('bulk-match-config');
+      var loadingEl = document.getElementById('bulk-match-loading');
+      var resultsEl = document.getElementById('bulk-match-results');
+      var emptyEl = document.getElementById('bulk-match-empty');
+      var confirmBtn = document.getElementById('confirm-selected-btn');
+
+      // Reset state - show config, hide everything else
+      configEl.style.display = 'block';
+      loadingEl.style.display = 'none';
+      resultsEl.style.display = 'none';
+      emptyEl.style.display = 'none';
+      if (confirmBtn) confirmBtn.style.display = 'none';
+      document.getElementById('auto-matched-section').style.display = 'none';
+      document.getElementById('needs-review-section').style.display = 'none';
+      document.getElementById('auto-matched-list').innerHTML = '';
+      document.getElementById('needs-review-list').innerHTML = '';
+
+      // Render config dialog
+      configEl.innerHTML = "\n            <div class=\"config-field\">\n                <label for=\"match-date-window\">Date window (days):</label>\n                <div class=\"date-window-control\">\n                    <input type=\"range\" id=\"match-date-window\" min=\"0\" max=\"14\" value=\"3\" step=\"1\">\n                    <span id=\"match-date-window-value\" class=\"date-window-value\">3</span>\n                </div>\n                <p class=\"hint\">Matches must be within this many days of each other. Use 0 for exact date match.</p>\n            </div>\n            <div class=\"config-field\">\n                <label>Matching mode:</label>\n                <div class=\"mode-options\">\n                    <label class=\"mode-option\">\n                        <input type=\"radio\" name=\"match-mode\" value=\"auto\" checked>\n                        <div class=\"mode-option-content\">\n                            <span class=\"mode-option-title\">Auto-link exact matches</span>\n                            <span class=\"mode-option-desc\">Single-match pairs linked automatically. Multi-match shown for review.</span>\n                        </div>\n                    </label>\n                    <label class=\"mode-option\">\n                        <input type=\"radio\" name=\"match-mode\" value=\"review\">\n                        <div class=\"mode-option-content\">\n                            <span class=\"mode-option-title\">Review all matches</span>\n                            <span class=\"mode-option-desc\">All candidates shown for your confirmation before linking.</span>\n                        </div>\n                    </label>\n                </div>\n            </div>\n        ";
+
+      // Wire up date window slider
+      var slider = document.getElementById('match-date-window');
+      var valueDisplay = document.getElementById('match-date-window-value');
+      slider.addEventListener('input', function () {
+        valueDisplay.textContent = slider.value;
+      });
+
+      // Track dirty state for refresh on close
+      this._bulkMatchDirty = false;
+      modal.style.display = 'flex';
+    }
+  }, {
+    key: "startScan",
+    value: function () {
+      var _startScan = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
+        var _document$querySelect;
+        var configEl, loadingEl, dateWindow, mode, scanBtn, result, resultsEl, emptyEl, _resultsEl, _emptyEl, _t20;
+        return _regenerator().w(function (_context22) {
+          while (1) switch (_context22.p = _context22.n) {
+            case 0:
+              configEl = document.getElementById('bulk-match-config');
+              loadingEl = document.getElementById('bulk-match-loading');
+              dateWindow = parseInt(document.getElementById('match-date-window').value) || 3;
+              mode = ((_document$querySelect = document.querySelector('input[name="match-mode"]:checked')) === null || _document$querySelect === void 0 ? void 0 : _document$querySelect.value) || 'auto'; // Hide config and scan button, show loading
+              configEl.style.display = 'none';
+              scanBtn = document.getElementById('start-scan-btn');
+              if (scanBtn) scanBtn.style.display = 'none';
+              loadingEl.style.display = 'flex';
+              loadingEl.querySelector('p').textContent = 'Scanning for matching transactions...';
+              _context22.p = 1;
+              _context22.n = 2;
+              return this.scanForMatches(dateWindow);
+            case 2:
+              result = _context22.v;
+              loadingEl.style.display = 'none';
+              if (!(result.stats.totalCandidates === 0)) {
+                _context22.n = 3;
+                break;
+              }
+              resultsEl = document.getElementById('bulk-match-results');
+              emptyEl = document.getElementById('bulk-match-empty');
+              resultsEl.style.display = 'block';
+              emptyEl.style.display = 'flex';
+              emptyEl.querySelector('p').textContent = 'No matching transactions found.';
+              return _context22.a(2);
+            case 3:
+              if (!(mode === 'auto')) {
+                _context22.n = 5;
+                break;
+              }
+              _context22.n = 4;
+              return this.handleAutoMode(result);
+            case 4:
+              _context22.n = 6;
+              break;
+            case 5:
+              this.handleReviewMode(result);
+            case 6:
+              _context22.n = 8;
+              break;
+            case 7:
+              _context22.p = 7;
+              _t20 = _context22.v;
+              loadingEl.style.display = 'none';
+              _resultsEl = document.getElementById('bulk-match-results');
+              _emptyEl = document.getElementById('bulk-match-empty');
+              _resultsEl.style.display = 'block';
+              _emptyEl.style.display = 'flex';
+              _emptyEl.querySelector('p').textContent = _t20.message || 'Failed to scan for matches. Please try again.';
+            case 8:
+              return _context22.a(2);
+          }
+        }, _callee22, this, [[1, 7]]);
+      }));
+      function startScan() {
+        return _startScan.apply(this, arguments);
+      }
+      return startScan;
+    }()
+  }, {
+    key: "handleAutoMode",
+    value: function () {
+      var _handleAutoMode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(scanResult) {
+        var _this12 = this;
+        var loadingEl, resultsEl, autoMatchedSection, needsReviewSection, autoMatchedList, needsReviewList, singleMatches, multiMatches, autoLinkedCount, pairs, linkResult, _t21;
+        return _regenerator().w(function (_context23) {
+          while (1) switch (_context23.p = _context23.n) {
+            case 0:
+              loadingEl = document.getElementById('bulk-match-loading');
+              resultsEl = document.getElementById('bulk-match-results');
+              autoMatchedSection = document.getElementById('auto-matched-section');
+              needsReviewSection = document.getElementById('needs-review-section');
+              autoMatchedList = document.getElementById('auto-matched-list');
+              needsReviewList = document.getElementById('needs-review-list');
+              singleMatches = scanResult.candidates.filter(function (c) {
+                return c.matchCount === 1;
+              });
+              multiMatches = scanResult.candidates.filter(function (c) {
+                return c.matchCount > 1;
+              });
+              autoLinkedCount = 0; // Auto-link single-match pairs
+              if (!(singleMatches.length > 0)) {
+                _context23.n = 5;
+                break;
+              }
+              loadingEl.style.display = 'flex';
+              loadingEl.querySelector('p').textContent = "Linking ".concat(singleMatches.length, " exact match pairs...");
+              pairs = singleMatches.map(function (c) {
+                return {
+                  sourceId: parseInt(c.transaction.id),
+                  targetId: parseInt(c.matches[0].id)
+                };
+              });
+              _context23.p = 1;
+              _context23.n = 2;
+              return this.bulkLinkPairs(pairs);
+            case 2:
+              linkResult = _context23.v;
+              autoLinkedCount = linkResult.stats.linkedCount;
+              this._bulkMatchDirty = true;
+              _context23.n = 4;
+              break;
+            case 3:
+              _context23.p = 3;
+              _t21 = _context23.v;
+              // If bulk link fails entirely, show all as review instead
+              loadingEl.style.display = 'none';
+              this.handleReviewMode(scanResult);
+              return _context23.a(2);
+            case 4:
+              loadingEl.style.display = 'none';
+            case 5:
+              // Show results and cancel button
+              resultsEl.style.display = 'block';
+              document.getElementById('auto-matched-count').textContent = autoLinkedCount;
+              document.getElementById('needs-review-count').textContent = multiMatches.length;
+
+              // Render auto-linked pairs (with undo buttons)
+              if (autoLinkedCount > 0) {
                 autoMatchedSection.style.display = 'block';
-                autoMatchedList.innerHTML = result.autoMatched.map(function (pair) {
-                  return _this12.renderAutoMatchedPair(pair);
+                autoMatchedList.innerHTML = singleMatches.map(function (c) {
+                  return _this12.renderAutoMatchedPair({
+                    transaction: c.transaction,
+                    linkedTo: c.matches[0]
+                  });
                 }).join('');
               }
 
-              // Render needs review items
-              if (result.needsReview && result.needsReview.length > 0) {
+              // Render multi-match items for review
+              if (multiMatches.length > 0) {
                 needsReviewSection.style.display = 'block';
-                needsReviewList.innerHTML = result.needsReview.map(function (item, index) {
+                needsReviewList.innerHTML = multiMatches.map(function (item, index) {
                   return _this12.renderNeedsReviewItem(item, index);
                 }).join('');
               }
-              _context21.n = 5;
-              break;
-            case 4:
-              _context21.p = 4;
-              _t20 = _context21.v;
-              loadingEl.style.display = 'none';
-              resultsEl.style.display = 'block';
-              emptyEl.style.display = 'flex';
-              emptyEl.querySelector('p').textContent = _t20.message || 'Failed to match transactions. Please try again.';
-            case 5:
-              return _context21.a(2);
+              if (autoLinkedCount === 0 && multiMatches.length === 0) {
+                document.getElementById('bulk-match-empty').style.display = 'flex';
+              }
+            case 6:
+              return _context23.a(2);
           }
-        }, _callee21, this, [[1, 4]]);
+        }, _callee23, this, [[1, 3]]);
       }));
-      function showBulkMatchModal() {
-        return _showBulkMatchModal.apply(this, arguments);
+      function handleAutoMode(_x17) {
+        return _handleAutoMode.apply(this, arguments);
       }
-      return showBulkMatchModal;
+      return handleAutoMode;
     }()
+  }, {
+    key: "handleReviewMode",
+    value: function handleReviewMode(scanResult) {
+      var _this13 = this;
+      var resultsEl = document.getElementById('bulk-match-results');
+      var autoMatchedSection = document.getElementById('auto-matched-section');
+      var needsReviewSection = document.getElementById('needs-review-section');
+      var autoMatchedList = document.getElementById('auto-matched-list');
+      var needsReviewList = document.getElementById('needs-review-list');
+      var confirmBtn = document.getElementById('confirm-selected-btn');
+      resultsEl.style.display = 'block';
+      var singleMatches = scanResult.candidates.filter(function (c) {
+        return c.matchCount === 1;
+      });
+      var multiMatches = scanResult.candidates.filter(function (c) {
+        return c.matchCount > 1;
+      });
+
+      // Update summary for review mode
+      document.getElementById('auto-matched-count').textContent = singleMatches.length;
+      document.getElementById('needs-review-count').textContent = multiMatches.length;
+
+      // Render single-match items with checkboxes (pre-checked)
+      if (singleMatches.length > 0) {
+        autoMatchedSection.style.display = 'block';
+        autoMatchedSection.querySelector('h4').textContent = 'Exact Matches';
+        autoMatchedSection.querySelector('.section-hint').textContent = 'These transactions have exactly one match. Uncheck any you don\'t want to link.';
+        autoMatchedList.innerHTML = singleMatches.map(function (c, index) {
+          return _this13.renderReviewSingleMatch(c, index);
+        }).join('');
+      }
+
+      // Render multi-match items with radio buttons
+      if (multiMatches.length > 0) {
+        needsReviewSection.style.display = 'block';
+        needsReviewList.innerHTML = multiMatches.map(function (item, index) {
+          return _this13.renderNeedsReviewItem(item, index);
+        }).join('');
+      }
+
+      // Show confirm button
+      if (confirmBtn) {
+        confirmBtn.style.display = 'inline-block';
+      }
+    }
   }, {
     key: "renderAutoMatchedPair",
     value: function renderAutoMatchedPair(pair) {
@@ -43948,31 +44150,151 @@ var TransactionsModule = /*#__PURE__*/function () {
       return "\n            <div class=\"bulk-match-pair\" data-tx-id=\"".concat(tx.id, "\" data-linked-id=\"").concat(linked.id, "\">\n                <div class=\"pair-transaction\">\n                    <span class=\"pair-date\">").concat(this.formatDate(tx.date), "</span>\n                    <span class=\"pair-description\">").concat(this.escapeHtml(tx.description), "</span>\n                    <div class=\"pair-details\">\n                        <span class=\"pair-amount ").concat(txTypeClass, "\">").concat(this.formatCurrency(tx.amount, txCurrency), "</span>\n                        <span class=\"pair-account\">").concat(this.escapeHtml(tx.account_name), "</span>\n                    </div>\n                </div>\n                <span class=\"pair-arrow\">\u2194</span>\n                <div class=\"pair-transaction\">\n                    <span class=\"pair-date\">").concat(this.formatDate(linked.date), "</span>\n                    <span class=\"pair-description\">").concat(this.escapeHtml(linked.description), "</span>\n                    <div class=\"pair-details\">\n                        <span class=\"pair-amount ").concat(linkedTypeClass, "\">").concat(this.formatCurrency(linked.amount, linkedCurrency), "</span>\n                        <span class=\"pair-account\">").concat(this.escapeHtml(linked.accountName), "</span>\n                    </div>\n                </div>\n                <button class=\"undo-match-btn\" data-tx-id=\"").concat(tx.id, "\">Undo</button>\n            </div>\n        ");
     }
   }, {
+    key: "renderReviewSingleMatch",
+    value: function renderReviewSingleMatch(candidate, index) {
+      var tx = candidate.transaction;
+      var match = candidate.matches[0];
+      var txCurrency = tx.account_currency || this.getPrimaryCurrency();
+      var matchCurrency = match.accountCurrency || this.getPrimaryCurrency();
+      var txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
+      var matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
+      return "\n            <div class=\"review-single-match\" data-source-id=\"".concat(tx.id, "\" data-target-id=\"").concat(match.id, "\">\n                <input type=\"checkbox\" class=\"review-single-check\" data-source-id=\"").concat(tx.id, "\" data-target-id=\"").concat(match.id, "\" checked>\n                <div class=\"pair-content\">\n                    <div class=\"pair-transaction\">\n                        <span class=\"pair-date\">").concat(this.formatDate(tx.date), "</span>\n                        <span class=\"pair-description\">").concat(this.escapeHtml(tx.description), "</span>\n                        <div class=\"pair-details\">\n                            <span class=\"pair-amount ").concat(txTypeClass, "\">").concat(this.formatCurrency(tx.amount, txCurrency), "</span>\n                            <span class=\"pair-account\">").concat(this.escapeHtml(tx.account_name), "</span>\n                        </div>\n                    </div>\n                    <span class=\"pair-arrow\">\u2194</span>\n                    <div class=\"pair-transaction\">\n                        <span class=\"pair-date\">").concat(this.formatDate(match.date), "</span>\n                        <span class=\"pair-description\">").concat(this.escapeHtml(match.description), "</span>\n                        <div class=\"pair-details\">\n                            <span class=\"pair-amount ").concat(matchTypeClass, "\">").concat(this.formatCurrency(match.amount, matchCurrency), "</span>\n                            <span class=\"pair-account\">").concat(this.escapeHtml(match.accountName), "</span>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        ");
+    }
+  }, {
     key: "renderNeedsReviewItem",
     value: function renderNeedsReviewItem(item, index) {
-      var _this13 = this;
+      var _this14 = this;
       var tx = item.transaction;
       var txCurrency = tx.account_currency || this.getPrimaryCurrency();
       var txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
       var matchesHtml = item.matches.map(function (match) {
-        var matchCurrency = match.accountCurrency || _this13.getPrimaryCurrency();
+        var matchCurrency = match.accountCurrency || _this14.getPrimaryCurrency();
         var matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
-        return "\n                <label class=\"review-match-option\">\n                    <input type=\"radio\" name=\"review-match-".concat(index, "\" value=\"").concat(match.id, "\">\n                    <div class=\"match-info\">\n                        <div class=\"match-info-main\">\n                            <span class=\"match-date\">").concat(_this13.formatDate(match.date), "</span>\n                            <span class=\"match-description\">").concat(_this13.escapeHtml(match.description), "</span>\n                        </div>\n                        <span class=\"pair-amount ").concat(matchTypeClass, "\">").concat(_this13.formatCurrency(match.amount, matchCurrency), "</span>\n                        <span class=\"pair-account\">").concat(_this13.escapeHtml(match.accountName), "</span>\n                    </div>\n                </label>\n            ");
+        return "\n                <label class=\"review-match-option\">\n                    <input type=\"radio\" name=\"review-match-".concat(index, "\" value=\"").concat(match.id, "\">\n                    <div class=\"match-info\">\n                        <div class=\"match-info-main\">\n                            <span class=\"match-date\">").concat(_this14.formatDate(match.date), "</span>\n                            <span class=\"match-description\">").concat(_this14.escapeHtml(match.description), "</span>\n                        </div>\n                        <span class=\"pair-amount ").concat(matchTypeClass, "\">").concat(_this14.formatCurrency(match.amount, matchCurrency), "</span>\n                        <span class=\"pair-account\">").concat(_this14.escapeHtml(match.accountName), "</span>\n                    </div>\n                </label>\n            ");
       }).join('');
       return "\n            <div class=\"bulk-review-item\" data-tx-id=\"".concat(tx.id, "\" data-index=\"").concat(index, "\">\n                <div class=\"review-source\">\n                    <div class=\"review-source-info\">\n                        <span class=\"review-source-date\">").concat(this.formatDate(tx.date), "</span>\n                        <span class=\"review-source-description\">").concat(this.escapeHtml(tx.description), "</span>\n                        <div class=\"review-source-details\">\n                            <span class=\"pair-amount ").concat(txTypeClass, "\">").concat(this.formatCurrency(tx.amount, txCurrency), "</span>\n                            <span class=\"pair-account\">").concat(this.escapeHtml(tx.account_name), "</span>\n                        </div>\n                    </div>\n                </div>\n                <div class=\"review-matches-label\">Select a match (").concat(item.matchCount, " options):</div>\n                <div class=\"review-matches\">\n                    ").concat(matchesHtml, "\n                </div>\n                <button class=\"link-selected-btn\" data-tx-id=\"").concat(tx.id, "\" data-index=\"").concat(index, "\" disabled>Link Selected</button>\n            </div>\n        ");
     }
   }, {
+    key: "handleConfirmSelected",
+    value: function () {
+      var _handleConfirmSelected = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
+        var pairs, confirmBtn, result, message, resultsEl, autoMatchedSection, autoMatchedList, needsReviewSection, linkedHtml, _t22;
+        return _regenerator().w(function (_context24) {
+          while (1) switch (_context24.p = _context24.n) {
+            case 0:
+              pairs = []; // Collect checked single-match pairs
+              document.querySelectorAll('.review-single-check:checked').forEach(function (cb) {
+                pairs.push({
+                  sourceId: parseInt(cb.dataset.sourceId),
+                  targetId: parseInt(cb.dataset.targetId)
+                });
+              });
+
+              // Collect selected multi-match pairs (radio buttons)
+              document.querySelectorAll('.bulk-review-item').forEach(function (item) {
+                var selected = item.querySelector('input[type="radio"]:checked');
+                if (selected) {
+                  pairs.push({
+                    sourceId: parseInt(item.dataset.txId),
+                    targetId: parseInt(selected.value)
+                  });
+                }
+              });
+              if (!(pairs.length === 0)) {
+                _context24.n = 1;
+                break;
+              }
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('No matches selected');
+              return _context24.a(2);
+            case 1:
+              confirmBtn = document.getElementById('confirm-selected-btn');
+              if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Linking...';
+              }
+              _context24.p = 2;
+              _context24.n = 3;
+              return this.bulkLinkPairs(pairs);
+            case 3:
+              result = _context24.v;
+              this._bulkMatchDirty = true;
+              message = "Linked ".concat(result.stats.linkedCount, " pair(s)");
+              if (result.stats.failedCount > 0) {
+                message += ", ".concat(result.stats.failedCount, " failed");
+              }
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(message);
+
+              // Update UI to show results
+              resultsEl = document.getElementById('bulk-match-results');
+              autoMatchedSection = document.getElementById('auto-matched-section');
+              autoMatchedList = document.getElementById('auto-matched-list');
+              needsReviewSection = document.getElementById('needs-review-section'); // Convert review to auto-matched view with undo buttons
+              if (result.stats.linkedCount > 0) {
+                autoMatchedSection.style.display = 'block';
+                autoMatchedSection.querySelector('h4').textContent = 'Linked Pairs';
+                autoMatchedSection.querySelector('.section-hint').textContent = 'These transactions have been linked. Click Undo to unlink a pair.';
+
+                // Build auto-matched HTML from the successfully linked pairs
+                linkedHtml = [];
+                document.querySelectorAll('.review-single-match').forEach(function (el) {
+                  var sourceId = el.dataset.sourceId;
+                  var targetId = el.dataset.targetId;
+                  var wasLinked = result.linked.some(function (l) {
+                    return l.sourceId == sourceId && l.targetId == targetId;
+                  });
+                  if (wasLinked) {
+                    // Convert to auto-matched pair display with undo
+                    var pairContent = el.querySelector('.pair-content');
+                    if (pairContent) {
+                      linkedHtml.push("\n                                <div class=\"bulk-match-pair\" data-tx-id=\"".concat(sourceId, "\" data-linked-id=\"").concat(targetId, "\">\n                                    ").concat(pairContent.innerHTML, "\n                                    <button class=\"undo-match-btn\" data-tx-id=\"").concat(sourceId, "\">Undo</button>\n                                </div>\n                            "));
+                    }
+                  }
+                });
+                autoMatchedList.innerHTML = linkedHtml.join('');
+                document.getElementById('auto-matched-count').textContent = result.stats.linkedCount;
+              }
+
+              // Hide review section and confirm button
+              needsReviewSection.style.display = 'none';
+              if (confirmBtn) confirmBtn.style.display = 'none';
+              document.getElementById('needs-review-count').textContent = '0';
+              _context24.n = 5;
+              break;
+            case 4:
+              _context24.p = 4;
+              _t22 = _context24.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t22.message || 'Failed to link transactions');
+            case 5:
+              _context24.p = 5;
+              if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Confirm Selected';
+              }
+              return _context24.f(5);
+            case 6:
+              return _context24.a(2);
+          }
+        }, _callee24, this, [[2, 4, 5, 6]]);
+      }));
+      function handleConfirmSelected() {
+        return _handleConfirmSelected.apply(this, arguments);
+      }
+      return handleConfirmSelected;
+    }()
+  }, {
     key: "handleBulkMatchUndo",
     value: function () {
-      var _handleBulkMatchUndo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(transactionId) {
-        var pairEl, countEl, currentCount, autoMatchedList, _t21;
-        return _regenerator().w(function (_context22) {
-          while (1) switch (_context22.p = _context22.n) {
+      var _handleBulkMatchUndo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(transactionId) {
+        var pairEl, countEl, currentCount, autoMatchedList, _t23;
+        return _regenerator().w(function (_context25) {
+          while (1) switch (_context25.p = _context25.n) {
             case 0:
-              _context22.p = 0;
-              _context22.n = 1;
+              _context25.p = 0;
+              _context25.n = 1;
               return this.unlinkTransaction(transactionId);
             case 1:
+              this._bulkMatchDirty = true;
+
               // Remove the pair from the UI
               pairEl = document.querySelector(".bulk-match-pair[data-tx-id=\"".concat(transactionId, "\"]"));
               if (pairEl) {
@@ -43990,18 +44312,18 @@ var TransactionsModule = /*#__PURE__*/function () {
                 document.getElementById('auto-matched-section').style.display = 'none';
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Match undone');
-              _context22.n = 3;
+              _context25.n = 3;
               break;
             case 2:
-              _context22.p = 2;
-              _t21 = _context22.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t21.message || 'Failed to undo match');
+              _context25.p = 2;
+              _t23 = _context25.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t23.message || 'Failed to undo match');
             case 3:
-              return _context22.a(2);
+              return _context25.a(2);
           }
-        }, _callee22, this, [[0, 2]]);
+        }, _callee25, this, [[0, 2]]);
       }));
-      function handleBulkMatchUndo(_x16) {
+      function handleBulkMatchUndo(_x18) {
         return _handleBulkMatchUndo.apply(this, arguments);
       }
       return handleBulkMatchUndo;
@@ -44009,25 +44331,27 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleBulkMatchLink",
     value: function () {
-      var _handleBulkMatchLink = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(transactionId, index) {
-        var reviewItem, selectedRadio, targetId, reviewCountEl, autoCountEl, currentReviewCount, currentAutoCount, needsReviewList, _t22;
-        return _regenerator().w(function (_context23) {
-          while (1) switch (_context23.p = _context23.n) {
+      var _handleBulkMatchLink = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(transactionId, index) {
+        var reviewItem, selectedRadio, targetId, reviewCountEl, autoCountEl, currentReviewCount, currentAutoCount, needsReviewList, _t24;
+        return _regenerator().w(function (_context26) {
+          while (1) switch (_context26.p = _context26.n) {
             case 0:
               reviewItem = document.querySelector(".bulk-review-item[data-index=\"".concat(index, "\"]"));
               selectedRadio = reviewItem.querySelector("input[name=\"review-match-".concat(index, "\"]:checked"));
               if (selectedRadio) {
-                _context23.n = 1;
+                _context26.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Please select a match first');
-              return _context23.a(2);
+              return _context26.a(2);
             case 1:
               targetId = parseInt(selectedRadio.value);
-              _context23.p = 2;
-              _context23.n = 3;
+              _context26.p = 2;
+              _context26.n = 3;
               return this.linkTransactions(transactionId, targetId);
             case 3:
+              this._bulkMatchDirty = true;
+
               // Remove the review item from the UI
               reviewItem.remove();
 
@@ -44045,18 +44369,18 @@ var TransactionsModule = /*#__PURE__*/function () {
                 document.getElementById('needs-review-section').style.display = 'none';
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transactions linked');
-              _context23.n = 5;
+              _context26.n = 5;
               break;
             case 4:
-              _context23.p = 4;
-              _t22 = _context23.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t22.message || 'Failed to link transactions');
+              _context26.p = 4;
+              _t24 = _context26.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t24.message || 'Failed to link transactions');
             case 5:
-              return _context23.a(2);
+              return _context26.a(2);
           }
-        }, _callee23, this, [[2, 4]]);
+        }, _callee26, this, [[2, 4]]);
       }));
-      function handleBulkMatchLink(_x17, _x18) {
+      function handleBulkMatchLink(_x19, _x20) {
         return _handleBulkMatchLink.apply(this, arguments);
       }
       return handleBulkMatchLink;
@@ -44064,7 +44388,7 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "setupInlineEditingListeners",
     value: function setupInlineEditingListeners() {
-      var _this14 = this;
+      var _this15 = this;
       var transactionsTable = document.getElementById('transactions-table');
       if (!transactionsTable) {
         return;
@@ -44076,14 +44400,14 @@ var TransactionsModule = /*#__PURE__*/function () {
         if (cell && !cell.classList.contains('editing')) {
           // Don't trigger if clicking on checkbox
           if (e.target.type === 'checkbox') return;
-          _this14.startInlineEdit(cell);
+          _this15.startInlineEdit(cell);
         }
       });
 
       // Close any open inline editors when clicking outside
       document.addEventListener('click', function (e) {
         if (!e.target.closest('.editable-cell') && !e.target.closest('.category-autocomplete-dropdown')) {
-          _this14.closeAllInlineEditors();
+          _this15.closeAllInlineEditors();
         }
       });
     }
@@ -44131,7 +44455,7 @@ var TransactionsModule = /*#__PURE__*/function () {
     key: "createDateEditor",
     value: function createDateEditor(cell, value) {
       var _this$app$settings,
-        _this15 = this;
+        _this16 = this;
       var input = document.createElement('input');
       input.type = 'text';
       input.className = 'inline-edit-input';
@@ -44153,12 +44477,12 @@ var TransactionsModule = /*#__PURE__*/function () {
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
           fp.destroy();
-          _this15.cancelInlineEdit(cell);
+          _this16.cancelInlineEdit(cell);
         } else if (e.key === 'Enter') {
           e.preventDefault();
           var isoDate = getIsoDate();
           fp.destroy();
-          _this15.saveInlineEdit(cell, 'date', isoDate);
+          _this16.saveInlineEdit(cell, 'date', isoDate);
         }
       });
       input.addEventListener('blur', function () {
@@ -44166,7 +44490,7 @@ var TransactionsModule = /*#__PURE__*/function () {
           if (cell.classList.contains('editing') && !fp.isOpen) {
             var isoDate = getIsoDate();
             fp.destroy();
-            _this15.saveInlineEdit(cell, 'date', isoDate);
+            _this16.saveInlineEdit(cell, 'date', isoDate);
           }
         }, 200);
       });
@@ -44204,7 +44528,7 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "createCategoryEditor",
     value: function createCategoryEditor(cell, currentCategoryId) {
-      var _this16 = this;
+      var _this17 = this;
       var container = document.createElement('div');
       container.className = 'category-autocomplete';
       var input = document.createElement('input');
@@ -44271,19 +44595,19 @@ var TransactionsModule = /*#__PURE__*/function () {
           input.dataset.categoryId = item.dataset.categoryId;
           input.value = item.dataset.categoryName;
           dropdown.style.display = 'none';
-          _this16.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
+          _this17.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
         }
       });
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
-          _this16.cancelInlineEdit(cell);
+          _this17.cancelInlineEdit(cell);
         } else if (e.key === 'Enter') {
           e.preventDefault();
           dropdown.style.display = 'none';
-          _this16.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+          _this17.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
         } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
-          _this16.navigateCategoryDropdown(dropdown, e.key === 'ArrowDown' ? 1 : -1, input);
+          _this17.navigateCategoryDropdown(dropdown, e.key === 'ArrowDown' ? 1 : -1, input);
         }
       });
       input.addEventListener('blur', function () {
@@ -44291,9 +44615,9 @@ var TransactionsModule = /*#__PURE__*/function () {
           if (!container.contains(document.activeElement)) {
             dropdown.style.display = 'none';
             if (input.dataset.categoryId !== (currentCategoryId || '')) {
-              _this16.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+              _this17.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
             } else {
-              _this16.cancelInlineEdit(cell);
+              _this17.cancelInlineEdit(cell);
             }
           }
         }, 200);
@@ -44330,7 +44654,7 @@ var TransactionsModule = /*#__PURE__*/function () {
     key: "createAccountEditor",
     value: function createAccountEditor(cell, currentAccountId) {
       var _this$accounts4,
-        _this17 = this;
+        _this18 = this;
       var select = document.createElement('select');
       select.className = 'inline-edit-select';
       (_this$accounts4 = this.accounts) === null || _this$accounts4 === void 0 || _this$accounts4.forEach(function (account) {
@@ -44342,19 +44666,19 @@ var TransactionsModule = /*#__PURE__*/function () {
       });
       select.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
-          _this17.cancelInlineEdit(cell);
+          _this18.cancelInlineEdit(cell);
         } else if (e.key === 'Enter') {
           e.preventDefault();
-          _this17.saveInlineEdit(cell, 'accountId', select.value);
+          _this18.saveInlineEdit(cell, 'accountId', select.value);
         }
       });
       select.addEventListener('change', function () {
-        _this17.saveInlineEdit(cell, 'accountId', select.value);
+        _this18.saveInlineEdit(cell, 'accountId', select.value);
       });
       select.addEventListener('blur', function () {
         setTimeout(function () {
           if (cell.classList.contains('editing')) {
-            _this17.cancelInlineEdit(cell);
+            _this18.cancelInlineEdit(cell);
           }
         }, 100);
       });
@@ -44365,38 +44689,38 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "createTagsEditor",
     value: function () {
-      var _createTagsEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(cell, transaction) {
-        var _this18 = this;
-        var categoryId, tagSets, currentTagIds, selectedTags, container, input, dropdown, allTags, renderDropdown, _t23;
-        return _regenerator().w(function (_context24) {
-          while (1) switch (_context24.p = _context24.n) {
+      var _createTagsEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(cell, transaction) {
+        var _this19 = this;
+        var categoryId, tagSets, currentTagIds, selectedTags, container, input, dropdown, allTags, renderDropdown, _t25;
+        return _regenerator().w(function (_context27) {
+          while (1) switch (_context27.p = _context27.n) {
             case 0:
               categoryId = transaction.categoryId;
               if (categoryId) {
-                _context24.n = 1;
+                _context27.n = 1;
                 break;
               }
               cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">Select category first</span>';
               setTimeout(function () {
-                return _this18.cancelInlineEdit(cell);
+                return _this19.cancelInlineEdit(cell);
               }, 1500);
-              return _context24.a(2);
+              return _context27.a(2);
             case 1:
               cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">Loading...</span>';
-              _context24.p = 2;
-              _context24.n = 3;
+              _context27.p = 2;
+              _context27.n = 3;
               return this.loadTagSetsForCategory(categoryId);
             case 3:
-              tagSets = _context24.v;
+              tagSets = _context27.v;
               if (!(tagSets.length === 0)) {
-                _context24.n = 4;
+                _context27.n = 4;
                 break;
               }
               cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tag sets</span>';
               setTimeout(function () {
-                return _this18.cancelInlineEdit(cell);
+                return _this19.cancelInlineEdit(cell);
               }, 1500);
-              return _context24.a(2);
+              return _context27.a(2);
             case 4:
               currentTagIds = this.app.getTransactionTagIds(transaction.id);
               selectedTags = new Set(currentTagIds);
@@ -44440,10 +44764,10 @@ var TransactionsModule = /*#__PURE__*/function () {
                 });
                 var html = '';
                 Object.values(grouped).forEach(function (group) {
-                  html += "<div class=\"tags-group-header\">".concat(_this18.escapeHtml(group.name), "</div>");
+                  html += "<div class=\"tags-group-header\">".concat(_this19.escapeHtml(group.name), "</div>");
                   group.tags.forEach(function (tag) {
                     var isSelected = selectedTags.has(tag.id);
-                    html += "\n                            <div class=\"tags-autocomplete-item ".concat(isSelected ? 'selected' : '', "\"\n                                 data-tag-id=\"").concat(tag.id, "\">\n                                <span class=\"tag-chip\"\n                                      style=\"display: inline-flex; align-items: center; background-color: ").concat(_this18.escapeHtml(tag.color), "; color: white;\n                                             padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;\">\n                                    ").concat(_this18.escapeHtml(tag.name), "\n                                </span>\n                                <span class=\"tag-check\">").concat(isSelected ? '✓' : '', "</span>\n                            </div>\n                        ");
+                    html += "\n                            <div class=\"tags-autocomplete-item ".concat(isSelected ? 'selected' : '', "\"\n                                 data-tag-id=\"").concat(tag.id, "\">\n                                <span class=\"tag-chip\"\n                                      style=\"display: inline-flex; align-items: center; background-color: ").concat(_this19.escapeHtml(tag.color), "; color: white;\n                                             padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;\">\n                                    ").concat(_this19.escapeHtml(tag.name), "\n                                </span>\n                                <span class=\"tag-check\">").concat(isSelected ? '✓' : '', "</span>\n                            </div>\n                        ");
                   });
                 });
                 dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
@@ -44485,16 +44809,16 @@ var TransactionsModule = /*#__PURE__*/function () {
               });
               input.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') {
-                  _this18.cancelInlineEdit(cell);
+                  _this19.cancelInlineEdit(cell);
                 } else if (e.key === 'Enter') {
                   e.preventDefault();
-                  _this18.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                  _this19.saveTagsFromEditor(cell, selectedTags, transaction.id);
                 }
               });
               input.addEventListener('blur', function () {
                 setTimeout(function () {
                   if (cell.classList.contains('editing')) {
-                    _this18.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                    _this19.saveTagsFromEditor(cell, selectedTags, transaction.id);
                   }
                 }, 200);
               });
@@ -44502,22 +44826,22 @@ var TransactionsModule = /*#__PURE__*/function () {
               cell.appendChild(container);
               input.focus();
               renderDropdown();
-              _context24.n = 6;
+              _context27.n = 6;
               break;
             case 5:
-              _context24.p = 5;
-              _t23 = _context24.v;
-              console.error('Failed to load tag sets:', _t23);
+              _context27.p = 5;
+              _t25 = _context27.v;
+              console.error('Failed to load tag sets:', _t25);
               cell.innerHTML = '<span style="color: var(--color-error); font-size: 11px;">Error loading tags</span>';
               setTimeout(function () {
-                return _this18.cancelInlineEdit(cell);
+                return _this19.cancelInlineEdit(cell);
               }, 1500);
             case 6:
-              return _context24.a(2);
+              return _context27.a(2);
           }
-        }, _callee24, this, [[2, 5]]);
+        }, _callee27, this, [[2, 5]]);
       }));
-      function createTagsEditor(_x19, _x20) {
+      function createTagsEditor(_x21, _x22) {
         return _createTagsEditor.apply(this, arguments);
       }
       return createTagsEditor;
@@ -44525,14 +44849,14 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTagsFromEditor",
     value: function () {
-      var _saveTagsFromEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(cell, selectedTags, transactionId) {
-        var tagIds, response, cellDisplay, _t24;
-        return _regenerator().w(function (_context25) {
-          while (1) switch (_context25.p = _context25.n) {
+      var _saveTagsFromEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(cell, selectedTags, transactionId) {
+        var tagIds, response, cellDisplay, _t26;
+        return _regenerator().w(function (_context28) {
+          while (1) switch (_context28.p = _context28.n) {
             case 0:
               tagIds = Array.from(selectedTags);
-              _context25.p = 1;
-              _context25.n = 2;
+              _context28.p = 1;
+              _context28.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/tags")), {
                 method: 'PUT',
                 headers: {
@@ -44544,12 +44868,12 @@ var TransactionsModule = /*#__PURE__*/function () {
                 })
               });
             case 2:
-              response = _context25.v;
+              response = _context28.v;
               if (!response.ok) {
-                _context25.n = 4;
+                _context28.n = 4;
                 break;
               }
-              _context25.n = 3;
+              _context28.n = 3;
               return this.app.loadTransactionTags(transactionId);
             case 3:
               this.cancelInlineEdit(cell);
@@ -44557,25 +44881,25 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (cellDisplay) {
                 cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
               }
-              _context25.n = 5;
+              _context28.n = 5;
               break;
             case 4:
               console.error('Failed to save tags');
               this.cancelInlineEdit(cell);
             case 5:
-              _context25.n = 7;
+              _context28.n = 7;
               break;
             case 6:
-              _context25.p = 6;
-              _t24 = _context25.v;
-              console.error('Failed to save tags:', _t24);
+              _context28.p = 6;
+              _t26 = _context28.v;
+              console.error('Failed to save tags:', _t26);
               this.cancelInlineEdit(cell);
             case 7:
-              return _context25.a(2);
+              return _context28.a(2);
           }
-        }, _callee25, this, [[1, 6]]);
+        }, _callee28, this, [[1, 6]]);
       }));
-      function saveTagsFromEditor(_x21, _x22, _x23) {
+      function saveTagsFromEditor(_x23, _x24, _x25) {
         return _saveTagsFromEditor.apply(this, arguments);
       }
       return saveTagsFromEditor;
@@ -44583,39 +44907,39 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "loadTagSetsForCategory",
     value: function () {
-      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(categoryId) {
-        var response, _t25;
-        return _regenerator().w(function (_context26) {
-          while (1) switch (_context26.p = _context26.n) {
+      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(categoryId) {
+        var response, _t27;
+        return _regenerator().w(function (_context29) {
+          while (1) switch (_context29.p = _context29.n) {
             case 0:
-              _context26.p = 0;
-              _context26.n = 1;
+              _context29.p = 0;
+              _context29.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context26.v;
+              response = _context29.v;
               if (response.ok) {
-                _context26.n = 2;
+                _context29.n = 2;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 2:
-              _context26.n = 3;
+              _context29.n = 3;
               return response.json();
             case 3:
-              return _context26.a(2, _context26.v);
+              return _context29.a(2, _context29.v);
             case 4:
-              _context26.p = 4;
-              _t25 = _context26.v;
-              console.error('Failed to load tag sets:', _t25);
-              return _context26.a(2, []);
+              _context29.p = 4;
+              _t27 = _context29.v;
+              console.error('Failed to load tag sets:', _t27);
+              return _context29.a(2, []);
           }
-        }, _callee26, null, [[0, 4]]);
+        }, _callee29, null, [[0, 4]]);
       }));
-      function loadTagSetsForCategory(_x24) {
+      function loadTagSetsForCategory(_x26) {
         return _loadTagSetsForCategory.apply(this, arguments);
       }
       return loadTagSetsForCategory;
@@ -44623,20 +44947,20 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "setupEditorEvents",
     value: function setupEditorEvents(input, cell, field) {
-      var _this19 = this;
+      var _this20 = this;
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
-          _this19.cancelInlineEdit(cell);
+          _this20.cancelInlineEdit(cell);
         } else if (e.key === 'Enter') {
           e.preventDefault();
           if (field === 'amount') {
             var raw = parseFloat(input.value) || 0;
             var type = raw < 0 ? 'debit' : 'credit';
-            _this19.saveInlineEdit(cell, field, Math.abs(raw).toString(), {
+            _this20.saveInlineEdit(cell, field, Math.abs(raw).toString(), {
               type: type
             });
           } else {
-            _this19.saveInlineEdit(cell, field, input.value);
+            _this20.saveInlineEdit(cell, field, input.value);
           }
         }
       });
@@ -44646,11 +44970,11 @@ var TransactionsModule = /*#__PURE__*/function () {
             if (field === 'amount') {
               var raw = parseFloat(input.value) || 0;
               var type = raw < 0 ? 'debit' : 'credit';
-              _this19.saveInlineEdit(cell, field, Math.abs(raw).toString(), {
+              _this20.saveInlineEdit(cell, field, Math.abs(raw).toString(), {
                 type: type
               });
             } else {
-              _this19.saveInlineEdit(cell, field, input.value);
+              _this20.saveInlineEdit(cell, field, input.value);
             }
           }
         }, 100);
@@ -44659,7 +44983,7 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "saveInlineEdit",
     value: function () {
-      var _saveInlineEdit = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(cell, field, value) {
+      var _saveInlineEdit = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30(cell, field, value) {
         var extra,
           transactionId,
           transaction,
@@ -44670,22 +44994,22 @@ var TransactionsModule = /*#__PURE__*/function () {
           updateData,
           response,
           result,
-          _args27 = arguments,
-          _t26;
-        return _regenerator().w(function (_context27) {
-          while (1) switch (_context27.p = _context27.n) {
+          _args30 = arguments,
+          _t28;
+        return _regenerator().w(function (_context30) {
+          while (1) switch (_context30.p = _context30.n) {
             case 0:
-              extra = _args27.length > 3 && _args27[3] !== undefined ? _args27[3] : {};
+              extra = _args30.length > 3 && _args30[3] !== undefined ? _args30[3] : {};
               transactionId = parseInt(cell.dataset.transactionId);
               transaction = this.transactions.find(function (t) {
                 return t.id === transactionId;
               });
               if (transaction) {
-                _context27.n = 1;
+                _context30.n = 1;
                 break;
               }
               this.cancelInlineEdit(cell);
-              return _context27.a(2);
+              return _context30.a(2);
             case 1:
               // Check if value actually changed
               hasChanged = false;
@@ -44702,11 +45026,11 @@ var TransactionsModule = /*#__PURE__*/function () {
                 hasChanged = value !== (transaction[field] || '');
               }
               if (hasChanged) {
-                _context27.n = 2;
+                _context30.n = 2;
                 break;
               }
               this.cancelInlineEdit(cell);
-              return _context27.a(2);
+              return _context30.a(2);
             case 2:
               cell.classList.add('cell-saving');
               updateData = {};
@@ -44722,8 +45046,8 @@ var TransactionsModule = /*#__PURE__*/function () {
               } else {
                 updateData[field] = value;
               }
-              _context27.p = 3;
-              _context27.n = 4;
+              _context30.p = 3;
+              _context30.n = 4;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId)), {
                 method: 'PUT',
                 headers: {
@@ -44733,45 +45057,45 @@ var TransactionsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(updateData)
               });
             case 4:
-              response = _context27.v;
+              response = _context30.v;
               if (!response.ok) {
-                _context27.n = 7;
+                _context30.n = 7;
                 break;
               }
-              _context27.n = 5;
+              _context30.n = 5;
               return response.json();
             case 5:
-              result = _context27.v;
+              result = _context30.v;
               Object.assign(transaction, result);
               if (!(field === 'accountId')) {
-                _context27.n = 6;
+                _context30.n = 6;
                 break;
               }
-              _context27.n = 6;
+              _context30.n = 6;
               return this.app.loadAccounts();
             case 6:
               this.app.renderEnhancedTransactionsTable();
               this.app.applyColumnVisibility();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Transaction updated');
-              _context27.n = 8;
+              _context30.n = 8;
               break;
             case 7:
               throw new Error('Update failed');
             case 8:
-              _context27.n = 10;
+              _context30.n = 10;
               break;
             case 9:
-              _context27.p = 9;
-              _t26 = _context27.v;
-              console.error('Failed to save inline edit:', _t26);
+              _context30.p = 9;
+              _t28 = _context30.v;
+              console.error('Failed to save inline edit:', _t28);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to update transaction');
               this.cancelInlineEdit(cell);
             case 10:
-              return _context27.a(2);
+              return _context30.a(2);
           }
-        }, _callee27, this, [[3, 9]]);
+        }, _callee30, this, [[3, 9]]);
       }));
-      function saveInlineEdit(_x25, _x26, _x27) {
+      function saveInlineEdit(_x27, _x28, _x29) {
         return _saveInlineEdit.apply(this, arguments);
       }
       return saveInlineEdit;
@@ -44790,10 +45114,10 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "closeAllInlineEditors",
     value: function closeAllInlineEditors() {
-      var _this20 = this;
+      var _this21 = this;
       var editingCells = document.querySelectorAll('.editable-cell.editing');
       editingCells.forEach(function (cell) {
-        _this20.cancelInlineEdit(cell);
+        _this21.cancelInlineEdit(cell);
       });
     }
 
@@ -47675,11 +47999,14 @@ var BudgetApp = /*#__PURE__*/function () {
       // Modal cancel button
       document.querySelectorAll('.cancel-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
-          // Check if closing bulk match modal - refresh transactions
+          // Check if closing bulk match modal - refresh transactions if matches were changed
           var bulkMatchModal = document.getElementById('bulk-match-modal');
           if (bulkMatchModal && bulkMatchModal.style.display !== 'none' && bulkMatchModal.contains(e.target)) {
+            var _this$transactionsMod;
             _this.hideModals();
-            _this.loadTransactions();
+            if ((_this$transactionsMod = _this.transactionsModule) !== null && _this$transactionsMod !== void 0 && _this$transactionsMod._bulkMatchDirty) {
+              _this.loadTransactions();
+            }
           } else {
             _this.hideModals();
           }
@@ -47821,6 +48148,10 @@ var BudgetApp = /*#__PURE__*/function () {
           var _transactionId8 = parseInt(e.target.getAttribute('data-tx-id'));
           var index = parseInt(e.target.getAttribute('data-index'));
           _this.handleBulkMatchLink(_transactionId8, index);
+        } else if (e.target.id === 'start-scan-btn') {
+          _this.startBulkMatchScan();
+        } else if (e.target.id === 'confirm-selected-btn') {
+          _this.handleConfirmSelected();
         } else if (e.target.classList.contains('autocomplete-item')) {
           var bankName = e.target.getAttribute('data-bank-name');
           _this.selectInstitution(bankName);
@@ -48827,171 +49158,73 @@ var BudgetApp = /*#__PURE__*/function () {
      * Get category options HTML
      */
   }, {
-    key: "bulkMatchTransactions",
-    value: // ===== Bulk Transaction Matching Methods =====
-    /**
-     * API call to bulk match transactions
-     */
-    function () {
-      var _bulkMatchTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
-        var response, error;
+    key: "startBulkMatchScan",
+    value: function () {
+      var _startBulkMatchScan = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
         return _regenerator().w(function (_context24) {
           while (1) switch (_context24.n) {
             case 0:
-              _context24.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
-                method: 'POST',
-                headers: {
-                  'requesttoken': OC.requestToken,
-                  'Content-Type': 'application/json'
-                }
-              });
-            case 1:
-              response = _context24.v;
-              if (response.ok) {
-                _context24.n = 3;
-                break;
-              }
-              _context24.n = 2;
-              return response.json();
-            case 2:
-              error = _context24.v;
-              throw new Error(error.error || "HTTP ".concat(response.status));
-            case 3:
-              _context24.n = 4;
-              return response.json();
-            case 4:
-              return _context24.a(2, _context24.v);
+              return _context24.a(2, this.transactionsModule.startScan());
           }
-        }, _callee24);
+        }, _callee24, this);
       }));
-      function bulkMatchTransactions() {
-        return _bulkMatchTransactions.apply(this, arguments);
+      function startBulkMatchScan() {
+        return _startBulkMatchScan.apply(this, arguments);
       }
-      return bulkMatchTransactions;
+      return startBulkMatchScan;
     }()
-    /**
-     * Show the bulk match modal and execute bulk matching
-     */
+  }, {
+    key: "handleConfirmSelected",
+    value: function () {
+      var _handleConfirmSelected = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25() {
+        return _regenerator().w(function (_context25) {
+          while (1) switch (_context25.n) {
+            case 0:
+              return _context25.a(2, this.transactionsModule.handleConfirmSelected());
+          }
+        }, _callee25, this);
+      }));
+      function handleConfirmSelected() {
+        return _handleConfirmSelected.apply(this, arguments);
+      }
+      return handleConfirmSelected;
+    }()
   }, {
     key: "handleBulkMatchUndo",
-    value: (
-    /**
-     * Handle undo of an auto-matched pair from bulk match modal
-     */
-    function () {
-      var _handleBulkMatchUndo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(transactionId) {
-        var pairEl, countEl, currentCount, autoMatchedList, _t3;
-        return _regenerator().w(function (_context25) {
-          while (1) switch (_context25.p = _context25.n) {
+    value: function () {
+      var _handleBulkMatchUndo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(transactionId) {
+        return _regenerator().w(function (_context26) {
+          while (1) switch (_context26.n) {
             case 0:
-              _context25.p = 0;
-              _context25.n = 1;
-              return this.unlinkTransaction(transactionId);
-            case 1:
-              // Remove the pair from the UI
-              pairEl = document.querySelector(".bulk-match-pair[data-tx-id=\"".concat(transactionId, "\"]"));
-              if (pairEl) {
-                pairEl.remove();
-              }
-
-              // Update count
-              countEl = document.getElementById('auto-matched-count');
-              currentCount = parseInt(countEl.textContent);
-              countEl.textContent = currentCount - 1;
-
-              // Check if section is now empty
-              autoMatchedList = document.getElementById('auto-matched-list');
-              if (autoMatchedList.children.length === 0) {
-                document.getElementById('auto-matched-section').style.display = 'none';
-              }
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Match undone');
-              _context25.n = 3;
-              break;
-            case 2:
-              _context25.p = 2;
-              _t3 = _context25.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t3.message || 'Failed to undo match');
-            case 3:
-              return _context25.a(2);
+              return _context26.a(2, this.transactionsModule.handleBulkMatchUndo(transactionId));
           }
-        }, _callee25, this, [[0, 2]]);
+        }, _callee26, this);
       }));
       function handleBulkMatchUndo(_x15) {
         return _handleBulkMatchUndo.apply(this, arguments);
       }
       return handleBulkMatchUndo;
     }()
-    /**
-     * Handle linking a selected match from review section
-     */
-    )
   }, {
     key: "handleBulkMatchLink",
-    value: (function () {
-      var _handleBulkMatchLink = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(transactionId, index) {
-        var reviewItem, selectedRadio, targetId, reviewCountEl, autoCountEl, currentReviewCount, currentAutoCount, needsReviewList, _t4;
-        return _regenerator().w(function (_context26) {
-          while (1) switch (_context26.p = _context26.n) {
+    value: function () {
+      var _handleBulkMatchLink = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(transactionId, index) {
+        return _regenerator().w(function (_context27) {
+          while (1) switch (_context27.n) {
             case 0:
-              reviewItem = document.querySelector(".bulk-review-item[data-index=\"".concat(index, "\"]"));
-              selectedRadio = reviewItem.querySelector("input[name=\"review-match-".concat(index, "\"]:checked"));
-              if (selectedRadio) {
-                _context26.n = 1;
-                break;
-              }
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Please select a match first');
-              return _context26.a(2);
-            case 1:
-              targetId = parseInt(selectedRadio.value);
-              _context26.p = 2;
-              _context26.n = 3;
-              return this.linkTransactions(transactionId, targetId);
-            case 3:
-              // Remove the review item from the UI
-              reviewItem.remove();
-
-              // Update counts
-              reviewCountEl = document.getElementById('needs-review-count');
-              autoCountEl = document.getElementById('auto-matched-count');
-              currentReviewCount = parseInt(reviewCountEl.textContent);
-              currentAutoCount = parseInt(autoCountEl.textContent);
-              reviewCountEl.textContent = currentReviewCount - 1;
-              autoCountEl.textContent = currentAutoCount + 1;
-
-              // Check if review section is now empty
-              needsReviewList = document.getElementById('needs-review-list');
-              if (needsReviewList.children.length === 0) {
-                document.getElementById('needs-review-section').style.display = 'none';
-              }
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transactions linked');
-              _context26.n = 5;
-              break;
-            case 4:
-              _context26.p = 4;
-              _t4 = _context26.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t4.message || 'Failed to link transactions');
-            case 5:
-              return _context26.a(2);
+              return _context27.a(2, this.transactionsModule.handleBulkMatchLink(transactionId, index));
           }
-        }, _callee26, this, [[2, 4]]);
+        }, _callee27, this);
       }));
       function handleBulkMatchLink(_x16, _x17) {
         return _handleBulkMatchLink.apply(this, arguments);
       }
       return handleBulkMatchLink;
     }()
-    /**
-     * Escape HTML to prevent XSS (utility method)
-     */
-    // =====================
-    // Pensions Methods
-    // =====================
-    )
   }, {
     key: "loadTransactions",
     value: function () {
-      var _loadTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
+      var _loadTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28() {
         var accountId,
           _this$transactionFilt,
           _this$transactionFilt2,
@@ -49008,13 +49241,13 @@ var BudgetApp = /*#__PURE__*/function () {
           response,
           result,
           tbody,
-          _args27 = arguments,
-          _t5;
-        return _regenerator().w(function (_context27) {
-          while (1) switch (_context27.p = _context27.n) {
+          _args28 = arguments,
+          _t3;
+        return _regenerator().w(function (_context28) {
+          while (1) switch (_context28.p = _context28.n) {
             case 0:
-              accountId = _args27.length > 0 && _args27[0] !== undefined ? _args27[0] : null;
-              _context27.p = 1;
+              accountId = _args28.length > 0 && _args28[0] !== undefined ? _args28[0] : null;
+              _context28.p = 1;
               // Refresh tag filter if panel is open
               this.transactionsModule.refreshFilterTags();
 
@@ -49074,28 +49307,28 @@ var BudgetApp = /*#__PURE__*/function () {
               if (params.toString()) {
                 url += '&' + params.toString();
               }
-              _context27.n = 2;
+              _context28.n = 2;
               return fetch(OC.generateUrl(url), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context27.v;
+              response = _context28.v;
               if (response.ok) {
-                _context27.n = 3;
+                _context28.n = 3;
                 break;
               }
               throw new Error("HTTP ".concat(response.status, ": ").concat(response.statusText));
             case 3:
-              _context27.n = 4;
+              _context28.n = 4;
               return response.json();
             case 4:
-              result = _context27.v;
+              result = _context28.v;
               this.transactions = Array.isArray(result) ? result : result.transactions || result;
 
               // Load tags for all displayed transactions
-              _context27.n = 5;
+              _context28.n = 5;
               return this.loadAllTransactionTags();
             case 5:
               // Apply client-side filtering if backend doesn't support it
@@ -49112,17 +49345,17 @@ var BudgetApp = /*#__PURE__*/function () {
               // Update enhanced UI elements if they exist
               this.updateTransactionsSummary(result);
               this.updatePagination(result);
-              _context27.n = 7;
+              _context28.n = 7;
               break;
             case 6:
-              _context27.p = 6;
-              _t5 = _context27.v;
-              console.error('Failed to load transactions:', _t5);
+              _context28.p = 6;
+              _t3 = _context28.v;
+              console.error('Failed to load transactions:', _t3);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to load transactions');
             case 7:
-              return _context27.a(2);
+              return _context28.a(2);
           }
-        }, _callee27, this, [[1, 6]]);
+        }, _callee28, this, [[1, 6]]);
       }));
       function loadTransactions() {
         return _loadTransactions.apply(this, arguments);
@@ -49243,13 +49476,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "handleImportFile",
     value: function () {
-      var _handleImportFile = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(file) {
-        return _regenerator().w(function (_context28) {
-          while (1) switch (_context28.n) {
+      var _handleImportFile = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(file) {
+        return _regenerator().w(function (_context29) {
+          while (1) switch (_context29.n) {
             case 0:
-              return _context28.a(2, this.importModule.handleImportFile(file));
+              return _context29.a(2, this.importModule.handleImportFile(file));
           }
-        }, _callee28, this);
+        }, _callee29, this);
       }));
       function handleImportFile(_x18) {
         return _handleImportFile.apply(this, arguments);
@@ -49274,13 +49507,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadReportsView",
     value: function () {
-      var _loadReportsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29() {
-        return _regenerator().w(function (_context29) {
-          while (1) switch (_context29.n) {
+      var _loadReportsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30() {
+        return _regenerator().w(function (_context30) {
+          while (1) switch (_context30.n) {
             case 0:
-              return _context29.a(2, this.reportsModule.loadReportsView());
+              return _context30.a(2, this.reportsModule.loadReportsView());
           }
-        }, _callee29, this);
+        }, _callee30, this);
       }));
       function loadReportsView() {
         return _loadReportsView.apply(this, arguments);
@@ -49292,13 +49525,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadForecastView",
     value: function () {
-      var _loadForecastView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30() {
-        return _regenerator().w(function (_context30) {
-          while (1) switch (_context30.n) {
+      var _loadForecastView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31() {
+        return _regenerator().w(function (_context31) {
+          while (1) switch (_context31.n) {
             case 0:
-              return _context30.a(2, this.forecastModule.loadForecastView());
+              return _context31.a(2, this.forecastModule.loadForecastView());
           }
-        }, _callee30, this);
+        }, _callee31, this);
       }));
       function loadForecastView() {
         return _loadForecastView.apply(this, arguments);
@@ -49309,13 +49542,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadSharedExpensesView",
     value: function () {
-      var _loadSharedExpensesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31() {
-        return _regenerator().w(function (_context31) {
-          while (1) switch (_context31.n) {
+      var _loadSharedExpensesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32() {
+        return _regenerator().w(function (_context32) {
+          while (1) switch (_context32.n) {
             case 0:
-              return _context31.a(2, this.sharedExpensesModule.loadSharedExpensesView());
+              return _context32.a(2, this.sharedExpensesModule.loadSharedExpensesView());
           }
-        }, _callee31, this);
+        }, _callee32, this);
       }));
       function loadSharedExpensesView() {
         return _loadSharedExpensesView.apply(this, arguments);
@@ -49325,13 +49558,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "showShareExpenseModal",
     value: function () {
-      var _showShareExpenseModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32(transaction) {
-        return _regenerator().w(function (_context32) {
-          while (1) switch (_context32.n) {
+      var _showShareExpenseModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(transaction) {
+        return _regenerator().w(function (_context33) {
+          while (1) switch (_context33.n) {
             case 0:
-              return _context32.a(2, this.sharedExpensesModule.showShareExpenseModal(transaction));
+              return _context33.a(2, this.sharedExpensesModule.showShareExpenseModal(transaction));
           }
-        }, _callee32, this);
+        }, _callee33, this);
       }));
       function showShareExpenseModal(_x19) {
         return _showShareExpenseModal.apply(this, arguments);
@@ -49396,9 +49629,9 @@ var BudgetApp = /*#__PURE__*/function () {
       var disablePasswordBtn = document.getElementById('disable-password-btn');
       var passwordConfig = document.getElementById('password-protection-config');
       if (passwordToggle) {
-        passwordToggle.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33() {
-          return _regenerator().w(function (_context33) {
-            while (1) switch (_context33.n) {
+        passwordToggle.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34() {
+          return _regenerator().w(function (_context34) {
+            while (1) switch (_context34.n) {
               case 0:
                 if (passwordToggle.checked) {
                   // Show password setup UI
@@ -49413,9 +49646,9 @@ var BudgetApp = /*#__PURE__*/function () {
                   }
                 }
               case 1:
-                return _context33.a(2);
+                return _context34.a(2);
             }
-          }, _callee33);
+          }, _callee34);
         })));
       }
       if (setupPasswordBtn) {
@@ -49458,24 +49691,24 @@ var BudgetApp = /*#__PURE__*/function () {
       var confirmPasswordInput = document.getElementById('confirm-password');
       var errorDiv = document.getElementById('setup-password-error');
       form.addEventListener('submit', /*#__PURE__*/function () {
-        var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34(e) {
-          var newPassword, confirmPassword, response, result, _t6;
-          return _regenerator().w(function (_context34) {
-            while (1) switch (_context34.p = _context34.n) {
+        var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(e) {
+          var newPassword, confirmPassword, response, result, _t4;
+          return _regenerator().w(function (_context35) {
+            while (1) switch (_context35.p = _context35.n) {
               case 0:
                 e.preventDefault();
                 newPassword = newPasswordInput.value;
                 confirmPassword = confirmPasswordInput.value;
                 if (!(newPassword !== confirmPassword)) {
-                  _context34.n = 1;
+                  _context35.n = 1;
                   break;
                 }
                 errorDiv.textContent = 'Passwords do not match';
                 errorDiv.style.display = 'block';
-                return _context34.a(2);
+                return _context35.a(2);
               case 1:
-                _context34.p = 1;
-                _context34.n = 2;
+                _context35.p = 1;
+                _context35.n = 2;
                 return fetch(OC.generateUrl('/apps/budget/api/auth/setup'), {
                   method: 'POST',
                   headers: _objectSpread({
@@ -49486,11 +49719,11 @@ var BudgetApp = /*#__PURE__*/function () {
                   })
                 });
               case 2:
-                response = _context34.v;
-                _context34.n = 3;
+                response = _context35.v;
+                _context35.n = 3;
                 return response.json();
               case 3:
-                result = _context34.v;
+                result = _context35.v;
                 if (response.ok && result.success) {
                   // Store session token
                   _this1.sessionToken = result.sessionToken;
@@ -49504,18 +49737,18 @@ var BudgetApp = /*#__PURE__*/function () {
                   errorDiv.textContent = result.error || 'Failed to set password';
                   errorDiv.style.display = 'block';
                 }
-                _context34.n = 5;
+                _context35.n = 5;
                 break;
               case 4:
-                _context34.p = 4;
-                _t6 = _context34.v;
-                console.error('Failed to set password:', _t6);
+                _context35.p = 4;
+                _t4 = _context35.v;
+                console.error('Failed to set password:', _t4);
                 errorDiv.textContent = 'Failed to set password. Please try again.';
                 errorDiv.style.display = 'block';
               case 5:
-                return _context34.a(2);
+                return _context35.a(2);
             }
-          }, _callee34, null, [[1, 4]]);
+          }, _callee35, null, [[1, 4]]);
         }));
         return function (_x20) {
           return _ref2.apply(this, arguments);
@@ -49548,25 +49781,25 @@ var BudgetApp = /*#__PURE__*/function () {
       var confirmPasswordInput = document.getElementById('confirm-password-change');
       var errorDiv = document.getElementById('change-password-error');
       form.addEventListener('submit', /*#__PURE__*/function () {
-        var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(e) {
-          var currentPassword, newPassword, confirmPassword, response, result, _t7;
-          return _regenerator().w(function (_context35) {
-            while (1) switch (_context35.p = _context35.n) {
+        var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(e) {
+          var currentPassword, newPassword, confirmPassword, response, result, _t5;
+          return _regenerator().w(function (_context36) {
+            while (1) switch (_context36.p = _context36.n) {
               case 0:
                 e.preventDefault();
                 currentPassword = currentPasswordInput.value;
                 newPassword = newPasswordInput.value;
                 confirmPassword = confirmPasswordInput.value;
                 if (!(newPassword !== confirmPassword)) {
-                  _context35.n = 1;
+                  _context36.n = 1;
                   break;
                 }
                 errorDiv.textContent = 'New passwords do not match';
                 errorDiv.style.display = 'block';
-                return _context35.a(2);
+                return _context36.a(2);
               case 1:
-                _context35.p = 1;
-                _context35.n = 2;
+                _context36.p = 1;
+                _context36.n = 2;
                 return fetch(OC.generateUrl('/apps/budget/api/auth/password'), {
                   method: 'PUT',
                   headers: _objectSpread({
@@ -49578,11 +49811,11 @@ var BudgetApp = /*#__PURE__*/function () {
                   })
                 });
               case 2:
-                response = _context35.v;
-                _context35.n = 3;
+                response = _context36.v;
+                _context36.n = 3;
                 return response.json();
               case 3:
-                result = _context35.v;
+                result = _context36.v;
                 if (response.ok && result.success) {
                   (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Password changed successfully');
                   modal.remove();
@@ -49590,18 +49823,18 @@ var BudgetApp = /*#__PURE__*/function () {
                   errorDiv.textContent = result.error || 'Failed to change password';
                   errorDiv.style.display = 'block';
                 }
-                _context35.n = 5;
+                _context36.n = 5;
                 break;
               case 4:
-                _context35.p = 4;
-                _t7 = _context35.v;
-                console.error('Failed to change password:', _t7);
+                _context36.p = 4;
+                _t5 = _context36.v;
+                console.error('Failed to change password:', _t5);
                 errorDiv.textContent = 'Failed to change password. Please try again.';
                 errorDiv.style.display = 'block';
               case 5:
-                return _context35.a(2);
+                return _context36.a(2);
             }
-          }, _callee35, null, [[1, 4]]);
+          }, _callee36, null, [[1, 4]]);
         }));
         return function (_x21) {
           return _ref3.apply(this, arguments);
@@ -49632,15 +49865,15 @@ var BudgetApp = /*#__PURE__*/function () {
       var passwordInput = document.getElementById('disable-current-password');
       var errorDiv = document.getElementById('disable-password-error');
       form.addEventListener('submit', /*#__PURE__*/function () {
-        var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(e) {
-          var password, response, result, passwordToggle, passwordConfig, _t8;
-          return _regenerator().w(function (_context36) {
-            while (1) switch (_context36.p = _context36.n) {
+        var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37(e) {
+          var password, response, result, passwordToggle, passwordConfig, _t6;
+          return _regenerator().w(function (_context37) {
+            while (1) switch (_context37.p = _context37.n) {
               case 0:
                 e.preventDefault();
                 password = passwordInput.value;
-                _context36.p = 1;
-                _context36.n = 2;
+                _context37.p = 1;
+                _context37.n = 2;
                 return fetch(OC.generateUrl('/apps/budget/api/auth/disable'), {
                   method: 'DELETE',
                   headers: _objectSpread({
@@ -49651,11 +49884,11 @@ var BudgetApp = /*#__PURE__*/function () {
                   })
                 });
               case 2:
-                response = _context36.v;
-                _context36.n = 3;
+                response = _context37.v;
+                _context37.n = 3;
                 return response.json();
               case 3:
-                result = _context36.v;
+                result = _context37.v;
                 if (response.ok && result.success) {
                   // Update UI
                   passwordToggle = document.getElementById('setting-password-protection-enabled');
@@ -49668,18 +49901,18 @@ var BudgetApp = /*#__PURE__*/function () {
                   errorDiv.textContent = result.error || 'Failed to disable password protection';
                   errorDiv.style.display = 'block';
                 }
-                _context36.n = 5;
+                _context37.n = 5;
                 break;
               case 4:
-                _context36.p = 4;
-                _t8 = _context36.v;
-                console.error('Failed to disable password protection:', _t8);
+                _context37.p = 4;
+                _t6 = _context37.v;
+                console.error('Failed to disable password protection:', _t6);
                 errorDiv.textContent = 'Failed to disable password protection. Please try again.';
                 errorDiv.style.display = 'block';
               case 5:
-                return _context36.a(2);
+                return _context37.a(2);
             }
-          }, _callee36, null, [[1, 4]]);
+          }, _callee37, null, [[1, 4]]);
         }));
         return function (_x22) {
           return _ref4.apply(this, arguments);
@@ -49703,16 +49936,16 @@ var BudgetApp = /*#__PURE__*/function () {
       var _this12 = this;
       var btn = document.getElementById('recalculate-balances-btn');
       if (!btn) return;
-      btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
-        var originalText, response, data, _t9;
-        return _regenerator().w(function (_context37) {
-          while (1) switch (_context37.p = _context37.n) {
+      btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
+        var originalText, response, data, _t7;
+        return _regenerator().w(function (_context38) {
+          while (1) switch (_context38.p = _context38.n) {
             case 0:
               originalText = btn.innerHTML;
               btn.disabled = true;
               btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Recalculating...';
-              _context37.p = 1;
-              _context37.n = 2;
+              _context38.p = 1;
+              _context38.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/setup/recalculate-balances'), {
                 method: 'POST',
                 headers: {
@@ -49721,13 +49954,13 @@ var BudgetApp = /*#__PURE__*/function () {
                 }
               });
             case 2:
-              response = _context37.v;
-              _context37.n = 3;
+              response = _context38.v;
+              _context38.n = 3;
               return response.json();
             case 3:
-              data = _context37.v;
+              data = _context38.v;
               if (response.ok) {
-                _context37.n = 4;
+                _context38.n = 4;
                 break;
               }
               throw new Error(data.error || 'Recalculation failed');
@@ -49738,22 +49971,22 @@ var BudgetApp = /*#__PURE__*/function () {
               } else {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('All account balances are correct');
               }
-              _context37.n = 6;
+              _context38.n = 6;
               break;
             case 5:
-              _context37.p = 5;
-              _t9 = _context37.v;
-              console.error('Failed to recalculate balances:', _t9);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to recalculate balances: ' + _t9.message);
+              _context38.p = 5;
+              _t7 = _context38.v;
+              console.error('Failed to recalculate balances:', _t7);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to recalculate balances: ' + _t7.message);
             case 6:
-              _context37.p = 6;
+              _context38.p = 6;
               btn.disabled = false;
               btn.innerHTML = originalText;
-              return _context37.f(6);
+              return _context38.f(6);
             case 7:
-              return _context37.a(2);
+              return _context38.a(2);
           }
-        }, _callee37, null, [[1, 5, 6, 7]]);
+        }, _callee38, null, [[1, 5, 6, 7]]);
       })));
     }
   }, {
@@ -49833,19 +50066,19 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "executeFactoryReset",
     value: function () {
-      var _executeFactoryReset = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
-        var confirmBtn, response, data, _confirmBtn, _t0;
-        return _regenerator().w(function (_context38) {
-          while (1) switch (_context38.p = _context38.n) {
+      var _executeFactoryReset = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39() {
+        var confirmBtn, response, data, _confirmBtn, _t8;
+        return _regenerator().w(function (_context39) {
+          while (1) switch (_context39.p = _context39.n) {
             case 0:
-              _context38.p = 0;
+              _context39.p = 0;
               // Show loading state
               confirmBtn = document.getElementById('factory-reset-confirm-btn');
               if (confirmBtn) {
                 confirmBtn.disabled = true;
                 confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Deleting...';
               }
-              _context38.n = 1;
+              _context39.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
                 method: 'POST',
                 headers: {
@@ -49857,13 +50090,13 @@ var BudgetApp = /*#__PURE__*/function () {
                 })
               });
             case 1:
-              response = _context38.v;
-              _context38.n = 2;
+              response = _context39.v;
+              _context39.n = 2;
               return response.json();
             case 2:
-              data = _context38.v;
+              data = _context39.v;
               if (response.ok) {
-                _context38.n = 3;
+                _context39.n = 3;
                 break;
               }
               throw new Error(data.error || 'Factory reset failed');
@@ -49878,12 +50111,12 @@ var BudgetApp = /*#__PURE__*/function () {
               setTimeout(function () {
                 window.location.reload();
               }, 1500);
-              _context38.n = 5;
+              _context39.n = 5;
               break;
             case 4:
-              _context38.p = 4;
-              _t0 = _context38.v;
-              console.error('Factory reset error:', _t0);
+              _context39.p = 4;
+              _t8 = _context39.v;
+              console.error('Factory reset error:', _t8);
 
               // Reset button state
               _confirmBtn = document.getElementById('factory-reset-confirm-btn');
@@ -49891,11 +50124,11 @@ var BudgetApp = /*#__PURE__*/function () {
                 _confirmBtn.disabled = false;
                 _confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
               }
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t0.message || 'Failed to perform factory reset');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t8.message || 'Failed to perform factory reset');
             case 5:
-              return _context38.a(2);
+              return _context39.a(2);
           }
-        }, _callee38, this, [[0, 4]]);
+        }, _callee39, this, [[0, 4]]);
       }));
       function executeFactoryReset() {
         return _executeFactoryReset.apply(this, arguments);
@@ -49972,26 +50205,26 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "handleMigrationExport",
     value: function () {
-      var _handleMigrationExport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39() {
-        var exportBtn, originalText, response, contentDisposition, filename, match, blob, url, a, _t1;
-        return _regenerator().w(function (_context39) {
-          while (1) switch (_context39.p = _context39.n) {
+      var _handleMigrationExport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40() {
+        var exportBtn, originalText, response, contentDisposition, filename, match, blob, url, a, _t9;
+        return _regenerator().w(function (_context40) {
+          while (1) switch (_context40.p = _context40.n) {
             case 0:
               exportBtn = document.getElementById('migration-export-btn');
               originalText = exportBtn.innerHTML;
-              _context39.p = 1;
+              _context40.p = 1;
               exportBtn.disabled = true;
               exportBtn.innerHTML = '<span class="icon-loading-small"></span> Exporting...';
-              _context39.n = 2;
+              _context40.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/migration/export'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context39.v;
+              response = _context40.v;
               if (response.ok) {
-                _context39.n = 3;
+                _context40.n = 3;
                 break;
               }
               throw new Error('Export failed');
@@ -50007,10 +50240,10 @@ var BudgetApp = /*#__PURE__*/function () {
               }
 
               // Download the file
-              _context39.n = 4;
+              _context40.n = 4;
               return response.blob();
             case 4:
-              blob = _context39.v;
+              blob = _context40.v;
               url = window.URL.createObjectURL(blob);
               a = document.createElement('a');
               a.href = url;
@@ -50020,22 +50253,22 @@ var BudgetApp = /*#__PURE__*/function () {
               window.URL.revokeObjectURL(url);
               document.body.removeChild(a);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Export completed successfully');
-              _context39.n = 6;
+              _context40.n = 6;
               break;
             case 5:
-              _context39.p = 5;
-              _t1 = _context39.v;
-              console.error('Export error:', _t1);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to export data: ' + _t1.message);
+              _context40.p = 5;
+              _t9 = _context40.v;
+              console.error('Export error:', _t9);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to export data: ' + _t9.message);
             case 6:
-              _context39.p = 6;
+              _context40.p = 6;
               exportBtn.disabled = false;
               exportBtn.innerHTML = originalText;
-              return _context39.f(6);
+              return _context40.f(6);
             case 7:
-              return _context39.a(2);
+              return _context40.a(2);
           }
-        }, _callee39, null, [[1, 5, 6, 7]]);
+        }, _callee40, null, [[1, 5, 6, 7]]);
       }));
       function handleMigrationExport() {
         return _handleMigrationExport.apply(this, arguments);
@@ -50045,17 +50278,17 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "handleMigrationFileSelect",
     value: function () {
-      var _handleMigrationFileSelect = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(file) {
-        var dropzone, preview, progress, _result$manifest, _result$manifest2, _result$counts, _result$counts2, _result$counts3, _result$counts4, _result$counts5, _result$counts6, formData, response, result, warningsDiv, _t10;
-        return _regenerator().w(function (_context40) {
-          while (1) switch (_context40.p = _context40.n) {
+      var _handleMigrationFileSelect = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee41(file) {
+        var dropzone, preview, progress, _result$manifest, _result$manifest2, _result$counts, _result$counts2, _result$counts3, _result$counts4, _result$counts5, _result$counts6, formData, response, result, warningsDiv, _t0;
+        return _regenerator().w(function (_context41) {
+          while (1) switch (_context41.p = _context41.n) {
             case 0:
               if (file.name.endsWith('.zip')) {
-                _context40.n = 1;
+                _context41.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Please select a ZIP file');
-              return _context40.a(2);
+              return _context41.a(2);
             case 1:
               this.migrationFile = file;
 
@@ -50066,10 +50299,10 @@ var BudgetApp = /*#__PURE__*/function () {
               dropzone.style.display = 'none';
               progress.style.display = 'block';
               document.getElementById('migration-progress-text').textContent = 'Validating file...';
-              _context40.p = 2;
+              _context41.p = 2;
               formData = new FormData();
               formData.append('file', file);
-              _context40.n = 3;
+              _context41.n = 3;
               return fetch(OC.generateUrl('/apps/budget/api/migration/preview'), {
                 method: 'POST',
                 headers: {
@@ -50078,13 +50311,13 @@ var BudgetApp = /*#__PURE__*/function () {
                 body: formData
               });
             case 3:
-              response = _context40.v;
-              _context40.n = 4;
+              response = _context41.v;
+              _context41.n = 4;
               return response.json();
             case 4:
-              result = _context40.v;
+              result = _context41.v;
               if (!(!response.ok || !result.valid)) {
-                _context40.n = 5;
+                _context41.n = 5;
                 break;
               }
               throw new Error(result.error || 'Invalid export file');
@@ -50111,18 +50344,18 @@ var BudgetApp = /*#__PURE__*/function () {
               }
               progress.style.display = 'none';
               preview.style.display = 'block';
-              _context40.n = 7;
+              _context41.n = 7;
               break;
             case 6:
-              _context40.p = 6;
-              _t10 = _context40.v;
-              console.error('Preview error:', _t10);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to preview file: ' + _t10.message);
+              _context41.p = 6;
+              _t0 = _context41.v;
+              console.error('Preview error:', _t0);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to preview file: ' + _t0.message);
               this.resetMigrationUI();
             case 7:
-              return _context40.a(2);
+              return _context41.a(2);
           }
-        }, _callee40, this, [[2, 6]]);
+        }, _callee41, this, [[2, 6]]);
       }));
       function handleMigrationFileSelect(_x23) {
         return _handleMigrationFileSelect.apply(this, arguments);
@@ -50138,23 +50371,23 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "confirmMigrationImport",
     value: function () {
-      var _confirmMigrationImport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee41() {
-        var preview, progress, result, formData, response, data, resultContent, _resultContent, _t11;
-        return _regenerator().w(function (_context41) {
-          while (1) switch (_context41.p = _context41.n) {
+      var _confirmMigrationImport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee42() {
+        var preview, progress, result, formData, response, data, resultContent, _resultContent, _t1;
+        return _regenerator().w(function (_context42) {
+          while (1) switch (_context42.p = _context42.n) {
             case 0:
               if (this.migrationFile) {
-                _context41.n = 1;
+                _context42.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('No file selected');
-              return _context41.a(2);
+              return _context42.a(2);
             case 1:
               if (confirm('This will PERMANENTLY DELETE all your existing data and replace it with the imported data.\n\nAre you absolutely sure you want to continue?')) {
-                _context41.n = 2;
+                _context42.n = 2;
                 break;
               }
-              return _context41.a(2);
+              return _context42.a(2);
             case 2:
               preview = document.getElementById('migration-preview');
               progress = document.getElementById('migration-progress');
@@ -50162,11 +50395,11 @@ var BudgetApp = /*#__PURE__*/function () {
               preview.style.display = 'none';
               progress.style.display = 'block';
               document.getElementById('migration-progress-text').textContent = 'Importing data... This may take a moment.';
-              _context41.p = 3;
+              _context42.p = 3;
               formData = new FormData();
               formData.append('file', this.migrationFile);
               formData.append('confirmed', 'true');
-              _context41.n = 4;
+              _context42.n = 4;
               return fetch(OC.generateUrl('/apps/budget/api/migration/import'), {
                 method: 'POST',
                 headers: {
@@ -50175,14 +50408,14 @@ var BudgetApp = /*#__PURE__*/function () {
                 body: formData
               });
             case 4:
-              response = _context41.v;
-              _context41.n = 5;
+              response = _context42.v;
+              _context42.n = 5;
               return response.json();
             case 5:
-              data = _context41.v;
+              data = _context42.v;
               progress.style.display = 'none';
               if (!(!response.ok || !data.success)) {
-                _context41.n = 6;
+                _context42.n = 6;
                 break;
               }
               throw new Error(data.error || 'Import failed');
@@ -50195,20 +50428,20 @@ var BudgetApp = /*#__PURE__*/function () {
               // Reload application data
               this.loadInitialData();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Import completed successfully');
-              _context41.n = 8;
+              _context42.n = 8;
               break;
             case 7:
-              _context41.p = 7;
-              _t11 = _context41.v;
-              console.error('Import error:', _t11);
+              _context42.p = 7;
+              _t1 = _context42.v;
+              console.error('Import error:', _t1);
               _resultContent = document.getElementById('migration-result-content');
-              _resultContent.innerHTML = "\n                <div class=\"result-error\">\n                    <span class=\"icon-error-color\"></span>\n                    <h5>Import Failed</h5>\n                    <p>".concat(_t11.message, "</p>\n                    <p class=\"result-hint\">Your existing data has not been modified.</p>\n                </div>\n            ");
+              _resultContent.innerHTML = "\n                <div class=\"result-error\">\n                    <span class=\"icon-error-color\"></span>\n                    <h5>Import Failed</h5>\n                    <p>".concat(_t1.message, "</p>\n                    <p class=\"result-hint\">Your existing data has not been modified.</p>\n                </div>\n            ");
               result.style.display = 'block';
               progress.style.display = 'none';
             case 8:
-              return _context41.a(2);
+              return _context42.a(2);
           }
-        }, _callee41, this, [[3, 7]]);
+        }, _callee42, this, [[3, 7]]);
       }));
       function confirmMigrationImport() {
         return _confirmMigrationImport.apply(this, arguments);
@@ -50237,13 +50470,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadSettingsView",
     value: function () {
-      var _loadSettingsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee42() {
-        return _regenerator().w(function (_context42) {
-          while (1) switch (_context42.n) {
+      var _loadSettingsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee43() {
+        return _regenerator().w(function (_context43) {
+          while (1) switch (_context43.n) {
             case 0:
-              return _context42.a(2, this.settingsModule.loadSettingsView());
+              return _context43.a(2, this.settingsModule.loadSettingsView());
           }
-        }, _callee42, this);
+        }, _callee43, this);
       }));
       function loadSettingsView() {
         return _loadSettingsView.apply(this, arguments);
@@ -50253,13 +50486,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "saveSettings",
     value: function () {
-      var _saveSettings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee43() {
-        return _regenerator().w(function (_context43) {
-          while (1) switch (_context43.n) {
+      var _saveSettings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee44() {
+        return _regenerator().w(function (_context44) {
+          while (1) switch (_context44.n) {
             case 0:
-              return _context43.a(2, this.settingsModule.saveSettings());
+              return _context44.a(2, this.settingsModule.saveSettings());
           }
-        }, _callee43, this);
+        }, _callee44, this);
       }));
       function saveSettings() {
         return _saveSettings.apply(this, arguments);
@@ -50269,13 +50502,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "resetSettings",
     value: function () {
-      var _resetSettings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee44() {
-        return _regenerator().w(function (_context44) {
-          while (1) switch (_context44.n) {
+      var _resetSettings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee45() {
+        return _regenerator().w(function (_context45) {
+          while (1) switch (_context45.n) {
             case 0:
-              return _context44.a(2, this.settingsModule.resetSettings());
+              return _context45.a(2, this.settingsModule.resetSettings());
           }
-        }, _callee44, this);
+        }, _callee45, this);
       }));
       function resetSettings() {
         return _resetSettings.apply(this, arguments);
@@ -50287,13 +50520,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadBillsView",
     value: function () {
-      var _loadBillsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee45() {
-        return _regenerator().w(function (_context45) {
-          while (1) switch (_context45.n) {
+      var _loadBillsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee46() {
+        return _regenerator().w(function (_context46) {
+          while (1) switch (_context46.n) {
             case 0:
-              return _context45.a(2, this.billsModule.loadBillsView());
+              return _context46.a(2, this.billsModule.loadBillsView());
           }
-        }, _callee45, this);
+        }, _callee46, this);
       }));
       function loadBillsView() {
         return _loadBillsView.apply(this, arguments);
@@ -50303,13 +50536,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadTransfersView",
     value: function () {
-      var _loadTransfersView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee46() {
-        return _regenerator().w(function (_context46) {
-          while (1) switch (_context46.n) {
+      var _loadTransfersView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee47() {
+        return _regenerator().w(function (_context47) {
+          while (1) switch (_context47.n) {
             case 0:
-              return _context46.a(2, this.transfersModule.loadTransfersView());
+              return _context47.a(2, this.transfersModule.loadTransfersView());
           }
-        }, _callee46, this);
+        }, _callee47, this);
       }));
       function loadTransfersView() {
         return _loadTransfersView.apply(this, arguments);
@@ -50319,13 +50552,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadRulesView",
     value: function () {
-      var _loadRulesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee47() {
-        return _regenerator().w(function (_context47) {
-          while (1) switch (_context47.n) {
+      var _loadRulesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee48() {
+        return _regenerator().w(function (_context48) {
+          while (1) switch (_context48.n) {
             case 0:
-              return _context47.a(2, this.rulesModule.loadRulesView());
+              return _context48.a(2, this.rulesModule.loadRulesView());
           }
-        }, _callee47, this);
+        }, _callee48, this);
       }));
       function loadRulesView() {
         return _loadRulesView.apply(this, arguments);
@@ -50335,13 +50568,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadExchangeRatesView",
     value: function () {
-      var _loadExchangeRatesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee48() {
-        return _regenerator().w(function (_context48) {
-          while (1) switch (_context48.n) {
+      var _loadExchangeRatesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee49() {
+        return _regenerator().w(function (_context49) {
+          while (1) switch (_context49.n) {
             case 0:
-              return _context48.a(2, this.exchangeRatesModule.loadExchangeRatesView());
+              return _context49.a(2, this.exchangeRatesModule.loadExchangeRatesView());
           }
-        }, _callee48, this);
+        }, _callee49, this);
       }));
       function loadExchangeRatesView() {
         return _loadExchangeRatesView.apply(this, arguments);
@@ -50353,13 +50586,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadIncomeView",
     value: function () {
-      var _loadIncomeView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee49() {
-        return _regenerator().w(function (_context49) {
-          while (1) switch (_context49.n) {
+      var _loadIncomeView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee50() {
+        return _regenerator().w(function (_context50) {
+          while (1) switch (_context50.n) {
             case 0:
-              return _context49.a(2, this.incomeModule.loadIncomeView());
+              return _context50.a(2, this.incomeModule.loadIncomeView());
           }
-        }, _callee49, this);
+        }, _callee50, this);
       }));
       function loadIncomeView() {
         return _loadIncomeView.apply(this, arguments);
@@ -50369,13 +50602,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadIncomeSummary",
     value: function () {
-      var _loadIncomeSummary = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee50() {
-        return _regenerator().w(function (_context50) {
-          while (1) switch (_context50.n) {
+      var _loadIncomeSummary = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee51() {
+        return _regenerator().w(function (_context51) {
+          while (1) switch (_context51.n) {
             case 0:
-              return _context50.a(2, this.incomeModule.loadIncomeSummary());
+              return _context51.a(2, this.incomeModule.loadIncomeSummary());
           }
-        }, _callee50, this);
+        }, _callee51, this);
       }));
       function loadIncomeSummary() {
         return _loadIncomeSummary.apply(this, arguments);
@@ -50431,13 +50664,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "addSelectedDetectedIncome",
     value: function () {
-      var _addSelectedDetectedIncome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee51() {
-        return _regenerator().w(function (_context51) {
-          while (1) switch (_context51.n) {
+      var _addSelectedDetectedIncome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee52() {
+        return _regenerator().w(function (_context52) {
+          while (1) switch (_context52.n) {
             case 0:
-              return _context51.a(2, this.incomeModule.addSelectedDetectedIncome());
+              return _context52.a(2, this.incomeModule.addSelectedDetectedIncome());
           }
-        }, _callee51, this);
+        }, _callee52, this);
       }));
       function addSelectedDetectedIncome() {
         return _addSelectedDetectedIncome.apply(this, arguments);
@@ -50449,13 +50682,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadSavingsGoalsView",
     value: function () {
-      var _loadSavingsGoalsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee52() {
-        return _regenerator().w(function (_context52) {
-          while (1) switch (_context52.n) {
+      var _loadSavingsGoalsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee53() {
+        return _regenerator().w(function (_context53) {
+          while (1) switch (_context53.n) {
             case 0:
-              return _context52.a(2, this.savingsModule.loadSavingsGoalsView());
+              return _context53.a(2, this.savingsModule.loadSavingsGoalsView());
           }
-        }, _callee52, this);
+        }, _callee53, this);
       }));
       function loadSavingsGoalsView() {
         return _loadSavingsGoalsView.apply(this, arguments);
@@ -50491,13 +50724,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "saveGoal",
     value: function () {
-      var _saveGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee53() {
-        return _regenerator().w(function (_context53) {
-          while (1) switch (_context53.n) {
+      var _saveGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee54() {
+        return _regenerator().w(function (_context54) {
+          while (1) switch (_context54.n) {
             case 0:
-              return _context53.a(2, this.savingsModule.saveGoal());
+              return _context54.a(2, this.savingsModule.saveGoal());
           }
-        }, _callee53, this);
+        }, _callee54, this);
       }));
       function saveGoal() {
         return _saveGoal.apply(this, arguments);
@@ -50512,13 +50745,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "deleteGoal",
     value: function () {
-      var _deleteGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee54(goalId) {
-        return _regenerator().w(function (_context54) {
-          while (1) switch (_context54.n) {
+      var _deleteGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee55(goalId) {
+        return _regenerator().w(function (_context55) {
+          while (1) switch (_context55.n) {
             case 0:
-              return _context54.a(2, this.savingsModule.deleteGoal(goalId));
+              return _context55.a(2, this.savingsModule.deleteGoal(goalId));
           }
-        }, _callee54, this);
+        }, _callee55, this);
       }));
       function deleteGoal(_x24) {
         return _deleteGoal.apply(this, arguments);
@@ -50533,13 +50766,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "addMoneyToGoal",
     value: function () {
-      var _addMoneyToGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee55() {
-        return _regenerator().w(function (_context55) {
-          while (1) switch (_context55.n) {
+      var _addMoneyToGoal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee56() {
+        return _regenerator().w(function (_context56) {
+          while (1) switch (_context56.n) {
             case 0:
-              return _context55.a(2, this.savingsModule.addMoneyToGoal());
+              return _context56.a(2, this.savingsModule.addMoneyToGoal());
           }
-        }, _callee55, this);
+        }, _callee56, this);
       }));
       function addMoneyToGoal() {
         return _addMoneyToGoal.apply(this, arguments);
@@ -50551,56 +50784,56 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadDebtPayoffView",
     value: function () {
-      var _loadDebtPayoffView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee56() {
-        var summaryResponse, summary, debtsResponse, debts, currency, totalEl, rateEl, minEl, countEl, _t12, _t13, _t14;
-        return _regenerator().w(function (_context56) {
-          while (1) switch (_context56.p = _context56.n) {
+      var _loadDebtPayoffView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee57() {
+        var summaryResponse, summary, debtsResponse, debts, currency, totalEl, rateEl, minEl, countEl, _t10, _t11, _t12;
+        return _regenerator().w(function (_context57) {
+          while (1) switch (_context57.p = _context57.n) {
             case 0:
-              _context56.p = 0;
-              _context56.n = 1;
+              _context57.p = 0;
+              _context57.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              summaryResponse = _context56.v;
+              summaryResponse = _context57.v;
               if (!summaryResponse.ok) {
-                _context56.n = 3;
+                _context57.n = 3;
                 break;
               }
-              _context56.n = 2;
+              _context57.n = 2;
               return summaryResponse.json();
             case 2:
-              _t12 = _context56.v;
-              _context56.n = 4;
+              _t10 = _context57.v;
+              _context57.n = 4;
               break;
             case 3:
-              _t12 = null;
+              _t10 = null;
             case 4:
-              summary = _t12;
-              _context56.n = 5;
+              summary = _t10;
+              _context57.n = 5;
               return fetch(OC.generateUrl('/apps/budget/api/debts'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 5:
-              debtsResponse = _context56.v;
+              debtsResponse = _context57.v;
               if (!debtsResponse.ok) {
-                _context56.n = 7;
+                _context57.n = 7;
                 break;
               }
-              _context56.n = 6;
+              _context57.n = 6;
               return debtsResponse.json();
             case 6:
-              _t13 = _context56.v;
-              _context56.n = 8;
+              _t11 = _context57.v;
+              _context57.n = 8;
               break;
             case 7:
-              _t13 = [];
+              _t11 = [];
             case 8:
-              debts = _t13;
+              debts = _t11;
               // Update summary cards
               currency = this.getPrimaryCurrency();
               if (summary) {
@@ -50619,16 +50852,16 @@ var BudgetApp = /*#__PURE__*/function () {
 
               // Setup event listeners
               this.setupDebtPayoffControls();
-              _context56.n = 10;
+              _context57.n = 10;
               break;
             case 9:
-              _context56.p = 9;
-              _t14 = _context56.v;
-              console.error('Failed to load debt payoff view:', _t14);
+              _context57.p = 9;
+              _t12 = _context57.v;
+              console.error('Failed to load debt payoff view:', _t12);
             case 10:
-              return _context56.a(2);
+              return _context57.a(2);
           }
-        }, _callee56, this, [[0, 9]]);
+        }, _callee57, this, [[0, 9]]);
       }));
       function loadDebtPayoffView() {
         return _loadDebtPayoffView.apply(this, arguments);
@@ -50673,49 +50906,49 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "calculatePayoffPlan",
     value: function () {
-      var _calculatePayoffPlan = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee57() {
+      var _calculatePayoffPlan = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee58() {
         var _document$getElementB4, _document$getElementB5;
-        var strategy, extraPayment, response, plan, comparisonEl, _t15;
-        return _regenerator().w(function (_context57) {
-          while (1) switch (_context57.p = _context57.n) {
+        var strategy, extraPayment, response, plan, comparisonEl, _t13;
+        return _regenerator().w(function (_context58) {
+          while (1) switch (_context58.p = _context58.n) {
             case 0:
               strategy = ((_document$getElementB4 = document.getElementById('debt-strategy-select')) === null || _document$getElementB4 === void 0 ? void 0 : _document$getElementB4.value) || 'avalanche';
               extraPayment = parseFloat((_document$getElementB5 = document.getElementById('debt-extra-payment')) === null || _document$getElementB5 === void 0 ? void 0 : _document$getElementB5.value) || 0;
-              _context57.p = 1;
-              _context57.n = 2;
+              _context58.p = 1;
+              _context58.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/debts/payoff-plan?strategy=".concat(strategy, "&extraPayment=").concat(extraPayment)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context57.v;
+              response = _context58.v;
               if (response.ok) {
-                _context57.n = 3;
+                _context58.n = 3;
                 break;
               }
               throw new Error('Failed to calculate payoff plan');
             case 3:
-              _context57.n = 4;
+              _context58.n = 4;
               return response.json();
             case 4:
-              plan = _context57.v;
+              plan = _context58.v;
               this.displayPayoffPlan(plan);
 
               // Hide comparison results when showing plan
               comparisonEl = document.getElementById('debt-comparison-results');
               if (comparisonEl) comparisonEl.style.display = 'none';
-              _context57.n = 6;
+              _context58.n = 6;
               break;
             case 5:
-              _context57.p = 5;
-              _t15 = _context57.v;
-              console.error('Failed to calculate payoff plan:', _t15);
+              _context58.p = 5;
+              _t13 = _context58.v;
+              console.error('Failed to calculate payoff plan:', _t13);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to calculate payoff plan');
             case 6:
-              return _context57.a(2);
+              return _context58.a(2);
           }
-        }, _callee57, this, [[1, 5]]);
+        }, _callee58, this, [[1, 5]]);
       }));
       function calculatePayoffPlan() {
         return _calculatePayoffPlan.apply(this, arguments);
@@ -50766,48 +50999,48 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "compareStrategies",
     value: function () {
-      var _compareStrategies = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee58() {
+      var _compareStrategies = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee59() {
         var _document$getElementB6;
-        var extraPayment, response, comparison, planEl, _t16;
-        return _regenerator().w(function (_context58) {
-          while (1) switch (_context58.p = _context58.n) {
+        var extraPayment, response, comparison, planEl, _t14;
+        return _regenerator().w(function (_context59) {
+          while (1) switch (_context59.p = _context59.n) {
             case 0:
               extraPayment = parseFloat((_document$getElementB6 = document.getElementById('debt-extra-payment')) === null || _document$getElementB6 === void 0 ? void 0 : _document$getElementB6.value) || 0;
-              _context58.p = 1;
-              _context58.n = 2;
+              _context59.p = 1;
+              _context59.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/debts/compare?extraPayment=".concat(extraPayment)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context58.v;
+              response = _context59.v;
               if (response.ok) {
-                _context58.n = 3;
+                _context59.n = 3;
                 break;
               }
               throw new Error('Failed to compare strategies');
             case 3:
-              _context58.n = 4;
+              _context59.n = 4;
               return response.json();
             case 4:
-              comparison = _context58.v;
+              comparison = _context59.v;
               this.displayComparison(comparison);
 
               // Hide plan results when showing comparison
               planEl = document.getElementById('debt-payoff-results');
               if (planEl) planEl.style.display = 'none';
-              _context58.n = 6;
+              _context59.n = 6;
               break;
             case 5:
-              _context58.p = 5;
-              _t16 = _context58.v;
-              console.error('Failed to compare strategies:', _t16);
+              _context59.p = 5;
+              _t14 = _context59.v;
+              console.error('Failed to compare strategies:', _t14);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to compare strategies');
             case 6:
-              return _context58.a(2);
+              return _context59.a(2);
           }
-        }, _callee58, this, [[1, 5]]);
+        }, _callee59, this, [[1, 5]]);
       }));
       function compareStrategies() {
         return _compareStrategies.apply(this, arguments);
@@ -50857,66 +51090,15 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "linkTransactions",
     value: (function () {
-      var _linkTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee59(transactionId, targetId) {
-        var response, error, _t17;
-        return _regenerator().w(function (_context59) {
-          while (1) switch (_context59.p = _context59.n) {
-            case 0:
-              _context59.p = 0;
-              _context59.n = 1;
-              return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/link/").concat(targetId)), {
-                method: 'POST',
-                headers: {
-                  'requesttoken': OC.requestToken
-                }
-              });
-            case 1:
-              response = _context59.v;
-              if (response.ok) {
-                _context59.n = 3;
-                break;
-              }
-              _context59.n = 2;
-              return response.json();
-            case 2:
-              error = _context59.v;
-              throw new Error(error.error || "HTTP ".concat(response.status));
-            case 3:
-              _context59.n = 4;
-              return response.json();
-            case 4:
-              return _context59.a(2, _context59.v);
-            case 5:
-              _context59.p = 5;
-              _t17 = _context59.v;
-              console.error('Failed to link transactions:', _t17);
-              throw _t17;
-            case 6:
-              return _context59.a(2);
-          }
-        }, _callee59, null, [[0, 5]]);
-      }));
-      function linkTransactions(_x25, _x26) {
-        return _linkTransactions.apply(this, arguments);
-      }
-      return linkTransactions;
-    }()
-    /**
-     * Unlink a transaction from its transfer partner
-     */
-    )
-  }, {
-    key: "unlinkTransaction",
-    value: (function () {
-      var _unlinkTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee60(transactionId) {
-        var response, error, _t18;
+      var _linkTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee60(transactionId, targetId) {
+        var response, error, _t15;
         return _regenerator().w(function (_context60) {
           while (1) switch (_context60.p = _context60.n) {
             case 0:
               _context60.p = 0;
               _context60.n = 1;
-              return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/link")), {
-                method: 'DELETE',
+              return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/link/").concat(targetId)), {
+                method: 'POST',
                 headers: {
                   'requesttoken': OC.requestToken
                 }
@@ -50939,13 +51121,64 @@ var BudgetApp = /*#__PURE__*/function () {
               return _context60.a(2, _context60.v);
             case 5:
               _context60.p = 5;
-              _t18 = _context60.v;
-              console.error('Failed to unlink transaction:', _t18);
-              throw _t18;
+              _t15 = _context60.v;
+              console.error('Failed to link transactions:', _t15);
+              throw _t15;
             case 6:
               return _context60.a(2);
           }
         }, _callee60, null, [[0, 5]]);
+      }));
+      function linkTransactions(_x25, _x26) {
+        return _linkTransactions.apply(this, arguments);
+      }
+      return linkTransactions;
+    }()
+    /**
+     * Unlink a transaction from its transfer partner
+     */
+    )
+  }, {
+    key: "unlinkTransaction",
+    value: (function () {
+      var _unlinkTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee61(transactionId) {
+        var response, error, _t16;
+        return _regenerator().w(function (_context61) {
+          while (1) switch (_context61.p = _context61.n) {
+            case 0:
+              _context61.p = 0;
+              _context61.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/link")), {
+                method: 'DELETE',
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              response = _context61.v;
+              if (response.ok) {
+                _context61.n = 3;
+                break;
+              }
+              _context61.n = 2;
+              return response.json();
+            case 2:
+              error = _context61.v;
+              throw new Error(error.error || "HTTP ".concat(response.status));
+            case 3:
+              _context61.n = 4;
+              return response.json();
+            case 4:
+              return _context61.a(2, _context61.v);
+            case 5:
+              _context61.p = 5;
+              _t16 = _context61.v;
+              console.error('Failed to unlink transaction:', _t16);
+              throw _t16;
+            case 6:
+              return _context61.a(2);
+          }
+        }, _callee61, null, [[0, 5]]);
       }));
       function unlinkTransaction(_x27) {
         return _unlinkTransaction.apply(this, arguments);
@@ -50959,23 +51192,23 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "showMatchingModal",
     value: (function () {
-      var _showMatchingModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee61(transactionId) {
+      var _showMatchingModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee62(transactionId) {
         var _this$transactions4,
           _this$accounts,
           _this18 = this;
-        var transaction, modal, sourceDetails, loadingEl, emptyEl, listEl, account, currency, typeClass, result, _t19;
-        return _regenerator().w(function (_context61) {
-          while (1) switch (_context61.p = _context61.n) {
+        var transaction, modal, sourceDetails, loadingEl, emptyEl, listEl, account, currency, typeClass, result, _t17;
+        return _regenerator().w(function (_context62) {
+          while (1) switch (_context62.p = _context62.n) {
             case 0:
               transaction = (_this$transactions4 = this.transactions) === null || _this$transactions4 === void 0 ? void 0 : _this$transactions4.find(function (t) {
                 return t.id === transactionId;
               });
               if (transaction) {
-                _context61.n = 1;
+                _context62.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Transaction not found');
-              return _context61.a(2);
+              return _context62.a(2);
             case 1:
               modal = document.getElementById('matching-modal');
               sourceDetails = modal.querySelector('.source-details');
@@ -50998,18 +51231,18 @@ var BudgetApp = /*#__PURE__*/function () {
               loadingEl.style.display = 'flex';
               emptyEl.style.display = 'none';
               listEl.innerHTML = '';
-              _context61.p = 2;
-              _context61.n = 3;
+              _context62.p = 2;
+              _context62.n = 3;
               return this.findTransactionMatches(transactionId);
             case 3:
-              result = _context61.v;
+              result = _context62.v;
               loadingEl.style.display = 'none';
               if (!(!result.matches || result.matches.length === 0)) {
-                _context61.n = 4;
+                _context62.n = 4;
                 break;
               }
               emptyEl.style.display = 'flex';
-              return _context61.a(2);
+              return _context62.a(2);
             case 4:
               // Render matches
               listEl.innerHTML = result.matches.map(function (match) {
@@ -51021,18 +51254,18 @@ var BudgetApp = /*#__PURE__*/function () {
                 var matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
                 return "\n                    <div class=\"match-item\" data-match-id=\"".concat(match.id, "\">\n                        <span class=\"match-date\">").concat(_this18.formatDate(match.date), "</span>\n                        <span class=\"match-description\">").concat(_this18.escapeHtml(match.description), "</span>\n                        <span class=\"match-amount ").concat(matchTypeClass, "\">").concat(_this18.formatCurrency(match.amount, matchCurrency), "</span>\n                        <span class=\"match-account\">").concat((matchAccount === null || matchAccount === void 0 ? void 0 : matchAccount.name) || 'Unknown', "</span>\n                        <button class=\"link-match-btn\" data-source-id=\"").concat(transactionId, "\" data-target-id=\"").concat(match.id, "\">\n                            Link as Transfer\n                        </button>\n                    </div>\n                ");
               }).join('');
-              _context61.n = 6;
+              _context62.n = 6;
               break;
             case 5:
-              _context61.p = 5;
-              _t19 = _context61.v;
+              _context62.p = 5;
+              _t17 = _context62.v;
               loadingEl.style.display = 'none';
               emptyEl.style.display = 'flex';
               emptyEl.querySelector('p').textContent = 'Failed to search for matches. Please try again.';
             case 6:
-              return _context61.a(2);
+              return _context62.a(2);
           }
-        }, _callee61, this, [[2, 5]]);
+        }, _callee62, this, [[2, 5]]);
       }));
       function showMatchingModal(_x28) {
         return _showMatchingModal.apply(this, arguments);
@@ -51046,32 +51279,32 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "handleLinkMatch",
     value: (function () {
-      var _handleLinkMatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee62(sourceId, targetId) {
-        var _t20;
-        return _regenerator().w(function (_context62) {
-          while (1) switch (_context62.p = _context62.n) {
+      var _handleLinkMatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee63(sourceId, targetId) {
+        var _t18;
+        return _regenerator().w(function (_context63) {
+          while (1) switch (_context63.p = _context63.n) {
             case 0:
-              _context62.p = 0;
-              _context62.n = 1;
+              _context63.p = 0;
+              _context63.n = 1;
               return this.linkTransactions(sourceId, targetId);
             case 1:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transactions linked as transfer');
 
               // Close modal and refresh transactions
               document.getElementById('matching-modal').style.display = 'none';
-              _context62.n = 2;
+              _context63.n = 2;
               return this.loadTransactions();
             case 2:
-              _context62.n = 4;
+              _context63.n = 4;
               break;
             case 3:
-              _context62.p = 3;
-              _t20 = _context62.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t20.message || 'Failed to link transactions');
+              _context63.p = 3;
+              _t18 = _context63.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t18.message || 'Failed to link transactions');
             case 4:
-              return _context62.a(2);
+              return _context63.a(2);
           }
-        }, _callee62, this, [[0, 3]]);
+        }, _callee63, this, [[0, 3]]);
       }));
       function handleLinkMatch(_x29, _x30) {
         return _handleLinkMatch.apply(this, arguments);
@@ -51085,35 +51318,35 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "handleUnlinkTransaction",
     value: (function () {
-      var _handleUnlinkTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee63(transactionId) {
-        var _t21;
-        return _regenerator().w(function (_context63) {
-          while (1) switch (_context63.p = _context63.n) {
+      var _handleUnlinkTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee64(transactionId) {
+        var _t19;
+        return _regenerator().w(function (_context64) {
+          while (1) switch (_context64.p = _context64.n) {
             case 0:
               if (confirm('Are you sure you want to unlink this transaction from its transfer pair?')) {
-                _context63.n = 1;
+                _context64.n = 1;
                 break;
               }
-              return _context63.a(2);
+              return _context64.a(2);
             case 1:
-              _context63.p = 1;
-              _context63.n = 2;
+              _context64.p = 1;
+              _context64.n = 2;
               return this.unlinkTransaction(transactionId);
             case 2:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transaction unlinked');
-              _context63.n = 3;
+              _context64.n = 3;
               return this.loadTransactions();
             case 3:
-              _context63.n = 5;
+              _context64.n = 5;
               break;
             case 4:
-              _context63.p = 4;
-              _t21 = _context63.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t21.message || 'Failed to unlink transaction');
+              _context64.p = 4;
+              _t19 = _context64.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t19.message || 'Failed to unlink transaction');
             case 5:
-              return _context63.a(2);
+              return _context64.a(2);
           }
-        }, _callee63, this, [[1, 4]]);
+        }, _callee64, this, [[1, 4]]);
       }));
       function handleUnlinkTransaction(_x31) {
         return _handleUnlinkTransaction.apply(this, arguments);
@@ -51127,31 +51360,31 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "showSplitModal",
     value: function () {
-      var _showSplitModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee64(transactionId) {
+      var _showSplitModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee65(transactionId) {
         var _this$transactions5,
           _this$accounts2,
           _this19 = this;
-        var transaction, modal, isSplit, titleEl, transactionInfoEl, splitsContainer, account, currency, splits, unsplitBtn, _t22;
-        return _regenerator().w(function (_context64) {
-          while (1) switch (_context64.p = _context64.n) {
+        var transaction, modal, isSplit, titleEl, transactionInfoEl, splitsContainer, account, currency, splits, unsplitBtn, _t20;
+        return _regenerator().w(function (_context65) {
+          while (1) switch (_context65.p = _context65.n) {
             case 0:
               transaction = (_this$transactions5 = this.transactions) === null || _this$transactions5 === void 0 ? void 0 : _this$transactions5.find(function (t) {
                 return t.id === transactionId;
               });
               if (transaction) {
-                _context64.n = 1;
+                _context65.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('Transaction not found');
-              return _context64.a(2);
+              return _context65.a(2);
             case 1:
               modal = document.getElementById('split-modal');
               if (modal) {
-                _context64.n = 2;
+                _context65.n = 2;
                 break;
               }
               console.error('Split modal not found');
-              return _context64.a(2);
+              return _context65.a(2);
             case 2:
               isSplit = transaction.isSplit || transaction.is_split;
               titleEl = document.getElementById('split-modal-title');
@@ -51174,28 +51407,28 @@ var BudgetApp = /*#__PURE__*/function () {
               // Clear and set up splits container
               splitsContainer.innerHTML = '';
               if (!isSplit) {
-                _context64.n = 7;
+                _context65.n = 7;
                 break;
               }
-              _context64.p = 3;
-              _context64.n = 4;
+              _context65.p = 3;
+              _context65.n = 4;
               return this.getTransactionSplits(transactionId);
             case 4:
-              splits = _context64.v;
+              splits = _context65.v;
               splits.forEach(function (split, index) {
                 _this19.addSplitRow(splitsContainer, split, index === 0);
               });
-              _context64.n = 6;
+              _context65.n = 6;
               break;
             case 5:
-              _context64.p = 5;
-              _t22 = _context64.v;
-              console.error('Failed to load splits:', _t22);
+              _context65.p = 5;
+              _t20 = _context65.v;
+              console.error('Failed to load splits:', _t20);
               // Add two empty rows as fallback
               this.addSplitRow(splitsContainer, null, true);
               this.addSplitRow(splitsContainer, null, false);
             case 6:
-              _context64.n = 8;
+              _context65.n = 8;
               break;
             case 7:
               // Start with two empty split rows
@@ -51213,9 +51446,9 @@ var BudgetApp = /*#__PURE__*/function () {
               this.updateSplitRemaining();
               modal.style.display = 'flex';
             case 9:
-              return _context64.a(2);
+              return _context65.a(2);
           }
-        }, _callee64, this, [[3, 5]]);
+        }, _callee65, this, [[3, 5]]);
       }));
       function showSplitModal(_x32) {
         return _showSplitModal.apply(this, arguments);
@@ -51298,10 +51531,10 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "saveSplits",
     value: (function () {
-      var _saveSplits = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee65() {
-        var modal, transactionId, totalAmount, splits, splitTotal, response, error, _t23;
-        return _regenerator().w(function (_context65) {
-          while (1) switch (_context65.p = _context65.n) {
+      var _saveSplits = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee66() {
+        var modal, transactionId, totalAmount, splits, splitTotal, response, error, _t21;
+        return _regenerator().w(function (_context66) {
+          while (1) switch (_context66.p = _context66.n) {
             case 0:
               modal = document.getElementById('split-modal');
               transactionId = parseInt(modal === null || modal === void 0 ? void 0 : modal.dataset.transactionId);
@@ -51316,24 +51549,24 @@ var BudgetApp = /*#__PURE__*/function () {
                 return split.amount > 0;
               }); // Validate
               if (!(splits.length < 2)) {
-                _context65.n = 1;
+                _context66.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)('A split transaction must have at least 2 parts');
-              return _context65.a(2);
+              return _context66.a(2);
             case 1:
               splitTotal = splits.reduce(function (sum, s) {
                 return sum + s.amount;
               }, 0);
               if (!(Math.abs(splitTotal - totalAmount) > 0.01)) {
-                _context65.n = 2;
+                _context66.n = 2;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showWarning)("Split amounts (".concat(splitTotal.toFixed(2), ") must equal transaction amount (").concat(totalAmount.toFixed(2), ")"));
-              return _context65.a(2);
+              return _context66.a(2);
             case 2:
-              _context65.p = 2;
-              _context65.n = 3;
+              _context66.p = 2;
+              _context66.n = 3;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/splits")), {
                 method: 'POST',
                 headers: {
@@ -51345,33 +51578,33 @@ var BudgetApp = /*#__PURE__*/function () {
                 })
               });
             case 3:
-              response = _context65.v;
+              response = _context66.v;
               if (response.ok) {
-                _context65.n = 5;
+                _context66.n = 5;
                 break;
               }
-              _context65.n = 4;
+              _context66.n = 4;
               return response.json();
             case 4:
-              error = _context65.v;
+              error = _context66.v;
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 5:
               this.hideSplitModal();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transaction split successfully');
-              _context65.n = 6;
+              _context66.n = 6;
               return this.loadTransactions();
             case 6:
-              _context65.n = 8;
+              _context66.n = 8;
               break;
             case 7:
-              _context65.p = 7;
-              _t23 = _context65.v;
-              console.error('Failed to save splits:', _t23);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t23.message || 'Failed to save splits');
+              _context66.p = 7;
+              _t21 = _context66.v;
+              console.error('Failed to save splits:', _t21);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t21.message || 'Failed to save splits');
             case 8:
-              return _context65.a(2);
+              return _context66.a(2);
           }
-        }, _callee65, this, [[2, 7]]);
+        }, _callee66, this, [[2, 7]]);
       }));
       function saveSplits() {
         return _saveSplits.apply(this, arguments);
@@ -51385,21 +51618,21 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "unsplitTransaction",
     value: (function () {
-      var _unsplitTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee66() {
-        var modal, transactionId, response, error, _t24;
-        return _regenerator().w(function (_context66) {
-          while (1) switch (_context66.p = _context66.n) {
+      var _unsplitTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee67() {
+        var modal, transactionId, response, error, _t22;
+        return _regenerator().w(function (_context67) {
+          while (1) switch (_context67.p = _context67.n) {
             case 0:
               modal = document.getElementById('split-modal');
               transactionId = parseInt(modal === null || modal === void 0 ? void 0 : modal.dataset.transactionId);
               if (confirm('Are you sure you want to remove the split and revert to a single transaction?')) {
-                _context66.n = 1;
+                _context67.n = 1;
                 break;
               }
-              return _context66.a(2);
+              return _context67.a(2);
             case 1:
-              _context66.p = 1;
-              _context66.n = 2;
+              _context67.p = 1;
+              _context67.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/splits")), {
                 method: 'DELETE',
                 headers: {
@@ -51407,33 +51640,33 @@ var BudgetApp = /*#__PURE__*/function () {
                 }
               });
             case 2:
-              response = _context66.v;
+              response = _context67.v;
               if (response.ok) {
-                _context66.n = 4;
+                _context67.n = 4;
                 break;
               }
-              _context66.n = 3;
+              _context67.n = 3;
               return response.json();
             case 3:
-              error = _context66.v;
+              error = _context67.v;
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 4:
               this.hideSplitModal();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showSuccess)('Transaction unsplit successfully');
-              _context66.n = 5;
+              _context67.n = 5;
               return this.loadTransactions();
             case 5:
-              _context66.n = 7;
+              _context67.n = 7;
               break;
             case 6:
-              _context66.p = 6;
-              _t24 = _context66.v;
-              console.error('Failed to unsplit transaction:', _t24);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t24.message || 'Failed to unsplit transaction');
+              _context67.p = 6;
+              _t22 = _context67.v;
+              console.error('Failed to unsplit transaction:', _t22);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)(_t22.message || 'Failed to unsplit transaction');
             case 7:
-              return _context66.a(2);
+              return _context67.a(2);
           }
-        }, _callee66, this, [[1, 6]]);
+        }, _callee67, this, [[1, 6]]);
       }));
       function unsplitTransaction() {
         return _unsplitTransaction.apply(this, arguments);
@@ -51468,123 +51701,13 @@ var BudgetApp = /*#__PURE__*/function () {
         }
       });
     }
-  }, {
-    key: "showBulkMatchModal",
-    value: (function () {
-      var _showBulkMatchModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee67() {
-        var _this21 = this;
-        var modal, loadingEl, resultsEl, emptyEl, autoMatchedSection, needsReviewSection, autoMatchedList, needsReviewList, result, _t25;
-        return _regenerator().w(function (_context67) {
-          while (1) switch (_context67.p = _context67.n) {
-            case 0:
-              modal = document.getElementById('bulk-match-modal');
-              loadingEl = document.getElementById('bulk-match-loading');
-              resultsEl = document.getElementById('bulk-match-results');
-              emptyEl = document.getElementById('bulk-match-empty');
-              autoMatchedSection = document.getElementById('auto-matched-section');
-              needsReviewSection = document.getElementById('needs-review-section');
-              autoMatchedList = document.getElementById('auto-matched-list');
-              needsReviewList = document.getElementById('needs-review-list'); // Reset state
-              loadingEl.style.display = 'flex';
-              resultsEl.style.display = 'none';
-              emptyEl.style.display = 'none';
-              autoMatchedSection.style.display = 'none';
-              needsReviewSection.style.display = 'none';
-              autoMatchedList.innerHTML = '';
-              needsReviewList.innerHTML = '';
 
-              // Show modal
-              modal.style.display = 'flex';
-              _context67.p = 1;
-              _context67.n = 2;
-              return this.bulkMatchTransactions();
-            case 2:
-              result = _context67.v;
-              loadingEl.style.display = 'none';
-              resultsEl.style.display = 'block';
-
-              // Update summary counts
-              document.getElementById('auto-matched-count').textContent = result.stats.autoMatchedCount;
-              document.getElementById('needs-review-count').textContent = result.stats.needsReviewCount;
-
-              // Check if no results
-              if (!(result.stats.autoMatchedCount === 0 && result.stats.needsReviewCount === 0)) {
-                _context67.n = 3;
-                break;
-              }
-              emptyEl.style.display = 'flex';
-              return _context67.a(2);
-            case 3:
-              // Render auto-matched pairs
-              if (result.autoMatched && result.autoMatched.length > 0) {
-                autoMatchedSection.style.display = 'block';
-                autoMatchedList.innerHTML = result.autoMatched.map(function (pair) {
-                  return _this21.renderAutoMatchedPair(pair);
-                }).join('');
-              }
-
-              // Render needs review items
-              if (result.needsReview && result.needsReview.length > 0) {
-                needsReviewSection.style.display = 'block';
-                needsReviewList.innerHTML = result.needsReview.map(function (item, index) {
-                  return _this21.renderNeedsReviewItem(item, index);
-                }).join('');
-              }
-              _context67.n = 5;
-              break;
-            case 4:
-              _context67.p = 4;
-              _t25 = _context67.v;
-              loadingEl.style.display = 'none';
-              resultsEl.style.display = 'block';
-              emptyEl.style.display = 'flex';
-              emptyEl.querySelector('p').textContent = _t25.message || 'Failed to match transactions. Please try again.';
-            case 5:
-              return _context67.a(2);
-          }
-        }, _callee67, this, [[1, 4]]);
-      }));
-      function showBulkMatchModal() {
-        return _showBulkMatchModal.apply(this, arguments);
-      }
-      return showBulkMatchModal;
-    }()
-    /**
-     * Render an auto-matched pair in the bulk match modal
-     */
-    )
-  }, {
-    key: "renderAutoMatchedPair",
-    value: function renderAutoMatchedPair(pair) {
-      var tx = pair.transaction;
-      var linked = pair.linkedTo;
-      var txCurrency = tx.account_currency || this.getPrimaryCurrency();
-      var linkedCurrency = linked.accountCurrency || this.getPrimaryCurrency();
-      var txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
-      var linkedTypeClass = linked.type === 'credit' ? 'positive' : 'negative';
-      return "\n            <div class=\"bulk-match-pair\" data-tx-id=\"".concat(tx.id, "\" data-linked-id=\"").concat(linked.id, "\">\n                <div class=\"pair-transaction\">\n                    <span class=\"pair-date\">").concat(this.formatDate(tx.date), "</span>\n                    <span class=\"pair-description\">").concat(this.escapeHtml(tx.description), "</span>\n                    <div class=\"pair-details\">\n                        <span class=\"pair-amount ").concat(txTypeClass, "\">").concat(this.formatCurrency(tx.amount, txCurrency), "</span>\n                        <span class=\"pair-account\">").concat(this.escapeHtml(tx.account_name), "</span>\n                    </div>\n                </div>\n                <span class=\"pair-arrow\">\u2194</span>\n                <div class=\"pair-transaction\">\n                    <span class=\"pair-date\">").concat(this.formatDate(linked.date), "</span>\n                    <span class=\"pair-description\">").concat(this.escapeHtml(linked.description), "</span>\n                    <div class=\"pair-details\">\n                        <span class=\"pair-amount ").concat(linkedTypeClass, "\">").concat(this.formatCurrency(linked.amount, linkedCurrency), "</span>\n                        <span class=\"pair-account\">").concat(this.escapeHtml(linked.accountName), "</span>\n                    </div>\n                </div>\n                <button class=\"undo-match-btn\" data-tx-id=\"").concat(tx.id, "\">Undo</button>\n            </div>\n        ");
-    }
-
-    /**
-     * Render a needs-review item in the bulk match modal
-     */
-  }, {
-    key: "renderNeedsReviewItem",
-    value: function renderNeedsReviewItem(item, index) {
-      var _this22 = this;
-      var tx = item.transaction;
-      var txCurrency = tx.account_currency || this.getPrimaryCurrency();
-      var txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
-      var matchesHtml = item.matches.map(function (match) {
-        var matchCurrency = match.accountCurrency || _this22.getPrimaryCurrency();
-        var matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
-        return "\n                <label class=\"review-match-option\">\n                    <input type=\"radio\" name=\"review-match-".concat(index, "\" value=\"").concat(match.id, "\">\n                    <div class=\"match-info\">\n                        <div class=\"match-info-main\">\n                            <span class=\"match-date\">").concat(_this22.formatDate(match.date), "</span>\n                            <span class=\"match-description\">").concat(_this22.escapeHtml(match.description), "</span>\n                        </div>\n                        <span class=\"pair-amount ").concat(matchTypeClass, "\">").concat(_this22.formatCurrency(match.amount, matchCurrency), "</span>\n                        <span class=\"pair-account\">").concat(_this22.escapeHtml(match.accountName), "</span>\n                    </div>\n                </label>\n            ");
-      }).join('');
-      return "\n            <div class=\"bulk-review-item\" data-tx-id=\"".concat(tx.id, "\" data-index=\"").concat(index, "\">\n                <div class=\"review-source\">\n                    <div class=\"review-source-info\">\n                        <span class=\"review-source-date\">").concat(this.formatDate(tx.date), "</span>\n                        <span class=\"review-source-description\">").concat(this.escapeHtml(tx.description), "</span>\n                        <div class=\"review-source-details\">\n                            <span class=\"pair-amount ").concat(txTypeClass, "\">").concat(this.formatCurrency(tx.amount, txCurrency), "</span>\n                            <span class=\"pair-account\">").concat(this.escapeHtml(tx.account_name), "</span>\n                        </div>\n                    </div>\n                </div>\n                <div class=\"review-matches-label\">Select a match (").concat(item.matchCount, " options):</div>\n                <div class=\"review-matches\">\n                    ").concat(matchesHtml, "\n                </div>\n                <button class=\"link-selected-btn\" data-tx-id=\"").concat(tx.id, "\" data-index=\"").concat(index, "\" disabled>Link Selected</button>\n            </div>\n        ");
-    }
+    // =====================
+    // Pensions Methods
+    // =====================
   }, {
     key: "loadPensionsView",
-    value: (function () {
+    value: function () {
       var _loadPensionsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee68() {
         return _regenerator().w(function (_context68) {
           while (1) switch (_context68.n) {
@@ -51597,7 +51720,7 @@ var BudgetApp = /*#__PURE__*/function () {
         return _loadPensionsView.apply(this, arguments);
       }
       return loadPensionsView;
-    }())
+    }()
   }, {
     key: "loadPensions",
     value: function () {
@@ -52137,7 +52260,7 @@ var BudgetApp = /*#__PURE__*/function () {
     key: "toggleColumnVisibility",
     value: function () {
       var _toggleColumnVisibility = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee92(columnKey, visible) {
-        var visibleCount, settings, response, _t26;
+        var visibleCount, settings, response, _t23;
         return _regenerator().w(function (_context92) {
           while (1) switch (_context92.p = _context92.n) {
             case 0:
@@ -52186,8 +52309,8 @@ var BudgetApp = /*#__PURE__*/function () {
               break;
             case 5:
               _context92.p = 5;
-              _t26 = _context92.v;
-              console.error('Failed to save column visibility:', _t26);
+              _t23 = _context92.v;
+              console.error('Failed to save column visibility:', _t23);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_6__.showError)('Failed to save column preferences');
 
               // Revert on failure
@@ -52410,12 +52533,12 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "flattenCategories",
     value: function flattenCategories(categories) {
-      var _this23 = this;
+      var _this21 = this;
       var result = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
       categories.forEach(function (cat) {
         result.push(cat);
         if (cat.children && cat.children.length > 0) {
-          _this23.flattenCategories(cat.children, result);
+          _this21.flattenCategories(cat.children, result);
         }
       });
       return result;
@@ -52423,7 +52546,7 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "populateCurrencyDropdowns",
     value: function populateCurrencyDropdowns() {
-      var _this24 = this;
+      var _this22 = this;
       // Populate all currency dropdowns with options from backend
       if (!this.options.currencies || !Array.isArray(this.options.currencies)) {
         return;
@@ -52437,7 +52560,7 @@ var BudgetApp = /*#__PURE__*/function () {
         select.innerHTML = '';
 
         // Add all currency options
-        _this24.options.currencies.forEach(function (currency) {
+        _this22.options.currencies.forEach(function (currency) {
           var option = document.createElement('option');
           option.value = currency.code;
           option.textContent = "".concat(currency.code, " - ").concat(currency.name, " (").concat(currency.symbol, ")");

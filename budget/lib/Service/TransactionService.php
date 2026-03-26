@@ -429,6 +429,9 @@ class TransactionService {
             return [];
         }
 
+        // Get account currency for currency-matched filtering
+        $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
+
         return $this->mapper->findPotentialMatches(
             $userId,
             $transactionId,
@@ -436,6 +439,7 @@ class TransactionService {
             $transaction->getAmount(),
             $transaction->getType(),
             $transaction->getDate(),
+            $account->getCurrency(),
             $dateWindowDays
         );
     }
@@ -603,6 +607,131 @@ class TransactionService {
             'stats' => [
                 'autoMatchedCount' => count($autoMatched),
                 'needsReviewCount' => count($needsReview)
+            ]
+        ];
+    }
+
+    /**
+     * Scan for potential transfer matches (read-only, no linking)
+     *
+     * @return array{candidates: array, stats: array{singleMatchCount: int, multiMatchCount: int, totalCandidates: int}}
+     */
+    public function scanForMatches(string $userId, int $dateWindowDays = 3, int $batchSize = 100): array {
+        $candidates = [];
+        $processedIds = [];
+
+        $offset = 0;
+        $hasMore = true;
+
+        while ($hasMore) {
+            $result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset);
+
+            if (empty($result['transactions'])) {
+                $hasMore = false;
+                break;
+            }
+
+            foreach ($result['transactions'] as $item) {
+                $txId = (int)$item['transaction']['id'];
+
+                if (isset($processedIds[$txId])) {
+                    continue;
+                }
+
+                $availableMatches = array_filter($item['matches'], function($match) use ($processedIds) {
+                    return !isset($processedIds[$match['id']]);
+                });
+
+                if (empty($availableMatches)) {
+                    continue;
+                }
+
+                $availableMatches = array_values($availableMatches);
+
+                $candidates[] = [
+                    'transaction' => $item['transaction'],
+                    'matches' => $availableMatches,
+                    'matchCount' => count($availableMatches)
+                ];
+
+                // Mark source and all its matches as processed to avoid mirror pairs
+                $processedIds[$txId] = true;
+                foreach ($availableMatches as $match) {
+                    $processedIds[$match['id']] = true;
+                }
+            }
+
+            $offset += $batchSize;
+
+            if ($offset >= $result['total']) {
+                $hasMore = false;
+            }
+        }
+
+        $singleMatchCount = 0;
+        $multiMatchCount = 0;
+        foreach ($candidates as $c) {
+            if ($c['matchCount'] === 1) {
+                $singleMatchCount++;
+            } else {
+                $multiMatchCount++;
+            }
+        }
+
+        return [
+            'candidates' => $candidates,
+            'stats' => [
+                'singleMatchCount' => $singleMatchCount,
+                'multiMatchCount' => $multiMatchCount,
+                'totalCandidates' => count($candidates)
+            ]
+        ];
+    }
+
+    /**
+     * Bulk link multiple transaction pairs
+     *
+     * @param array<array{sourceId: int, targetId: int}> $pairs
+     * @return array{linked: array, failed: array, stats: array{linkedCount: int, failedCount: int}}
+     */
+    public function bulkLinkTransactions(string $userId, array $pairs): array {
+        $linked = [];
+        $failed = [];
+
+        foreach ($pairs as $pair) {
+            $sourceId = (int)($pair['sourceId'] ?? 0);
+            $targetId = (int)($pair['targetId'] ?? 0);
+
+            if ($sourceId === 0 || $targetId === 0) {
+                $failed[] = [
+                    'sourceId' => $sourceId,
+                    'targetId' => $targetId,
+                    'error' => 'Invalid source or target ID'
+                ];
+                continue;
+            }
+
+            try {
+                $this->linkTransactions($sourceId, $targetId, $userId);
+                $linked[] = [
+                    'sourceId' => $sourceId,
+                    'targetId' => $targetId
+                ];
+            } catch (\Exception $e) {
+                $failed[] = [
+                    'sourceId' => $sourceId,
+                    'targetId' => $targetId,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return [
+            'linked' => $linked,
+            'failed' => $failed,
+            'stats' => [
+                'linkedCount' => count($linked),
+                'failedCount' => count($failed)
             ]
         ];
     }

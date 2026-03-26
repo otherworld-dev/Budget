@@ -1931,16 +1931,16 @@ export default class TransactionsModule {
         }
     }
 
-    // Bulk matching
-    async bulkMatchTransactions() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
-            method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            }
-        });
+    // ===== Bulk Transfer Matching =====
 
+    async scanForMatches(dateWindow = 3) {
+        const response = await fetch(
+            OC.generateUrl(`/apps/budget/api/transactions/scan-matches?dateWindow=${dateWindow}`),
+            {
+                method: 'GET',
+                headers: { 'requesttoken': OC.requestToken }
+            }
+        );
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || `HTTP ${response.status}`);
@@ -1948,60 +1948,232 @@ export default class TransactionsModule {
         return await response.json();
     }
 
-    async showBulkMatchModal() {
+    async bulkLinkPairs(pairs) {
+        const response = await fetch(
+            OC.generateUrl('/apps/budget/api/transactions/bulk-link'),
+            {
+                method: 'POST',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pairs })
+            }
+        );
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP ${response.status}`);
+        }
+        return await response.json();
+    }
+
+    showBulkMatchModal() {
         const modal = document.getElementById('bulk-match-modal');
+        const configEl = document.getElementById('bulk-match-config');
         const loadingEl = document.getElementById('bulk-match-loading');
         const resultsEl = document.getElementById('bulk-match-results');
         const emptyEl = document.getElementById('bulk-match-empty');
+        const confirmBtn = document.getElementById('confirm-selected-btn');
+
+        // Reset state - show config, hide everything else
+        configEl.style.display = 'block';
+        loadingEl.style.display = 'none';
+        resultsEl.style.display = 'none';
+        emptyEl.style.display = 'none';
+        if (confirmBtn) confirmBtn.style.display = 'none';
+        document.getElementById('auto-matched-section').style.display = 'none';
+        document.getElementById('needs-review-section').style.display = 'none';
+        document.getElementById('auto-matched-list').innerHTML = '';
+        document.getElementById('needs-review-list').innerHTML = '';
+
+        // Render config dialog
+        configEl.innerHTML = `
+            <div class="config-field">
+                <label for="match-date-window">Date window (days):</label>
+                <div class="date-window-control">
+                    <input type="range" id="match-date-window" min="0" max="14" value="3" step="1">
+                    <span id="match-date-window-value" class="date-window-value">3</span>
+                </div>
+                <p class="hint">Matches must be within this many days of each other. Use 0 for exact date match.</p>
+            </div>
+            <div class="config-field">
+                <label>Matching mode:</label>
+                <div class="mode-options">
+                    <label class="mode-option">
+                        <input type="radio" name="match-mode" value="auto" checked>
+                        <div class="mode-option-content">
+                            <span class="mode-option-title">Auto-link exact matches</span>
+                            <span class="mode-option-desc">Single-match pairs linked automatically. Multi-match shown for review.</span>
+                        </div>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="match-mode" value="review">
+                        <div class="mode-option-content">
+                            <span class="mode-option-title">Review all matches</span>
+                            <span class="mode-option-desc">All candidates shown for your confirmation before linking.</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        `;
+
+        // Wire up date window slider
+        const slider = document.getElementById('match-date-window');
+        const valueDisplay = document.getElementById('match-date-window-value');
+        slider.addEventListener('input', () => {
+            valueDisplay.textContent = slider.value;
+        });
+
+        // Track dirty state for refresh on close
+        this._bulkMatchDirty = false;
+
+        modal.style.display = 'flex';
+    }
+
+    async startScan() {
+        const configEl = document.getElementById('bulk-match-config');
+        const loadingEl = document.getElementById('bulk-match-loading');
+
+        const dateWindow = parseInt(document.getElementById('match-date-window').value) || 3;
+        const mode = document.querySelector('input[name="match-mode"]:checked')?.value || 'auto';
+
+        // Hide config and scan button, show loading
+        configEl.style.display = 'none';
+        const scanBtn = document.getElementById('start-scan-btn');
+        if (scanBtn) scanBtn.style.display = 'none';
+        loadingEl.style.display = 'flex';
+        loadingEl.querySelector('p').textContent = 'Scanning for matching transactions...';
+
+        try {
+            const result = await this.scanForMatches(dateWindow);
+            loadingEl.style.display = 'none';
+
+            if (result.stats.totalCandidates === 0) {
+                const resultsEl = document.getElementById('bulk-match-results');
+                const emptyEl = document.getElementById('bulk-match-empty');
+                resultsEl.style.display = 'block';
+                emptyEl.style.display = 'flex';
+                emptyEl.querySelector('p').textContent = 'No matching transactions found.';
+                return;
+            }
+
+            if (mode === 'auto') {
+                await this.handleAutoMode(result);
+            } else {
+                this.handleReviewMode(result);
+            }
+        } catch (error) {
+            loadingEl.style.display = 'none';
+            const resultsEl = document.getElementById('bulk-match-results');
+            const emptyEl = document.getElementById('bulk-match-empty');
+            resultsEl.style.display = 'block';
+            emptyEl.style.display = 'flex';
+            emptyEl.querySelector('p').textContent = error.message || 'Failed to scan for matches. Please try again.';
+        }
+    }
+
+    async handleAutoMode(scanResult) {
+        const loadingEl = document.getElementById('bulk-match-loading');
+        const resultsEl = document.getElementById('bulk-match-results');
         const autoMatchedSection = document.getElementById('auto-matched-section');
         const needsReviewSection = document.getElementById('needs-review-section');
         const autoMatchedList = document.getElementById('auto-matched-list');
         const needsReviewList = document.getElementById('needs-review-list');
 
-        // Reset state
-        loadingEl.style.display = 'flex';
-        resultsEl.style.display = 'none';
-        emptyEl.style.display = 'none';
-        autoMatchedSection.style.display = 'none';
-        needsReviewSection.style.display = 'none';
-        autoMatchedList.innerHTML = '';
-        needsReviewList.innerHTML = '';
+        const singleMatches = scanResult.candidates.filter(c => c.matchCount === 1);
+        const multiMatches = scanResult.candidates.filter(c => c.matchCount > 1);
 
-        // Show modal
-        modal.style.display = 'flex';
+        let autoLinkedCount = 0;
 
-        try {
-            const result = await this.bulkMatchTransactions();
-            loadingEl.style.display = 'none';
-            resultsEl.style.display = 'block';
+        // Auto-link single-match pairs
+        if (singleMatches.length > 0) {
+            loadingEl.style.display = 'flex';
+            loadingEl.querySelector('p').textContent = `Linking ${singleMatches.length} exact match pairs...`;
 
-            // Update summary counts
-            document.getElementById('auto-matched-count').textContent = result.stats.autoMatchedCount;
-            document.getElementById('needs-review-count').textContent = result.stats.needsReviewCount;
+            const pairs = singleMatches.map(c => ({
+                sourceId: parseInt(c.transaction.id),
+                targetId: parseInt(c.matches[0].id)
+            }));
 
-            // Check if no results
-            if (result.stats.autoMatchedCount === 0 && result.stats.needsReviewCount === 0) {
-                emptyEl.style.display = 'flex';
+            try {
+                const linkResult = await this.bulkLinkPairs(pairs);
+                autoLinkedCount = linkResult.stats.linkedCount;
+                this._bulkMatchDirty = true;
+            } catch (error) {
+                // If bulk link fails entirely, show all as review instead
+                loadingEl.style.display = 'none';
+                this.handleReviewMode(scanResult);
                 return;
             }
 
-            // Render auto-matched pairs
-            if (result.autoMatched && result.autoMatched.length > 0) {
-                autoMatchedSection.style.display = 'block';
-                autoMatchedList.innerHTML = result.autoMatched.map(pair => this.renderAutoMatchedPair(pair)).join('');
-            }
-
-            // Render needs review items
-            if (result.needsReview && result.needsReview.length > 0) {
-                needsReviewSection.style.display = 'block';
-                needsReviewList.innerHTML = result.needsReview.map((item, index) => this.renderNeedsReviewItem(item, index)).join('');
-            }
-
-        } catch (error) {
             loadingEl.style.display = 'none';
-            resultsEl.style.display = 'block';
-            emptyEl.style.display = 'flex';
-            emptyEl.querySelector('p').textContent = error.message || 'Failed to match transactions. Please try again.';
+        }
+
+        // Show results and cancel button
+        resultsEl.style.display = 'block';
+        document.getElementById('auto-matched-count').textContent = autoLinkedCount;
+        document.getElementById('needs-review-count').textContent = multiMatches.length;
+
+        // Render auto-linked pairs (with undo buttons)
+        if (autoLinkedCount > 0) {
+            autoMatchedSection.style.display = 'block';
+            autoMatchedList.innerHTML = singleMatches.map(c => this.renderAutoMatchedPair({
+                transaction: c.transaction,
+                linkedTo: c.matches[0]
+            })).join('');
+        }
+
+        // Render multi-match items for review
+        if (multiMatches.length > 0) {
+            needsReviewSection.style.display = 'block';
+            needsReviewList.innerHTML = multiMatches.map((item, index) =>
+                this.renderNeedsReviewItem(item, index)
+            ).join('');
+        }
+
+        if (autoLinkedCount === 0 && multiMatches.length === 0) {
+            document.getElementById('bulk-match-empty').style.display = 'flex';
+        }
+    }
+
+    handleReviewMode(scanResult) {
+        const resultsEl = document.getElementById('bulk-match-results');
+        const autoMatchedSection = document.getElementById('auto-matched-section');
+        const needsReviewSection = document.getElementById('needs-review-section');
+        const autoMatchedList = document.getElementById('auto-matched-list');
+        const needsReviewList = document.getElementById('needs-review-list');
+        const confirmBtn = document.getElementById('confirm-selected-btn');
+
+        resultsEl.style.display = 'block';
+
+        const singleMatches = scanResult.candidates.filter(c => c.matchCount === 1);
+        const multiMatches = scanResult.candidates.filter(c => c.matchCount > 1);
+
+        // Update summary for review mode
+        document.getElementById('auto-matched-count').textContent = singleMatches.length;
+        document.getElementById('needs-review-count').textContent = multiMatches.length;
+
+        // Render single-match items with checkboxes (pre-checked)
+        if (singleMatches.length > 0) {
+            autoMatchedSection.style.display = 'block';
+            autoMatchedSection.querySelector('h4').textContent = 'Exact Matches';
+            autoMatchedSection.querySelector('.section-hint').textContent = 'These transactions have exactly one match. Uncheck any you don\'t want to link.';
+            autoMatchedList.innerHTML = singleMatches.map((c, index) =>
+                this.renderReviewSingleMatch(c, index)
+            ).join('');
+        }
+
+        // Render multi-match items with radio buttons
+        if (multiMatches.length > 0) {
+            needsReviewSection.style.display = 'block';
+            needsReviewList.innerHTML = multiMatches.map((item, index) =>
+                this.renderNeedsReviewItem(item, index)
+            ).join('');
+        }
+
+        // Show confirm button
+        if (confirmBtn) {
+            confirmBtn.style.display = 'inline-block';
         }
     }
 
@@ -2025,7 +2197,7 @@ export default class TransactionsModule {
                         <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
                     </div>
                 </div>
-                <span class="pair-arrow">↔</span>
+                <span class="pair-arrow">\u2194</span>
                 <div class="pair-transaction">
                     <span class="pair-date">${this.formatDate(linked.date)}</span>
                     <span class="pair-description">${this.escapeHtml(linked.description)}</span>
@@ -2035,6 +2207,42 @@ export default class TransactionsModule {
                     </div>
                 </div>
                 <button class="undo-match-btn" data-tx-id="${tx.id}">Undo</button>
+            </div>
+        `;
+    }
+
+    renderReviewSingleMatch(candidate, index) {
+        const tx = candidate.transaction;
+        const match = candidate.matches[0];
+
+        const txCurrency = tx.account_currency || this.getPrimaryCurrency();
+        const matchCurrency = match.accountCurrency || this.getPrimaryCurrency();
+
+        const txTypeClass = tx.type === 'credit' ? 'positive' : 'negative';
+        const matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
+
+        return `
+            <div class="review-single-match" data-source-id="${tx.id}" data-target-id="${match.id}">
+                <input type="checkbox" class="review-single-check" data-source-id="${tx.id}" data-target-id="${match.id}" checked>
+                <div class="pair-content">
+                    <div class="pair-transaction">
+                        <span class="pair-date">${this.formatDate(tx.date)}</span>
+                        <span class="pair-description">${this.escapeHtml(tx.description)}</span>
+                        <div class="pair-details">
+                            <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
+                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                        </div>
+                    </div>
+                    <span class="pair-arrow">\u2194</span>
+                    <div class="pair-transaction">
+                        <span class="pair-date">${this.formatDate(match.date)}</span>
+                        <span class="pair-description">${this.escapeHtml(match.description)}</span>
+                        <div class="pair-details">
+                            <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
+                            <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -2084,9 +2292,105 @@ export default class TransactionsModule {
         `;
     }
 
+    async handleConfirmSelected() {
+        const pairs = [];
+
+        // Collect checked single-match pairs
+        document.querySelectorAll('.review-single-check:checked').forEach(cb => {
+            pairs.push({
+                sourceId: parseInt(cb.dataset.sourceId),
+                targetId: parseInt(cb.dataset.targetId)
+            });
+        });
+
+        // Collect selected multi-match pairs (radio buttons)
+        document.querySelectorAll('.bulk-review-item').forEach(item => {
+            const selected = item.querySelector('input[type="radio"]:checked');
+            if (selected) {
+                pairs.push({
+                    sourceId: parseInt(item.dataset.txId),
+                    targetId: parseInt(selected.value)
+                });
+            }
+        });
+
+        if (pairs.length === 0) {
+            showWarning('No matches selected');
+            return;
+        }
+
+        const confirmBtn = document.getElementById('confirm-selected-btn');
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Linking...';
+        }
+
+        try {
+            const result = await this.bulkLinkPairs(pairs);
+            this._bulkMatchDirty = true;
+
+            let message = `Linked ${result.stats.linkedCount} pair(s)`;
+            if (result.stats.failedCount > 0) {
+                message += `, ${result.stats.failedCount} failed`;
+            }
+            showSuccess(message);
+
+            // Update UI to show results
+            const resultsEl = document.getElementById('bulk-match-results');
+            const autoMatchedSection = document.getElementById('auto-matched-section');
+            const autoMatchedList = document.getElementById('auto-matched-list');
+            const needsReviewSection = document.getElementById('needs-review-section');
+
+            // Convert review to auto-matched view with undo buttons
+            if (result.stats.linkedCount > 0) {
+                autoMatchedSection.style.display = 'block';
+                autoMatchedSection.querySelector('h4').textContent = 'Linked Pairs';
+                autoMatchedSection.querySelector('.section-hint').textContent = 'These transactions have been linked. Click Undo to unlink a pair.';
+
+                // Build auto-matched HTML from the successfully linked pairs
+                const linkedHtml = [];
+                document.querySelectorAll('.review-single-match').forEach(el => {
+                    const sourceId = el.dataset.sourceId;
+                    const targetId = el.dataset.targetId;
+                    const wasLinked = result.linked.some(l =>
+                        l.sourceId == sourceId && l.targetId == targetId
+                    );
+                    if (wasLinked) {
+                        // Convert to auto-matched pair display with undo
+                        const pairContent = el.querySelector('.pair-content');
+                        if (pairContent) {
+                            linkedHtml.push(`
+                                <div class="bulk-match-pair" data-tx-id="${sourceId}" data-linked-id="${targetId}">
+                                    ${pairContent.innerHTML}
+                                    <button class="undo-match-btn" data-tx-id="${sourceId}">Undo</button>
+                                </div>
+                            `);
+                        }
+                    }
+                });
+                autoMatchedList.innerHTML = linkedHtml.join('');
+                document.getElementById('auto-matched-count').textContent = result.stats.linkedCount;
+            }
+
+            // Hide review section and confirm button
+            needsReviewSection.style.display = 'none';
+            if (confirmBtn) confirmBtn.style.display = 'none';
+            document.getElementById('needs-review-count').textContent = '0';
+
+        } catch (error) {
+            showError(error.message || 'Failed to link transactions');
+        } finally {
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Confirm Selected';
+            }
+        }
+    }
+
     async handleBulkMatchUndo(transactionId) {
         try {
             await this.unlinkTransaction(transactionId);
+            this._bulkMatchDirty = true;
 
             // Remove the pair from the UI
             const pairEl = document.querySelector(`.bulk-match-pair[data-tx-id="${transactionId}"]`);
@@ -2124,6 +2428,7 @@ export default class TransactionsModule {
 
         try {
             await this.linkTransactions(transactionId, targetId);
+            this._bulkMatchDirty = true;
 
             // Remove the review item from the UI
             reviewItem.remove();

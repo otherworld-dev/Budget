@@ -34,6 +34,8 @@ return [
         ['name' => 'transaction#uncategorized', 'url' => '/api/transactions/uncategorized', 'verb' => 'GET'],
         ['name' => 'transaction#bulkCategorize', 'url' => '/api/transactions/bulk-categorize', 'verb' => 'POST'],
         ['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],
+        ['name' => 'transaction#scanMatches', 'url' => '/api/transactions/scan-matches', 'verb' => 'GET'],
+        ['name' => 'transaction#bulkLink', 'url' => '/api/transactions/bulk-link', 'verb' => 'POST'],
         ['name' => 'transaction#bulkDelete', 'url' => '/api/transactions/bulk-delete', 'verb' => 'POST'],
         ['name' => 'transaction#bulkReconcile', 'url' => '/api/transactions/bulk-reconcile', 'verb' => 'POST'],
         ['name' => 'transaction#bulkEdit', 'url' => '/api/transactions/bulk-edit', 'verb' => 'POST'],

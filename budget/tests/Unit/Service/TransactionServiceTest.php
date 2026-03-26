@@ -703,12 +703,14 @@ class TransactionServiceTest extends TestCase {
 
     public function testFindPotentialMatchesDelegatesToMapper(): void {
         $tx = $this->makeTransaction(['linkedTransactionId' => null]);
+        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
         $this->mapper->method('find')->willReturn($tx);
+        $this->accountMapper->method('find')->willReturn($account);
 
         $matches = [$this->makeTransaction(['id' => 2])];
         $this->mapper->expects($this->once())
             ->method('findPotentialMatches')
-            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 3)
+            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3)
             ->willReturn($matches);
 
         $result = $this->service->findPotentialMatches(1, 'user1');
@@ -852,6 +854,152 @@ class TransactionServiceTest extends TestCase {
         $result = $this->service->bulkFindAndMatch('user1');
 
         $this->assertCount(1, $result['autoMatched']);
+    }
+
+    // ===== scanForMatches() =====
+
+    public function testScanForMatchesReturnsWithoutLinking(): void {
+        $this->mapper->method('findUnlinkedWithMatches')
+            ->willReturn([
+                'transactions' => [
+                    [
+                        'transaction' => ['id' => 1],
+                        'matches' => [['id' => 2]],
+                    ],
+                ],
+                'total' => 1,
+            ]);
+
+        $this->mapper->expects($this->never())->method('linkTransactions');
+
+        $result = $this->service->scanForMatches('user1');
+
+        $this->assertCount(1, $result['candidates']);
+        $this->assertEquals(1, $result['stats']['singleMatchCount']);
+        $this->assertEquals(0, $result['stats']['multiMatchCount']);
+        $this->assertEquals(1, $result['stats']['totalCandidates']);
+    }
+
+    public function testScanForMatchesCategorizesSingleAndMulti(): void {
+        $this->mapper->method('findUnlinkedWithMatches')
+            ->willReturn([
+                'transactions' => [
+                    [
+                        'transaction' => ['id' => 1],
+                        'matches' => [['id' => 2]],
+                    ],
+                    [
+                        'transaction' => ['id' => 3],
+                        'matches' => [['id' => 4], ['id' => 5]],
+                    ],
+                ],
+                'total' => 2,
+            ]);
+
+        $result = $this->service->scanForMatches('user1');
+
+        $this->assertCount(2, $result['candidates']);
+        $this->assertEquals(1, $result['stats']['singleMatchCount']);
+        $this->assertEquals(1, $result['stats']['multiMatchCount']);
+        $this->assertEquals(2, $result['stats']['totalCandidates']);
+    }
+
+    public function testScanForMatchesDeduplicatesMirrorPairs(): void {
+        $this->mapper->method('findUnlinkedWithMatches')
+            ->willReturn([
+                'transactions' => [
+                    [
+                        'transaction' => ['id' => 1],
+                        'matches' => [['id' => 2]],
+                    ],
+                    [
+                        'transaction' => ['id' => 2],
+                        'matches' => [['id' => 1]],
+                    ],
+                ],
+                'total' => 2,
+            ]);
+
+        $result = $this->service->scanForMatches('user1');
+
+        // Should only return one candidate, not both mirror pairs
+        $this->assertCount(1, $result['candidates']);
+        $this->assertEquals(1, $result['stats']['totalCandidates']);
+    }
+
+    // ===== bulkLinkTransactions() =====
+
+    public function testBulkLinkTransactionsSuccess(): void {
+        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+
+        $findCallCount = 0;
+        $this->mapper->method('find')->willReturnCallback(function ($id) use ($tx1, $tx2, &$findCallCount) {
+            $findCallCount++;
+            // First two calls: validation finds (pair 1)
+            // Next two calls: post-link re-fetches (pair 1)
+            if ($id === 1) return $tx1;
+            if ($id === 2) return $tx2;
+            return $tx1;
+        });
+
+        $this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+        $result = $this->service->bulkLinkTransactions('user1', [
+            ['sourceId' => 1, 'targetId' => 2],
+        ]);
+
+        $this->assertCount(1, $result['linked']);
+        $this->assertCount(0, $result['failed']);
+        $this->assertEquals(1, $result['stats']['linkedCount']);
+        $this->assertEquals(0, $result['stats']['failedCount']);
+    }
+
+    public function testBulkLinkTransactionsPartialFailure(): void {
+        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+        // Same account as tx3 - will cause validation failure
+        $tx3 = $this->makeTransaction(['id' => 3, 'accountId' => 10, 'amount' => 50.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+        $tx4 = $this->makeTransaction(['id' => 4, 'accountId' => 10, 'amount' => 50.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+
+        $this->mapper->method('find')->willReturnCallback(function ($id) use ($tx1, $tx2, $tx3, $tx4) {
+            return match ($id) {
+                1 => $tx1,
+                2 => $tx2,
+                3 => $tx3,
+                4 => $tx4,
+                default => throw new DoesNotExistException('')
+            };
+        });
+
+        $result = $this->service->bulkLinkTransactions('user1', [
+            ['sourceId' => 1, 'targetId' => 2],  // Valid
+            ['sourceId' => 3, 'targetId' => 4],  // Same account - will fail
+        ]);
+
+        $this->assertEquals(1, $result['stats']['linkedCount']);
+        $this->assertEquals(1, $result['stats']['failedCount']);
+        $this->assertCount(1, $result['failed']);
+        $this->assertStringContainsString('same account', $result['failed'][0]['error']);
+    }
+
+    public function testBulkLinkTransactionsEmptyArray(): void {
+        $result = $this->service->bulkLinkTransactions('user1', []);
+
+        $this->assertCount(0, $result['linked']);
+        $this->assertCount(0, $result['failed']);
+        $this->assertEquals(0, $result['stats']['linkedCount']);
+        $this->assertEquals(0, $result['stats']['failedCount']);
+    }
+
+    public function testBulkLinkTransactionsInvalidIds(): void {
+        $result = $this->service->bulkLinkTransactions('user1', [
+            ['sourceId' => 0, 'targetId' => 2],
+        ]);
+
+        $this->assertCount(0, $result['linked']);
+        $this->assertCount(1, $result['failed']);
+        $this->assertStringContainsString('Invalid', $result['failed'][0]['error']);
     }
 
     // ===== existsByImportId() =====

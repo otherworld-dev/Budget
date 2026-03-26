@@ -394,6 +394,7 @@ class TransactionController extends Controller {
      * Auto-links single matches, returns multiple matches for manual review
      *
      * @NoAdminRequired
+     * @deprecated Use scanMatches + bulkLink instead
      */
     #[UserRateLimit(limit: 5, period: 60)]
     public function bulkMatch(int $dateWindow = 3): DataResponse {
@@ -402,6 +403,43 @@ class TransactionController extends Controller {
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to bulk match transactions');
+        }
+    }
+
+    /**
+     * Scan for potential transfer matches (read-only, no linking)
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 5, period: 60)]
+    public function scanMatches(int $dateWindow = 3): DataResponse {
+        try {
+            $result = $this->service->scanForMatches($this->userId, $dateWindow);
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to scan for matches');
+        }
+    }
+
+    /**
+     * Bulk link transaction pairs
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 5, period: 60)]
+    public function bulkLink(): DataResponse {
+        try {
+            $params = $this->request->getParams();
+            $pairs = $params['pairs'] ?? [];
+
+            if (empty($pairs) || !is_array($pairs)) {
+                return new DataResponse(['error' => 'No valid pairs provided'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $result = $this->service->bulkLinkTransactions($this->userId, $pairs);
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to bulk link transactions');
         }
     }
 

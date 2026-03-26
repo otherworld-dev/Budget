@@ -5307,15 +5307,18 @@ style('budget', 'budget-main');
     </div>
 </div>
 
-<!-- Bulk Match Results Modal -->
+<!-- Bulk Match Modal -->
 <div id="bulk-match-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="bulk-match-modal-title" aria-hidden="true">
     <div class="modal-content modal-wide">
-        <h3 id="bulk-match-modal-title">Bulk Match Results</h3>
+        <h3 id="bulk-match-modal-title">Match Transfers</h3>
+
+        <!-- Config Section (rendered by JS) -->
+        <div id="bulk-match-config" class="bulk-match-config"></div>
 
         <!-- Loading State -->
         <div id="bulk-match-loading" class="bulk-match-loading" style="display: none;">
             <div class="loading-spinner"></div>
-            <p>Searching and matching transactions...</p>
+            <p>Scanning for matching transactions...</p>
         </div>
 
         <!-- Results Content -->
@@ -5324,18 +5327,18 @@ style('budget', 'budget-main');
             <div id="bulk-match-summary" class="bulk-match-summary">
                 <div class="summary-item success">
                     <span class="summary-count" id="auto-matched-count">0</span>
-                    <span class="summary-label">Pairs Auto-Matched</span>
+                    <span class="summary-label">Matched Pairs</span>
                 </div>
                 <div class="summary-item warning">
                     <span class="summary-count" id="needs-review-count">0</span>
-                    <span class="summary-label">Need Manual Review</span>
+                    <span class="summary-label">Need Review</span>
                 </div>
             </div>
 
             <!-- Auto-Matched Section -->
             <div id="auto-matched-section" class="bulk-match-section" style="display: none;">
                 <h4>Auto-Matched Pairs</h4>
-                <p class="section-hint">These transactions were automatically linked. Click undo to unlink a pair.</p>
+                <p class="section-hint">These transactions were automatically linked. Click Undo to unlink a pair.</p>
                 <div id="auto-matched-list" class="bulk-match-list"></div>
             </div>
 
@@ -5348,13 +5351,15 @@ style('budget', 'budget-main');
 
             <!-- No Results State -->
             <div id="bulk-match-empty" class="bulk-match-empty" style="display: none;">
-                <p>No transactions found that can be matched.</p>
-                <p class="hint">Matches require: same amount, opposite type (income/expense), different accounts, within 3 days.</p>
+                <p>No matching transactions found.</p>
+                <p class="hint">Matches require: same amount, same currency, opposite type (income/expense), different accounts, within your configured date window.</p>
             </div>
         </div>
 
         <div class="modal-buttons">
-            <button type="button" class="secondary cancel-btn" aria-label="Close dialog">Close</button>
+            <button id="start-scan-btn" class="primary">Scan for Matches</button>
+            <button id="confirm-selected-btn" class="primary" style="display: none;">Confirm Selected</button>
+            <button type="button" class="secondary cancel-btn" id="bulk-match-close-btn" aria-label="Close dialog">Cancel</button>
         </div>
     </div>
 </div>

@@ -9567,7 +9567,7 @@ button.danger:hover {
 
 /* Modal wide variant */
 .modal-content.modal-wide {
-    max-width: 700px;
+    max-width: 900px;
     width: 95%;
 }
 
@@ -9881,23 +9881,33 @@ tr.scheduled-transaction:hover {
 .bulk-match-pair .pair-transaction {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
 }
 
 .bulk-match-pair .pair-date {
     font-size: 12px;
     color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .bulk-match-pair .pair-description {
     font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
 }
 
 .bulk-match-pair .pair-details {
     display: flex;
     gap: 8px;
     font-size: 13px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .bulk-match-pair .pair-amount {
@@ -10065,6 +10075,14 @@ tr.scheduled-transaction:hover {
         align-items: stretch;
     }
 
+    .bulk-match-pair .pair-transaction {
+        flex-wrap: wrap;
+    }
+
+    .bulk-match-pair .pair-description {
+        flex-basis: 100%;
+    }
+
     .bulk-match-pair .pair-arrow {
         transform: rotate(90deg);
         text-align: center;
@@ -10072,6 +10090,175 @@ tr.scheduled-transaction:hover {
 
     .bulk-match-pair .undo-match-btn {
         width: 100%;
+    }
+}
+
+/* Pre-scan config dialog */
+.bulk-match-config {
+    padding: 20px 0;
+}
+
+.bulk-match-config .config-field {
+    margin-bottom: 20px;
+}
+
+.bulk-match-config .config-field > label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.bulk-match-config .date-window-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bulk-match-config .date-window-control input[type="range"] {
+    flex: 1;
+    max-width: 300px;
+}
+
+.bulk-match-config .date-window-value {
+    font-weight: 600;
+    min-width: 28px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.bulk-match-config .mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.bulk-match-config .mode-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.bulk-match-config .mode-option:hover {
+    border-color: var(--color-primary-element);
+    background: var(--color-background-hover);
+}
+
+.bulk-match-config .mode-option:has(input:checked) {
+    border-color: var(--color-primary-element);
+    background: var(--color-background-hover);
+    box-shadow: 0 0 0 1px var(--color-primary-element);
+}
+
+.bulk-match-config .mode-option input[type="radio"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.bulk-match-config .mode-option-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bulk-match-config .mode-option-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.bulk-match-config .mode-option-desc {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    line-height: 1.4;
+}
+
+/* Review mode single-match checkbox items */
+.review-single-match {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.review-single-match input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.review-single-match .pair-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.review-single-match .pair-transaction {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.review-single-match .pair-date {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.review-single-match .pair-description {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.review-single-match .pair-details {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.review-single-match .pair-arrow {
+    font-size: 20px;
+    color: var(--color-primary-element);
+    padding: 0 8px;
+}
+
+@media (max-width: 768px) {
+    .review-single-match {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .review-single-match .pair-content {
+        flex-direction: column;
+    }
+
+    .review-single-match .pair-transaction {
+        flex-wrap: wrap;
+    }
+
+    .review-single-match .pair-description {
+        flex-basis: 100%;
+    }
+
+    .review-single-match .pair-arrow {
+        transform: rotate(90deg);
+        text-align: center;
     }
 }
 
