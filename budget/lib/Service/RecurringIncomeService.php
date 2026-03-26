@@ -181,6 +181,13 @@ class RecurringIncomeService {
             }
         }
 
+        // Auto-deactivate one-time income after receiving
+        if ($income->getFrequency() === 'one-time') {
+            $income->setIsActive(false);
+            $income->setNextExpectedDate(null);
+            $income = $this->mapper->update($income);
+        }
+
         return $income;
     }
 
@@ -267,7 +274,9 @@ class RecurringIncomeService {
             'biweekly' => $amount * 26 / 12,
             'monthly' => $amount,
             'quarterly' => $amount / 3,
+            'semi-annually' => $amount / 6,
             'yearly' => $amount / 12,
+            'one-time' => $amount,
             default => $amount,
         };
     }

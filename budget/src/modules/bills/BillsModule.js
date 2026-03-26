@@ -108,6 +108,7 @@ export default class BillsModule {
             const frequency = bill.frequency || 'monthly';
             const frequencyLabels = {
                 'weekly': 'Weekly',
+                'biweekly': 'Bi-Weekly',
                 'monthly': 'Monthly',
                 'quarterly': 'Quarterly',
                 'semi-annually': 'Semi-Annually',
@@ -455,7 +456,7 @@ export default class BillsModule {
         const dueDayLabel = dueDayGroup.querySelector('label');
         const dueDayHelp = document.getElementById('bill-due-day-help');
 
-        if (frequency === 'weekly') {
+        if (frequency === 'weekly' || frequency === 'biweekly') {
             dueDayLabel.textContent = 'Due Day (1-7)';
             dueDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
             document.getElementById('bill-due-day').max = 7;

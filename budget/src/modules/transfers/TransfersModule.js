@@ -246,6 +246,7 @@ export default class TransfersModule {
             const frequency = transfer.frequency || 'monthly';
             const frequencyLabels = {
                 'weekly': 'Weekly',
+                'biweekly': 'Bi-Weekly',
                 'monthly': 'Monthly',
                 'quarterly': 'Quarterly',
                 'semi-annually': 'Semi-Annually',
@@ -397,6 +398,7 @@ export default class TransfersModule {
                                 <label for="transfer-frequency">Frequency *</label>
                                 <select id="transfer-frequency" class="form-control" required>
                                     <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+                                    <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>Bi-Weekly</option>
                                     <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
                                     <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>Quarterly</option>
                                     <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>Yearly</option>
@@ -780,6 +782,7 @@ export default class TransfersModule {
     formatFrequency(frequency) {
         const map = {
             'weekly': 'Weekly',
+            'biweekly': 'Bi-Weekly',
             'monthly': 'Monthly',
             'quarterly': 'Quarterly',
             'semi-annually': 'Semi-Annually',
@@ -876,6 +879,8 @@ export default class TransfersModule {
         switch (frequency) {
             case 'weekly':
                 return amount * 52 / 12;
+            case 'biweekly':
+                return amount * 26 / 12;
             case 'monthly':
                 return amount;
             case 'quarterly':

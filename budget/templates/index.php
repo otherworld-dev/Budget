@@ -4676,6 +4676,7 @@ style('budget', 'budget-main');
                 <label for="bill-frequency">Frequency <span class="required">*</span></label>
                 <select id="bill-frequency" required aria-describedby="bill-frequency-help">
                     <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-Weekly</option>
                     <option value="monthly" selected>Monthly</option>
                     <option value="quarterly">Quarterly</option>
                     <option value="semi-annually">Semi-Annually</option>
@@ -5061,9 +5062,12 @@ style('budget', 'budget-main');
                 <label for="income-frequency">Frequency <span class="required">*</span></label>
                 <select id="income-frequency" required aria-describedby="income-frequency-help">
                     <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-Weekly</option>
                     <option value="monthly" selected>Monthly</option>
                     <option value="quarterly">Quarterly</option>
+                    <option value="semi-annually">Semi-Annually</option>
                     <option value="yearly">Yearly</option>
+                    <option value="one-time">One-Time</option>
                 </select>
                 <small id="income-frequency-help" class="form-text">How often you receive this income</small>
             </div>

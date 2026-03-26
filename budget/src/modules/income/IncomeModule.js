@@ -87,9 +87,15 @@ export default class IncomeModule {
             const isReceivedThisMonth = this.isIncomeReceivedThisMonth(income);
             const isExpectedSoon = !isReceivedThisMonth && nextDate && this.isExpectedSoon(nextDate);
 
+            const isActive = income.isActive ?? income.is_active ?? true;
+            const isOneTime = (income.frequency || 'monthly') === 'one-time';
+
             let statusClass = '';
             let statusText = '';
-            if (isReceivedThisMonth) {
+            if (!isActive && isOneTime) {
+                statusClass = 'received';
+                statusText = 'Completed';
+            } else if (isReceivedThisMonth) {
                 statusClass = 'received';
                 statusText = 'Received';
             } else if (isExpectedSoon) {
@@ -101,7 +107,16 @@ export default class IncomeModule {
             }
 
             const frequency = income.frequency || 'monthly';
-            const frequencyLabel = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+            const frequencyLabels = {
+                'weekly': 'Weekly',
+                'biweekly': 'Bi-Weekly',
+                'monthly': 'Monthly',
+                'quarterly': 'Quarterly',
+                'semi-annually': 'Semi-Annually',
+                'yearly': 'Yearly',
+                'one-time': 'One-Time'
+            };
+            const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
             const source = income.source || '';
 
             return `
@@ -124,7 +139,7 @@ export default class IncomeModule {
                         </div>
                     </div>
                     <div class="income-actions">
-                        ${!isReceivedThisMonth ? `
+                        ${!isReceivedThisMonth && isActive ? `
                             <button class="income-action-btn income-received-btn" data-income-id="${income.id}" title="Mark as received">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 Mark Received
@@ -323,6 +338,16 @@ export default class IncomeModule {
         const frequency = document.getElementById('income-frequency').value;
         const expectedDayGroup = document.getElementById('expected-day-group');
         const expectedMonthGroup = document.getElementById('expected-month-group');
+        const isOneTime = frequency === 'one-time';
+
+        // Hide day/month fields for one-time income
+        if (isOneTime) {
+            expectedDayGroup.style.display = 'none';
+            expectedMonthGroup.style.display = 'none';
+            return;
+        }
+
+        expectedDayGroup.style.display = 'block';
 
         // Show expected month only for yearly income
         if (frequency === 'yearly') {
@@ -335,7 +360,7 @@ export default class IncomeModule {
         const expectedDayLabel = expectedDayGroup.querySelector('label');
         const expectedDayHelp = document.getElementById('income-expected-day-help');
 
-        if (frequency === 'weekly') {
+        if (frequency === 'weekly' || frequency === 'biweekly') {
             expectedDayLabel.textContent = 'Expected Day (1-7)';
             expectedDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
             document.getElementById('income-expected-day').max = 7;

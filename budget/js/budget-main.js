@@ -22964,6 +22964,7 @@ var BillsModule = /*#__PURE__*/function () {
         var frequency = bill.frequency || 'monthly';
         var frequencyLabels = {
           'weekly': 'Weekly',
+          'biweekly': 'Bi-Weekly',
           'monthly': 'Monthly',
           'quarterly': 'Quarterly',
           'semi-annually': 'Semi-Annually',
@@ -23293,7 +23294,7 @@ var BillsModule = /*#__PURE__*/function () {
       // Update due day label based on frequency
       var dueDayLabel = dueDayGroup.querySelector('label');
       var dueDayHelp = document.getElementById('bill-due-day-help');
-      if (frequency === 'weekly') {
+      if (frequency === 'weekly' || frequency === 'biweekly') {
         dueDayLabel.textContent = 'Due Day (1-7)';
         dueDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
         document.getElementById('bill-due-day').max = 7;
@@ -31506,12 +31507,18 @@ var IncomeModule = /*#__PURE__*/function () {
       }
       emptyIncome.style.display = 'none';
       incomeList.innerHTML = incomeItems.map(function (income) {
+        var _ref, _income$isActive;
         var nextDate = income.nextExpectedDate || income.next_expected_date;
         var isReceivedThisMonth = _this.isIncomeReceivedThisMonth(income);
         var isExpectedSoon = !isReceivedThisMonth && nextDate && _this.isExpectedSoon(nextDate);
+        var isActive = (_ref = (_income$isActive = income.isActive) !== null && _income$isActive !== void 0 ? _income$isActive : income.is_active) !== null && _ref !== void 0 ? _ref : true;
+        var isOneTime = (income.frequency || 'monthly') === 'one-time';
         var statusClass = '';
         var statusText = '';
-        if (isReceivedThisMonth) {
+        if (!isActive && isOneTime) {
+          statusClass = 'received';
+          statusText = 'Completed';
+        } else if (isReceivedThisMonth) {
           statusClass = 'received';
           statusText = 'Received';
         } else if (isExpectedSoon) {
@@ -31522,9 +31529,18 @@ var IncomeModule = /*#__PURE__*/function () {
           statusText = 'Upcoming';
         }
         var frequency = income.frequency || 'monthly';
-        var frequencyLabel = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+        var frequencyLabels = {
+          'weekly': 'Weekly',
+          'biweekly': 'Bi-Weekly',
+          'monthly': 'Monthly',
+          'quarterly': 'Quarterly',
+          'semi-annually': 'Semi-Annually',
+          'yearly': 'Yearly',
+          'one-time': 'One-Time'
+        };
+        var frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
         var source = income.source || '';
-        return "\n                <div class=\"income-card ".concat(statusClass, "\" data-income-id=\"").concat(income.id, "\" data-status=\"").concat(statusClass, "\">\n                    <div class=\"income-header\">\n                        <div class=\"income-info\">\n                            <h4 class=\"income-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(income.name), "</h4>\n                            <span class=\"income-frequency\">").concat(frequencyLabel, "</span>\n                            ").concat(source ? "<span class=\"income-source\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(source), "</span>") : '', "\n                        </div>\n                        <div class=\"income-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(income.amount, null, _this.settings), "</div>\n                    </div>\n                    <div class=\"income-details\">\n                        <div class=\"income-next-date\">\n                            <span class=\"icon-calendar\" aria-hidden=\"true\"></span>\n                            ").concat(nextDate ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(nextDate, _this.settings) : 'No date set', "\n                        </div>\n                        <div class=\"income-status ").concat(statusClass, "\">\n                            <span class=\"status-badge\">").concat(statusText, "</span>\n                        </div>\n                    </div>\n                    <div class=\"income-actions\">\n                        ").concat(!isReceivedThisMonth ? "\n                            <button class=\"income-action-btn income-received-btn\" data-income-id=\"".concat(income.id, "\" title=\"Mark as received\">\n                                <span class=\"icon-checkmark\" aria-hidden=\"true\"></span>\n                                Mark Received\n                            </button>\n                        ") : '', "\n                        <button class=\"income-action-btn income-edit-btn\" data-income-id=\"").concat(income.id, "\" title=\"Edit income\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"income-action-btn income-delete-btn\" data-income-id=\"").concat(income.id, "\" title=\"Delete income\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            ");
+        return "\n                <div class=\"income-card ".concat(statusClass, "\" data-income-id=\"").concat(income.id, "\" data-status=\"").concat(statusClass, "\">\n                    <div class=\"income-header\">\n                        <div class=\"income-info\">\n                            <h4 class=\"income-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(income.name), "</h4>\n                            <span class=\"income-frequency\">").concat(frequencyLabel, "</span>\n                            ").concat(source ? "<span class=\"income-source\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(source), "</span>") : '', "\n                        </div>\n                        <div class=\"income-amount\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(income.amount, null, _this.settings), "</div>\n                    </div>\n                    <div class=\"income-details\">\n                        <div class=\"income-next-date\">\n                            <span class=\"icon-calendar\" aria-hidden=\"true\"></span>\n                            ").concat(nextDate ? _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(nextDate, _this.settings) : 'No date set', "\n                        </div>\n                        <div class=\"income-status ").concat(statusClass, "\">\n                            <span class=\"status-badge\">").concat(statusText, "</span>\n                        </div>\n                    </div>\n                    <div class=\"income-actions\">\n                        ").concat(!isReceivedThisMonth && isActive ? "\n                            <button class=\"income-action-btn income-received-btn\" data-income-id=\"".concat(income.id, "\" title=\"Mark as received\">\n                                <span class=\"icon-checkmark\" aria-hidden=\"true\"></span>\n                                Mark Received\n                            </button>\n                        ") : '', "\n                        <button class=\"income-action-btn income-edit-btn\" data-income-id=\"").concat(income.id, "\" title=\"Edit income\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"income-action-btn income-delete-btn\" data-income-id=\"").concat(income.id, "\" title=\"Delete income\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            ");
       }).join('');
     }
   }, {
@@ -31724,6 +31740,15 @@ var IncomeModule = /*#__PURE__*/function () {
       var frequency = document.getElementById('income-frequency').value;
       var expectedDayGroup = document.getElementById('expected-day-group');
       var expectedMonthGroup = document.getElementById('expected-month-group');
+      var isOneTime = frequency === 'one-time';
+
+      // Hide day/month fields for one-time income
+      if (isOneTime) {
+        expectedDayGroup.style.display = 'none';
+        expectedMonthGroup.style.display = 'none';
+        return;
+      }
+      expectedDayGroup.style.display = 'block';
 
       // Show expected month only for yearly income
       if (frequency === 'yearly') {
@@ -31735,7 +31760,7 @@ var IncomeModule = /*#__PURE__*/function () {
       // Update expected day label based on frequency
       var expectedDayLabel = expectedDayGroup.querySelector('label');
       var expectedDayHelp = document.getElementById('income-expected-day-help');
-      if (frequency === 'weekly') {
+      if (frequency === 'weekly' || frequency === 'biweekly') {
         expectedDayLabel.textContent = 'Expected Day (1-7)';
         expectedDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
         document.getElementById('income-expected-day').max = 7;
@@ -45426,6 +45451,7 @@ var TransfersModule = /*#__PURE__*/function () {
         var frequency = transfer.frequency || 'monthly';
         var frequencyLabels = {
           'weekly': 'Weekly',
+          'biweekly': 'Bi-Weekly',
           'monthly': 'Monthly',
           'quarterly': 'Quarterly',
           'semi-annually': 'Semi-Annually',
@@ -45521,7 +45547,7 @@ var TransfersModule = /*#__PURE__*/function () {
           return a.name;
         }));
       }
-      var modalHtml = "\n            <div class=\"budget-modal-overlay\">\n                <div class=\"budget-modal\">\n                    <div class=\"budget-modal-header\">\n                        <h2>".concat(title, "</h2>\n                        <button class=\"close-btn\" id=\"close-transfer-modal\">\xD7</button>\n                    </div>\n                    <form id=\"transfer-form\" class=\"budget-modal-body\">\n                        <div class=\"form-group\">\n                            <label for=\"transfer-name\">Name *</label>\n                            <input type=\"text\" id=\"transfer-name\" class=\"form-control\"\n                                   placeholder=\"e.g., Monthly Savings\" required\n                                   value=\"").concat(isEdit ? _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(transfer.name) : '', "\">\n                        </div>\n\n                        <div class=\"form-row\">\n                            <div class=\"form-group\">\n                                <label for=\"transfer-amount\">Amount *</label>\n                                <input type=\"number\" id=\"transfer-amount\" class=\"form-control\"\n                                       step=\"0.01\" min=\"0\" required\n                                       value=\"").concat(isEdit ? transfer.amount : '', "\">\n                            </div>\n                            <div class=\"form-group\">\n                                <label for=\"transfer-frequency\">Frequency *</label>\n                                <select id=\"transfer-frequency\" class=\"form-control\" required>\n                                    <option value=\"weekly\" ").concat(isEdit && transfer.frequency === 'weekly' ? 'selected' : '', ">Weekly</option>\n                                    <option value=\"monthly\" ").concat(!isEdit || transfer.frequency === 'monthly' ? 'selected' : '', ">Monthly</option>\n                                    <option value=\"quarterly\" ").concat(isEdit && transfer.frequency === 'quarterly' ? 'selected' : '', ">Quarterly</option>\n                                    <option value=\"yearly\" ").concat(isEdit && transfer.frequency === 'yearly' ? 'selected' : '', ">Yearly</option>\n                                </select>\n                            </div>\n                        </div>\n\n                        <div class=\"form-row\">\n                            <div class=\"form-group\">\n                                <label for=\"recurring-transfer-from-account\">From Account *</label>\n                                <select id=\"recurring-transfer-from-account\" class=\"form-control\" required>\n                                    <option value=\"\">Select account...</option>\n                                    ").concat(this.accounts.map(function (account) {
+      var modalHtml = "\n            <div class=\"budget-modal-overlay\">\n                <div class=\"budget-modal\">\n                    <div class=\"budget-modal-header\">\n                        <h2>".concat(title, "</h2>\n                        <button class=\"close-btn\" id=\"close-transfer-modal\">\xD7</button>\n                    </div>\n                    <form id=\"transfer-form\" class=\"budget-modal-body\">\n                        <div class=\"form-group\">\n                            <label for=\"transfer-name\">Name *</label>\n                            <input type=\"text\" id=\"transfer-name\" class=\"form-control\"\n                                   placeholder=\"e.g., Monthly Savings\" required\n                                   value=\"").concat(isEdit ? _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(transfer.name) : '', "\">\n                        </div>\n\n                        <div class=\"form-row\">\n                            <div class=\"form-group\">\n                                <label for=\"transfer-amount\">Amount *</label>\n                                <input type=\"number\" id=\"transfer-amount\" class=\"form-control\"\n                                       step=\"0.01\" min=\"0\" required\n                                       value=\"").concat(isEdit ? transfer.amount : '', "\">\n                            </div>\n                            <div class=\"form-group\">\n                                <label for=\"transfer-frequency\">Frequency *</label>\n                                <select id=\"transfer-frequency\" class=\"form-control\" required>\n                                    <option value=\"weekly\" ").concat(isEdit && transfer.frequency === 'weekly' ? 'selected' : '', ">Weekly</option>\n                                    <option value=\"biweekly\" ").concat(isEdit && transfer.frequency === 'biweekly' ? 'selected' : '', ">Bi-Weekly</option>\n                                    <option value=\"monthly\" ").concat(!isEdit || transfer.frequency === 'monthly' ? 'selected' : '', ">Monthly</option>\n                                    <option value=\"quarterly\" ").concat(isEdit && transfer.frequency === 'quarterly' ? 'selected' : '', ">Quarterly</option>\n                                    <option value=\"yearly\" ").concat(isEdit && transfer.frequency === 'yearly' ? 'selected' : '', ">Yearly</option>\n                                </select>\n                            </div>\n                        </div>\n\n                        <div class=\"form-row\">\n                            <div class=\"form-group\">\n                                <label for=\"recurring-transfer-from-account\">From Account *</label>\n                                <select id=\"recurring-transfer-from-account\" class=\"form-control\" required>\n                                    <option value=\"\">Select account...</option>\n                                    ").concat(this.accounts.map(function (account) {
         return "\n                                        <option value=\"".concat(account.id, "\" ").concat(isEdit && transfer.accountId === account.id ? 'selected' : '', ">\n                                            ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(account.name), "\n                                        </option>\n                                    ");
       }).join(''), "\n                                </select>\n                            </div>\n                            <div class=\"form-group\">\n                                <label for=\"recurring-transfer-to-account\">To Account *</label>\n                                <select id=\"recurring-transfer-to-account\" class=\"form-control\" required>\n                                    <option value=\"\">Select account...</option>\n                                    ").concat(this.accounts.map(function (account) {
         return "\n                                        <option value=\"".concat(account.id, "\" ").concat(isEdit && transfer.destinationAccountId === account.id ? 'selected' : '', ">\n                                            ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(account.name), "\n                                        </option>\n                                    ");
@@ -45951,6 +45977,7 @@ var TransfersModule = /*#__PURE__*/function () {
     value: function formatFrequency(frequency) {
       var map = {
         'weekly': 'Weekly',
+        'biweekly': 'Bi-Weekly',
         'monthly': 'Monthly',
         'quarterly': 'Quarterly',
         'semi-annually': 'Semi-Annually',
@@ -46076,6 +46103,8 @@ var TransfersModule = /*#__PURE__*/function () {
       switch (frequency) {
         case 'weekly':
           return amount * 52 / 12;
+        case 'biweekly':
+          return amount * 26 / 12;
         case 'monthly':
           return amount;
         case 'quarterly':
