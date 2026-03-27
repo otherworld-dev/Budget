@@ -996,6 +996,10 @@ style('budget', 'budget-main');
                                     <label>Credit Limit</label>
                                     <div id="account-credit-limit" class="balance-amount"></div>
                                 </div>
+                                <div class="balance-item" id="minimum-payment-info" style="display: none;">
+                                    <label>Min Payment</label>
+                                    <div id="account-minimum-payment-display" class="balance-amount"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -4647,6 +4651,12 @@ style('budget', 'budget-main');
                     <label for="account-overdraft-limit">Overdraft Limit</label>
                     <input type="number" id="account-overdraft-limit" step="0.01" min="0" aria-describedby="account-overdraft-limit-help">
                     <small id="account-overdraft-limit-help" class="form-text">Maximum overdraft amount</small>
+                </div>
+
+                <div class="form-group conditional" id="minimum-payment-group">
+                    <label for="account-minimum-payment">Minimum Payment</label>
+                    <input type="number" id="account-minimum-payment" step="0.01" min="0" aria-describedby="account-minimum-payment-help">
+                    <small id="account-minimum-payment-help" class="form-text">Minimum monthly payment for debt payoff calculations</small>
                 </div>
             </div>
 

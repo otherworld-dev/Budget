@@ -19239,6 +19239,19 @@ var AccountsModule = /*#__PURE__*/function () {
       } else {
         document.getElementById('credit-info').style.display = 'none';
       }
+
+      // Show minimum payment for liability accounts
+      var isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(account.type);
+      var minPaymentInfo = document.getElementById('minimum-payment-info');
+      var minPaymentDisplay = document.getElementById('account-minimum-payment-display');
+      if (minPaymentInfo && minPaymentDisplay) {
+        if (isLiability && account.minimumPayment) {
+          minPaymentInfo.style.display = 'block';
+          minPaymentDisplay.textContent = this.formatCurrency(account.minimumPayment, currency);
+        } else {
+          minPaymentInfo.style.display = 'none';
+        }
+      }
       document.getElementById('account-available-balance').textContent = this.formatCurrency(availableBalance, currency);
       document.getElementById('account-available-balance').className = "balance-amount ".concat(availableBalance >= 0 ? 'positive' : 'negative');
 
@@ -20373,7 +20386,8 @@ var AccountsModule = /*#__PURE__*/function () {
                 openingDate: getFormValue('account-opening-date'),
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
-                overdraftLimit: getFormValue('account-overdraft-limit', null, true)
+                overdraftLimit: getFormValue('account-overdraft-limit', null, true),
+                minimumPayment: getFormValue('account-minimum-payment', null, true)
               }; // Only include balance on create — on edit, balance is managed by transactions
               if (!isEdit) {
                 formData.balance = getFormValue('account-balance', 0, true);
@@ -20675,6 +20689,7 @@ var AccountsModule = /*#__PURE__*/function () {
               document.getElementById('account-interest-rate').value = account.interestRate || '';
               document.getElementById('account-credit-limit').value = account.creditLimit || '';
               document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
+              document.getElementById('account-minimum-payment').value = account.minimumPayment || '';
               _context11.n = 4;
               break;
             case 3:
@@ -20851,7 +20866,7 @@ var AccountsModule = /*#__PURE__*/function () {
               console.warn('Failed to load banking requirements:', _t15);
             case 5:
               _t16 = accountType;
-              _context14.n = _t16 === 'checking' ? 6 : _t16 === 'savings' ? 6 : _t16 === 'credit_card' ? 7 : _t16 === 'loan' ? 8 : _t16 === 'investment' ? 9 : _t16 === 'cash' ? 10 : _t16 === 'cryptocurrency' ? 11 : 12;
+              _context14.n = _t16 === 'checking' ? 6 : _t16 === 'savings' ? 6 : _t16 === 'credit_card' ? 7 : _t16 === 'loan' ? 8 : _t16 === 'mortgage' ? 8 : _t16 === 'line_of_credit' ? 8 : _t16 === 'investment' ? 9 : _t16 === 'cash' ? 10 : _t16 === 'cryptocurrency' ? 11 : 12;
               break;
             case 6:
               // Show banking fields based on currency
@@ -20874,10 +20889,12 @@ var AccountsModule = /*#__PURE__*/function () {
               // Show credit card specific fields
               document.getElementById('credit-limit-group').style.display = 'block';
               document.getElementById('interest-rate-group').style.display = 'block';
+              document.getElementById('minimum-payment-group').style.display = 'block';
               return _context14.a(3, 12);
             case 8:
-              // Show loan specific fields
+              // Show loan/liability specific fields
               document.getElementById('interest-rate-group').style.display = 'block';
+              document.getElementById('minimum-payment-group').style.display = 'block';
               return _context14.a(3, 12);
             case 9:
               // Show investment account fields

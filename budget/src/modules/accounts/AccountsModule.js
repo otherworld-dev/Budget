@@ -546,6 +546,19 @@ export default class AccountsModule {
             document.getElementById('credit-info').style.display = 'none';
         }
 
+        // Show minimum payment for liability accounts
+        const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(account.type);
+        const minPaymentInfo = document.getElementById('minimum-payment-info');
+        const minPaymentDisplay = document.getElementById('account-minimum-payment-display');
+        if (minPaymentInfo && minPaymentDisplay) {
+            if (isLiability && account.minimumPayment) {
+                minPaymentInfo.style.display = 'block';
+                minPaymentDisplay.textContent = this.formatCurrency(account.minimumPayment, currency);
+            } else {
+                minPaymentInfo.style.display = 'none';
+            }
+        }
+
         document.getElementById('account-available-balance').textContent = this.formatCurrency(availableBalance, currency);
         document.getElementById('account-available-balance').className = `balance-amount ${availableBalance >= 0 ? 'positive' : 'negative'}`;
 
@@ -1512,7 +1525,8 @@ export default class AccountsModule {
                 openingDate: getFormValue('account-opening-date'),
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
-                overdraftLimit: getFormValue('account-overdraft-limit', null, true)
+                overdraftLimit: getFormValue('account-overdraft-limit', null, true),
+                minimumPayment: getFormValue('account-minimum-payment', null, true)
             };
 
             // Only include balance on create — on edit, balance is managed by transactions
@@ -1753,6 +1767,7 @@ export default class AccountsModule {
             document.getElementById('account-interest-rate').value = account.interestRate || '';
             document.getElementById('account-credit-limit').value = account.creditLimit || '';
             document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
+            document.getElementById('account-minimum-payment').value = account.minimumPayment || '';
         } catch (error) {
             console.error('Failed to load account data:', error);
             showError('Failed to load account data');
@@ -1877,11 +1892,15 @@ export default class AccountsModule {
                 // Show credit card specific fields
                 document.getElementById('credit-limit-group').style.display = 'block';
                 document.getElementById('interest-rate-group').style.display = 'block';
+                document.getElementById('minimum-payment-group').style.display = 'block';
                 break;
 
             case 'loan':
-                // Show loan specific fields
+            case 'mortgage':
+            case 'line_of_credit':
+                // Show loan/liability specific fields
                 document.getElementById('interest-rate-group').style.display = 'block';
+                document.getElementById('minimum-payment-group').style.display = 'block';
                 break;
 
             case 'investment':
