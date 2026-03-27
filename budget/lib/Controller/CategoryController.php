@@ -135,7 +135,7 @@ class CategoryController extends Controller {
             );
             return new DataResponse($category, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create category');
+            return $this->handleValidationError($e);
         }
     }
 
@@ -220,7 +220,7 @@ class CategoryController extends Controller {
             $category = $this->service->update($id, $this->userId, $updates);
             return new DataResponse($category);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update category', Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+            return $this->handleValidationError($e);
         }
     }
 
