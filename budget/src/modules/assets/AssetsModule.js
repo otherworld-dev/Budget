@@ -112,7 +112,7 @@ export default class AssetsModule {
     }
 
     renderAssetCard(asset) {
-        const currency = asset.currency || 'USD';
+        const currency = asset.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         const typeInfo = this.getAssetTypeInfo(asset.type);
 
         let valueDisplay = '--';
@@ -329,7 +329,7 @@ export default class AssetsModule {
             document.getElementById('asset-name').value = asset.name;
             document.getElementById('asset-type').value = asset.type;
             document.getElementById('asset-description').value = asset.description || '';
-            document.getElementById('asset-currency').value = asset.currency || 'USD';
+            document.getElementById('asset-currency').value = asset.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
             document.getElementById('asset-current-value').value = asset.currentValue || '';
             document.getElementById('asset-purchase-price').value = asset.purchasePrice || '';
             setDateValue('asset-purchase-date', asset.purchaseDate || '');
@@ -337,6 +337,7 @@ export default class AssetsModule {
         } else {
             title.textContent = 'Add Asset';
             document.getElementById('asset-id').value = '';
+            document.getElementById('asset-currency').value = formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         }
 
         modal.style.display = 'flex';
@@ -361,7 +362,7 @@ export default class AssetsModule {
             name: formData.get('name'),
             type: formData.get('type'),
             description: formData.get('description') || null,
-            currency: formData.get('currency') || 'USD',
+            currency: formData.get('currency') || formatters.getPrimaryCurrency(this.app.accounts, this.settings),
             currentValue: formData.get('currentValue') ? parseFloat(formData.get('currentValue')) : null,
             purchasePrice: formData.get('purchasePrice') ? parseFloat(formData.get('purchasePrice')) : null,
             purchaseDate: formData.get('purchaseDate') || null,
@@ -426,7 +427,7 @@ export default class AssetsModule {
         if (!asset) return;
 
         this.currentAsset = asset;
-        const currency = asset.currency || 'USD';
+        const currency = asset.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         const typeInfo = this.getAssetTypeInfo(asset.type);
 
         // Hide assets list, show detail view
@@ -554,7 +555,7 @@ export default class AssetsModule {
 
             // Snapshots come DESC from API, reverse for chart
             const sortedSnapshots = [...snapshots].reverse();
-            const currency = this.currentAsset?.currency || 'USD';
+            const currency = this.currentAsset?.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
 
             this.charts.assetValue = new Chart(ctx, {
                 type: 'line',
@@ -620,7 +621,7 @@ export default class AssetsModule {
             const isAppreciating = (data.annualChangeRate || 0) >= 0;
             const lineColor = isAppreciating ? '#46ba61' : '#e9322d';
             const bgColor = isAppreciating ? 'rgba(70, 186, 97, 0.1)' : 'rgba(233, 50, 45, 0.1)';
-            const currency = this.currentAsset?.currency || 'USD';
+            const currency = this.currentAsset?.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
 
             // Update 10yr projected value metric
             const lastProjection = data.growthProjection[data.growthProjection.length - 1];

@@ -21588,7 +21588,7 @@ var AssetsModule = /*#__PURE__*/function () {
   }, {
     key: "renderAssetCard",
     value: function renderAssetCard(asset) {
-      var currency = asset.currency || 'USD';
+      var currency = asset.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
       var typeInfo = this.getAssetTypeInfo(asset.type);
       var valueDisplay = '--';
       if (asset.currentValue !== null) {
@@ -21771,7 +21771,7 @@ var AssetsModule = /*#__PURE__*/function () {
         document.getElementById('asset-name').value = asset.name;
         document.getElementById('asset-type').value = asset.type;
         document.getElementById('asset-description').value = asset.description || '';
-        document.getElementById('asset-currency').value = asset.currency || 'USD';
+        document.getElementById('asset-currency').value = asset.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
         document.getElementById('asset-current-value').value = asset.currentValue || '';
         document.getElementById('asset-purchase-price').value = asset.purchasePrice || '';
         (0,_utils_datepicker_js__WEBPACK_IMPORTED_MODULE_3__.setDateValue)('asset-purchase-date', asset.purchaseDate || '');
@@ -21779,6 +21779,7 @@ var AssetsModule = /*#__PURE__*/function () {
       } else {
         title.textContent = 'Add Asset';
         document.getElementById('asset-id').value = '';
+        document.getElementById('asset-currency').value = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
       }
       modal.style.display = 'flex';
       modal.setAttribute('aria-hidden', 'false');
@@ -21807,7 +21808,7 @@ var AssetsModule = /*#__PURE__*/function () {
                 name: formData.get('name'),
                 type: formData.get('type'),
                 description: formData.get('description') || null,
-                currency: formData.get('currency') || 'USD',
+                currency: formData.get('currency') || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings),
                 currentValue: formData.get('currentValue') ? parseFloat(formData.get('currentValue')) : null,
                 purchasePrice: formData.get('purchasePrice') ? parseFloat(formData.get('purchasePrice')) : null,
                 purchaseDate: formData.get('purchaseDate') || null,
@@ -21932,7 +21933,7 @@ var AssetsModule = /*#__PURE__*/function () {
               return _context7.a(2);
             case 1:
               this.currentAsset = asset;
-              currency = asset.currency || 'USD';
+              currency = asset.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
               typeInfo = this.getAssetTypeInfo(asset.type); // Hide assets list, show detail view
               document.getElementById('assets-view').style.display = 'none';
               document.getElementById('asset-details-view').style.display = 'block';
@@ -22080,7 +22081,7 @@ var AssetsModule = /*#__PURE__*/function () {
 
               // Snapshots come DESC from API, reverse for chart
               sortedSnapshots = _toConsumableArray(snapshots).reverse();
-              currency = ((_this$currentAsset = this.currentAsset) === null || _this$currentAsset === void 0 ? void 0 : _this$currentAsset.currency) || 'USD';
+              currency = ((_this$currentAsset = this.currentAsset) === null || _this$currentAsset === void 0 ? void 0 : _this$currentAsset.currency) || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
               this.charts.assetValue = new chart_js_auto__WEBPACK_IMPORTED_MODULE_4__["default"](ctx, {
                 type: 'line',
                 data: {
@@ -22182,7 +22183,7 @@ var AssetsModule = /*#__PURE__*/function () {
               isAppreciating = (data.annualChangeRate || 0) >= 0;
               lineColor = isAppreciating ? '#46ba61' : '#e9322d';
               bgColor = isAppreciating ? 'rgba(70, 186, 97, 0.1)' : 'rgba(233, 50, 45, 0.1)';
-              currency = ((_this$currentAsset2 = this.currentAsset) === null || _this$currentAsset2 === void 0 ? void 0 : _this$currentAsset2.currency) || 'USD'; // Update 10yr projected value metric
+              currency = ((_this$currentAsset2 = this.currentAsset) === null || _this$currentAsset2 === void 0 ? void 0 : _this$currentAsset2.currency) || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings); // Update 10yr projected value metric
               lastProjection = data.growthProjection[data.growthProjection.length - 1];
               projectedEl = document.getElementById('asset-detail-projected');
               if (projectedEl && lastProjection) {
@@ -32798,7 +32799,7 @@ var PensionsModule = /*#__PURE__*/function () {
   }, {
     key: "renderPensionCard",
     value: function renderPensionCard(pension) {
-      var currency = pension.currency || 'GBP';
+      var currency = pension.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
       var typeLabels = {
         workplace: 'Workplace',
         personal: 'Personal',
@@ -33025,7 +33026,7 @@ var PensionsModule = /*#__PURE__*/function () {
         document.getElementById('pension-name').value = pension.name;
         document.getElementById('pension-type').value = pension.type;
         document.getElementById('pension-provider').value = pension.provider || '';
-        document.getElementById('pension-currency').value = pension.currency || 'GBP';
+        document.getElementById('pension-currency').value = pension.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
         if (pension.isDefinedContribution) {
           document.getElementById('pension-balance').value = pension.currentBalance || '';
           document.getElementById('pension-monthly').value = pension.monthlyContribution || '';
@@ -33040,6 +33041,7 @@ var PensionsModule = /*#__PURE__*/function () {
       } else {
         title.textContent = 'Add Pension';
         document.getElementById('pension-id').value = '';
+        document.getElementById('pension-currency').value = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
         this.togglePensionFields();
       }
       modal.style.display = 'flex';
@@ -33067,7 +33069,7 @@ var PensionsModule = /*#__PURE__*/function () {
                 type: type,
                 provider: formData.get('provider') || null,
                 accountNumber: formData.get('accountNumber') || null,
-                currency: formData.get('currency') || 'GBP',
+                currency: formData.get('currency') || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings),
                 isDefinedContribution: isDefinedContribution
               };
               if (isDefinedContribution) {
@@ -33218,7 +33220,7 @@ var PensionsModule = /*#__PURE__*/function () {
               } else {
                 providerEl.style.display = 'none';
               }
-              currency = pension.currency || 'GBP';
+              currency = pension.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
               if (pension.isDefinedContribution && pension.currentBalance !== null) {
                 valueEl.textContent = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatCurrency(pension.currentBalance, currency, this.settings);
               } else if (pension.annualIncome !== null) {
@@ -33453,7 +33455,7 @@ var PensionsModule = /*#__PURE__*/function () {
               container.innerHTML = '<div class="empty-state-small">No activity yet</div>';
               return _context0.a(2);
             case 4:
-              currency = this.currentPension.currency || 'GBP';
+              currency = this.currentPension.currency || _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPrimaryCurrency(this.app.accounts, this.settings);
               container.innerHTML = data.map(function (activity) {
                 var typeLabels = {
                   snapshot: 'Balance Update',
@@ -52908,7 +52910,7 @@ var BudgetApp = /*#__PURE__*/function () {
       if (!this.options.currencies || !Array.isArray(this.options.currencies)) {
         return;
       }
-      var currencySelects = document.querySelectorAll('#account-currency, #setting-default-currency');
+      var currencySelects = document.querySelectorAll('#account-currency, #setting-default-currency, #pension-currency, #asset-currency');
       currencySelects.forEach(function (select) {
         // Store current value to preserve it
         var currentValue = select.value;

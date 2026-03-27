@@ -3521,7 +3521,7 @@ class BudgetApp {
             return;
         }
 
-        const currencySelects = document.querySelectorAll('#account-currency, #setting-default-currency');
+        const currencySelects = document.querySelectorAll('#account-currency, #setting-default-currency, #pension-currency, #asset-currency');
         currencySelects.forEach(select => {
             // Store current value to preserve it
             const currentValue = select.value;

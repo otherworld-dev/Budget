@@ -3267,9 +3267,7 @@ style('budget', 'budget-main');
                         <div class="form-group">
                             <label for="pension-currency">Currency</label>
                             <select id="pension-currency" name="currency">
-                                <option value="GBP">GBP</option>
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
+                                <!-- Populated dynamically from /api/settings/options -->
                             </select>
                         </div>
                     </div>
@@ -3639,9 +3637,7 @@ style('budget', 'budget-main');
                         <div class="form-group">
                             <label for="asset-currency">Currency</label>
                             <select id="asset-currency" name="currency">
-                                <option value="GBP">GBP</option>
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
+                                <!-- Populated dynamically from /api/settings/options -->
                             </select>
                         </div>
 

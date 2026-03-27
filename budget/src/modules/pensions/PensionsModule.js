@@ -81,7 +81,7 @@ export default class PensionsModule {
     }
 
     renderPensionCard(pension) {
-        const currency = pension.currency || 'GBP';
+        const currency = pension.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         const typeLabels = {
             workplace: 'Workplace',
             personal: 'Personal',
@@ -320,7 +320,7 @@ export default class PensionsModule {
             document.getElementById('pension-name').value = pension.name;
             document.getElementById('pension-type').value = pension.type;
             document.getElementById('pension-provider').value = pension.provider || '';
-            document.getElementById('pension-currency').value = pension.currency || 'GBP';
+            document.getElementById('pension-currency').value = pension.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
 
             if (pension.isDefinedContribution) {
                 document.getElementById('pension-balance').value = pension.currentBalance || '';
@@ -337,6 +337,7 @@ export default class PensionsModule {
         } else {
             title.textContent = 'Add Pension';
             document.getElementById('pension-id').value = '';
+            document.getElementById('pension-currency').value = formatters.getPrimaryCurrency(this.app.accounts, this.settings);
             this.togglePensionFields();
         }
 
@@ -360,7 +361,7 @@ export default class PensionsModule {
             type: type,
             provider: formData.get('provider') || null,
             accountNumber: formData.get('accountNumber') || null,
-            currency: formData.get('currency') || 'GBP',
+            currency: formData.get('currency') || formatters.getPrimaryCurrency(this.app.accounts, this.settings),
             isDefinedContribution: isDefinedContribution
         };
 
@@ -456,7 +457,7 @@ export default class PensionsModule {
             providerEl.style.display = 'none';
         }
 
-        const currency = pension.currency || 'GBP';
+        const currency = pension.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         if (pension.isDefinedContribution && pension.currentBalance !== null) {
             valueEl.textContent = formatters.formatCurrency(pension.currentBalance, currency, this.settings);
         } else if (pension.annualIncome !== null) {
@@ -596,7 +597,7 @@ export default class PensionsModule {
                 return;
             }
 
-            const currency = this.currentPension.currency || 'GBP';
+            const currency = this.currentPension.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
 
             container.innerHTML = data.map(activity => {
                 const typeLabels = {
