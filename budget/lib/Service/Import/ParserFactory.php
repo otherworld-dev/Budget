@@ -132,7 +132,7 @@ class ParserFactory {
     /**
      * Strip UTF-8 BOM from content.
      */
-    private function stripBom(string $content): string {
+    public function stripBom(string $content): string {
         if (str_starts_with($content, "\xEF\xBB\xBF")) {
             return substr($content, 3);
         }
@@ -148,7 +148,7 @@ class ParserFactory {
      * rows and 2 data rows). Falls back to the most frequent count if no count
      * appears twice.
      */
-    private function detectDataWidth(array $lines, string $delimiter): int {
+    public function detectDataWidth(array $lines, string $delimiter): int {
         $columnCounts = [];
 
         foreach ($lines as $line) {

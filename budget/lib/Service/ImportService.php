@@ -255,11 +255,17 @@ class ImportService {
         $sourceAccounts = [];
 
         if ($format === 'csv') {
+            $content = $this->parserFactory->stripBom($content);
             $lines = explode("\n", $content);
+            $dataWidth = $this->parserFactory->detectDataWidth($lines, $delimiter);
             $headers = [];
             foreach ($lines as $line) {
                 if (empty(trim($line))) continue;
                 $row = str_getcsv($line, $delimiter);
+                // Skip rows that don't match the expected data width (metadata/preamble)
+                if ($dataWidth > 0 && count($row) !== $dataWidth) {
+                    continue;
+                }
                 if (empty($headers)) {
                     $headers = array_map('trim', $row);
                     $columns = $headers;

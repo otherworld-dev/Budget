@@ -492,6 +492,36 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertSame('Lidl', $result['vendor']);
 	}
 
+	public function testMapRowDkbCsvFullFlowWithParsedData(): void {
+		// End-to-end test: simulates how DKB data flows after ParserFactory
+		// strips BOM and parses quoted CSV. Verifies column name mapping works
+		// when headers are clean (no BOM/quote artifacts).
+		$row = [
+			'Buchungsdatum' => '24.03.26',
+			'Wertstellung' => '24.03.26',
+			'Status' => 'Gebucht',
+			'Zahlungspflichtige*r' => 'Max Mustermann',
+			'Zahlungsempfänger*in' => 'REWE',
+			'Verwendungszweck' => 'VISA Debitkartenumsatz vom 23.03.2026',
+			'Umsatztyp' => 'Ausgang',
+			'Betrag (€)' => '-23,45',
+		];
+		$mapping = [
+			'date' => 'Buchungsdatum',
+			'description' => 'Verwendungszweck',
+			'amount' => 'Betrag (€)',
+			'vendor' => 'Zahlungsempfänger*in',
+		];
+
+		$this->normalizer->detectDateFormat(['24.03.26', '25.03.26']);
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('2026-03-24', $result['date']);
+		$this->assertEqualsWithDelta(23.45, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+		$this->assertSame('REWE', $result['vendor']);
+	}
+
 	public function testNormalizeDateTrimsWhitespace(): void {
 		$this->assertSame('2024-03-15', $this->normalizer->normalizeDate('  2024-03-15  '));
 	}
