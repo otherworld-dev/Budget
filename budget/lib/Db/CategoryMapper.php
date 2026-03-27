@@ -90,6 +90,35 @@ class CategoryMapper extends QBMapper {
     }
 
     /**
+     * Check if a category with the same name, type, and parent already exists for a user.
+     * Optionally excludes a specific category ID (for update checks).
+     */
+    public function existsDuplicate(string $userId, string $name, string $type, ?int $parentId, ?int $excludeId = null): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select($qb->func()->count('*', 'cnt'))
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('name', $qb->createNamedParameter($name)))
+            ->andWhere($qb->expr()->eq('type', $qb->createNamedParameter($type)));
+
+        if ($parentId === null) {
+            $qb->andWhere($qb->expr()->isNull('parent_id'));
+        } else {
+            $qb->andWhere($qb->expr()->eq('parent_id', $qb->createNamedParameter($parentId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($excludeId !== null) {
+            $qb->andWhere($qb->expr()->neq('id', $qb->createNamedParameter($excludeId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $result = $qb->executeQuery();
+        $count = (int)$result->fetchOne();
+        $result->closeCursor();
+
+        return $count > 0;
+    }
+
+    /**
      * Get category spending for a specific period
      */
     public function getCategorySpending(int $categoryId, string $startDate, string $endDate): float {

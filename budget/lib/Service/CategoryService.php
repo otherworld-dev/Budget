@@ -62,6 +62,11 @@ class CategoryService extends AbstractCrudService {
             $this->find($parentId, $userId);
         }
 
+        // Prevent duplicate categories (same name, type, and parent)
+        if ($this->getCategoryMapper()->existsDuplicate($userId, $name, $type, $parentId)) {
+            throw new \Exception('A category with this name already exists at this level');
+        }
+
         $category = new Category();
         $category->setUserId($userId);
         $category->setName($name);
@@ -86,6 +91,14 @@ class CategoryService extends AbstractCrudService {
                 throw new \Exception('Category cannot be its own parent');
             }
             $this->find($updates['parentId'], $userId);
+        }
+
+        // Prevent duplicate categories after update
+        $name = $updates['name'] ?? $entity->getName();
+        $type = $updates['type'] ?? $entity->getType();
+        $parentId = array_key_exists('parentId', $updates) ? $updates['parentId'] : $entity->getParentId();
+        if ($this->getCategoryMapper()->existsDuplicate($userId, $name, $type, $parentId, $entity->getId())) {
+            throw new \Exception('A category with this name already exists at this level');
         }
     }
 
