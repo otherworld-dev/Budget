@@ -107,15 +107,107 @@ class TransactionMapper extends QBMapper {
     /**
      * @return Transaction[]
      */
-    public function findByCategory(int $categoryId, int $limit = 100): array {
+    public function findByCategory(int $categoryId, string $userId, int $limit = 100): array {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->orderBy('date', 'DESC')
+        $qb->select('t.*')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
-        
+
+        $this->excludeScheduledFuture($qb);
+
         return $this->findEntities($qb);
+    }
+
+    /**
+     * Get aggregate summary (count + total) for a single category
+     * @return array{count: int, total: float}
+     */
+    public function getCategorySummary(string $userId, int $categoryId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias($qb->func()->count('t.id'), 'count')
+            ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+
+        $this->excludeScheduledFuture($qb);
+
+        $result = $qb->executeQuery();
+        $row = $result->fetch();
+        $result->closeCursor();
+
+        return [
+            'count' => (int)($row['count'] ?? 0),
+            'total' => (float)($row['total'] ?? 0),
+        ];
+    }
+
+    /**
+     * Get monthly spending breakdown for a single category
+     * @return array<array{month: string, total: float, count: int}>
+     */
+    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6): array {
+        $startDate = date('Y-m-01', strtotime("-{$months} months"));
+        $endDate = date('Y-m-d');
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month'))
+            ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
+            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        $this->excludeScheduledFuture($qb);
+
+        $qb->groupBy($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)'))
+            ->orderBy($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)'), 'ASC');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'month' => $row['month'],
+            'total' => (float)($row['total'] ?? 0),
+            'count' => (int)($row['count'] ?? 0),
+        ], $data);
+    }
+
+    /**
+     * Get transaction counts per category for a user (all time)
+     * @return array<int, int> categoryId => count
+     */
+    public function getCategoryTransactionCounts(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.category_id')
+            ->selectAlias($qb->func()->count('t.id'), 'count')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->isNotNull('t.category_id'));
+
+        $this->excludeScheduledFuture($qb);
+
+        $qb->groupBy('t.category_id');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        $counts = [];
+        foreach ($data as $row) {
+            $counts[(int)$row['category_id']] = (int)$row['count'];
+        }
+        return $counts;
     }
 
     /**

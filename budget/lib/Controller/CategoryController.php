@@ -70,6 +70,18 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
+    public function transactionCounts(): DataResponse {
+        try {
+            $counts = $this->service->getCategoryTransactionCounts($this->userId);
+            return new DataResponse($counts);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to retrieve transaction counts');
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
     public function show(int $id): DataResponse {
         try {
             $category = $this->service->find($id, $this->userId);
@@ -258,6 +270,30 @@ class CategoryController extends Controller {
             return new DataResponse(['spending' => $spending]);
         } catch (\Exception $e) {
             return $this->handleError($e, 'Failed to retrieve category spending', Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function details(int $id): DataResponse {
+        try {
+            $details = $this->service->getCategoryDetails($id, $this->userId);
+            return new DataResponse($details);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Category', ['categoryId' => $id]);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function transactions(int $id, int $limit = 5): DataResponse {
+        try {
+            $transactions = $this->service->getCategoryTransactions($id, $this->userId, $limit);
+            return new DataResponse($transactions);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, 'Category', ['categoryId' => $id]);
         }
     }
 }

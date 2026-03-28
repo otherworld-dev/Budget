@@ -114,7 +114,7 @@ class CategoryService extends AbstractCrudService {
         }
 
         // Check for transactions
-        $transactions = $this->transactionMapper->findByCategory($entity->getId(), 1);
+        $transactions = $this->transactionMapper->findByCategory($entity->getId(), $userId, 1);
         if (!empty($transactions)) {
             throw new \Exception('Cannot delete category with existing transactions');
         }
@@ -159,6 +159,80 @@ class CategoryService extends AbstractCrudService {
             $tree[] = $categoryArray;
         }
         return $tree;
+    }
+
+    /**
+     * Get full detail summary for a single category (analytics + monthly chart data)
+     */
+    public function getCategoryDetails(int $categoryId, string $userId): array {
+        $this->find($categoryId, $userId); // Verify ownership
+
+        $summary = $this->transactionMapper->getCategorySummary($userId, $categoryId);
+        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 6);
+
+        $count = $summary['count'];
+        $total = $summary['total'];
+        $average = $count > 0 ? $total / $count : 0.0;
+
+        // This month's total from monthly data
+        $currentMonth = date('Y-m');
+        $thisMonth = 0.0;
+        foreach ($monthlySpending as $entry) {
+            if ($entry['month'] === $currentMonth) {
+                $thisMonth = $entry['total'];
+                break;
+            }
+        }
+
+        // Trend: compare current month vs average of previous 3 months
+        $trend = 'stable';
+        $previousMonths = [];
+        foreach ($monthlySpending as $entry) {
+            if ($entry['month'] !== $currentMonth) {
+                $previousMonths[] = $entry['total'];
+            }
+        }
+        // Take last 3 previous months
+        $previousMonths = array_slice($previousMonths, -3);
+        if (!empty($previousMonths)) {
+            $prevAvg = array_sum($previousMonths) / count($previousMonths);
+            if ($prevAvg > 0) {
+                $change = ($thisMonth - $prevAvg) / $prevAvg;
+                if ($change > 0.10) {
+                    $trend = 'increasing';
+                } elseif ($change < -0.10) {
+                    $trend = 'decreasing';
+                }
+            } elseif ($thisMonth > 0) {
+                $trend = 'increasing';
+            }
+        }
+
+        return [
+            'count' => $count,
+            'total' => $total,
+            'average' => round($average, 2),
+            'thisMonth' => $thisMonth,
+            'trend' => $trend,
+            'monthlySpending' => $monthlySpending,
+        ];
+    }
+
+    /**
+     * Get recent transactions for a category (user-scoped)
+     * @return Transaction[]
+     */
+    public function getCategoryTransactions(int $categoryId, string $userId, int $limit = 5): array {
+        $this->find($categoryId, $userId); // Verify ownership
+        return $this->transactionMapper->findByCategory($categoryId, $userId, $limit);
+    }
+
+    /**
+     * Get transaction counts per category for tree display
+     * @return array<int, int> categoryId => count
+     */
+    public function getCategoryTransactionCounts(string $userId): array {
+        return $this->transactionMapper->getCategoryTransactionCounts($userId);
     }
 
     public function getCategorySpending(int $categoryId, string $userId, string $startDate, string $endDate): float {
@@ -429,7 +503,7 @@ class CategoryService extends AbstractCrudService {
 
             if (isset($seen[$key])) {
                 // This is a duplicate - check if it has transactions
-                $transactions = $this->transactionMapper->findByCategory($category->getId(), 1);
+                $transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
                 if (empty($transactions)) {
                     // Check for children
                     $children = $this->getCategoryMapper()->findChildren($userId, $category->getId());
@@ -468,7 +542,7 @@ class CategoryService extends AbstractCrudService {
 
         // Delete children first
         foreach ($children as $category) {
-            $transactions = $this->transactionMapper->findByCategory($category->getId(), 1);
+            $transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
             if (empty($transactions)) {
                 $this->mapper->delete($category);
                 $count++;
@@ -478,7 +552,7 @@ class CategoryService extends AbstractCrudService {
         // Then delete parents
         foreach ($parents as $category) {
             $remainingChildren = $this->getCategoryMapper()->findChildren($userId, $category->getId());
-            $transactions = $this->transactionMapper->findByCategory($category->getId(), 1);
+            $transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
             if (empty($remainingChildren) && empty($transactions)) {
                 $this->mapper->delete($category);
                 $count++;

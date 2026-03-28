@@ -24071,19 +24071,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var chart_js_auto__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! chart.js/auto */ "./node_modules/chart.js/auto/auto.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regeneratorValues(e) { if (null != e) { var t = e["function" == typeof Symbol && Symbol.iterator || "@@iterator"], r = 0; if (t) return t.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) return { next: function next() { return e && r >= e.length && (e = void 0), { value: e && e[r++], done: !e }; } }; } throw new TypeError(_typeof(e) + " is not iterable"); }
-function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
-function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
-function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
 function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
 function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
@@ -24175,25 +24175,32 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "loadCategories",
     value: function () {
       var _loadCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-        var response, _t;
+        var _yield$Promise$all, _yield$Promise$all2, treeResponse, countsResponse, _t;
         return _regenerator().w(function (_context) {
           while (1) switch (_context.p = _context.n) {
             case 0:
               _context.p = 0;
               _context.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
+              }), fetch(OC.generateUrl('/apps/budget/api/categories/transaction-counts'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
             case 1:
-              response = _context.v;
-              if (!response.ok) {
+              _yield$Promise$all = _context.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              treeResponse = _yield$Promise$all2[0];
+              countsResponse = _yield$Promise$all2[1];
+              if (!treeResponse.ok) {
                 _context.n = 3;
                 break;
               }
               _context.n = 2;
-              return response.json();
+              return treeResponse.json();
             case 2:
               this.categoryTree = _context.v;
               this.allCategories = this.flattenCategories(this.categoryTree);
@@ -24201,20 +24208,29 @@ var CategoriesModule = /*#__PURE__*/function () {
               this.app.categoryTree = this.categoryTree;
               this.app.allCategories = this.allCategories;
               this.app.categories = this.allCategories;
+            case 3:
+              if (!countsResponse.ok) {
+                _context.n = 5;
+                break;
+              }
+              _context.n = 4;
+              return countsResponse.json();
+            case 4:
+              this.serverTransactionCounts = _context.v;
+            case 5:
               this.renderCategoriesTree();
               this.setupCategoriesEventListeners();
-            case 3:
-              _context.n = 5;
+              _context.n = 7;
               break;
-            case 4:
-              _context.p = 4;
+            case 6:
+              _context.p = 6;
               _t = _context.v;
               console.error('Failed to load categories:', _t);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to load categories');
-            case 5:
+            case 7:
               return _context.a(2);
           }
-        }, _callee, this, [[0, 4]]);
+        }, _callee, this, [[0, 6]]);
       }));
       function loadCategories() {
         return _loadCategories.apply(this, arguments);
@@ -24385,22 +24401,8 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "buildCategoryTransactionCountMap",
     value: function buildCategoryTransactionCountMap() {
-      var countMap = {};
-      var _iterator = _createForOfIteratorHelper(this.transactions || []),
-        _step;
-      try {
-        for (_iterator.s(); !(_step = _iterator.n()).done;) {
-          var tx = _step.value;
-          if (tx.categoryId) {
-            countMap[tx.categoryId] = (countMap[tx.categoryId] || 0) + 1;
-          }
-        }
-      } catch (err) {
-        _iterator.e(err);
-      } finally {
-        _iterator.f();
-      }
-      return countMap;
+      // Use server-side counts (loaded in loadCategories), fall back to empty
+      return this.serverTransactionCounts || {};
     }
   }, {
     key: "setupCategoryItemListeners",
@@ -24618,7 +24620,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "showCategoryDetails",
     value: function () {
       var _showCategoryDetails = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(category) {
-        var emptyEl, contentEl;
+        var emptyEl, contentEl, _yield$Promise$all3, _yield$Promise$all4, detailsRes, transactionsRes, details, transactions;
         return _regenerator().w(function (_context3) {
           while (1) switch (_context3.n) {
             case 0:
@@ -24631,19 +24633,43 @@ var CategoriesModule = /*#__PURE__*/function () {
               // Update category overview
               this.updateCategoryOverview(category);
 
-              // Load and display tag sets
+              // Load data from server in parallel
               _context3.n = 1;
-              return this.app.renderCategoryTagSetsList(category.id);
+              return Promise.all([fetch(OC.generateUrl("/apps/budget/api/categories/".concat(category.id, "/details")), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }), fetch(OC.generateUrl("/apps/budget/api/categories/".concat(category.id, "/transactions?limit=5")), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }), this.app.renderCategoryTagSetsList(category.id)]);
             case 1:
+              _yield$Promise$all3 = _context3.v;
+              _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
+              detailsRes = _yield$Promise$all4[0];
+              transactionsRes = _yield$Promise$all4[1];
+              if (!detailsRes.ok) {
+                _context3.n = 3;
+                break;
+              }
               _context3.n = 2;
-              return this.loadCategoryAnalytics(category.id);
+              return detailsRes.json();
             case 2:
-              _context3.n = 3;
-              return this.loadCategoryTransactions(category.id);
+              details = _context3.v;
+              this.updateAnalyticsFromServer(details);
+              this.renderCategorySpendingChartFromServer(details.monthlySpending, category.color);
             case 3:
-              // Render spending chart
-              this.renderCategorySpendingChart(category.id);
+              if (!transactionsRes.ok) {
+                _context3.n = 5;
+                break;
+              }
+              _context3.n = 4;
+              return transactionsRes.json();
             case 4:
+              transactions = _context3.v;
+              this.renderRecentTransactions(transactions);
+            case 5:
               return _context3.a(2);
           }
         }, _callee3, this);
@@ -24675,143 +24701,77 @@ var CategoriesModule = /*#__PURE__*/function () {
       if (pathEl) pathEl.textContent = path;
     }
   }, {
-    key: "loadCategoryAnalytics",
-    value: function () {
-      var _loadCategoryAnalytics = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(categoryId) {
-        return _regenerator().w(function (_context4) {
-          while (1) switch (_context4.n) {
-            case 0:
-              try {
-                this.updateAnalyticsDisplay(categoryId);
-              } catch (error) {
-                console.error('Failed to load category analytics:', error);
-                this.updateAnalyticsDisplay(categoryId);
-              }
-            case 1:
-              return _context4.a(2);
-          }
-        }, _callee4, this);
-      }));
-      function loadCategoryAnalytics(_x5) {
-        return _loadCategoryAnalytics.apply(this, arguments);
-      }
-      return loadCategoryAnalytics;
-    }()
-  }, {
-    key: "updateAnalyticsDisplay",
-    value: function updateAnalyticsDisplay(categoryId) {
-      // Calculate analytics from transactions
-      var categoryTransactions = this.getCategoryTransactions(categoryId);
-      var totalCount = categoryTransactions.length;
-      var totalAmount = categoryTransactions.reduce(function (sum, t) {
-        return sum + Math.abs(parseFloat(t.amount) || 0);
-      }, 0);
-      var avgAmount = totalCount > 0 ? totalAmount / totalCount : 0;
-
-      // Calculate trend (simplified)
-      var trend = this.calculateCategoryTrend(categoryTransactions);
+    key: "updateAnalyticsFromServer",
+    value: function updateAnalyticsFromServer(details) {
       var countEl = document.getElementById('total-transactions-count');
-      if (countEl) countEl.textContent = totalCount.toLocaleString();
+      if (countEl) countEl.textContent = details.count.toLocaleString();
       var avgEl = document.getElementById('avg-transaction-amount');
-      if (avgEl) avgEl.textContent = this.formatCurrency(avgAmount);
+      if (avgEl) avgEl.textContent = this.formatCurrency(details.average);
       var trendEl = document.getElementById('category-trend');
-      if (trendEl) trendEl.textContent = trend;
-
-      // Total spent in overview
+      if (trendEl) {
+        var trendMap = {
+          increasing: "\u2197 Increasing",
+          decreasing: "\u2198 Decreasing",
+          stable: "\u2192 Stable"
+        };
+        trendEl.textContent = trendMap[details.trend] || "\u2014";
+      }
       var totalSpentEl = document.getElementById('category-total-spent-value');
-      if (totalSpentEl) totalSpentEl.textContent = this.formatCurrency(totalAmount);
-
-      // This month spending
-      var now = new Date();
-      var thisMonthKey = "".concat(now.getFullYear(), "-").concat(String(now.getMonth() + 1).padStart(2, '0'));
-      var thisMonthTotal = categoryTransactions.filter(function (t) {
-        return t.date && t.date.startsWith(thisMonthKey);
-      }).reduce(function (sum, t) {
-        return sum + Math.abs(parseFloat(t.amount) || 0);
-      }, 0);
+      if (totalSpentEl) totalSpentEl.textContent = this.formatCurrency(details.total);
       var thisMonthEl = document.getElementById('category-this-month');
-      if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(thisMonthTotal);
+      if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(details.thisMonth);
     }
   }, {
-    key: "loadCategoryTransactions",
-    value: function () {
-      var _loadCategoryTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(categoryId) {
-        var _this7 = this;
-        var transactions, container, _t3;
-        return _regenerator().w(function (_context5) {
-          while (1) switch (_context5.p = _context5.n) {
-            case 0:
-              _context5.p = 0;
-              // Get recent transactions for this category
-              transactions = this.getCategoryTransactions(categoryId, 5);
-              container = document.getElementById('category-recent-transactions');
-              if (container) {
-                _context5.n = 1;
-                break;
-              }
-              return _context5.a(2);
-            case 1:
-              if (!(transactions.length === 0)) {
-                _context5.n = 2;
-                break;
-              }
-              container.innerHTML = '<div class="empty-state"><p>No transactions in this category yet.</p></div>';
-              return _context5.a(2);
-            case 2:
-              container.innerHTML = transactions.map(function (transaction) {
-                return "\n                <div class=\"transaction-item\">\n                    <div class=\"transaction-description\">".concat(transaction.description, "</div>\n                    <div class=\"transaction-date\">").concat(_this7.formatDate(transaction.date), "</div>\n                    <div class=\"transaction-amount ").concat(transaction.type, "\">\n                        ").concat(transaction.type === 'credit' ? '+' : '-').concat(_this7.formatCurrency(Math.abs(transaction.amount)), "\n                    </div>\n                </div>\n            ");
-              }).join('');
-              _context5.n = 4;
-              break;
-            case 3:
-              _context5.p = 3;
-              _t3 = _context5.v;
-              console.error('Failed to load category transactions:', _t3);
-            case 4:
-              return _context5.a(2);
-          }
-        }, _callee5, this, [[0, 3]]);
-      }));
-      function loadCategoryTransactions(_x6) {
-        return _loadCategoryTransactions.apply(this, arguments);
+    key: "renderRecentTransactions",
+    value: function renderRecentTransactions(transactions) {
+      var _this7 = this;
+      var container = document.getElementById('category-recent-transactions');
+      if (!container) return;
+      if (!transactions || transactions.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No transactions in this category yet.</p></div>';
+        return;
       }
-      return loadCategoryTransactions;
-    }()
+      container.innerHTML = transactions.map(function (transaction) {
+        return "\n            <div class=\"transaction-item\">\n                <div class=\"transaction-description\">".concat(_this7.escapeHtml(transaction.description || ''), "</div>\n                <div class=\"transaction-date\">").concat(_this7.formatDate(transaction.date), "</div>\n                <div class=\"transaction-amount ").concat(transaction.type, "\">\n                    ").concat(transaction.type === 'credit' ? '+' : '-').concat(_this7.formatCurrency(Math.abs(transaction.amount)), "\n                </div>\n            </div>\n        ");
+      }).join('');
+    }
   }, {
-    key: "renderCategorySpendingChart",
-    value: function renderCategorySpendingChart(categoryId) {
-      var _this$selectedCategor,
-        _this8 = this;
+    key: "renderCategorySpendingChartFromServer",
+    value: function renderCategorySpendingChartFromServer(monthlySpending, categoryColor) {
+      var _this8 = this;
       var canvas = document.getElementById('category-spending-chart');
       if (!canvas) return;
       if (this.categoryChart) {
         this.categoryChart.destroy();
         this.categoryChart = null;
       }
-      var transactions = this.getCategoryTransactions(categoryId);
 
-      // Group by month (last 6 months)
+      // Build labels and amounts from server data, filling gaps for missing months
       var now = new Date();
       var months = [];
       var amounts = [];
-      var _loop = function _loop() {
+      var serverMap = {};
+      var _iterator = _createForOfIteratorHelper(monthlySpending || []),
+        _step;
+      try {
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var entry = _step.value;
+          serverMap[entry.month] = entry.total;
+        }
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
+      }
+      for (var i = 5; i >= 0; i--) {
         var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         var key = "".concat(d.getFullYear(), "-").concat(String(d.getMonth() + 1).padStart(2, '0'));
-        var label = d.toLocaleDateString(undefined, {
+        months.push(d.toLocaleDateString(undefined, {
           month: 'short'
-        });
-        var monthTotal = transactions.filter(function (t) {
-          return t.date && t.date.startsWith(key);
-        }).reduce(function (sum, t) {
-          return sum + Math.abs(parseFloat(t.amount) || 0);
-        }, 0);
-        months.push(label);
-        amounts.push(monthTotal);
-      };
-      for (var i = 5; i >= 0; i--) {
-        _loop();
+        }));
+        amounts.push(serverMap[key] || 0);
       }
-      var chartColor = ((_this$selectedCategor = this.selectedCategory) === null || _this$selectedCategor === void 0 ? void 0 : _this$selectedCategor.color) || 'rgba(54, 162, 235, 0.7)';
+      var chartColor = categoryColor || 'rgba(54, 162, 235, 0.7)';
       var ctx = canvas.getContext('2d');
       this.categoryChart = new chart_js_auto__WEBPACK_IMPORTED_MODULE_3__["default"](ctx, {
         type: 'bar',
@@ -24949,41 +24909,6 @@ var CategoriesModule = /*#__PURE__*/function () {
       return path.length > 0 ? path.join(' › ') : 'Root';
     }
   }, {
-    key: "getCategoryTransactionCount",
-    value: function getCategoryTransactionCount(categoryId) {
-      return this.getCategoryTransactions(categoryId).length;
-    }
-  }, {
-    key: "getCategoryTransactions",
-    value: function getCategoryTransactions(categoryId) {
-      var limit = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-      var transactions = (this.transactions || []).filter(function (t) {
-        return t.categoryId === categoryId;
-      });
-      return limit ? transactions.slice(0, limit) : transactions;
-    }
-  }, {
-    key: "calculateCategoryTrend",
-    value: function calculateCategoryTrend(transactions) {
-      if (transactions.length < 2) return '—';
-
-      // Simple trend calculation based on recent vs older transactions
-      var sorted = transactions.sort(function (a, b) {
-        return new Date(b.date) - new Date(a.date);
-      });
-      var recent = sorted.slice(0, Math.ceil(sorted.length / 2));
-      var older = sorted.slice(Math.ceil(sorted.length / 2));
-      var recentAvg = recent.reduce(function (sum, t) {
-        return sum + Math.abs(t.amount);
-      }, 0) / recent.length;
-      var olderAvg = older.reduce(function (sum, t) {
-        return sum + Math.abs(t.amount);
-      }, 0) / older.length;
-      var change = (recentAvg - olderAvg) / olderAvg * 100;
-      if (Math.abs(change) < 5) return '→ Stable';
-      return change > 0 ? '↗ Increasing' : '↘ Decreasing';
-    }
-  }, {
     key: "getAllCategoryIds",
     value: function getAllCategoryIds(categories) {
       var ids = [];
@@ -25049,26 +24974,26 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "deleteSelectedCategory",
     value: function () {
-      var _deleteSelectedCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-        var categoryName, response, error, _t4;
-        return _regenerator().w(function (_context6) {
-          while (1) switch (_context6.p = _context6.n) {
+      var _deleteSelectedCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
+        var categoryName, response, error, _t3;
+        return _regenerator().w(function (_context4) {
+          while (1) switch (_context4.p = _context4.n) {
             case 0:
               if (this.selectedCategory) {
-                _context6.n = 1;
+                _context4.n = 1;
                 break;
               }
-              return _context6.a(2);
+              return _context4.a(2);
             case 1:
               categoryName = this.selectedCategory.name;
               if (confirm("Are you sure you want to delete the category \"".concat(categoryName, "\"? This action cannot be undone."))) {
-                _context6.n = 2;
+                _context4.n = 2;
                 break;
               }
-              return _context6.a(2);
+              return _context4.a(2);
             case 2:
-              _context6.p = 2;
-              _context6.n = 3;
+              _context4.p = 2;
+              _context4.n = 3;
               return fetch(OC.generateUrl("/apps/budget/api/categories/".concat(this.selectedCategory.id)), {
                 method: 'DELETE',
                 headers: {
@@ -25076,40 +25001,40 @@ var CategoriesModule = /*#__PURE__*/function () {
                 }
               });
             case 3:
-              response = _context6.v;
+              response = _context4.v;
               if (!response.ok) {
-                _context6.n = 6;
+                _context4.n = 6;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Category deleted successfully');
               this.selectedCategory = null;
-              _context6.n = 4;
+              _context4.n = 4;
               return this.loadCategories();
             case 4:
-              _context6.n = 5;
+              _context4.n = 5;
               return this.app.loadInitialData();
             case 5:
               this.showCategoryDetailsEmpty();
-              _context6.n = 8;
+              _context4.n = 8;
               break;
             case 6:
-              _context6.n = 7;
+              _context4.n = 7;
               return response.json();
             case 7:
-              error = _context6.v;
+              error = _context4.v;
               throw new Error(error.error || 'Failed to delete category');
             case 8:
-              _context6.n = 10;
+              _context4.n = 10;
               break;
             case 9:
-              _context6.p = 9;
-              _t4 = _context6.v;
-              console.error('Failed to delete category:', _t4);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t4.message || 'Failed to delete category');
+              _context4.p = 9;
+              _t3 = _context4.v;
+              console.error('Failed to delete category:', _t3);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t3.message || 'Failed to delete category');
             case 10:
-              return _context6.a(2);
+              return _context4.a(2);
           }
-        }, _callee6, this, [[2, 9]]);
+        }, _callee4, this, [[2, 9]]);
       }));
       function deleteSelectedCategory() {
         return _deleteSelectedCategory.apply(this, arguments);
@@ -25119,21 +25044,21 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "deleteCategoryById",
     value: function () {
-      var _deleteCategoryById = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(categoryId) {
-        var category, categoryName, response, _this$selectedCategor2, error, _t5;
-        return _regenerator().w(function (_context7) {
-          while (1) switch (_context7.p = _context7.n) {
+      var _deleteCategoryById = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(categoryId) {
+        var category, categoryName, response, _this$selectedCategor, error, _t4;
+        return _regenerator().w(function (_context5) {
+          while (1) switch (_context5.p = _context5.n) {
             case 0:
               category = this.findCategoryById(categoryId);
               categoryName = category ? category.name : 'this category';
               if (confirm("Are you sure you want to delete \"".concat(categoryName, "\"? This action cannot be undone."))) {
-                _context7.n = 1;
+                _context5.n = 1;
                 break;
               }
-              return _context7.a(2);
+              return _context5.a(2);
             case 1:
-              _context7.p = 1;
-              _context7.n = 2;
+              _context5.p = 1;
+              _context5.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/categories/".concat(categoryId)), {
                 method: 'DELETE',
                 headers: {
@@ -25141,45 +25066,45 @@ var CategoriesModule = /*#__PURE__*/function () {
                 }
               });
             case 2:
-              response = _context7.v;
+              response = _context5.v;
               if (!response.ok) {
-                _context7.n = 5;
+                _context5.n = 5;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Category deleted successfully');
-              if (((_this$selectedCategor2 = this.selectedCategory) === null || _this$selectedCategor2 === void 0 ? void 0 : _this$selectedCategor2.id) === categoryId) {
+              if (((_this$selectedCategor = this.selectedCategory) === null || _this$selectedCategor === void 0 ? void 0 : _this$selectedCategor.id) === categoryId) {
                 this.selectedCategory = null;
                 this.showCategoryDetailsEmpty();
               }
               this.selectedCategoryIds["delete"](categoryId);
-              _context7.n = 3;
+              _context5.n = 3;
               return this.loadCategories();
             case 3:
-              _context7.n = 4;
+              _context5.n = 4;
               return this.app.loadInitialData();
             case 4:
-              _context7.n = 7;
+              _context5.n = 7;
               break;
             case 5:
-              _context7.n = 6;
+              _context5.n = 6;
               return response.json();
             case 6:
-              error = _context7.v;
+              error = _context5.v;
               throw new Error(error.error || 'Failed to delete category');
             case 7:
-              _context7.n = 9;
+              _context5.n = 9;
               break;
             case 8:
-              _context7.p = 8;
-              _t5 = _context7.v;
-              console.error('Failed to delete category:', _t5);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t5.message || 'Failed to delete category');
+              _context5.p = 8;
+              _t4 = _context5.v;
+              console.error('Failed to delete category:', _t4);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t4.message || 'Failed to delete category');
             case 9:
-              return _context7.a(2);
+              return _context5.a(2);
           }
-        }, _callee7, this, [[1, 8]]);
+        }, _callee5, this, [[1, 8]]);
       }));
-      function deleteCategoryById(_x7) {
+      function deleteCategoryById(_x5) {
         return _deleteCategoryById.apply(this, arguments);
       }
       return deleteCategoryById;
@@ -25200,38 +25125,38 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "bulkDeleteCategories",
     value: function () {
-      var _bulkDeleteCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
-        var count, categoryIds, deleted, errors, _iterator3, _step3, categoryId, response, error, category, _category, _t6, _t7;
-        return _regenerator().w(function (_context8) {
-          while (1) switch (_context8.p = _context8.n) {
+      var _bulkDeleteCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+        var count, categoryIds, deleted, errors, _iterator3, _step3, categoryId, response, error, category, _category, _t5, _t6;
+        return _regenerator().w(function (_context6) {
+          while (1) switch (_context6.p = _context6.n) {
             case 0:
               count = this.selectedCategoryIds.size;
               if (!(count === 0)) {
-                _context8.n = 1;
+                _context6.n = 1;
                 break;
               }
-              return _context8.a(2);
+              return _context6.a(2);
             case 1:
               if (confirm("Are you sure you want to delete ".concat(count, " categor").concat(count === 1 ? 'y' : 'ies', "? This action cannot be undone."))) {
-                _context8.n = 2;
+                _context6.n = 2;
                 break;
               }
-              return _context8.a(2);
+              return _context6.a(2);
             case 2:
               categoryIds = _toConsumableArray(this.selectedCategoryIds);
               deleted = 0;
               errors = [];
               _iterator3 = _createForOfIteratorHelper(categoryIds);
-              _context8.p = 3;
+              _context6.p = 3;
               _iterator3.s();
             case 4:
               if ((_step3 = _iterator3.n()).done) {
-                _context8.n = 12;
+                _context6.n = 12;
                 break;
               }
               categoryId = _step3.value;
-              _context8.p = 5;
-              _context8.n = 6;
+              _context6.p = 5;
+              _context6.n = 6;
               return fetch(OC.generateUrl("/apps/budget/api/categories/".concat(categoryId)), {
                 method: 'DELETE',
                 headers: {
@@ -25239,56 +25164,56 @@ var CategoriesModule = /*#__PURE__*/function () {
                 }
               });
             case 6:
-              response = _context8.v;
+              response = _context6.v;
               if (!response.ok) {
-                _context8.n = 7;
+                _context6.n = 7;
                 break;
               }
               deleted++;
               this.selectedCategoryIds["delete"](categoryId);
-              _context8.n = 9;
+              _context6.n = 9;
               break;
             case 7:
-              _context8.n = 8;
+              _context6.n = 8;
               return response.json();
             case 8:
-              error = _context8.v;
+              error = _context6.v;
               category = this.findCategoryById(categoryId);
               errors.push("".concat((category === null || category === void 0 ? void 0 : category.name) || categoryId, ": ").concat(error.error || 'Failed to delete'));
             case 9:
-              _context8.n = 11;
+              _context6.n = 11;
               break;
             case 10:
-              _context8.p = 10;
-              _t6 = _context8.v;
+              _context6.p = 10;
+              _t5 = _context6.v;
               _category = this.findCategoryById(categoryId);
-              errors.push("".concat((_category === null || _category === void 0 ? void 0 : _category.name) || categoryId, ": ").concat(_t6.message));
+              errors.push("".concat((_category === null || _category === void 0 ? void 0 : _category.name) || categoryId, ": ").concat(_t5.message));
             case 11:
-              _context8.n = 4;
+              _context6.n = 4;
               break;
             case 12:
-              _context8.n = 14;
+              _context6.n = 14;
               break;
             case 13:
-              _context8.p = 13;
-              _t7 = _context8.v;
-              _iterator3.e(_t7);
+              _context6.p = 13;
+              _t6 = _context6.v;
+              _iterator3.e(_t6);
             case 14:
-              _context8.p = 14;
+              _context6.p = 14;
               _iterator3.f();
-              return _context8.f(14);
+              return _context6.f(14);
             case 15:
               if (!(deleted > 0)) {
-                _context8.n = 17;
+                _context6.n = 17;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)("".concat(deleted, " categor").concat(deleted === 1 ? 'y' : 'ies', " deleted successfully"));
               this.selectedCategory = null;
               this.showCategoryDetailsEmpty();
-              _context8.n = 16;
+              _context6.n = 16;
               return this.loadCategories();
             case 16:
-              _context8.n = 17;
+              _context6.n = 17;
               return this.app.loadInitialData();
             case 17:
               if (errors.length > 0) {
@@ -25296,9 +25221,9 @@ var CategoriesModule = /*#__PURE__*/function () {
               }
               this.updateBulkCategoryActions();
             case 18:
-              return _context8.a(2);
+              return _context6.a(2);
           }
-        }, _callee8, this, [[5, 10], [3, 13, 14, 15]]);
+        }, _callee6, this, [[5, 10], [3, 13, 14, 15]]);
       }));
       function bulkDeleteCategories() {
         return _bulkDeleteCategories.apply(this, arguments);
@@ -25373,10 +25298,10 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "saveCategory",
     value: function () {
-      var _saveCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-        var categoryId, name, type, parentId, color, categoryData, isEdit, url, method, response, savedCategory, categoryIdToSelect, error, _t8;
-        return _regenerator().w(function (_context9) {
-          while (1) switch (_context9.p = _context9.n) {
+      var _saveCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
+        var categoryId, name, type, parentId, color, categoryData, isEdit, url, method, response, savedCategory, categoryIdToSelect, error, _t7;
+        return _regenerator().w(function (_context7) {
+          while (1) switch (_context7.p = _context7.n) {
             case 0:
               categoryId = document.getElementById('category-id').value;
               name = document.getElementById('category-name').value.trim();
@@ -25384,11 +25309,11 @@ var CategoriesModule = /*#__PURE__*/function () {
               parentId = document.getElementById('category-parent').value || null;
               color = document.getElementById('category-color').value;
               if (name) {
-                _context9.n = 1;
+                _context7.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)('Category name is required');
-              return _context9.a(2);
+              return _context7.a(2);
             case 1:
               categoryData = {
                 name: name,
@@ -25396,11 +25321,11 @@ var CategoriesModule = /*#__PURE__*/function () {
                 parentId: parentId ? parseInt(parentId) : null,
                 color: color
               };
-              _context9.p = 2;
+              _context7.p = 2;
               isEdit = !!categoryId;
               url = isEdit ? "/apps/budget/api/categories/".concat(categoryId) : '/apps/budget/api/categories';
               method = isEdit ? 'PUT' : 'POST';
-              _context9.n = 3;
+              _context7.n = 3;
               return fetch(OC.generateUrl(url), {
                 method: method,
                 headers: {
@@ -25410,21 +25335,21 @@ var CategoriesModule = /*#__PURE__*/function () {
                 body: JSON.stringify(categoryData)
               });
             case 3:
-              response = _context9.v;
+              response = _context7.v;
               if (!response.ok) {
-                _context9.n = 7;
+                _context7.n = 7;
                 break;
               }
-              _context9.n = 4;
+              _context7.n = 4;
               return response.json();
             case 4:
-              savedCategory = _context9.v;
+              savedCategory = _context7.v;
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(isEdit ? 'Category updated successfully' : 'Category created successfully');
               this.app.hideModals();
-              _context9.n = 5;
+              _context7.n = 5;
               return this.loadCategories();
             case 5:
-              _context9.n = 6;
+              _context7.n = 6;
               return this.app.loadInitialData();
             case 6:
               // Re-select the category to update the details panel
@@ -25432,26 +25357,26 @@ var CategoriesModule = /*#__PURE__*/function () {
               if (categoryIdToSelect) {
                 this.selectCategory(categoryIdToSelect);
               }
-              _context9.n = 9;
+              _context7.n = 9;
               break;
             case 7:
-              _context9.n = 8;
+              _context7.n = 8;
               return response.json();
             case 8:
-              error = _context9.v;
+              error = _context7.v;
               throw new Error(error.error || 'Failed to save category');
             case 9:
-              _context9.n = 11;
+              _context7.n = 11;
               break;
             case 10:
-              _context9.p = 10;
-              _t8 = _context9.v;
-              console.error('Failed to save category:', _t8);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t8.message || 'Failed to save category');
+              _context7.p = 10;
+              _t7 = _context7.v;
+              console.error('Failed to save category:', _t7);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t7.message || 'Failed to save category');
             case 11:
-              return _context9.a(2);
+              return _context7.a(2);
           }
-        }, _callee9, this, [[2, 10]]);
+        }, _callee7, this, [[2, 10]]);
       }));
       function saveCategory() {
         return _saveCategory.apply(this, arguments);
@@ -25461,13 +25386,13 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "createDefaultCategories",
     value: function () {
-      var _createDefaultCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
-        var response, message, error, _t9, _t0;
-        return _regenerator().w(function (_context0) {
-          while (1) switch (_context0.p = _context0.n) {
+      var _createDefaultCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
+        var response, message, error, _t8, _t9;
+        return _regenerator().w(function (_context8) {
+          while (1) switch (_context8.p = _context8.n) {
             case 0:
-              _context0.p = 0;
-              _context0.n = 1;
+              _context8.p = 0;
+              _context8.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/setup/initialize'), {
                 method: 'POST',
                 headers: {
@@ -25477,47 +25402,47 @@ var CategoriesModule = /*#__PURE__*/function () {
                 body: JSON.stringify({})
               });
             case 1:
-              response = _context0.v;
+              response = _context8.v;
               if (!response.ok) {
-                _context0.n = 4;
+                _context8.n = 4;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Default categories created successfully');
-              _context0.n = 2;
+              _context8.n = 2;
               return this.loadCategories();
             case 2:
-              _context0.n = 3;
+              _context8.n = 3;
               return this.app.loadInitialData();
             case 3:
-              _context0.n = 9;
+              _context8.n = 9;
               break;
             case 4:
               message = 'Failed to create default categories';
-              _context0.p = 5;
-              _context0.n = 6;
+              _context8.p = 5;
+              _context8.n = 6;
               return response.json();
             case 6:
-              error = _context0.v;
+              error = _context8.v;
               message = error.error || message;
-              _context0.n = 8;
+              _context8.n = 8;
               break;
             case 7:
-              _context0.p = 7;
-              _t9 = _context0.v;
+              _context8.p = 7;
+              _t8 = _context8.v;
             case 8:
               throw new Error(message);
             case 9:
-              _context0.n = 11;
+              _context8.n = 11;
               break;
             case 10:
-              _context0.p = 10;
-              _t0 = _context0.v;
-              console.error('Failed to create default categories:', _t0);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t0.message || 'Failed to create default categories');
+              _context8.p = 10;
+              _t9 = _context8.v;
+              console.error('Failed to create default categories:', _t9);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t9.message || 'Failed to create default categories');
             case 11:
-              return _context0.a(2);
+              return _context8.a(2);
           }
-        }, _callee0, this, [[5, 7], [0, 10]]);
+        }, _callee8, this, [[5, 7], [0, 10]]);
       }));
       function createDefaultCategories() {
         return _createDefaultCategories.apply(this, arguments);
@@ -25529,10 +25454,10 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "loadBudgetView",
     value: function () {
-      var _loadBudgetView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
-        var response, _t1;
-        return _regenerator().w(function (_context1) {
-          while (1) switch (_context1.p = _context1.n) {
+      var _loadBudgetView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
+        var response, _t0;
+        return _regenerator().w(function (_context9) {
+          while (1) switch (_context9.p = _context9.n) {
             case 0:
               // Initialize budget state
               this.budgetType = this.budgetType || 'expense';
@@ -25549,39 +25474,39 @@ var CategoriesModule = /*#__PURE__*/function () {
 
               // Fetch categories if not already loaded
               if (!(!this.allCategories || this.allCategories.length === 0)) {
-                _context1.n = 6;
+                _context9.n = 6;
                 break;
               }
-              _context1.p = 1;
-              _context1.n = 2;
+              _context9.p = 1;
+              _context9.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context1.v;
+              response = _context9.v;
               if (!response.ok) {
-                _context1.n = 4;
+                _context9.n = 4;
                 break;
               }
-              _context1.n = 3;
+              _context9.n = 3;
               return response.json();
             case 3:
-              this.categoryTree = _context1.v;
+              this.categoryTree = _context9.v;
               this.allCategories = this.flattenCategories(this.categoryTree);
               this.app.categoryTree = this.categoryTree;
               this.app.allCategories = this.allCategories;
               this.app.categories = this.allCategories;
             case 4:
-              _context1.n = 6;
+              _context9.n = 6;
               break;
             case 5:
-              _context1.p = 5;
-              _t1 = _context1.v;
-              console.error('Failed to load categories for budget:', _t1);
+              _context9.p = 5;
+              _t0 = _context9.v;
+              console.error('Failed to load categories for budget:', _t0);
             case 6:
-              _context1.n = 7;
+              _context9.n = 7;
               return this.calculateCategorySpending();
             case 7:
               // Render the budget tree
@@ -25590,9 +25515,9 @@ var CategoriesModule = /*#__PURE__*/function () {
               // Update summary
               this.updateBudgetSummary();
             case 8:
-              return _context1.a(2);
+              return _context9.a(2);
           }
-        }, _callee1, this, [[1, 5]]);
+        }, _callee9, this, [[1, 5]]);
       }));
       function loadBudgetView() {
         return _loadBudgetView.apply(this, arguments);
@@ -25620,22 +25545,22 @@ var CategoriesModule = /*#__PURE__*/function () {
       var monthSelect = document.getElementById('budget-month');
       if (monthSelect) {
         monthSelect.addEventListener('change', /*#__PURE__*/function () {
-          var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(e) {
-            return _regenerator().w(function (_context10) {
-              while (1) switch (_context10.n) {
+          var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(e) {
+            return _regenerator().w(function (_context0) {
+              while (1) switch (_context0.n) {
                 case 0:
                   _this1.budgetMonth = e.target.value;
-                  _context10.n = 1;
+                  _context0.n = 1;
                   return _this1.calculateCategorySpending();
                 case 1:
                   _this1.renderBudgetTree();
                   _this1.updateBudgetSummary();
                 case 2:
-                  return _context10.a(2);
+                  return _context0.a(2);
               }
-            }, _callee10);
+            }, _callee0);
           }));
-          return function (_x8) {
+          return function (_x6) {
             return _ref.apply(this, arguments);
           };
         }());
@@ -25678,11 +25603,11 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "calculateCategorySpending",
     value: function () {
-      var _calculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
+      var _calculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
         var _this11 = this;
-        var allCategories, categoriesWithBudgets, categoriesByPeriod, _loop2, _i, _Object$entries, _t10;
-        return _regenerator().w(function (_context12) {
-          while (1) switch (_context12.p = _context12.n) {
+        var allCategories, categoriesWithBudgets, categoriesByPeriod, _loop, _i, _Object$entries, _t1;
+        return _regenerator().w(function (_context10) {
+          while (1) switch (_context10.p = _context10.n) {
             case 0:
               // Initialize spending object
               this.categorySpending = {};
@@ -25693,10 +25618,10 @@ var CategoriesModule = /*#__PURE__*/function () {
                 return parseFloat(cat.budgetAmount) > 0;
               });
               if (!(categoriesWithBudgets.length === 0)) {
-                _context12.n = 1;
+                _context10.n = 1;
                 break;
               }
-              return _context12.a(2);
+              return _context10.a(2);
             case 1:
               // Group categories by their period to minimize API calls
               categoriesByPeriod = {
@@ -25713,39 +25638,39 @@ var CategoriesModule = /*#__PURE__*/function () {
               });
 
               // Fetch spending for each period
-              _context12.p = 2;
-              _loop2 = /*#__PURE__*/_regenerator().m(function _loop2() {
+              _context10.p = 2;
+              _loop = /*#__PURE__*/_regenerator().m(function _loop() {
                 var _this11$app$settings;
                 var _Object$entries$_i, period, categoryIds, startDay, dateRange, response, spendingData;
-                return _regenerator().w(function (_context11) {
-                  while (1) switch (_context11.n) {
+                return _regenerator().w(function (_context1) {
+                  while (1) switch (_context1.n) {
                     case 0:
                       _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2), period = _Object$entries$_i[0], categoryIds = _Object$entries$_i[1];
                       if (!(categoryIds.length === 0)) {
-                        _context11.n = 1;
+                        _context1.n = 1;
                         break;
                       }
-                      return _context11.a(2, 1);
+                      return _context1.a(2, 1);
                     case 1:
                       // Get date range for this period
                       startDay = period === 'monthly' ? parseInt(((_this11$app$settings = _this11.app.settings) === null || _this11$app$settings === void 0 ? void 0 : _this11$app$settings.budget_start_day) || '1', 10) : 1;
                       dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay); // Fetch spending for this period
-                      _context11.n = 2;
+                      _context1.n = 2;
                       return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
                         headers: {
                           'requesttoken': OC.requestToken
                         }
                       });
                     case 2:
-                      response = _context11.v;
+                      response = _context1.v;
                       if (!response.ok) {
-                        _context11.n = 4;
+                        _context1.n = 4;
                         break;
                       }
-                      _context11.n = 3;
+                      _context1.n = 3;
                       return response.json();
                     case 3:
-                      spendingData = _context11.v;
+                      spendingData = _context1.v;
                       // Map spending to categories
                       spendingData.forEach(function (item) {
                         if (categoryIds.includes(item.categoryId)) {
@@ -25753,39 +25678,39 @@ var CategoriesModule = /*#__PURE__*/function () {
                         }
                       });
                     case 4:
-                      return _context11.a(2);
+                      return _context1.a(2);
                   }
-                }, _loop2);
+                }, _loop);
               });
               _i = 0, _Object$entries = Object.entries(categoriesByPeriod);
             case 3:
               if (!(_i < _Object$entries.length)) {
-                _context12.n = 6;
+                _context10.n = 6;
                 break;
               }
-              return _context12.d(_regeneratorValues(_loop2()), 4);
+              return _context10.d(_regeneratorValues(_loop()), 4);
             case 4:
-              if (!_context12.v) {
-                _context12.n = 5;
+              if (!_context10.v) {
+                _context10.n = 5;
                 break;
               }
-              return _context12.a(3, 5);
+              return _context10.a(3, 5);
             case 5:
               _i++;
-              _context12.n = 3;
+              _context10.n = 3;
               break;
             case 6:
-              _context12.n = 8;
+              _context10.n = 8;
               break;
             case 7:
-              _context12.p = 7;
-              _t10 = _context12.v;
-              console.error('Failed to fetch category spending:', _t10);
+              _context10.p = 7;
+              _t1 = _context10.v;
+              console.error('Failed to fetch category spending:', _t1);
               this.categorySpending = {};
             case 8:
-              return _context12.a(2);
+              return _context10.a(2);
           }
-        }, _callee11, this, [[2, 7]]);
+        }, _callee1, this, [[2, 7]]);
       }));
       function calculateCategorySpending() {
         return _calculateCategorySpending.apply(this, arguments);
@@ -25866,42 +25791,42 @@ var CategoriesModule = /*#__PURE__*/function () {
       // Period selects
       document.querySelectorAll('.budget-period-select').forEach(function (select) {
         select.addEventListener('change', /*#__PURE__*/function () {
-          var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(e) {
+          var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(e) {
             var _e$target$querySelect;
             var categoryId, newPeriod, oldPeriod, category, currentBudget, currentPeriod, proratedBudget;
-            return _regenerator().w(function (_context13) {
-              while (1) switch (_context13.n) {
+            return _regenerator().w(function (_context11) {
+              while (1) switch (_context11.n) {
                 case 0:
                   categoryId = parseInt(e.target.dataset.categoryId);
                   newPeriod = e.target.value;
                   oldPeriod = e.target.dataset.oldPeriod || ((_e$target$querySelect = e.target.querySelector('option[selected]')) === null || _e$target$querySelect === void 0 ? void 0 : _e$target$querySelect.value) || 'monthly'; // Find the category to get current budget amount
                   category = _this14.findCategoryById(categoryId);
                   if (category) {
-                    _context13.n = 1;
+                    _context11.n = 1;
                     break;
                   }
-                  return _context13.a(2);
+                  return _context11.a(2);
                 case 1:
                   currentBudget = parseFloat(category.budgetAmount) || 0;
                   currentPeriod = category.budgetPeriod || 'monthly'; // Pro-rate budget from current period to new period
                   proratedBudget = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.prorateBudget(currentBudget, currentPeriod, newPeriod); // Save both the new period and pro-rated amount
-                  _context13.n = 2;
+                  _context11.n = 2;
                   return _this14.saveCategoryBudget(categoryId, {
                     budgetPeriod: newPeriod,
                     budgetAmount: proratedBudget
                   });
                 case 2:
-                  _context13.n = 3;
+                  _context11.n = 3;
                   return _this14.recalculateCategorySpending(categoryId, newPeriod);
                 case 3:
                   // Update old period data attribute for next change
                   e.target.dataset.oldPeriod = newPeriod;
                 case 4:
-                  return _context13.a(2);
+                  return _context11.a(2);
               }
-            }, _callee12);
+            }, _callee10);
           }));
-          return function (_x9) {
+          return function (_x7) {
             return _ref2.apply(this, arguments);
           };
         }());
@@ -25910,31 +25835,31 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "recalculateCategorySpending",
     value: function () {
-      var _recalculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(categoryId, period) {
-        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t11;
-        return _regenerator().w(function (_context14) {
-          while (1) switch (_context14.p = _context14.n) {
+      var _recalculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(categoryId, period) {
+        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t10;
+        return _regenerator().w(function (_context12) {
+          while (1) switch (_context12.p = _context12.n) {
             case 0:
-              _context14.p = 0;
+              _context12.p = 0;
               // Get date range for the period
               startDay = period === 'monthly' ? parseInt(((_this$app$settings = this.app.settings) === null || _this$app$settings === void 0 ? void 0 : _this$app$settings.budget_start_day) || '1', 10) : 1;
               dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay); // Fetch spending for this category in the period
-              _context14.n = 1;
+              _context12.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context14.v;
+              response = _context12.v;
               if (!response.ok) {
-                _context14.n = 3;
+                _context12.n = 3;
                 break;
               }
-              _context14.n = 2;
+              _context12.n = 2;
               return response.json();
             case 2:
-              spendingData = _context14.v;
+              spendingData = _context12.v;
               // Find this category's spending in the response
               categorySpending = spendingData.find(function (item) {
                 return item.categoryId === categoryId;
@@ -25946,18 +25871,18 @@ var CategoriesModule = /*#__PURE__*/function () {
               this.renderBudgetTree();
               this.updateBudgetSummary();
             case 3:
-              _context14.n = 5;
+              _context12.n = 5;
               break;
             case 4:
-              _context14.p = 4;
-              _t11 = _context14.v;
-              console.error('Failed to recalculate spending:', _t11);
+              _context12.p = 4;
+              _t10 = _context12.v;
+              console.error('Failed to recalculate spending:', _t10);
             case 5:
-              return _context14.a(2);
+              return _context12.a(2);
           }
-        }, _callee13, this, [[0, 4]]);
+        }, _callee11, this, [[0, 4]]);
       }));
-      function recalculateCategorySpending(_x0, _x1) {
+      function recalculateCategorySpending(_x8, _x9) {
         return _recalculateCategorySpending.apply(this, arguments);
       }
       return recalculateCategorySpending;
@@ -25965,19 +25890,19 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "saveCategoryBudget",
     value: function () {
-      var _saveCategoryBudget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(categoryId, updates) {
-        var response, category, errorMessage, errorData, _t12, _t13;
-        return _regenerator().w(function (_context15) {
-          while (1) switch (_context15.p = _context15.n) {
+      var _saveCategoryBudget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(categoryId, updates) {
+        var response, category, errorMessage, errorData, _t11, _t12;
+        return _regenerator().w(function (_context13) {
+          while (1) switch (_context13.p = _context13.n) {
             case 0:
-              _context15.p = 0;
+              _context13.p = 0;
               // Convert empty string or null to 0 for budgetAmount
               if ('budgetAmount' in updates && (updates.budgetAmount === null || updates.budgetAmount === '')) {
                 updates.budgetAmount = 0;
               } else if ('budgetAmount' in updates) {
                 updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
               }
-              _context15.n = 1;
+              _context13.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/categories/".concat(categoryId)), {
                 method: 'PUT',
                 headers: {
@@ -25987,9 +25912,9 @@ var CategoriesModule = /*#__PURE__*/function () {
                 body: JSON.stringify(updates)
               });
             case 1:
-              response = _context15.v;
+              response = _context13.v;
               if (!response.ok) {
-                _context15.n = 3;
+                _context13.n = 3;
                 break;
               }
               // Update local data
@@ -26004,48 +25929,48 @@ var CategoriesModule = /*#__PURE__*/function () {
 
               // Refresh dashboard if currently viewing it
               if (!(window.location.hash === '' || window.location.hash === '#/dashboard')) {
-                _context15.n = 2;
+                _context13.n = 2;
                 break;
               }
-              _context15.n = 2;
+              _context13.n = 2;
               return this.app.loadDashboard();
             case 2:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Budget updated');
-              _context15.n = 8;
+              _context13.n = 8;
               break;
             case 3:
               // Try to get detailed error message
               errorMessage = 'Failed to update budget';
-              _context15.p = 4;
-              _context15.n = 5;
+              _context13.p = 4;
+              _context13.n = 5;
               return response.json();
             case 5:
-              errorData = _context15.v;
+              errorData = _context13.v;
               if (errorData.error) {
                 errorMessage = errorData.error;
               }
-              _context15.n = 7;
+              _context13.n = 7;
               break;
             case 6:
-              _context15.p = 6;
-              _t12 = _context15.v;
+              _context13.p = 6;
+              _t11 = _context13.v;
               errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
             case 7:
               throw new Error(errorMessage);
             case 8:
-              _context15.n = 10;
+              _context13.n = 10;
               break;
             case 9:
-              _context15.p = 9;
-              _t13 = _context15.v;
-              console.error('Failed to save budget:', _t13);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to update budget: ".concat(_t13.message));
+              _context13.p = 9;
+              _t12 = _context13.v;
+              console.error('Failed to save budget:', _t12);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("Failed to update budget: ".concat(_t12.message));
             case 10:
-              return _context15.a(2);
+              return _context13.a(2);
           }
-        }, _callee14, this, [[4, 6], [0, 9]]);
+        }, _callee12, this, [[4, 6], [0, 9]]);
       }));
-      function saveCategoryBudget(_x10, _x11) {
+      function saveCategoryBudget(_x0, _x1) {
         return _saveCategoryBudget.apply(this, arguments);
       }
       return saveCategoryBudget;

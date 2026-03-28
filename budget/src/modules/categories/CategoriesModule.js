@@ -71,21 +71,27 @@ export default class CategoriesModule {
 
     async loadCategories() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-            if (response.ok) {
-                this.categoryTree = await response.json();
+            const [treeResponse, countsResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+                fetch(OC.generateUrl('/apps/budget/api/categories/transaction-counts'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                }),
+            ]);
+            if (treeResponse.ok) {
+                this.categoryTree = await treeResponse.json();
                 this.allCategories = this.flattenCategories(this.categoryTree);
                 // Sync to app-level state so other modules (e.g. TransactionsModule) can access it
                 this.app.categoryTree = this.categoryTree;
                 this.app.allCategories = this.allCategories;
                 this.app.categories = this.allCategories;
-                this.renderCategoriesTree();
-                this.setupCategoriesEventListeners();
             }
+            if (countsResponse.ok) {
+                this.serverTransactionCounts = await countsResponse.json();
+            }
+            this.renderCategoriesTree();
+            this.setupCategoriesEventListeners();
         } catch (error) {
             console.error('Failed to load categories:', error);
             showError('Failed to load categories');
@@ -279,13 +285,8 @@ export default class CategoriesModule {
     }
 
     buildCategoryTransactionCountMap() {
-        const countMap = {};
-        for (const tx of (this.transactions || [])) {
-            if (tx.categoryId) {
-                countMap[tx.categoryId] = (countMap[tx.categoryId] || 0) + 1;
-            }
-        }
-        return countMap;
+        // Use server-side counts (loaded in loadCategories), fall back to empty
+        return this.serverTransactionCounts || {};
     }
 
     setupCategoryItemListeners() {
@@ -480,15 +481,27 @@ export default class CategoriesModule {
         // Update category overview
         this.updateCategoryOverview(category);
 
-        // Load and display tag sets
-        await this.app.renderCategoryTagSetsList(category.id);
+        // Load data from server in parallel
+        const [detailsRes, transactionsRes] = await Promise.all([
+            fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/details`), {
+                headers: { 'requesttoken': OC.requestToken }
+            }),
+            fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/transactions?limit=5`), {
+                headers: { 'requesttoken': OC.requestToken }
+            }),
+            this.app.renderCategoryTagSetsList(category.id),
+        ]);
 
-        // Load and display analytics
-        await this.loadCategoryAnalytics(category.id);
-        await this.loadCategoryTransactions(category.id);
+        if (detailsRes.ok) {
+            const details = await detailsRes.json();
+            this.updateAnalyticsFromServer(details);
+            this.renderCategorySpendingChartFromServer(details.monthlySpending, category.color);
+        }
 
-        // Render spending chart
-        this.renderCategorySpendingChart(category.id);
+        if (transactionsRes.ok) {
+            const transactions = await transactionsRes.json();
+            this.renderRecentTransactions(transactions);
+        }
     }
 
     updateCategoryOverview(category) {
@@ -513,77 +526,51 @@ export default class CategoriesModule {
         if (pathEl) pathEl.textContent = path;
     }
 
-    async loadCategoryAnalytics(categoryId) {
-        try {
-            this.updateAnalyticsDisplay(categoryId);
-        } catch (error) {
-            console.error('Failed to load category analytics:', error);
-            this.updateAnalyticsDisplay(categoryId);
-        }
-    }
-
-    updateAnalyticsDisplay(categoryId) {
-        // Calculate analytics from transactions
-        const categoryTransactions = this.getCategoryTransactions(categoryId);
-        const totalCount = categoryTransactions.length;
-        const totalAmount = categoryTransactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
-        const avgAmount = totalCount > 0 ? totalAmount / totalCount : 0;
-
-        // Calculate trend (simplified)
-        const trend = this.calculateCategoryTrend(categoryTransactions);
-
+    updateAnalyticsFromServer(details) {
         const countEl = document.getElementById('total-transactions-count');
-        if (countEl) countEl.textContent = totalCount.toLocaleString();
+        if (countEl) countEl.textContent = details.count.toLocaleString();
 
         const avgEl = document.getElementById('avg-transaction-amount');
-        if (avgEl) avgEl.textContent = this.formatCurrency(avgAmount);
+        if (avgEl) avgEl.textContent = this.formatCurrency(details.average);
 
         const trendEl = document.getElementById('category-trend');
-        if (trendEl) trendEl.textContent = trend;
-
-        // Total spent in overview
-        const totalSpentEl = document.getElementById('category-total-spent-value');
-        if (totalSpentEl) totalSpentEl.textContent = this.formatCurrency(totalAmount);
-
-        // This month spending
-        const now = new Date();
-        const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const thisMonthTotal = categoryTransactions
-            .filter(t => t.date && t.date.startsWith(thisMonthKey))
-            .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
-        const thisMonthEl = document.getElementById('category-this-month');
-        if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(thisMonthTotal);
-    }
-
-    async loadCategoryTransactions(categoryId) {
-        try {
-            // Get recent transactions for this category
-            const transactions = this.getCategoryTransactions(categoryId, 5);
-
-            const container = document.getElementById('category-recent-transactions');
-            if (!container) return;
-
-            if (transactions.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No transactions in this category yet.</p></div>';
-                return;
-            }
-
-            container.innerHTML = transactions.map(transaction => `
-                <div class="transaction-item">
-                    <div class="transaction-description">${transaction.description}</div>
-                    <div class="transaction-date">${this.formatDate(transaction.date)}</div>
-                    <div class="transaction-amount ${transaction.type}">
-                        ${transaction.type === 'credit' ? '+' : '-'}${this.formatCurrency(Math.abs(transaction.amount))}
-                    </div>
-                </div>
-            `).join('');
-
-        } catch (error) {
-            console.error('Failed to load category transactions:', error);
+        if (trendEl) {
+            const trendMap = {
+                increasing: '\u2197 Increasing',
+                decreasing: '\u2198 Decreasing',
+                stable: '\u2192 Stable',
+            };
+            trendEl.textContent = trendMap[details.trend] || '\u2014';
         }
+
+        const totalSpentEl = document.getElementById('category-total-spent-value');
+        if (totalSpentEl) totalSpentEl.textContent = this.formatCurrency(details.total);
+
+        const thisMonthEl = document.getElementById('category-this-month');
+        if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(details.thisMonth);
     }
 
-    renderCategorySpendingChart(categoryId) {
+    renderRecentTransactions(transactions) {
+        const container = document.getElementById('category-recent-transactions');
+        if (!container) return;
+
+        if (!transactions || transactions.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No transactions in this category yet.</p></div>';
+            return;
+        }
+
+        container.innerHTML = transactions.map(transaction => `
+            <div class="transaction-item">
+                <div class="transaction-description">${this.escapeHtml(transaction.description || '')}</div>
+                <div class="transaction-date">${this.formatDate(transaction.date)}</div>
+                <div class="transaction-amount ${transaction.type}">
+                    ${transaction.type === 'credit' ? '+' : '-'}${this.formatCurrency(Math.abs(transaction.amount))}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    renderCategorySpendingChartFromServer(monthlySpending, categoryColor) {
         const canvas = document.getElementById('category-spending-chart');
         if (!canvas) return;
 
@@ -592,24 +579,22 @@ export default class CategoriesModule {
             this.categoryChart = null;
         }
 
-        const transactions = this.getCategoryTransactions(categoryId);
-
-        // Group by month (last 6 months)
+        // Build labels and amounts from server data, filling gaps for missing months
         const now = new Date();
         const months = [];
         const amounts = [];
+        const serverMap = {};
+        for (const entry of (monthlySpending || [])) {
+            serverMap[entry.month] = entry.total;
+        }
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            const label = d.toLocaleDateString(undefined, { month: 'short' });
-            const monthTotal = transactions
-                .filter(t => t.date && t.date.startsWith(key))
-                .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
-            months.push(label);
-            amounts.push(monthTotal);
+            months.push(d.toLocaleDateString(undefined, { month: 'short' }));
+            amounts.push(serverMap[key] || 0);
         }
 
-        const chartColor = this.selectedCategory?.color || 'rgba(54, 162, 235, 0.7)';
+        const chartColor = categoryColor || 'rgba(54, 162, 235, 0.7)';
         const ctx = canvas.getContext('2d');
         this.categoryChart = new Chart(ctx, {
             type: 'bar',
@@ -721,32 +706,6 @@ export default class CategoriesModule {
         }
 
         return path.length > 0 ? path.join(' › ') : 'Root';
-    }
-
-    getCategoryTransactionCount(categoryId) {
-        return this.getCategoryTransactions(categoryId).length;
-    }
-
-    getCategoryTransactions(categoryId, limit = null) {
-        const transactions = (this.transactions || []).filter(t => t.categoryId === categoryId);
-        return limit ? transactions.slice(0, limit) : transactions;
-    }
-
-    calculateCategoryTrend(transactions) {
-        if (transactions.length < 2) return '—';
-
-        // Simple trend calculation based on recent vs older transactions
-        const sorted = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-        const recent = sorted.slice(0, Math.ceil(sorted.length / 2));
-        const older = sorted.slice(Math.ceil(sorted.length / 2));
-
-        const recentAvg = recent.reduce((sum, t) => sum + Math.abs(t.amount), 0) / recent.length;
-        const olderAvg = older.reduce((sum, t) => sum + Math.abs(t.amount), 0) / older.length;
-
-        const change = ((recentAvg - olderAvg) / olderAvg) * 100;
-
-        if (Math.abs(change) < 5) return '→ Stable';
-        return change > 0 ? '↗ Increasing' : '↘ Decreasing';
     }
 
     getAllCategoryIds(categories) {
