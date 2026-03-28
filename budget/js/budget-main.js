@@ -43173,6 +43173,17 @@ var TransactionsModule = /*#__PURE__*/function () {
       if (modal) {
         // Populate account and category dropdowns first
         this.populateTransactionModalDropdowns();
+
+        // Hide Transfer option when editing (transfers are created, not converted to/from)
+        var typeEl = document.getElementById('transaction-type');
+        if (typeEl) {
+          var existingTransferOpt = typeEl.querySelector('option[value="transfer"]');
+          if (transaction && existingTransferOpt) {
+            existingTransferOpt.remove();
+          } else if (!transaction && !existingTransferOpt) {
+            typeEl.appendChild(new Option('Transfer', 'transfer'));
+          }
+        }
         if (transaction) {
           // Populate form with transaction data (editing mode)
           document.getElementById('transaction-id').value = transaction.id;

@@ -1207,6 +1207,17 @@ export default class TransactionsModule {
             // Populate account and category dropdowns first
             this.populateTransactionModalDropdowns();
 
+            // Hide Transfer option when editing (transfers are created, not converted to/from)
+            const typeEl = document.getElementById('transaction-type');
+            if (typeEl) {
+                const existingTransferOpt = typeEl.querySelector('option[value="transfer"]');
+                if (transaction && existingTransferOpt) {
+                    existingTransferOpt.remove();
+                } else if (!transaction && !existingTransferOpt) {
+                    typeEl.appendChild(new Option('Transfer', 'transfer'));
+                }
+            }
+
             if (transaction) {
                 // Populate form with transaction data (editing mode)
                 document.getElementById('transaction-id').value = transaction.id;
