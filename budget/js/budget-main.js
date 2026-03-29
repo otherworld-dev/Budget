@@ -24962,8 +24962,8 @@ var CategoriesModule = /*#__PURE__*/function () {
         return;
       }
       title.textContent = 'Edit Category';
+      this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId);
       this.loadCategoryData(this.selectedCategory);
-      this.populateCategoryParentDropdown(this.selectedCategory.id);
       modal.style.display = 'flex';
       modal.setAttribute('aria-hidden', 'false');
       var nameField = document.getElementById('category-name');
@@ -25283,15 +25283,17 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "populateCategoryParentDropdown",
     value: function populateCategoryParentDropdown() {
       var excludeId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+      var selectedId = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
       var parentSelect = document.getElementById('category-parent');
       if (!parentSelect) return;
       var typeSelect = document.getElementById('category-type');
       var currentType = typeSelect ? typeSelect.value : 'expense';
       parentSelect.innerHTML = '<option value="">None (Top Level)</option>';
-      if (this.allCategories) {
-        _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.populateCategorySelect(parentSelect, this.allCategories, {
+      if (this.categoryTree) {
+        _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.populateCategorySelect(parentSelect, this.categoryTree, {
           typeFilter: currentType,
-          excludeId: excludeId ? parseInt(excludeId) : null
+          excludeId: excludeId ? parseInt(excludeId) : null,
+          selectedId: selectedId ? parseInt(selectedId) : null
         });
       }
     }
@@ -48476,7 +48478,7 @@ var BudgetApp = /*#__PURE__*/function () {
       var categoryType = document.getElementById('category-type');
       if (categoryType) {
         categoryType.addEventListener('change', function () {
-          _this.populateCategoryParentDropdown();
+          _this.categoriesModule.populateCategoryParentDropdown();
         });
       }
 

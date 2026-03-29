@@ -766,8 +766,8 @@ export default class CategoriesModule {
         }
 
         title.textContent = 'Edit Category';
+        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId);
         this.loadCategoryData(this.selectedCategory);
-        this.populateCategoryParentDropdown(this.selectedCategory.id);
 
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
@@ -956,7 +956,7 @@ export default class CategoriesModule {
         this.app.renderCategoryTagSetsUI(category.id);
     }
 
-    populateCategoryParentDropdown(excludeId = null) {
+    populateCategoryParentDropdown(excludeId = null, selectedId = null) {
         const parentSelect = document.getElementById('category-parent');
         if (!parentSelect) return;
 
@@ -965,10 +965,11 @@ export default class CategoriesModule {
 
         parentSelect.innerHTML = '<option value="">None (Top Level)</option>';
 
-        if (this.allCategories) {
-            dom.populateCategorySelect(parentSelect, this.allCategories, {
+        if (this.categoryTree) {
+            dom.populateCategorySelect(parentSelect, this.categoryTree, {
                 typeFilter: currentType,
                 excludeId: excludeId ? parseInt(excludeId) : null,
+                selectedId: selectedId ? parseInt(selectedId) : null,
             });
         }
     }

@@ -230,7 +230,7 @@ class BudgetApp {
         const categoryType = document.getElementById('category-type');
         if (categoryType) {
             categoryType.addEventListener('change', () => {
-                this.populateCategoryParentDropdown();
+                this.categoriesModule.populateCategoryParentDropdown();
             });
         }
 
