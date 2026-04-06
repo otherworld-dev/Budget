@@ -248,14 +248,33 @@ class TransactionService {
      * @return Transaction|null The cleared transaction, or null if none found
      */
     public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate): ?Transaction {
-        $scheduled = $this->mapper->findScheduledByBillId($billId);
-        if ($scheduled) {
-            return $this->update($scheduled->getId(), $userId, [
-                'status' => 'cleared',
-                'date' => $clearedDate,
-            ]);
+        $allScheduled = $this->mapper->findAllScheduledByBillId($billId);
+        $cleared = null;
+
+        foreach ($allScheduled as $i => $scheduled) {
+            if ($i === 0) {
+                // Clear the earliest scheduled transaction
+                $cleared = $this->update($scheduled->getId(), $userId, [
+                    'status' => 'cleared',
+                    'date' => $clearedDate,
+                ]);
+            } else {
+                // Delete any duplicate scheduled transactions
+                $this->mapper->delete($scheduled);
+            }
         }
-        return null;
+
+        return $cleared;
+    }
+
+    /**
+     * Delete all scheduled transactions for a bill (used when deleting a bill).
+     */
+    public function deleteScheduledBillTransactions(int $billId): void {
+        $scheduled = $this->mapper->findAllScheduledByBillId($billId);
+        foreach ($scheduled as $transaction) {
+            $this->mapper->delete($transaction);
+        }
     }
 
     /**

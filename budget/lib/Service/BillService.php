@@ -224,7 +224,7 @@ class BillService {
                 $bill->getFrequency(),
                 $bill->getDueDay(),
                 $bill->getDueMonth(),
-                null,
+                $bill->getNextDueDate(),
                 $bill->getCustomRecurrencePattern()
             );
             $dbUpdates['next_due_date'] = $nextDue;
@@ -241,6 +241,8 @@ class BillService {
 
     public function delete(int $id, string $userId): void {
         $bill = $this->find($id, $userId);
+        // Remove scheduled transactions before deleting the bill
+        $this->transactionService->deleteScheduledBillTransactions($id);
         $this->mapper->delete($bill);
     }
 
@@ -261,24 +263,18 @@ class BillService {
             $bill->setAutoPayFailed(false);
         }
 
-        // Use the bill's current due date as the paid date — this is the billing
-        // period being satisfied. Avoids marking the wrong period as paid when
-        // the user clicks "Mark Paid" after the due date has passed (e.g. paying
-        // a February bill on March 1st should set last_paid_date to Feb 28, not Mar 1).
-        $paidDate = $paidDate ?? $bill->getNextDueDate() ?? date('Y-m-d');
+        // Use today's date as the paid/transaction date so the payment appears
+        // immediately in the account balance, regardless of when the bill was due.
+        $paidDate = $paidDate ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
 
         // Create a cleared transaction for the current payment
         if ($createNextTransaction && $bill->getAccountId() !== null) {
             try {
-                if ($bill->getFrequency() === 'one-time') {
-                    $this->transactionService->createFromBill($userId, $bill, date('Y-m-d'), 'cleared');
-                } else {
-                    // Recurring: clear pre-existing scheduled transaction, or create new cleared one
-                    $cleared = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate);
-                    if (!$cleared) {
-                        $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
-                    }
+                // Clear pre-existing scheduled transaction(s), or create new cleared one
+                $cleared = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate);
+                if (!$cleared) {
+                    $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
                 }
             } catch (\Exception $e) {
                 error_log("Failed to create transaction for bill {$id}: {$e->getMessage()}");

@@ -138,7 +138,7 @@ class BillServiceTest extends TestCase {
 
 		$result = $this->service->markPaid(1, 'user1');
 
-		$this->assertSame('2099-06-15', $result->getLastPaidDate());
+		$this->assertSame(date('Y-m-d'), $result->getLastPaidDate());
 		$this->assertSame('2099-07-15', $result->getNextDueDate());
 		$this->assertTrue($result->getIsActive());
 	}

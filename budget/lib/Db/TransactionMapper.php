@@ -845,6 +845,22 @@ class TransactionMapper extends QBMapper {
         }
     }
 
+    /**
+     * Find ALL scheduled transactions for a bill.
+     *
+     * @return Transaction[]
+     */
+    public function findAllScheduledByBillId(int $billId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($billId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('scheduled')))
+            ->orderBy('date', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
     public function getNetChangeAfterDate(int $accountId, string $afterDate): float {
         $qb = $this->db->getQueryBuilder();
 
