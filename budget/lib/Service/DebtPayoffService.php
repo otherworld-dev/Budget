@@ -380,17 +380,11 @@ class DebtPayoffService {
      */
     private function getRecommendationExplanation(float $interestSaved, int $timeDifference): string {
         if ($interestSaved > 500) {
-            return sprintf(
-                'Avalanche saves £%.0f in interest. Strongly recommended unless you need quick wins.',
-                $interestSaved
-            );
+            return 'Strongly recommended unless you need quick wins.';
         } elseif ($interestSaved > 50) {
-            return sprintf(
-                'Avalanche saves £%.0f. Both methods work, but avalanche is more cost-effective.',
-                $interestSaved
-            );
+            return 'Both methods work, but avalanche is more cost-effective.';
         } elseif ($interestSaved < -50) {
-            return 'Snowball actually saves more due to your debt structure. Go with snowball!';
+            return 'Snowball saves more due to your debt structure. Go with snowball!';
         } else {
             return 'Both methods are nearly identical for your debts. Choose based on preference.';
         }

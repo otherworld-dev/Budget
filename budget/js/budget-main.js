@@ -47112,7 +47112,8 @@ var CURRENCY_CONFIG = {
   },
   'CLP': {
     symbol: 'CL$',
-    position: 'prefix'
+    position: 'prefix',
+    decimals: 0
   },
   'COP': {
     symbol: 'CO$',
@@ -47120,6 +47121,51 @@ var CURRENCY_CONFIG = {
   },
   'PEN': {
     symbol: 'S/',
+    position: 'prefix'
+  },
+  'GTQ': {
+    symbol: 'Q',
+    position: 'prefix'
+  },
+  'CRC': {
+    symbol: '₡',
+    position: 'prefix'
+  },
+  'UYU': {
+    symbol: '$U',
+    position: 'prefix'
+  },
+  'PYG': {
+    symbol: '₲',
+    position: 'prefix',
+    decimals: 0
+  },
+  'BOB': {
+    symbol: 'Bs.',
+    position: 'prefix'
+  },
+  'DOP': {
+    symbol: 'RD$',
+    position: 'prefix'
+  },
+  'HNL': {
+    symbol: 'L',
+    position: 'prefix'
+  },
+  'NIO': {
+    symbol: 'C$',
+    position: 'prefix'
+  },
+  'PAB': {
+    symbol: 'B/.',
+    position: 'prefix'
+  },
+  'JMD': {
+    symbol: 'J$',
+    position: 'prefix'
+  },
+  'TTD': {
+    symbol: 'TT$',
     position: 'prefix'
   },
   // Europe
@@ -47157,7 +47203,8 @@ var CURRENCY_CONFIG = {
   },
   'HUF': {
     symbol: 'Ft',
-    position: 'suffix'
+    position: 'suffix',
+    decimals: 0
   },
   'RON': {
     symbol: 'lei',
@@ -47169,7 +47216,8 @@ var CURRENCY_CONFIG = {
   },
   'ISK': {
     symbol: 'kr',
-    position: 'suffix'
+    position: 'suffix',
+    decimals: 0
   },
   'RUB': {
     symbol: '₽',
@@ -47182,7 +47230,8 @@ var CURRENCY_CONFIG = {
   // Asia-Pacific
   'JPY': {
     symbol: '¥',
-    position: 'prefix'
+    position: 'prefix',
+    decimals: 0
   },
   'CNY': {
     symbol: '¥',
@@ -47190,7 +47239,8 @@ var CURRENCY_CONFIG = {
   },
   'KRW': {
     symbol: '₩',
-    position: 'prefix'
+    position: 'prefix',
+    decimals: 0
   },
   'INR': {
     symbol: '₹',
@@ -47198,7 +47248,8 @@ var CURRENCY_CONFIG = {
   },
   'IDR': {
     symbol: 'Rp',
-    position: 'prefix'
+    position: 'prefix',
+    decimals: 0
   },
   'THB': {
     symbol: '฿',
@@ -47214,7 +47265,8 @@ var CURRENCY_CONFIG = {
   },
   'VND': {
     symbol: '₫',
-    position: 'suffix'
+    position: 'suffix',
+    decimals: 0
   },
   'TWD': {
     symbol: 'NT$',
@@ -51673,7 +51725,7 @@ var BudgetApp = /*#__PURE__*/function () {
       if (recommendationEl && comparison.comparison) {
         var c = comparison.comparison;
         var recClass = c.recommendation === 'avalanche' ? 'recommend-avalanche' : c.recommendation === 'snowball' ? 'recommend-snowball' : 'recommend-either';
-        recommendationEl.innerHTML = "\n                <div class=\"recommendation-box ".concat(recClass, "\">\n                    <div class=\"recommendation-title\">\n                        ").concat(c.recommendation === 'avalanche' ? 'Avalanche Recommended' : c.recommendation === 'snowball' ? 'Snowball Recommended' : 'Either Works', "\n                    </div>\n                    <div class=\"recommendation-text\">").concat(this.escapeHtml(c.explanation), "</div>\n                    ").concat(c.interestSavedByAvalanche > 0 ? "<div class=\"recommendation-savings\">Avalanche saves ".concat(this.formatCurrency(c.interestSavedByAvalanche, currency), " in interest</div>") : '', "\n                </div>\n            ");
+        recommendationEl.innerHTML = "\n                <div class=\"recommendation-box ".concat(recClass, "\">\n                    <div class=\"recommendation-title\">\n                        ").concat(c.recommendation === 'avalanche' ? 'Avalanche Recommended' : c.recommendation === 'snowball' ? 'Snowball Recommended' : 'Either Works', "\n                    </div>\n                    <div class=\"recommendation-text\">").concat(this.escapeHtml(c.explanation), "</div>\n                    ").concat(c.interestSavedByAvalanche > 0 ? "<div class=\"recommendation-savings\">Avalanche saves ".concat(this.formatCurrency(c.interestSavedByAvalanche, currency), " in interest</div>") : '', "\n                    ").concat(c.interestSavedByAvalanche < 0 ? "<div class=\"recommendation-savings\">Snowball saves ".concat(this.formatCurrency(Math.abs(c.interestSavedByAvalanche), currency), " in interest</div>") : '', "\n                </div>\n            ");
       }
 
       // Highlight recommended card

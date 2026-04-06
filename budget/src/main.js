@@ -2594,6 +2594,7 @@ class BudgetApp {
                     </div>
                     <div class="recommendation-text">${this.escapeHtml(c.explanation)}</div>
                     ${c.interestSavedByAvalanche > 0 ? `<div class="recommendation-savings">Avalanche saves ${this.formatCurrency(c.interestSavedByAvalanche, currency)} in interest</div>` : ''}
+                    ${c.interestSavedByAvalanche < 0 ? `<div class="recommendation-savings">Snowball saves ${this.formatCurrency(Math.abs(c.interestSavedByAvalanche), currency)} in interest</div>` : ''}
                 </div>
             `;
         }
