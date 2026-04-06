@@ -214,8 +214,8 @@ class BillService {
         if ($needsRecalculation && (array_key_exists('frequency', $updates) || array_key_exists('dueDay', $updates) || array_key_exists('dueMonth', $updates) || array_key_exists('customRecurrencePattern', $updates))) {
             // Apply updates to get current state for calculation
             foreach ($updates as $key => $value) {
-                $setter = 'set' . ucfirst($key);
-                if (method_exists($bill, $setter)) {
+                if (property_exists($bill, $key)) {
+                    $setter = 'set' . ucfirst($key);
                     $bill->$setter($value);
                 }
             }

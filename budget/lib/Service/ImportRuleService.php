@@ -208,8 +208,8 @@ class ImportRuleService {
         $rule->setUpdatedAt(date('Y-m-d H:i:s'));
 
         foreach ($updates as $key => $value) {
-            $setter = 'set' . ucfirst($key);
-            if (method_exists($rule, $setter)) {
+            if (property_exists($rule, $key)) {
+                $setter = 'set' . ucfirst($key);
                 $rule->$setter($value);
             }
         }

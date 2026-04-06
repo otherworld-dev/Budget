@@ -93,9 +93,7 @@ trait EncryptedFieldsTrait {
             if ($value !== null && is_string($value)) {
                 $encrypted = $this->encryptionService->encrypt($value);
                 $setter = 'set' . ucfirst($propertyName);
-                if (method_exists($entity, $setter)) {
-                    $entity->$setter($encrypted);
-                }
+                $entity->$setter($encrypted);
             }
         }
 
@@ -120,9 +118,7 @@ trait EncryptedFieldsTrait {
 
                 // Update via setter
                 $setter = 'set' . ucfirst($propertyName);
-                if (method_exists($entity, $setter)) {
-                    $entity->$setter($decrypted);
-                }
+                $entity->$setter($decrypted);
 
                 // Also update the raw property directly to ensure consistency
                 // This is critical when decryption fails and returns null

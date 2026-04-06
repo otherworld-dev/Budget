@@ -112,8 +112,8 @@ class RecurringIncomeService {
                 continue;
             }
 
-            $setter = 'set' . ucfirst($key);
-            if (method_exists($income, $setter)) {
+            if (property_exists($income, $key)) {
+                $setter = 'set' . ucfirst($key);
                 $income->$setter($value);
             }
         }
