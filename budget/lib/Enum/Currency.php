@@ -17,6 +17,17 @@ enum Currency: string {
     case CLP = 'CLP';  // Chilean Peso
     case COP = 'COP';  // Colombian Peso
     case PEN = 'PEN';  // Peruvian Sol
+    case GTQ = 'GTQ';  // Guatemalan Quetzal
+    case CRC = 'CRC';  // Costa Rican Colón
+    case UYU = 'UYU';  // Uruguayan Peso
+    case PYG = 'PYG';  // Paraguayan Guaraní
+    case BOB = 'BOB';  // Bolivian Boliviano
+    case DOP = 'DOP';  // Dominican Peso
+    case HNL = 'HNL';  // Honduran Lempira
+    case NIO = 'NIO';  // Nicaraguan Córdoba
+    case PAB = 'PAB';  // Panamanian Balboa
+    case JMD = 'JMD';  // Jamaican Dollar
+    case TTD = 'TTD';  // Trinidad & Tobago Dollar
 
     // Europe
     case EUR = 'EUR';  // Euro
@@ -102,6 +113,17 @@ enum Currency: string {
             self::CLP => 'CL$',
             self::COP => 'CO$',
             self::PEN => 'S/',
+            self::GTQ => 'Q',
+            self::CRC => '₡',
+            self::UYU => '$U',
+            self::PYG => '₲',
+            self::BOB => 'Bs.',
+            self::DOP => 'RD$',
+            self::HNL => 'L',
+            self::NIO => 'C$',
+            self::PAB => 'B/.',
+            self::JMD => 'J$',
+            self::TTD => 'TT$',
             // Europe
             self::EUR => '€',
             self::GBP => '£',
@@ -176,7 +198,7 @@ enum Currency: string {
      */
     public function decimals(): int {
         return match ($this) {
-            self::JPY, self::KRW, self::VND, self::CLP, self::ISK, self::HUF, self::IDR => 0,
+            self::JPY, self::KRW, self::VND, self::CLP, self::ISK, self::HUF, self::IDR, self::PYG => 0,
             self::XRP, self::ADA, self::ATOM, self::ALGO, self::USDT, self::USDC => 6,
             self::XLM => 7,
             self::BTC, self::ETH, self::SOL, self::DOGE, self::DOT, self::LTC,
@@ -200,6 +222,17 @@ enum Currency: string {
             self::CLP => 'Chilean Peso',
             self::COP => 'Colombian Peso',
             self::PEN => 'Peruvian Sol',
+            self::GTQ => 'Guatemalan Quetzal',
+            self::CRC => 'Costa Rican Colón',
+            self::UYU => 'Uruguayan Peso',
+            self::PYG => 'Paraguayan Guaraní',
+            self::BOB => 'Bolivian Boliviano',
+            self::DOP => 'Dominican Peso',
+            self::HNL => 'Honduran Lempira',
+            self::NIO => 'Nicaraguan Córdoba',
+            self::PAB => 'Panamanian Balboa',
+            self::JMD => 'Jamaican Dollar',
+            self::TTD => 'Trinidad & Tobago Dollar',
             // Europe
             self::EUR => 'Euro',
             self::GBP => 'British Pound',
