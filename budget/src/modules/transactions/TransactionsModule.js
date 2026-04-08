@@ -322,6 +322,9 @@ export default class TransactionsModule {
             this.accounts.forEach(account => {
                 accountFilter.innerHTML += `<option value="${account.id}">${account.name}</option>`;
             });
+            if (this.app.transactionFilters?.account) {
+                accountFilter.value = this.app.transactionFilters.account;
+            }
         }
 
         // Populate category filter
@@ -329,6 +332,9 @@ export default class TransactionsModule {
         if (categoryFilter && this.categories) {
             categoryFilter.innerHTML = '<option value="">All Categories</option><option value="uncategorized">Uncategorized</option>';
             dom.populateCategorySelect(categoryFilter, this.categoryTree || this.categories);
+            if (this.app.transactionFilters?.category) {
+                categoryFilter.value = this.app.transactionFilters.category;
+            }
         }
 
         // Populate reconcile account select
