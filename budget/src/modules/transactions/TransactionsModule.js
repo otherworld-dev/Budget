@@ -1443,6 +1443,11 @@ export default class TransactionsModule {
             notes: notes || null
         };
 
+        // Collect selected tags before the modal is closed
+        const selectedTagIds = Array.from(
+            document.querySelectorAll('#transaction-tags-container input[type="checkbox"]:checked')
+        ).map(cb => parseInt(cb.value));
+
         try {
             let response;
             if (id) {
@@ -1468,6 +1473,14 @@ export default class TransactionsModule {
             }
 
             if (response.ok) {
+                // Save tags for newly created transactions
+                if (!id && selectedTagIds.length > 0) {
+                    const created = await response.json();
+                    if (created.id) {
+                        await this.app.tagSetsModule.saveTransactionTags(created.id, selectedTagIds);
+                    }
+                }
+
                 showSuccess(id ? 'Transaction updated' : 'Transaction created');
                 this.app.hideModals();
                 await this.app.loadTransactions();
