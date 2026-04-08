@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.8] - 2026-04-08
+
+### Added
+- **LATAM currencies and zero-decimal fiat display**: Added support for Latin American currencies (ARS, BRL, CLP, COP, PEN, UYU) and fixed display for zero-decimal fiat currencies ([#123](https://github.com/otherworld-dev/budget/issues/123))
+- **Transfer target account name in transaction table**: Transaction table now shows the target account name for transfer transactions ([#116](https://github.com/otherworld-dev/budget/issues/116))
+
+### Fixed
+- **Scheduled transactions incorrectly affect account balance**: Scheduled (future) transactions were included in the stored account balance; a migration recalculates all balances to exclude them ([#115](https://github.com/otherworld-dev/budget/issues/115))
+- **Tags not saved when creating a new transaction**: Tags were silently dropped when creating transactions ([#125](https://github.com/otherworld-dev/budget/issues/125))
+- **Account and category filters reset when toggling filter panel**: Opening or closing the filter panel cleared the selected account and category filters ([#117](https://github.com/otherworld-dev/budget/issues/117))
+- **Bill/income name populates vendor field instead of description**: Creating a transaction from a bill or income item put the name in the vendor field rather than the description ([#120](https://github.com/otherworld-dev/budget/issues/120))
+- **Entity updates silently fail due to method_exists on magic methods**: Updates to entities using magic setter methods were silently ignored ([#118](https://github.com/otherworld-dev/budget/issues/118))
+- **Debt payoff recommendation uses hardcoded GBP symbol**: Debt payoff planner now uses the user's configured currency symbol instead of £ ([#122](https://github.com/otherworld-dev/budget/issues/122))
+- **Balance recalculation fails on PostgreSQL with invalid date**: Fixed a PostgreSQL-specific error when recalculating balances with null or invalid dates ([#124](https://github.com/otherworld-dev/budget/issues/124))
+- **Bill payment and scheduling bugs causing balance discrepancies**: Fixed multiple issues with bill payments and scheduling that led to incorrect account balances ([#115](https://github.com/otherworld-dev/budget/issues/115))
+- **Import rules losing criteria and actions during data re-import**: Re-importing rules from backup data could overwrite existing criteria and actions ([#119](https://github.com/otherworld-dev/budget/issues/119))
+
 ## [2.8.7] - 2026-03-29
 
 ### Fixed
