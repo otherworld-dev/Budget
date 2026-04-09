@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-04-10
+
+### Added
+- **Global tags support**: Tags can now be created globally and shared across all categories ([#109](https://github.com/otherworld-dev/budget/issues/109))
+- **Creation date filter for transactions**: Filter transactions by when they were created in the app, separate from the transaction date ([#127](https://github.com/otherworld-dev/budget/issues/127))
+- **Account filter on bills calendar report**: Filter the bills calendar by specific accounts ([#105](https://github.com/otherworld-dev/budget/issues/105))
+- **Fiat equivalent display on non-base-currency accounts**: Accounts in foreign currencies now show their equivalent value in your base currency ([#58](https://github.com/otherworld-dev/budget/issues/58))
+- **Deletion warnings and duplicate transaction detection**: Warns before deleting transactions and detects potential duplicates during entry ([#115](https://github.com/otherworld-dev/budget/issues/115))
+- **Info notice on Tags page**: Explains the difference between global and category-specific tags
+
+### Fixed
+- **Pre-existing test failures**: Fixed test failures across 6 test files including AccountServiceTest dependency issues
+
 ## [2.8.8] - 2026-04-08
 
 ### Added
