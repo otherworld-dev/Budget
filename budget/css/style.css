@@ -3652,6 +3652,27 @@ button.danger:hover {
    Tags View Styles
    ========================================== */
 
+/* Tags Notice */
+.tags-notice {
+    background-color: rgba(100, 116, 139, 0.08);
+    border: 1px solid rgba(100, 116, 139, 0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0 0 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    line-height: 1.5;
+}
+
+.tags-notice svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.6;
+}
+
 /* Tags Summary */
 .tags-summary {
     display: grid;
