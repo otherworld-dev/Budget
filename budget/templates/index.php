@@ -63,6 +63,16 @@ style('budget', 'budget-main');
                 Categories
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="tags">
+            <a href="#tags" class="nav-icon-tag svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M5.5,7A1.5,1.5 0 0,1 4,5.5A1.5,1.5 0 0,1 5.5,4A1.5,1.5 0 0,1 7,5.5A1.5,1.5 0 0,1 5.5,7M21.41,11.58L12.41,2.58C12.05,2.22 11.55,2 11,2H4C2.89,2 2,2.89 2,4V11C2,11.55 2.22,12.05 2.59,12.42L11.59,21.42C11.95,21.78 12.45,22 13,22C13.55,22 14.05,21.78 14.41,21.41L21.41,14.41C21.78,14.05 22,13.55 22,13C22,12.45 21.77,11.94 21.41,11.58Z"/>
+                    </svg>
+                </span>
+                Tags
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="budget">
             <a href="#budget" class="nav-icon-budget svg">
                 <span class="app-navigation-entry-icon">
@@ -1705,6 +1715,79 @@ style('budget', 'budget-main');
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Tags View -->
+        <div id="tags-view" class="view">
+            <div class="view-header">
+                <h2>Tags</h2>
+                <button id="add-global-tag-btn" class="primary" aria-label="Add new tag">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    Add Tag
+                </button>
+            </div>
+
+            <!-- Tags Summary Cards -->
+            <div class="tags-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-tag" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="tags-total-count">0</div>
+                        <div class="summary-label">Total Tags</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-star" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="tags-most-used">--</div>
+                        <div class="summary-label">Most Used</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <span class="icon-history" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="tags-recent">--</div>
+                        <div class="summary-label">Recently Added</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="global-tags-container">
+                <!-- Global tags will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Global Tag Modal -->
+        <div id="global-tag-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="global-tag-modal-title" aria-hidden="true">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3 id="global-tag-modal-title">Add Tag</h3>
+                </div>
+                <form id="global-tag-form" class="modal-form">
+                    <input type="hidden" id="global-tag-id" value="">
+                    <div class="form-group">
+                        <label for="global-tag-name">Tag Name <span class="required">*</span></label>
+                        <input type="text" id="global-tag-name" name="name" required maxlength="255" placeholder="e.g., Business, Vacation, Groceries">
+                    </div>
+                    <div class="form-group">
+                        <label for="global-tag-color">Color</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="global-tag-color" name="color" value="#4CAF50">
+                            <input type="text" id="global-tag-color-hex" maxlength="7" placeholder="#4CAF50" value="#4CAF50">
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="primary" id="global-tag-save-btn">Save</button>
+                    </div>
+                </form>
             </div>
         </div>
 

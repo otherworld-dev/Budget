@@ -80,6 +80,12 @@ return [
         ['name' => 'tagSet#updateTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'PUT'],
         ['name' => 'tagSet#destroyTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'DELETE'],
 
+        // Global tag routes (flat tags, not bound to tag sets)
+        ['name' => 'tagSet#getGlobalTags', 'url' => '/api/tags/global', 'verb' => 'GET'],
+        ['name' => 'tagSet#createGlobalTag', 'url' => '/api/tags/global', 'verb' => 'POST'],
+        ['name' => 'tagSet#updateGlobalTag', 'url' => '/api/tags/global/{tagId}', 'verb' => 'PUT'],
+        ['name' => 'tagSet#destroyGlobalTag', 'url' => '/api/tags/global/{tagId}', 'verb' => 'DELETE'],
+
         // Import routes
         ['name' => 'import#upload', 'url' => '/api/import/upload', 'verb' => 'POST'],
         ['name' => 'import#preview', 'url' => '/api/import/preview', 'verb' => 'POST'],

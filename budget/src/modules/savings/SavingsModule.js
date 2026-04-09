@@ -252,14 +252,29 @@ export default class SavingsModule {
         if (!dropdown) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            ]);
 
-            this._allTagSets = await response.json();
+            if (!tagSetsResponse.ok) throw new Error(`HTTP ${tagSetsResponse.status}`);
+            this._allTagSets = await tagSetsResponse.json();
 
             let html = '<option value="">No linked tag</option>';
+
+            // Global tags first
+            if (globalTagsResponse.ok) {
+                const globalTags = await globalTagsResponse.json();
+                if (globalTags.length > 0) {
+                    html += `<optgroup label="Tags">`;
+                    for (const tag of globalTags) {
+                        html += `<option value="${tag.id}">${dom.escapeHtml(tag.name)}</option>`;
+                    }
+                    html += '</optgroup>';
+                }
+            }
+
+            // Category tag sets
             for (const tagSet of this._allTagSets) {
                 if (tagSet.tags && tagSet.tags.length > 0) {
                     html += `<optgroup label="${dom.escapeHtml(tagSet.name)}">`;

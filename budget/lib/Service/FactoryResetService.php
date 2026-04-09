@@ -20,6 +20,7 @@ use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\SettlementMapper;
+use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCP\IDBConnection;
@@ -47,6 +48,7 @@ class FactoryResetService {
         private NetWorthSnapshotMapper $netWorthSnapshotMapper,
         private AssetMapper $assetMapper,
         private AssetSnapshotMapper $assetSnapshotMapper,
+        private TagMapper $tagMapper,
         private IDBConnection $db
     ) {
     }
@@ -90,7 +92,10 @@ class FactoryResetService {
             $counts['contacts'] = $this->safeDelete($this->contactMapper, $userId);
             $counts['savingsGoals'] = $this->safeDelete($this->savingsGoalMapper, $userId);
 
-            // Level 5: Categories (self-referential, but deleteAll handles it)
+            // Level 5: Tags (global tags won't cascade from category deletion)
+            $counts['tags'] = $this->safeDelete($this->tagMapper, $userId);
+
+            // Level 6: Categories (self-referential, but deleteAll handles it)
             $counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);
 
             // Level 6: Configuration/metadata

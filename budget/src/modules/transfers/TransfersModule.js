@@ -791,20 +791,17 @@ export default class TransfersModule {
         const container = document.getElementById('transfer-tags-container');
         if (!container) return;
 
-        if (!categoryId) {
-            container.innerHTML = '';
-            return;
-        }
-
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            // Load global tags and category tag sets in parallel
+            const [globalTagsResponse, categoryTagSets] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
+                categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
+            ]);
 
-            const tagSets = await response.json();
+            const globalTags = globalTagsResponse || [];
+            const tagSets = categoryTagSets || [];
 
-            if (!tagSets || tagSets.length === 0) {
+            if (globalTags.length === 0 && tagSets.length === 0) {
                 container.innerHTML = '';
                 return;
             }
@@ -813,6 +810,31 @@ export default class TransfersModule {
             const existingTagIds = existingTransfer?.tagIds || [];
 
             let html = '';
+
+            // Global tags section
+            if (globalTags.length > 0) {
+                html += `
+                    <div class="form-group tag-set-selector">
+                        <label class="tag-set-label">Tags</label>
+                        <div class="tag-options" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                            ${globalTags.map(tag => `
+                                <label class="tag-option" style="cursor: pointer;">
+                                    <input type="checkbox" class="transfer-tag-checkbox"
+                                           value="${tag.id}"
+                                           data-tag-set-id="global"
+                                           ${existingTagIds.includes(tag.id) ? 'checked' : ''}
+                                           style="display: none;">
+                                    <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ${existingTagIds.includes(tag.id) ? '1' : '0.5'};">
+                                        ${dom.escapeHtml(tag.name)}
+                                    </span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Category tag sets
             tagSets.forEach(tagSet => {
                 html += `
                     <div class="form-group tag-set-selector">
@@ -837,12 +859,11 @@ export default class TransfersModule {
 
             container.innerHTML = html;
 
-            // Add click handlers for tag selection (one per tag set)
+            // Add click handlers for tag selection (multi-select for global, one per category tag set)
             container.querySelectorAll('.transfer-tag-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('change', (e) => {
                     const tagSetId = e.target.dataset.tagSetId;
-                    // Deselect other tags in same tag set (radio-like behavior)
-                    if (e.target.checked) {
+                    if (e.target.checked && tagSetId !== 'global') {
                         container.querySelectorAll(`.transfer-tag-checkbox[data-tag-set-id="${tagSetId}"]`).forEach(cb => {
                             if (cb !== e.target) {
                                 cb.checked = false;
@@ -850,7 +871,6 @@ export default class TransfersModule {
                             }
                         });
                     }
-                    // Update visual state
                     e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
                 });
             });

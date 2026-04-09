@@ -70,6 +70,12 @@ export default class RulesModule {
         this.setupRulesEventListeners();
 
         try {
+            // Load global tags for the action builder
+            const resp = await fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } });
+            if (resp.ok) this.app.globalTags = await resp.json();
+        } catch (e) { /* ignore */ }
+
+        try {
             await this.loadRules();
         } catch (error) {
             console.error('Failed to load rules view:', error);
@@ -495,12 +501,19 @@ export default class RulesModule {
         // Clear previous instance
         container.innerHTML = '';
 
+        // Include global tags as a virtual tag set alongside category tag sets
+        const tagSetsWithGlobal = [...this.tagSets];
+        const globalTags = this.app.globalTags || [];
+        if (globalTags.length > 0) {
+            tagSetsWithGlobal.unshift({ id: 'global', name: 'Tags', tags: globalTags });
+        }
+
         // Create new ActionBuilder instance with app data
         this.actionBuilder = new ActionBuilder(container, initialActions, {
             categories: this.categories,
             categoryTree: this.app.categoryTree,
             accounts: this.accounts,
-            tagSets: this.tagSets
+            tagSets: tagSetsWithGlobal
         });
     }
 

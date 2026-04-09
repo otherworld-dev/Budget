@@ -72,6 +72,7 @@ class BudgetApp {
         this.selectedCategoryTagSets = []; // Tag sets for currently selected/editing category
         this.transactionTags = {}; // Cache of transaction tags by transaction ID
         this.allTagSetsForReports = []; // All tag sets for reports filtering
+        this.globalTags = []; // Global tags (flat, not bound to categories)
 
         // Savings goals
         this.savingsGoals = [];
@@ -3184,7 +3185,8 @@ class BudgetApp {
             'pension-contribution-modal',
             'asset-modal',
             'asset-value-modal',
-            'manual-rate-modal'
+            'manual-rate-modal',
+            'global-tag-modal'
         ];
 
         modalIds.forEach(modalId => {
@@ -3508,6 +3510,10 @@ class BudgetApp {
     // ============================================
     // Tag Sets Module Delegations
     // ============================================
+
+    async loadTagsView() {
+        return this.tagSetsModule.loadTagsView();
+    }
 
     async loadTagSetsForCategory(categoryId) {
         return this.tagSetsModule.loadTagSetsForCategory(categoryId);

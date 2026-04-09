@@ -117,7 +117,7 @@ class TransactionTagService {
      * @param string $userId
      * @throws \Exception If any tag doesn't belong to the category's tag sets
      */
-    private function validateTagsForTransaction(int $categoryId, array $tagIds, string $userId): void {
+    private function validateTagsForTransaction(?int $categoryId, array $tagIds, string $userId): void {
         if (empty($tagIds)) {
             return;
         }
@@ -129,27 +129,33 @@ class TransactionTagService {
             throw new \Exception('One or more tags do not exist');
         }
 
-        // Get tag set IDs for these tags
-        $tagSetIds = array_unique(array_map(fn($tag) => $tag->getTagSetId(), $tags));
+        foreach ($tags as $tag) {
+            if ($tag->getTagSetId() === null) {
+                // Global tag: verify user ownership
+                if ($tag->getUserId() !== $userId) {
+                    throw new \Exception('One or more tags are not available for this transaction');
+                }
+            } else {
+                // Category tag: verify tag set belongs to the transaction's category
+                if ($categoryId === null) {
+                    throw new \Exception('Category tags cannot be applied to uncategorized transactions');
+                }
 
-        // Verify all tag sets belong to the category
-        // This query joins tag_sets -> categories to ensure user ownership
-        foreach ($tagSetIds as $tagSetId) {
-            // Use a query to verify tag set belongs to category
-            $qb = $this->db->getQueryBuilder();
-            $qb->select('ts.id')
-                ->from('budget_tag_sets', 'ts')
-                ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
-                ->where($qb->expr()->eq('ts.id', $qb->createNamedParameter($tagSetId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
-                ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
-                ->andWhere($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)));
+                $qb = $this->db->getQueryBuilder();
+                $qb->select('ts.id')
+                    ->from('budget_tag_sets', 'ts')
+                    ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
+                    ->where($qb->expr()->eq('ts.id', $qb->createNamedParameter($tag->getTagSetId(), \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+                    ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+                    ->andWhere($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)));
 
-            $result = $qb->executeQuery();
-            $found = $result->fetch();
-            $result->closeCursor();
+                $result = $qb->executeQuery();
+                $found = $result->fetch();
+                $result->closeCursor();
 
-            if (!$found) {
-                throw new \Exception('One or more tags do not belong to the transaction\'s category');
+                if (!$found) {
+                    throw new \Exception('One or more tags are not available for this transaction');
+                }
             }
         }
     }

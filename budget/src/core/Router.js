@@ -49,6 +49,9 @@ export default class Router {
                 case 'categories':
                     this.app.loadCategories();
                     break;
+                case 'tags':
+                    this.app.loadTagsView();
+                    break;
                 case 'budget':
                     this.app.loadBudgetView();
                     break;
@@ -109,6 +112,9 @@ export default class Router {
                 break;
             case 'categories':
                 this.app.loadCategories();
+                break;
+            case 'tags':
+                this.app.loadTagsView();
                 break;
             case 'budget':
                 this.app.loadBudgetView();

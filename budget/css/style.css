@@ -3648,6 +3648,223 @@ button.danger:hover {
     font-style: italic;
 }
 
+/* ==========================================
+   Tags View Styles
+   ========================================== */
+
+/* Tags Summary */
+.tags-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.tags-summary .summary-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.tags-summary .summary-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-background-hover);
+    border-radius: 50%;
+}
+
+.tags-summary .summary-icon span {
+    font-size: 20px;
+}
+
+.tags-summary .summary-content {
+    flex: 1;
+}
+
+.tags-summary .summary-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+
+.tags-summary .summary-label {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 2px;
+}
+
+/* Global Tags Grid */
+.global-tags-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.global-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-background-hover);
+    border: 1px solid var(--color-border);
+    color: var(--color-main-text);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: default;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.global-tag-chip:hover {
+    border-color: var(--color-primary-element);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.global-tag-chip-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.global-tag-chip-name {
+    white-space: nowrap;
+}
+
+.global-tag-chip-action {
+    background: none;
+    border: none;
+    color: var(--color-text-maxcontrast);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.global-tag-chip:hover .global-tag-chip-action {
+    opacity: 0.7;
+}
+
+.global-tag-chip-action:hover {
+    opacity: 1 !important;
+    color: var(--color-main-text);
+}
+
+/* Global Tag Modal */
+.modal-content.modal-small {
+    max-width: 400px;
+}
+
+.color-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.color-picker-row input[type="color"] {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 2px;
+    cursor: pointer;
+    background: none;
+}
+
+.color-picker-row input[type="text"] {
+    width: 90px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+/* Empty Tags State */
+.empty-tag-sets {
+    text-align: center;
+    padding: 60px 40px;
+    background: var(--color-main-background);
+    border: 1px dashed var(--color-border);
+    border-radius: 12px;
+}
+
+.empty-tag-sets .empty-content h3 {
+    margin: 20px 0 10px;
+    color: var(--color-main-text);
+}
+
+.empty-tag-sets .empty-content p {
+    margin: 0 0 20px;
+    color: var(--color-text-maxcontrast);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Transaction Tag Selectors (in transaction modal) */
+.tag-set-selector {
+    margin-bottom: 12px;
+}
+
+.tag-set-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.tag-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tag-option {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.tag-option input[type="checkbox"] {
+    display: none;
+}
+
+.tag-option .tag-badge {
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+}
+
+.tag-option input[type="checkbox"]:checked + .tag-badge {
+    opacity: 1;
+}
+
+.tag-option:hover .tag-badge {
+    opacity: 0.8;
+}
+
+/* Tags Responsive */
+@media (max-width: 768px) {
+    .tag-set-actions {
+        opacity: 1;
+    }
+}
+
 /* Type toggle for inline edit */
 .inline-type-toggle {
     display: flex;

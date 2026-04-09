@@ -271,4 +271,102 @@ class TagSetController extends Controller {
             return $this->handleError($e, 'Failed to delete tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
         }
     }
+
+    // ============================================
+    // Global Tags (flat, no tag set)
+    // ============================================
+
+    /**
+     * @NoAdminRequired
+     */
+    public function getGlobalTags(): DataResponse {
+        try {
+            $tags = $this->service->getGlobalTags($this->userId);
+            return new DataResponse($tags);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to retrieve global tags');
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function createGlobalTag(): DataResponse {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            if (!isset($data['name'])) {
+                return new DataResponse(['error' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $nameValidation = $this->validationService->validateName($data['name'], true);
+            if (!$nameValidation['valid']) {
+                return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
+            }
+
+            $color = null;
+            if (isset($data['color'])) {
+                $colorValidation = $this->validationService->validateColor($data['color']);
+                if (!$colorValidation['valid']) {
+                    return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $color = $colorValidation['sanitized'];
+            }
+
+            $tag = $this->service->createGlobalTag($this->userId, $nameValidation['sanitized'], $color);
+            return new DataResponse($tag, Http::STATUS_CREATED);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to create global tag');
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function updateGlobalTag(int $tagId): DataResponse {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $updates = [];
+
+            if (isset($data['name'])) {
+                $nameValidation = $this->validationService->validateName($data['name'], false);
+                if (!$nameValidation['valid']) {
+                    return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['name'] = $nameValidation['sanitized'];
+            }
+
+            if (isset($data['color'])) {
+                $colorValidation = $this->validationService->validateColor($data['color']);
+                if (!$colorValidation['valid']) {
+                    return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['color'] = $colorValidation['sanitized'];
+            }
+
+            if (empty($updates)) {
+                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+            }
+
+            $tag = $this->service->updateGlobalTag($tagId, $this->userId, $updates);
+            return new DataResponse($tag);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to update global tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 20, period: 60)]
+    public function destroyGlobalTag(int $tagId): DataResponse {
+        try {
+            $this->service->deleteGlobalTag($tagId, $this->userId);
+            return new DataResponse(['status' => 'success']);
+        } catch (\Exception $e) {
+            return $this->handleError($e, 'Failed to delete global tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
+        }
+    }
 }

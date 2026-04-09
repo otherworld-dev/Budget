@@ -931,12 +931,25 @@ export default class AccountsModule {
 
     async loadAccountFilterTags() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/tag-sets'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                this.allAccountFilterTagSets = await response.json();
+            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            ]);
+
+            if (tagSetsResponse.ok) {
+                this.allAccountFilterTagSets = await tagSetsResponse.json();
+            }
+
+            if (globalTagsResponse.ok) {
+                const globalTags = await globalTagsResponse.json();
+                if (globalTags.length > 0) {
+                    this.allAccountFilterTagSets = this.allAccountFilterTagSets || [];
+                    this.allAccountFilterTagSets.unshift({
+                        id: 'global',
+                        name: 'Tags',
+                        tags: globalTags
+                    });
+                }
             }
         } catch (error) {
             console.error('Failed to load tags for account filter:', error);

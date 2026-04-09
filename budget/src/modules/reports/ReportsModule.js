@@ -157,15 +157,28 @@ export default class ReportsModule {
 
     async loadAllTagsForReports() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/tag-sets'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
+            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            ]);
 
-            if (response.ok) {
-                this.allTagSetsForReports = await response.json();
-                this.populateReportTagsDropdown();
+            if (tagSetsResponse.ok) {
+                this.allTagSetsForReports = await tagSetsResponse.json();
             }
+
+            if (globalTagsResponse.ok) {
+                const globalTags = await globalTagsResponse.json();
+                if (globalTags.length > 0) {
+                    this.allTagSetsForReports = this.allTagSetsForReports || [];
+                    this.allTagSetsForReports.unshift({
+                        id: 'global',
+                        name: 'Tags',
+                        tags: globalTags
+                    });
+                }
+            }
+
+            this.populateReportTagsDropdown();
         } catch (error) {
             console.error('Failed to load tags for reports:', error);
         }

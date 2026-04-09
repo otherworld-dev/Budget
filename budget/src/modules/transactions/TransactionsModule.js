@@ -351,14 +351,28 @@ export default class TransactionsModule {
     }
 
     async loadFilterTags() {
-        // Always refetch to pick up newly created tag sets
+        // Always refetch to pick up newly created tag sets and global tags
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/tag-sets'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                this.allFilterTagSets = await response.json();
+            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            ]);
+
+            if (tagSetsResponse.ok) {
+                this.allFilterTagSets = await tagSetsResponse.json();
+            }
+
+            // Wrap global tags as a virtual tag set for the filter dropdown
+            if (globalTagsResponse.ok) {
+                const globalTags = await globalTagsResponse.json();
+                if (globalTags.length > 0) {
+                    this.allFilterTagSets = this.allFilterTagSets || [];
+                    this.allFilterTagSets.unshift({
+                        id: 'global',
+                        name: 'Tags',
+                        tags: globalTags
+                    });
+                }
             }
         } catch (error) {
             console.error('Failed to load tags for filter:', error);
@@ -2782,19 +2796,19 @@ export default class TransactionsModule {
     async createTagsEditor(cell, transaction) {
         const categoryId = transaction.categoryId;
 
-        if (!categoryId) {
-            cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">Select category first</span>';
-            setTimeout(() => this.cancelInlineEdit(cell), 1500);
-            return;
-        }
-
         cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">Loading...</span>';
 
         try {
-            const tagSets = await this.loadTagSetsForCategory(categoryId);
+            // Load both global tags and category tag sets
+            const [globalTagsResponse, tagSets] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
+                categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])
+            ]);
 
-            if (tagSets.length === 0) {
-                cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tag sets</span>';
+            const globalTags = globalTagsResponse || [];
+
+            if (globalTags.length === 0 && tagSets.length === 0) {
+                cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tags</span>';
                 setTimeout(() => this.cancelInlineEdit(cell), 1500);
                 return;
             }
@@ -2818,6 +2832,21 @@ export default class TransactionsModule {
             container.appendChild(dropdown);
 
             const allTags = [];
+
+            // Add global tags (grouped under "Tags" label)
+            if (globalTags.length > 0) {
+                globalTags.forEach(tag => {
+                    allTags.push({
+                        id: tag.id,
+                        name: tag.name,
+                        color: tag.color,
+                        tagSetName: 'Tags',
+                        tagSetId: 'global'
+                    });
+                });
+            }
+
+            // Add category tag sets
             tagSets.forEach(tagSet => {
                 tagSet.tags.forEach(tag => {
                     allTags.push({
@@ -2887,12 +2916,15 @@ export default class TransactionsModule {
                     const clickedTag = allTags.find(t => t.id === tagId);
                     if (!clickedTag) return;
 
-                    const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
-                    tagsFromSameSet.forEach(t => {
-                        if (t.id !== tagId) {
-                            selectedTags.delete(t.id);
-                        }
-                    });
+                    // Single-selection per category tag set (not for global tags)
+                    if (clickedTag.tagSetId !== 'global') {
+                        const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
+                        tagsFromSameSet.forEach(t => {
+                            if (t.id !== tagId) {
+                                selectedTags.delete(t.id);
+                            }
+                        });
+                    }
 
                     if (selectedTags.has(tagId)) {
                         selectedTags.delete(tagId);

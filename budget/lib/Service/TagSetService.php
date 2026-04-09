@@ -167,6 +167,10 @@ class TagSetService extends AbstractCrudService {
     public function updateTag(int $tagId, string $userId, array $updates): Tag {
         $tag = $this->tagMapper->find($tagId, $userId);
 
+        if ($tag->getTagSetId() === null) {
+            throw new \InvalidArgumentException('Use updateGlobalTag for global tags');
+        }
+
         // Check for duplicate name within tag set
         if (isset($updates['name'])) {
             if ($this->tagMapper->nameExists($tag->getTagSetId(), $updates['name'], $tag->getId())) {
@@ -184,6 +188,10 @@ class TagSetService extends AbstractCrudService {
      */
     public function deleteTag(int $tagId, string $userId): void {
         $tag = $this->tagMapper->find($tagId, $userId);
+
+        if ($tag->getTagSetId() === null) {
+            throw new \InvalidArgumentException('Use deleteGlobalTag for global tags');
+        }
 
         // Clear tag references on savings goals linked to this tag
         $this->savingsGoalMapper->clearTagReference($tagId);
@@ -228,6 +236,77 @@ class TagSetService extends AbstractCrudService {
             // Then delete the tag itself
             $this->tagMapper->delete($tag);
         }
+    }
+
+    // ============================================
+    // Global Tags (flat, no tag set)
+    // ============================================
+
+    /**
+     * Get all global tags for a user
+     *
+     * @return Tag[]
+     */
+    public function getGlobalTags(string $userId): array {
+        return $this->tagMapper->findGlobal($userId);
+    }
+
+    /**
+     * Create a new global tag (not bound to any tag set or category)
+     */
+    public function createGlobalTag(string $userId, string $name, ?string $color = null): Tag {
+        if ($this->tagMapper->globalNameExists($userId, $name)) {
+            throw new \InvalidArgumentException("A global tag named '$name' already exists");
+        }
+
+        $tag = new Tag();
+        $tag->setTagSetId(null);
+        $tag->setUserId($userId);
+        $tag->setName($name);
+        $tag->setColor($color ?: $this->generateRandomColor());
+        $tag->setSortOrder(0);
+        $tag->setCreatedAt(date('Y-m-d H:i:s'));
+
+        return $this->tagMapper->insert($tag);
+    }
+
+    /**
+     * Update a global tag
+     */
+    public function updateGlobalTag(int $tagId, string $userId, array $updates): Tag {
+        $tag = $this->tagMapper->find($tagId, $userId);
+
+        if ($tag->getTagSetId() !== null) {
+            throw new \InvalidArgumentException('This is not a global tag');
+        }
+
+        // Whitelist allowed fields
+        $updates = array_intersect_key($updates, array_flip(['name', 'color', 'sortOrder']));
+
+        if (isset($updates['name'])) {
+            if ($this->tagMapper->globalNameExists($userId, $updates['name'], $tag->getId())) {
+                throw new \InvalidArgumentException("A global tag named '{$updates['name']}' already exists");
+            }
+        }
+
+        $this->applyUpdates($tag, $updates);
+
+        return $this->tagMapper->update($tag);
+    }
+
+    /**
+     * Delete a global tag (cascade deletes transaction_tags)
+     */
+    public function deleteGlobalTag(int $tagId, string $userId): void {
+        $tag = $this->tagMapper->find($tagId, $userId);
+
+        if ($tag->getTagSetId() !== null) {
+            throw new \InvalidArgumentException('This is not a global tag');
+        }
+
+        $this->savingsGoalMapper->clearTagReference($tagId);
+        $this->transactionTagMapper->deleteByTag($tagId);
+        $this->tagMapper->delete($tag);
     }
 
     /**

@@ -18,7 +18,8 @@ class TagMapper extends QBMapper {
     }
 
     /**
-     * Find a tag by ID with user validation via tag set -> category ownership
+     * Find a tag by ID with user validation.
+     * Handles both category tags (via tag_set -> category) and global tags (via user_id).
      *
      * @throws DoesNotExistException
      */
@@ -26,12 +27,61 @@ class TagMapper extends QBMapper {
         $qb = $this->db->getQueryBuilder();
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_tag_sets', 'ts', 't.tag_set_id = ts.id')
-            ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
+            ->leftJoin('t', 'budget_tag_sets', 'ts', 't.tag_set_id = ts.id')
+            ->leftJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
             ->where($qb->expr()->eq('t.id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)));
+            ->andWhere(
+                $qb->expr()->orX(
+                    // Category tag: validate via category ownership
+                    $qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)),
+                    // Global tag: validate via direct user_id
+                    $qb->expr()->andX(
+                        $qb->expr()->isNull('t.tag_set_id'),
+                        $qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId))
+                    )
+                )
+            );
 
         return $this->findEntity($qb);
+    }
+
+    /**
+     * Find all global tags for a user (tags without a tag set)
+     *
+     * @return Tag[]
+     */
+    public function findGlobal(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->isNull('tag_set_id'))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->orderBy('sort_order', 'ASC')
+            ->addOrderBy('name', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
+     * Check if a global tag name already exists for this user
+     */
+    public function globalNameExists(string $userId, string $name, ?int $excludeId = null): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select($qb->createFunction('COUNT(*)'))
+            ->from($this->getTableName())
+            ->where($qb->expr()->isNull('tag_set_id'))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq($qb->createFunction('LOWER(name)'), $qb->createNamedParameter(strtolower($name))));
+
+        if ($excludeId !== null) {
+            $qb->andWhere($qb->expr()->neq('id', $qb->createNamedParameter($excludeId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $result = $qb->executeQuery();
+        $count = (int) $result->fetchOne();
+        $result->closeCursor();
+
+        return $count > 0;
     }
 
     /**
@@ -134,7 +184,7 @@ class TagMapper extends QBMapper {
     }
 
     /**
-     * Delete all tags for a user (via tag sets)
+     * Delete all tags for a user (via tag sets and global tags)
      *
      * @param string $userId
      * @return int Number of deleted rows
@@ -142,12 +192,20 @@ class TagMapper extends QBMapper {
     public function deleteAll(string $userId): int {
         $qb = $this->db->getQueryBuilder();
 
-        // Get all tag IDs for this user first
+        // Get all tag IDs for this user (both category and global tags)
         $qb->select('t.id')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_tag_sets', 'ts', 't.tag_set_id = ts.id')
-            ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
-            ->where($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)));
+            ->leftJoin('t', 'budget_tag_sets', 'ts', 't.tag_set_id = ts.id')
+            ->leftJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
+            ->where(
+                $qb->expr()->orX(
+                    $qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)),
+                    $qb->expr()->andX(
+                        $qb->expr()->isNull('t.tag_set_id'),
+                        $qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId))
+                    )
+                )
+            );
 
         $result = $qb->executeQuery();
         $tagIds = $result->fetchAll(\PDO::FETCH_COLUMN);

@@ -19,9 +19,261 @@ export default class TagSetsModule {
     set transactionTags(value) { this.app.transactionTags = value; }
     get allTagSetsForReports() { return this.app.allTagSetsForReports; }
     set allTagSetsForReports(value) { this.app.allTagSetsForReports = value; }
+    get globalTags() { return this.app.globalTags || []; }
+    set globalTags(value) { this.app.globalTags = value; }
     get settings() { return this.app.settings; }
     get categories() { return this.app.categories; }
     get transactions() { return this.app.transactions; }
+
+    // ============================================
+    // Tags View (Global Tags Management)
+    // ============================================
+
+    async loadTagsView() {
+        await this.loadGlobalTags();
+        this.renderGlobalTagsUI();
+        this.updateTagsSummary();
+        this.setupTagsViewListeners();
+    }
+
+    async loadGlobalTags() {
+        try {
+            const response = await fetch(
+                OC.generateUrl('/apps/budget/api/tags/global'),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (response.ok) {
+                this.globalTags = await response.json();
+            }
+        } catch (error) {
+            console.error('Failed to load global tags:', error);
+        }
+    }
+
+    renderGlobalTagsUI() {
+        const container = document.getElementById('global-tags-container');
+        if (!container) return;
+
+        if (this.globalTags.length === 0) {
+            container.innerHTML = `
+                <div class="empty-tag-sets">
+                    <div class="empty-content">
+                        <span class="icon-tag" aria-hidden="true" style="font-size: 48px; opacity: 0.5;"></span>
+                        <h3>No tags yet</h3>
+                        <p>Create tags to classify your transactions across all categories.</p>
+                        <button class="primary" id="empty-tags-add-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            Create Your First Tag
+                        </button>
+                    </div>
+                </div>`;
+            const emptyBtn = document.getElementById('empty-tags-add-btn');
+            if (emptyBtn) {
+                emptyBtn.addEventListener('click', () => this.showGlobalTagModal());
+            }
+            return;
+        }
+
+        let html = '<div class="global-tags-grid">';
+        this.globalTags.forEach(tag => {
+            html += `
+                <div class="global-tag-chip" data-tag-id="${tag.id}">
+                    <span class="global-tag-chip-color" style="background-color: ${tag.color || '#666'};"></span>
+                    <span class="global-tag-chip-name">${dom.escapeHtml(tag.name)}</span>
+                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="Edit">✎</button>
+                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="Delete">&times;</button>
+                </div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    updateTagsSummary() {
+        const countEl = document.getElementById('tags-total-count');
+        const mostUsedEl = document.getElementById('tags-most-used');
+        const recentEl = document.getElementById('tags-recent');
+
+        if (countEl) countEl.textContent = this.globalTags.length;
+
+        if (recentEl) {
+            if (this.globalTags.length > 0) {
+                // Most recently created (last in the sorted list or by createdAt)
+                const sorted = [...this.globalTags].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+                recentEl.textContent = sorted[0]?.name || '--';
+            } else {
+                recentEl.textContent = '--';
+            }
+        }
+
+        // Most used requires usage stats — show tag count for now, will enhance later
+        if (mostUsedEl) {
+            mostUsedEl.textContent = this.globalTags.length > 0 ? this.globalTags[0].name : '--';
+        }
+    }
+
+    setupTagsViewListeners() {
+        // Add tag button
+        const addBtn = document.getElementById('add-global-tag-btn');
+        if (addBtn) {
+            addBtn.replaceWith(addBtn.cloneNode(true));
+            const newBtn = document.getElementById('add-global-tag-btn');
+            if (newBtn) {
+                newBtn.addEventListener('click', () => this.showGlobalTagModal());
+            }
+        }
+
+        // Edit/delete listeners (delegated)
+        const container = document.getElementById('global-tags-container');
+        if (container) {
+            container.onclick = async (e) => {
+                const editBtn = e.target.closest('.edit-global-tag-btn');
+                const deleteBtn = e.target.closest('.delete-global-tag-btn');
+
+                if (editBtn) {
+                    this.showGlobalTagModal(parseInt(editBtn.dataset.tagId));
+                } else if (deleteBtn) {
+                    await this.deleteGlobalTag(parseInt(deleteBtn.dataset.tagId));
+                }
+            };
+        }
+
+        // Modal form submit
+        const form = document.getElementById('global-tag-form');
+        if (form) {
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                this.saveGlobalTag();
+            };
+        }
+
+        // Modal cancel
+        document.querySelectorAll('#global-tag-modal .cancel-btn').forEach(btn => {
+            btn.onclick = () => this.closeGlobalTagModal();
+        });
+
+        // Color picker sync
+        const colorInput = document.getElementById('global-tag-color');
+        const colorHex = document.getElementById('global-tag-color-hex');
+        if (colorInput && colorHex) {
+            colorInput.addEventListener('input', () => {
+                colorHex.value = colorInput.value;
+            });
+            colorHex.addEventListener('input', () => {
+                if (/^#[0-9a-fA-F]{6}$/.test(colorHex.value)) {
+                    colorInput.value = colorHex.value;
+                }
+            });
+        }
+    }
+
+    showGlobalTagModal(tagId = null) {
+        const modal = document.getElementById('global-tag-modal');
+        const form = document.getElementById('global-tag-form');
+        const title = document.getElementById('global-tag-modal-title');
+
+        form.reset();
+
+        if (tagId) {
+            const tag = this.globalTags.find(t => t.id === tagId);
+            if (!tag) return;
+
+            title.textContent = 'Edit Tag';
+            document.getElementById('global-tag-id').value = tag.id;
+            document.getElementById('global-tag-name').value = tag.name;
+            document.getElementById('global-tag-color').value = tag.color || '#4CAF50';
+            document.getElementById('global-tag-color-hex').value = tag.color || '#4CAF50';
+        } else {
+            title.textContent = 'Add Tag';
+            document.getElementById('global-tag-id').value = '';
+            // Random default color
+            const hue = Math.floor(Math.random() * 360);
+            const color = `hsl(${hue}, 70%, 60%)`;
+            const colorEl = document.getElementById('global-tag-color');
+            colorEl.value = this.hslToHex(hue, 70, 60);
+            document.getElementById('global-tag-color-hex').value = colorEl.value;
+        }
+
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        document.getElementById('global-tag-name').focus();
+    }
+
+    closeGlobalTagModal() {
+        const modal = document.getElementById('global-tag-modal');
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    hslToHex(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const a = s * Math.min(l, 1 - l);
+        const f = n => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    async saveGlobalTag() {
+        const tagId = document.getElementById('global-tag-id').value;
+        const name = document.getElementById('global-tag-name').value.trim();
+        const color = document.getElementById('global-tag-color').value;
+
+        if (!name) {
+            showError('Tag name is required');
+            return;
+        }
+
+        try {
+            const url = tagId
+                ? OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`)
+                : OC.generateUrl('/apps/budget/api/tags/global');
+
+            const response = await fetch(url, {
+                method: tagId ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ name, color })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to save tag');
+            }
+
+            this.closeGlobalTagModal();
+            await this.loadGlobalTags();
+            this.renderGlobalTagsUI();
+            this.updateTagsSummary();
+            this.setupTagsViewListeners();
+            showSuccess(tagId ? 'Tag updated' : 'Tag created');
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    async deleteGlobalTag(tagId) {
+        if (!confirm('Delete this tag? It will be removed from all transactions.')) return;
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to delete tag');
+            }
+            await this.loadGlobalTags();
+            this.renderGlobalTagsUI();
+            this.updateTagsSummary();
+            this.setupTagsViewListeners();
+            showSuccess('Tag deleted');
+        } catch (error) {
+            showError(error.message);
+        }
+    }
 
     /**
      * Load tag sets for a specific category
@@ -49,6 +301,7 @@ export default class TagSetsModule {
      * Load tags for a transaction
      */
     async loadTransactionTags(transactionId) {
+        if (!transactionId) return [];
         try {
             const response = await fetch(
                 OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
@@ -376,24 +629,47 @@ export default class TagSetsModule {
         const container = document.getElementById('transaction-tags-container');
         if (!container) return;
 
-        if (!categoryId) {
-            container.innerHTML = '<p style="color: #999; font-size: 12px;">No tag sets available for this category</p>';
-            return;
-        }
-
-        // Load tag sets for this category
-        const tagSets = await this.loadTagSetsForCategory(categoryId);
-
-        if (tagSets.length === 0) {
-            container.innerHTML = '<p style="color: #999; font-size: 12px;">No tag sets available for this category</p>';
-            return;
-        }
+        // Load global tags and category tag sets in parallel
+        await this.loadGlobalTags();
+        const tagSets = categoryId ? await this.loadTagSetsForCategory(categoryId) : [];
 
         // Load current tags for this transaction
         const currentTags = await this.loadTransactionTags(transactionId);
         const currentTagIds = currentTags.map(t => t.id);
 
+        const hasGlobalTags = this.globalTags.length > 0;
+        const hasCategoryTags = tagSets.length > 0;
+
+        if (!hasGlobalTags && !hasCategoryTags) {
+            container.innerHTML = '<p style="color: #999; font-size: 12px;">No tags available</p>';
+            return;
+        }
+
         let html = '';
+
+        // Global tags section
+        if (hasGlobalTags) {
+            html += `
+                <div class="tag-set-selector">
+                    <label class="tag-set-label">Tags</label>
+                    <div class="tag-options">
+                        ${this.globalTags.map(tag => `
+                            <label class="tag-option">
+                                <input type="checkbox"
+                                       value="${tag.id}"
+                                       data-transaction-id="${transactionId}"
+                                       ${currentTagIds.includes(tag.id) ? 'checked' : ''}>
+                                <span class="tag-badge" style="background-color: ${tag.color || '#666'}">
+                                    ${dom.escapeHtml(tag.name)}
+                                </span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Category tag sets section
         tagSets.forEach(tagSet => {
             html += `
                 <div class="tag-set-selector">

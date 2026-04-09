@@ -18402,6 +18402,9 @@ var Router = /*#__PURE__*/function () {
           case 'categories':
             this.app.loadCategories();
             break;
+          case 'tags':
+            this.app.loadTagsView();
+            break;
           case 'budget':
             this.app.loadBudgetView();
             break;
@@ -18463,6 +18466,9 @@ var Router = /*#__PURE__*/function () {
           break;
         case 'categories':
           this.app.loadCategories();
+          break;
+        case 'tags':
+          this.app.loadTagsView();
           break;
         case 'budget':
           this.app.loadBudgetView();
@@ -19655,38 +19661,62 @@ var AccountsModule = /*#__PURE__*/function () {
     key: "loadAccountFilterTags",
     value: function () {
       var _loadAccountFilterTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-        var response, _t7;
+        var _yield$Promise$all3, _yield$Promise$all4, tagSetsResponse, globalTagsResponse, globalTags, _t7;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.p = _context7.n) {
             case 0:
               _context7.p = 0;
               _context7.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
+              }), fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
             case 1:
-              response = _context7.v;
-              if (!response.ok) {
+              _yield$Promise$all3 = _context7.v;
+              _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
+              tagSetsResponse = _yield$Promise$all4[0];
+              globalTagsResponse = _yield$Promise$all4[1];
+              if (!tagSetsResponse.ok) {
                 _context7.n = 3;
                 break;
               }
               _context7.n = 2;
-              return response.json();
+              return tagSetsResponse.json();
             case 2:
               this.allAccountFilterTagSets = _context7.v;
             case 3:
-              _context7.n = 5;
-              break;
+              if (!globalTagsResponse.ok) {
+                _context7.n = 5;
+                break;
+              }
+              _context7.n = 4;
+              return globalTagsResponse.json();
             case 4:
-              _context7.p = 4;
+              globalTags = _context7.v;
+              if (globalTags.length > 0) {
+                this.allAccountFilterTagSets = this.allAccountFilterTagSets || [];
+                this.allAccountFilterTagSets.unshift({
+                  id: 'global',
+                  name: 'Tags',
+                  tags: globalTags
+                });
+              }
+            case 5:
+              _context7.n = 7;
+              break;
+            case 6:
+              _context7.p = 6;
               _t7 = _context7.v;
               console.error('Failed to load tags for account filter:', _t7);
-            case 5:
+            case 7:
               return _context7.a(2);
           }
-        }, _callee7, this, [[0, 4]]);
+        }, _callee7, this, [[0, 6]]);
       }));
       function loadAccountFilterTags() {
         return _loadAccountFilterTags.apply(this, arguments);
@@ -22817,6 +22847,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 /* harmony import */ var _utils_datepicker_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/datepicker.js */ "./src/utils/datepicker.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -23945,7 +23981,11 @@ var BillsModule = /*#__PURE__*/function () {
       var _loadBillTagSets = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(categoryId) {
         var existingBill,
           container,
-          response,
+          _yield$Promise$all,
+          _yield$Promise$all2,
+          globalTagsResponse,
+          categoryTagSets,
+          globalTags,
           tagSets,
           existingTagIds,
           html,
@@ -23962,42 +24002,49 @@ var BillsModule = /*#__PURE__*/function () {
               }
               return _context0.a(2);
             case 1:
-              if (categoryId) {
-                _context0.n = 2;
-                break;
-              }
-              container.innerHTML = '';
-              return _context0.a(2);
-            case 2:
-              _context0.p = 2;
-              _context0.n = 3;
-              return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+              _context0.p = 1;
+              _context0.n = 2;
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
-            case 3:
-              response = _context0.v;
-              if (response.ok) {
-                _context0.n = 4;
-                break;
-              }
-              throw new Error("HTTP ".concat(response.status));
-            case 4:
-              _context0.n = 5;
-              return response.json();
-            case 5:
-              tagSets = _context0.v;
-              if (!(!tagSets || tagSets.length === 0)) {
-                _context0.n = 6;
+              }).then(function (r) {
+                return r.ok ? r.json() : [];
+              })["catch"](function () {
+                return [];
+              }), categoryId ? fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }).then(function (r) {
+                return r.ok ? r.json() : [];
+              })["catch"](function () {
+                return [];
+              }) : Promise.resolve([])]);
+            case 2:
+              _yield$Promise$all = _context0.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              globalTagsResponse = _yield$Promise$all2[0];
+              categoryTagSets = _yield$Promise$all2[1];
+              globalTags = globalTagsResponse || [];
+              tagSets = categoryTagSets || [];
+              if (!(globalTags.length === 0 && tagSets.length === 0)) {
+                _context0.n = 3;
                 break;
               }
               container.innerHTML = '';
               return _context0.a(2);
-            case 6:
+            case 3:
               // Get existing tag IDs if editing
               existingTagIds = (existingBill === null || existingBill === void 0 ? void 0 : existingBill.tagIds) || [];
-              html = '';
+              html = ''; // Global tags section
+              if (globalTags.length > 0) {
+                html += "\n                    <div class=\"form-group tag-set-selector\">\n                        <label class=\"tag-set-label\">Tags</label>\n                        <div class=\"tag-options\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;\">\n                            ".concat(globalTags.map(function (tag) {
+                  return "\n                                <label class=\"tag-option\" style=\"cursor: pointer;\">\n                                    <input type=\"checkbox\" class=\"bill-tag-checkbox\"\n                                           value=\"".concat(tag.id, "\"\n                                           data-tag-set-id=\"global\"\n                                           ").concat(existingTagIds.includes(tag.id) ? 'checked' : '', "\n                                           style=\"display: none;\">\n                                    <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ").concat(existingTagIds.includes(tag.id) ? '1' : '0.5', ";\">\n                                        ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                    </span>\n                                </label>\n                            ");
+                }).join(''), "\n                        </div>\n                    </div>\n                ");
+              }
+
+              // Category tag sets
               tagSets.forEach(function (tagSet) {
                 html += "\n                    <div class=\"form-group tag-set-selector\">\n                        <label class=\"tag-set-label\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "</label>\n                        <div class=\"tag-options\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;\">\n                            ").concat(tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(function (tag) {
                   return "\n                                <label class=\"tag-option\" style=\"cursor: pointer;\">\n                                    <input type=\"checkbox\" class=\"bill-tag-checkbox\"\n                                           value=\"".concat(tag.id, "\"\n                                           data-tag-set-id=\"").concat(tagSet.id, "\"\n                                           ").concat(existingTagIds.includes(tag.id) ? 'checked' : '', "\n                                           style=\"display: none;\">\n                                    <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ").concat(existingTagIds.includes(tag.id) ? '1' : '0.5', ";\">\n                                        ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                    </span>\n                                </label>\n                            ");
@@ -24005,12 +24052,12 @@ var BillsModule = /*#__PURE__*/function () {
               });
               container.innerHTML = html;
 
-              // Add click handlers for tag selection (one per tag set)
+              // Add click handlers for tag selection (one per tag set, multi-select for global)
               container.querySelectorAll('.bill-tag-checkbox').forEach(function (checkbox) {
                 checkbox.addEventListener('change', function (e) {
                   var tagSetId = e.target.dataset.tagSetId;
-                  // Deselect other tags in same tag set (radio-like behavior)
-                  if (e.target.checked) {
+                  // Deselect other tags in same tag set (radio-like behavior, not for global tags)
+                  if (e.target.checked && tagSetId !== 'global') {
                     container.querySelectorAll(".bill-tag-checkbox[data-tag-set-id=\"".concat(tagSetId, "\"]")).forEach(function (cb) {
                       if (cb !== e.target) {
                         cb.checked = false;
@@ -24022,17 +24069,17 @@ var BillsModule = /*#__PURE__*/function () {
                   e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
                 });
               });
-              _context0.n = 8;
+              _context0.n = 5;
               break;
-            case 7:
-              _context0.p = 7;
+            case 4:
+              _context0.p = 4;
               _t0 = _context0.v;
               console.error('Failed to load tag sets:', _t0);
               container.innerHTML = '';
-            case 8:
+            case 5:
               return _context0.a(2);
           }
-        }, _callee0, null, [[2, 7]]);
+        }, _callee0, null, [[1, 4]]);
       }));
       function loadBillTagSets(_x4) {
         return _loadBillTagSets.apply(this, arguments);
@@ -33842,15 +33889,15 @@ function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArra
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
 function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
 function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
 function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
-function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
-function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
-function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -34061,39 +34108,63 @@ var ReportsModule = /*#__PURE__*/function () {
     key: "loadAllTagsForReports",
     value: function () {
       var _loadAllTagsForReports = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-        var response, _t;
+        var _yield$Promise$all, _yield$Promise$all2, tagSetsResponse, globalTagsResponse, globalTags, _t;
         return _regenerator().w(function (_context2) {
           while (1) switch (_context2.p = _context2.n) {
             case 0:
               _context2.p = 0;
               _context2.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
+              }), fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
             case 1:
-              response = _context2.v;
-              if (!response.ok) {
+              _yield$Promise$all = _context2.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              tagSetsResponse = _yield$Promise$all2[0];
+              globalTagsResponse = _yield$Promise$all2[1];
+              if (!tagSetsResponse.ok) {
                 _context2.n = 3;
                 break;
               }
               _context2.n = 2;
-              return response.json();
+              return tagSetsResponse.json();
             case 2:
               this.allTagSetsForReports = _context2.v;
-              this.populateReportTagsDropdown();
             case 3:
-              _context2.n = 5;
-              break;
+              if (!globalTagsResponse.ok) {
+                _context2.n = 5;
+                break;
+              }
+              _context2.n = 4;
+              return globalTagsResponse.json();
             case 4:
-              _context2.p = 4;
+              globalTags = _context2.v;
+              if (globalTags.length > 0) {
+                this.allTagSetsForReports = this.allTagSetsForReports || [];
+                this.allTagSetsForReports.unshift({
+                  id: 'global',
+                  name: 'Tags',
+                  tags: globalTags
+                });
+              }
+            case 5:
+              this.populateReportTagsDropdown();
+              _context2.n = 7;
+              break;
+            case 6:
+              _context2.p = 6;
               _t = _context2.v;
               console.error('Failed to load tags for reports:', _t);
-            case 5:
+            case 7:
               return _context2.a(2);
           }
-        }, _callee2, this, [[0, 4]]);
+        }, _callee2, this, [[0, 6]]);
       }));
       function loadAllTagsForReports() {
         return _loadAllTagsForReports.apply(this, arguments);
@@ -34462,7 +34533,7 @@ var ReportsModule = /*#__PURE__*/function () {
     value: function () {
       var _generateSpendingReport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(params) {
         var _categoryData$totals;
-        var _yield$Promise$all, _yield$Promise$all2, categoryResponse, vendorResponse, categoryData, vendorData, section, currency, totalSpending;
+        var _yield$Promise$all3, _yield$Promise$all4, categoryResponse, vendorResponse, categoryData, vendorData, section, currency, totalSpending;
         return _regenerator().w(function (_context5) {
           while (1) switch (_context5.n) {
             case 0:
@@ -34477,10 +34548,10 @@ var ReportsModule = /*#__PURE__*/function () {
                 }
               })]);
             case 1:
-              _yield$Promise$all = _context5.v;
-              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
-              categoryResponse = _yield$Promise$all2[0];
-              vendorResponse = _yield$Promise$all2[1];
+              _yield$Promise$all3 = _context5.v;
+              _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
+              categoryResponse = _yield$Promise$all4[0];
+              vendorResponse = _yield$Promise$all4[1];
               _context5.n = 2;
               return categoryResponse.json();
             case 2:
@@ -35454,6 +35525,12 @@ __webpack_require__.r(__webpack_exports__);
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
+function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
@@ -35558,7 +35635,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "loadRulesView",
     value: function () {
       var _loadRulesView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-        var _t;
+        var resp, _t, _t2;
         return _regenerator().w(function (_context2) {
           while (1) switch (_context2.p = _context2.n) {
             case 0:
@@ -35566,19 +35643,43 @@ var RulesModule = /*#__PURE__*/function () {
               this.setupRulesEventListeners();
               _context2.p = 1;
               _context2.n = 2;
-              return this.loadRules();
+              return fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
             case 2:
-              _context2.n = 4;
-              break;
+              resp = _context2.v;
+              if (!resp.ok) {
+                _context2.n = 4;
+                break;
+              }
+              _context2.n = 3;
+              return resp.json();
             case 3:
-              _context2.p = 3;
-              _t = _context2.v;
-              console.error('Failed to load rules view:', _t);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to load rules');
+              this.app.globalTags = _context2.v;
             case 4:
+              _context2.n = 6;
+              break;
+            case 5:
+              _context2.p = 5;
+              _t = _context2.v;
+            case 6:
+              _context2.p = 6;
+              _context2.n = 7;
+              return this.loadRules();
+            case 7:
+              _context2.n = 9;
+              break;
+            case 8:
+              _context2.p = 8;
+              _t2 = _context2.v;
+              console.error('Failed to load rules view:', _t2);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to load rules');
+            case 9:
               return _context2.a(2);
           }
-        }, _callee2, this, [[1, 3]]);
+        }, _callee2, this, [[6, 8], [1, 5]]);
       }));
       function loadRulesView() {
         return _loadRulesView.apply(this, arguments);
@@ -35589,7 +35690,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "loadRules",
     value: function () {
       var _loadRules = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3() {
-        var response, _t2;
+        var response, _t3;
         return _regenerator().w(function (_context3) {
           while (1) switch (_context3.p = _context3.n) {
             case 0:
@@ -35618,9 +35719,9 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context3.p = 4;
-              _t2 = _context3.v;
-              console.error('Failed to load rules:', _t2);
-              throw _t2;
+              _t3 = _context3.v;
+              console.error('Failed to load rules:', _t3);
+              throw _t3;
             case 5:
               return _context3.a(2);
           }
@@ -35903,7 +36004,7 @@ var RulesModule = /*#__PURE__*/function () {
           runResults,
           nameField,
           _args4 = arguments,
-          _t3;
+          _t4;
         return _regenerator().w(function (_context4) {
           while (1) switch (_context4.p = _context4.n) {
             case 0:
@@ -35958,8 +36059,8 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 6:
               _context4.p = 6;
-              _t3 = _context4.v;
-              console.error('Failed to migrate rule:', _t3);
+              _t4 = _context4.v;
+              console.error('Failed to migrate rule:', _t4);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to upgrade rule format');
               return _context4.a(2);
             case 7:
@@ -36064,12 +36165,23 @@ var RulesModule = /*#__PURE__*/function () {
       // Clear previous instance
       container.innerHTML = '';
 
+      // Include global tags as a virtual tag set alongside category tag sets
+      var tagSetsWithGlobal = _toConsumableArray(this.tagSets);
+      var globalTags = this.app.globalTags || [];
+      if (globalTags.length > 0) {
+        tagSetsWithGlobal.unshift({
+          id: 'global',
+          name: 'Tags',
+          tags: globalTags
+        });
+      }
+
       // Create new ActionBuilder instance with app data
       this.actionBuilder = new _components_ActionBuilder_js__WEBPACK_IMPORTED_MODULE_3__.ActionBuilder(container, initialActions, {
         categories: this.categories,
         categoryTree: this.app.categoryTree,
         accounts: this.accounts,
-        tagSets: this.tagSets
+        tagSets: tagSetsWithGlobal
       });
     }
   }, {
@@ -36115,7 +36227,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "previewRule",
     value: function () {
       var _previewRule = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-        var validation, criteria, previewSection, previewCount, previewTable, previewBtn, response, error, result, _t4;
+        var validation, criteria, previewSection, previewCount, previewTable, previewBtn, response, error, result, _t5;
         return _regenerator().w(function (_context6) {
           while (1) switch (_context6.p = _context6.n) {
             case 0:
@@ -36185,9 +36297,9 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 9:
               _context6.p = 9;
-              _t4 = _context6.v;
-              console.error('Failed to preview rule:', _t4);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to preview rule: ' + _t4.message);
+              _t5 = _context6.v;
+              console.error('Failed to preview rule:', _t5);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to preview rule: ' + _t5.message);
               previewSection.style.display = 'none';
             case 10:
               _context6.p = 10;
@@ -36254,7 +36366,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "runRuleNow",
     value: function () {
       var _runRuleNow = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-        var runBtn, resultsSection, savedRule, ruleId, response, error, result, _t5;
+        var runBtn, resultsSection, savedRule, ruleId, response, error, result, _t6;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.p = _context7.n) {
             case 0:
@@ -36335,9 +36447,9 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 12:
               _context7.p = 12;
-              _t5 = _context7.v;
-              console.error('Failed to run rule:', _t5);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to run rule: ' + _t5.message);
+              _t6 = _context7.v;
+              console.error('Failed to run rule:', _t6);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to run rule: ' + _t6.message);
             case 13:
               _context7.p = 13;
               runBtn.disabled = false;
@@ -36503,7 +36615,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "saveRule",
     value: function () {
       var _saveRule = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-        var ruleId, isEdit, name, priority, active, applyOnImport, validation, criteria, actionsValidation, actions, url, requestBody, response, error, _t6;
+        var ruleId, isEdit, name, priority, active, applyOnImport, validation, criteria, actionsValidation, actions, url, requestBody, response, error, _t7;
         return _regenerator().w(function (_context9) {
           while (1) switch (_context9.p = _context9.n) {
             case 0:
@@ -36587,9 +36699,9 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 10:
               _context9.p = 10;
-              _t6 = _context9.v;
-              console.error('Failed to save rule:', _t6);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to save rule: ' + _t6.message);
+              _t7 = _context9.v;
+              console.error('Failed to save rule:', _t7);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to save rule: ' + _t7.message);
             case 11:
               return _context9.a(2);
           }
@@ -36604,7 +36716,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "editRule",
     value: function () {
       var _editRule = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(ruleId) {
-        var response, rule, _t7;
+        var response, rule, _t8;
         return _regenerator().w(function (_context0) {
           while (1) switch (_context0.p = _context0.n) {
             case 0:
@@ -36632,8 +36744,8 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 4:
               _context0.p = 4;
-              _t7 = _context0.v;
-              console.error('Failed to load rule:', _t7);
+              _t8 = _context0.v;
+              console.error('Failed to load rule:', _t8);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to load rule');
             case 5:
               return _context0.a(2);
@@ -36649,7 +36761,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "deleteRule",
     value: function () {
       var _deleteRule = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(ruleId) {
-        var response, _t8;
+        var response, _t9;
         return _regenerator().w(function (_context1) {
           while (1) switch (_context1.p = _context1.n) {
             case 0:
@@ -36683,8 +36795,8 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 5:
               _context1.p = 5;
-              _t8 = _context1.v;
-              console.error('Failed to delete rule:', _t8);
+              _t9 = _context1.v;
+              console.error('Failed to delete rule:', _t9);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to delete rule');
             case 6:
               return _context1.a(2);
@@ -36700,7 +36812,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "toggleRuleActive",
     value: function () {
       var _toggleRuleActive = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(ruleId, active) {
-        var rule, response, error, row, _t9;
+        var rule, response, error, row, _t0;
         return _regenerator().w(function (_context10) {
           while (1) switch (_context10.p = _context10.n) {
             case 0:
@@ -36751,9 +36863,9 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 5:
               _context10.p = 5;
-              _t9 = _context10.v;
-              console.error('Failed to toggle rule:', _t9);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to update rule: ' + _t9.message);
+              _t0 = _context10.v;
+              console.error('Failed to toggle rule:', _t0);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to update rule: ' + _t0.message);
               // Revert the checkbox
               _context10.n = 6;
               return this.loadRules();
@@ -36866,7 +36978,7 @@ var RulesModule = /*#__PURE__*/function () {
     key: "executeApplyRules",
     value: function () {
       var _executeApplyRules = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
-        var resultsDiv, executeBtn, filters, ruleIds, response, result, _t0;
+        var resultsDiv, executeBtn, filters, ruleIds, response, result, _t1;
         return _regenerator().w(function (_context13) {
           while (1) switch (_context13.p = _context13.n) {
             case 0:
@@ -36926,8 +37038,8 @@ var RulesModule = /*#__PURE__*/function () {
               break;
             case 7:
               _context13.p = 7;
-              _t0 = _context13.v;
-              console.error('Failed to apply rules:', _t0);
+              _t1 = _context13.v;
+              console.error('Failed to apply rules:', _t1);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)('Failed to apply rules');
             case 8:
               _context13.p = 8;
@@ -37864,8 +37976,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_datepicker_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/datepicker.js */ "./src/utils/datepicker.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
 function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -38176,7 +38292,7 @@ var SavingsModule = /*#__PURE__*/function () {
     key: "populateGoalTagDropdown",
     value: function () {
       var _populateGoalTagDropdown = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
-        var dropdown, response, html, _iterator, _step, tagSet, _iterator2, _step2, tag, _t2;
+        var dropdown, _yield$Promise$all, _yield$Promise$all2, tagSetsResponse, globalTagsResponse, html, globalTags, _iterator, _step, tag, _iterator2, _step2, tagSet, _iterator3, _step3, _tag, _t2;
         return _regenerator().w(function (_context4) {
           while (1) switch (_context4.p = _context4.n) {
             case 0:
@@ -38189,60 +38305,92 @@ var SavingsModule = /*#__PURE__*/function () {
             case 1:
               _context4.p = 1;
               _context4.n = 2;
-              return fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
+              }), fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
             case 2:
-              response = _context4.v;
-              if (response.ok) {
+              _yield$Promise$all = _context4.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              tagSetsResponse = _yield$Promise$all2[0];
+              globalTagsResponse = _yield$Promise$all2[1];
+              if (tagSetsResponse.ok) {
                 _context4.n = 3;
                 break;
               }
-              throw new Error("HTTP ".concat(response.status));
+              throw new Error("HTTP ".concat(tagSetsResponse.status));
             case 3:
               _context4.n = 4;
-              return response.json();
+              return tagSetsResponse.json();
             case 4:
               this._allTagSets = _context4.v;
-              html = '<option value="">No linked tag</option>';
-              _iterator = _createForOfIteratorHelper(this._allTagSets);
+              html = '<option value="">No linked tag</option>'; // Global tags first
+              if (!globalTagsResponse.ok) {
+                _context4.n = 6;
+                break;
+              }
+              _context4.n = 5;
+              return globalTagsResponse.json();
+            case 5:
+              globalTags = _context4.v;
+              if (globalTags.length > 0) {
+                html += "<optgroup label=\"Tags\">";
+                _iterator = _createForOfIteratorHelper(globalTags);
+                try {
+                  for (_iterator.s(); !(_step = _iterator.n()).done;) {
+                    tag = _step.value;
+                    html += "<option value=\"".concat(tag.id, "\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "</option>");
+                  }
+                } catch (err) {
+                  _iterator.e(err);
+                } finally {
+                  _iterator.f();
+                }
+                html += '</optgroup>';
+              }
+            case 6:
+              // Category tag sets
+              _iterator2 = _createForOfIteratorHelper(this._allTagSets);
               try {
-                for (_iterator.s(); !(_step = _iterator.n()).done;) {
-                  tagSet = _step.value;
+                for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+                  tagSet = _step2.value;
                   if (tagSet.tags && tagSet.tags.length > 0) {
                     html += "<optgroup label=\"".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "\">");
-                    _iterator2 = _createForOfIteratorHelper(tagSet.tags);
+                    _iterator3 = _createForOfIteratorHelper(tagSet.tags);
                     try {
-                      for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-                        tag = _step2.value;
-                        html += "<option value=\"".concat(tag.id, "\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "</option>");
+                      for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+                        _tag = _step3.value;
+                        html += "<option value=\"".concat(_tag.id, "\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(_tag.name), "</option>");
                       }
                     } catch (err) {
-                      _iterator2.e(err);
+                      _iterator3.e(err);
                     } finally {
-                      _iterator2.f();
+                      _iterator3.f();
                     }
                     html += '</optgroup>';
                   }
                 }
               } catch (err) {
-                _iterator.e(err);
+                _iterator2.e(err);
               } finally {
-                _iterator.f();
+                _iterator2.f();
               }
               dropdown.innerHTML = html;
-              _context4.n = 6;
+              _context4.n = 8;
               break;
-            case 5:
-              _context4.p = 5;
+            case 7:
+              _context4.p = 7;
               _t2 = _context4.v;
               console.error('Failed to load tags for goal dropdown:', _t2);
-            case 6:
+            case 8:
               return _context4.a(2);
           }
-        }, _callee4, this, [[1, 5]]);
+        }, _callee4, this, [[1, 7]]);
       }));
       function populateGoalTagDropdown() {
         return _populateGoalTagDropdown.apply(this, arguments);
@@ -40233,6 +40381,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/dom.js */ "./src/utils/dom.js");
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
+function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -40288,6 +40442,14 @@ var TagSetsModule = /*#__PURE__*/function () {
       this.app.allTagSetsForReports = value;
     }
   }, {
+    key: "globalTags",
+    get: function get() {
+      return this.app.globalTags || [];
+    },
+    set: function set(value) {
+      this.app.globalTags = value;
+    }
+  }, {
     key: "settings",
     get: function get() {
       return this.app.settings;
@@ -40303,67 +40465,43 @@ var TagSetsModule = /*#__PURE__*/function () {
       return this.app.transactions;
     }
 
-    /**
-     * Load tag sets for a specific category
-     */
+    // ============================================
+    // Tags View (Global Tags Management)
+    // ============================================
   }, {
-    key: "loadTagSetsForCategory",
-    value: (function () {
-      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee(categoryId) {
-        var response, _t;
+    key: "loadTagsView",
+    value: function () {
+      var _loadTagsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
         return _regenerator().w(function (_context) {
-          while (1) switch (_context.p = _context.n) {
+          while (1) switch (_context.n) {
             case 0:
-              _context.p = 0;
               _context.n = 1;
-              return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
-                headers: {
-                  'requesttoken': OC.requestToken
-                }
-              });
+              return this.loadGlobalTags();
             case 1:
-              response = _context.v;
-              if (!response.ok) {
-                _context.n = 3;
-                break;
-              }
-              _context.n = 2;
-              return response.json();
+              this.renderGlobalTagsUI();
+              this.updateTagsSummary();
+              this.setupTagsViewListeners();
             case 2:
-              this.selectedCategoryTagSets = _context.v;
-              return _context.a(2, this.selectedCategoryTagSets);
-            case 3:
-              _context.n = 5;
-              break;
-            case 4:
-              _context.p = 4;
-              _t = _context.v;
-              console.error('Failed to load tag sets:', _t);
-            case 5:
-              return _context.a(2, []);
+              return _context.a(2);
           }
-        }, _callee, this, [[0, 4]]);
+        }, _callee, this);
       }));
-      function loadTagSetsForCategory(_x) {
-        return _loadTagSetsForCategory.apply(this, arguments);
+      function loadTagsView() {
+        return _loadTagsView.apply(this, arguments);
       }
-      return loadTagSetsForCategory;
+      return loadTagsView;
     }()
-    /**
-     * Load tags for a transaction
-     */
-    )
   }, {
-    key: "loadTransactionTags",
-    value: (function () {
-      var _loadTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(transactionId) {
-        var response, tags, _t2;
+    key: "loadGlobalTags",
+    value: function () {
+      var _loadGlobalTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
+        var response, _t;
         return _regenerator().w(function (_context2) {
           while (1) switch (_context2.p = _context2.n) {
             case 0:
               _context2.p = 0;
               _context2.n = 1;
-              return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/tags")), {
+              return fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
@@ -40377,22 +40515,427 @@ var TagSetsModule = /*#__PURE__*/function () {
               _context2.n = 2;
               return response.json();
             case 2:
-              tags = _context2.v;
-              this.transactionTags[transactionId] = tags;
-              return _context2.a(2, tags);
+              this.globalTags = _context2.v;
             case 3:
               _context2.n = 5;
               break;
             case 4:
               _context2.p = 4;
-              _t2 = _context2.v;
-              console.error('Failed to load transaction tags:', _t2);
+              _t = _context2.v;
+              console.error('Failed to load global tags:', _t);
             case 5:
-              return _context2.a(2, []);
+              return _context2.a(2);
           }
         }, _callee2, this, [[0, 4]]);
       }));
-      function loadTransactionTags(_x2) {
+      function loadGlobalTags() {
+        return _loadGlobalTags.apply(this, arguments);
+      }
+      return loadGlobalTags;
+    }()
+  }, {
+    key: "renderGlobalTagsUI",
+    value: function renderGlobalTagsUI() {
+      var _this = this;
+      var container = document.getElementById('global-tags-container');
+      if (!container) return;
+      if (this.globalTags.length === 0) {
+        container.innerHTML = "\n                <div class=\"empty-tag-sets\">\n                    <div class=\"empty-content\">\n                        <span class=\"icon-tag\" aria-hidden=\"true\" style=\"font-size: 48px; opacity: 0.5;\"></span>\n                        <h3>No tags yet</h3>\n                        <p>Create tags to classify your transactions across all categories.</p>\n                        <button class=\"primary\" id=\"empty-tags-add-btn\">\n                            <span class=\"icon-add\" aria-hidden=\"true\"></span>\n                            Create Your First Tag\n                        </button>\n                    </div>\n                </div>";
+        var emptyBtn = document.getElementById('empty-tags-add-btn');
+        if (emptyBtn) {
+          emptyBtn.addEventListener('click', function () {
+            return _this.showGlobalTagModal();
+          });
+        }
+        return;
+      }
+      var html = '<div class="global-tags-grid">';
+      this.globalTags.forEach(function (tag) {
+        html += "\n                <div class=\"global-tag-chip\" data-tag-id=\"".concat(tag.id, "\">\n                    <span class=\"global-tag-chip-color\" style=\"background-color: ").concat(tag.color || '#666', ";\"></span>\n                    <span class=\"global-tag-chip-name\">").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "</span>\n                    <button class=\"global-tag-chip-action edit-global-tag-btn\" data-tag-id=\"").concat(tag.id, "\" title=\"Edit\">\u270E</button>\n                    <button class=\"global-tag-chip-action delete-global-tag-btn\" data-tag-id=\"").concat(tag.id, "\" title=\"Delete\">&times;</button>\n                </div>");
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+  }, {
+    key: "updateTagsSummary",
+    value: function updateTagsSummary() {
+      var countEl = document.getElementById('tags-total-count');
+      var mostUsedEl = document.getElementById('tags-most-used');
+      var recentEl = document.getElementById('tags-recent');
+      if (countEl) countEl.textContent = this.globalTags.length;
+      if (recentEl) {
+        if (this.globalTags.length > 0) {
+          var _sorted$;
+          // Most recently created (last in the sorted list or by createdAt)
+          var sorted = _toConsumableArray(this.globalTags).sort(function (a, b) {
+            return (b.createdAt || '').localeCompare(a.createdAt || '');
+          });
+          recentEl.textContent = ((_sorted$ = sorted[0]) === null || _sorted$ === void 0 ? void 0 : _sorted$.name) || '--';
+        } else {
+          recentEl.textContent = '--';
+        }
+      }
+
+      // Most used requires usage stats — show tag count for now, will enhance later
+      if (mostUsedEl) {
+        mostUsedEl.textContent = this.globalTags.length > 0 ? this.globalTags[0].name : '--';
+      }
+    }
+  }, {
+    key: "setupTagsViewListeners",
+    value: function setupTagsViewListeners() {
+      var _this2 = this;
+      // Add tag button
+      var addBtn = document.getElementById('add-global-tag-btn');
+      if (addBtn) {
+        addBtn.replaceWith(addBtn.cloneNode(true));
+        var newBtn = document.getElementById('add-global-tag-btn');
+        if (newBtn) {
+          newBtn.addEventListener('click', function () {
+            return _this2.showGlobalTagModal();
+          });
+        }
+      }
+
+      // Edit/delete listeners (delegated)
+      var container = document.getElementById('global-tags-container');
+      if (container) {
+        container.onclick = /*#__PURE__*/function () {
+          var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(e) {
+            var editBtn, deleteBtn;
+            return _regenerator().w(function (_context3) {
+              while (1) switch (_context3.n) {
+                case 0:
+                  editBtn = e.target.closest('.edit-global-tag-btn');
+                  deleteBtn = e.target.closest('.delete-global-tag-btn');
+                  if (!editBtn) {
+                    _context3.n = 1;
+                    break;
+                  }
+                  _this2.showGlobalTagModal(parseInt(editBtn.dataset.tagId));
+                  _context3.n = 2;
+                  break;
+                case 1:
+                  if (!deleteBtn) {
+                    _context3.n = 2;
+                    break;
+                  }
+                  _context3.n = 2;
+                  return _this2.deleteGlobalTag(parseInt(deleteBtn.dataset.tagId));
+                case 2:
+                  return _context3.a(2);
+              }
+            }, _callee3);
+          }));
+          return function (_x) {
+            return _ref.apply(this, arguments);
+          };
+        }();
+      }
+
+      // Modal form submit
+      var form = document.getElementById('global-tag-form');
+      if (form) {
+        form.onsubmit = function (e) {
+          e.preventDefault();
+          _this2.saveGlobalTag();
+        };
+      }
+
+      // Modal cancel
+      document.querySelectorAll('#global-tag-modal .cancel-btn').forEach(function (btn) {
+        btn.onclick = function () {
+          return _this2.closeGlobalTagModal();
+        };
+      });
+
+      // Color picker sync
+      var colorInput = document.getElementById('global-tag-color');
+      var colorHex = document.getElementById('global-tag-color-hex');
+      if (colorInput && colorHex) {
+        colorInput.addEventListener('input', function () {
+          colorHex.value = colorInput.value;
+        });
+        colorHex.addEventListener('input', function () {
+          if (/^#[0-9a-fA-F]{6}$/.test(colorHex.value)) {
+            colorInput.value = colorHex.value;
+          }
+        });
+      }
+    }
+  }, {
+    key: "showGlobalTagModal",
+    value: function showGlobalTagModal() {
+      var tagId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+      var modal = document.getElementById('global-tag-modal');
+      var form = document.getElementById('global-tag-form');
+      var title = document.getElementById('global-tag-modal-title');
+      form.reset();
+      if (tagId) {
+        var tag = this.globalTags.find(function (t) {
+          return t.id === tagId;
+        });
+        if (!tag) return;
+        title.textContent = 'Edit Tag';
+        document.getElementById('global-tag-id').value = tag.id;
+        document.getElementById('global-tag-name').value = tag.name;
+        document.getElementById('global-tag-color').value = tag.color || '#4CAF50';
+        document.getElementById('global-tag-color-hex').value = tag.color || '#4CAF50';
+      } else {
+        title.textContent = 'Add Tag';
+        document.getElementById('global-tag-id').value = '';
+        // Random default color
+        var hue = Math.floor(Math.random() * 360);
+        var color = "hsl(".concat(hue, ", 70%, 60%)");
+        var colorEl = document.getElementById('global-tag-color');
+        colorEl.value = this.hslToHex(hue, 70, 60);
+        document.getElementById('global-tag-color-hex').value = colorEl.value;
+      }
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+      document.getElementById('global-tag-name').focus();
+    }
+  }, {
+    key: "closeGlobalTagModal",
+    value: function closeGlobalTagModal() {
+      var modal = document.getElementById('global-tag-modal');
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }, {
+    key: "hslToHex",
+    value: function hslToHex(h, s, l) {
+      s /= 100;
+      l /= 100;
+      var a = s * Math.min(l, 1 - l);
+      var f = function f(n) {
+        var k = (n + h / 30) % 12;
+        var color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return "#".concat(f(0)).concat(f(8)).concat(f(4));
+    }
+  }, {
+    key: "saveGlobalTag",
+    value: function () {
+      var _saveGlobalTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
+        var tagId, name, color, url, response, err, _t2;
+        return _regenerator().w(function (_context4) {
+          while (1) switch (_context4.p = _context4.n) {
+            case 0:
+              tagId = document.getElementById('global-tag-id').value;
+              name = document.getElementById('global-tag-name').value.trim();
+              color = document.getElementById('global-tag-color').value;
+              if (name) {
+                _context4.n = 1;
+                break;
+              }
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Tag name is required');
+              return _context4.a(2);
+            case 1:
+              _context4.p = 1;
+              url = tagId ? OC.generateUrl("/apps/budget/api/tags/global/".concat(tagId)) : OC.generateUrl('/apps/budget/api/tags/global');
+              _context4.n = 2;
+              return fetch(url, {
+                method: tagId ? 'PUT' : 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                  name: name,
+                  color: color
+                })
+              });
+            case 2:
+              response = _context4.v;
+              if (response.ok) {
+                _context4.n = 4;
+                break;
+              }
+              _context4.n = 3;
+              return response.json();
+            case 3:
+              err = _context4.v;
+              throw new Error(err.error || 'Failed to save tag');
+            case 4:
+              this.closeGlobalTagModal();
+              _context4.n = 5;
+              return this.loadGlobalTags();
+            case 5:
+              this.renderGlobalTagsUI();
+              this.updateTagsSummary();
+              this.setupTagsViewListeners();
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(tagId ? 'Tag updated' : 'Tag created');
+              _context4.n = 7;
+              break;
+            case 6:
+              _context4.p = 6;
+              _t2 = _context4.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t2.message);
+            case 7:
+              return _context4.a(2);
+          }
+        }, _callee4, this, [[1, 6]]);
+      }));
+      function saveGlobalTag() {
+        return _saveGlobalTag.apply(this, arguments);
+      }
+      return saveGlobalTag;
+    }()
+  }, {
+    key: "deleteGlobalTag",
+    value: function () {
+      var _deleteGlobalTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(tagId) {
+        var response, err, _t3;
+        return _regenerator().w(function (_context5) {
+          while (1) switch (_context5.p = _context5.n) {
+            case 0:
+              if (confirm('Delete this tag? It will be removed from all transactions.')) {
+                _context5.n = 1;
+                break;
+              }
+              return _context5.a(2);
+            case 1:
+              _context5.p = 1;
+              _context5.n = 2;
+              return fetch(OC.generateUrl("/apps/budget/api/tags/global/".concat(tagId)), {
+                method: 'DELETE',
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 2:
+              response = _context5.v;
+              if (response.ok) {
+                _context5.n = 4;
+                break;
+              }
+              _context5.n = 3;
+              return response.json();
+            case 3:
+              err = _context5.v;
+              throw new Error(err.error || 'Failed to delete tag');
+            case 4:
+              _context5.n = 5;
+              return this.loadGlobalTags();
+            case 5:
+              this.renderGlobalTagsUI();
+              this.updateTagsSummary();
+              this.setupTagsViewListeners();
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag deleted');
+              _context5.n = 7;
+              break;
+            case 6:
+              _context5.p = 6;
+              _t3 = _context5.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t3.message);
+            case 7:
+              return _context5.a(2);
+          }
+        }, _callee5, this, [[1, 6]]);
+      }));
+      function deleteGlobalTag(_x2) {
+        return _deleteGlobalTag.apply(this, arguments);
+      }
+      return deleteGlobalTag;
+    }()
+    /**
+     * Load tag sets for a specific category
+     */
+  }, {
+    key: "loadTagSetsForCategory",
+    value: (function () {
+      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(categoryId) {
+        var response, _t4;
+        return _regenerator().w(function (_context6) {
+          while (1) switch (_context6.p = _context6.n) {
+            case 0:
+              _context6.p = 0;
+              _context6.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              response = _context6.v;
+              if (!response.ok) {
+                _context6.n = 3;
+                break;
+              }
+              _context6.n = 2;
+              return response.json();
+            case 2:
+              this.selectedCategoryTagSets = _context6.v;
+              return _context6.a(2, this.selectedCategoryTagSets);
+            case 3:
+              _context6.n = 5;
+              break;
+            case 4:
+              _context6.p = 4;
+              _t4 = _context6.v;
+              console.error('Failed to load tag sets:', _t4);
+            case 5:
+              return _context6.a(2, []);
+          }
+        }, _callee6, this, [[0, 4]]);
+      }));
+      function loadTagSetsForCategory(_x3) {
+        return _loadTagSetsForCategory.apply(this, arguments);
+      }
+      return loadTagSetsForCategory;
+    }()
+    /**
+     * Load tags for a transaction
+     */
+    )
+  }, {
+    key: "loadTransactionTags",
+    value: (function () {
+      var _loadTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(transactionId) {
+        var response, tags, _t5;
+        return _regenerator().w(function (_context7) {
+          while (1) switch (_context7.p = _context7.n) {
+            case 0:
+              if (transactionId) {
+                _context7.n = 1;
+                break;
+              }
+              return _context7.a(2, []);
+            case 1:
+              _context7.p = 1;
+              _context7.n = 2;
+              return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/tags")), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 2:
+              response = _context7.v;
+              if (!response.ok) {
+                _context7.n = 4;
+                break;
+              }
+              _context7.n = 3;
+              return response.json();
+            case 3:
+              tags = _context7.v;
+              this.transactionTags[transactionId] = tags;
+              return _context7.a(2, tags);
+            case 4:
+              _context7.n = 6;
+              break;
+            case 5:
+              _context7.p = 5;
+              _t5 = _context7.v;
+              console.error('Failed to load transaction tags:', _t5);
+            case 6:
+              return _context7.a(2, []);
+          }
+        }, _callee7, this, [[1, 5]]);
+      }));
+      function loadTransactionTags(_x4) {
         return _loadTransactionTags.apply(this, arguments);
       }
       return loadTransactionTags;
@@ -40404,13 +40947,13 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTransactionTags",
     value: (function () {
-      var _saveTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(transactionId, tagIds) {
-        var response, _t3;
-        return _regenerator().w(function (_context3) {
-          while (1) switch (_context3.p = _context3.n) {
+      var _saveTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(transactionId, tagIds) {
+        var response, _t6;
+        return _regenerator().w(function (_context8) {
+          while (1) switch (_context8.p = _context8.n) {
             case 0:
-              _context3.p = 0;
-              _context3.n = 1;
+              _context8.p = 0;
+              _context8.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/tags")), {
                 method: 'PUT',
                 headers: {
@@ -40422,28 +40965,28 @@ var TagSetsModule = /*#__PURE__*/function () {
                 })
               });
             case 1:
-              response = _context3.v;
+              response = _context8.v;
               if (!response.ok) {
-                _context3.n = 3;
+                _context8.n = 3;
                 break;
               }
-              _context3.n = 2;
+              _context8.n = 2;
               return this.loadTransactionTags(transactionId);
             case 2:
-              return _context3.a(2, true);
+              return _context8.a(2, true);
             case 3:
-              _context3.n = 5;
+              _context8.n = 5;
               break;
             case 4:
-              _context3.p = 4;
-              _t3 = _context3.v;
-              console.error('Failed to save transaction tags:', _t3);
+              _context8.p = 4;
+              _t6 = _context8.v;
+              console.error('Failed to save transaction tags:', _t6);
             case 5:
-              return _context3.a(2, false);
+              return _context8.a(2, false);
           }
-        }, _callee3, this, [[0, 4]]);
+        }, _callee8, this, [[0, 4]]);
       }));
-      function saveTransactionTags(_x3, _x4) {
+      function saveTransactionTags(_x5, _x6) {
         return _saveTransactionTags.apply(this, arguments);
       }
       return saveTransactionTags;
@@ -40455,12 +40998,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "renderTagChips",
     value: function renderTagChips(tags) {
-      var _this = this;
+      var _this3 = this;
       if (!tags || tags.length === 0) {
         return '';
       }
       return tags.map(function (tag) {
-        return "\n            <span class=\"tag-chip\" style=\"background-color: ".concat(tag.color || '#666', "; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 4px;\">\n                ").concat(_this.escapeHtml(tag.name), "\n            </span>\n        ");
+        return "\n            <span class=\"tag-chip\" style=\"background-color: ".concat(tag.color || '#666', "; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 4px;\">\n                ").concat(_this3.escapeHtml(tag.name), "\n            </span>\n        ");
       }).join('');
     }
 
@@ -40470,29 +41013,29 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "renderCategoryTagSetsUI",
     value: (function () {
-      var _renderCategoryTagSetsUI = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(categoryId) {
+      var _renderCategoryTagSetsUI = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(categoryId) {
         var container, tagSets, html;
-        return _regenerator().w(function (_context4) {
-          while (1) switch (_context4.n) {
+        return _regenerator().w(function (_context9) {
+          while (1) switch (_context9.n) {
             case 0:
               container = document.getElementById('category-tag-sets-container');
               if (container) {
-                _context4.n = 1;
+                _context9.n = 1;
                 break;
               }
-              return _context4.a(2);
+              return _context9.a(2);
             case 1:
               if (categoryId) {
-                _context4.n = 2;
+                _context9.n = 2;
                 break;
               }
               container.innerHTML = '<p style="color: #999; font-style: italic;">Save category first to manage tag sets</p>';
-              return _context4.a(2);
+              return _context9.a(2);
             case 2:
-              _context4.n = 3;
+              _context9.n = 3;
               return this.loadTagSetsForCategory(categoryId);
             case 3:
-              tagSets = _context4.v;
+              tagSets = _context9.v;
               html = "\n            <div class=\"tag-sets-header\">\n                <h4 style=\"margin: 0;\">Tag Sets</h4>\n                <button type=\"button\" class=\"add-tag-set-btn\" data-category-id=\"".concat(categoryId, "\">\n                    <span class=\"icon-add\" aria-hidden=\"true\"></span> Add Tag Set\n                </button>\n            </div>\n        ");
               if (tagSets.length === 0) {
                 html += '<p style="color: #999; font-style: italic;">No tag sets yet. Add your first tag set to enable multi-dimensional categorization.</p>';
@@ -40511,11 +41054,11 @@ var TagSetsModule = /*#__PURE__*/function () {
               // Setup event listeners
               this.setupCategoryTagSetsModalListeners(categoryId);
             case 4:
-              return _context4.a(2);
+              return _context9.a(2);
           }
-        }, _callee4, this);
+        }, _callee9, this);
       }));
-      function renderCategoryTagSetsUI(_x5) {
+      function renderCategoryTagSetsUI(_x7) {
         return _renderCategoryTagSetsUI.apply(this, arguments);
       }
       return renderCategoryTagSetsUI;
@@ -40527,144 +41070,144 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "setupCategoryTagSetsModalListeners",
     value: function setupCategoryTagSetsModalListeners(categoryId) {
-      var _this2 = this;
+      var _this4 = this;
       // Add tag set button
       document.querySelectorAll('.add-tag-set-btn').forEach(function (btn) {
-        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
-          var name, duplicate, description, _t4;
-          return _regenerator().w(function (_context5) {
-            while (1) switch (_context5.p = _context5.n) {
+        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
+          var name, duplicate, description, _t7;
+          return _regenerator().w(function (_context0) {
+            while (1) switch (_context0.p = _context0.n) {
               case 0:
                 name = prompt('Enter tag set name (e.g., "Priority", "Status"):');
                 if (name) {
-                  _context5.n = 1;
+                  _context0.n = 1;
                   break;
                 }
-                return _context5.a(2);
+                return _context0.a(2);
               case 1:
                 // Check for duplicate name
-                duplicate = _this2.selectedCategoryTagSets.find(function (ts) {
+                duplicate = _this4.selectedCategoryTagSets.find(function (ts) {
                   return ts.name.toLowerCase() === name.trim().toLowerCase();
                 });
                 if (!duplicate) {
-                  _context5.n = 2;
+                  _context0.n = 2;
                   break;
                 }
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("A tag set named \"".concat(name.trim(), "\" already exists in this category"));
-                return _context5.a(2);
+                return _context0.a(2);
               case 2:
                 description = prompt('Enter description (optional):');
-                _context5.p = 3;
-                _context5.n = 4;
-                return _this2.createTagSet(categoryId, name, description);
+                _context0.p = 3;
+                _context0.n = 4;
+                return _this4.createTagSet(categoryId, name, description);
               case 4:
-                _context5.n = 5;
-                return _this2.renderCategoryTagSetsUI(categoryId);
+                _context0.n = 5;
+                return _this4.renderCategoryTagSetsUI(categoryId);
               case 5:
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag set created successfully');
-                _context5.n = 7;
+                _context0.n = 7;
                 break;
               case 6:
-                _context5.p = 6;
-                _t4 = _context5.v;
-                console.error('Failed to create tag set:', _t4);
+                _context0.p = 6;
+                _t7 = _context0.v;
+                console.error('Failed to create tag set:', _t7);
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to create tag set');
               case 7:
-                return _context5.a(2);
+                return _context0.a(2);
             }
-          }, _callee5, null, [[3, 6]]);
+          }, _callee0, null, [[3, 6]]);
         })));
       });
 
       // Delete tag set buttons
       document.querySelectorAll('.delete-tag-set-btn').forEach(function (btn) {
-        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-          var tagSetId, _t5;
-          return _regenerator().w(function (_context6) {
-            while (1) switch (_context6.p = _context6.n) {
+        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
+          var tagSetId, _t8;
+          return _regenerator().w(function (_context1) {
+            while (1) switch (_context1.p = _context1.n) {
               case 0:
                 tagSetId = parseInt(btn.dataset.tagSetId);
                 if (confirm('Delete this tag set? All associated tags will be removed from transactions.')) {
-                  _context6.n = 1;
+                  _context1.n = 1;
                   break;
                 }
-                return _context6.a(2);
+                return _context1.a(2);
               case 1:
-                _context6.p = 1;
-                _context6.n = 2;
-                return _this2.deleteTagSet(tagSetId);
+                _context1.p = 1;
+                _context1.n = 2;
+                return _this4.deleteTagSet(tagSetId);
               case 2:
-                _context6.n = 3;
-                return _this2.renderCategoryTagSetsUI(categoryId);
+                _context1.n = 3;
+                return _this4.renderCategoryTagSetsUI(categoryId);
               case 3:
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag set deleted');
-                _context6.n = 5;
+                _context1.n = 5;
                 break;
               case 4:
-                _context6.p = 4;
-                _t5 = _context6.v;
-                console.error('Failed to delete tag set:', _t5);
+                _context1.p = 4;
+                _t8 = _context1.v;
+                console.error('Failed to delete tag set:', _t8);
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete tag set');
               case 5:
-                return _context6.a(2);
+                return _context1.a(2);
             }
-          }, _callee6, null, [[1, 4]]);
+          }, _callee1, null, [[1, 4]]);
         })));
       });
 
       // Add tag buttons
       document.querySelectorAll('.add-tag-btn').forEach(function (btn) {
-        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-          var tagSetId, name, tagSet, duplicate, color, _t6;
-          return _regenerator().w(function (_context7) {
-            while (1) switch (_context7.p = _context7.n) {
+        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
+          var tagSetId, name, tagSet, duplicate, color, _t9;
+          return _regenerator().w(function (_context10) {
+            while (1) switch (_context10.p = _context10.n) {
               case 0:
                 tagSetId = parseInt(btn.dataset.tagSetId);
                 name = prompt('Enter tag name:');
                 if (name) {
-                  _context7.n = 1;
+                  _context10.n = 1;
                   break;
                 }
-                return _context7.a(2);
+                return _context10.a(2);
               case 1:
                 // Check for duplicate tag name within the tag set
-                tagSet = _this2.selectedCategoryTagSets.find(function (ts) {
+                tagSet = _this4.selectedCategoryTagSets.find(function (ts) {
                   return ts.id === tagSetId;
                 });
                 if (!(tagSet && tagSet.tags)) {
-                  _context7.n = 2;
+                  _context10.n = 2;
                   break;
                 }
                 duplicate = tagSet.tags.find(function (t) {
                   return t.name.toLowerCase() === name.trim().toLowerCase();
                 });
                 if (!duplicate) {
-                  _context7.n = 2;
+                  _context10.n = 2;
                   break;
                 }
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)("A tag named \"".concat(name.trim(), "\" already exists in this tag set"));
-                return _context7.a(2);
+                return _context10.a(2);
               case 2:
                 color = prompt('Enter color (e.g., #FF5733):') || '#666666';
-                _context7.p = 3;
-                _context7.n = 4;
-                return _this2.createTag(tagSetId, name, color);
+                _context10.p = 3;
+                _context10.n = 4;
+                return _this4.createTag(tagSetId, name, color);
               case 4:
-                _context7.n = 5;
-                return _this2.renderCategoryTagSetsUI(categoryId);
+                _context10.n = 5;
+                return _this4.renderCategoryTagSetsUI(categoryId);
               case 5:
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag created successfully');
-                _context7.n = 7;
+                _context10.n = 7;
                 break;
               case 6:
-                _context7.p = 6;
-                _t6 = _context7.v;
-                console.error('Failed to create tag:', _t6);
+                _context10.p = 6;
+                _t9 = _context10.v;
+                console.error('Failed to create tag:', _t9);
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to create tag');
               case 7:
-                return _context7.a(2);
+                return _context10.a(2);
             }
-          }, _callee7, null, [[3, 6]]);
+          }, _callee10, null, [[3, 6]]);
         })));
       });
 
@@ -40673,44 +41216,44 @@ var TagSetsModule = /*#__PURE__*/function () {
         btn.addEventListener('click', function () {
           var tagId = parseInt(btn.dataset.tagId);
           var tagSetId = parseInt(btn.dataset.tagSetId);
-          _this2.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId);
+          _this4.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId);
         });
       });
 
       // Delete tag buttons
       document.querySelectorAll('.delete-tag-btn').forEach(function (btn) {
-        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
-          var tagId, tagSetId, _t7;
-          return _regenerator().w(function (_context8) {
-            while (1) switch (_context8.p = _context8.n) {
+        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
+          var tagId, tagSetId, _t0;
+          return _regenerator().w(function (_context11) {
+            while (1) switch (_context11.p = _context11.n) {
               case 0:
                 tagId = parseInt(btn.dataset.tagId);
                 tagSetId = parseInt(btn.dataset.tagSetId);
                 if (confirm('Delete this tag? It will be removed from all transactions.')) {
-                  _context8.n = 1;
+                  _context11.n = 1;
                   break;
                 }
-                return _context8.a(2);
+                return _context11.a(2);
               case 1:
-                _context8.p = 1;
-                _context8.n = 2;
-                return _this2.deleteTag(tagId, tagSetId);
+                _context11.p = 1;
+                _context11.n = 2;
+                return _this4.deleteTag(tagId, tagSetId);
               case 2:
-                _context8.n = 3;
-                return _this2.renderCategoryTagSetsUI(categoryId);
+                _context11.n = 3;
+                return _this4.renderCategoryTagSetsUI(categoryId);
               case 3:
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)('Tag deleted');
-                _context8.n = 5;
+                _context11.n = 5;
                 break;
               case 4:
-                _context8.p = 4;
-                _t7 = _context8.v;
-                console.error('Failed to delete tag:', _t7);
+                _context11.p = 4;
+                _t0 = _context11.v;
+                console.error('Failed to delete tag:', _t0);
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)('Failed to delete tag');
               case 5:
-                return _context8.a(2);
+                return _context11.a(2);
             }
-          }, _callee8, null, [[1, 4]]);
+          }, _callee11, null, [[1, 4]]);
         })));
       });
     }
@@ -40721,12 +41264,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "createTagSet",
     value: (function () {
-      var _createTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(categoryId, name, description) {
+      var _createTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(categoryId, name, description) {
         var response;
-        return _regenerator().w(function (_context9) {
-          while (1) switch (_context9.n) {
+        return _regenerator().w(function (_context12) {
+          while (1) switch (_context12.n) {
             case 0:
-              _context9.n = 1;
+              _context12.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
                 method: 'POST',
                 headers: {
@@ -40740,21 +41283,21 @@ var TagSetsModule = /*#__PURE__*/function () {
                 })
               });
             case 1:
-              response = _context9.v;
+              response = _context12.v;
               if (response.ok) {
-                _context9.n = 2;
+                _context12.n = 2;
                 break;
               }
               throw new Error('Failed to create tag set');
             case 2:
-              _context9.n = 3;
+              _context12.n = 3;
               return response.json();
             case 3:
-              return _context9.a(2, _context9.v);
+              return _context12.a(2, _context12.v);
           }
-        }, _callee9);
+        }, _callee12);
       }));
-      function createTagSet(_x6, _x7, _x8) {
+      function createTagSet(_x8, _x9, _x0) {
         return _createTagSet.apply(this, arguments);
       }
       return createTagSet;
@@ -40766,12 +41309,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "deleteTagSet",
     value: (function () {
-      var _deleteTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(tagSetId) {
+      var _deleteTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(tagSetId) {
         var response;
-        return _regenerator().w(function (_context0) {
-          while (1) switch (_context0.n) {
+        return _regenerator().w(function (_context13) {
+          while (1) switch (_context13.n) {
             case 0:
-              _context0.n = 1;
+              _context13.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets/".concat(tagSetId)), {
                 method: 'DELETE',
                 headers: {
@@ -40779,18 +41322,18 @@ var TagSetsModule = /*#__PURE__*/function () {
                 }
               });
             case 1:
-              response = _context0.v;
+              response = _context13.v;
               if (response.ok) {
-                _context0.n = 2;
+                _context13.n = 2;
                 break;
               }
               throw new Error('Failed to delete tag set');
             case 2:
-              return _context0.a(2, true);
+              return _context13.a(2, true);
           }
-        }, _callee0);
+        }, _callee13);
       }));
-      function deleteTagSet(_x9) {
+      function deleteTagSet(_x1) {
         return _deleteTagSet.apply(this, arguments);
       }
       return deleteTagSet;
@@ -40802,12 +41345,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "createTag",
     value: (function () {
-      var _createTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(tagSetId, name, color) {
+      var _createTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(tagSetId, name, color) {
         var response;
-        return _regenerator().w(function (_context1) {
-          while (1) switch (_context1.n) {
+        return _regenerator().w(function (_context14) {
+          while (1) switch (_context14.n) {
             case 0:
-              _context1.n = 1;
+              _context14.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets/".concat(tagSetId, "/tags")), {
                 method: 'POST',
                 headers: {
@@ -40820,21 +41363,21 @@ var TagSetsModule = /*#__PURE__*/function () {
                 })
               });
             case 1:
-              response = _context1.v;
+              response = _context14.v;
               if (response.ok) {
-                _context1.n = 2;
+                _context14.n = 2;
                 break;
               }
               throw new Error('Failed to create tag');
             case 2:
-              _context1.n = 3;
+              _context14.n = 3;
               return response.json();
             case 3:
-              return _context1.a(2, _context1.v);
+              return _context14.a(2, _context14.v);
           }
-        }, _callee1);
+        }, _callee14);
       }));
-      function createTag(_x0, _x1, _x10) {
+      function createTag(_x10, _x11, _x12) {
         return _createTag.apply(this, arguments);
       }
       return createTag;
@@ -40846,12 +41389,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "deleteTag",
     value: (function () {
-      var _deleteTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(tagId, tagSetId) {
+      var _deleteTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(tagId, tagSetId) {
         var response;
-        return _regenerator().w(function (_context10) {
-          while (1) switch (_context10.n) {
+        return _regenerator().w(function (_context15) {
+          while (1) switch (_context15.n) {
             case 0:
-              _context10.n = 1;
+              _context15.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets/".concat(tagSetId, "/tags/").concat(tagId)), {
                 method: 'DELETE',
                 headers: {
@@ -40859,18 +41402,18 @@ var TagSetsModule = /*#__PURE__*/function () {
                 }
               });
             case 1:
-              response = _context10.v;
+              response = _context15.v;
               if (response.ok) {
-                _context10.n = 2;
+                _context15.n = 2;
                 break;
               }
               throw new Error('Failed to delete tag');
             case 2:
-              return _context10.a(2, true);
+              return _context15.a(2, true);
           }
-        }, _callee10);
+        }, _callee15);
       }));
-      function deleteTag(_x11, _x12) {
+      function deleteTag(_x13, _x14) {
         return _deleteTag.apply(this, arguments);
       }
       return deleteTag;
@@ -40882,45 +41425,60 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "renderTransactionTagSelectors",
     value: (function () {
-      var _renderTransactionTagSelectors = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(categoryId, transactionId) {
-        var _this3 = this;
-        var container, tagSets, currentTags, currentTagIds, html;
-        return _regenerator().w(function (_context12) {
-          while (1) switch (_context12.n) {
+      var _renderTransactionTagSelectors = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(categoryId, transactionId) {
+        var _this5 = this;
+        var container, tagSets, currentTags, currentTagIds, hasGlobalTags, hasCategoryTags, html, _t1;
+        return _regenerator().w(function (_context17) {
+          while (1) switch (_context17.n) {
             case 0:
               container = document.getElementById('transaction-tags-container');
               if (container) {
-                _context12.n = 1;
+                _context17.n = 1;
                 break;
               }
-              return _context12.a(2);
+              return _context17.a(2);
             case 1:
-              if (categoryId) {
-                _context12.n = 2;
+              _context17.n = 2;
+              return this.loadGlobalTags();
+            case 2:
+              if (!categoryId) {
+                _context17.n = 4;
                 break;
               }
-              container.innerHTML = '<p style="color: #999; font-size: 12px;">No tag sets available for this category</p>';
-              return _context12.a(2);
-            case 2:
-              _context12.n = 3;
+              _context17.n = 3;
               return this.loadTagSetsForCategory(categoryId);
             case 3:
-              tagSets = _context12.v;
-              if (!(tagSets.length === 0)) {
-                _context12.n = 4;
-                break;
-              }
-              container.innerHTML = '<p style="color: #999; font-size: 12px;">No tag sets available for this category</p>';
-              return _context12.a(2);
+              _t1 = _context17.v;
+              _context17.n = 5;
+              break;
             case 4:
-              _context12.n = 5;
-              return this.loadTransactionTags(transactionId);
+              _t1 = [];
             case 5:
-              currentTags = _context12.v;
+              tagSets = _t1;
+              _context17.n = 6;
+              return this.loadTransactionTags(transactionId);
+            case 6:
+              currentTags = _context17.v;
               currentTagIds = currentTags.map(function (t) {
                 return t.id;
               });
-              html = '';
+              hasGlobalTags = this.globalTags.length > 0;
+              hasCategoryTags = tagSets.length > 0;
+              if (!(!hasGlobalTags && !hasCategoryTags)) {
+                _context17.n = 7;
+                break;
+              }
+              container.innerHTML = '<p style="color: #999; font-size: 12px;">No tags available</p>';
+              return _context17.a(2);
+            case 7:
+              html = ''; // Global tags section
+              if (hasGlobalTags) {
+                html += "\n                <div class=\"tag-set-selector\">\n                    <label class=\"tag-set-label\">Tags</label>\n                    <div class=\"tag-options\">\n                        ".concat(this.globalTags.map(function (tag) {
+                  return "\n                            <label class=\"tag-option\">\n                                <input type=\"checkbox\"\n                                       value=\"".concat(tag.id, "\"\n                                       data-transaction-id=\"").concat(transactionId, "\"\n                                       ").concat(currentTagIds.includes(tag.id) ? 'checked' : '', ">\n                                <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "\">\n                                    ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                </span>\n                            </label>\n                        ");
+                }).join(''), "\n                    </div>\n                </div>\n            ");
+              }
+
+              // Category tag sets section
               tagSets.forEach(function (tagSet) {
                 html += "\n                <div class=\"tag-set-selector\">\n                    <label class=\"tag-set-label\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "</label>\n                    <div class=\"tag-options\">\n                        ").concat(tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(function (tag) {
                   return "\n                            <label class=\"tag-option\">\n                                <input type=\"checkbox\"\n                                       value=\"".concat(tag.id, "\"\n                                       data-transaction-id=\"").concat(transactionId, "\"\n                                       ").concat(currentTagIds.includes(tag.id) ? 'checked' : '', ">\n                                <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "\">\n                                    ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                </span>\n                            </label>\n                        ");
@@ -40930,28 +41488,28 @@ var TagSetsModule = /*#__PURE__*/function () {
 
               // Add change listeners to save tags
               container.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
-                checkbox.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
+                checkbox.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16() {
                   var selectedTags;
-                  return _regenerator().w(function (_context11) {
-                    while (1) switch (_context11.n) {
+                  return _regenerator().w(function (_context16) {
+                    while (1) switch (_context16.n) {
                       case 0:
                         selectedTags = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(function (cb) {
                           return parseInt(cb.value);
                         });
-                        _context11.n = 1;
-                        return _this3.saveTransactionTags(transactionId, selectedTags);
+                        _context16.n = 1;
+                        return _this5.saveTransactionTags(transactionId, selectedTags);
                       case 1:
-                        return _context11.a(2);
+                        return _context16.a(2);
                     }
-                  }, _callee11);
+                  }, _callee16);
                 })));
               });
-            case 6:
-              return _context12.a(2);
+            case 8:
+              return _context17.a(2);
           }
-        }, _callee12, this);
+        }, _callee17, this);
       }));
-      function renderTransactionTagSelectors(_x13, _x14) {
+      function renderTransactionTagSelectors(_x15, _x16) {
         return _renderTransactionTagSelectors.apply(this, arguments);
       }
       return renderTransactionTagSelectors;
@@ -40963,23 +41521,23 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "loadAndDisplayTransactionTags",
     value: (function () {
-      var _loadAndDisplayTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
+      var _loadAndDisplayTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
         var transactionId, categoryId;
-        return _regenerator().w(function (_context13) {
-          while (1) switch (_context13.n) {
+        return _regenerator().w(function (_context18) {
+          while (1) switch (_context18.n) {
             case 0:
               transactionId = document.getElementById('transaction-id').value;
               categoryId = document.getElementById('transaction-category').value;
               if (!(transactionId && categoryId)) {
-                _context13.n = 1;
+                _context18.n = 1;
                 break;
               }
-              _context13.n = 1;
+              _context18.n = 1;
               return this.renderTransactionTagSelectors(parseInt(categoryId), parseInt(transactionId));
             case 1:
-              return _context13.a(2);
+              return _context18.a(2);
           }
-        }, _callee13, this);
+        }, _callee18, this);
       }));
       function loadAndDisplayTransactionTags() {
         return _loadAndDisplayTransactionTags.apply(this, arguments);
@@ -40993,30 +41551,30 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "renderCategoryTagSetsList",
     value: (function () {
-      var _renderCategoryTagSetsList = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(categoryId) {
-        var container, tagSets, table, tbody, _t8;
-        return _regenerator().w(function (_context14) {
-          while (1) switch (_context14.p = _context14.n) {
+      var _renderCategoryTagSetsList = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(categoryId) {
+        var container, tagSets, table, tbody, _t10;
+        return _regenerator().w(function (_context19) {
+          while (1) switch (_context19.p = _context19.n) {
             case 0:
               container = document.getElementById('category-tag-sets-list');
               if (container) {
-                _context14.n = 1;
+                _context19.n = 1;
                 break;
               }
-              return _context14.a(2);
+              return _context19.a(2);
             case 1:
-              _context14.p = 1;
+              _context19.p = 1;
               if (categoryId) {
-                _context14.n = 2;
+                _context19.n = 2;
                 break;
               }
               container.innerHTML = '<div class="empty-state"><p>Select a category to manage tag sets</p></div>';
-              return _context14.a(2);
+              return _context19.a(2);
             case 2:
-              _context14.n = 3;
+              _context19.n = 3;
               return this.loadTagSetsForCategory(categoryId);
             case 3:
-              tagSets = _context14.v;
+              tagSets = _context19.v;
               // Clear the container first to avoid duplicates
               container.innerHTML = '';
               if (tagSets.length === 0) {
@@ -41043,19 +41601,19 @@ var TagSetsModule = /*#__PURE__*/function () {
 
               // Always setup listeners, even when there are no tag sets (for the Add button)
               this.setupCategoryTagSetsListeners(categoryId);
-              _context14.n = 5;
+              _context19.n = 5;
               break;
             case 4:
-              _context14.p = 4;
-              _t8 = _context14.v;
-              console.error('Failed to load tag sets:', _t8);
+              _context19.p = 4;
+              _t10 = _context19.v;
+              console.error('Failed to load tag sets:', _t10);
               container.innerHTML = '<div class="error-state"><p>Failed to load tag sets</p></div>';
             case 5:
-              return _context14.a(2);
+              return _context19.a(2);
           }
-        }, _callee14, this, [[1, 4]]);
+        }, _callee19, this, [[1, 4]]);
       }));
-      function renderCategoryTagSetsList(_x15) {
+      function renderCategoryTagSetsList(_x17) {
         return _renderCategoryTagSetsList.apply(this, arguments);
       }
       return renderCategoryTagSetsList;
@@ -41067,7 +41625,7 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "setupCategoryTagSetsListeners",
     value: function setupCategoryTagSetsListeners(categoryId) {
-      var _this4 = this;
+      var _this6 = this;
       // Add Tag Set button (check both IDs for compatibility)
       var addTagSetBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
       if (addTagSetBtn) {
@@ -41076,7 +41634,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
         if (newBtn) {
           newBtn.addEventListener('click', function () {
-            _this4.showAddTagSetModal(categoryId);
+            _this6.showAddTagSetModal(categoryId);
           });
         }
       }
@@ -41085,7 +41643,7 @@ var TagSetsModule = /*#__PURE__*/function () {
       document.querySelectorAll('.add-tag-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var tagSetId = parseInt(btn.dataset.tagSetId);
-          _this4.showAddTagModal(tagSetId, categoryId);
+          _this6.showAddTagModal(tagSetId, categoryId);
         });
       });
 
@@ -41093,46 +41651,46 @@ var TagSetsModule = /*#__PURE__*/function () {
       document.querySelectorAll('.edit-tag-set-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var tagSetId = parseInt(btn.dataset.tagSetId);
-          var tagSet = _this4.selectedCategoryTagSets.find(function (ts) {
+          var tagSet = _this6.selectedCategoryTagSets.find(function (ts) {
             return ts.id === tagSetId;
           });
           if (tagSet) {
-            _this4.showEditTagSetModal(tagSet, categoryId);
+            _this6.showEditTagSetModal(tagSet, categoryId);
           }
         });
       });
 
       // Delete Tag Set buttons
       document.querySelectorAll('.delete-tag-set-btn').forEach(function (btn) {
-        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
-          var tagSetId, _t9;
-          return _regenerator().w(function (_context15) {
-            while (1) switch (_context15.p = _context15.n) {
+        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
+          var tagSetId, _t11;
+          return _regenerator().w(function (_context20) {
+            while (1) switch (_context20.p = _context20.n) {
               case 0:
                 tagSetId = parseInt(btn.dataset.tagSetId);
                 if (!confirm('Delete this tag set? All tags in this set will be removed.')) {
-                  _context15.n = 5;
+                  _context20.n = 5;
                   break;
                 }
-                _context15.p = 1;
-                _context15.n = 2;
-                return _this4.deleteTagSet(tagSetId);
+                _context20.p = 1;
+                _context20.n = 2;
+                return _this6.deleteTagSet(tagSetId);
               case 2:
-                _context15.n = 3;
-                return _this4.renderCategoryTagSetsList(categoryId);
+                _context20.n = 3;
+                return _this6.renderCategoryTagSetsList(categoryId);
               case 3:
-                _this4.showNotification('Tag set deleted', 'success');
-                _context15.n = 5;
+                _this6.showNotification('Tag set deleted', 'success');
+                _context20.n = 5;
                 break;
               case 4:
-                _context15.p = 4;
-                _t9 = _context15.v;
-                console.error('Failed to delete tag set:', _t9);
-                _this4.showNotification('Failed to delete tag set', 'error');
+                _context20.p = 4;
+                _t11 = _context20.v;
+                console.error('Failed to delete tag set:', _t11);
+                _this6.showNotification('Failed to delete tag set', 'error');
               case 5:
-                return _context15.a(2);
+                return _context20.a(2);
             }
-          }, _callee15, null, [[1, 4]]);
+          }, _callee20, null, [[1, 4]]);
         })));
       });
 
@@ -41143,48 +41701,48 @@ var TagSetsModule = /*#__PURE__*/function () {
           e.stopPropagation();
           var tagId = parseInt(btn.dataset.tagId);
           var tagSetId = parseInt(btn.dataset.tagSetId);
-          _this4.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId);
+          _this6.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId);
         });
       });
 
       // Delete Tag buttons
       document.querySelectorAll('.delete-tag-btn').forEach(function (btn) {
         btn.addEventListener('click', /*#__PURE__*/function () {
-          var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(e) {
-            var tagId, tagSetId, _t0;
-            return _regenerator().w(function (_context16) {
-              while (1) switch (_context16.p = _context16.n) {
+          var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(e) {
+            var tagId, tagSetId, _t12;
+            return _regenerator().w(function (_context21) {
+              while (1) switch (_context21.p = _context21.n) {
                 case 0:
                   e.preventDefault();
                   e.stopPropagation();
                   tagId = parseInt(btn.dataset.tagId);
                   tagSetId = parseInt(btn.dataset.tagSetId);
                   if (!confirm('Delete this tag? It will be removed from all transactions.')) {
-                    _context16.n = 5;
+                    _context21.n = 5;
                     break;
                   }
-                  _context16.p = 1;
-                  _context16.n = 2;
-                  return _this4.deleteTag(tagId, tagSetId);
+                  _context21.p = 1;
+                  _context21.n = 2;
+                  return _this6.deleteTag(tagId, tagSetId);
                 case 2:
-                  _context16.n = 3;
-                  return _this4.renderCategoryTagSetsList(categoryId);
+                  _context21.n = 3;
+                  return _this6.renderCategoryTagSetsList(categoryId);
                 case 3:
-                  _this4.showNotification('Tag deleted', 'success');
-                  _context16.n = 5;
+                  _this6.showNotification('Tag deleted', 'success');
+                  _context21.n = 5;
                   break;
                 case 4:
-                  _context16.p = 4;
-                  _t0 = _context16.v;
-                  console.error('Failed to delete tag:', _t0);
-                  _this4.showNotification('Failed to delete tag', 'error');
+                  _context21.p = 4;
+                  _t12 = _context21.v;
+                  console.error('Failed to delete tag:', _t12);
+                  _this6.showNotification('Failed to delete tag', 'error');
                 case 5:
-                  return _context16.a(2);
+                  return _context21.a(2);
               }
-            }, _callee16, null, [[1, 4]]);
+            }, _callee21, null, [[1, 4]]);
           }));
-          return function (_x16) {
-            return _ref7.apply(this, arguments);
+          return function (_x18) {
+            return _ref8.apply(this, arguments);
           };
         }());
       });
@@ -41196,10 +41754,10 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTagSet",
     value: (function () {
-      var _saveTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(e) {
-        var categoryId, name, description, duplicate, _t1;
-        return _regenerator().w(function (_context17) {
-          while (1) switch (_context17.p = _context17.n) {
+      var _saveTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(e) {
+        var categoryId, name, description, duplicate, _t13;
+        return _regenerator().w(function (_context22) {
+          while (1) switch (_context22.p = _context22.n) {
             case 0:
               e.preventDefault();
               categoryId = document.getElementById('tag-set-category-id').value;
@@ -41209,34 +41767,34 @@ var TagSetsModule = /*#__PURE__*/function () {
                 return ts.name.toLowerCase() === name.toLowerCase();
               });
               if (!duplicate) {
-                _context17.n = 1;
+                _context22.n = 1;
                 break;
               }
               this.showNotification("A tag set named \"".concat(name, "\" already exists in this category"), 'error');
-              return _context17.a(2);
+              return _context22.a(2);
             case 1:
-              _context17.p = 1;
-              _context17.n = 2;
+              _context22.p = 1;
+              _context22.n = 2;
               return this.createTagSet(parseInt(categoryId), name, description);
             case 2:
               this.hideModals();
-              _context17.n = 3;
+              _context22.n = 3;
               return this.renderCategoryTagSetsList(parseInt(categoryId));
             case 3:
               this.showNotification('Tag set created successfully', 'success');
-              _context17.n = 5;
+              _context22.n = 5;
               break;
             case 4:
-              _context17.p = 4;
-              _t1 = _context17.v;
-              console.error('Failed to create tag set:', _t1);
+              _context22.p = 4;
+              _t13 = _context22.v;
+              console.error('Failed to create tag set:', _t13);
               this.showNotification('Failed to create tag set', 'error');
             case 5:
-              return _context17.a(2);
+              return _context22.a(2);
           }
-        }, _callee17, this, [[1, 4]]);
+        }, _callee22, this, [[1, 4]]);
       }));
-      function saveTagSet(_x17) {
+      function saveTagSet(_x19) {
         return _saveTagSet.apply(this, arguments);
       }
       return saveTagSet;
@@ -41248,12 +41806,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "updateTagSet",
     value: (function () {
-      var _updateTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(tagSetId, name, description) {
+      var _updateTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(tagSetId, name, description) {
         var response;
-        return _regenerator().w(function (_context18) {
-          while (1) switch (_context18.n) {
+        return _regenerator().w(function (_context23) {
+          while (1) switch (_context23.n) {
             case 0:
-              _context18.n = 1;
+              _context23.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets/".concat(tagSetId)), {
                 method: 'PUT',
                 headers: {
@@ -41266,21 +41824,21 @@ var TagSetsModule = /*#__PURE__*/function () {
                 })
               });
             case 1:
-              response = _context18.v;
+              response = _context23.v;
               if (response.ok) {
-                _context18.n = 2;
+                _context23.n = 2;
                 break;
               }
               throw new Error('Failed to update tag set');
             case 2:
-              _context18.n = 3;
+              _context23.n = 3;
               return response.json();
             case 3:
-              return _context18.a(2, _context18.v);
+              return _context23.a(2, _context23.v);
           }
-        }, _callee18);
+        }, _callee23);
       }));
-      function updateTagSet(_x18, _x19, _x20) {
+      function updateTagSet(_x20, _x21, _x22) {
         return _updateTagSet.apply(this, arguments);
       }
       return updateTagSet;
@@ -41292,7 +41850,7 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "showEditTagSetModal",
     value: function showEditTagSetModal(tagSet, categoryId) {
-      var _this5 = this;
+      var _this7 = this;
       var modal = document.getElementById('edit-tag-set-modal');
       if (!modal) {
         console.error('Edit tag set modal not found');
@@ -41310,7 +41868,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
         newForm.addEventListener('submit', function (e) {
-          return _this5.saveEditTagSet(e);
+          return _this7.saveEditTagSet(e);
         });
       }
     }
@@ -41321,10 +41879,10 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "saveEditTagSet",
     value: (function () {
-      var _saveEditTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(e) {
-        var tagSetId, categoryId, name, description, duplicate, _t10;
-        return _regenerator().w(function (_context19) {
-          while (1) switch (_context19.p = _context19.n) {
+      var _saveEditTagSet = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(e) {
+        var tagSetId, categoryId, name, description, duplicate, _t14;
+        return _regenerator().w(function (_context24) {
+          while (1) switch (_context24.p = _context24.n) {
             case 0:
               e.preventDefault();
               tagSetId = parseInt(document.getElementById('edit-tag-set-id').value);
@@ -41335,34 +41893,34 @@ var TagSetsModule = /*#__PURE__*/function () {
                 return ts.name.toLowerCase() === name.toLowerCase() && ts.id !== tagSetId;
               });
               if (!duplicate) {
-                _context19.n = 1;
+                _context24.n = 1;
                 break;
               }
               this.showNotification("A tag set named \"".concat(name, "\" already exists in this category"), 'error');
-              return _context19.a(2);
+              return _context24.a(2);
             case 1:
-              _context19.p = 1;
-              _context19.n = 2;
+              _context24.p = 1;
+              _context24.n = 2;
               return this.updateTagSet(tagSetId, name, description);
             case 2:
               this.hideModals();
-              _context19.n = 3;
+              _context24.n = 3;
               return this.renderCategoryTagSetsList(categoryId);
             case 3:
               this.showNotification('Tag set updated successfully', 'success');
-              _context19.n = 5;
+              _context24.n = 5;
               break;
             case 4:
-              _context19.p = 4;
-              _t10 = _context19.v;
-              console.error('Failed to update tag set:', _t10);
+              _context24.p = 4;
+              _t14 = _context24.v;
+              console.error('Failed to update tag set:', _t14);
               this.showNotification('Failed to update tag set', 'error');
             case 5:
-              return _context19.a(2);
+              return _context24.a(2);
           }
-        }, _callee19, this, [[1, 4]]);
+        }, _callee24, this, [[1, 4]]);
       }));
-      function saveEditTagSet(_x21) {
+      function saveEditTagSet(_x23) {
         return _saveEditTagSet.apply(this, arguments);
       }
       return saveEditTagSet;
@@ -41374,7 +41932,7 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "showAddTagSetModal",
     value: function showAddTagSetModal(categoryId) {
-      var _this6 = this;
+      var _this8 = this;
       var modal = document.getElementById('add-tag-set-modal');
       if (!modal) {
         console.error('Add tag set modal not found');
@@ -41400,7 +41958,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
         newForm.addEventListener('submit', function (e) {
-          return _this6.saveTagSet(e);
+          return _this8.saveTagSet(e);
         });
       }
     }
@@ -41411,79 +41969,79 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "loadAllTransactionTags",
     value: (function () {
-      var _loadAllTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
-        var _this7 = this;
-        var tagPromises, results, _t11;
-        return _regenerator().w(function (_context21) {
-          while (1) switch (_context21.p = _context21.n) {
+      var _loadAllTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26() {
+        var _this9 = this;
+        var tagPromises, results, _t15;
+        return _regenerator().w(function (_context26) {
+          while (1) switch (_context26.p = _context26.n) {
             case 0:
               if (!(!this.transactions || this.transactions.length === 0)) {
-                _context21.n = 1;
+                _context26.n = 1;
                 break;
               }
               this.transactionTags = {};
-              return _context21.a(2);
+              return _context26.a(2);
             case 1:
-              _context21.p = 1;
+              _context26.p = 1;
               // Load tags for each transaction
               tagPromises = this.transactions.map(/*#__PURE__*/function () {
-                var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(transaction) {
+                var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(transaction) {
                   var response, tags;
-                  return _regenerator().w(function (_context20) {
-                    while (1) switch (_context20.n) {
+                  return _regenerator().w(function (_context25) {
+                    while (1) switch (_context25.n) {
                       case 0:
-                        _context20.n = 1;
+                        _context25.n = 1;
                         return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transaction.id, "/tags")), {
                           headers: {
                             'requesttoken': OC.requestToken
                           }
                         });
                       case 1:
-                        response = _context20.v;
+                        response = _context25.v;
                         if (!response.ok) {
-                          _context20.n = 3;
+                          _context25.n = 3;
                           break;
                         }
-                        _context20.n = 2;
+                        _context25.n = 2;
                         return response.json();
                       case 2:
-                        tags = _context20.v;
-                        return _context20.a(2, {
+                        tags = _context25.v;
+                        return _context25.a(2, {
                           transactionId: transaction.id,
                           tags: Array.isArray(tags) ? tags : []
                         });
                       case 3:
-                        return _context20.a(2, {
+                        return _context25.a(2, {
                           transactionId: transaction.id,
                           tags: []
                         });
                     }
-                  }, _callee20);
+                  }, _callee25);
                 }));
-                return function (_x22) {
-                  return _ref8.apply(this, arguments);
+                return function (_x24) {
+                  return _ref9.apply(this, arguments);
                 };
               }());
-              _context21.n = 2;
+              _context26.n = 2;
               return Promise.all(tagPromises);
             case 2:
-              results = _context21.v;
+              results = _context26.v;
               // Store tags by transaction ID
               this.transactionTags = {};
               results.forEach(function (result) {
-                _this7.transactionTags[result.transactionId] = result.tags;
+                _this9.transactionTags[result.transactionId] = result.tags;
               });
-              _context21.n = 4;
+              _context26.n = 4;
               break;
             case 3:
-              _context21.p = 3;
-              _t11 = _context21.v;
-              console.error('Failed to load transaction tags:', _t11);
+              _context26.p = 3;
+              _t15 = _context26.v;
+              console.error('Failed to load transaction tags:', _t15);
               this.transactionTags = {};
             case 4:
-              return _context21.a(2);
+              return _context26.a(2);
           }
-        }, _callee21, this, [[1, 3]]);
+        }, _callee26, this, [[1, 3]]);
       }));
       function loadAllTransactionTags() {
         return _loadAllTransactionTags.apply(this, arguments);
@@ -41497,7 +42055,7 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "showAddTagModal",
     value: function showAddTagModal(tagSetId, categoryId) {
-      var _this8 = this;
+      var _this0 = this;
       var modal = document.getElementById('add-tag-modal');
       if (!modal) {
         console.error('Add tag modal not found');
@@ -41523,7 +42081,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
         newForm.addEventListener('submit', function (e) {
-          return _this8.saveTag(e);
+          return _this0.saveTag(e);
         });
       }
     }
@@ -41534,10 +42092,10 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTag",
     value: (function () {
-      var _saveTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(e) {
-        var tagSetId, categoryId, name, color, tagSet, duplicate, _t12;
-        return _regenerator().w(function (_context22) {
-          while (1) switch (_context22.p = _context22.n) {
+      var _saveTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(e) {
+        var tagSetId, categoryId, name, color, tagSet, duplicate, _t16;
+        return _regenerator().w(function (_context27) {
+          while (1) switch (_context27.p = _context27.n) {
             case 0:
               e.preventDefault();
               tagSetId = parseInt(document.getElementById('tag-set-id').value);
@@ -41548,41 +42106,41 @@ var TagSetsModule = /*#__PURE__*/function () {
                 return ts.id === tagSetId;
               });
               if (!(tagSet && tagSet.tags)) {
-                _context22.n = 1;
+                _context27.n = 1;
                 break;
               }
               duplicate = tagSet.tags.find(function (t) {
                 return t.name.toLowerCase() === name.toLowerCase();
               });
               if (!duplicate) {
-                _context22.n = 1;
+                _context27.n = 1;
                 break;
               }
               this.showNotification("A tag named \"".concat(name, "\" already exists in this tag set"), 'error');
-              return _context22.a(2);
+              return _context27.a(2);
             case 1:
-              _context22.p = 1;
-              _context22.n = 2;
+              _context27.p = 1;
+              _context27.n = 2;
               return this.createTag(tagSetId, name, color);
             case 2:
               this.hideModals();
-              _context22.n = 3;
+              _context27.n = 3;
               return this.renderCategoryTagSetsList(categoryId);
             case 3:
               this.showNotification('Tag created successfully', 'success');
-              _context22.n = 5;
+              _context27.n = 5;
               break;
             case 4:
-              _context22.p = 4;
-              _t12 = _context22.v;
-              console.error('Failed to create tag:', _t12);
+              _context27.p = 4;
+              _t16 = _context27.v;
+              console.error('Failed to create tag:', _t16);
               this.showNotification('Failed to create tag', 'error');
             case 5:
-              return _context22.a(2);
+              return _context27.a(2);
           }
-        }, _callee22, this, [[1, 4]]);
+        }, _callee27, this, [[1, 4]]);
       }));
-      function saveTag(_x23) {
+      function saveTag(_x25) {
         return _saveTag.apply(this, arguments);
       }
       return saveTag;
@@ -41594,12 +42152,12 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "updateTag",
     value: (function () {
-      var _updateTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(tagSetId, tagId, updates) {
+      var _updateTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(tagSetId, tagId, updates) {
         var response;
-        return _regenerator().w(function (_context23) {
-          while (1) switch (_context23.n) {
+        return _regenerator().w(function (_context28) {
+          while (1) switch (_context28.n) {
             case 0:
-              _context23.n = 1;
+              _context28.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets/".concat(tagSetId, "/tags/").concat(tagId)), {
                 method: 'PUT',
                 headers: {
@@ -41609,21 +42167,21 @@ var TagSetsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(updates)
               });
             case 1:
-              response = _context23.v;
+              response = _context28.v;
               if (response.ok) {
-                _context23.n = 2;
+                _context28.n = 2;
                 break;
               }
               throw new Error('Failed to update tag');
             case 2:
-              _context23.n = 3;
+              _context28.n = 3;
               return response.json();
             case 3:
-              return _context23.a(2, _context23.v);
+              return _context28.a(2, _context28.v);
           }
-        }, _callee23);
+        }, _callee28);
       }));
-      function updateTag(_x24, _x25, _x26) {
+      function updateTag(_x26, _x27, _x28) {
         return _updateTag.apply(this, arguments);
       }
       return updateTag;
@@ -41635,7 +42193,7 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "showEditTagModal",
     value: function showEditTagModal(tagId, tagSetId, tagName, tagColor, categoryId) {
-      var _this9 = this;
+      var _this1 = this;
       var modal = document.getElementById('edit-tag-modal');
       if (!modal) {
         console.error('Edit tag modal not found');
@@ -41654,7 +42212,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         var newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
         newForm.addEventListener('submit', function (e) {
-          return _this9.saveEditTag(e);
+          return _this1.saveEditTag(e);
         });
       }
     }
@@ -41665,10 +42223,10 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "saveEditTag",
     value: (function () {
-      var _saveEditTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(e) {
-        var tagId, tagSetId, categoryId, name, color, tagSet, duplicate, _t13;
-        return _regenerator().w(function (_context24) {
-          while (1) switch (_context24.p = _context24.n) {
+      var _saveEditTag = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(e) {
+        var tagId, tagSetId, categoryId, name, color, tagSet, duplicate, _t17;
+        return _regenerator().w(function (_context29) {
+          while (1) switch (_context29.p = _context29.n) {
             case 0:
               e.preventDefault();
               tagId = parseInt(document.getElementById('edit-tag-id').value);
@@ -41680,44 +42238,44 @@ var TagSetsModule = /*#__PURE__*/function () {
                 return ts.id === tagSetId;
               });
               if (!(tagSet && tagSet.tags)) {
-                _context24.n = 1;
+                _context29.n = 1;
                 break;
               }
               duplicate = tagSet.tags.find(function (t) {
                 return t.name.toLowerCase() === name.toLowerCase() && t.id !== tagId;
               });
               if (!duplicate) {
-                _context24.n = 1;
+                _context29.n = 1;
                 break;
               }
               this.showNotification("A tag named \"".concat(name, "\" already exists in this tag set"), 'error');
-              return _context24.a(2);
+              return _context29.a(2);
             case 1:
-              _context24.p = 1;
-              _context24.n = 2;
+              _context29.p = 1;
+              _context29.n = 2;
               return this.updateTag(tagSetId, tagId, {
                 name: name,
                 color: color
               });
             case 2:
               this.hideModals();
-              _context24.n = 3;
+              _context29.n = 3;
               return this.renderCategoryTagSetsList(categoryId);
             case 3:
               this.showNotification('Tag updated successfully', 'success');
-              _context24.n = 5;
+              _context29.n = 5;
               break;
             case 4:
-              _context24.p = 4;
-              _t13 = _context24.v;
-              console.error('Failed to update tag:', _t13);
+              _context29.p = 4;
+              _t17 = _context29.v;
+              console.error('Failed to update tag:', _t17);
               this.showNotification('Failed to update tag', 'error');
             case 5:
-              return _context24.a(2);
+              return _context29.a(2);
           }
-        }, _callee24, this, [[1, 4]]);
+        }, _callee29, this, [[1, 4]]);
       }));
-      function saveEditTag(_x27) {
+      function saveEditTag(_x29) {
         return _saveEditTag.apply(this, arguments);
       }
       return saveEditTag;
@@ -41729,11 +42287,11 @@ var TagSetsModule = /*#__PURE__*/function () {
   }, {
     key: "setupAddTagModalListeners",
     value: function setupAddTagModalListeners() {
-      var _this0 = this;
+      var _this10 = this;
       var form = document.getElementById('add-tag-form');
       if (form) {
         form.addEventListener('submit', function (e) {
-          return _this0.saveTag(e);
+          return _this10.saveTag(e);
         });
       }
 
@@ -41743,7 +42301,7 @@ var TagSetsModule = /*#__PURE__*/function () {
         if (modal) {
           modal.addEventListener('click', function (e) {
             if (e.target === modal || e.target.closest('.cancel-tag-btn, .cancel-tag-set-btn')) {
-              _this0.hideModals();
+              _this10.hideModals();
             }
           });
         }
@@ -41806,10 +42364,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var flatpickr__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! flatpickr */ "./node_modules/flatpickr/dist/esm/index.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
@@ -42162,17 +42724,25 @@ var TransactionsModule = /*#__PURE__*/function () {
       // Populate account filter
       var accountFilter = document.getElementById('filter-account');
       if (accountFilter && this.accounts) {
+        var _this$app$transaction;
         accountFilter.innerHTML = '<option value="">All Accounts</option>';
         this.accounts.forEach(function (account) {
           accountFilter.innerHTML += "<option value=\"".concat(account.id, "\">").concat(account.name, "</option>");
         });
+        if ((_this$app$transaction = this.app.transactionFilters) !== null && _this$app$transaction !== void 0 && _this$app$transaction.account) {
+          accountFilter.value = this.app.transactionFilters.account;
+        }
       }
 
       // Populate category filter
       var categoryFilter = document.getElementById('filter-category');
       if (categoryFilter && this.categories) {
+        var _this$app$transaction2;
         categoryFilter.innerHTML = '<option value="">All Categories</option><option value="uncategorized">Uncategorized</option>';
         _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.populateCategorySelect(categoryFilter, this.categoryTree || this.categories);
+        if ((_this$app$transaction2 = this.app.transactionFilters) !== null && _this$app$transaction2 !== void 0 && _this$app$transaction2.category) {
+          categoryFilter.value = this.app.transactionFilters.category;
+        }
       }
 
       // Populate reconcile account select
@@ -42193,38 +42763,62 @@ var TransactionsModule = /*#__PURE__*/function () {
     key: "loadFilterTags",
     value: function () {
       var _loadFilterTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-        var response, _t;
+        var _yield$Promise$all, _yield$Promise$all2, tagSetsResponse, globalTagsResponse, globalTags, _t;
         return _regenerator().w(function (_context) {
           while (1) switch (_context.p = _context.n) {
             case 0:
               _context.p = 0;
               _context.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
+              }), fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
             case 1:
-              response = _context.v;
-              if (!response.ok) {
+              _yield$Promise$all = _context.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              tagSetsResponse = _yield$Promise$all2[0];
+              globalTagsResponse = _yield$Promise$all2[1];
+              if (!tagSetsResponse.ok) {
                 _context.n = 3;
                 break;
               }
               _context.n = 2;
-              return response.json();
+              return tagSetsResponse.json();
             case 2:
               this.allFilterTagSets = _context.v;
             case 3:
-              _context.n = 5;
-              break;
+              if (!globalTagsResponse.ok) {
+                _context.n = 5;
+                break;
+              }
+              _context.n = 4;
+              return globalTagsResponse.json();
             case 4:
-              _context.p = 4;
+              globalTags = _context.v;
+              if (globalTags.length > 0) {
+                this.allFilterTagSets = this.allFilterTagSets || [];
+                this.allFilterTagSets.unshift({
+                  id: 'global',
+                  name: 'Tags',
+                  tags: globalTags
+                });
+              }
+            case 5:
+              _context.n = 7;
+              break;
+            case 6:
+              _context.p = 6;
               _t = _context.v;
               console.error('Failed to load tags for filter:', _t);
-            case 5:
+            case 7:
               return _context.a(2);
           }
-        }, _callee, this, [[0, 4]]);
+        }, _callee, this, [[0, 6]]);
       }));
       function loadFilterTags() {
         return _loadFilterTags.apply(this, arguments);
@@ -43324,7 +43918,7 @@ var TransactionsModule = /*#__PURE__*/function () {
     key: "saveTransaction",
     value: function () {
       var _saveTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
-        var id, date, accountId, type, amount, description, vendor, categoryId, notes, toAccountId, debitResponse, error, debitData, debitTransactionId, creditResponse, _error, creditData, creditTransactionId, linkResponse, _error2, data, response, _error3, _t0, _t1;
+        var id, date, accountId, type, amount, description, vendor, categoryId, notes, toAccountId, debitResponse, error, debitData, debitTransactionId, creditResponse, _error, creditData, creditTransactionId, linkResponse, _error2, data, selectedTagIds, response, created, _error3, _t0, _t1;
         return _regenerator().w(function (_context0) {
           while (1) switch (_context0.p = _context0.n) {
             case 0:
@@ -43485,7 +44079,10 @@ var TransactionsModule = /*#__PURE__*/function () {
                 vendor: vendor || null,
                 categoryId: categoryId ? parseInt(categoryId) : null,
                 notes: notes || null
-              };
+              }; // Collect selected tags before the modal is closed
+              selectedTagIds = Array.from(document.querySelectorAll('#transaction-tags-container input[type="checkbox"]:checked')).map(function (cb) {
+                return parseInt(cb.value);
+              });
               _context0.p = 20;
               if (!id) {
                 _context0.n = 22;
@@ -43518,47 +44115,62 @@ var TransactionsModule = /*#__PURE__*/function () {
               response = _context0.v;
             case 24:
               if (!response.ok) {
-                _context0.n = 29;
+                _context0.n = 31;
                 break;
               }
+              if (!(!id && selectedTagIds.length > 0)) {
+                _context0.n = 26;
+                break;
+              }
+              _context0.n = 25;
+              return response.json();
+            case 25:
+              created = _context0.v;
+              if (!created.id) {
+                _context0.n = 26;
+                break;
+              }
+              _context0.n = 26;
+              return this.app.tagSetsModule.saveTransactionTags(created.id, selectedTagIds);
+            case 26:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)(id ? 'Transaction updated' : 'Transaction created');
               this.app.hideModals();
-              _context0.n = 25;
-              return this.app.loadTransactions();
-            case 25:
-              _context0.n = 26;
-              return this.app.loadAccounts();
-            case 26:
               _context0.n = 27;
-              return this.app.refreshCurrentAccountView();
+              return this.app.loadTransactions();
             case 27:
+              _context0.n = 28;
+              return this.app.loadAccounts();
+            case 28:
+              _context0.n = 29;
+              return this.app.refreshCurrentAccountView();
+            case 29:
               if (!(window.location.hash === '' || window.location.hash === '#/dashboard')) {
-                _context0.n = 28;
+                _context0.n = 30;
                 break;
               }
-              _context0.n = 28;
-              return this.app.loadDashboard();
-            case 28:
-              _context0.n = 31;
-              break;
-            case 29:
               _context0.n = 30;
-              return response.json();
+              return this.app.loadDashboard();
             case 30:
-              _error3 = _context0.v;
-              throw new Error(_error3.error || 'Failed to save transaction');
-            case 31:
               _context0.n = 33;
               break;
+            case 31:
+              _context0.n = 32;
+              return response.json();
             case 32:
-              _context0.p = 32;
+              _error3 = _context0.v;
+              throw new Error(_error3.error || 'Failed to save transaction');
+            case 33:
+              _context0.n = 35;
+              break;
+            case 34:
+              _context0.p = 34;
               _t1 = _context0.v;
               console.error('Failed to save transaction:', _t1);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t1.message || 'Failed to save transaction');
-            case 33:
+            case 35:
               return _context0.a(2);
           }
-        }, _callee0, this, [[20, 32], [2, 18]]);
+        }, _callee0, this, [[20, 34], [2, 18]]);
       }));
       function saveTransaction() {
         return _saveTransaction.apply(this, arguments);
@@ -45147,37 +45759,39 @@ var TransactionsModule = /*#__PURE__*/function () {
     value: function () {
       var _createTagsEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(cell, transaction) {
         var _this18 = this;
-        var categoryId, tagSets, currentTagIds, selectedTags, container, input, dropdown, allTags, renderDropdown, _t25;
+        var categoryId, _yield$Promise$all3, _yield$Promise$all4, globalTagsResponse, tagSets, globalTags, currentTagIds, selectedTags, container, input, dropdown, allTags, renderDropdown, _t25;
         return _regenerator().w(function (_context27) {
           while (1) switch (_context27.p = _context27.n) {
             case 0:
               categoryId = transaction.categoryId;
-              if (categoryId) {
-                _context27.n = 1;
-                break;
-              }
-              cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">Select category first</span>';
-              setTimeout(function () {
-                return _this18.cancelInlineEdit(cell);
-              }, 1500);
-              return _context27.a(2);
-            case 1:
               cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">Loading...</span>';
-              _context27.p = 2;
-              _context27.n = 3;
-              return this.loadTagSetsForCategory(categoryId);
-            case 3:
-              tagSets = _context27.v;
-              if (!(tagSets.length === 0)) {
-                _context27.n = 4;
+              _context27.p = 1;
+              _context27.n = 2;
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }).then(function (r) {
+                return r.ok ? r.json() : [];
+              })["catch"](function () {
+                return [];
+              }), categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])]);
+            case 2:
+              _yield$Promise$all3 = _context27.v;
+              _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
+              globalTagsResponse = _yield$Promise$all4[0];
+              tagSets = _yield$Promise$all4[1];
+              globalTags = globalTagsResponse || [];
+              if (!(globalTags.length === 0 && tagSets.length === 0)) {
+                _context27.n = 3;
                 break;
               }
-              cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tag sets</span>';
+              cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tags</span>';
               setTimeout(function () {
                 return _this18.cancelInlineEdit(cell);
               }, 1500);
               return _context27.a(2);
-            case 4:
+            case 3:
               currentTagIds = this.app.getTransactionTagIds(transaction.id);
               selectedTags = new Set(currentTagIds);
               container = document.createElement('div');
@@ -45191,7 +45805,20 @@ var TransactionsModule = /*#__PURE__*/function () {
               dropdown.style.display = 'none';
               container.appendChild(input);
               container.appendChild(dropdown);
-              allTags = [];
+              allTags = []; // Add global tags (grouped under "Tags" label)
+              if (globalTags.length > 0) {
+                globalTags.forEach(function (tag) {
+                  allTags.push({
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                    tagSetName: 'Tags',
+                    tagSetId: 'global'
+                  });
+                });
+              }
+
+              // Add category tag sets
               tagSets.forEach(function (tagSet) {
                 tagSet.tags.forEach(function (tag) {
                   allTags.push({
@@ -45247,14 +45874,18 @@ var TransactionsModule = /*#__PURE__*/function () {
                     return t.id === tagId;
                   });
                   if (!clickedTag) return;
-                  var tagsFromSameSet = allTags.filter(function (t) {
-                    return t.tagSetId === clickedTag.tagSetId;
-                  });
-                  tagsFromSameSet.forEach(function (t) {
-                    if (t.id !== tagId) {
-                      selectedTags["delete"](t.id);
-                    }
-                  });
+
+                  // Single-selection per category tag set (not for global tags)
+                  if (clickedTag.tagSetId !== 'global') {
+                    var tagsFromSameSet = allTags.filter(function (t) {
+                      return t.tagSetId === clickedTag.tagSetId;
+                    });
+                    tagsFromSameSet.forEach(function (t) {
+                      if (t.id !== tagId) {
+                        selectedTags["delete"](t.id);
+                      }
+                    });
+                  }
                   if (selectedTags.has(tagId)) {
                     selectedTags["delete"](tagId);
                   } else {
@@ -45282,20 +45913,20 @@ var TransactionsModule = /*#__PURE__*/function () {
               cell.appendChild(container);
               input.focus();
               renderDropdown();
-              _context27.n = 6;
+              _context27.n = 5;
               break;
-            case 5:
-              _context27.p = 5;
+            case 4:
+              _context27.p = 4;
               _t25 = _context27.v;
               console.error('Failed to load tag sets:', _t25);
               cell.innerHTML = '<span style="color: var(--color-error); font-size: 11px;">Error loading tags</span>';
               setTimeout(function () {
                 return _this18.cancelInlineEdit(cell);
               }, 1500);
-            case 6:
+            case 5:
               return _context27.a(2);
           }
-        }, _callee27, this, [[2, 5]]);
+        }, _callee27, this, [[1, 4]]);
       }));
       function createTagsEditor(_x21, _x22) {
         return _createTagsEditor.apply(this, arguments);
@@ -45627,6 +46258,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 /* harmony import */ var _utils_datepicker_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/datepicker.js */ "./src/utils/datepicker.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -46427,7 +47064,11 @@ var TransfersModule = /*#__PURE__*/function () {
       var _loadTransferTagSets = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(categoryId) {
         var existingTransfer,
           container,
-          response,
+          _yield$Promise$all,
+          _yield$Promise$all2,
+          globalTagsResponse,
+          categoryTagSets,
+          globalTags,
           tagSets,
           existingTagIds,
           html,
@@ -46444,42 +47085,49 @@ var TransfersModule = /*#__PURE__*/function () {
               }
               return _context9.a(2);
             case 1:
-              if (categoryId) {
-                _context9.n = 2;
-                break;
-              }
-              container.innerHTML = '';
-              return _context9.a(2);
-            case 2:
-              _context9.p = 2;
-              _context9.n = 3;
-              return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+              _context9.p = 1;
+              _context9.n = 2;
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
-            case 3:
-              response = _context9.v;
-              if (response.ok) {
-                _context9.n = 4;
-                break;
-              }
-              throw new Error("HTTP ".concat(response.status));
-            case 4:
-              _context9.n = 5;
-              return response.json();
-            case 5:
-              tagSets = _context9.v;
-              if (!(!tagSets || tagSets.length === 0)) {
-                _context9.n = 6;
+              }).then(function (r) {
+                return r.ok ? r.json() : [];
+              })["catch"](function () {
+                return [];
+              }), categoryId ? fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }).then(function (r) {
+                return r.ok ? r.json() : [];
+              })["catch"](function () {
+                return [];
+              }) : Promise.resolve([])]);
+            case 2:
+              _yield$Promise$all = _context9.v;
+              _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 2);
+              globalTagsResponse = _yield$Promise$all2[0];
+              categoryTagSets = _yield$Promise$all2[1];
+              globalTags = globalTagsResponse || [];
+              tagSets = categoryTagSets || [];
+              if (!(globalTags.length === 0 && tagSets.length === 0)) {
+                _context9.n = 3;
                 break;
               }
               container.innerHTML = '';
               return _context9.a(2);
-            case 6:
+            case 3:
               // Get existing tag IDs if editing
               existingTagIds = (existingTransfer === null || existingTransfer === void 0 ? void 0 : existingTransfer.tagIds) || [];
-              html = '';
+              html = ''; // Global tags section
+              if (globalTags.length > 0) {
+                html += "\n                    <div class=\"form-group tag-set-selector\">\n                        <label class=\"tag-set-label\">Tags</label>\n                        <div class=\"tag-options\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;\">\n                            ".concat(globalTags.map(function (tag) {
+                  return "\n                                <label class=\"tag-option\" style=\"cursor: pointer;\">\n                                    <input type=\"checkbox\" class=\"transfer-tag-checkbox\"\n                                           value=\"".concat(tag.id, "\"\n                                           data-tag-set-id=\"global\"\n                                           ").concat(existingTagIds.includes(tag.id) ? 'checked' : '', "\n                                           style=\"display: none;\">\n                                    <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ").concat(existingTagIds.includes(tag.id) ? '1' : '0.5', ";\">\n                                        ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                    </span>\n                                </label>\n                            ");
+                }).join(''), "\n                        </div>\n                    </div>\n                ");
+              }
+
+              // Category tag sets
               tagSets.forEach(function (tagSet) {
                 html += "\n                    <div class=\"form-group tag-set-selector\">\n                        <label class=\"tag-set-label\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tagSet.name), "</label>\n                        <div class=\"tag-options\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;\">\n                            ").concat(tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(function (tag) {
                   return "\n                                <label class=\"tag-option\" style=\"cursor: pointer;\">\n                                    <input type=\"checkbox\" class=\"transfer-tag-checkbox\"\n                                           value=\"".concat(tag.id, "\"\n                                           data-tag-set-id=\"").concat(tagSet.id, "\"\n                                           ").concat(existingTagIds.includes(tag.id) ? 'checked' : '', "\n                                           style=\"display: none;\">\n                                    <span class=\"tag-badge\" style=\"background-color: ").concat(tag.color || '#666', "; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; opacity: ").concat(existingTagIds.includes(tag.id) ? '1' : '0.5', ";\">\n                                        ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                                    </span>\n                                </label>\n                            ");
@@ -46487,12 +47135,11 @@ var TransfersModule = /*#__PURE__*/function () {
               });
               container.innerHTML = html;
 
-              // Add click handlers for tag selection (one per tag set)
+              // Add click handlers for tag selection (multi-select for global, one per category tag set)
               container.querySelectorAll('.transfer-tag-checkbox').forEach(function (checkbox) {
                 checkbox.addEventListener('change', function (e) {
                   var tagSetId = e.target.dataset.tagSetId;
-                  // Deselect other tags in same tag set (radio-like behavior)
-                  if (e.target.checked) {
+                  if (e.target.checked && tagSetId !== 'global') {
                     container.querySelectorAll(".transfer-tag-checkbox[data-tag-set-id=\"".concat(tagSetId, "\"]")).forEach(function (cb) {
                       if (cb !== e.target) {
                         cb.checked = false;
@@ -46500,21 +47147,20 @@ var TransfersModule = /*#__PURE__*/function () {
                       }
                     });
                   }
-                  // Update visual state
                   e.target.closest('.tag-option').querySelector('.tag-badge').style.opacity = e.target.checked ? '1' : '0.5';
                 });
               });
-              _context9.n = 8;
+              _context9.n = 5;
               break;
-            case 7:
-              _context9.p = 7;
+            case 4:
+              _context9.p = 4;
               _t6 = _context9.v;
               console.error('Failed to load tag sets:', _t6);
               container.innerHTML = '';
-            case 8:
+            case 5:
               return _context9.a(2);
           }
-        }, _callee9, null, [[2, 7]]);
+        }, _callee9, null, [[1, 4]]);
       }));
       function loadTransferTagSets(_x5) {
         return _loadTransferTagSets.apply(this, arguments);
@@ -48364,6 +49010,7 @@ var BudgetApp = /*#__PURE__*/function () {
     this.selectedCategoryTagSets = []; // Tag sets for currently selected/editing category
     this.transactionTags = {}; // Cache of transaction tags by transaction ID
     this.allTagSetsForReports = []; // All tag sets for reports filtering
+    this.globalTags = []; // Global tags (flat, not bound to categories)
 
     // Savings goals
     this.savingsGoals = [];
@@ -52447,7 +53094,7 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "hideModals",
     value: function hideModals() {
-      var modalIds = ['transaction-modal', 'account-modal', 'category-modal', 'split-modal', 'matching-modal', 'bulk-match-modal', 'add-tag-set-modal', 'add-tag-modal', 'edit-tag-modal', 'edit-tag-set-modal', 'factory-reset-modal', 'rule-modal', 'apply-rules-modal', 'goal-modal', 'add-to-goal-modal', 'pension-modal', 'pension-balance-modal', 'pension-contribution-modal', 'asset-modal', 'asset-value-modal', 'manual-rate-modal'];
+      var modalIds = ['transaction-modal', 'account-modal', 'category-modal', 'split-modal', 'matching-modal', 'bulk-match-modal', 'add-tag-set-modal', 'add-tag-modal', 'edit-tag-modal', 'edit-tag-set-modal', 'factory-reset-modal', 'rule-modal', 'apply-rules-modal', 'goal-modal', 'add-to-goal-modal', 'pension-modal', 'pension-balance-modal', 'pension-contribution-modal', 'asset-modal', 'asset-value-modal', 'manual-rate-modal', 'global-tag-modal'];
       modalIds.forEach(function (modalId) {
         var modal = document.getElementById(modalId);
         if (modal) {
@@ -53111,15 +53758,31 @@ var BudgetApp = /*#__PURE__*/function () {
     // Tag Sets Module Delegations
     // ============================================
   }, {
-    key: "loadTagSetsForCategory",
+    key: "loadTagsView",
     value: function () {
-      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee95(categoryId) {
+      var _loadTagsView = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee95() {
         return _regenerator().w(function (_context95) {
           while (1) switch (_context95.n) {
             case 0:
-              return _context95.a(2, this.tagSetsModule.loadTagSetsForCategory(categoryId));
+              return _context95.a(2, this.tagSetsModule.loadTagsView());
           }
         }, _callee95, this);
+      }));
+      function loadTagsView() {
+        return _loadTagsView.apply(this, arguments);
+      }
+      return loadTagsView;
+    }()
+  }, {
+    key: "loadTagSetsForCategory",
+    value: function () {
+      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee96(categoryId) {
+        return _regenerator().w(function (_context96) {
+          while (1) switch (_context96.n) {
+            case 0:
+              return _context96.a(2, this.tagSetsModule.loadTagSetsForCategory(categoryId));
+          }
+        }, _callee96, this);
       }));
       function loadTagSetsForCategory(_x46) {
         return _loadTagSetsForCategory.apply(this, arguments);
@@ -53129,13 +53792,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadTransactionTags",
     value: function () {
-      var _loadTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee96(transactionId) {
-        return _regenerator().w(function (_context96) {
-          while (1) switch (_context96.n) {
+      var _loadTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee97(transactionId) {
+        return _regenerator().w(function (_context97) {
+          while (1) switch (_context97.n) {
             case 0:
-              return _context96.a(2, this.tagSetsModule.loadTransactionTags(transactionId));
+              return _context97.a(2, this.tagSetsModule.loadTransactionTags(transactionId));
           }
-        }, _callee96, this);
+        }, _callee97, this);
       }));
       function loadTransactionTags(_x47) {
         return _loadTransactionTags.apply(this, arguments);
@@ -53145,13 +53808,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "saveTransactionTags",
     value: function () {
-      var _saveTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee97(transactionId, tagIds) {
-        return _regenerator().w(function (_context97) {
-          while (1) switch (_context97.n) {
+      var _saveTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee98(transactionId, tagIds) {
+        return _regenerator().w(function (_context98) {
+          while (1) switch (_context98.n) {
             case 0:
-              return _context97.a(2, this.tagSetsModule.saveTransactionTags(transactionId, tagIds));
+              return _context98.a(2, this.tagSetsModule.saveTransactionTags(transactionId, tagIds));
           }
-        }, _callee97, this);
+        }, _callee98, this);
       }));
       function saveTransactionTags(_x48, _x49) {
         return _saveTransactionTags.apply(this, arguments);
@@ -53166,13 +53829,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "renderCategoryTagSetsUI",
     value: function () {
-      var _renderCategoryTagSetsUI = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee98(categoryId) {
-        return _regenerator().w(function (_context98) {
-          while (1) switch (_context98.n) {
+      var _renderCategoryTagSetsUI = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee99(categoryId) {
+        return _regenerator().w(function (_context99) {
+          while (1) switch (_context99.n) {
             case 0:
-              return _context98.a(2, this.tagSetsModule.renderCategoryTagSetsUI(categoryId));
+              return _context99.a(2, this.tagSetsModule.renderCategoryTagSetsUI(categoryId));
           }
-        }, _callee98, this);
+        }, _callee99, this);
       }));
       function renderCategoryTagSetsUI(_x50) {
         return _renderCategoryTagSetsUI.apply(this, arguments);
@@ -53182,13 +53845,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "renderTransactionTagSelectors",
     value: function () {
-      var _renderTransactionTagSelectors = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee99(categoryId, transactionId) {
-        return _regenerator().w(function (_context99) {
-          while (1) switch (_context99.n) {
+      var _renderTransactionTagSelectors = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee100(categoryId, transactionId) {
+        return _regenerator().w(function (_context100) {
+          while (1) switch (_context100.n) {
             case 0:
-              return _context99.a(2, this.tagSetsModule.renderTransactionTagSelectors(categoryId, transactionId));
+              return _context100.a(2, this.tagSetsModule.renderTransactionTagSelectors(categoryId, transactionId));
           }
-        }, _callee99, this);
+        }, _callee100, this);
       }));
       function renderTransactionTagSelectors(_x51, _x52) {
         return _renderTransactionTagSelectors.apply(this, arguments);
@@ -53198,13 +53861,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadAndDisplayTransactionTags",
     value: function () {
-      var _loadAndDisplayTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee100() {
-        return _regenerator().w(function (_context100) {
-          while (1) switch (_context100.n) {
+      var _loadAndDisplayTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee101() {
+        return _regenerator().w(function (_context101) {
+          while (1) switch (_context101.n) {
             case 0:
-              return _context100.a(2, this.tagSetsModule.loadAndDisplayTransactionTags());
+              return _context101.a(2, this.tagSetsModule.loadAndDisplayTransactionTags());
           }
-        }, _callee100, this);
+        }, _callee101, this);
       }));
       function loadAndDisplayTransactionTags() {
         return _loadAndDisplayTransactionTags.apply(this, arguments);
@@ -53214,13 +53877,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "renderCategoryTagSetsList",
     value: function () {
-      var _renderCategoryTagSetsList = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee101(categoryId) {
-        return _regenerator().w(function (_context101) {
-          while (1) switch (_context101.n) {
+      var _renderCategoryTagSetsList = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee102(categoryId) {
+        return _regenerator().w(function (_context102) {
+          while (1) switch (_context102.n) {
             case 0:
-              return _context101.a(2, this.tagSetsModule.renderCategoryTagSetsList(categoryId));
+              return _context102.a(2, this.tagSetsModule.renderCategoryTagSetsList(categoryId));
           }
-        }, _callee101, this);
+        }, _callee102, this);
       }));
       function renderCategoryTagSetsList(_x53) {
         return _renderCategoryTagSetsList.apply(this, arguments);
@@ -53230,13 +53893,13 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "loadAllTransactionTags",
     value: function () {
-      var _loadAllTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee102() {
-        return _regenerator().w(function (_context102) {
-          while (1) switch (_context102.n) {
+      var _loadAllTransactionTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee103() {
+        return _regenerator().w(function (_context103) {
+          while (1) switch (_context103.n) {
             case 0:
-              return _context102.a(2, this.tagSetsModule.loadAllTransactionTags());
+              return _context103.a(2, this.tagSetsModule.loadAllTransactionTags());
           }
-        }, _callee102, this);
+        }, _callee103, this);
       }));
       function loadAllTransactionTags() {
         return _loadAllTransactionTags.apply(this, arguments);
