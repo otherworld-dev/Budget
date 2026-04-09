@@ -92,8 +92,9 @@ export default class TransactionsModule {
         // Filter controls
         const filterControls = [
             'filter-account', 'filter-category', 'filter-type', 'filter-status',
-            'filter-date-from', 'filter-date-to', 'filter-amount-min',
-            'filter-amount-max', 'filter-search'
+            'filter-date-from', 'filter-date-to',
+            'filter-created-from', 'filter-created-to',
+            'filter-amount-min', 'filter-amount-max', 'filter-search'
         ];
 
         filterControls.forEach(controlId => {
@@ -545,6 +546,8 @@ export default class TransactionsModule {
             status: document.getElementById('filter-status')?.value || '',
             dateFrom: document.getElementById('filter-date-from')?.value || '',
             dateTo: document.getElementById('filter-date-to')?.value || '',
+            createdAtFrom: document.getElementById('filter-created-from')?.value || '',
+            createdAtTo: document.getElementById('filter-created-to')?.value || '',
             amountMin: document.getElementById('filter-amount-min')?.value || '',
             amountMax: document.getElementById('filter-amount-max')?.value || '',
             search: document.getElementById('filter-search')?.value || '',
@@ -559,8 +562,9 @@ export default class TransactionsModule {
     clearFilters() {
         const filterInputs = [
             'filter-account', 'filter-category', 'filter-type', 'filter-status',
-            'filter-date-from', 'filter-date-to', 'filter-amount-min',
-            'filter-amount-max', 'filter-search'
+            'filter-date-from', 'filter-date-to',
+            'filter-created-from', 'filter-created-to',
+            'filter-amount-min', 'filter-amount-max', 'filter-search'
         ];
 
         filterInputs.forEach(inputId => {

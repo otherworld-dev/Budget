@@ -1182,6 +1182,12 @@ class BudgetApp {
             if (this.transactionFilters?.dateTo) {
                 params.append('dateTo', this.transactionFilters.dateTo);
             }
+            if (this.transactionFilters?.createdAtFrom) {
+                params.append('createdAtFrom', this.transactionFilters.createdAtFrom);
+            }
+            if (this.transactionFilters?.createdAtTo) {
+                params.append('createdAtTo', this.transactionFilters.createdAtTo);
+            }
             if (this.transactionFilters?.category) {
                 params.append('category', this.transactionFilters.category);
             }

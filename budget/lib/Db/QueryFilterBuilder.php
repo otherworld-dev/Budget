@@ -69,6 +69,28 @@ class QueryFilterBuilder {
             ));
         }
 
+        // Creation date range filters (created_at is DATETIME, so date-only
+        // values are normalized: "from" uses >= start of day, "to" uses < next day)
+        if (!empty($filters['createdAtFrom'])) {
+            $timestamp = strtotime($filters['createdAtFrom']);
+            if ($timestamp !== false) {
+                $qb->andWhere($qb->expr()->gte(
+                    "{$alias}.created_at",
+                    $qb->createNamedParameter(date('Y-m-d', $timestamp))
+                ));
+            }
+        }
+
+        if (!empty($filters['createdAtTo'])) {
+            $timestamp = strtotime($filters['createdAtTo'] . ' +1 day');
+            if ($timestamp !== false) {
+                $qb->andWhere($qb->expr()->lt(
+                    "{$alias}.created_at",
+                    $qb->createNamedParameter(date('Y-m-d', $timestamp))
+                ));
+            }
+        }
+
         // Amount range filters
         if (!empty($filters['amountMin'])) {
             $qb->andWhere($qb->expr()->gte(
@@ -174,6 +196,7 @@ class QueryFilterBuilder {
             'vendor' => "{$alias}.vendor",
             'reconciled' => "{$alias}.reconciled",
             'status' => "{$alias}.status",
+            'createdAt' => "{$alias}.created_at",
         ];
 
         $dbSortField = $sortFieldMap[$sortField] ?? "{$alias}.date";
@@ -214,6 +237,8 @@ class QueryFilterBuilder {
             'status',
             'vendor',
             'tagIds',
+            'createdAtFrom',
+            'createdAtTo',
         ];
     }
 
@@ -233,6 +258,7 @@ class QueryFilterBuilder {
             'vendor',
             'reconciled',
             'status',
+            'createdAt',
         ];
     }
 }
