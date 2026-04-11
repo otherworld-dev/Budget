@@ -189,6 +189,12 @@ export default class ReportsModule {
         const container = document.getElementById('report-tags-filter');
         if (!container) return;
 
+        // Remove previous document-level close listener to prevent stacking
+        if (this._closeTagDropdown) {
+            document.removeEventListener('click', this._closeTagDropdown);
+            this._closeTagDropdown = null;
+        }
+
         container.innerHTML = '';
 
         if (!this.allTagSetsForReports || this.allTagSetsForReports.length === 0) {
@@ -312,16 +318,13 @@ export default class ReportsModule {
         });
 
         // Close dropdown when clicking outside
-        const closeDropdown = (e) => {
+        this._closeTagDropdown = (e) => {
             if (!container.contains(e.target)) {
                 dropdown.style.display = 'none';
             }
         };
 
-        document.addEventListener('click', closeDropdown);
-
-        // Cleanup on module unload
-        container.dataset.cleanupListener = 'true';
+        document.addEventListener('click', this._closeTagDropdown);
     }
 
     async generateReport() {

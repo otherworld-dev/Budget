@@ -36752,6 +36752,12 @@ var ReportsModule = /*#__PURE__*/function () {
       var _this2 = this;
       var container = document.getElementById('report-tags-filter');
       if (!container) return;
+
+      // Remove previous document-level close listener to prevent stacking
+      if (this._closeTagDropdown) {
+        document.removeEventListener('click', this._closeTagDropdown);
+        this._closeTagDropdown = null;
+      }
       container.innerHTML = '';
       if (!this.allTagSetsForReports || this.allTagSetsForReports.length === 0) {
         container.innerHTML = "<div style=\"padding: 8px; color: var(--color-text-lighter); font-style: italic;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No tags available'), "</div>");
@@ -36866,15 +36872,12 @@ var ReportsModule = /*#__PURE__*/function () {
       });
 
       // Close dropdown when clicking outside
-      var closeDropdown = function closeDropdown(e) {
+      this._closeTagDropdown = function (e) {
         if (!container.contains(e.target)) {
           dropdown.style.display = 'none';
         }
       };
-      document.addEventListener('click', closeDropdown);
-
-      // Cleanup on module unload
-      container.dataset.cleanupListener = 'true';
+      document.addEventListener('click', this._closeTagDropdown);
     }
   }, {
     key: "generateReport",
