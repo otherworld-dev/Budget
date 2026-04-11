@@ -8,13 +8,12 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.8.4
+## What's New in v2.10.0
 
-- **Running Balance Column** - Bank-statement-style cumulative balance on the transactions table
-- **Bi-Weekly Frequency** - New bi-weekly option for bills, income, and transfers
-- **One-Time Income** - Non-recurring income entries that auto-deactivate after receipt
-- **Redesigned Match All** - Scan/review flow with currency check and configurable date window
-- **Bug Fixes** - Recurring bill payment transactions, pension return rate display, reconciliation balance
+- **Full i18n Support** - All user-facing strings are now translatable, enabling multilingual translations via Weblate
+- **Multi-Currency Bills** - Bills display amounts in their native currency with base-currency equivalents, split templates support multi-currency accounts (#126, #121)
+- **Tag Filter Fix** - Stale event listeners no longer break tag filters in reports (#128)
+- **Tag Display Fix** - Long tag names are no longer cut off in the transaction list
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
