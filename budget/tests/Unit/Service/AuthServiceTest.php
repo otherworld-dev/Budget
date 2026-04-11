@@ -9,6 +9,7 @@ use OCA\Budget\Db\AuthMapper;
 use OCA\Budget\Service\AuthService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class AuthServiceTest extends TestCase {
@@ -20,9 +21,17 @@ class AuthServiceTest extends TestCase {
         $this->mapper = $this->createMock(AuthMapper::class);
         $this->settingService = $this->createMock(SettingService::class);
 
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+            foreach ($params as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+            }
+            return $text;
+        });
         $this->service = new AuthService(
             $this->mapper,
-            $this->settingService
+            $this->settingService,
+            $l
         );
     }
 

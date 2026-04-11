@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\ForecastController;
 use OCA\Budget\Service\ForecastService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -19,10 +20,15 @@ class ForecastControllerTest extends TestCase {
 		$request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(ForecastService::class);
 		$logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new ForecastController(
 			$request,
 			$this->service,
+			$l,
 			'user1',
 			$logger
 		);

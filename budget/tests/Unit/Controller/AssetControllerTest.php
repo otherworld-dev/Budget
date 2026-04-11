@@ -11,6 +11,7 @@ use OCA\Budget\Service\AssetProjector;
 use OCA\Budget\Service\AssetService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -22,6 +23,7 @@ class AssetControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 	private bool $streamOverridden = false;
 
 	protected function setUp(): void {
@@ -30,6 +32,10 @@ class AssetControllerTest extends TestCase {
 		$this->projector = $this->createMock(AssetProjector::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		// Default validation mocks
 		$this->validationService->method('validateName')
@@ -44,6 +50,7 @@ class AssetControllerTest extends TestCase {
 			$this->service,
 			$this->projector,
 			$this->validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -147,7 +154,7 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Name required']);
 
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['name' => '', 'type' => 'real_estate']));
@@ -172,7 +179,7 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateDescription')->willReturn(['valid' => false, 'error' => 'Too long']);
 
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -232,7 +239,7 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -428,7 +435,7 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['value' => 300000, 'date' => 'bad']));
@@ -550,7 +557,7 @@ class AssetControllerTest extends TestCase {
 	public function testNullUserIdThrowsOnIndex(): void {
 		$controller = new AssetController(
 			$this->request, $this->service, $this->projector,
-			$this->validationService, null, $this->logger
+			$this->validationService, $this->l, null, $this->logger
 		);
 
 		$response = $controller->index();

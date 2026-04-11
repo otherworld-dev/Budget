@@ -13,6 +13,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,18 +23,21 @@ class GoalsController extends Controller {
 
     private GoalsService $service;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         GoalsService $service,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -47,7 +51,7 @@ class GoalsController extends Controller {
             $goals = $this->service->findAll($this->userId);
             return new DataResponse($goals);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve goals');
+            return $this->handleError($e, $this->l->t('Failed to retrieve goals'));
         }
     }
 
@@ -59,7 +63,7 @@ class GoalsController extends Controller {
             $goal = $this->service->find($id, $this->userId);
             return new DataResponse($goal);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Goal', ['goalId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Goal'), ['goalId' => $id]);
         }
     }
 
@@ -95,7 +99,7 @@ class GoalsController extends Controller {
 
             // Validate targetDate if provided
             if ($targetDate !== null && $targetDate !== '') {
-                $dateValidation = $this->validationService->validateDate($targetDate, 'Target date', false);
+                $dateValidation = $this->validationService->validateDate($targetDate, $this->l->t('Target date'), false);
                 if (!$dateValidation['valid']) {
                     return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -105,22 +109,22 @@ class GoalsController extends Controller {
 
             // Validate targetAmount is positive
             if ($targetAmount <= 0) {
-                return new DataResponse(['error' => 'Target amount must be greater than zero'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Target amount must be greater than zero')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate targetMonths if provided
             if ($targetMonths !== null && $targetMonths <= 0) {
-                return new DataResponse(['error' => 'Target months must be greater than zero'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Target months must be greater than zero')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate currentAmount is not negative
             if ($currentAmount < 0) {
-                return new DataResponse(['error' => 'Current amount cannot be negative'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Current amount cannot be negative')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate tagId if provided
             if ($tagId !== null && $tagId <= 0) {
-                return new DataResponse(['error' => 'Invalid tag ID'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid tag ID')], Http::STATUS_BAD_REQUEST);
             }
 
             $goal = $this->service->create(
@@ -135,7 +139,7 @@ class GoalsController extends Controller {
             );
             return new DataResponse($goal, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create goal');
+            return $this->handleError($e, $this->l->t('Failed to create goal'));
         }
     }
 
@@ -174,7 +178,7 @@ class GoalsController extends Controller {
 
             // Validate targetDate if provided
             if ($targetDate !== null) {
-                $dateValidation = $this->validationService->validateDate($targetDate, 'Target date', false);
+                $dateValidation = $this->validationService->validateDate($targetDate, $this->l->t('Target date'), false);
                 if (!$dateValidation['valid']) {
                     return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -182,22 +186,22 @@ class GoalsController extends Controller {
 
             // Validate targetAmount if provided
             if ($targetAmount !== null && $targetAmount <= 0) {
-                return new DataResponse(['error' => 'Target amount must be greater than zero'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Target amount must be greater than zero')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate targetMonths if provided
             if ($targetMonths !== null && $targetMonths <= 0) {
-                return new DataResponse(['error' => 'Target months must be greater than zero'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Target months must be greater than zero')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate currentAmount if provided
             if ($currentAmount !== null && $currentAmount < 0) {
-                return new DataResponse(['error' => 'Current amount cannot be negative'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Current amount cannot be negative')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate tagId if provided
             if ($tagId !== null && $tagId <= 0) {
-                return new DataResponse(['error' => 'Invalid tag ID'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid tag ID')], Http::STATUS_BAD_REQUEST);
             }
 
             // Detect if tagId was explicitly sent in the request body
@@ -218,7 +222,7 @@ class GoalsController extends Controller {
             );
             return new DataResponse($goal);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update goal', Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to update goal'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
         }
     }
 
@@ -229,9 +233,9 @@ class GoalsController extends Controller {
     public function destroy(int $id): DataResponse {
         try {
             $this->service->delete($id, $this->userId);
-            return new DataResponse(['message' => 'Goal deleted successfully']);
+            return new DataResponse(['message' => $this->l->t('Goal deleted successfully')]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to delete goal', Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to delete goal'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
         }
     }
 
@@ -243,7 +247,7 @@ class GoalsController extends Controller {
             $progress = $this->service->getProgress($id, $this->userId);
             return new DataResponse($progress);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve goal progress', Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to retrieve goal progress'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
         }
     }
 
@@ -255,7 +259,7 @@ class GoalsController extends Controller {
             $forecast = $this->service->getForecast($id, $this->userId);
             return new DataResponse($forecast);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve goal forecast', Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to retrieve goal forecast'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
         }
     }
 }

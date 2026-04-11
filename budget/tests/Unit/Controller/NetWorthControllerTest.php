@@ -8,6 +8,7 @@ use OCA\Budget\Controller\NetWorthController;
 use OCA\Budget\Db\NetWorthSnapshot;
 use OCA\Budget\Service\NetWorthService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -16,11 +17,13 @@ class NetWorthControllerTest extends TestCase {
 	private NetWorthService $service;
 	private LoggerInterface $logger;
 	private IRequest $request;
+	private IL10N $l;
 
 	private function makeController(?string $userId = 'user1'): NetWorthController {
 		return new NetWorthController(
 			$this->request,
 			$this->service,
+			$this->l,
 			$userId,
 			$this->logger
 		);
@@ -30,6 +33,10 @@ class NetWorthControllerTest extends TestCase {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(NetWorthService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 	}
 
 	// ── current ─────────────────────────────────────────────────────

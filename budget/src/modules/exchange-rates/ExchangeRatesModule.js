@@ -5,6 +5,7 @@
  * per-user manual rate overrides for currencies without auto-rates
  * or when the user wants a specific rate (e.g. Argentina's blue dollar).
  */
+import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import * as dom from '../../utils/dom.js';
 
@@ -33,7 +34,7 @@ export default class ExchangeRatesModule {
             }
         } catch (error) {
             console.error('Failed to load exchange rates:', error);
-            showError('Failed to load exchange rates');
+            showError(t('budget', 'Failed to load exchange rates'));
         }
     }
 
@@ -109,7 +110,7 @@ export default class ExchangeRatesModule {
                         <div class="rate-value">
                             ${displayRate !== null
                                 ? `1 ${baseCurrency} = ${displayRate} ${curr.code}`
-                                : '<span class="no-rate-text">No rate available</span>'}
+                                : `<span class="no-rate-text">${t('budget', 'No rate available')}</span>`}
                         </div>
                     </div>
                     <div class="rate-details">
@@ -119,14 +120,14 @@ export default class ExchangeRatesModule {
                     </div>
                     <div class="rate-actions">
                         ${curr.hasManual ? `
-                            <button class="edit-manual-rate-btn icon-button" data-currency="${curr.code}" data-rate="${currentDisplayRate}" title="Edit manual rate">
+                            <button class="edit-manual-rate-btn icon-button" data-currency="${curr.code}" data-rate="${currentDisplayRate}" title="${t('budget', 'Edit manual rate')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
-                            <button class="remove-manual-rate-btn icon-button" data-currency="${curr.code}" title="Remove manual rate">
+                            <button class="remove-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Remove manual rate')}">
                                 <span class="icon-delete" aria-hidden="true"></span>
                             </button>
                         ` : `
-                            <button class="set-manual-rate-btn icon-button" data-currency="${curr.code}" title="Set manual rate">
+                            <button class="set-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Set manual rate')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
                         `}
@@ -165,11 +166,11 @@ export default class ExchangeRatesModule {
             'floatrates': 'FloatRates',
             'ecb': 'ECB',
             'coingecko': 'CoinGecko',
-            'reference': 'Reference',
-            'manual': 'Manual',
-            'none': 'None',
+            'reference': t('budget', 'Reference'),
+            'manual': t('budget', 'Manual'),
+            'none': t('budget', 'None'),
         };
-        return labels[source] || 'Unknown';
+        return labels[source] || t('budget', 'Unknown');
     }
 
     applyFilter(filter) {
@@ -262,7 +263,7 @@ export default class ExchangeRatesModule {
         const isEdit = currentRate !== null;
 
         const titleEl = document.getElementById('manual-rate-modal-title');
-        if (titleEl) titleEl.textContent = isEdit ? 'Edit Manual Rate' : 'Set Manual Rate';
+        if (titleEl) titleEl.textContent = isEdit ? t('budget', 'Edit Manual Rate') : t('budget', 'Set Manual Rate');
 
         document.getElementById('manual-rate-currency').textContent = `${currency} \u2014 ${currName}`;
         document.getElementById('manual-rate-base-label').textContent = `1 ${baseCurrency} =`;
@@ -291,12 +292,12 @@ export default class ExchangeRatesModule {
         const rate = document.getElementById('manual-rate-value')?.value?.trim();
 
         if (!currency || !rate) {
-            showError('Please enter a rate value');
+            showError(t('budget', 'Please enter a rate value'));
             return;
         }
 
         if (isNaN(parseFloat(rate)) || parseFloat(rate) <= 0) {
-            showError('Rate must be a positive number');
+            showError(t('budget', 'Rate must be a positive number'));
             return;
         }
 
@@ -313,17 +314,17 @@ export default class ExchangeRatesModule {
                 const err = await response.json();
                 throw new Error(err.error || 'Failed to save');
             }
-            showSuccess(`Manual rate set for ${currency}`);
+            showSuccess(t('budget', 'Manual rate set for {currency}', { currency }));
             this.hideManualRateModal();
             await this.loadExchangeRatesView();
         } catch (error) {
             console.error('Failed to save manual rate:', error);
-            showError('Failed to save manual rate');
+            showError(t('budget', 'Failed to save manual rate'));
         }
     }
 
     confirmRemoveManualRate(currency) {
-        if (confirm(`Remove manual rate for ${currency}? It will revert to the automatic rate.`)) {
+        if (confirm(t('budget', 'Remove manual rate for {currency}? It will revert to the automatic rate.', { currency }))) {
             this.removeManualRate(currency);
         }
     }
@@ -335,11 +336,11 @@ export default class ExchangeRatesModule {
                 headers: { 'requesttoken': OC.requestToken }
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            showSuccess(`Manual rate removed for ${currency}`);
+            showSuccess(t('budget', 'Manual rate removed for {currency}', { currency }));
             await this.loadExchangeRatesView();
         } catch (error) {
             console.error('Failed to remove manual rate:', error);
-            showError('Failed to remove manual rate');
+            showError(t('budget', 'Failed to remove manual rate'));
         }
     }
 
@@ -347,7 +348,7 @@ export default class ExchangeRatesModule {
         const btn = document.getElementById('refresh-rates-btn');
         if (btn) {
             btn.disabled = true;
-            btn.textContent = 'Refreshing...';
+            btn.textContent = t('budget', 'Refreshing…');
         }
 
         try {
@@ -356,15 +357,15 @@ export default class ExchangeRatesModule {
                 headers: { 'requesttoken': OC.requestToken }
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            showSuccess('Exchange rates refreshed');
+            showSuccess(t('budget', 'Exchange rates refreshed'));
             await this.loadExchangeRatesView();
         } catch (error) {
             console.error('Failed to refresh rates:', error);
-            showError('Failed to refresh exchange rates');
+            showError(t('budget', 'Failed to refresh exchange rates'));
         } finally {
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = 'Refresh Rates';
+                btn.textContent = t('budget', 'Refresh Rates');
             }
         }
     }

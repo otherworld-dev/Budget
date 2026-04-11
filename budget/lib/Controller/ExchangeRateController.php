@@ -14,6 +14,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -24,6 +25,7 @@ class ExchangeRateController extends Controller {
     private CurrencyConversionService $conversionService;
     private ManualExchangeRateService $manualRateService;
     private ExchangeRateMapper $exchangeRateMapper;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
@@ -32,6 +34,7 @@ class ExchangeRateController extends Controller {
         CurrencyConversionService $conversionService,
         ManualExchangeRateService $manualRateService,
         ExchangeRateMapper $exchangeRateMapper,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -40,6 +43,7 @@ class ExchangeRateController extends Controller {
         $this->conversionService = $conversionService;
         $this->manualRateService = $manualRateService;
         $this->exchangeRateMapper = $exchangeRateMapper;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
     }
@@ -104,7 +108,7 @@ class ExchangeRateController extends Controller {
                 'currencies' => $currencies,
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to load exchange rates');
+            return $this->handleError($e, $this->l->t('Failed to load exchange rates'));
         }
     }
 
@@ -120,7 +124,7 @@ class ExchangeRateController extends Controller {
                 'baseCurrency' => $baseCurrency,
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to get base currency');
+            return $this->handleError($e, $this->l->t('Failed to get base currency'));
         }
     }
 
@@ -134,10 +138,10 @@ class ExchangeRateController extends Controller {
             $this->exchangeRateService->fetchLatestRates();
             return new DataResponse([
                 'status' => 'ok',
-                'message' => 'Exchange rates refreshed successfully',
+                'message' => $this->l->t('Exchange rates refreshed successfully'),
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to refresh exchange rates');
+            return $this->handleError($e, $this->l->t('Failed to refresh exchange rates'));
         }
     }
 
@@ -153,7 +157,7 @@ class ExchangeRateController extends Controller {
 
             if (empty($currency) || empty($rate)) {
                 return new DataResponse(
-                    ['error' => 'Currency and rate are required'],
+                    ['error' => $this->l->t('Currency and rate are required')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -166,7 +170,7 @@ class ExchangeRateController extends Controller {
                 Http::STATUS_BAD_REQUEST
             );
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to set manual rate');
+            return $this->handleError($e, $this->l->t('Failed to set manual rate'));
         }
     }
 
@@ -180,7 +184,7 @@ class ExchangeRateController extends Controller {
             $this->manualRateService->removeRate($this->userId, $currency);
             return new DataResponse(['status' => 'ok']);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to remove manual rate');
+            return $this->handleError($e, $this->l->t('Failed to remove manual rate'));
         }
     }
 }

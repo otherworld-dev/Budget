@@ -6,6 +6,7 @@ namespace OCA\Budget\Traits;
 
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -22,6 +23,14 @@ trait ApiErrorHandlerTrait {
      */
     protected function setLogger(LoggerInterface $logger): void {
         $this->logger = $logger;
+    }
+
+    /**
+     * Get the IL10N instance for translations, if available.
+     * Controllers using this trait should have $this->l set via constructor injection.
+     */
+    protected function getL10N(): ?IL10N {
+        return property_exists($this, 'l') ? $this->l : null;
     }
 
     /**
@@ -57,9 +66,14 @@ trait ApiErrorHandlerTrait {
         string $entityType = 'Resource',
         array $context = []
     ): DataResponse {
+        $l = $this->getL10N();
+        $message = $l !== null
+            ? $l->t('%1$s not found', [$entityType])
+            : "{$entityType} not found";
+
         return $this->handleError(
             $e,
-            "{$entityType} not found",
+            $message,
             Http::STATUS_NOT_FOUND,
             $context
         );

@@ -33,6 +33,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@nextcloud/l10n": "^3.4.1",
     "chart.js": "^4.4.0",
     "flatpickr": "^4.6.13"
   }

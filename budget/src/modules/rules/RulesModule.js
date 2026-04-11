@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import { CriteriaBuilder } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 export default class RulesModule {
     constructor(app) {
@@ -79,7 +80,7 @@ export default class RulesModule {
             await this.loadRules();
         } catch (error) {
             console.error('Failed to load rules view:', error);
-            showError('Failed to load rules');
+            showError(t('budget', 'Failed to load rules'));
         }
     }
 
@@ -125,11 +126,11 @@ export default class RulesModule {
             } else {
                 // v1 format fallback
                 const matchTypeLabels = {
-                    'contains': 'contains',
-                    'exact': 'equals',
-                    'starts_with': 'starts with',
-                    'ends_with': 'ends with',
-                    'regex': 'matches'
+                    'contains': t('budget', 'contains'),
+                    'exact': t('budget', 'equals'),
+                    'starts_with': t('budget', 'starts with'),
+                    'ends_with': t('budget', 'ends with'),
+                    'regex': t('budget', 'matches')
                 };
                 criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
             }
@@ -139,17 +140,17 @@ export default class RulesModule {
                     <td class="rules-col-priority">${rule.priority}</td>
                     <td class="rules-col-name">${this.escapeHtml(rule.name)}</td>
                     <td class="rules-col-status">
-                        <label class="rule-toggle" title="${rule.active ? 'Click to disable' : 'Click to enable'}">
+                        <label class="rule-toggle" title="${rule.active ? t('budget', 'Click to disable') : t('budget', 'Click to enable')}">
                             <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''}>
                             <span class="rule-toggle-slider"></span>
                         </label>
-                        ${rule.applyOnImport ? '<span class="status-badge import">Import</span>' : ''}
+                        ${rule.applyOnImport ? `<span class="status-badge import">${t('budget', 'Import')}</span>` : ''}
                     </td>
                     <td class="rules-col-criteria"><code>${criteriaText}</code></td>
                     <td class="rules-col-actions">${actionBadges}</td>
                     <td class="rules-col-buttons">
-                        <button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="Edit rule"></button>
-                        <button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="Delete rule"></button>
+                        <button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}"></button>
+                        <button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}"></button>
                     </td>
                 </tr>
             `;
@@ -157,7 +158,7 @@ export default class RulesModule {
     }
 
     formatCriteriaTreeSummary(criteria) {
-        if (!criteria || !criteria.root) return 'Complex criteria';
+        if (!criteria || !criteria.root) return t('budget', 'Complex criteria');
 
         const root = criteria.root;
 
@@ -169,28 +170,28 @@ export default class RulesModule {
         // If root is a group, show operator and condition count
         if (root.operator) {
             const conditionCount = this.countConditions(root);
-            const operator = root.operator === 'AND' ? 'All' : 'Any';
-            return `${operator} of ${conditionCount} condition${conditionCount !== 1 ? 's' : ''}`;
+            const operator = root.operator === 'AND' ? t('budget', 'All') : t('budget', 'Any');
+            return t('budget', '{operator} of {count} conditions', { operator, count: conditionCount });
         }
 
-        return 'Complex criteria';
+        return t('budget', 'Complex criteria');
     }
 
     formatConditionSummary(condition) {
         const matchTypeLabels = {
-            'contains': 'contains',
-            'starts_with': 'starts with',
-            'ends_with': 'ends with',
-            'equals': 'equals',
-            'regex': 'matches',
+            'contains': t('budget', 'contains'),
+            'starts_with': t('budget', 'starts with'),
+            'ends_with': t('budget', 'ends with'),
+            'equals': t('budget', 'equals'),
+            'regex': t('budget', 'matches'),
             'greater_than': '>',
             'less_than': '<',
-            'between': 'between',
-            'before': 'before',
-            'after': 'after'
+            'between': t('budget', 'between'),
+            'before': t('budget', 'before'),
+            'after': t('budget', 'after')
         };
 
-        const negate = condition.negate ? 'NOT ' : '';
+        const negate = condition.negate ? t('budget', 'NOT') + ' ' : '';
         const field = condition.field || 'field';
         const matchType = matchTypeLabels[condition.matchType] || condition.matchType;
         const pattern = condition.pattern || '';
@@ -219,22 +220,22 @@ export default class RulesModule {
         const categoryId = actions.categoryId || rule.categoryId;
         if (categoryId) {
             const category = this.categories?.find(c => c.id === categoryId);
-            const categoryName = category?.name || `Category #${categoryId}`;
+            const categoryName = category?.name || t('budget', 'Category #{id}', { id: categoryId });
             badges.push(`<span class="action-badge category">→ ${this.escapeHtml(categoryName)}</span>`);
         }
 
         // Check for vendor action
         const vendor = actions.vendor || rule.vendorName;
         if (vendor) {
-            badges.push(`<span class="action-badge vendor">Vendor: ${this.escapeHtml(vendor)}</span>`);
+            badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(vendor)}</span>`);
         }
 
         // Check for notes action
         if (actions.notes) {
-            badges.push(`<span class="action-badge notes">Set notes</span>`);
+            badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
         }
 
-        return badges.length > 0 ? badges.join('') : '<span class="action-badge none">No actions</span>';
+        return badges.length > 0 ? badges.join('') : `<span class="action-badge none">${t('budget', 'No actions')}</span>`;
     }
 
     updateRulesSummary() {
@@ -400,10 +401,10 @@ export default class RulesModule {
 
                 rule = await response.json();
                 console.log('Migration complete. Rule:', rule.id, 'schemaVersion:', rule.schemaVersion, 'criteria:', rule.criteria);
-                showSuccess('This rule has been upgraded to the new format with advanced features');
+                showSuccess(t('budget', 'This rule has been upgraded to the new format with advanced features'));
             } catch (error) {
                 console.error('Failed to migrate rule:', error);
-                showError('Failed to upgrade rule format');
+                showError(t('budget', 'Failed to upgrade rule format'));
                 return;
             }
         }
@@ -419,7 +420,7 @@ export default class RulesModule {
         const v2Section = document.getElementById('rule-criteria-v2');
 
         if (rule) {
-            title.textContent = 'Edit Rule';
+            title.textContent = t('budget', 'Edit Rule');
             document.getElementById('rule-id').value = rule.id;
             document.getElementById('rule-name').value = rule.name || '';
             document.getElementById('rule-priority').value = rule.priority || 0;
@@ -455,7 +456,7 @@ export default class RulesModule {
             this.initializeActionBuilder(rule.actions);
         } else {
             // New rule - use v2 format with empty criteria
-            title.textContent = 'Add Rule';
+            title.textContent = t('budget', 'Add Rule');
             if (v1Section) v1Section.style.display = 'none';
             if (v2Section) v2Section.style.display = 'block';
             this.initializeCriteriaBuilder(null);
@@ -505,7 +506,7 @@ export default class RulesModule {
         const tagSetsWithGlobal = [...this.tagSets];
         const globalTags = this.app.globalTags || [];
         if (globalTags.length > 0) {
-            tagSetsWithGlobal.unshift({ id: 'global', name: 'Tags', tags: globalTags });
+            tagSetsWithGlobal.unshift({ id: 'global', name: t('budget', 'Tags'), tags: globalTags });
         }
 
         // Create new ActionBuilder instance with app data
@@ -540,13 +541,13 @@ export default class RulesModule {
     async previewRule() {
         // Validate criteria from CriteriaBuilder
         if (!this.criteriaBuilder) {
-            showError('Error: CriteriaBuilder not initialized');
+            showError(t('budget', 'Error: CriteriaBuilder not initialized'));
             return;
         }
 
         const validation = this.criteriaBuilder.validate();
         if (!validation.valid) {
-            showError('Invalid criteria: ' + validation.errors.join(', '));
+            showError(t('budget', 'Invalid criteria: {errors}', { errors: validation.errors.join(', ') }));
             return;
         }
 
@@ -561,7 +562,7 @@ export default class RulesModule {
         if (!previewSection || !previewTable) return;
 
         previewBtn.disabled = true;
-        previewBtn.textContent = 'Loading...';
+        previewBtn.textContent = t('budget', 'Loading...');
         previewSection.style.display = 'block';
         previewCount.textContent = '...';
 
@@ -590,11 +591,11 @@ export default class RulesModule {
 
         } catch (error) {
             console.error('Failed to preview rule:', error);
-            showError('Failed to preview rule: ' + error.message);
+            showError(t('budget', 'Failed to preview rule: {error}', { error: error.message }));
             previewSection.style.display = 'none';
         } finally {
             previewBtn.disabled = false;
-            previewBtn.textContent = 'Preview Matches';
+            previewBtn.textContent = t('budget', 'Preview Matches');
         }
     }
 
@@ -611,10 +612,10 @@ export default class RulesModule {
         const thead = previewTable.querySelector('thead tr');
         if (thead) {
             thead.innerHTML = `
-                <th>Date</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Current Category</th>
+                <th>${t('budget', 'Date')}</th>
+                <th>${t('budget', 'Description')}</th>
+                <th>${t('budget', 'Amount')}</th>
+                <th>${t('budget', 'Current Category')}</th>
             `;
         }
 
@@ -632,14 +633,14 @@ export default class RulesModule {
         tbody.innerHTML = '';
 
         if (result.totalMatches === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--color-text-maxcontrast);">No matching transactions found</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--color-text-maxcontrast);">${t('budget', 'No matching transactions found')}</td></tr>`;
             return;
         }
 
         // Render matches
         result.matches.forEach(match => {
             const category = match.categoryId ? this.categories.find(c => c.id === match.categoryId) : null;
-            const categoryName = category ? category.name : '<em>Uncategorized</em>';
+            const categoryName = category ? category.name : `<em>${t('budget', 'Uncategorized')}</em>`;
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -662,7 +663,7 @@ export default class RulesModule {
 
         // Always save the rule first to ensure any edits are persisted
         runBtn.disabled = true;
-        runBtn.textContent = 'Saving...';
+        runBtn.textContent = t('budget', 'Saving...');
 
         try {
             // Save the rule (creates new or updates existing)
@@ -670,11 +671,11 @@ export default class RulesModule {
             const ruleId = savedRule.id || document.getElementById('rule-id').value;
 
             if (!ruleId) {
-                throw new Error('Failed to save rule');
+                throw new Error(t('budget', 'Failed to save rule'));
             }
 
             // Now run the saved rule on all matching transactions
-            runBtn.textContent = 'Running...';
+            runBtn.textContent = t('budget', 'Running...');
             resultsSection.style.display = 'none';
 
             const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
@@ -698,21 +699,21 @@ export default class RulesModule {
             this.displayRunResults(result);
 
             if (result.success > 0) {
-                showSuccess(`Rule applied: ${result.success} transaction(s) updated`);
+                showSuccess(n('budget', 'Rule applied: %n transaction updated', 'Rule applied: %n transactions updated', result.success));
                 // Reload transactions if we're on the transactions view
                 if (this.currentView === 'transactions') {
                     await this.loadTransactions();
                 }
             } else {
-                showInfo('No transactions were updated');
+                showInfo(t('budget', 'No transactions were updated'));
             }
 
         } catch (error) {
             console.error('Failed to run rule:', error);
-            showError('Failed to run rule: ' + error.message);
+            showError(t('budget', 'Failed to run rule: {error}', { error: error.message }));
         } finally {
             runBtn.disabled = false;
-            runBtn.textContent = 'Run Rule Now';
+            runBtn.textContent = t('budget', 'Run Rule Now');
         }
     }
 
@@ -728,24 +729,24 @@ export default class RulesModule {
 
         // Validate criteria from CriteriaBuilder
         if (!this.criteriaBuilder) {
-            throw new Error('CriteriaBuilder not initialized');
+            throw new Error(t('budget', 'CriteriaBuilder not initialized'));
         }
 
         const validation = this.criteriaBuilder.validate();
         if (!validation.valid) {
-            throw new Error('Invalid criteria: ' + validation.errors.join(', '));
+            throw new Error(t('budget', 'Invalid criteria: {errors}', { errors: validation.errors.join(', ') }));
         }
 
         const criteria = this.criteriaBuilder.getCriteria();
 
         // Validate actions from ActionBuilder
         if (!this.actionBuilder) {
-            throw new Error('ActionBuilder not initialized');
+            throw new Error(t('budget', 'ActionBuilder not initialized'));
         }
 
         const actionsValidation = this.actionBuilder.validate();
         if (!actionsValidation.valid) {
-            throw new Error('Invalid actions: ' + actionsValidation.errors.join(', '));
+            throw new Error(t('budget', 'Invalid actions: {errors}', { errors: actionsValidation.errors.join(', ') }));
         }
 
         const actions = this.actionBuilder.getActions();
@@ -815,22 +816,22 @@ export default class RulesModule {
         const thead = previewTable.querySelector('thead tr');
         if (thead) {
             thead.innerHTML = `
-                <th>Date</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Current Category</th>
+                <th>${t('budget', 'Date')}</th>
+                <th>${t('budget', 'Description')}</th>
+                <th>${t('budget', 'Amount')}</th>
+                <th>${t('budget', 'Current Category')}</th>
             `;
         }
 
         // Update count text
-        previewCount.textContent = `${result.success} updated`;
+        previewCount.textContent = t('budget', '{count} updated', { count: result.success });
         previewLimitNote.style.display = 'none';
 
         // Clear previous results
         tbody.innerHTML = '';
 
         if (!result.applied || result.applied.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--color-text-maxcontrast);">No transactions were updated</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--color-text-maxcontrast);">${t('budget', 'No transactions were updated')}</td></tr>`;
             previewSection.style.display = 'block';
             return;
         }
@@ -839,7 +840,7 @@ export default class RulesModule {
         result.applied.forEach(item => {
             // Use the updated categoryId from the backend
             const category = item.categoryId ? this.categories.find(c => c.id === item.categoryId) : null;
-            const categoryName = category ? category.name : '<em>Uncategorized</em>';
+            const categoryName = category ? category.name : `<em>${t('budget', 'Uncategorized')}</em>`;
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -866,13 +867,13 @@ export default class RulesModule {
 
         // Validate criteria from CriteriaBuilder
         if (!this.criteriaBuilder) {
-            showError('Error: CriteriaBuilder not initialized');
+            showError(t('budget', 'Error: CriteriaBuilder not initialized'));
             return;
         }
 
         const validation = this.criteriaBuilder.validate();
         if (!validation.valid) {
-            showError('Invalid criteria: ' + validation.errors.join(', '));
+            showError(t('budget', 'Invalid criteria: {errors}', { errors: validation.errors.join(', ') }));
             return;
         }
 
@@ -880,13 +881,13 @@ export default class RulesModule {
 
         // Validate actions from ActionBuilder
         if (!this.actionBuilder) {
-            showError('Error: ActionBuilder not initialized');
+            showError(t('budget', 'Error: ActionBuilder not initialized'));
             return;
         }
 
         const actionsValidation = this.actionBuilder.validate();
         if (!actionsValidation.valid) {
-            showError('Invalid actions: ' + actionsValidation.errors.join(', '));
+            showError(t('budget', 'Invalid actions: {errors}', { errors: actionsValidation.errors.join(', ') }));
             return;
         }
 
@@ -922,12 +923,12 @@ export default class RulesModule {
                 throw new Error(error.error || 'Failed to save rule');
             }
 
-            showSuccess(isEdit ? 'Rule updated successfully' : 'Rule created successfully');
+            showSuccess(isEdit ? t('budget', 'Rule updated successfully') : t('budget', 'Rule created successfully'));
             this.hideModals();
             await this.loadRules();
         } catch (error) {
             console.error('Failed to save rule:', error);
-            showError('Failed to save rule: ' + error.message);
+            showError(t('budget', 'Failed to save rule: {error}', { error: error.message }));
         }
     }
 
@@ -943,12 +944,12 @@ export default class RulesModule {
             this.showRuleModal(rule);
         } catch (error) {
             console.error('Failed to load rule:', error);
-            showError('Failed to load rule');
+            showError(t('budget', 'Failed to load rule'));
         }
     }
 
     async deleteRule(ruleId) {
-        if (!confirm('Are you sure you want to delete this rule?')) return;
+        if (!confirm(t('budget', 'Are you sure you want to delete this rule?'))) return;
 
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
@@ -958,11 +959,11 @@ export default class RulesModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            showSuccess('Rule deleted successfully');
+            showSuccess(t('budget', 'Rule deleted successfully'));
             await this.loadRules();
         } catch (error) {
             console.error('Failed to delete rule:', error);
-            showError('Failed to delete rule');
+            showError(t('budget', 'Failed to delete rule'));
         }
     }
 
@@ -998,10 +999,10 @@ export default class RulesModule {
                 row.classList.toggle('inactive', !active);
             }
 
-            showSuccess(active ? 'Rule enabled' : 'Rule disabled');
+            showSuccess(active ? t('budget', 'Rule enabled') : t('budget', 'Rule disabled'));
         } catch (error) {
             console.error('Failed to toggle rule:', error);
-            showError('Failed to update rule: ' + error.message);
+            showError(t('budget', 'Failed to update rule: {error}', { error: error.message }));
             // Revert the checkbox
             await this.loadRules();
         }
@@ -1065,7 +1066,7 @@ export default class RulesModule {
         const resultsDiv = document.getElementById('apply-rules-results');
         const executeBtn = document.getElementById('execute-apply-rules-btn');
 
-        if (!confirm('Apply rules to matching transactions? This will modify the selected transactions.')) {
+        if (!confirm(t('budget', 'Apply rules to matching transactions? This will modify the selected transactions.'))) {
             return;
         }
 
@@ -1074,7 +1075,7 @@ export default class RulesModule {
         const ruleIds = this.collectSelectedRuleIds();
 
         executeBtn.disabled = true;
-        executeBtn.textContent = 'Applying...';
+        executeBtn.textContent = t('budget', 'Applying...');
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
@@ -1100,7 +1101,7 @@ export default class RulesModule {
 
             if (resultsDiv) resultsDiv.style.display = 'block';
 
-            showSuccess(`Rules applied: ${result.success} updated, ${result.skipped} skipped, ${result.failed} failed`);
+            showSuccess(t('budget', 'Rules applied: {success} updated, {skipped} skipped, {failed} failed', { success: result.success, skipped: result.skipped, failed: result.failed }));
 
             // Refresh transactions if we're on that view
             if (this.currentView === 'transactions') {
@@ -1109,10 +1110,10 @@ export default class RulesModule {
 
         } catch (error) {
             console.error('Failed to apply rules:', error);
-            showError('Failed to apply rules');
+            showError(t('budget', 'Failed to apply rules'));
         } finally {
             executeBtn.disabled = false;
-            executeBtn.textContent = 'Apply Rules';
+            executeBtn.textContent = t('budget', 'Apply Rules');
         }
     }
 }

@@ -13,6 +13,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,18 +23,21 @@ class CategoryController extends Controller {
 
     private CategoryService $service;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         CategoryService $service,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -51,7 +55,7 @@ class CategoryController extends Controller {
             }
             return new DataResponse($categories);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve categories');
+            return $this->handleError($e, $this->l->t('Failed to retrieve categories'));
         }
     }
 
@@ -63,7 +67,7 @@ class CategoryController extends Controller {
             $tree = $this->service->getCategoryTree($this->userId);
             return new DataResponse($tree);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve category tree');
+            return $this->handleError($e, $this->l->t('Failed to retrieve category tree'));
         }
     }
 
@@ -75,7 +79,7 @@ class CategoryController extends Controller {
             $counts = $this->service->getCategoryTransactionCounts($this->userId);
             return new DataResponse($counts);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve transaction counts');
+            return $this->handleError($e, $this->l->t('Failed to retrieve transaction counts'));
         }
     }
 
@@ -87,7 +91,7 @@ class CategoryController extends Controller {
             $category = $this->service->find($id, $this->userId);
             return new DataResponse($category);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Category', ['categoryId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
         }
     }
 
@@ -115,7 +119,7 @@ class CategoryController extends Controller {
             // Validate type
             $validTypes = ['income', 'expense'];
             if (!in_array($type, $validTypes, true)) {
-                return new DataResponse(['error' => 'Invalid category type. Must be income or expense'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid category type. Must be income or expense')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate optional fields
@@ -182,7 +186,7 @@ class CategoryController extends Controller {
             if ($type !== null) {
                 $validTypes = ['income', 'expense'];
                 if (!in_array($type, $validTypes, true)) {
-                    return new DataResponse(['error' => 'Invalid category type. Must be income or expense'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid category type. Must be income or expense')], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['type'] = $type;
             }
@@ -209,7 +213,7 @@ class CategoryController extends Controller {
             if ($budgetPeriod !== null) {
                 $validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
                 if (!in_array($budgetPeriod, $validPeriods, true)) {
-                    return new DataResponse(['error' => 'Invalid budget period. Must be monthly, weekly, yearly, or quarterly'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid budget period. Must be monthly, weekly, yearly, or quarterly')], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['budgetPeriod'] = $budgetPeriod;
             }
@@ -226,7 +230,7 @@ class CategoryController extends Controller {
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $category = $this->service->update($id, $this->userId, $updates);
@@ -245,7 +249,7 @@ class CategoryController extends Controller {
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to delete category', Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to delete category'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
         }
     }
 
@@ -257,7 +261,7 @@ class CategoryController extends Controller {
             $spending = $this->service->getAllCategorySpending($this->userId, $startDate, $endDate);
             return new DataResponse($spending);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve category spending');
+            return $this->handleError($e, $this->l->t('Failed to retrieve category spending'));
         }
     }
 
@@ -269,7 +273,7 @@ class CategoryController extends Controller {
             $spending = $this->service->getCategorySpending($id, $this->userId, $startDate, $endDate);
             return new DataResponse(['spending' => $spending]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve category spending', Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to retrieve category spending'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
         }
     }
 
@@ -281,7 +285,7 @@ class CategoryController extends Controller {
             $details = $this->service->getCategoryDetails($id, $this->userId);
             return new DataResponse($details);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Category', ['categoryId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
         }
     }
 
@@ -293,7 +297,7 @@ class CategoryController extends Controller {
             $transactions = $this->service->getCategoryTransactions($id, $this->userId, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Category', ['categoryId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
         }
     }
 }

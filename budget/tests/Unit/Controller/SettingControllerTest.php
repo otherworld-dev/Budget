@@ -9,6 +9,7 @@ use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -23,10 +24,15 @@ class SettingControllerTest extends TestCase {
 		$this->request = $this->createMock(IRequest::class);
 		$this->mapper = $this->createMock(SettingMapper::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new SettingController(
 			$this->request,
 			$this->mapper,
+			$l,
 			'user1',
 			$this->logger
 		);

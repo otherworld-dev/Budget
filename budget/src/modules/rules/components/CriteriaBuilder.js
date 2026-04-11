@@ -1,4 +1,5 @@
 import './CriteriaBuilder.css';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 /**
  * CriteriaBuilder - Visual query builder for complex boolean expression trees
@@ -80,10 +81,10 @@ export class CriteriaBuilder {
 			<div class="criteria-group" data-path="${pathStr}">
 				<div class="group-header">
 					<select class="group-operator" data-path="${pathStr}">
-						<option value="AND" ${node.operator === 'AND' ? 'selected' : ''}>All conditions must match (AND)</option>
-						<option value="OR" ${node.operator === 'OR' ? 'selected' : ''}>Any condition can match (OR)</option>
+						<option value="AND" ${node.operator === 'AND' ? 'selected' : ''}>${t('budget', 'All conditions must match (AND)')}</option>
+						<option value="OR" ${node.operator === 'OR' ? 'selected' : ''}>${t('budget', 'Any condition can match (OR)')}</option>
 					</select>
-					${!isRoot ? '<button class="btn-remove-group" type="button" title="Remove this group">✕</button>' : ''}
+					${!isRoot ? `<button class="btn-remove-group" type="button" title="${t('budget', 'Remove this group')}">✕</button>` : ''}
 				</div>
 				<div class="group-conditions">
 					${node.conditions.map((cond, idx) => {
@@ -92,8 +93,8 @@ export class CriteriaBuilder {
 					}).join('')}
 				</div>
 				<div class="group-actions">
-					<button class="btn-add-condition" type="button" data-path="${pathStr}">+ Add Condition</button>
-					<button class="btn-add-group" type="button" data-path="${pathStr}">+ Add Group</button>
+					<button class="btn-add-condition" type="button" data-path="${pathStr}">${t('budget', '+ Add Condition')}</button>
+					<button class="btn-add-group" type="button" data-path="${pathStr}">${t('budget', '+ Add Group')}</button>
 				</div>
 			</div>
 		`;
@@ -109,15 +110,15 @@ export class CriteriaBuilder {
 				<div class="condition-row">
 					<label class="negate-checkbox">
 						<input type="checkbox" class="condition-negate" data-path="${pathStr}" ${node.negate ? 'checked' : ''}>
-						<span class="negate-label">NOT</span>
+						<span class="negate-label">${t('budget', 'NOT')}</span>
 					</label>
 					<select class="condition-field" data-path="${pathStr}">
-						<option value="description" ${node.field === 'description' ? 'selected' : ''}>Description</option>
-						<option value="vendor" ${node.field === 'vendor' ? 'selected' : ''}>Vendor</option>
-						<option value="amount" ${node.field === 'amount' ? 'selected' : ''}>Amount</option>
-						<option value="reference" ${node.field === 'reference' ? 'selected' : ''}>Reference</option>
-						<option value="notes" ${node.field === 'notes' ? 'selected' : ''}>Notes</option>
-						<option value="date" ${node.field === 'date' ? 'selected' : ''}>Date</option>
+						<option value="description" ${node.field === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
+						<option value="vendor" ${node.field === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
+						<option value="amount" ${node.field === 'amount' ? 'selected' : ''}>${t('budget', 'Amount')}</option>
+						<option value="reference" ${node.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
+						<option value="notes" ${node.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
+						<option value="date" ${node.field === 'date' ? 'selected' : ''}>${t('budget', 'Date')}</option>
 					</select>
 					<select class="condition-match-type" data-path="${pathStr}">
 						${this.renderMatchTypeOptions(node.field, node.matchType)}
@@ -125,7 +126,7 @@ export class CriteriaBuilder {
 					<input type="text" class="condition-pattern" data-path="${pathStr}"
 						value="${this.escapeHtml(node.pattern || '')}"
 						placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">
-					<button class="btn-remove-condition" type="button" data-path="${pathStr}" title="Remove this condition">✕</button>
+					<button class="btn-remove-condition" type="button" data-path="${pathStr}" title="${t('budget', 'Remove this condition')}">✕</button>
 				</div>
 			</div>
 		`;
@@ -133,25 +134,25 @@ export class CriteriaBuilder {
 
 	renderMatchTypeOptions(field, currentMatchType) {
 		const stringTypes = {
-			'contains': 'contains',
-			'starts_with': 'starts with',
-			'ends_with': 'ends with',
-			'equals': 'equals (exact match)',
-			'regex': 'matches regex'
+			'contains': t('budget', 'contains'),
+			'starts_with': t('budget', 'starts with'),
+			'ends_with': t('budget', 'ends with'),
+			'equals': t('budget', 'equals (exact match)'),
+			'regex': t('budget', 'matches regex')
 		};
 
 		const numericTypes = {
-			'equals': 'equals',
-			'greater_than': 'greater than',
-			'less_than': 'less than',
-			'between': 'between'
+			'equals': t('budget', 'equals'),
+			'greater_than': t('budget', 'greater than'),
+			'less_than': t('budget', 'less than'),
+			'between': t('budget', 'between')
 		};
 
 		const dateTypes = {
-			'equals': 'on date',
-			'before': 'before',
-			'after': 'after',
-			'between': 'between dates'
+			'equals': t('budget', 'on date'),
+			'before': t('budget', 'before'),
+			'after': t('budget', 'after'),
+			'between': t('budget', 'between dates')
 		};
 
 		let types = stringTypes;
@@ -169,23 +170,23 @@ export class CriteriaBuilder {
 	getPatternPlaceholder(field, matchType) {
 		if (field === 'amount') {
 			if (matchType === 'between') {
-				return 'e.g., {"min": 10, "max": 100}';
+				return t('budget', 'e.g., {"min": 10, "max": 100}');
 			}
-			return 'e.g., 50.00';
+			return t('budget', 'e.g., 50.00');
 		}
 
 		if (field === 'date') {
 			if (matchType === 'between') {
-				return 'e.g., {"min": "2024-01-01", "max": "2024-12-31"}';
+				return t('budget', 'e.g., {"min": "2024-01-01", "max": "2024-12-31"}');
 			}
-			return 'e.g., 2024-01-15';
+			return t('budget', 'e.g., 2024-01-15');
 		}
 
 		if (matchType === 'regex') {
-			return 'e.g., ^ORDER-\\d+';
+			return t('budget', 'e.g., ^ORDER-\\d+');
 		}
 
-		return 'e.g., amazon';
+		return t('budget', 'e.g., amazon');
 	}
 
 	attachEventListeners() {
@@ -282,7 +283,7 @@ export class CriteriaBuilder {
 			parent.conditions.splice(index, 1);
 			this.render();
 		} else {
-			alert('Cannot remove the last condition from a group. Remove the group instead.');
+			alert(t('budget', 'Cannot remove the last condition from a group. Remove the group instead.'));
 		}
 	}
 
@@ -381,23 +382,23 @@ export class CriteriaBuilder {
 		if (node.operator) {
 			// Group node
 			if (!node.conditions || node.conditions.length === 0) {
-				errors.push(`Group at ${path || 'root'} has no conditions`);
+				errors.push(t('budget', 'Group at {path} has no conditions', { path: path || t('budget', 'root') }));
 			} else {
 				node.conditions.forEach((child, idx) => {
-					const childPath = path ? `${path} > condition ${idx + 1}` : `condition ${idx + 1}`;
+					const childPath = path ? `${path} > ${t('budget', 'condition {number}', { number: idx + 1 })}` : t('budget', 'condition {number}', { number: idx + 1 });
 					this.validateNode(child, childPath, errors);
 				});
 			}
 		} else {
 			// Condition node
 			if (!node.field) {
-				errors.push(`Condition at ${path} has no field selected`);
+				errors.push(t('budget', 'Condition at {path} has no field selected', { path }));
 			}
 			if (!node.matchType) {
-				errors.push(`Condition at ${path} has no match type selected`);
+				errors.push(t('budget', 'Condition at {path} has no match type selected', { path }));
 			}
 			if (!node.pattern || node.pattern.trim() === '') {
-				errors.push(`Condition at ${path} has no pattern value`);
+				errors.push(t('budget', 'Condition at {path} has no pattern value', { path }));
 			}
 
 			// Validate regex if match type is regex
@@ -405,7 +406,7 @@ export class CriteriaBuilder {
 				try {
 					new RegExp(node.pattern);
 				} catch (e) {
-					errors.push(`Condition at ${path} has invalid regex pattern: ${e.message}`);
+					errors.push(t('budget', 'Condition at {path} has invalid regex pattern: {error}', { path, error: e.message }));
 				}
 			}
 
@@ -414,10 +415,10 @@ export class CriteriaBuilder {
 				try {
 					const parsed = JSON.parse(node.pattern);
 					if (!parsed.min || !parsed.max) {
-						errors.push(`Condition at ${path} 'between' pattern must have 'min' and 'max' properties`);
+						errors.push(t('budget', "Condition at {path} 'between' pattern must have 'min' and 'max' properties", { path }));
 					}
 				} catch (e) {
-					errors.push(`Condition at ${path} 'between' pattern must be valid JSON with min/max`);
+					errors.push(t('budget', "Condition at {path} 'between' pattern must be valid JSON with min/max", { path }));
 				}
 			}
 		}

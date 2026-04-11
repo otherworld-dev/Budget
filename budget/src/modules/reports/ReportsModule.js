@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 export default class ReportsModule {
     constructor(app) {
@@ -147,7 +148,7 @@ export default class ReportsModule {
         const dropdown = document.getElementById('report-account');
         if (!dropdown) return;
 
-        dropdown.innerHTML = '<option value="">All Accounts</option>';
+        dropdown.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
         if (Array.isArray(this.accounts)) {
             this.accounts.forEach(account => {
                 dropdown.innerHTML += `<option value="${account.id}">${account.name}</option>`;
@@ -172,7 +173,7 @@ export default class ReportsModule {
                     this.allTagSetsForReports = this.allTagSetsForReports || [];
                     this.allTagSetsForReports.unshift({
                         id: 'global',
-                        name: 'Tags',
+                        name: t('budget', 'Tags'),
                         tags: globalTags
                     });
                 }
@@ -191,7 +192,7 @@ export default class ReportsModule {
         container.innerHTML = '';
 
         if (!this.allTagSetsForReports || this.allTagSetsForReports.length === 0) {
-            container.innerHTML = '<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">No tags available</div>';
+            container.innerHTML = `<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">${t('budget', 'No tags available')}</div>`;
             return;
         }
 
@@ -203,7 +204,7 @@ export default class ReportsModule {
         input.type = 'text';
         input.id = 'report-tags-input';
         input.className = 'tags-autocomplete-input';
-        input.placeholder = 'Type to filter tags...';
+        input.placeholder = t('budget', 'Type to filter tags...');
 
         // Create dropdown
         const dropdown = document.createElement('div');
@@ -232,9 +233,9 @@ export default class ReportsModule {
         // Render dropdown function
         const renderDropdown = (filter = '') => {
             const filtered = filter
-                ? allTags.filter(t =>
-                    t.name.toLowerCase().includes(filter.toLowerCase()) ||
-                    t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                ? allTags.filter(tg =>
+                    tg.name.toLowerCase().includes(filter.toLowerCase()) ||
+                    tg.tagSetName.toLowerCase().includes(filter.toLowerCase())
                 )
                 : allTags;
 
@@ -269,7 +270,7 @@ export default class ReportsModule {
                 });
             });
 
-            dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+            dropdown.innerHTML = html || `<div class="tags-autocomplete-empty">${t('budget', 'No tags found')}</div>`;
             dropdown.style.display = 'block';
         };
 
@@ -288,14 +289,14 @@ export default class ReportsModule {
             const item = e.target.closest('.tags-autocomplete-item');
             if (item) {
                 const tagId = parseInt(item.dataset.tagId);
-                const clickedTag = allTags.find(t => t.id === tagId);
+                const clickedTag = allTags.find(tg => tg.id === tagId);
                 if (!clickedTag) return;
 
                 // Remove other tags from same tag set (single selection per set)
-                const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
-                tagsFromSameSet.forEach(t => {
-                    if (t.id !== tagId) {
-                        this.selectedReportTags.delete(t.id);
+                const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
+                tagsFromSameSet.forEach(tg => {
+                    if (tg.id !== tagId) {
+                        this.selectedReportTags.delete(tg.id);
                     }
                 });
 
@@ -378,7 +379,7 @@ export default class ReportsModule {
             }
         } catch (error) {
             console.error('Failed to generate report:', error);
-            showError('Failed to generate report');
+            showError(t('budget', 'Failed to generate report'));
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
@@ -431,7 +432,7 @@ export default class ReportsModule {
         if (changeEl && change) {
             const arrow = change.direction === 'up' ? '↑' : change.direction === 'down' ? '↓' : '';
             const colorClass = change.direction === 'up' ? 'positive' : change.direction === 'down' ? 'negative' : '';
-            changeEl.innerHTML = `${arrow} ${change.percentage}% vs prior period`;
+            changeEl.innerHTML = `${arrow} ${t('budget', '{percentage}% vs prior period', { percentage: change.percentage })}`;
             changeEl.className = `summary-change ${colorClass}`;
         } else if (changeEl) {
             changeEl.innerHTML = '';
@@ -455,14 +456,14 @@ export default class ReportsModule {
                 labels: trends.labels || [],
                 datasets: [
                     {
-                        label: 'Income',
+                        label: t('budget', 'Income'),
                         data: trends.income || [],
                         backgroundColor: 'rgba(46, 125, 50, 0.7)',
                         borderColor: 'rgba(46, 125, 50, 1)',
                         borderWidth: 1
                     },
                     {
-                        label: 'Expenses',
+                        label: t('budget', 'Expenses'),
                         data: trends.expenses || [],
                         backgroundColor: 'rgba(198, 40, 40, 0.7)',
                         borderColor: 'rgba(198, 40, 40, 1)',
@@ -694,7 +695,7 @@ export default class ReportsModule {
                 labels: data.map(d => this.formatReportMonthLabel(d.month)),
                 datasets: [
                     {
-                        label: 'Income',
+                        label: t('budget', 'Income'),
                         data: data.map(d => d.income),
                         backgroundColor: 'rgba(46, 125, 50, 0.7)',
                         borderColor: 'rgba(46, 125, 50, 1)',
@@ -702,7 +703,7 @@ export default class ReportsModule {
                         order: 2
                     },
                     {
-                        label: 'Expenses',
+                        label: t('budget', 'Expenses'),
                         data: data.map(d => d.expenses),
                         backgroundColor: 'rgba(198, 40, 40, 0.7)',
                         borderColor: 'rgba(198, 40, 40, 1)',
@@ -710,7 +711,7 @@ export default class ReportsModule {
                         order: 2
                     },
                     {
-                        label: 'Net Cash Flow',
+                        label: t('budget', 'Net Cash Flow'),
                         data: data.map(d => d.net),
                         borderColor: 'rgba(33, 150, 243, 1)',
                         backgroundColor: 'rgba(33, 150, 243, 0.1)',
@@ -773,7 +774,7 @@ export default class ReportsModule {
         if (!yearMonth) return '';
         const [year, month] = yearMonth.split('-');
         const date = new Date(year, month - 1);
-        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
     }
 
     // ==========================================
@@ -859,7 +860,7 @@ export default class ReportsModule {
 
         } catch (error) {
             console.error('Failed to generate YoY comparison:', error);
-            showError('Failed to generate comparison');
+            showError(t('budget', 'Failed to generate comparison'));
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
@@ -882,10 +883,10 @@ export default class ReportsModule {
             const changeHtml = year.incomeChange !== undefined ? `
                 <div class="yoy-change-indicators">
                     <span class="yoy-change ${year.incomeChange >= 0 ? 'positive' : 'negative'}">
-                        Income: ${year.incomeChange >= 0 ? '+' : ''}${year.incomeChange?.toFixed(1) || '0'}%
+                        ${t('budget', 'Income')}: ${year.incomeChange >= 0 ? '+' : ''}${year.incomeChange?.toFixed(1) || '0'}%
                     </span>
                     <span class="yoy-change ${year.expenseChange <= 0 ? 'positive' : 'negative'}">
-                        Expenses: ${year.expenseChange >= 0 ? '+' : ''}${year.expenseChange?.toFixed(1) || '0'}%
+                        ${t('budget', 'Expenses')}: ${year.expenseChange >= 0 ? '+' : ''}${year.expenseChange?.toFixed(1) || '0'}%
                     </span>
                 </div>
             ` : '';
@@ -893,20 +894,20 @@ export default class ReportsModule {
             return `
                 <div class="yoy-year-card ${year.isCurrent ? 'current-year' : ''}">
                     <div class="yoy-year-header">
-                        <span class="yoy-year-label">${year.year}${year.isCurrent ? ' (YTD)' : ''}</span>
+                        <span class="yoy-year-label">${year.year}${year.isCurrent ? ` (${t('budget', 'YTD')})` : ''}</span>
                         ${year.monthName ? `<span class="yoy-month-label">${year.monthName}</span>` : ''}
                     </div>
                     <div class="yoy-year-stats">
                         <div class="yoy-stat">
-                            <span class="yoy-stat-label">Income</span>
+                            <span class="yoy-stat-label">${t('budget', 'Income')}</span>
                             <span class="yoy-stat-value positive">${this.formatCurrency(year.income, currency)}</span>
                         </div>
                         <div class="yoy-stat">
-                            <span class="yoy-stat-label">Expenses</span>
+                            <span class="yoy-stat-label">${t('budget', 'Expenses')}</span>
                             <span class="yoy-stat-value negative">${this.formatCurrency(year.expenses, currency)}</span>
                         </div>
                         <div class="yoy-stat">
-                            <span class="yoy-stat-label">Savings</span>
+                            <span class="yoy-stat-label">${t('budget', 'Savings')}</span>
                             <span class="yoy-stat-value ${year.savings >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(year.savings, currency)}</span>
                         </div>
                     </div>
@@ -918,8 +919,8 @@ export default class ReportsModule {
         // Update chart title
         if (chartTitle) {
             chartTitle.textContent = data.type === 'month'
-                ? `${data.monthName} - Year over Year Comparison`
-                : 'Annual Income & Expenses';
+                ? t('budget', '{monthName} - Year over Year Comparison', { monthName: data.monthName })
+                : t('budget', 'Annual Income & Expenses');
         }
 
         // Render chart
@@ -943,14 +944,14 @@ export default class ReportsModule {
                 labels: years.map(y => y.year.toString()),
                 datasets: [
                     {
-                        label: 'Income',
+                        label: t('budget', 'Income'),
                         data: years.map(y => y.income),
                         backgroundColor: 'rgba(46, 125, 50, 0.7)',
                         borderColor: 'rgba(46, 125, 50, 1)',
                         borderWidth: 1
                     },
                     {
-                        label: 'Expenses',
+                        label: t('budget', 'Expenses'),
                         data: years.map(y => y.expenses),
                         backgroundColor: 'rgba(198, 40, 40, 0.7)',
                         borderColor: 'rgba(198, 40, 40, 1)',
@@ -994,15 +995,15 @@ export default class ReportsModule {
 
         // Build header with year columns
         const years = data.categories[0]?.years || [];
-        headerRow.innerHTML = '<th>Category</th>' +
+        headerRow.innerHTML = `<th>${t('budget', 'Category')}</th>` +
             years.map(y => `<th class="text-right">${y.year}</th>`).join('') +
-            '<th class="text-right">Change</th>';
+            `<th class="text-right">${t('budget', 'Change')}</th>`;
 
         // Build table rows
         tbody.innerHTML = data.categories.map(cat => {
             const changeHtml = cat.change !== null
                 ? `<span class="${cat.change <= 0 ? 'positive' : 'negative'}">${cat.change >= 0 ? '+' : ''}${cat.change.toFixed(1)}%</span>`
-                : 'N/A';
+                : t('budget', 'N/A');
 
             return `
                 <tr>
@@ -1043,10 +1044,10 @@ export default class ReportsModule {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            showSuccess(`Report exported as ${format.toUpperCase()}`);
+            showSuccess(t('budget', 'Report exported as {format}', { format: format.toUpperCase() }));
         } catch (error) {
             console.error('Export failed:', error);
-            showError('Failed to export report');
+            showError(t('budget', 'Failed to export report'));
         }
     }
 
@@ -1146,7 +1147,7 @@ export default class ReportsModule {
         dropdown.innerHTML = '';
         const allOption = document.createElement('option');
         allOption.value = '';
-        allOption.textContent = 'All Accounts';
+        allOption.textContent = t('budget', 'All Accounts');
         dropdown.appendChild(allOption);
 
         if (Array.isArray(this.accounts)) {
@@ -1262,7 +1263,7 @@ export default class ReportsModule {
 
         } catch (error) {
             console.error('Failed to generate bills calendar:', error);
-            showError('Failed to generate bills calendar');
+            showError(t('budget', 'Failed to generate bills calendar'));
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
@@ -1279,7 +1280,7 @@ export default class ReportsModule {
         const ctx = canvas.getContext('2d');
         const currency = this.getPrimaryCurrency();
 
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const months = [t('budget', 'Jan'), t('budget', 'Feb'), t('budget', 'Mar'), t('budget', 'Apr'), t('budget', 'May'), t('budget', 'Jun'), t('budget', 'Jul'), t('budget', 'Aug'), t('budget', 'Sep'), t('budget', 'Oct'), t('budget', 'Nov'), t('budget', 'Dec')];
         const data = [];
         for (let i = 1; i <= 12; i++) {
             data.push(monthlyTotals[i] || 0);
@@ -1290,7 +1291,7 @@ export default class ReportsModule {
             data: {
                 labels: months,
                 datasets: [{
-                    label: 'Total Bills',
+                    label: t('budget', 'Total Bills'),
                     data: data,
                     backgroundColor: 'rgba(198, 40, 40, 0.7)',
                     borderColor: 'rgba(198, 40, 40, 1)',
@@ -1304,7 +1305,7 @@ export default class ReportsModule {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (context) => `Total: ${this.formatCurrency(context.raw, currency)}`
+                            label: (context) => `${t('budget', 'Total')}: ${this.formatCurrency(context.raw, currency)}`
                         }
                     }
                 },
@@ -1336,7 +1337,7 @@ export default class ReportsModule {
                 months.push(`<td class="month-cell ${occurs ? 'has-bill' : 'no-bill'}">${amount}</td>`);
             }
 
-            const transferBadge = bill.isTransfer ? ' <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">Transfer</span>' : '';
+            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${t('budget', 'Transfer')}</span>` : '';
 
             return `
                 <tr>
@@ -1354,7 +1355,7 @@ export default class ReportsModule {
 
         tfoot.innerHTML = `
             <tr class="totals-row">
-                <td class="bill-name-col"><strong>Monthly Totals</strong></td>
+                <td class="bill-name-col"><strong>${t('budget', 'Monthly Totals')}</strong></td>
                 ${totals.join('')}
             </tr>
         `;
@@ -1365,7 +1366,7 @@ export default class ReportsModule {
         if (!container) return;
 
         const currency = this.getPrimaryCurrency();
-        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const months = [t('budget', 'January'), t('budget', 'February'), t('budget', 'March'), t('budget', 'April'), t('budget', 'May'), t('budget', 'June'), t('budget', 'July'), t('budget', 'August'), t('budget', 'September'), t('budget', 'October'), t('budget', 'November'), t('budget', 'December')];
 
         // Find max total for color scaling
         const maxTotal = Math.max(...Object.values(monthlyTotals));
@@ -1383,9 +1384,9 @@ export default class ReportsModule {
             const blue = Math.round(40 * (1 - 0.5 * intensity));
 
             html += `
-                <div class="heatmap-month" style="background-color: rgba(${red}, ${green}, ${blue}, ${0.2 + 0.6 * intensity});" title="${months[month - 1]}: ${billsThisMonth} bills, ${this.formatCurrency(total, currency)}">
+                <div class="heatmap-month" style="background-color: rgba(${red}, ${green}, ${blue}, ${0.2 + 0.6 * intensity});" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}">
                     <div class="heatmap-month-name">${months[month - 1]}</div>
-                    <div class="heatmap-month-count">${billsThisMonth} bills</div>
+                    <div class="heatmap-month-count">${n('budget', '%n bill', '%n bills', billsThisMonth)}</div>
                     <div class="heatmap-month-total">${this.formatCurrency(total, currency)}</div>
                 </div>
             `;

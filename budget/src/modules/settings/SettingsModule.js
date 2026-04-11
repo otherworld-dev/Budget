@@ -1,6 +1,7 @@
 /**
  * Settings Module - User preferences and configuration
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
@@ -24,7 +25,7 @@ export default class SettingsModule {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to load settings');
+                throw new Error(t('budget', 'Failed to load settings'));
             }
 
             const settings = await response.json();
@@ -32,7 +33,7 @@ export default class SettingsModule {
             this.updateNumberFormatPreview();
         } catch (error) {
             console.error('Error loading settings:', error);
-            showError('Failed to load settings');
+            showError(t('budget', 'Failed to load settings'));
         }
     }
 
@@ -109,11 +110,11 @@ export default class SettingsModule {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to save settings');
+                throw new Error(t('budget', 'Failed to save settings'));
             }
 
             const result = await response.json();
-            showSuccess('Settings saved successfully');
+            showSuccess(t('budget', 'Settings saved successfully'));
 
             // Update stored settings to apply immediately
             Object.assign(this.settings, settings);
@@ -130,7 +131,7 @@ export default class SettingsModule {
             }
         } catch (error) {
             console.error('Error saving settings:', error);
-            showError('Failed to save settings');
+            showError(t('budget', 'Failed to save settings'));
         }
     }
 
@@ -152,7 +153,7 @@ export default class SettingsModule {
     }
 
     async resetSettings() {
-        if (!confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
+        if (!confirm(t('budget', 'Are you sure you want to reset all settings to defaults? This action cannot be undone.'))) {
             return;
         }
 
@@ -165,16 +166,16 @@ export default class SettingsModule {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to reset settings');
+                throw new Error(t('budget', 'Failed to reset settings'));
             }
 
             const result = await response.json();
             await this.populateSettings(result.defaults);
             this.updateNumberFormatPreview();
-            showSuccess('Settings reset to defaults');
+            showSuccess(t('budget', 'Settings reset to defaults'));
         } catch (error) {
             console.error('Error resetting settings:', error);
-            showError('Failed to reset settings');
+            showError(t('budget', 'Failed to reset settings'));
         }
     }
 
@@ -233,25 +234,25 @@ export default class SettingsModule {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Set Up Password Protection</h2>
+                    <h2>${t('budget', 'Set Up Password Protection')}</h2>
                     <button class="close-btn">×</button>
                 </div>
                 <div class="budget-modal-body">
-                    <p>Enter a password to protect your budget app. You will need to enter this password when accessing the app.</p>
+                    <p>${t('budget', 'Enter a password to protect your budget app. You will need to enter this password when accessing the app.')}</p>
                     <form id="setup-password-form">
                         <div class="form-group">
-                            <label for="new-password">New Password</label>
+                            <label for="new-password">${t('budget', 'New Password')}</label>
                             <input type="password" id="new-password" class="budget-input" required minlength="6" autocomplete="new-password">
-                            <small>Minimum 6 characters</small>
+                            <small>${t('budget', 'Minimum 6 characters')}</small>
                         </div>
                         <div class="form-group">
-                            <label for="confirm-password">Confirm Password</label>
+                            <label for="confirm-password">${t('budget', 'Confirm Password')}</label>
                             <input type="password" id="confirm-password" class="budget-input" required autocomplete="new-password">
                         </div>
                         <div id="setup-password-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
-                            <button type="submit" class="budget-btn primary">Set Password</button>
+                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Set Password')}</button>
                         </div>
                     </form>
                 </div>
@@ -272,7 +273,7 @@ export default class SettingsModule {
             const confirmPassword = confirmPasswordInput.value;
 
             if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'Passwords do not match';
+                errorDiv.textContent = t('budget', 'Passwords do not match');
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -294,18 +295,18 @@ export default class SettingsModule {
                     this.app.sessionToken = result.sessionToken;
                     localStorage.setItem('budget_session_token', result.sessionToken);
 
-                    showSuccess('Password protection enabled');
+                    showSuccess(t('budget', 'Password protection enabled'));
                     modal.remove();
 
                     // Update UI
                     this.updatePasswordButtons(true);
                 } else {
-                    errorDiv.textContent = result.error || 'Failed to set password';
+                    errorDiv.textContent = result.error || t('budget', 'Failed to set password');
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Failed to set password:', error);
-                errorDiv.textContent = 'Failed to set password. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to set password. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });
@@ -329,28 +330,28 @@ export default class SettingsModule {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Change Password</h2>
+                    <h2>${t('budget', 'Change Password')}</h2>
                     <button class="close-btn">×</button>
                 </div>
                 <div class="budget-modal-body">
                     <form id="change-password-form">
                         <div class="form-group">
-                            <label for="current-password">Current Password</label>
+                            <label for="current-password">${t('budget', 'Current Password')}</label>
                             <input type="password" id="current-password" class="budget-input" required autocomplete="current-password">
                         </div>
                         <div class="form-group">
-                            <label for="new-password-change">New Password</label>
+                            <label for="new-password-change">${t('budget', 'New Password')}</label>
                             <input type="password" id="new-password-change" class="budget-input" required minlength="6" autocomplete="new-password">
-                            <small>Minimum 6 characters</small>
+                            <small>${t('budget', 'Minimum 6 characters')}</small>
                         </div>
                         <div class="form-group">
-                            <label for="confirm-password-change">Confirm New Password</label>
+                            <label for="confirm-password-change">${t('budget', 'Confirm New Password')}</label>
                             <input type="password" id="confirm-password-change" class="budget-input" required autocomplete="new-password">
                         </div>
                         <div id="change-password-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
-                            <button type="submit" class="budget-btn primary">Change Password</button>
+                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Change Password')}</button>
                         </div>
                     </form>
                 </div>
@@ -373,7 +374,7 @@ export default class SettingsModule {
             const confirmPassword = confirmPasswordInput.value;
 
             if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'New passwords do not match';
+                errorDiv.textContent = t('budget', 'New passwords do not match');
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -394,15 +395,15 @@ export default class SettingsModule {
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    showSuccess('Password changed successfully');
+                    showSuccess(t('budget', 'Password changed successfully'));
                     modal.remove();
                 } else {
-                    errorDiv.textContent = result.error || 'Failed to change password';
+                    errorDiv.textContent = result.error || t('budget', 'Failed to change password');
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Failed to change password:', error);
-                errorDiv.textContent = 'Failed to change password. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to change password. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });
@@ -426,20 +427,20 @@ export default class SettingsModule {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Disable Password Protection</h2>
+                    <h2>${t('budget', 'Disable Password Protection')}</h2>
                     <button class="close-btn">×</button>
                 </div>
                 <div class="budget-modal-body">
-                    <p>Enter your current password to disable password protection.</p>
+                    <p>${t('budget', 'Enter your current password to disable password protection.')}</p>
                     <form id="disable-password-form">
                         <div class="form-group">
-                            <label for="disable-current-password">Current Password</label>
+                            <label for="disable-current-password">${t('budget', 'Current Password')}</label>
                             <input type="password" id="disable-current-password" class="budget-input" required autocomplete="current-password">
                         </div>
                         <div id="disable-password-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
-                            <button type="submit" class="budget-btn primary">Disable Protection</button>
+                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Disable Protection')}</button>
                         </div>
                     </form>
                 </div>
@@ -477,15 +478,15 @@ export default class SettingsModule {
                     const passwordConfig = document.getElementById('password-protection-config');
                     if (passwordConfig) passwordConfig.style.display = 'none';
 
-                    showSuccess('Password protection disabled');
+                    showSuccess(t('budget', 'Password protection disabled'));
                     modal.remove();
                 } else {
-                    errorDiv.textContent = result.error || 'Failed to disable password protection';
+                    errorDiv.textContent = result.error || t('budget', 'Failed to disable password protection');
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Failed to disable password protection:', error);
-                errorDiv.textContent = 'Failed to disable password protection. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to disable password protection. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });
@@ -581,7 +582,7 @@ export default class SettingsModule {
             const confirmBtn = document.getElementById('factory-reset-confirm-btn');
             if (confirmBtn) {
                 confirmBtn.disabled = true;
-                confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Deleting...';
+                confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Deleting...');
             }
 
             const response = await fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
@@ -598,14 +599,14 @@ export default class SettingsModule {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Factory reset failed');
+                throw new Error(data.error || t('budget', 'Factory reset failed'));
             }
 
             // Close modal
             this.closeFactoryResetModal();
 
             // Show success message
-            showSuccess('Factory reset completed successfully. All data has been deleted.');
+            showSuccess(t('budget', 'Factory reset completed successfully. All data has been deleted.'));
 
             // Reload the page to show empty state
             setTimeout(() => {
@@ -619,10 +620,10 @@ export default class SettingsModule {
             const confirmBtn = document.getElementById('factory-reset-confirm-btn');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
+                confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> ' + t('budget', 'Delete Everything');
             }
 
-            showError(error.message || 'Failed to perform factory reset');
+            showError(error.message || t('budget', 'Failed to perform factory reset'));
         }
     }
 }

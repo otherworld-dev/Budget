@@ -10,6 +10,7 @@ use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -21,6 +22,7 @@ class AccountControllerTest extends TestCase {
 	private AuditService $auditService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 	private bool $streamOverridden = false;
 
 	protected function setUp(): void {
@@ -29,6 +31,10 @@ class AccountControllerTest extends TestCase {
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->auditService = $this->createMock(AuditService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		// Default validation mocks
 		$this->validationService->method('validateName')
@@ -53,6 +59,7 @@ class AccountControllerTest extends TestCase {
 			$this->service,
 			$this->validationService,
 			$this->auditService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -89,6 +96,7 @@ class AccountControllerTest extends TestCase {
 			$this->service,
 			$vs,
 			$this->auditService,
+			$this->l,
 			'user1',
 			$this->logger
 		);

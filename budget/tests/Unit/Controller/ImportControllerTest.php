@@ -9,6 +9,7 @@ use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
 use OCP\AppFramework\Http;
 use OCP\Files\IAppData;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -27,12 +28,17 @@ class ImportControllerTest extends TestCase {
 		$this->auditService = $this->createMock(AuditService::class);
 		$this->appData = $this->createMock(IAppData::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new ImportController(
 			$this->request,
 			$this->service,
 			$this->auditService,
 			$this->appData,
+			$l,
 			'user1',
 			$this->logger
 		);

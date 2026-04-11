@@ -1,5 +1,6 @@
 import './ActionBuilder.css';
 import { buildCategoryOptionsHtml } from '../../../utils/dom.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 /**
  * ActionBuilder - Visual configuration for rule actions
@@ -84,19 +85,19 @@ export class ActionBuilder {
 				</div>
 				<div class="actions-controls">
 					<select id="add-action-type" class="add-action-select">
-						<option value="">+ Add Action</option>
-						<option value="set_category">Set Category</option>
-						<option value="set_vendor">Set Vendor</option>
-						<option value="set_notes">Set Notes</option>
-						<option value="add_tags">Add Tags</option>
-						<option value="set_account">Set Account</option>
-						<option value="set_type">Set Transaction Type</option>
-						<option value="set_reference">Set Reference</option>
+						<option value="">${t('budget', '+ Add Action')}</option>
+						<option value="set_category">${t('budget', 'Set Category')}</option>
+						<option value="set_vendor">${t('budget', 'Set Vendor')}</option>
+						<option value="set_notes">${t('budget', 'Set Notes')}</option>
+						<option value="add_tags">${t('budget', 'Add Tags')}</option>
+						<option value="set_account">${t('budget', 'Set Account')}</option>
+						<option value="set_type">${t('budget', 'Set Transaction Type')}</option>
+						<option value="set_reference">${t('budget', 'Set Reference')}</option>
 					</select>
 					<label class="stop-processing-label">
 						<input type="checkbox" id="stop-processing-check" ${this.stopProcessing ? 'checked' : ''}>
-						<span>Stop processing after this rule</span>
-						<small class="help-text">If checked, no rules with lower priority will run if this rule matches</small>
+						<span>${t('budget', 'Stop processing after this rule')}</span>
+						<small class="help-text">${t('budget', 'If checked, no rules with lower priority will run if this rule matches')}</small>
 					</label>
 				</div>
 			</div>
@@ -107,7 +108,7 @@ export class ActionBuilder {
 
 	renderActions() {
 		if (this.actions.length === 0) {
-			return '<p class="no-actions-message">No actions yet. Use the dropdown below to add actions.</p>';
+			return `<p class="no-actions-message">${t('budget', 'No actions yet. Use the dropdown below to add actions.')}</p>`;
 		}
 
 		return this.actions.map((action, index) => this.renderAction(action, index)).join('');
@@ -115,13 +116,13 @@ export class ActionBuilder {
 
 	renderAction(action, index) {
 		const actionTypeLabels = {
-			'set_category': 'Set Category',
-			'set_vendor': 'Set Vendor',
-			'set_notes': 'Set Notes',
-			'add_tags': 'Add Tags',
-			'set_account': 'Set Account',
-			'set_type': 'Set Transaction Type',
-			'set_reference': 'Set Reference'
+			'set_category': t('budget', 'Set Category'),
+			'set_vendor': t('budget', 'Set Vendor'),
+			'set_notes': t('budget', 'Set Notes'),
+			'add_tags': t('budget', 'Add Tags'),
+			'set_account': t('budget', 'Set Account'),
+			'set_type': t('budget', 'Set Transaction Type'),
+			'set_reference': t('budget', 'Set Reference')
 		};
 
 		const canMoveUp = index > 0;
@@ -132,9 +133,9 @@ export class ActionBuilder {
 				<div class="action-header">
 					<span class="action-type-label">${actionTypeLabels[action.type] || action.type}</span>
 					<div class="action-controls">
-						<button class="btn-move-up" data-index="${index}" ${!canMoveUp ? 'disabled' : ''} title="Move up">↑</button>
-						<button class="btn-move-down" data-index="${index}" ${!canMoveDown ? 'disabled' : ''} title="Move down">↓</button>
-						<button class="btn-remove-action" data-index="${index}" title="Remove action">✕</button>
+						<button class="btn-move-up" data-index="${index}" ${!canMoveUp ? 'disabled' : ''} title="${t('budget', 'Move up')}">↑</button>
+						<button class="btn-move-down" data-index="${index}" ${!canMoveDown ? 'disabled' : ''} title="${t('budget', 'Move down')}">↓</button>
+						<button class="btn-remove-action" data-index="${index}" title="${t('budget', 'Remove action')}">✕</button>
 					</div>
 				</div>
 				<div class="action-config">
@@ -161,7 +162,7 @@ export class ActionBuilder {
 			case 'set_reference':
 				return this.renderReferenceAction(action, index);
 			default:
-				return '<p class="error">Unknown action type</p>';
+				return `<p class="error">${t('budget', 'Unknown action type')}</p>`;
 		}
 	}
 
@@ -169,17 +170,17 @@ export class ActionBuilder {
 		const categoryTree = this.options.categoryTree || this.options.categories || [];
 		return `
 			<div class="form-row">
-				<label>Category:</label>
+				<label>${t('budget', 'Category:')}</label>
 				<select class="action-value" data-index="${index}" data-field="value">
-					<option value="">-- Select Category --</option>
+					<option value="">${t('budget', '-- Select Category --')}</option>
 					${buildCategoryOptionsHtml(categoryTree, { selectedId: action.value })}
 				</select>
 			</div>
 			<div class="form-row">
-				<label>Behavior:</label>
+				<label>${t('budget', 'Behavior:')}</label>
 				<select class="action-behavior" data-index="${index}" data-field="behavior">
-					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>Always set</option>
-					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>Only if empty</option>
+					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
+					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
 			</div>
 		`;
@@ -188,15 +189,15 @@ export class ActionBuilder {
 	renderVendorAction(action, index) {
 		return `
 			<div class="form-row">
-				<label>Vendor Name:</label>
+				<label>${t('budget', 'Vendor Name:')}</label>
 				<input type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="e.g., Amazon, Starbucks">
+					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
 			</div>
 			<div class="form-row">
-				<label>Behavior:</label>
+				<label>${t('budget', 'Behavior:')}</label>
 				<select class="action-behavior" data-index="${index}" data-field="behavior">
-					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>Always set</option>
-					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>Only if empty</option>
+					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
+					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
 			</div>
 		`;
@@ -205,22 +206,22 @@ export class ActionBuilder {
 	renderNotesAction(action, index) {
 		return `
 			<div class="form-row">
-				<label>Notes Text:</label>
+				<label>${t('budget', 'Notes Text:')}</label>
 				<textarea class="action-value" data-index="${index}" data-field="value" rows="2"
-					placeholder="Text to add to transaction notes">${this.escapeHtml(action.value || '')}</textarea>
+					placeholder="${t('budget', 'Text to add to transaction notes')}">${this.escapeHtml(action.value || '')}</textarea>
 			</div>
 			<div class="form-row">
-				<label>Behavior:</label>
+				<label>${t('budget', 'Behavior:')}</label>
 				<select class="action-behavior" data-index="${index}" data-field="behavior">
-					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>Replace notes</option>
-					<option value="append" ${action.behavior === 'append' ? 'selected' : ''}>Append to notes</option>
+					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>${t('budget', 'Replace notes')}</option>
+					<option value="append" ${action.behavior === 'append' ? 'selected' : ''}>${t('budget', 'Append to notes')}</option>
 				</select>
 			</div>
 			${action.behavior === 'append' ? `
 			<div class="form-row">
-				<label>Separator:</label>
+				<label>${t('budget', 'Separator:')}</label>
 				<input type="text" class="action-separator" data-index="${index}" data-field="separator"
-					value="${this.escapeHtml(action.separator || ' | ')}" placeholder="e.g., | or -">
+					value="${this.escapeHtml(action.separator || ' | ')}" placeholder="${t('budget', 'e.g., | or -')}">
 			</div>
 			` : ''}
 		`;
@@ -232,9 +233,9 @@ export class ActionBuilder {
 
 		return `
 			<div class="form-row">
-				<label>Tags to Add:</label>
+				<label>${t('budget', 'Tags to Add:')}</label>
 				<div class="tags-selection">
-					${tagSets.length === 0 ? '<p class="no-tags-message">No tag sets available</p>' : ''}
+					${tagSets.length === 0 ? `<p class="no-tags-message">${t('budget', 'No tag sets available')}</p>` : ''}
 					${tagSets.map(tagSet => `
 						<fieldset class="tag-set-group">
 							<legend>${this.escapeHtml(tagSet.name)}</legend>
@@ -250,10 +251,10 @@ export class ActionBuilder {
 				</div>
 			</div>
 			<div class="form-row">
-				<label>Behavior:</label>
+				<label>${t('budget', 'Behavior:')}</label>
 				<select class="action-behavior" data-index="${index}" data-field="behavior">
-					<option value="merge" ${action.behavior === 'merge' ? 'selected' : ''}>Merge with existing tags</option>
-					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>Replace all tags</option>
+					<option value="merge" ${action.behavior === 'merge' ? 'selected' : ''}>${t('budget', 'Merge with existing tags')}</option>
+					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>${t('budget', 'Replace all tags')}</option>
 				</select>
 			</div>
 		`;
@@ -263,16 +264,16 @@ export class ActionBuilder {
 		const accounts = this.options.accounts || [];
 		return `
 			<div class="form-row">
-				<label>Account:</label>
+				<label>${t('budget', 'Account:')}</label>
 				<select class="action-value" data-index="${index}" data-field="value">
-					<option value="">-- Select Account --</option>
+					<option value="">${t('budget', '-- Select Account --')}</option>
 					${accounts.map(account => `
 						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${this.escapeHtml(account.name)}</option>
 					`).join('')}
 				</select>
 			</div>
 			<div class="form-row">
-				<small class="help-text">This will reassign the transaction to a different account</small>
+				<small class="help-text">${t('budget', 'This will reassign the transaction to a different account')}</small>
 			</div>
 		`;
 	}
@@ -280,17 +281,17 @@ export class ActionBuilder {
 	renderTypeAction(action, index) {
 		return `
 			<div class="form-row">
-				<label>Transaction Type:</label>
+				<label>${t('budget', 'Transaction Type:')}</label>
 				<div class="type-radios">
 					<label class="type-radio">
 						<input type="radio" name="action-type-${index}" class="action-value" data-index="${index}"
 							data-field="value" value="expense" ${action.value === 'expense' ? 'checked' : ''}>
-						<span>Expense</span>
+						<span>${t('budget', 'Expense')}</span>
 					</label>
 					<label class="type-radio">
 						<input type="radio" name="action-type-${index}" class="action-value" data-index="${index}"
 							data-field="value" value="income" ${action.value === 'income' ? 'checked' : ''}>
-						<span>Income</span>
+						<span>${t('budget', 'Income')}</span>
 					</label>
 				</div>
 			</div>
@@ -300,15 +301,15 @@ export class ActionBuilder {
 	renderReferenceAction(action, index) {
 		return `
 			<div class="form-row">
-				<label>Reference Value:</label>
+				<label>${t('budget', 'Reference Value:')}</label>
 				<input type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="e.g., CHECK-1234, AUTO">
+					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., CHECK-1234, AUTO')}">
 			</div>
 			<div class="form-row">
-				<label>Behavior:</label>
+				<label>${t('budget', 'Behavior:')}</label>
 				<select class="action-behavior" data-index="${index}" data-field="behavior">
-					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>Always set</option>
-					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>Only if empty</option>
+					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
+					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
 			</div>
 		`;
@@ -465,44 +466,44 @@ export class ActionBuilder {
 
 		this.actions.forEach((action, index) => {
 			if (!action.type) {
-				errors.push(`Action ${index + 1}: Missing type`);
+				errors.push(t('budget', 'Action {number}: Missing type', { number: index + 1 }));
 			}
 
 			// Validate value based on type
 			switch (action.type) {
 				case 'set_category':
 					if (!action.value) {
-						errors.push(`Action ${index + 1}: Category not selected`);
+						errors.push(t('budget', 'Action {number}: Category not selected', { number: index + 1 }));
 					}
 					break;
 				case 'set_vendor':
 					if (!action.value || action.value.trim() === '') {
-						errors.push(`Action ${index + 1}: Vendor name is empty`);
+						errors.push(t('budget', 'Action {number}: Vendor name is empty', { number: index + 1 }));
 					}
 					break;
 				case 'set_notes':
 					if (!action.value || action.value.trim() === '') {
-						errors.push(`Action ${index + 1}: Notes text is empty`);
+						errors.push(t('budget', 'Action {number}: Notes text is empty', { number: index + 1 }));
 					}
 					break;
 				case 'add_tags':
 					if (!Array.isArray(action.value) || action.value.length === 0) {
-						errors.push(`Action ${index + 1}: No tags selected`);
+						errors.push(t('budget', 'Action {number}: No tags selected', { number: index + 1 }));
 					}
 					break;
 				case 'set_account':
 					if (!action.value) {
-						errors.push(`Action ${index + 1}: Account not selected`);
+						errors.push(t('budget', 'Action {number}: Account not selected', { number: index + 1 }));
 					}
 					break;
 				case 'set_type':
 					if (!action.value || !['income', 'expense'].includes(action.value)) {
-						errors.push(`Action ${index + 1}: Invalid transaction type`);
+						errors.push(t('budget', 'Action {number}: Invalid transaction type', { number: index + 1 }));
 					}
 					break;
 				case 'set_reference':
 					if (!action.value || action.value.trim() === '') {
-						errors.push(`Action ${index + 1}: Reference value is empty`);
+						errors.push(t('budget', 'Action {number}: Reference value is empty', { number: index + 1 }));
 					}
 					break;
 			}

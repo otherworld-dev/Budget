@@ -4,10 +4,35 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Import;
 
+use OCP\IL10N;
+
 /**
  * Validates uploaded import files for security and format compliance.
  */
 class FileValidator {
+    private ?IL10N $l;
+
+    public function __construct(?IL10N $l = null) {
+        $this->l = $l;
+    }
+
+    /**
+     * Translate a message if IL10N is available, otherwise return as-is.
+     */
+    private function t(string $text, array $parameters = []): string {
+        if ($this->l !== null) {
+            return empty($parameters)
+                ? $this->l->t($text)
+                : $this->l->t($text, $parameters);
+        }
+        if (!empty($parameters)) {
+            foreach ($parameters as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+            }
+        }
+        return $text;
+    }
+
     private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'txt'];
 
@@ -41,7 +66,7 @@ class FileValidator {
      */
     public function validateSize(int $fileSize): void {
         if ($fileSize > self::MAX_FILE_SIZE) {
-            throw new \Exception('File too large. Maximum size is 10MB.');
+            throw new \Exception($this->t('File too large. Maximum size is 10MB.'));
         }
     }
 
@@ -55,7 +80,7 @@ class FileValidator {
 
         if (!in_array($extension, self::ALLOWED_EXTENSIONS)) {
             throw new \Exception(
-                'Unsupported file format. Supported formats: ' . implode(', ', self::ALLOWED_EXTENSIONS)
+                $this->t('Unsupported file format. Supported formats: %1$s', [implode(', ', self::ALLOWED_EXTENSIONS)])
             );
         }
 
@@ -73,8 +98,7 @@ class FileValidator {
 
         if (!in_array($mimeType, $allowed)) {
             throw new \Exception(
-                "Invalid file type. Expected " . implode(' or ', $allowed) .
-                " for .$extension file, got: $mimeType"
+                $this->t('Invalid file type. Expected %1$s for .%2$s file, got: %3$s', [implode(' or ', $allowed), $extension, $mimeType])
             );
         }
     }
@@ -86,11 +110,11 @@ class FileValidator {
         $content = file_get_contents($filePath, false, null, 0, 4096);
 
         if ($content === false || strlen($content) === 0) {
-            throw new \Exception('File is empty or unreadable.');
+            throw new \Exception($this->t('File is empty or unreadable.'));
         }
 
         if ($this->containsBinaryData($content)) {
-            throw new \Exception('File appears to be binary. Only text-based financial files are supported.');
+            throw new \Exception($this->t('File appears to be binary. Only text-based financial files are supported.'));
         }
 
         match ($extension) {
@@ -125,7 +149,7 @@ class FileValidator {
         $nonEmptyLines = array_filter($lines, fn($line) => trim($line) !== '');
 
         if (count($nonEmptyLines) < 2) {
-            throw new \Exception('CSV file must contain at least a header row and one data row.');
+            throw new \Exception($this->t('CSV file must contain at least a header row and one data row.'));
         }
 
         $firstLine = array_values($nonEmptyLines)[0] ?? '';
@@ -134,7 +158,7 @@ class FileValidator {
         $hasTab = strpos($firstLine, "\t") !== false;
 
         if (!$hasComma && !$hasSemicolon && !$hasTab) {
-            throw new \Exception('CSV file does not appear to have valid delimiters (comma, semicolon, or tab).');
+            throw new \Exception($this->t('CSV file does not appear to have valid delimiters (comma, semicolon, or tab).'));
         }
     }
 
@@ -147,7 +171,7 @@ class FileValidator {
         $hasXmlOfx = stripos($content, '<?OFX') !== false;
 
         if (!$hasOfxHeader && !$hasOfxTag && !$hasXmlOfx) {
-            throw new \Exception('File does not appear to be a valid OFX file. Missing OFX header or tags.');
+            throw new \Exception($this->t('File does not appear to be a valid OFX file. Missing OFX header or tags.'));
         }
     }
 
@@ -160,11 +184,11 @@ class FileValidator {
         $hasTransactionMarker = strpos($content, '^') !== false;
 
         if (!$hasTypeHeader && !$hasAccountHeader) {
-            throw new \Exception('File does not appear to be a valid QIF file. Missing !Type: or !Account header.');
+            throw new \Exception($this->t('File does not appear to be a valid QIF file. Missing !Type: or !Account header.'));
         }
 
         if (!$hasTransactionMarker) {
-            throw new \Exception('File does not appear to be a valid QIF file. Missing transaction end markers (^).');
+            throw new \Exception($this->t('File does not appear to be a valid QIF file. Missing transaction end markers (^).'));
         }
     }
 

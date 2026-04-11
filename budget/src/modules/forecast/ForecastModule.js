@@ -1,6 +1,7 @@
 /**
  * Forecast Module - Balance forecasting and trend analysis
  */
+import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import Chart from 'chart.js/auto';
 import { showError } from '../../utils/notifications.js';
@@ -95,7 +96,7 @@ export default class ForecastModule {
         } catch (error) {
             console.error('Failed to load forecast:', error);
             if (loadingEl) loadingEl.style.display = 'none';
-            showError('Failed to load forecast data');
+            showError(t('budget', 'Failed to load forecast data'));
         }
     }
 
@@ -208,7 +209,7 @@ export default class ForecastModule {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Cumulative Savings',
+                    label: t('budget', 'Cumulative Savings'),
                     data: savingsData,
                     borderColor: 'rgba(75, 192, 192, 1)',
                     backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -231,7 +232,7 @@ export default class ForecastModule {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (context) => `Savings: ${this.formatCurrency(context.parsed.y, currency)}`
+                            label: (context) => t('budget', 'Savings: {amount}', { amount: this.formatCurrency(context.parsed.y, currency) })
                         }
                     }
                 }
@@ -261,7 +262,7 @@ export default class ForecastModule {
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Projected Balance',
+                        label: t('budget', 'Projected Balance'),
                         data: balanceData,
                         borderColor: 'rgba(54, 162, 235, 1)',
                         backgroundColor: 'rgba(54, 162, 235, 0.1)',
@@ -270,7 +271,7 @@ export default class ForecastModule {
                         yAxisID: 'y'
                     },
                     {
-                        label: 'Projected Income',
+                        label: t('budget', 'Projected Income'),
                         data: incomeData,
                         borderColor: 'rgba(75, 192, 192, 1)',
                         backgroundColor: 'transparent',
@@ -279,7 +280,7 @@ export default class ForecastModule {
                         yAxisID: 'y1'
                     },
                     {
-                        label: 'Projected Expenses',
+                        label: t('budget', 'Projected Expenses'),
                         data: expenseData,
                         borderColor: 'rgba(255, 99, 132, 1)',
                         backgroundColor: 'transparent',
@@ -301,7 +302,7 @@ export default class ForecastModule {
                         type: 'linear',
                         display: true,
                         position: 'left',
-                        title: { display: true, text: 'Balance' },
+                        title: { display: true, text: t('budget', 'Balance') },
                         ticks: {
                             callback: (value) => this.formatCurrency(value, currency)
                         }
@@ -310,7 +311,7 @@ export default class ForecastModule {
                         type: 'linear',
                         display: true,
                         position: 'right',
-                        title: { display: true, text: 'Income/Expenses' },
+                        title: { display: true, text: t('budget', 'Income/Expenses') },
                         grid: { drawOnChartArea: false },
                         ticks: {
                             callback: (value) => this.formatCurrency(value, currency)
@@ -337,7 +338,7 @@ export default class ForecastModule {
         const currency = this.forecastCurrency;
 
         if (!categoryBreakdown || categoryBreakdown.length === 0) {
-            container.innerHTML = '<p class="empty-message">No category data available</p>';
+            container.innerHTML = `<p class="empty-message">${t('budget', 'No category data available')}</p>`;
             return;
         }
 
@@ -349,7 +350,7 @@ export default class ForecastModule {
             item.className = 'category-trend-item';
             item.innerHTML = `
                 <span class="category-name">${category.name}</span>
-                <span class="category-amount">${this.formatCurrency(category.avgMonthly, currency)}/mo</span>
+                <span class="category-amount">${t('budget', '{amount}/mo', { amount: this.formatCurrency(category.avgMonthly, currency) })}</span>
                 <span class="category-trend ${trendClass}">${trendArrow}</span>
             `;
             container.appendChild(item);
@@ -375,7 +376,7 @@ export default class ForecastModule {
 
         if (dataInfoEl) {
             const quality = data.dataQuality;
-            dataInfoEl.textContent = `Based on ${quality.monthsOfData} month(s) of data (${quality.transactionCount} transactions)`;
+            dataInfoEl.textContent = t('budget', 'Based on {months} month(s) of data ({count} transactions)', { months: quality.monthsOfData, count: quality.transactionCount });
         }
     }
 }

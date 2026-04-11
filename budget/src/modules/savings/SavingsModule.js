@@ -1,6 +1,7 @@
 /**
  * Savings Module - Savings goals tracking and management
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
@@ -42,7 +43,7 @@ export default class SavingsModule {
             this.populateGoalTagDropdown();
         } catch (error) {
             console.error('Failed to load savings goals:', error);
-            showError('Failed to load savings goals');
+            showError(t('budget', 'Failed to load savings goals'));
         }
     }
 
@@ -88,23 +89,23 @@ export default class SavingsModule {
                 const daysLeft = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
 
                 if (daysLeft < 0) {
-                    targetDateText = `Target date passed`;
+                    targetDateText = t('budget', 'Target date passed');
                 } else if (daysLeft === 0) {
-                    targetDateText = 'Target date: Today';
+                    targetDateText = t('budget', 'Target date: Today');
                 } else if (daysLeft <= 30) {
-                    targetDateText = `${daysLeft} days left`;
+                    targetDateText = n('budget', '%n day left', '%n days left', daysLeft);
                 } else {
-                    targetDateText = `Target: ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                    targetDateText = t('budget', 'Target: {date}', { date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
                 }
             }
 
             let footerAction;
             if (isCompleted) {
-                footerAction = '<span class="goal-completed-badge"><span class="icon-checkmark"></span> Goal reached!</span>';
+                footerAction = `<span class="goal-completed-badge"><span class="icon-checkmark"></span> ${t('budget', 'Goal reached!')}</span>`;
             } else if (isTagLinked) {
-                footerAction = '<span class="goal-auto-tracked"><span class="icon-tag"></span> Auto-tracked</span>';
+                footerAction = `<span class="goal-auto-tracked"><span class="icon-tag"></span> ${t('budget', 'Auto-tracked')}</span>`;
             } else {
-                footerAction = `<button class="goal-add-money-btn" data-goal-id="${goal.id}">+ Add money</button>`;
+                footerAction = `<button class="goal-add-money-btn" data-goal-id="${goal.id}">${t('budget', '+ Add money')}</button>`;
             }
 
             return `
@@ -115,10 +116,10 @@ export default class SavingsModule {
                             <h3 class="goal-name">${dom.escapeHtml(goal.name)}</h3>
                         </div>
                         <div class="goal-card-actions">
-                            <button class="edit-goal-btn" title="Edit" data-goal-id="${goal.id}">
+                            <button class="edit-goal-btn" title="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
                                 <span class="icon-rename"></span>
                             </button>
-                            <button class="delete-goal-btn delete-btn" title="Delete" data-goal-id="${goal.id}">
+                            <button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
                                 <span class="icon-delete"></span>
                             </button>
                         </div>
@@ -131,7 +132,7 @@ export default class SavingsModule {
                         <div class="goal-amounts">
                             <span class="goal-current-amount">${formatters.formatCurrency(current, null, this.settings)}</span>
                             <span class="goal-percentage">${percentage.toFixed(0)}%</span>
-                            <span class="goal-target-amount">of ${formatters.formatCurrency(target, null, this.settings)}</span>
+                            <span class="goal-target-amount">${t('budget', 'of {amount}', { amount: formatters.formatCurrency(target, null, this.settings) })}</span>
                         </div>
                     </div>
 
@@ -227,7 +228,7 @@ export default class SavingsModule {
             currentAmountInput.disabled = tagLinked;
             if (tagLinked) {
                 currentAmountInput.value = '';
-                currentAmountInput.placeholder = 'Auto-calculated from tag';
+                currentAmountInput.placeholder = t('budget', 'Auto-calculated from tag');
             } else {
                 currentAmountInput.placeholder = '0.00';
             }
@@ -241,7 +242,7 @@ export default class SavingsModule {
         const dropdown = document.getElementById('goal-account');
         if (!dropdown) return;
 
-        dropdown.innerHTML = '<option value="">No linked account</option>' +
+        dropdown.innerHTML = `<option value="">${t('budget', 'No linked account')}</option>` +
             (Array.isArray(this.accounts) ? this.accounts.map(a =>
                 `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`
             ).join('') : '');
@@ -260,13 +261,13 @@ export default class SavingsModule {
             if (!tagSetsResponse.ok) throw new Error(`HTTP ${tagSetsResponse.status}`);
             this._allTagSets = await tagSetsResponse.json();
 
-            let html = '<option value="">No linked tag</option>';
+            let html = `<option value="">${t('budget', 'No linked tag')}</option>`;
 
             // Global tags first
             if (globalTagsResponse.ok) {
                 const globalTags = await globalTagsResponse.json();
                 if (globalTags.length > 0) {
-                    html += `<optgroup label="Tags">`;
+                    html += `<optgroup label="${t('budget', 'Tags')}">`;
                     for (const tag of globalTags) {
                         html += `<option value="${tag.id}">${dom.escapeHtml(tag.name)}</option>`;
                     }
@@ -297,7 +298,7 @@ export default class SavingsModule {
 
         if (!modal || !form) return;
 
-        title.textContent = goal ? 'Edit Savings Goal' : 'Add Savings Goal';
+        title.textContent = goal ? t('budget', 'Edit Savings Goal') : t('budget', 'Add Savings Goal');
 
         // Reset form
         form.reset();
@@ -364,16 +365,16 @@ export default class SavingsModule {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 console.error('Save goal error response:', response.status, errorData);
-                showError(errorData.error || 'Failed to save goal');
+                showError(errorData.error || t('budget', 'Failed to save goal'));
                 return;
             }
 
             document.getElementById('goal-modal').style.display = 'none';
-            showSuccess(goalId ? 'Goal updated' : 'Goal created');
+            showSuccess(goalId ? t('budget', 'Goal updated') : t('budget', 'Goal created'));
             await this.loadSavingsGoalsView();
         } catch (error) {
             console.error('Failed to save goal:', error);
-            showError('Failed to save goal');
+            showError(t('budget', 'Failed to save goal'));
         }
     }
 
@@ -385,7 +386,7 @@ export default class SavingsModule {
     }
 
     async deleteGoal(goalId) {
-        if (!confirm('Are you sure you want to delete this savings goal?')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this savings goal?'))) {
             return;
         }
 
@@ -397,11 +398,11 @@ export default class SavingsModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            showSuccess('Goal deleted');
+            showSuccess(t('budget', 'Goal deleted'));
             await this.loadSavingsGoalsView();
         } catch (error) {
             console.error('Failed to delete goal:', error);
-            showError('Failed to delete goal');
+            showError(t('budget', 'Failed to delete goal'));
         }
     }
 
@@ -411,7 +412,7 @@ export default class SavingsModule {
 
         // Guard against tag-linked goals
         if (goal.tagId) {
-            showInfo('This goal is auto-tracked via a tag');
+            showInfo(t('budget', 'This goal is auto-tracked via a tag'));
             return;
         }
 
@@ -428,7 +429,7 @@ export default class SavingsModule {
         const amount = parseFloat(document.getElementById('add-amount').value) || 0;
 
         if (amount <= 0) {
-            showWarning('Please enter a valid amount');
+            showWarning(t('budget', 'Please enter a valid amount'));
             return;
         }
 
@@ -437,7 +438,7 @@ export default class SavingsModule {
 
         // Guard against tag-linked goals
         if (goal.tagId) {
-            showInfo('This goal is auto-tracked via a tag');
+            showInfo(t('budget', 'This goal is auto-tracked via a tag'));
             return;
         }
 
@@ -457,11 +458,11 @@ export default class SavingsModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             document.getElementById('add-to-goal-modal').style.display = 'none';
-            showSuccess(`Added ${formatters.formatCurrency(amount, null, this.settings)} to goal`);
+            showSuccess(t('budget', 'Added {amount} to goal', { amount: formatters.formatCurrency(amount, null, this.settings) }));
             await this.loadSavingsGoalsView();
         } catch (error) {
             console.error('Failed to add money to goal:', error);
-            showError('Failed to add money to goal');
+            showError(t('budget', 'Failed to add money to goal'));
         }
     }
 }

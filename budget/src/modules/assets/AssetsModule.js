@@ -1,6 +1,7 @@
 /**
  * Assets Module - Non-cash asset tracking with value history and projections
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
@@ -27,7 +28,7 @@ export default class AssetsModule {
             this.setupAssetEventListeners();
         } catch (error) {
             console.error('Failed to load assets view:', error);
-            showError('Failed to load assets');
+            showError(t('budget', 'Failed to load assets'));
         }
     }
 
@@ -83,27 +84,27 @@ export default class AssetsModule {
     getAssetTypeInfo(type) {
         const typeMap = {
             real_estate: {
-                label: 'Real Estate',
+                label: t('budget', 'Real Estate'),
                 color: '#2e7d32',
                 icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/></svg>'
             },
             vehicle: {
-                label: 'Vehicle',
+                label: t('budget', 'Vehicle'),
                 color: '#1565c0',
                 icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5,11L6.5,6.5H17.5L19,11M17.5,16A1.5,1.5 0 0,1 16,14.5A1.5,1.5 0 0,1 17.5,13A1.5,1.5 0 0,1 19,14.5A1.5,1.5 0 0,1 17.5,16M6.5,16A1.5,1.5 0 0,1 5,14.5A1.5,1.5 0 0,1 6.5,13A1.5,1.5 0 0,1 8,14.5A1.5,1.5 0 0,1 6.5,16M18.92,6C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.28,5.42 5.08,6L3,12V20A1,1 0 0,0 4,21H5A1,1 0 0,0 6,20V19H18V20A1,1 0 0,0 19,21H20A1,1 0 0,0 21,20V12L18.92,6Z"/></svg>'
             },
             jewelry: {
-                label: 'Jewelry',
+                label: t('budget', 'Jewelry'),
                 color: '#7b1fa2',
                 icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6,2L2,8L12,22L22,8L18,2H6M6.8,4H10.4L8.6,7.33L6.8,4M13.6,4H17.2L15.4,7.33L13.6,4M12,4.62L13.8,7.94H10.2L12,4.62M5.78,6.35L7.6,9.67L4.34,9.67L5.78,6.35M18.22,6.35L19.66,9.67H16.4L18.22,6.35M12,9.67L16.14,9.67L12,17.27L7.86,9.67H12Z"/></svg>'
             },
             collectibles: {
-                label: 'Collectibles',
+                label: t('budget', 'Collectibles'),
                 color: '#f57f17',
                 icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"/></svg>'
             },
             other: {
-                label: 'Other',
+                label: t('budget', 'Other'),
                 color: '#546e7a',
                 icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z"/></svg>'
             }
@@ -134,7 +135,7 @@ export default class AssetsModule {
         let purchaseInfo = '';
         const purchaseParts = [];
         if (asset.purchasePrice !== null && asset.purchasePrice !== undefined) {
-            purchaseParts.push(`Purchased at ${formatters.formatCurrency(asset.purchasePrice, currency, this.settings)}`);
+            purchaseParts.push(t('budget', 'Purchased at {price}', { price: formatters.formatCurrency(asset.purchasePrice, currency, this.settings) }));
         }
         if (asset.purchaseDate) {
             purchaseParts.push(formatters.formatDate(asset.purchaseDate, this.settings));
@@ -160,17 +161,17 @@ export default class AssetsModule {
                         </div>
                     </div>
                     <div class="asset-card-actions">
-                        <button class="asset-edit-btn icon-button" title="Edit" data-id="${asset.id}">
+                        <button class="asset-edit-btn icon-button" title="${t('budget', 'Edit')}" data-id="${asset.id}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="asset-delete-btn icon-button delete-btn" title="Delete" data-id="${asset.id}">
+                        <button class="asset-delete-btn icon-button delete-btn" title="${t('budget', 'Delete')}" data-id="${asset.id}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
                 </div>
                 <div class="asset-card-body">
                     <div class="asset-value-section">
-                        <span class="asset-value-label">Current Value</span>
+                        <span class="asset-value-label">${t('budget', 'Current Value')}</span>
                         <div class="asset-value">${valueDisplay}</div>
                     </div>
                     ${rateDisplay}
@@ -178,7 +179,7 @@ export default class AssetsModule {
                 </div>
                 <div class="asset-card-footer">
                     ${descriptionHtml}
-                    <button class="asset-view-btn" data-id="${asset.id}">View Details &rarr;</button>
+                    <button class="asset-view-btn" data-id="${asset.id}">${t('budget', 'View Details')} &rarr;</button>
                 </div>
             </div>
         `;
@@ -207,7 +208,7 @@ export default class AssetsModule {
             heroAssetsValue.textContent = formatters.formatCurrency(assetWorth, currency, this.settings);
         }
         if (heroAssetsCount) {
-            heroAssetsCount.textContent = count === 1 ? '1 asset' : `${count} assets`;
+            heroAssetsCount.textContent = n('budget', '%n asset', '%n assets', count);
         }
 
         // Show warning for unconvertible currencies
@@ -215,7 +216,7 @@ export default class AssetsModule {
         if (warningEl) {
             if (summary.unconvertedCurrencies && summary.unconvertedCurrencies.length > 0) {
                 const currencies = summary.unconvertedCurrencies.join(', ');
-                warningEl.textContent = `Some assets (${currencies}) are excluded from the total because exchange rates are unavailable. Add rates in Settings to include them.`;
+                warningEl.textContent = t('budget', 'Some assets ({currencies}) are excluded from the total because exchange rates are unavailable. Add rates in Settings to include them.', { currencies });
                 warningEl.style.display = 'block';
             } else {
                 warningEl.style.display = 'none';
@@ -324,7 +325,7 @@ export default class AssetsModule {
             const asset = this.assets.find(a => a.id === assetId);
             if (!asset) return;
 
-            title.textContent = 'Edit Asset';
+            title.textContent = t('budget', 'Edit Asset');
             document.getElementById('asset-id').value = asset.id;
             document.getElementById('asset-name').value = asset.name;
             document.getElementById('asset-type').value = asset.type;
@@ -335,7 +336,7 @@ export default class AssetsModule {
             setDateValue('asset-purchase-date', asset.purchaseDate || '');
             document.getElementById('asset-annual-change-rate').value = asset.annualChangeRate !== null ? (asset.annualChangeRate * 100) : '';
         } else {
-            title.textContent = 'Add Asset';
+            title.textContent = t('budget', 'Add Asset');
             document.getElementById('asset-id').value = '';
             document.getElementById('asset-currency').value = formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         }
@@ -385,20 +386,20 @@ export default class AssetsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to save asset');
+                throw new Error(error.error || t('budget', 'Failed to save asset'));
             }
 
             this.closeAssetModal();
             await this.loadAssets();
             this.renderAssets();
-            showSuccess(assetId ? 'Asset updated' : 'Asset added');
+            showSuccess(assetId ? t('budget', 'Asset updated') : t('budget', 'Asset added'));
         } catch (error) {
             showError(error.message);
         }
     }
 
     async deleteAsset(assetId) {
-        if (!confirm('Are you sure you want to delete this asset? This action cannot be undone.')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this asset? This action cannot be undone.'))) {
             return;
         }
 
@@ -410,13 +411,13 @@ export default class AssetsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to delete asset');
+                throw new Error(error.error || t('budget', 'Failed to delete asset'));
             }
 
             await this.loadAssets();
             this.renderAssets();
             this.closeAssetDetails();
-            showSuccess('Asset deleted');
+            showSuccess(t('budget', 'Asset deleted'));
         } catch (error) {
             showError(error.message);
         }
@@ -562,7 +563,7 @@ export default class AssetsModule {
                 data: {
                     labels: sortedSnapshots.map(s => s.date),
                     datasets: [{
-                        label: 'Value',
+                        label: t('budget', 'Value'),
                         data: sortedSnapshots.map(s => s.value),
                         borderColor: '#0082c9',
                         backgroundColor: 'rgba(0, 130, 201, 0.1)',
@@ -635,7 +636,7 @@ export default class AssetsModule {
                 data: {
                     labels: data.growthProjection.map(p => p.year.toString()),
                     datasets: [{
-                        label: isAppreciating ? 'Projected Appreciation' : 'Projected Depreciation',
+                        label: isAppreciating ? t('budget', 'Projected Appreciation') : t('budget', 'Projected Depreciation'),
                         data: data.growthProjection.map(p => p.value),
                         borderColor: lineColor,
                         backgroundColor: bgColor,
@@ -706,14 +707,14 @@ export default class AssetsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to update value');
+                throw new Error(error.error || t('budget', 'Failed to update value'));
             }
 
             this.closeValueModal();
             await this.loadAssets();
             this.renderAssets();
             await this.showAssetDetails(parseInt(assetId));
-            showSuccess('Value updated');
+            showSuccess(t('budget', 'Value updated'));
         } catch (error) {
             showError(error.message);
         }

@@ -13,6 +13,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,18 +23,21 @@ class TagSetController extends Controller {
 
     private TagSetService $service;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         TagSetService $service,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -52,7 +56,7 @@ class TagSetController extends Controller {
             }
             return new DataResponse($tagSets);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve tag sets');
+            return $this->handleError($e, $this->l->t('Failed to retrieve tag sets'));
         }
     }
 
@@ -64,7 +68,7 @@ class TagSetController extends Controller {
             $tagSet = $this->service->getTagSetWithTags($id, $this->userId);
             return new DataResponse($tagSet);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Tag Set', ['tagSetId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Tag set'), ['tagSetId' => $id]);
         }
     }
 
@@ -78,7 +82,7 @@ class TagSetController extends Controller {
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!isset($data['categoryId']) || !isset($data['name'])) {
-                return new DataResponse(['error' => 'Category ID and name are required'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Category ID and name are required')], Http::STATUS_BAD_REQUEST);
             }
 
             $categoryId = (int)$data['categoryId'];
@@ -102,7 +106,7 @@ class TagSetController extends Controller {
             );
             return new DataResponse($tagSet, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create tag set');
+            return $this->handleError($e, $this->l->t('Failed to create tag set'));
         }
     }
 
@@ -134,13 +138,13 @@ class TagSetController extends Controller {
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $tagSet = $this->service->update($id, $this->userId, $updates);
             return new DataResponse($tagSet);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update tag set', Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to update tag set'), Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
         }
     }
 
@@ -153,7 +157,7 @@ class TagSetController extends Controller {
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to delete tag set', Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to delete tag set'), Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
         }
     }
 
@@ -165,7 +169,7 @@ class TagSetController extends Controller {
             $tagSet = $this->service->getTagSetWithTags($tagSetId, $this->userId);
             return new DataResponse($tagSet->getTags());
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve tags');
+            return $this->handleError($e, $this->l->t('Failed to retrieve tags'));
         }
     }
 
@@ -179,7 +183,7 @@ class TagSetController extends Controller {
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!isset($data['name'])) {
-                return new DataResponse(['error' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Name is required')], Http::STATUS_BAD_REQUEST);
             }
 
             $name = $data['name'];
@@ -211,7 +215,7 @@ class TagSetController extends Controller {
             );
             return new DataResponse($tag, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create tag');
+            return $this->handleError($e, $this->l->t('Failed to create tag'));
         }
     }
 
@@ -249,13 +253,13 @@ class TagSetController extends Controller {
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $tag = $this->service->updateTag($tagId, $this->userId, $updates);
             return new DataResponse($tag);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
+            return $this->handleError($e, $this->l->t('Failed to update tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
         }
     }
 
@@ -268,7 +272,7 @@ class TagSetController extends Controller {
             $this->service->deleteTag($tagId, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to delete tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
+            return $this->handleError($e, $this->l->t('Failed to delete tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
         }
     }
 
@@ -284,7 +288,7 @@ class TagSetController extends Controller {
             $tags = $this->service->getGlobalTags($this->userId);
             return new DataResponse($tags);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve global tags');
+            return $this->handleError($e, $this->l->t('Failed to retrieve global tags'));
         }
     }
 
@@ -297,7 +301,7 @@ class TagSetController extends Controller {
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!isset($data['name'])) {
-                return new DataResponse(['error' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Name is required')], Http::STATUS_BAD_REQUEST);
             }
 
             $nameValidation = $this->validationService->validateName($data['name'], true);
@@ -317,7 +321,7 @@ class TagSetController extends Controller {
             $tag = $this->service->createGlobalTag($this->userId, $nameValidation['sanitized'], $color);
             return new DataResponse($tag, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create global tag');
+            return $this->handleError($e, $this->l->t('Failed to create global tag'));
         }
     }
 
@@ -347,13 +351,13 @@ class TagSetController extends Controller {
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $tag = $this->service->updateGlobalTag($tagId, $this->userId, $updates);
             return new DataResponse($tag);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update global tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
+            return $this->handleError($e, $this->l->t('Failed to update global tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
         }
     }
 
@@ -366,7 +370,7 @@ class TagSetController extends Controller {
             $this->service->deleteGlobalTag($tagId, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to delete global tag', Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
+            return $this->handleError($e, $this->l->t('Failed to delete global tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
         }
     }
 }

@@ -1,6 +1,7 @@
 /**
  * Tag Sets Module - Category tag management and transaction tagging
  */
+import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
@@ -59,11 +60,11 @@ export default class TagSetsModule {
                 <div class="empty-tag-sets">
                     <div class="empty-content">
                         <span class="icon-tag" aria-hidden="true" style="font-size: 48px; opacity: 0.5;"></span>
-                        <h3>No tags yet</h3>
-                        <p>Create tags to classify your transactions across all categories.</p>
+                        <h3>${t('budget', 'No tags yet')}</h3>
+                        <p>${t('budget', 'Create tags to classify your transactions across all categories.')}</p>
                         <button class="primary" id="empty-tags-add-btn">
                             <span class="icon-add" aria-hidden="true"></span>
-                            Create Your First Tag
+                            ${t('budget', 'Create Your First Tag')}
                         </button>
                     </div>
                 </div>`;
@@ -80,8 +81,8 @@ export default class TagSetsModule {
                 <div class="global-tag-chip" data-tag-id="${tag.id}">
                     <span class="global-tag-chip-color" style="background-color: ${tag.color || '#666'};"></span>
                     <span class="global-tag-chip-name">${dom.escapeHtml(tag.name)}</span>
-                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="Edit">✎</button>
-                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="Delete">&times;</button>
+                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Edit')}">✎</button>
+                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Delete')}">&times;</button>
                 </div>`;
         });
         html += '</div>';
@@ -174,16 +175,16 @@ export default class TagSetsModule {
         form.reset();
 
         if (tagId) {
-            const tag = this.globalTags.find(t => t.id === tagId);
+            const tag = this.globalTags.find(tg => tg.id === tagId);
             if (!tag) return;
 
-            title.textContent = 'Edit Tag';
+            title.textContent = t('budget', 'Edit Tag');
             document.getElementById('global-tag-id').value = tag.id;
             document.getElementById('global-tag-name').value = tag.name;
             document.getElementById('global-tag-color').value = tag.color || '#4CAF50';
             document.getElementById('global-tag-color-hex').value = tag.color || '#4CAF50';
         } else {
-            title.textContent = 'Add Tag';
+            title.textContent = t('budget', 'Add Tag');
             document.getElementById('global-tag-id').value = '';
             // Random default color
             const hue = Math.floor(Math.random() * 360);
@@ -222,7 +223,7 @@ export default class TagSetsModule {
         const color = document.getElementById('global-tag-color').value;
 
         if (!name) {
-            showError('Tag name is required');
+            showError(t('budget', 'Tag name is required'));
             return;
         }
 
@@ -239,7 +240,7 @@ export default class TagSetsModule {
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || 'Failed to save tag');
+                throw new Error(err.error || t('budget', 'Failed to save tag'));
             }
 
             this.closeGlobalTagModal();
@@ -247,14 +248,14 @@ export default class TagSetsModule {
             this.renderGlobalTagsUI();
             this.updateTagsSummary();
             this.setupTagsViewListeners();
-            showSuccess(tagId ? 'Tag updated' : 'Tag created');
+            showSuccess(tagId ? t('budget', 'Tag updated') : t('budget', 'Tag created'));
         } catch (error) {
             showError(error.message);
         }
     }
 
     async deleteGlobalTag(tagId) {
-        if (!confirm('Delete this tag? It will be removed from all transactions.')) return;
+        if (!confirm(t('budget', 'Delete this tag? It will be removed from all transactions.'))) return;
 
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`), {
@@ -263,13 +264,13 @@ export default class TagSetsModule {
             });
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || 'Failed to delete tag');
+                throw new Error(err.error || t('budget', 'Failed to delete tag'));
             }
             await this.loadGlobalTags();
             this.renderGlobalTagsUI();
             this.updateTagsSummary();
             this.setupTagsViewListeners();
-            showSuccess('Tag deleted');
+            showSuccess(t('budget', 'Tag deleted'));
         } catch (error) {
             showError(error.message);
         }
@@ -372,7 +373,7 @@ export default class TagSetsModule {
         if (!container) return;
 
         if (!categoryId) {
-            container.innerHTML = '<p style="color: #999; font-style: italic;">Save category first to manage tag sets</p>';
+            container.innerHTML = `<p style="color: #999; font-style: italic;">${t('budget', 'Save category first to manage tag sets')}</p>`;
             return;
         }
 
@@ -381,15 +382,15 @@ export default class TagSetsModule {
 
         let html = `
             <div class="tag-sets-header">
-                <h4 style="margin: 0;">Tag Sets</h4>
+                <h4 style="margin: 0;">${t('budget', 'Tag Sets')}</h4>
                 <button type="button" class="add-tag-set-btn" data-category-id="${categoryId}">
-                    <span class="icon-add" aria-hidden="true"></span> Add Tag Set
+                    <span class="icon-add" aria-hidden="true"></span> ${t('budget', 'Add Tag Set')}
                 </button>
             </div>
         `;
 
         if (tagSets.length === 0) {
-            html += '<p style="color: #999; font-style: italic;">No tag sets yet. Add your first tag set to enable multi-dimensional categorization.</p>';
+            html += `<p style="color: #999; font-style: italic;">${t('budget', 'No tag sets yet. Add your first tag set to enable multi-dimensional categorization.')}</p>`;
         }
 
         // Render each tag set
@@ -400,10 +401,10 @@ export default class TagSetsModule {
                         <div class="tag-set-header">
                             <h5>${dom.escapeHtml(tagSet.name)}</h5>
                             <div class="tag-set-actions">
-                                <button type="button" class="add-tag-btn" data-tag-set-id="${tagSet.id}" title="Add tag">
+                                <button type="button" class="add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add tag')}">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button type="button" class="delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Delete tag set">
+                                <button type="button" class="delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag set')}">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>
@@ -413,10 +414,10 @@ export default class TagSetsModule {
                             ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
                                 <span class="tag-badge" style="background-color: ${tag.color || '#666'}">
                                     ${dom.escapeHtml(tag.name)}
-                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="Edit tag">✎</button>
+                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="${t('budget', 'Edit tag')}">✎</button>
                                     <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}">×</button>
                                 </span>
-                            `).join('') : '<span style="color: #999; font-size: 12px;">No tags yet</span>'}
+                            `).join('') : `<span style="color: #999; font-size: 12px;">${t('budget', 'No tags yet')}</span>`}
                         </div>
                     </div>
                 `;
@@ -436,7 +437,7 @@ export default class TagSetsModule {
         // Add tag set button
         document.querySelectorAll('.add-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const name = prompt('Enter tag set name (e.g., "Priority", "Status"):');
+                const name = prompt(t('budget', 'Enter tag set name (e.g., "Priority", "Status"):'));
                 if (!name) return;
 
                 // Check for duplicate name
@@ -444,19 +445,19 @@ export default class TagSetsModule {
                     ts => ts.name.toLowerCase() === name.trim().toLowerCase()
                 );
                 if (duplicate) {
-                    showError(`A tag set named "${name.trim()}" already exists in this category`);
+                    showError(t('budget', 'A tag set named "{name}" already exists in this category', { name: name.trim() }));
                     return;
                 }
 
-                const description = prompt('Enter description (optional):');
+                const description = prompt(t('budget', 'Enter description (optional):'));
 
                 try {
                     await this.createTagSet(categoryId, name, description);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    showSuccess('Tag set created successfully');
+                    showSuccess(t('budget', 'Tag set created successfully'));
                 } catch (error) {
                     console.error('Failed to create tag set:', error);
-                    showError('Failed to create tag set');
+                    showError(t('budget', 'Failed to create tag set'));
                 }
             });
         });
@@ -465,15 +466,15 @@ export default class TagSetsModule {
         document.querySelectorAll('.delete-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                if (!confirm('Delete this tag set? All associated tags will be removed from transactions.')) return;
+                if (!confirm(t('budget', 'Delete this tag set? All associated tags will be removed from transactions.'))) return;
 
                 try {
                     await this.deleteTagSet(tagSetId);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    showSuccess('Tag set deleted');
+                    showSuccess(t('budget', 'Tag set deleted'));
                 } catch (error) {
                     console.error('Failed to delete tag set:', error);
-                    showError('Failed to delete tag set');
+                    showError(t('budget', 'Failed to delete tag set'));
                 }
             });
         });
@@ -482,30 +483,30 @@ export default class TagSetsModule {
         document.querySelectorAll('.add-tag-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                const name = prompt('Enter tag name:');
+                const name = prompt(t('budget', 'Enter tag name:'));
                 if (!name) return;
 
                 // Check for duplicate tag name within the tag set
                 const tagSet = this.selectedCategoryTagSets.find(ts => ts.id === tagSetId);
                 if (tagSet && tagSet.tags) {
                     const duplicate = tagSet.tags.find(
-                        t => t.name.toLowerCase() === name.trim().toLowerCase()
+                        tg => tg.name.toLowerCase() === name.trim().toLowerCase()
                     );
                     if (duplicate) {
-                        showError(`A tag named "${name.trim()}" already exists in this tag set`);
+                        showError(t('budget', 'A tag named "{name}" already exists in this tag set', { name: name.trim() }));
                         return;
                     }
                 }
 
-                const color = prompt('Enter color (e.g., #FF5733):') || '#666666';
+                const color = prompt(t('budget', 'Enter color (e.g., #FF5733):')) || '#666666';
 
                 try {
                     await this.createTag(tagSetId, name, color);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    showSuccess('Tag created successfully');
+                    showSuccess(t('budget', 'Tag created successfully'));
                 } catch (error) {
                     console.error('Failed to create tag:', error);
-                    showError('Failed to create tag');
+                    showError(t('budget', 'Failed to create tag'));
                 }
             });
         });
@@ -525,15 +526,15 @@ export default class TagSetsModule {
                 const tagId = parseInt(btn.dataset.tagId);
                 const tagSetId = parseInt(btn.dataset.tagSetId);
 
-                if (!confirm('Delete this tag? It will be removed from all transactions.')) return;
+                if (!confirm(t('budget', 'Delete this tag? It will be removed from all transactions.'))) return;
 
                 try {
                     await this.deleteTag(tagId, tagSetId);
                     await this.renderCategoryTagSetsUI(categoryId);
-                    showSuccess('Tag deleted');
+                    showSuccess(t('budget', 'Tag deleted'));
                 } catch (error) {
                     console.error('Failed to delete tag:', error);
-                    showError('Failed to delete tag');
+                    showError(t('budget', 'Failed to delete tag'));
                 }
             });
         });
@@ -557,7 +558,7 @@ export default class TagSetsModule {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to create tag set');
+            throw new Error(t('budget', 'Failed to create tag set'));
         }
 
         return await response.json();
@@ -575,7 +576,7 @@ export default class TagSetsModule {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to delete tag set');
+            throw new Error(t('budget', 'Failed to delete tag set'));
         }
 
         return true;
@@ -598,7 +599,7 @@ export default class TagSetsModule {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to create tag');
+            throw new Error(t('budget', 'Failed to create tag'));
         }
 
         return await response.json();
@@ -616,7 +617,7 @@ export default class TagSetsModule {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to delete tag');
+            throw new Error(t('budget', 'Failed to delete tag'));
         }
 
         return true;
@@ -635,13 +636,13 @@ export default class TagSetsModule {
 
         // Load current tags for this transaction
         const currentTags = await this.loadTransactionTags(transactionId);
-        const currentTagIds = currentTags.map(t => t.id);
+        const currentTagIds = currentTags.map(tg => tg.id);
 
         const hasGlobalTags = this.globalTags.length > 0;
         const hasCategoryTags = tagSets.length > 0;
 
         if (!hasGlobalTags && !hasCategoryTags) {
-            container.innerHTML = '<p style="color: #999; font-size: 12px;">No tags available</p>';
+            container.innerHTML = `<p style="color: #999; font-size: 12px;">${t('budget', 'No tags available')}</p>`;
             return;
         }
 
@@ -651,7 +652,7 @@ export default class TagSetsModule {
         if (hasGlobalTags) {
             html += `
                 <div class="tag-set-selector">
-                    <label class="tag-set-label">Tags</label>
+                    <label class="tag-set-label">${t('budget', 'Tags')}</label>
                     <div class="tag-options">
                         ${this.globalTags.map(tag => `
                             <label class="tag-option">
@@ -685,7 +686,7 @@ export default class TagSetsModule {
                                     ${dom.escapeHtml(tag.name)}
                                 </span>
                             </label>
-                        `).join('') : '<span style="color: #999; font-size: 11px;">No tags defined</span>'}
+                        `).join('') : `<span style="color: #999; font-size: 11px;">${t('budget', 'No tags defined')}</span>`}
                     </div>
                 </div>
             `;
@@ -693,9 +694,10 @@ export default class TagSetsModule {
 
         container.innerHTML = html;
 
-        // Add change listeners to save tags
+        // Add change listeners to save tags (only for existing transactions)
         container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('change', async () => {
+                if (!transactionId) return;
                 const selectedTags = Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
                     .map(cb => parseInt(cb.value));
 
@@ -725,7 +727,7 @@ export default class TagSetsModule {
 
         try {
             if (!categoryId) {
-                container.innerHTML = '<div class="empty-state"><p>Select a category to manage tag sets</p></div>';
+                container.innerHTML = `<div class="empty-state"><p>${t('budget', 'Select a category to manage tag sets')}</p></div>`;
                 return;
             }
 
@@ -735,7 +737,7 @@ export default class TagSetsModule {
             container.innerHTML = '';
 
             if (tagSets.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p style="font-size: 13px; color: var(--color-text-maxcontrast); margin: 8px 0;">No tag sets yet.</p></div>';
+                container.innerHTML = `<div class="empty-state"><p style="font-size: 13px; color: var(--color-text-maxcontrast); margin: 8px 0;">${t('budget', 'No tag sets yet.')}</p></div>`;
             } else {
                 // Create table for list layout
                 const table = document.createElement('table');
@@ -766,21 +768,21 @@ export default class TagSetsModule {
                                 ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
                                     <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
                                         ${dom.escapeHtml(tag.name)}
-                                        <button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="Edit tag" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
-                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="Delete tag" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>
+                                        <button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
+                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>
                                     </span>
-                                `).join('') : '<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">No tags yet</span>'}
+                                `).join('') : `<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">${t('budget', 'No tags yet')}</span>`}
                             </div>
                         </td>
                         <td class="tag-set-actions-cell" style="padding: 12px 8px; vertical-align: top; width: 120px; text-align: right;">
                             <div class="tag-set-actions" style="display: flex; gap: 4px; justify-content: flex-end;">
-                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="Add Tag" style="padding: 6px 8px;">
+                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add Tag')}" style="padding: 6px 8px;">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Edit Tag Set" style="padding: 6px 8px;">
+                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Edit Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-rename" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="Delete Tag Set" style="padding: 6px 8px;">
+                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>
@@ -798,7 +800,7 @@ export default class TagSetsModule {
             this.setupCategoryTagSetsListeners(categoryId);
         } catch (error) {
             console.error('Failed to load tag sets:', error);
-            container.innerHTML = '<div class="error-state"><p>Failed to load tag sets</p></div>';
+            container.innerHTML = `<div class="error-state"><p>${t('budget', 'Failed to load tag sets')}</p></div>`;
         }
     }
 
@@ -842,14 +844,14 @@ export default class TagSetsModule {
         document.querySelectorAll('.delete-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                if (confirm('Delete this tag set? All tags in this set will be removed.')) {
+                if (confirm(t('budget', 'Delete this tag set? All tags in this set will be removed.'))) {
                     try {
                         await this.deleteTagSet(tagSetId);
                         await this.renderCategoryTagSetsList(categoryId);
-                        this.showNotification('Tag set deleted', 'success');
+                        this.showNotification(t('budget', 'Tag set deleted'), 'success');
                     } catch (error) {
                         console.error('Failed to delete tag set:', error);
-                        this.showNotification('Failed to delete tag set', 'error');
+                        this.showNotification(t('budget', 'Failed to delete tag set'), 'error');
                     }
                 }
             });
@@ -875,14 +877,14 @@ export default class TagSetsModule {
                 const tagId = parseInt(btn.dataset.tagId);
                 const tagSetId = parseInt(btn.dataset.tagSetId);
 
-                if (confirm('Delete this tag? It will be removed from all transactions.')) {
+                if (confirm(t('budget', 'Delete this tag? It will be removed from all transactions.'))) {
                     try {
                         await this.deleteTag(tagId, tagSetId);
                         await this.renderCategoryTagSetsList(categoryId);
-                        this.showNotification('Tag deleted', 'success');
+                        this.showNotification(t('budget', 'Tag deleted'), 'success');
                     } catch (error) {
                         console.error('Failed to delete tag:', error);
-                        this.showNotification('Failed to delete tag', 'error');
+                        this.showNotification(t('budget', 'Failed to delete tag'), 'error');
                     }
                 }
             });
@@ -904,7 +906,7 @@ export default class TagSetsModule {
             ts => ts.name.toLowerCase() === name.toLowerCase()
         );
         if (duplicate) {
-            this.showNotification(`A tag set named "${name}" already exists in this category`, 'error');
+            this.showNotification(t('budget', 'A tag set named "{name}" already exists in this category', { name }), 'error');
             return;
         }
 
@@ -912,10 +914,10 @@ export default class TagSetsModule {
             await this.createTagSet(parseInt(categoryId), name, description);
             this.hideModals();
             await this.renderCategoryTagSetsList(parseInt(categoryId));
-            this.showNotification('Tag set created successfully', 'success');
+            this.showNotification(t('budget', 'Tag set created successfully'), 'success');
         } catch (error) {
             console.error('Failed to create tag set:', error);
-            this.showNotification('Failed to create tag set', 'error');
+            this.showNotification(t('budget', 'Failed to create tag set'), 'error');
         }
     }
 
@@ -933,7 +935,7 @@ export default class TagSetsModule {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to update tag set');
+            throw new Error(t('budget', 'Failed to update tag set'));
         }
 
         return await response.json();
@@ -981,7 +983,7 @@ export default class TagSetsModule {
             ts => ts.name.toLowerCase() === name.toLowerCase() && ts.id !== tagSetId
         );
         if (duplicate) {
-            this.showNotification(`A tag set named "${name}" already exists in this category`, 'error');
+            this.showNotification(t('budget', 'A tag set named "{name}" already exists in this category', { name }), 'error');
             return;
         }
 
@@ -989,10 +991,10 @@ export default class TagSetsModule {
             await this.updateTagSet(tagSetId, name, description);
             this.hideModals();
             await this.renderCategoryTagSetsList(categoryId);
-            this.showNotification('Tag set updated successfully', 'success');
+            this.showNotification(t('budget', 'Tag set updated successfully'), 'success');
         } catch (error) {
             console.error('Failed to update tag set:', error);
-            this.showNotification('Failed to update tag set', 'error');
+            this.showNotification(t('budget', 'Failed to update tag set'), 'error');
         }
     }
 
@@ -1124,7 +1126,7 @@ export default class TagSetsModule {
                 t => t.name.toLowerCase() === name.toLowerCase()
             );
             if (duplicate) {
-                this.showNotification(`A tag named "${name}" already exists in this tag set`, 'error');
+                this.showNotification(t('budget', 'A tag named "{name}" already exists in this tag set', { name }), 'error');
                 return;
             }
         }
@@ -1133,10 +1135,10 @@ export default class TagSetsModule {
             await this.createTag(tagSetId, name, color);
             this.hideModals();
             await this.renderCategoryTagSetsList(categoryId);
-            this.showNotification('Tag created successfully', 'success');
+            this.showNotification(t('budget', 'Tag created successfully'), 'success');
         } catch (error) {
             console.error('Failed to create tag:', error);
-            this.showNotification('Failed to create tag', 'error');
+            this.showNotification(t('budget', 'Failed to create tag'), 'error');
         }
     }
 
@@ -1154,7 +1156,7 @@ export default class TagSetsModule {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to update tag');
+            throw new Error(t('budget', 'Failed to update tag'));
         }
 
         return await response.json();
@@ -1206,7 +1208,7 @@ export default class TagSetsModule {
                 t => t.name.toLowerCase() === name.toLowerCase() && t.id !== tagId
             );
             if (duplicate) {
-                this.showNotification(`A tag named "${name}" already exists in this tag set`, 'error');
+                this.showNotification(t('budget', 'A tag named "{name}" already exists in this tag set', { name }), 'error');
                 return;
             }
         }
@@ -1215,10 +1217,10 @@ export default class TagSetsModule {
             await this.updateTag(tagSetId, tagId, { name, color });
             this.hideModals();
             await this.renderCategoryTagSetsList(categoryId);
-            this.showNotification('Tag updated successfully', 'success');
+            this.showNotification(t('budget', 'Tag updated successfully'), 'success');
         } catch (error) {
             console.error('Failed to update tag:', error);
-            this.showNotification('Failed to update tag', 'error');
+            this.showNotification(t('budget', 'Failed to update tag'), 'error');
         }
     }
 

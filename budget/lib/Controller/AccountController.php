@@ -16,6 +16,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -26,6 +27,7 @@ class AccountController extends Controller {
     private AccountService $service;
     private ValidationService $validationService;
     private AuditService $auditService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
@@ -33,6 +35,7 @@ class AccountController extends Controller {
         AccountService $service,
         ValidationService $validationService,
         AuditService $auditService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -40,6 +43,7 @@ class AccountController extends Controller {
         $this->service = $service;
         $this->validationService = $validationService;
         $this->auditService = $auditService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -54,7 +58,7 @@ class AccountController extends Controller {
             $accounts = $this->service->findAllWithCurrentBalances($this->userId);
             return new DataResponse($accounts);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve accounts');
+            return $this->handleError($e, $this->l->t('Failed to retrieve accounts'));
         }
     }
 
@@ -67,7 +71,7 @@ class AccountController extends Controller {
             $account = $this->service->findWithCurrentBalance($id, $this->userId);
             return new DataResponse($account);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Account', ['accountId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
         }
     }
 
@@ -83,7 +87,7 @@ class AccountController extends Controller {
 
 
             if (!$data || !is_array($data)) {
-                return new DataResponse(['error' => 'Invalid JSON data or empty request'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid JSON data or empty request')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate required fields with length checks
@@ -95,26 +99,26 @@ class AccountController extends Controller {
 
             $type = trim($data['type'] ?? '');
             if (empty($type)) {
-                return new DataResponse(['error' => 'Account type is required and cannot be empty'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Account type is required and cannot be empty')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate account type
             $typeValidation = $this->validationService->validateAccountType($type);
             if (!$typeValidation['valid']) {
-                return new DataResponse(['error' => 'Invalid account type: ' . $typeValidation['error']], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid account type: %1$s', [$typeValidation['error']])], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate currency if provided
             $currency = strtoupper(trim($data['currency'] ?? 'USD'));
             $currencyValidation = $this->validationService->validateCurrency($currency);
             if (!$currencyValidation['valid']) {
-                return new DataResponse(['error' => 'Invalid currency: ' . $currencyValidation['error']], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid currency: %1$s', [$currencyValidation['error']])], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate optional string fields for length
             $institution = !empty($data['institution']) ? trim($data['institution']) : null;
             if ($institution !== null) {
-                $instValidation = $this->validationService->validateStringLength($institution, 'Institution', ValidationService::MAX_NAME_LENGTH);
+                $instValidation = $this->validationService->validateStringLength($institution, $this->l->t('Institution'), ValidationService::MAX_NAME_LENGTH);
                 if (!$instValidation['valid']) {
                     return new DataResponse(['error' => $instValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -123,7 +127,7 @@ class AccountController extends Controller {
 
             $accountHolderName = !empty($data['accountHolderName']) ? trim($data['accountHolderName']) : null;
             if ($accountHolderName !== null) {
-                $holderValidation = $this->validationService->validateStringLength($accountHolderName, 'Account holder name', ValidationService::MAX_NAME_LENGTH);
+                $holderValidation = $this->validationService->validateStringLength($accountHolderName, $this->l->t('Account holder name'), ValidationService::MAX_NAME_LENGTH);
                 if (!$holderValidation['valid']) {
                     return new DataResponse(['error' => $holderValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -171,7 +175,7 @@ class AccountController extends Controller {
             if ($routingNumber !== null) {
                 $routingValidation = $this->validationService->validateRoutingNumber($routingNumber);
                 if (!$routingValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid routing number: ' . $routingValidation['error']], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid routing number: %1$s', [$routingValidation['error']])], Http::STATUS_BAD_REQUEST);
                 }
                 $routingNumber = $routingValidation['formatted'];
             }
@@ -179,7 +183,7 @@ class AccountController extends Controller {
             if ($sortCode !== null) {
                 $sortValidation = $this->validationService->validateSortCode($sortCode);
                 if (!$sortValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid sort code: ' . $sortValidation['error']], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid sort code: %1$s', [$sortValidation['error']])], Http::STATUS_BAD_REQUEST);
                 }
                 $sortCode = $sortValidation['formatted'];
             }
@@ -187,7 +191,7 @@ class AccountController extends Controller {
             if ($iban !== null) {
                 $ibanValidation = $this->validationService->validateIban($iban);
                 if (!$ibanValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid IBAN: ' . $ibanValidation['error']], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid IBAN: %1$s', [$ibanValidation['error']])], Http::STATUS_BAD_REQUEST);
                 }
                 $iban = $ibanValidation['formatted'];
             }
@@ -195,7 +199,7 @@ class AccountController extends Controller {
             if ($swiftBic !== null) {
                 $swiftValidation = $this->validationService->validateSwiftBic($swiftBic);
                 if (!$swiftValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid SWIFT/BIC: ' . $swiftValidation['error']], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid SWIFT/BIC: %1$s', [$swiftValidation['error']])], Http::STATUS_BAD_REQUEST);
                 }
                 $swiftBic = $swiftValidation['formatted'];
             }
@@ -228,7 +232,7 @@ class AccountController extends Controller {
             return new DataResponse($account, Http::STATUS_CREATED);
 
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create account');
+            return $this->handleError($e, $this->l->t('Failed to create account'));
         }
     }
 
@@ -242,7 +246,7 @@ class AccountController extends Controller {
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!$data || !is_array($data)) {
-                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
             $updates = [];
@@ -260,7 +264,7 @@ class AccountController extends Controller {
             if (isset($data['type'])) {
                 $typeValidation = $this->validationService->validateAccountType($data['type']);
                 if (!$typeValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid account type: ' . $typeValidation['error']], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid account type: %1$s', [$typeValidation['error']])], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['type'] = $typeValidation['formatted'];
             }
@@ -269,7 +273,7 @@ class AccountController extends Controller {
             if (isset($data['currency'])) {
                 $currencyValidation = $this->validationService->validateCurrency($data['currency']);
                 if (!$currencyValidation['valid']) {
-                    return new DataResponse(['error' => 'Invalid currency: ' . $currencyValidation['error']], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid currency: %1$s', [$currencyValidation['error']])], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['currency'] = $currencyValidation['formatted'];
             }
@@ -298,7 +302,7 @@ class AccountController extends Controller {
                 if (strpos($data['routingNumber'], '*') === false && strpos($data['routingNumber'], '[DECRYPTION FAILED]') === false) {
                     $routingValidation = $this->validationService->validateRoutingNumber($data['routingNumber']);
                     if (!$routingValidation['valid']) {
-                        return new DataResponse(['error' => 'Invalid routing number: ' . $routingValidation['error']], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Invalid routing number: %1$s', [$routingValidation['error']])], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['routingNumber'] = $routingValidation['formatted'];
                 }
@@ -311,7 +315,7 @@ class AccountController extends Controller {
                 if (strpos($data['sortCode'], '*') === false && strpos($data['sortCode'], '[DECRYPTION FAILED]') === false) {
                     $sortValidation = $this->validationService->validateSortCode($data['sortCode']);
                     if (!$sortValidation['valid']) {
-                        return new DataResponse(['error' => 'Invalid sort code: ' . $sortValidation['error']], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Invalid sort code: %1$s', [$sortValidation['error']])], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['sortCode'] = $sortValidation['formatted'];
                 }
@@ -324,7 +328,7 @@ class AccountController extends Controller {
                 if (strpos($data['iban'], '*') === false && strpos($data['iban'], '[DECRYPTION FAILED]') === false) {
                     $ibanValidation = $this->validationService->validateIban($data['iban']);
                     if (!$ibanValidation['valid']) {
-                        return new DataResponse(['error' => 'Invalid IBAN: ' . $ibanValidation['error']], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Invalid IBAN: %1$s', [$ibanValidation['error']])], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['iban'] = $ibanValidation['formatted'];
                 }
@@ -337,7 +341,7 @@ class AccountController extends Controller {
                 if (strpos($data['swiftBic'], '*') === false && strpos($data['swiftBic'], '[DECRYPTION FAILED]') === false) {
                     $swiftValidation = $this->validationService->validateSwiftBic($data['swiftBic']);
                     if (!$swiftValidation['valid']) {
-                        return new DataResponse(['error' => 'Invalid SWIFT/BIC: ' . $swiftValidation['error']], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Invalid SWIFT/BIC: %1$s', [$swiftValidation['error']])], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['swiftBic'] = $swiftValidation['formatted'];
                 }
@@ -389,7 +393,7 @@ class AccountController extends Controller {
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $account = $this->service->update($id, $this->userId, $updates);
@@ -399,7 +403,7 @@ class AccountController extends Controller {
 
             return new DataResponse($account);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update account', Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to update account'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
         }
     }
 
@@ -420,7 +424,7 @@ class AccountController extends Controller {
 
             return new DataResponse(['status' => 'success']);
         } catch (DoesNotExistException $e) {
-            return $this->handleNotFoundError($e, 'Account', ['accountId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
         }
@@ -441,7 +445,7 @@ class AccountController extends Controller {
             // Check if account has sensitive data to reveal
             if (!$account->hasSensitiveData()) {
                 return new DataResponse([
-                    'error' => 'This account has no sensitive banking data to reveal'
+                    'error' => $this->l->t('This account has no sensitive banking data to reveal')
                 ], Http::STATUS_BAD_REQUEST);
             }
 
@@ -455,7 +459,7 @@ class AccountController extends Controller {
             // Return full unmasked data
             return new DataResponse($account->toArrayFull());
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Account', ['accountId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
         }
     }
 
@@ -467,7 +471,7 @@ class AccountController extends Controller {
             $summary = $this->service->getSummary($this->userId);
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve account summary');
+            return $this->handleError($e, $this->l->t('Failed to retrieve account summary'));
         }
     }
 
@@ -527,7 +531,7 @@ class AccountController extends Controller {
             $history = $this->service->getBalanceHistory($id, $this->userId, $days);
             return new DataResponse($history);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Account', ['accountId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
         }
     }
 
@@ -539,7 +543,7 @@ class AccountController extends Controller {
             $result = $this->service->reconcile($id, $this->userId, $statementBalance);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to reconcile account', Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to reconcile account'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
         }
     }
 }

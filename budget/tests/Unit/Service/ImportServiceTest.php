@@ -16,6 +16,7 @@ use OCA\Budget\Service\TransactionService;
 use OCP\Files\IAppData;
 use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class ImportServiceTest extends TestCase {
@@ -39,6 +40,13 @@ class ImportServiceTest extends TestCase {
         $this->duplicateDetector = $this->createMock(DuplicateDetector::class);
         $this->ruleApplicator = $this->createMock(ImportRuleApplicator::class);
 
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+            foreach ($params as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+            }
+            return $text;
+        });
         $this->service = new ImportService(
             $this->appData,
             $this->transactionService,
@@ -47,7 +55,8 @@ class ImportServiceTest extends TestCase {
             $this->parserFactory,
             $this->normalizer,
             $this->duplicateDetector,
-            $this->ruleApplicator
+            $this->ruleApplicator,
+            $l
         );
     }
 

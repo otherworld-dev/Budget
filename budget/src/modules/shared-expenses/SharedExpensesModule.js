@@ -1,6 +1,7 @@
 /**
  * Shared Expenses Module - Split expenses and settlements tracking
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
@@ -85,7 +86,7 @@ export default class SharedExpensesModule {
                             <path d="M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z"/>
                         </svg>
                     </div>
-                    <p>Add contacts to start splitting expenses</p>
+                    <p>${t('budget', 'Add contacts to start splitting expenses')}</p>
                 </div>
             `;
             return;
@@ -94,8 +95,8 @@ export default class SharedExpensesModule {
         container.innerHTML = contacts.map(item => {
             const balance = item.balance;
             const balanceClass = balance > 0 ? 'owed' : balance < 0 ? 'owing' : 'settled';
-            const balanceText = balance === 0 ? 'Settled' :
-                (balance > 0 ? `Owes you ${this.formatCurrency(balance)}` : `You owe ${this.formatCurrency(Math.abs(balance))}`);
+            const balanceText = balance === 0 ? t('budget', 'Settled') :
+                (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
 
             return `
                 <div class="contact-card" data-contact-id="${item.contact.id}">
@@ -112,17 +113,17 @@ export default class SharedExpensesModule {
                         </div>
                     </div>
                     <div class="contact-actions">
-                        <button class="action-btn view-contact-btn" data-id="${item.contact.id}" title="View details">
+                        <button class="action-btn view-contact-btn" data-id="${item.contact.id}" title="${t('budget', 'View details')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z"/>
                             </svg>
                         </button>
-                        <button class="action-btn edit-contact-btn" data-id="${item.contact.id}" title="Edit">
+                        <button class="action-btn edit-contact-btn" data-id="${item.contact.id}" title="${t('budget', 'Edit')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
                             </svg>
                         </button>
-                        <button class="action-btn delete-contact-btn" data-id="${item.contact.id}" title="Delete">
+                        <button class="action-btn delete-contact-btn" data-id="${item.contact.id}" title="${t('budget', 'Delete')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
                             </svg>
@@ -224,7 +225,7 @@ export default class SharedExpensesModule {
 
         form.reset();
         document.getElementById('contact-id').value = contact ? contact.id : '';
-        title.textContent = contact ? 'Edit Contact' : 'Add Contact';
+        title.textContent = contact ? t('budget', 'Edit Contact') : t('budget', 'Add Contact');
 
         if (contact) {
             document.getElementById('contact-name').value = contact.name || '';
@@ -240,7 +241,7 @@ export default class SharedExpensesModule {
         const email = document.getElementById('contact-email').value.trim();
 
         if (!name) {
-            showWarning('Name is required');
+            showWarning(t('budget', 'Name is required'));
             return;
         }
 
@@ -261,12 +262,12 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to save contact');
 
             this.closeModal(document.getElementById('contact-modal'));
-            showSuccess(id ? 'Contact updated' : 'Contact added');
+            showSuccess(id ? t('budget', 'Contact updated') : t('budget', 'Contact added'));
             await this.loadBalanceSummary();
             await this.loadContacts();
         } catch (error) {
             console.error('Failed to save contact:', error);
-            showError('Failed to save contact');
+            showError(t('budget', 'Failed to save contact'));
         }
     }
 
@@ -278,7 +279,7 @@ export default class SharedExpensesModule {
     }
 
     async deleteContact(id) {
-        if (!confirm('Are you sure you want to delete this contact? This will also remove all shared expense records with them.')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this contact? This will also remove all shared expense records with them.'))) {
             return;
         }
 
@@ -290,12 +291,12 @@ export default class SharedExpensesModule {
 
             if (!response.ok) throw new Error('Failed to delete contact');
 
-            showSuccess('Contact deleted');
+            showSuccess(t('budget', 'Contact deleted'));
             await this.loadBalanceSummary();
             await this.loadContacts();
         } catch (error) {
             console.error('Failed to delete contact:', error);
-            showError('Failed to delete contact');
+            showError(t('budget', 'Failed to delete contact'));
         }
     }
 
@@ -316,8 +317,8 @@ export default class SharedExpensesModule {
 
             const balanceEl = document.getElementById('contact-details-balance');
             const balance = data.balance;
-            balanceEl.textContent = balance === 0 ? 'Settled' :
-                (balance > 0 ? `Owes you ${this.formatCurrency(balance)}` : `You owe ${this.formatCurrency(Math.abs(balance))}`);
+            balanceEl.textContent = balance === 0 ? t('budget', 'Settled') :
+                (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
             balanceEl.className = 'balance-value ' + (balance > 0 ? 'owed' : balance < 0 ? 'owing' : 'settled');
 
             // Render shares
@@ -339,7 +340,7 @@ export default class SharedExpensesModule {
             const tabs = document.querySelectorAll('#contact-details-modal .tab-button');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active'));
+                    tabs.forEach(el => el.classList.remove('active'));
                     tab.classList.add('active');
 
                     document.getElementById('contact-shares-tab').style.display =
@@ -352,14 +353,14 @@ export default class SharedExpensesModule {
             document.getElementById('contact-details-modal').style.display = 'flex';
         } catch (error) {
             console.error('Failed to load contact details:', error);
-            showError('Failed to load contact details');
+            showError(t('budget', 'Failed to load contact details'));
         }
     }
 
     renderContactShares(shares) {
         const container = document.getElementById('contact-shares-list');
         if (!shares || shares.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No shared expenses</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No shared expenses')}</div>`;
             return;
         }
 
@@ -375,7 +376,7 @@ export default class SharedExpensesModule {
                     <div class="share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                         ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount)}
                     </div>
-                    <div class="share-status">${share.isSettled ? 'Settled' : 'Open'}</div>
+                    <div class="share-status">${share.isSettled ? t('budget', 'Settled') : t('budget', 'Open')}</div>
                 </div>
             `;
         }).join('');
@@ -384,7 +385,7 @@ export default class SharedExpensesModule {
     renderContactSettlements(settlements) {
         const container = document.getElementById('contact-settlements-list');
         if (!settlements || settlements.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No settlements yet</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No settlements yet')}</div>`;
             return;
         }
 
@@ -392,7 +393,7 @@ export default class SharedExpensesModule {
             <div class="settlement-item">
                 <div class="settlement-date">${settlement.date}</div>
                 <div class="settlement-amount ${settlement.amount >= 0 ? 'received' : 'paid'}">
-                    ${settlement.amount >= 0 ? 'Received' : 'Paid'} ${this.formatCurrency(Math.abs(settlement.amount))}
+                    ${settlement.amount >= 0 ? t('budget', 'Received') : t('budget', 'Paid')} ${this.formatCurrency(Math.abs(settlement.amount))}
                 </div>
                 ${settlement.notes ? `<div class="settlement-notes">${this.escapeHtml(settlement.notes)}</div>` : ''}
             </div>
@@ -405,8 +406,8 @@ export default class SharedExpensesModule {
         const modal = document.getElementById('settlement-modal');
         document.getElementById('settlement-contact-id').value = contactId;
         document.getElementById('settlement-contact-name').textContent = contactName;
-        document.getElementById('settlement-balance').textContent = balance === 0 ? 'Settled' :
-            (balance > 0 ? `Owes you ${this.formatCurrency(balance)}` : `You owe ${this.formatCurrency(Math.abs(balance))}`);
+        document.getElementById('settlement-balance').textContent = balance === 0 ? t('budget', 'Settled') :
+            (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
 
         document.getElementById('settlement-amount').value = Math.abs(balance).toFixed(2);
         setDateValue('settlement-date', formatters.getTodayDateString());
@@ -432,7 +433,7 @@ export default class SharedExpensesModule {
         const notes = document.getElementById('settlement-notes').value.trim();
 
         if (!amount || !date) {
-            showWarning('Amount and date are required');
+            showWarning(t('budget', 'Amount and date are required'));
             return;
         }
 
@@ -449,16 +450,16 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to record settlement');
 
             this.closeModal(document.getElementById('settlement-modal'));
-            showSuccess('Settlement recorded');
+            showSuccess(t('budget', 'Settlement recorded'));
             await this.loadBalanceSummary();
         } catch (error) {
             console.error('Failed to record settlement:', error);
-            showError('Failed to record settlement');
+            showError(t('budget', 'Failed to record settlement'));
         }
     }
 
     async settleAllWithContact(contactId) {
-        if (!confirm('This will mark all shared expenses with this contact as settled. Continue?')) {
+        if (!confirm(t('budget', 'This will mark all shared expenses with this contact as settled. Continue?'))) {
             return;
         }
 
@@ -476,11 +477,11 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to settle');
 
             this.closeModal(document.getElementById('contact-details-modal'));
-            showSuccess('All expenses settled');
+            showSuccess(t('budget', 'All expenses settled'));
             await this.loadBalanceSummary();
         } catch (error) {
             console.error('Failed to settle:', error);
-            showError('Failed to settle expenses');
+            showError(t('budget', 'Failed to settle expenses'));
         }
     }
 
@@ -494,7 +495,7 @@ export default class SharedExpensesModule {
 
         // Check if there are any contacts
         if (!this.contacts || this.contacts.length === 0) {
-            showWarning('Please add contacts first in Shared Expenses');
+            showWarning(t('budget', 'Please add contacts first in Shared Expenses'));
             return;
         }
 
@@ -505,7 +506,7 @@ export default class SharedExpensesModule {
 
         // Populate contacts dropdown
         const contactSelect = document.getElementById('share-contact');
-        contactSelect.innerHTML = '<option value="">Select a contact...</option>' +
+        contactSelect.innerHTML = `<option value="">${t('budget', 'Select a contact...')}</option>` +
             (this.contacts || []).map(c => `<option value="${c.id}">${this.escapeHtml(c.name)}</option>`).join('');
 
         document.getElementById('share-split-type').value = '50-50';
@@ -523,7 +524,7 @@ export default class SharedExpensesModule {
         const notes = document.getElementById('share-notes').value.trim();
 
         if (!contactId) {
-            showWarning('Please select a contact');
+            showWarning(t('budget', 'Please select a contact'));
             return;
         }
 
@@ -536,7 +537,7 @@ export default class SharedExpensesModule {
             } else {
                 const amount = parseFloat(document.getElementById('share-amount').value);
                 if (!amount) {
-                    showWarning('Amount is required for custom splits');
+                    showWarning(t('budget', 'Amount is required for custom splits'));
                     return;
                 }
                 url = OC.generateUrl('/apps/budget/api/shared/shares');
@@ -555,11 +556,11 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to share expense');
 
             this.closeModal(document.getElementById('share-expense-modal'));
-            showSuccess('Expense shared');
+            showSuccess(t('budget', 'Expense shared'));
             await this.loadBalanceSummary();
         } catch (error) {
             console.error('Failed to share expense:', error);
-            showError('Failed to share expense');
+            showError(t('budget', 'Failed to share expense'));
         }
     }
 

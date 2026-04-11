@@ -11,6 +11,7 @@ use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\ImportRuleService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 
@@ -30,6 +31,10 @@ class SetupControllerTest extends TestCase {
 		$this->factoryResetService = $this->createMock(FactoryResetService::class);
 		$this->auditService = $this->createMock(AuditService::class);
 		$this->accountService = $this->createMock(AccountService::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new SetupController(
 			$this->request,
@@ -38,6 +43,7 @@ class SetupControllerTest extends TestCase {
 			$this->factoryResetService,
 			$this->auditService,
 			$this->accountService,
+			$l,
 			'user1'
 		);
 	}

@@ -1,6 +1,7 @@
 /**
  * Income Module - Recurring income tracking and detection
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
@@ -47,7 +48,7 @@ export default class IncomeModule {
             this.populateIncomeModalDropdowns();
         } catch (error) {
             console.error('Failed to load recurring income:', error);
-            showError('Failed to load recurring income');
+            showError(t('budget', 'Failed to load recurring income'));
         }
     }
 
@@ -95,27 +96,27 @@ export default class IncomeModule {
             let statusText = '';
             if (!isActive && isOneTime) {
                 statusClass = 'received';
-                statusText = 'Completed';
+                statusText = t('budget', 'Completed');
             } else if (isReceivedThisMonth) {
                 statusClass = 'received';
-                statusText = 'Received';
+                statusText = t('budget', 'Received');
             } else if (isExpectedSoon) {
                 statusClass = 'expected-soon';
-                statusText = 'Expected Soon';
+                statusText = t('budget', 'Expected Soon');
             } else {
                 statusClass = 'upcoming';
-                statusText = 'Upcoming';
+                statusText = t('budget', 'Upcoming');
             }
 
             const frequency = income.frequency || 'monthly';
             const frequencyLabels = {
-                'weekly': 'Weekly',
-                'biweekly': 'Bi-Weekly',
-                'monthly': 'Monthly',
-                'quarterly': 'Quarterly',
-                'semi-annually': 'Semi-Annually',
-                'yearly': 'Yearly',
-                'one-time': 'One-Time'
+                'weekly': t('budget', 'Weekly'),
+                'biweekly': t('budget', 'Bi-Weekly'),
+                'monthly': t('budget', 'Monthly'),
+                'quarterly': t('budget', 'Quarterly'),
+                'semi-annually': t('budget', 'Semi-Annually'),
+                'yearly': t('budget', 'Yearly'),
+                'one-time': t('budget', 'One-Time')
             };
             const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
             const source = income.source || '';
@@ -133,7 +134,7 @@ export default class IncomeModule {
                     <div class="income-details">
                         <div class="income-next-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${nextDate ? formatters.formatDate(nextDate, this.settings) : 'No date set'}
+                            ${nextDate ? formatters.formatDate(nextDate, this.settings) : t('budget', 'No date set')}
                         </div>
                         <div class="income-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
@@ -141,15 +142,15 @@ export default class IncomeModule {
                     </div>
                     <div class="income-actions">
                         ${!isReceivedThisMonth && isActive ? `
-                            <button class="income-action-btn income-received-btn" data-income-id="${income.id}" title="Mark as received">
+                            <button class="income-action-btn income-received-btn" data-income-id="${income.id}" title="${t('budget', 'Mark as received')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
-                                Mark Received
+                                ${t('budget', 'Mark Received')}
                             </button>
                         ` : ''}
-                        <button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="Edit income">
+                        <button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="${t('budget', 'Edit income')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="income-action-btn income-delete-btn" data-income-id="${income.id}" title="Delete income">
+                        <button class="income-action-btn income-delete-btn" data-income-id="${income.id}" title="${t('budget', 'Delete income')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -266,7 +267,7 @@ export default class IncomeModule {
         const incomeTabs = document.querySelectorAll('.income-tabs .tab-button');
         incomeTabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                incomeTabs.forEach(t => t.classList.remove('active'));
+                incomeTabs.forEach(el => el.classList.remove('active'));
                 tab.classList.add('active');
                 this.filterIncome(tab.dataset.filter);
             });
@@ -308,7 +309,7 @@ export default class IncomeModule {
         document.getElementById('income-id').value = '';
 
         if (income) {
-            title.textContent = 'Edit Recurring Income';
+            title.textContent = t('budget', 'Edit Recurring Income');
             document.getElementById('income-id').value = income.id;
             document.getElementById('income-name').value = income.name || '';
             document.getElementById('income-amount').value = income.amount || '';
@@ -321,7 +322,7 @@ export default class IncomeModule {
             document.getElementById('income-auto-pattern').value = income.autoDetectPattern || income.auto_detect_pattern || '';
             document.getElementById('income-notes').value = income.notes || '';
         } else {
-            title.textContent = 'Add Recurring Income';
+            title.textContent = t('budget', 'Add Recurring Income');
         }
 
         this.updateIncomeFormFields();
@@ -362,12 +363,12 @@ export default class IncomeModule {
         const expectedDayHelp = document.getElementById('income-expected-day-help');
 
         if (frequency === 'weekly' || frequency === 'biweekly') {
-            expectedDayLabel.textContent = 'Expected Day (1-7)';
-            expectedDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
+            expectedDayLabel.textContent = t('budget', 'Expected Day (1-7)');
+            expectedDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
             document.getElementById('income-expected-day').max = 7;
         } else {
-            expectedDayLabel.textContent = 'Expected Day';
-            expectedDayHelp.textContent = 'Day of the month when income is expected';
+            expectedDayLabel.textContent = t('budget', 'Expected Day');
+            expectedDayHelp.textContent = t('budget', 'Day of the month when income is expected');
             document.getElementById('income-expected-day').max = 31;
         }
     }
@@ -377,7 +378,7 @@ export default class IncomeModule {
         const categorySelect = document.getElementById('income-category');
         if (categorySelect && this.categories) {
             const currentValue = categorySelect.value;
-            categorySelect.innerHTML = '<option value="">No category</option>';
+            categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
             dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories, { typeFilter: 'income' });
             if (currentValue) categorySelect.value = currentValue;
         }
@@ -386,7 +387,7 @@ export default class IncomeModule {
         const accountSelect = document.getElementById('income-account');
         if (accountSelect && this.accounts) {
             const currentValue = accountSelect.value;
-            accountSelect.innerHTML = '<option value="">No specific account</option>';
+            accountSelect.innerHTML = `<option value="">${t('budget', 'No specific account')}</option>`;
             this.accounts.forEach(account => {
                 accountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
             });
@@ -431,16 +432,16 @@ export default class IncomeModule {
             }
 
             this.hideIncomeModal();
-            showSuccess(isNew ? 'Income source created successfully' : 'Income source updated successfully');
+            showSuccess(isNew ? t('budget', 'Income source created successfully') : t('budget', 'Income source updated successfully'));
             await this.loadIncomeView();
         } catch (error) {
             console.error('Failed to save income:', error);
-            showError(error.message || 'Failed to save income');
+            showError(error.message || t('budget', 'Failed to save income'));
         }
     }
 
     async deleteIncome(incomeId) {
-        if (!confirm('Are you sure you want to delete this recurring income?')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this recurring income?'))) {
             return;
         }
 
@@ -452,11 +453,11 @@ export default class IncomeModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            showSuccess('Income source deleted successfully');
+            showSuccess(t('budget', 'Income source deleted successfully'));
             await this.loadIncomeView();
         } catch (error) {
             console.error('Failed to delete income:', error);
-            showError('Failed to delete income');
+            showError(t('budget', 'Failed to delete income'));
         }
     }
 
@@ -500,8 +501,8 @@ export default class IncomeModule {
 
             // Show notification with undo option
             const message = income.accountId
-                ? 'Income marked as received. Transaction created.'
-                : 'Income marked as received.';
+                ? t('budget', 'Income marked as received. Transaction created.')
+                : t('budget', 'Income marked as received.');
             this.showUndoNotification(message, () => this.undoMarkReceived());
 
             // Set timer to clear undo data after 5 seconds
@@ -512,7 +513,7 @@ export default class IncomeModule {
 
         } catch (error) {
             console.error('Failed to mark income as received:', error);
-            showError('Failed to mark income as received');
+            showError(t('budget', 'Failed to mark income as received'));
         }
     }
 
@@ -552,10 +553,10 @@ export default class IncomeModule {
             // Reload the view
             await this.loadIncomeView();
 
-            showSuccess('Action undone');
+            showSuccess(t('budget', 'Action undone'));
         } catch (error) {
             console.error('Failed to undo mark received:', error);
-            showError(`Failed to undo action: ${error.message}`);
+            showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
     }
 
@@ -565,7 +566,7 @@ export default class IncomeModule {
         notification.className = 'undo-notification';
         notification.innerHTML = `
             <span class="undo-message">${message}</span>
-            <button class="undo-btn">Undo</button>
+            <button class="undo-btn">${t('budget', 'Undo')}</button>
         `;
 
         // Style the notification
@@ -617,7 +618,7 @@ export default class IncomeModule {
     async detectIncome() {
         const detectBtn = document.getElementById('detect-income-btn');
         detectBtn.disabled = true;
-        detectBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Detecting...';
+        detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income/detect?months=6'), {
@@ -629,7 +630,7 @@ export default class IncomeModule {
             const detected = await response.json();
 
             if (detected.length === 0) {
-                showInfo('No recurring income patterns found in your transactions');
+                showInfo(t('budget', 'No recurring income patterns found in your transactions'));
                 return;
             }
 
@@ -638,10 +639,10 @@ export default class IncomeModule {
             document.getElementById('detected-income-panel').style.display = 'flex';
         } catch (error) {
             console.error('Failed to detect income:', error);
-            showError('Failed to detect recurring income');
+            showError(t('budget', 'Failed to detect recurring income'));
         } finally {
             detectBtn.disabled = false;
-            detectBtn.innerHTML = '<span class="icon-search" aria-hidden="true"></span> Detect Income';
+            detectBtn.innerHTML = `<span class="icon-search" aria-hidden="true"></span> ${t('budget', 'Detect Income')}`;
         }
     }
 
@@ -662,11 +663,11 @@ export default class IncomeModule {
                         <div class="detected-bill-meta">
                             <span class="detected-bill-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
                             <span class="detected-bill-frequency">${item.frequency}</span>
-                            <span class="detected-bill-occurrences">${item.occurrences} occurrences</span>
-                            <span class="detected-bill-source">Source: ${dom.escapeHtml(item.source)}</span>
+                            <span class="detected-bill-occurrences">${n('budget', '%n occurrence', '%n occurrences', item.occurrences)}</span>
+                            <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) })}</span>
                         </div>
                         <div class="detected-bill-confidence">
-                            <span class="confidence-badge ${confidenceClass}">${confidencePercent}% confidence</span>
+                            <span class="confidence-badge ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                             ${item.amountVariance ? `<span class="variance-info">±${formatters.formatCurrency(item.amountVariance, null, this.settings)}</span>` : ''}
                         </div>
                     </div>
@@ -680,7 +681,7 @@ export default class IncomeModule {
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-income-', '')));
 
         if (selectedIndices.length === 0) {
-            showWarning('Please select at least one income source to add');
+            showWarning(t('budget', 'Please select at least one income source to add'));
             return;
         }
 
@@ -701,11 +702,11 @@ export default class IncomeModule {
             const result = await response.json();
 
             document.getElementById('detected-income-panel').style.display = 'none';
-            showSuccess(`${result.created} income sources added successfully`);
+            showSuccess(n('budget', '%n income source added successfully', '%n income sources added successfully', result.created));
             await this.loadIncomeView();
         } catch (error) {
             console.error('Failed to add income:', error);
-            showError('Failed to add selected income sources');
+            showError(t('budget', 'Failed to add selected income sources'));
         }
     }
 }

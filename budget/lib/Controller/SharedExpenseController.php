@@ -10,22 +10,26 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class SharedExpenseController extends Controller {
     private SharedExpenseService $service;
+    private IL10N $l;
     private string $userId;
     private LoggerInterface $logger;
 
     public function __construct(
         IRequest $request,
         SharedExpenseService $service,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
     }
@@ -48,7 +52,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to get contacts'],
+                ['error' => $this->l->t('Failed to get contacts')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -70,7 +74,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to create contact'],
+                ['error' => $this->l->t('Failed to create contact')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -92,7 +96,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to update contact'],
+                ['error' => $this->l->t('Failed to update contact')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -114,7 +118,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to delete contact'],
+                ['error' => $this->l->t('Failed to delete contact')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -136,7 +140,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to get contact details'],
+                ['error' => $this->l->t('Failed to get contact details')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -160,7 +164,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to get balances'],
+                ['error' => $this->l->t('Failed to get balances')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -195,7 +199,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to share expense'],
+                ['error' => $this->l->t('Failed to share expense')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -217,7 +221,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to split expense'],
+                ['error' => $this->l->t('Failed to split expense')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -239,7 +243,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to get shares'],
+                ['error' => $this->l->t('Failed to get shares')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -261,7 +265,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to update share'],
+                ['error' => $this->l->t('Failed to update share')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -283,7 +287,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to mark settled'],
+                ['error' => $this->l->t('Failed to mark settled')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -305,7 +309,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to delete share'],
+                ['error' => $this->l->t('Failed to delete share')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -340,7 +344,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to record settlement'],
+                ['error' => $this->l->t('Failed to record settlement')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -362,7 +366,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to settle'],
+                ['error' => $this->l->t('Failed to settle')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -384,7 +388,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to get settlements'],
+                ['error' => $this->l->t('Failed to get settlements')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -406,7 +410,7 @@ class SharedExpenseController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to delete settlement'],
+                ['error' => $this->l->t('Failed to delete settlement')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }

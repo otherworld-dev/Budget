@@ -11,6 +11,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -18,16 +19,19 @@ class NetWorthController extends Controller {
     use ApiErrorHandlerTrait;
 
     private NetWorthService $service;
+    private IL10N $l;
     private ?string $userId;
 
     public function __construct(
         IRequest $request,
         NetWorthService $service,
+        IL10N $l,
         ?string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
     }
@@ -52,7 +56,7 @@ class NetWorthController extends Controller {
             $data = $this->service->calculateNetWorth($this->getUserId());
             return new DataResponse($data);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to calculate net worth');
+            return $this->handleError($e, $this->l->t('Failed to calculate net worth'));
         }
     }
 
@@ -67,7 +71,7 @@ class NetWorthController extends Controller {
             $snapshots = $this->service->getSnapshots($this->getUserId(), $days);
             return new DataResponse($snapshots);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve net worth snapshots');
+            return $this->handleError($e, $this->l->t('Failed to retrieve net worth snapshots'));
         }
     }
 
@@ -85,7 +89,7 @@ class NetWorthController extends Controller {
             );
             return new DataResponse($snapshot, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create net worth snapshot');
+            return $this->handleError($e, $this->l->t('Failed to create net worth snapshot'));
         }
     }
 
@@ -98,9 +102,9 @@ class NetWorthController extends Controller {
     public function destroySnapshot(int $id): DataResponse {
         try {
             $this->service->deleteSnapshot($id, $this->getUserId());
-            return new DataResponse(['message' => 'Snapshot deleted']);
+            return new DataResponse(['message' => $this->l->t('Snapshot deleted')]);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Snapshot', ['snapshotId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Snapshot'), ['snapshotId' => $id]);
         }
     }
 }

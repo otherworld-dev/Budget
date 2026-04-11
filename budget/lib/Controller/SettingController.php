@@ -14,6 +14,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,6 +23,7 @@ class SettingController extends Controller {
 
     private $userId;
     private $mapper;
+    private IL10N $l;
 
     // Default settings
     private const DEFAULTS = [
@@ -46,12 +48,14 @@ class SettingController extends Controller {
     public function __construct(
         IRequest $request,
         SettingMapper $mapper,
+        IL10N $l,
         ?string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->userId = $userId;
         $this->mapper = $mapper;
+        $this->l = $l;
         $this->setLogger($logger);
     }
 
@@ -75,7 +79,7 @@ class SettingController extends Controller {
 
             return new DataResponse($settingsArray);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve settings', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to retrieve settings'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -100,11 +104,11 @@ class SettingController extends Controller {
                 ]);
             }
             return new DataResponse(
-                ['error' => 'Setting not found'],
+                ['error' => $this->l->t('Setting not found')],
                 Http::STATUS_NOT_FOUND
             );
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve setting', Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
+            return $this->handleError($e, $this->l->t('Failed to retrieve setting'), Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
         }
     }
 
@@ -146,11 +150,11 @@ class SettingController extends Controller {
             }
 
             return new DataResponse([
-                'message' => 'Settings updated successfully',
+                'message' => $this->l->t('Settings updated successfully'),
                 'settings' => $updated
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update settings', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to update settings'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -166,7 +170,7 @@ class SettingController extends Controller {
 
             if ($value === null) {
                 return new DataResponse(
-                    ['error' => 'Value parameter is required'],
+                    ['error' => $this->l->t('Value parameter is required')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -191,12 +195,12 @@ class SettingController extends Controller {
             }
 
             return new DataResponse([
-                'message' => 'Setting updated successfully',
+                'message' => $this->l->t('Setting updated successfully'),
                 'key' => $key,
                 'value' => $value
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update setting', Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
+            return $this->handleError($e, $this->l->t('Failed to update setting'), Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
         }
     }
 
@@ -212,18 +216,18 @@ class SettingController extends Controller {
 
             if ($deleted === 0) {
                 return new DataResponse(
-                    ['error' => 'Setting not found'],
+                    ['error' => $this->l->t('Setting not found')],
                     Http::STATUS_NOT_FOUND
                 );
             }
 
             return new DataResponse([
-                'message' => 'Setting reset to default',
+                'message' => $this->l->t('Setting reset to default'),
                 'key' => $key,
                 'default_value' => self::DEFAULTS[$key] ?? null
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to reset setting', Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
+            return $this->handleError($e, $this->l->t('Failed to reset setting'), Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
         }
     }
 
@@ -238,12 +242,12 @@ class SettingController extends Controller {
             $deleted = $this->mapper->deleteAll($this->userId);
 
             return new DataResponse([
-                'message' => 'All settings reset to defaults',
+                'message' => $this->l->t('All settings reset to defaults'),
                 'deleted_count' => $deleted,
                 'defaults' => self::DEFAULTS
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to reset settings', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to reset settings'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -272,14 +276,14 @@ class SettingController extends Controller {
                 ['value' => 'M j, Y', 'label' => 'Mon D, YYYY (Oct 12, 2025)'],
             ],
             'first_day_of_week' => [
-                ['value' => '0', 'label' => 'Sunday'],
-                ['value' => '1', 'label' => 'Monday'],
+                ['value' => '0', 'label' => $this->l->t('Sunday')],
+                ['value' => '1', 'label' => $this->l->t('Monday')],
             ],
             'budget_periods' => [
-                ['value' => 'weekly', 'label' => 'Weekly'],
-                ['value' => 'monthly', 'label' => 'Monthly'],
-                ['value' => 'quarterly', 'label' => 'Quarterly'],
-                ['value' => 'yearly', 'label' => 'Yearly'],
+                ['value' => 'weekly', 'label' => $this->l->t('Weekly')],
+                ['value' => 'monthly', 'label' => $this->l->t('Monthly')],
+                ['value' => 'quarterly', 'label' => $this->l->t('Quarterly')],
+                ['value' => 'yearly', 'label' => $this->l->t('Yearly')],
             ],
             'export_formats' => [
                 ['value' => 'csv', 'label' => 'CSV'],

@@ -9,6 +9,7 @@ use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -16,16 +17,19 @@ class AlertController extends Controller {
     use ApiErrorHandlerTrait;
 
     private BudgetAlertService $alertService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         BudgetAlertService $alertService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->alertService = $alertService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
     }
@@ -39,7 +43,7 @@ class AlertController extends Controller {
             $alerts = $this->alertService->getAlerts($this->userId);
             return new DataResponse($alerts);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve budget alerts');
+            return $this->handleError($e, $this->l->t('Failed to retrieve budget alerts'));
         }
     }
 
@@ -52,7 +56,7 @@ class AlertController extends Controller {
             $status = $this->alertService->getBudgetStatus($this->userId);
             return new DataResponse($status);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve budget status');
+            return $this->handleError($e, $this->l->t('Failed to retrieve budget status'));
         }
     }
 
@@ -65,7 +69,7 @@ class AlertController extends Controller {
             $summary = $this->alertService->getSummary($this->userId);
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve budget summary');
+            return $this->handleError($e, $this->l->t('Failed to retrieve budget summary'));
         }
     }
 }

@@ -1,6 +1,7 @@
 /**
  * Transfers Module - Recurring transfer tracking between accounts
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
@@ -41,7 +42,7 @@ export default class TransfersModule {
             this.transfers = await response.json();
         } catch (error) {
             console.error('Failed to load transfers:', error);
-            showError('Failed to load transfers');
+            showError(t('budget', 'Failed to load transfers'));
         }
     }
 
@@ -54,11 +55,11 @@ export default class TransfersModule {
 
         view.innerHTML = `
             <div class="view-header">
-                <h2>Recurring Transfers</h2>
+                <h2>${t('budget', 'Recurring Transfers')}</h2>
                 <div class="view-controls">
-                    <button id="add-transfer-btn" class="primary" aria-label="Add new transfer">
+                    <button id="add-transfer-btn" class="primary" aria-label="${t('budget', 'Add new transfer')}">
                         <span class="icon-add" aria-hidden="true"></span>
-                        Add Transfer
+                        ${t('budget', 'Add Transfer')}
                     </button>
                 </div>
             </div>
@@ -71,7 +72,7 @@ export default class TransfersModule {
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="transfers-active-count">0</div>
-                        <div class="summary-label">Active Transfers</div>
+                        <div class="summary-label">${t('budget', 'Active Transfers')}</div>
                     </div>
                 </div>
                 <div class="summary-card warning">
@@ -80,7 +81,7 @@ export default class TransfersModule {
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="transfers-due-count">0</div>
-                        <div class="summary-label">Due This Month</div>
+                        <div class="summary-label">${t('budget', 'Due This Month')}</div>
                     </div>
                 </div>
                 <div class="summary-card">
@@ -89,7 +90,7 @@ export default class TransfersModule {
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="transfers-monthly-total">$0</div>
-                        <div class="summary-label">Monthly Total</div>
+                        <div class="summary-label">${t('budget', 'Monthly Total')}</div>
                     </div>
                 </div>
                 <div class="summary-card success">
@@ -98,17 +99,17 @@ export default class TransfersModule {
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="transfers-completed-count">0</div>
-                        <div class="summary-label">Completed This Month</div>
+                        <div class="summary-label">${t('budget', 'Completed This Month')}</div>
                     </div>
                 </div>
             </div>
 
             <!-- Transfers Filter Tabs -->
             <div class="bills-tabs">
-                <button class="tab-button active" data-filter="all">All Transfers</button>
-                <button class="tab-button" data-filter="due">Due Soon</button>
-                <button class="tab-button" data-filter="overdue">Overdue</button>
-                <button class="tab-button" data-filter="completed">Completed</button>
+                <button class="tab-button active" data-filter="all">${t('budget', 'All Transfers')}</button>
+                <button class="tab-button" data-filter="due">${t('budget', 'Due Soon')}</button>
+                <button class="tab-button" data-filter="overdue">${t('budget', 'Overdue')}</button>
+                <button class="tab-button" data-filter="completed">${t('budget', 'Completed')}</button>
             </div>
 
             <!-- Transfers List -->
@@ -120,11 +121,11 @@ export default class TransfersModule {
                 <div class="empty-bills" id="empty-transfers" style="display: none;">
                     <div class="empty-content">
                         <span class="icon-link" aria-hidden="true"></span>
-                        <h3>No recurring transfers yet</h3>
-                        <p>Set up automatic transfers between your accounts to automate savings or bill payments.</p>
+                        <h3>${t('budget', 'No recurring transfers yet')}</h3>
+                        <p>${t('budget', 'Set up automatic transfers between your accounts to automate savings or bill payments.')}</p>
                         <button class="primary" id="empty-transfers-add-btn">
                             <span class="icon-add" aria-hidden="true"></span>
-                            Add Your First Transfer
+                            ${t('budget', 'Add Your First Transfer')}
                         </button>
                     </div>
                 </div>
@@ -168,7 +169,7 @@ export default class TransfersModule {
             if (editBtn) {
                 e.preventDefault();
                 const transferId = parseInt(editBtn.dataset.transferId);
-                const transfer = this.transfers.find(t => t.id === transferId);
+                const transfer = this.transfers.find(tx => tx.id === transferId);
                 if (transfer) {
                     this.showTransferModal(transfer);
                 }
@@ -227,31 +228,31 @@ export default class TransfersModule {
             let statusText = '';
             if (isPaid) {
                 statusClass = 'paid';
-                statusText = 'Paid';
+                statusText = t('budget', 'Paid');
             } else if (isOverdue) {
                 statusClass = 'overdue';
-                statusText = 'Overdue';
+                statusText = t('budget', 'Overdue');
             } else if (isDueSoon) {
                 statusClass = 'due-soon';
-                statusText = 'Due Soon';
+                statusText = t('budget', 'Due Soon');
             } else {
                 statusClass = 'upcoming';
-                statusText = 'Upcoming';
+                statusText = t('budget', 'Upcoming');
             }
 
             const fromAccount = this.accounts.find(a => a.id === transfer.accountId);
             const toAccount = this.accounts.find(a => a.id === transfer.destinationAccountId);
-            const fromAccountName = fromAccount ? fromAccount.name : 'Unknown Account';
-            const toAccountName = toAccount ? toAccount.name : 'Unknown Account';
+            const fromAccountName = fromAccount ? fromAccount.name : t('budget', 'Unknown Account');
+            const toAccountName = toAccount ? toAccount.name : t('budget', 'Unknown Account');
 
             const frequency = transfer.frequency || 'monthly';
             const frequencyLabels = {
-                'weekly': 'Weekly',
-                'biweekly': 'Bi-Weekly',
-                'monthly': 'Monthly',
-                'quarterly': 'Quarterly',
-                'semi-annually': 'Semi-Annually',
-                'yearly': 'Yearly'
+                'weekly': t('budget', 'Weekly'),
+                'biweekly': t('budget', 'Bi-Weekly'),
+                'monthly': t('budget', 'Monthly'),
+                'quarterly': t('budget', 'Quarterly'),
+                'semi-annually': t('budget', 'Semi-Annually'),
+                'yearly': t('budget', 'Yearly')
             };
             const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
 
@@ -270,25 +271,25 @@ export default class TransfersModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : 'No due date'}
+                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : t('budget', 'No due date')}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="Auto-pay enabled" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> Auto-pay</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="Auto-pay failed - disabled" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> Auto-pay Failed</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">
                         ${!isPaid ? `
-                            <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="Mark as paid">
+                            <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
-                                Mark Paid
+                                ${t('budget', 'Mark Paid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="Edit transfer">
+                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="Delete transfer">
+                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -302,7 +303,7 @@ export default class TransfersModule {
 
         transferItems.forEach(item => {
             const transferId = parseInt(item.dataset.id);
-            const transfer = this.transfers.find(t => t.id === transferId);
+            const transfer = this.transfers.find(tx => tx.id === transferId);
             if (!transfer) {
                 item.style.display = 'none';
                 return;
@@ -335,23 +336,23 @@ export default class TransfersModule {
     }
 
     updateSummary() {
-        const activeCount = this.transfers.filter(t => t.isActive).length;
-        const dueThisMonth = this.transfers.filter(t => {
-            if (!t.isActive) return false;
-            const dueDate = t.nextDueDate || t.next_due_date;
+        const activeCount = this.transfers.filter(tx => tx.isActive).length;
+        const dueThisMonth = this.transfers.filter(tx => {
+            if (!tx.isActive) return false;
+            const dueDate = tx.nextDueDate || tx.next_due_date;
             if (!dueDate) return false;
             const due = new Date(dueDate);
             const now = new Date();
             return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
         }).length;
 
-        const completedThisMonth = this.transfers.filter(t => {
-            return this.isTransferPaidThisMonth(t);
+        const completedThisMonth = this.transfers.filter(tx => {
+            return this.isTransferPaidThisMonth(tx);
         }).length;
 
         const monthlyTotal = this.transfers
-            .filter(t => t.isActive)
-            .reduce((sum, t) => sum + this.getMonthlyEquivalent(t), 0);
+            .filter(tx => tx.isActive)
+            .reduce((sum, tx) => sum + this.getMonthlyEquivalent(tx), 0);
 
         document.getElementById('transfers-active-count').textContent = activeCount;
         document.getElementById('transfers-due-count').textContent = dueThisMonth;
@@ -362,7 +363,7 @@ export default class TransfersModule {
 
     showTransferModal(transfer = null) {
         const isEdit = transfer !== null;
-        const title = isEdit ? 'Edit Transfer' : 'Add Transfer';
+        const title = isEdit ? t('budget', 'Edit Transfer') : t('budget', 'Add Transfer');
 
         // Debug logging
         console.log('Accounts available for transfer modal:', this.accounts);
@@ -382,36 +383,36 @@ export default class TransfersModule {
                     </div>
                     <form id="transfer-form" class="budget-modal-body">
                         <div class="form-group">
-                            <label for="transfer-name">Name *</label>
+                            <label for="transfer-name">${t('budget', 'Name')} *</label>
                             <input type="text" id="transfer-name" class="form-control"
-                                   placeholder="e.g., Monthly Savings" required
+                                   placeholder="${t('budget', 'e.g., Monthly Savings')}" required
                                    value="${isEdit ? dom.escapeHtml(transfer.name) : ''}">
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="transfer-amount">Amount *</label>
+                                <label for="transfer-amount">${t('budget', 'Amount')} *</label>
                                 <input type="number" id="transfer-amount" class="form-control"
                                        step="0.01" min="0" required
                                        value="${isEdit ? transfer.amount : ''}">
                             </div>
                             <div class="form-group">
-                                <label for="transfer-frequency">Frequency *</label>
+                                <label for="transfer-frequency">${t('budget', 'Frequency')} *</label>
                                 <select id="transfer-frequency" class="form-control" required>
-                                    <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
-                                    <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>Bi-Weekly</option>
-                                    <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
-                                    <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>Quarterly</option>
-                                    <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>Yearly</option>
+                                    <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
+                                    <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
+                                    <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
+                                    <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
+                                    <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="recurring-transfer-from-account">From Account *</label>
+                                <label for="recurring-transfer-from-account">${t('budget', 'From Account')} *</label>
                                 <select id="recurring-transfer-from-account" class="form-control" required>
-                                    <option value="">Select account...</option>
+                                    <option value="">${t('budget', 'Select account...')}</option>
                                     ${this.accounts.map(account => `
                                         <option value="${account.id}" ${isEdit && transfer.accountId === account.id ? 'selected' : ''}>
                                             ${dom.escapeHtml(account.name)}
@@ -420,9 +421,9 @@ export default class TransfersModule {
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="recurring-transfer-to-account">To Account *</label>
+                                <label for="recurring-transfer-to-account">${t('budget', 'To Account')} *</label>
                                 <select id="recurring-transfer-to-account" class="form-control" required>
-                                    <option value="">Select account...</option>
+                                    <option value="">${t('budget', 'Select account...')}</option>
                                     ${this.accounts.map(account => `
                                         <option value="${account.id}" ${isEdit && transfer.destinationAccountId === account.id ? 'selected' : ''}>
                                             ${dom.escapeHtml(account.name)}
@@ -433,65 +434,65 @@ export default class TransfersModule {
                         </div>
 
                         <div class="form-group">
-                            <label for="transfer-due-day">Day of Month (1-31)</label>
+                            <label for="transfer-due-day">${t('budget', 'Day of Month (1-31)')}</label>
                             <input type="number" id="transfer-due-day" class="form-control"
-                                   min="1" max="31" placeholder="e.g., 15"
+                                   min="1" max="31" placeholder="${t('budget', 'e.g., 15')}"
                                    value="${isEdit && transfer.dueDay ? transfer.dueDay : ''}">
-                            <small class="form-hint">Leave empty for weekly transfers</small>
+                            <small class="form-hint">${t('budget', 'Leave empty for weekly transfers')}</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="transfer-description-pattern">Transaction Description Pattern (Optional)</label>
+                            <label for="transfer-description-pattern">${t('budget', 'Transaction Description Pattern (Optional)')}</label>
                             <input type="text" id="transfer-description-pattern" class="form-control"
-                                   placeholder="e.g., Savings Transfer"
+                                   placeholder="${t('budget', 'e.g., Savings Transfer')}"
                                    value="${isEdit && transfer.transferDescriptionPattern ? dom.escapeHtml(transfer.transferDescriptionPattern) : ''}">
-                            <small class="form-hint">Used to match imported transactions</small>
+                            <small class="form-hint">${t('budget', 'Used to match imported transactions')}</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="transfer-category">Category</label>
+                            <label for="transfer-category">${t('budget', 'Category')}</label>
                             <select id="transfer-category" class="form-control">
-                                <option value="">No category</option>
+                                <option value="">${t('budget', 'No category')}</option>
                                 ${dom.buildCategoryOptionsHtml(this.categoryTree || this.categories, { typeFilter: 'expense', selectedId: isEdit ? transfer.categoryId : null })}
                             </select>
-                            <small class="form-hint">Category for created transactions (optional)</small>
+                            <small class="form-hint">${t('budget', 'Category for created transactions (optional)')}</small>
                         </div>
 
                         <div id="transfer-tags-container"></div>
 
                         <div class="form-group">
-                            <label for="transfer-notes">Notes</label>
+                            <label for="transfer-notes">${t('budget', 'Notes')}</label>
                             <textarea id="transfer-notes" class="form-control" rows="3"
-                                      placeholder="Optional notes...">${isEdit && transfer.notes ? dom.escapeHtml(transfer.notes) : ''}</textarea>
+                                      placeholder="${t('budget', 'Optional notes...')}">${isEdit && transfer.notes ? dom.escapeHtml(transfer.notes) : ''}</textarea>
                         </div>
 
                         <div class="form-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="transfer-create-transaction"
                                        ${isEdit ? '' : ''}>
-                                <span>Also create transactions now</span>
+                                <span>${t('budget', 'Also create transactions now')}</span>
                             </label>
-                            <small class="form-hint">Creates paired debit/credit transactions immediately</small>
+                            <small class="form-hint">${t('budget', 'Creates paired debit/credit transactions immediately')}</small>
                         </div>
 
                         <div class="form-group" id="transfer-transaction-date-group" style="display: none;">
-                            <label for="transfer-transaction-date">Transaction Date</label>
+                            <label for="transfer-transaction-date">${t('budget', 'Transaction Date')}</label>
                             <input type="date" id="transfer-transaction-date" class="form-control">
-                            <small class="form-hint">Leave empty to use next due date</small>
+                            <small class="form-hint">${t('budget', 'Leave empty to use next due date')}</small>
                         </div>
 
                         <div class="form-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="transfer-auto-pay"
                                        ${isEdit && transfer.autoPayEnabled ? 'checked' : ''}>
-                                <span>Enable auto-pay (automatically create transactions when due)</span>
+                                <span>${t('budget', 'Enable auto-pay (automatically create transactions when due)')}</span>
                             </label>
                         </div>
 
                         <div class="budget-modal-footer">
-                            <button type="button" class="button secondary" id="cancel-transfer">Cancel</button>
+                            <button type="button" class="button secondary" id="cancel-transfer">${t('budget', 'Cancel')}</button>
                             <button type="submit" class="button primary">
-                                ${isEdit ? 'Update Transfer' : 'Add Transfer'}
+                                ${isEdit ? t('budget', 'Update Transfer') : t('budget', 'Add Transfer')}
                             </button>
                         </div>
                     </form>
@@ -605,17 +606,17 @@ export default class TransfersModule {
 
         // Validation
         if (!fromAccountId || isNaN(fromAccountId)) {
-            showWarning('Please select a source account');
+            showWarning(t('budget', 'Please select a source account'));
             return false;
         }
 
         if (!toAccountId || isNaN(toAccountId)) {
-            showWarning('Please select a destination account');
+            showWarning(t('budget', 'Please select a destination account'));
             return false;
         }
 
         if (fromAccountId === toAccountId) {
-            showWarning('Cannot transfer to the same account');
+            showWarning(t('budget', 'Cannot transfer to the same account'));
             return false;
         }
 
@@ -654,11 +655,11 @@ export default class TransfersModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to save transfer');
+                throw new Error(error.error || t('budget', 'Failed to save transfer'));
             }
 
             showSuccess(
-                existingTransfer ? 'Transfer updated' : 'Transfer added'
+                existingTransfer ? t('budget', 'Transfer updated') : t('budget', 'Transfer added')
             );
 
             await this.loadTransfers();
@@ -667,13 +668,13 @@ export default class TransfersModule {
             return true;
         } catch (error) {
             console.error('Failed to save transfer:', error);
-            showError(error.message || 'Failed to save transfer');
+            showError(error.message || t('budget', 'Failed to save transfer'));
             return false;
         }
     }
 
     async deleteTransfer(transferId) {
-        if (!confirm('Are you sure you want to delete this transfer?')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this transfer?'))) {
             return;
         }
 
@@ -683,21 +684,21 @@ export default class TransfersModule {
                 headers: { 'requesttoken': OC.requestToken }
             });
 
-            if (!response.ok) throw new Error('Failed to delete transfer');
+            if (!response.ok) throw new Error(t('budget', 'Failed to delete transfer'));
 
-            showSuccess('Transfer deleted');
+            showSuccess(t('budget', 'Transfer deleted'));
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
         } catch (error) {
             console.error('Failed to delete transfer:', error);
-            showError('Failed to delete transfer');
+            showError(t('budget', 'Failed to delete transfer'));
         }
     }
 
     async toggleTransferActive(transferId) {
-        const transfer = this.transfers.find(t => t.id === transferId);
+        const transfer = this.transfers.find(tx => tx.id === transferId);
         if (!transfer) return;
 
         try {
@@ -712,10 +713,10 @@ export default class TransfersModule {
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to update transfer');
+            if (!response.ok) throw new Error(t('budget', 'Failed to update transfer'));
 
             showSuccess(
-                transfer.isActive ? 'Transfer deactivated' : 'Transfer activated'
+                transfer.isActive ? t('budget', 'Transfer deactivated') : t('budget', 'Transfer activated')
             );
 
             await this.loadTransfers();
@@ -723,12 +724,12 @@ export default class TransfersModule {
             this.updateSummary();
         } catch (error) {
             console.error('Failed to toggle transfer:', error);
-            showError('Failed to update transfer');
+            showError(t('budget', 'Failed to update transfer'));
         }
     }
 
     async markTransferPaid(transferId) {
-        const transfer = this.transfers.find(t => t.id === transferId);
+        const transfer = this.transfers.find(tx => tx.id === transferId);
         if (!transfer) return;
 
         try {
@@ -745,16 +746,16 @@ export default class TransfersModule {
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to mark transfer as paid');
+            if (!response.ok) throw new Error(t('budget', 'Failed to mark transfer as paid'));
 
-            showSuccess('Transfer marked as paid');
+            showSuccess(t('budget', 'Transfer marked as paid'));
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
-            showError('Failed to mark transfer as paid');
+            showError(t('budget', 'Failed to mark transfer as paid'));
         }
     }
 
@@ -776,13 +777,13 @@ export default class TransfersModule {
 
     formatFrequency(frequency) {
         const map = {
-            'weekly': 'Weekly',
-            'biweekly': 'Bi-Weekly',
-            'monthly': 'Monthly',
-            'quarterly': 'Quarterly',
-            'semi-annually': 'Semi-Annually',
-            'yearly': 'Yearly',
-            'one-time': 'One-Time'
+            'weekly': t('budget', 'Weekly'),
+            'biweekly': t('budget', 'Bi-Weekly'),
+            'monthly': t('budget', 'Monthly'),
+            'quarterly': t('budget', 'Quarterly'),
+            'semi-annually': t('budget', 'Semi-Annually'),
+            'yearly': t('budget', 'Yearly'),
+            'one-time': t('budget', 'One-Time')
         };
         return map[frequency] || frequency;
     }
@@ -815,7 +816,7 @@ export default class TransfersModule {
             if (globalTags.length > 0) {
                 html += `
                     <div class="form-group tag-set-selector">
-                        <label class="tag-set-label">Tags</label>
+                        <label class="tag-set-label">${t('budget', 'Tags')}</label>
                         <div class="tag-options" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
                             ${globalTags.map(tag => `
                                 <label class="tag-option" style="cursor: pointer;">
@@ -851,7 +852,7 @@ export default class TransfersModule {
                                         ${dom.escapeHtml(tag.name)}
                                     </span>
                                 </label>
-                            `).join('') : '<span style="color: #999; font-size: 11px; font-style: italic;">No tags defined</span>'}
+                            `).join('') : `<span style="color: #999; font-size: 11px; font-style: italic;">${t('budget', 'No tags defined')}</span>`}
                         </div>
                     </div>
                 `;

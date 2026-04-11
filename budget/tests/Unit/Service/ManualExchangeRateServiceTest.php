@@ -9,6 +9,7 @@ use OCA\Budget\Db\ManualExchangeRateMapper;
 use OCA\Budget\Service\ExchangeRateService;
 use OCA\Budget\Service\ManualExchangeRateService;
 use OCA\Budget\Service\SettingService;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class ManualExchangeRateServiceTest extends TestCase {
@@ -21,10 +22,18 @@ class ManualExchangeRateServiceTest extends TestCase {
 		$this->mapper = $this->createMock(ManualExchangeRateMapper::class);
 		$this->exchangeRateService = $this->createMock(ExchangeRateService::class);
 		$this->settingService = $this->createMock(SettingService::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+			}
+			return $text;
+		});
 		$this->service = new ManualExchangeRateService(
 			$this->mapper,
 			$this->exchangeRateService,
-			$this->settingService
+			$this->settingService,
+			$l
 		);
 	}
 

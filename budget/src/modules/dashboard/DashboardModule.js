@@ -14,6 +14,7 @@ import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
 import { DASHBOARD_WIDGETS } from '../../config/dashboardWidgets.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 export default class DashboardModule {
     constructor(app) {
@@ -305,7 +306,7 @@ export default class DashboardModule {
                 const lastMonth = incomeData[incomeData.length - 2] || 0;
                 const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
                 if (change !== 0) {
-                    incomeChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}% vs last month`;
+                    incomeChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
                     incomeChangeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
                 }
             }
@@ -327,7 +328,7 @@ export default class DashboardModule {
                 const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
                 if (change !== 0) {
                     // For expenses, down is good
-                    expensesChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}% vs last month`;
+                    expensesChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
                     expensesChangeEl.className = `hero-change ${change <= 0 ? 'positive' : 'negative'}`;
                 }
             }
@@ -344,7 +345,7 @@ export default class DashboardModule {
             // Savings rate
             if (savingsRateEl && totals.totalIncome > 0) {
                 const savingsRate = (netSavings / totals.totalIncome * 100);
-                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${Math.abs(savingsRate).toFixed(1)}% savings rate`;
+                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${t('budget', '{percent}% savings rate', { percent: Math.abs(savingsRate).toFixed(1) })}`;
             }
         }
     }
@@ -364,7 +365,7 @@ export default class DashboardModule {
         if (changeEl) {
             const trend = rate >= 20 ? 'positive' : rate >= 10 ? 'neutral' : 'negative';
             const icon = rate >= 20 ? '↑' : rate >= 10 ? '→' : '↓';
-            changeEl.innerHTML = `<span class="trend-icon ${trend}">${icon} ${rate >= 20 ? 'Great' : rate >= 10 ? 'Good' : 'Low'}</span>`;
+            changeEl.innerHTML = `<span class="trend-icon ${trend}">${icon} ${rate >= 20 ? t('budget', 'Great') : rate >= 10 ? t('budget', 'Good') : t('budget', 'Low')}</span>`;
             changeEl.className = `hero-change ${trend}`;
         }
     }
@@ -390,7 +391,7 @@ export default class DashboardModule {
                 const lastCF = (incomeData[incomeData.length - 2] || 0) - (expenseData[expenseData.length - 2] || 0);
                 const change = lastCF !== 0 ? ((currentCF - lastCF) / Math.abs(lastCF) * 100) : 0;
                 if (change !== 0) {
-                    changeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}% vs last month`;
+                    changeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
                     changeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
                 }
             }
@@ -534,7 +535,7 @@ export default class DashboardModule {
                 const spent = c.spent || 0;
                 return (budget - spent) > 0;
             }).length;
-            changeEl.textContent = `${categoryCount} categories under budget`;
+            changeEl.textContent = n('budget', '%n category under budget', '%n categories under budget', categoryCount);
         }
     }
 
@@ -560,7 +561,7 @@ export default class DashboardModule {
 
         const changeEl = document.getElementById('hero-budget-health-change');
         if (changeEl) {
-            changeEl.textContent = `${onTrack}/${totalBudgets} on track`;
+            changeEl.textContent = t('budget', '{onTrack}/{total} on track', { onTrack, total: totalBudgets });
         }
     }
 
@@ -586,9 +587,9 @@ export default class DashboardModule {
         const unconverted = summary.unconvertedCurrencies || [];
         if (unconverted.length > 0) {
             indicator.className = 'hero-subtext conversion-warning';
-            indicator.innerHTML = `&#9888; Rates unavailable for ${unconverted.join(', ')}`;
+            indicator.innerHTML = `&#9888; ${t('budget', 'Rates unavailable for {currencies}', { currencies: unconverted.join(', ') })}`;
         } else {
-            indicator.textContent = `Converted to ${summary.baseCurrency} at current rates`;
+            indicator.textContent = t('budget', 'Converted to {currency} at current rates', { currency: summary.baseCurrency });
         }
 
         netWorthContent.appendChild(indicator);
@@ -603,7 +604,7 @@ export default class DashboardModule {
         if (!container || !Array.isArray(accounts)) return;
 
         if (accounts.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No accounts yet</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No accounts yet')}</div>`;
             return;
         }
 
@@ -614,6 +615,15 @@ export default class DashboardModule {
             investment: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>',
             cash: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>',
             loan: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 14V6c0-1.1-.9-2-2-2H3C1.9 4 1 4.9 1 6v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-2 0H3V6h14v8zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm13 0v11c0 1.1-.9 2-2 2H4v-2h17V7h2z"/></svg>'
+        };
+
+        const accountTypeLabels = {
+            checking: t('budget', 'Checking'),
+            savings: t('budget', 'Savings'),
+            credit_card: t('budget', 'Credit Card'),
+            investment: t('budget', 'Investment'),
+            cash: t('budget', 'Cash'),
+            loan: t('budget', 'Loan')
         };
 
         container.innerHTML = accounts.slice(0, 5).map(account => {
@@ -628,7 +638,7 @@ export default class DashboardModule {
                         <div class="account-widget-icon">${icon}</div>
                         <div>
                             <div class="account-widget-name">${this.escapeHtml(account.name)}</div>
-                            <div class="account-widget-type">${type.replace('_', ' ')}</div>
+                            <div class="account-widget-type">${accountTypeLabels[type] || type.replace('_', ' ')}</div>
                         </div>
                     </div>
                     <div class="account-widget-balance">
@@ -647,7 +657,7 @@ export default class DashboardModule {
         if (!container) return;
 
         if (!Array.isArray(transactions) || transactions.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No recent transactions</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recent transactions')}</div>`;
             return;
         }
 
@@ -655,7 +665,7 @@ export default class DashboardModule {
             const isCredit = tx.type === 'credit';
             const amount = parseFloat(tx.amount) || 0;
             const category = this.categories.find(c => c.id === tx.categoryId || c.id === tx.category_id);
-            const categoryName = category ? category.name : 'Uncategorized';
+            const categoryName = category ? category.name : t('budget', 'Uncategorized');
             const categoryColor = category ? category.color : '#999';
             const date = tx.date ? this.formatDate(tx.date) : '';
 
@@ -669,7 +679,7 @@ export default class DashboardModule {
                             }
                         </div>
                         <div class="recent-transaction-details">
-                            <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || 'Transaction')}</div>
+                            <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
                             <div class="recent-transaction-meta">
                                 <span>${date}</span>
                                 <span class="recent-transaction-category">
@@ -710,8 +720,8 @@ export default class DashboardModule {
                 : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
 
             const percentDisplay = alert.percentage >= 100
-                ? `${Math.round(alert.percentage - 100)}% over`
-                : `${Math.round(alert.percentage)}% used`;
+                ? t('budget', '{percent}% over', { percent: Math.round(alert.percentage - 100) })
+                : t('budget', '{percent}% used', { percent: Math.round(alert.percentage) });
 
             return `
                 <div class="budget-alert-item ${severityClass}">
@@ -761,7 +771,7 @@ export default class DashboardModule {
         // Show payoff estimate if available
         if (estimateEl) {
             if (summary.highestInterestRate > 0) {
-                estimateEl.innerHTML = `<span class="debt-hint">Highest rate: ${summary.highestInterestRate.toFixed(1)}% APR</span>`;
+                estimateEl.innerHTML = `<span class="debt-hint">${t('budget', 'Highest rate: {rate}% APR', { rate: summary.highestInterestRate.toFixed(1) })}</span>`;
             } else {
                 estimateEl.innerHTML = '';
             }
@@ -773,7 +783,7 @@ export default class DashboardModule {
         if (!container) return;
 
         if (!Array.isArray(bills) || bills.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No upcoming bills</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No upcoming bills')}</div>`;
             return;
         }
 
@@ -788,15 +798,15 @@ export default class DashboardModule {
 
             if (daysUntilDue < 0) {
                 statusClass = 'overdue';
-                dueText = `Overdue by ${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? 's' : ''}`;
+                dueText = n('budget', 'Overdue by %n day', 'Overdue by %n days', Math.abs(daysUntilDue));
             } else if (daysUntilDue === 0) {
                 statusClass = 'due-soon';
-                dueText = 'Due today';
+                dueText = t('budget', 'Due today');
             } else if (daysUntilDue <= 7) {
                 statusClass = 'due-soon';
-                dueText = `Due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`;
+                dueText = n('budget', 'Due in %n day', 'Due in %n days', daysUntilDue);
             } else {
-                dueText = `Due ${formatters.parseLocalDate(dueDateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                dueText = t('budget', 'Due {date}', { date: formatters.parseLocalDate(dueDateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
             }
 
             return `
@@ -816,7 +826,7 @@ export default class DashboardModule {
         if (!container) return;
 
         if (!Array.isArray(categories) || categories.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No budgets configured</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budgets configured')}</div>`;
             return;
         }
 
@@ -824,7 +834,7 @@ export default class DashboardModule {
         const budgetedCategories = categories.filter(c => c.budgeted > 0 || c.budget > 0);
 
         if (budgetedCategories.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No budgets configured</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budgets configured')}</div>`;
             return;
         }
 
@@ -865,7 +875,7 @@ export default class DashboardModule {
         if (!container) return;
 
         if (!Array.isArray(goals) || goals.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No savings goals yet</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No savings goals yet')}</div>`;
             return;
         }
 
@@ -879,13 +889,13 @@ export default class DashboardModule {
                 <div class="savings-goal-item">
                     <div class="savings-goal-header">
                         <div class="savings-goal-name">${this.escapeHtml(goal.name)}</div>
-                        <div class="savings-goal-target">Target: ${this.formatCurrency(target)}</div>
+                        <div class="savings-goal-target">${t('budget', 'Target: {amount}', { amount: this.formatCurrency(target) })}</div>
                     </div>
                     <div class="savings-goal-progress">
                         <div class="savings-goal-fill" style="width: ${percentage}%"></div>
                     </div>
                     <div class="savings-goal-footer">
-                        <span class="savings-goal-current">${this.formatCurrency(current)} saved</span>
+                        <span class="savings-goal-current">${t('budget', '{amount} saved', { amount: this.formatCurrency(current) })}</span>
                         <span>${percentage.toFixed(0)}%</span>
                     </div>
                 </div>
@@ -918,20 +928,20 @@ export default class DashboardModule {
             // Show pension worth if available, otherwise show projected income
             if (pensionWorth > 0) {
                 heroPensionValue.textContent = this.formatCurrency(pensionWorth, currency);
-                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Worth';
+                if (heroPensionLabel) heroPensionLabel.textContent = t('budget', 'Pension Worth');
             } else if (projectedIncome > 0) {
                 heroPensionValue.textContent = this.formatCurrency(projectedIncome, currency) + '/yr';
-                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Income';
+                if (heroPensionLabel) heroPensionLabel.textContent = t('budget', 'Pension Income');
             } else {
                 heroPensionValue.textContent = this.formatCurrency(0, currency);
-                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Worth';
+                if (heroPensionLabel) heroPensionLabel.textContent = t('budget', 'Pension Worth');
             }
         }
         if (heroPensionCount) {
-            let subtext = count === 1 ? '1 pension' : `${count} pensions`;
+            let subtext = n('budget', '%n pension', '%n pensions', count);
             // If showing income but also have some pot value, mention it
             if (pensionWorth > 0 && projectedIncome > 0) {
-                subtext += ` · ${this.formatCurrency(projectedIncome, currency)}/yr income`;
+                subtext += ` · ${t('budget', '{amount}/yr income', { amount: this.formatCurrency(projectedIncome, currency) })}`;
             }
             heroPensionCount.textContent = subtext;
         }
@@ -961,7 +971,7 @@ export default class DashboardModule {
             heroAssetsValue.textContent = this.formatCurrency(assetWorth, currency);
         }
         if (heroAssetsCount) {
-            heroAssetsCount.textContent = count === 1 ? '1 asset' : `${count} assets`;
+            heroAssetsCount.textContent = n('budget', '%n asset', '%n assets', count);
         }
 
         // Show 30-day change indicator
@@ -970,7 +980,7 @@ export default class DashboardModule {
             if (amount !== 0) {
                 const arrow = amount >= 0 ? '\u2191' : '\u2193';
                 const absAmount = this.formatCurrency(Math.abs(amount), currency);
-                heroAssetsChange.textContent = `${arrow} ${absAmount} (${Math.abs(percentage).toFixed(1)}%) vs 30d ago`;
+                heroAssetsChange.textContent = `${arrow} ${t('budget', '{amount} ({percent}%) vs 30d ago', { amount: absAmount, percent: Math.abs(percentage).toFixed(1) })}`;
                 heroAssetsChange.className = `hero-change ${amount >= 0 ? 'positive' : 'negative'}`;
             } else {
                 heroAssetsChange.textContent = '';
@@ -987,19 +997,19 @@ export default class DashboardModule {
         let spendingData;
         if (Array.isArray(spending)) {
             if (spending.length === 0) {
-                container.innerHTML = '<div class="empty-state-small">No spending data</div>';
+                container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data')}</div>`;
                 return;
             }
             spendingData = spending;
         } else if (typeof spending === 'object') {
             const entries = Object.entries(spending);
             if (entries.length === 0) {
-                container.innerHTML = '<div class="empty-state-small">No spending data</div>';
+                container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data')}</div>`;
                 return;
             }
             spendingData = entries.map(([categoryId, amount]) => ({ categoryId: parseInt(categoryId), amount }));
         } else {
-            container.innerHTML = '<div class="empty-state-small">No spending data</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data')}</div>`;
             return;
         }
 
@@ -1027,7 +1037,7 @@ export default class DashboardModule {
         if (!container || !Array.isArray(accounts)) return;
 
         if (accounts.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No account data</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No account data')}</div>`;
             return;
         }
 
@@ -1060,7 +1070,7 @@ export default class DashboardModule {
         if (!container) return;
 
         if (!Array.isArray(categories) || categories.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No budget data</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budget data')}</div>`;
             return;
         }
 
@@ -1068,10 +1078,10 @@ export default class DashboardModule {
             <table class="budget-breakdown-table">
                 <thead>
                     <tr>
-                        <th>Category</th>
-                        <th>Budget</th>
-                        <th>Spent</th>
-                        <th>Remaining</th>
+                        <th>${t('budget', 'Category')}</th>
+                        <th>${t('budget', 'Budget')}</th>
+                        <th>${t('budget', 'Spent')}</th>
+                        <th>${t('budget', 'Remaining')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1101,7 +1111,7 @@ export default class DashboardModule {
         if (!container) return;
 
         if (!Array.isArray(goals) || goals.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No savings goals</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No savings goals')}</div>`;
             return;
         }
 
@@ -1133,7 +1143,7 @@ export default class DashboardModule {
         if (!container || !Array.isArray(accounts)) return;
 
         if (accounts.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No account data</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No account data')}</div>`;
             return;
         }
 
@@ -1149,19 +1159,19 @@ export default class DashboardModule {
         }, {});
 
         const typeLabels = {
-            'checking': 'Checking',
-            'savings': 'Savings',
-            'credit': 'Credit Cards',
-            'investment': 'Investments',
-            'loan': 'Loans',
-            'Other': 'Other'
+            'checking': t('budget', 'Checking'),
+            'savings': t('budget', 'Savings'),
+            'credit': t('budget', 'Credit Cards'),
+            'investment': t('budget', 'Investments'),
+            'loan': t('budget', 'Loans'),
+            'Other': t('budget', 'Other')
         };
 
         container.innerHTML = Object.entries(breakdown).map(([type, data]) => `
             <div class="payment-method-item">
                 <div class="payment-method-header">
                     <span class="payment-method-name">${typeLabels[type] || type}</span>
-                    <span class="payment-method-count">${data.count} accounts</span>
+                    <span class="payment-method-count">${n('budget', '%n account', '%n accounts', data.count)}</span>
                 </div>
                 <div class="payment-method-total">${this.formatCurrency(data.total)}</div>
             </div>
@@ -1173,7 +1183,7 @@ export default class DashboardModule {
         if (!container || !Array.isArray(accounts)) return;
 
         if (accounts.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">No accounts to reconcile</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No accounts to reconcile')}</div>`;
             return;
         }
 
@@ -1186,7 +1196,7 @@ export default class DashboardModule {
         })).filter(a => true);  // Would filter to only show accounts needing reconciliation
 
         if (accountsToReconcile.length === 0) {
-            container.innerHTML = '<div class="empty-state-small">All accounts reconciled</div>';
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'All accounts reconciled')}</div>`;
             return;
         }
 
@@ -1194,7 +1204,7 @@ export default class DashboardModule {
             <div class="reconciliation-item">
                 <div class="reconciliation-name">${this.escapeHtml(account.name)}</div>
                 <div class="reconciliation-status">
-                    <span class="reconciliation-badge">Up to date</span>
+                    <span class="reconciliation-badge">${t('budget', 'Up to date')}</span>
                 </div>
             </div>
         `).join('');
@@ -1238,7 +1248,7 @@ export default class DashboardModule {
         // Extract data - API already returns name and color in each item
         const labels = sortedData.map(item => {
             // Use the name directly from the spending item (API includes it)
-            return item.name || 'Unknown';
+            return item.name || t('budget', 'Unknown');
         });
 
         const data = sortedData.map(item => Math.abs(item.total || item.amount || 0));
@@ -1284,7 +1294,7 @@ export default class DashboardModule {
             legendContainer.innerHTML = `
                 <div class="spending-breakdown">
                     <div class="spending-breakdown-header">
-                        <strong>Total Spending</strong>
+                        <strong>${t('budget', 'Total Spending')}</strong>
                         <strong>${this.formatCurrency(totalSpending)}</strong>
                     </div>
                     ${sortedData.map((item, index) => {
@@ -1330,7 +1340,7 @@ export default class DashboardModule {
                 labels: trends.labels,
                 datasets: [
                     {
-                        label: 'Income',
+                        label: t('budget', 'Income'),
                         data: trends.income || [],
                         borderColor: '#46ba61',
                         backgroundColor: 'rgba(70, 186, 97, 0.1)',
@@ -1338,7 +1348,7 @@ export default class DashboardModule {
                         tension: 0.3
                     },
                     {
-                        label: 'Expenses',
+                        label: t('budget', 'Expenses'),
                         data: trends.expenses || [],
                         borderColor: '#e9322d',
                         backgroundColor: 'rgba(233, 50, 45, 0.1)',
@@ -1409,7 +1419,7 @@ export default class DashboardModule {
             // Single account: balance-history format { date, balance }
             if (statusEl) statusEl.style.display = 'none';
             datasets = [{
-                label: 'Balance',
+                label: t('budget', 'Balance'),
                 data: data.map(s => s.balance),
                 borderColor: '#0082c9',
                 backgroundColor: 'rgba(0, 130, 201, 0.1)',
@@ -1422,7 +1432,7 @@ export default class DashboardModule {
             this.updateNetWorthStatus(data, statusEl);
             datasets = [
                 {
-                    label: 'Net Worth',
+                    label: t('budget', 'Net Worth'),
                     data: data.map(s => s.netWorth),
                     borderColor: '#46ba61',
                     backgroundColor: 'rgba(70, 186, 97, 0.1)',
@@ -1431,7 +1441,7 @@ export default class DashboardModule {
                     borderWidth: 2
                 },
                 {
-                    label: 'Assets',
+                    label: t('budget', 'Assets'),
                     data: data.map(s => s.totalAssets),
                     borderColor: '#0082c9',
                     borderDash: [5, 5],
@@ -1440,7 +1450,7 @@ export default class DashboardModule {
                     borderWidth: 1.5
                 },
                 {
-                    label: 'Liabilities',
+                    label: t('budget', 'Liabilities'),
                     data: data.map(s => s.totalLiabilities),
                     borderColor: '#e9322d',
                     borderDash: [5, 5],
@@ -1525,7 +1535,7 @@ export default class DashboardModule {
             data: {
                 labels,
                 datasets: [{
-                    label: 'Asset Value',
+                    label: t('budget', 'Asset Value'),
                     data: values,
                     borderColor: '#ff9800',
                     backgroundColor: 'rgba(255, 152, 0, 0.1)',
@@ -1548,7 +1558,7 @@ export default class DashboardModule {
                     tooltip: {
                         callbacks: {
                             label: (context) => {
-                                return `Portfolio: ${this.formatCurrency(context.raw, currency)}`;
+                                return `${t('budget', 'Portfolio')}: ${this.formatCurrency(context.raw, currency)}`;
                             }
                         }
                     }
@@ -1603,24 +1613,22 @@ export default class DashboardModule {
             let timeAgoText;
             if (daysAgo === 0) {
                 if (hoursAgo === 0) {
-                    timeAgoText = 'just now';
-                } else if (hoursAgo === 1) {
-                    timeAgoText = '1 hour ago';
+                    timeAgoText = t('budget', 'just now');
                 } else {
-                    timeAgoText = `${hoursAgo} hours ago`;
+                    timeAgoText = n('budget', '%n hour ago', '%n hours ago', hoursAgo);
                 }
             } else if (daysAgo === 1) {
-                timeAgoText = 'yesterday';
+                timeAgoText = t('budget', 'yesterday');
             } else {
-                timeAgoText = `${daysAgo} days ago`;
+                timeAgoText = n('budget', '%n day ago', '%n days ago', daysAgo);
             }
 
-            statusHTML += `<span class="status-text">Snapshots recorded automatically daily • Last: ${timeAgoText}</span>`;
+            statusHTML += `<span class="status-text">${t('budget', 'Snapshots recorded automatically daily')} • ${t('budget', 'Last: {time}', { time: timeAgoText })}</span>`;
         } else {
-            statusHTML += '<span class="status-text">Snapshots recorded automatically daily</span>';
+            statusHTML += `<span class="status-text">${t('budget', 'Snapshots recorded automatically daily')}</span>`;
         }
 
-        statusHTML += '<button id="record-net-worth-btn-inline" class="btn-link-small">Record now</button>';
+        statusHTML += `<button id="record-net-worth-btn-inline" class="btn-link-small">${t('budget', 'Record now')}</button>`;
         statusHTML += '</div>';
 
         statusEl.innerHTML = statusHTML;
@@ -1891,7 +1899,7 @@ export default class DashboardModule {
             );
             if (!response.ok) throw new Error('Failed to record snapshot');
 
-            showSuccess('Net worth snapshot recorded');
+            showSuccess(t('budget', 'Net worth snapshot recorded'));
 
             // Refresh the chart with current period
             const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
@@ -1899,7 +1907,7 @@ export default class DashboardModule {
             await this.refreshNetWorthChart(days);
         } catch (error) {
             console.error('Failed to record net worth snapshot:', error);
-            showError('Failed to record snapshot');
+            showError(t('budget', 'Failed to record snapshot'));
         }
     }
 
@@ -2051,7 +2059,7 @@ export default class DashboardModule {
             });
         } catch (error) {
             console.error('Failed to save dashboard config:', error);
-            showError('Failed to save dashboard layout');
+            showError(t('budget', 'Failed to save dashboard layout'));
         }
     }
 
@@ -2309,7 +2317,7 @@ export default class DashboardModule {
             });
         } catch (error) {
             console.error('Failed to save lock state:', error);
-            showError('Failed to save dashboard lock state');
+            showError(t('budget', 'Failed to save dashboard lock state'));
         }
     }
 
@@ -2324,8 +2332,8 @@ export default class DashboardModule {
 
         if (this.dashboardLocked) {
             // Locked state
-            btnText.textContent = 'Unlock Dashboard';
-            hint.querySelector('span:last-child').textContent = 'Dashboard is locked. Click unlock to reorder tiles.';
+            btnText.textContent = t('budget', 'Unlock Dashboard');
+            hint.querySelector('span:last-child').textContent = t('budget', 'Dashboard is locked. Click unlock to reorder tiles.');
             if (icon) {
                 icon.classList.remove('icon-unlock');
                 icon.classList.add('icon-lock');
@@ -2336,8 +2344,8 @@ export default class DashboardModule {
             document.querySelectorAll('.widget-remove-btn').forEach(btn => btn.remove());
         } else {
             // Unlocked state
-            btnText.textContent = 'Lock Dashboard';
-            hint.querySelector('span:last-child').textContent = 'Drag tiles to reorder your dashboard';
+            btnText.textContent = t('budget', 'Lock Dashboard');
+            hint.querySelector('span:last-child').textContent = t('budget', 'Drag tiles to reorder your dashboard');
             if (icon) {
                 icon.classList.remove('icon-lock');
                 icon.classList.add('icon-unlock');
@@ -2359,7 +2367,7 @@ export default class DashboardModule {
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'widget-remove-btn';
-            removeBtn.setAttribute('aria-label', 'Remove tile');
+            removeBtn.setAttribute('aria-label', t('budget', 'Remove tile'));
             removeBtn.innerHTML = '&times;';
             removeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2374,7 +2382,7 @@ export default class DashboardModule {
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'widget-remove-btn';
-            removeBtn.setAttribute('aria-label', 'Remove tile');
+            removeBtn.setAttribute('aria-label', t('budget', 'Remove tile'));
             removeBtn.innerHTML = '&times;';
             removeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2428,23 +2436,23 @@ export default class DashboardModule {
         // Check if any tiles are hidden
         const totalHidden = Object.values(tilesByCategory).reduce((sum, tiles) => sum + tiles.length, 0);
         if (totalHidden === 0) {
-            menuList.innerHTML = '<div class="add-tiles-empty">All tiles are visible</div>';
+            menuList.innerHTML = `<div class="add-tiles-empty">${t('budget', 'All tiles are visible')}</div>`;
             return;
         }
 
         // Category display order and labels
         const categoryOrder = [
-            { key: 'insights', label: 'Insights & Analytics' },
-            { key: 'budgeting', label: 'Budgeting' },
-            { key: 'forecasting', label: 'Forecasting' },
-            { key: 'transactions', label: 'Transactions' },
-            { key: 'income', label: 'Income' },
-            { key: 'debts', label: 'Debts' },
-            { key: 'goals', label: 'Goals' },
-            { key: 'bills', label: 'Bills' },
-            { key: 'alerts', label: 'Alerts' },
-            { key: 'interactive', label: 'Interactive' },
-            { key: 'other', label: 'Other' }
+            { key: 'insights', label: t('budget', 'Insights & Analytics') },
+            { key: 'budgeting', label: t('budget', 'Budgeting') },
+            { key: 'forecasting', label: t('budget', 'Forecasting') },
+            { key: 'transactions', label: t('budget', 'Transactions') },
+            { key: 'income', label: t('budget', 'Income') },
+            { key: 'debts', label: t('budget', 'Debts') },
+            { key: 'goals', label: t('budget', 'Goals') },
+            { key: 'bills', label: t('budget', 'Bills') },
+            { key: 'alerts', label: t('budget', 'Alerts') },
+            { key: 'interactive', label: t('budget', 'Interactive') },
+            { key: 'other', label: t('budget', 'Other') }
         ];
 
         // Render tiles grouped by category
@@ -2465,7 +2473,7 @@ export default class DashboardModule {
 
                 // Add size badge for hero tiles
                 const sizeBadge = tile.size === 'hero'
-                    ? '<span class="tile-size-badge">Hero</span>'
+                    ? `<span class="tile-size-badge">${t('budget', 'Hero')}</span>`
                     : '';
 
                 item.innerHTML = `
@@ -2716,7 +2724,7 @@ export default class DashboardModule {
             });
         } catch (error) {
             console.error('Failed to save widget order:', error);
-            showError('Failed to save widget order');
+            showError(t('budget', 'Failed to save widget order'));
         }
 
         // Reorder DOM elements after config is saved

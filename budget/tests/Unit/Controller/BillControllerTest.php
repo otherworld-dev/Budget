@@ -10,6 +10,7 @@ use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ class BillControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 	private bool $streamOverridden = false;
 
 	protected function setUp(): void {
@@ -27,6 +29,10 @@ class BillControllerTest extends TestCase {
 		$this->service = $this->createMock(BillService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		// Default validation mocks (pass-through)
 		$this->validationService->method('validateName')
@@ -52,6 +58,7 @@ class BillControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -76,6 +83,7 @@ class BillControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$vs,
+			$this->l,
 			'user1',
 			$this->logger
 		);

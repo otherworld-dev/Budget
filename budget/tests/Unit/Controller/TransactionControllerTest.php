@@ -11,6 +11,7 @@ use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\TransactionTagService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,7 @@ class TransactionControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -31,6 +33,10 @@ class TransactionControllerTest extends TestCase {
 		$this->tagService = $this->createMock(TransactionTagService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		// Default validation passes
 		$this->validationService->method('validateDescription')
@@ -50,6 +56,7 @@ class TransactionControllerTest extends TestCase {
 			$this->splitService,
 			$this->tagService,
 			$this->validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -140,7 +147,7 @@ class TransactionControllerTest extends TestCase {
 
 		$this->controller = new TransactionController(
 			$this->request, $this->service, $this->splitService,
-			$this->tagService, $this->validationService, 'user1', $this->logger
+			$this->tagService, $this->validationService, $this->l, 'user1', $this->logger
 		);
 
 		$response = $this->controller->create(1, '2026-03-01', str_repeat('x', 1000), 100.00, 'debit');

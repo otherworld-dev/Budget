@@ -2,6 +2,7 @@
  * Formatting utilities for currency, dates, and numbers
  * All functions are pure - they accept required data as parameters
  */
+import { translate as t } from '@nextcloud/l10n';
 
 /**
  * Currency configuration with symbol and position metadata
@@ -167,7 +168,7 @@ export function formatDate(dateStr, settings) {
 
     // Format the date according to PHP date format codes
     const pad = (num) => String(num).padStart(2, '0');
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = [t('budget', 'Jan'), t('budget', 'Feb'), t('budget', 'Mar'), t('budget', 'Apr'), t('budget', 'May'), t('budget', 'Jun'), t('budget', 'Jul'), t('budget', 'Aug'), t('budget', 'Sep'), t('budget', 'Oct'), t('budget', 'Nov'), t('budget', 'Dec')];
     const monthName = monthNames[month - 1];
 
     // Convert PHP date format to actual date string
@@ -187,15 +188,15 @@ export function formatDate(dateStr, settings) {
 export function formatAccountType(type) {
     if (!type) return '';
     const typeNames = {
-        checking: 'Checking',
-        savings: 'Savings',
-        credit_card: 'Credit Card',
-        investment: 'Investment',
-        cash: 'Cash',
-        loan: 'Loan',
-        mortgage: 'Mortgage',
-        pension: 'Pension',
-        cryptocurrency: 'Cryptocurrency'
+        checking: t('budget', 'Checking'),
+        savings: t('budget', 'Savings'),
+        credit_card: t('budget', 'Credit Card'),
+        investment: t('budget', 'Investment'),
+        cash: t('budget', 'Cash'),
+        loan: t('budget', 'Loan'),
+        mortgage: t('budget', 'Mortgage'),
+        pension: t('budget', 'Pension'),
+        cryptocurrency: t('budget', 'Cryptocurrency')
     };
     return typeNames[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -343,7 +344,7 @@ export function getPeriodDateRange(period, startDay = 1) {
             return {
                 start: formatDateForAPI(weekStart),
                 end: formatDateForAPI(weekEnd),
-                label: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                label: `Week of ${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
             };
         }
 
@@ -356,7 +357,7 @@ export function getPeriodDateRange(period, startDay = 1) {
                 return {
                     start: formatDateForAPI(monthStart),
                     end: formatDateForAPI(monthEnd),
-                    label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                    label: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
                 };
             }
 
@@ -389,9 +390,9 @@ export function getPeriodDateRange(period, startDay = 1) {
                 periodEnd = new Date(thisMonthStart.getTime() - 86400000);
             }
 
-            const label = periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            const label = periodStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                 + ' \u2013 '
-                + periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                + periodEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
             return {
                 start: formatDateForAPI(periodStart),

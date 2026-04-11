@@ -13,6 +13,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,18 +23,21 @@ class RecurringIncomeController extends Controller {
 
     private RecurringIncomeService $service;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         RecurringIncomeService $service,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -52,7 +56,7 @@ class RecurringIncomeController extends Controller {
             }
             return new DataResponse($incomes);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve recurring income');
+            return $this->handleError($e, $this->l->t('Failed to retrieve recurring income'));
         }
     }
 
@@ -65,7 +69,7 @@ class RecurringIncomeController extends Controller {
             $income = $this->service->find($id, $this->userId);
             return new DataResponse($income);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Recurring income', ['incomeId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
         }
     }
 
@@ -103,12 +107,12 @@ class RecurringIncomeController extends Controller {
 
             // Validate expectedDay range
             if ($expectedDay !== null && ($expectedDay < 1 || $expectedDay > 31)) {
-                return new DataResponse(['error' => 'Expected day must be between 1 and 31'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Expected day must be between 1 and 31')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate expectedMonth range
             if ($expectedMonth !== null && ($expectedMonth < 1 || $expectedMonth > 12)) {
-                return new DataResponse(['error' => 'Expected month must be between 1 and 12'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Expected month must be between 1 and 12')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate source if provided
@@ -145,7 +149,7 @@ class RecurringIncomeController extends Controller {
 
             return new DataResponse($income, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create recurring income');
+            return $this->handleError($e, $this->l->t('Failed to create recurring income'));
         }
     }
 
@@ -160,7 +164,7 @@ class RecurringIncomeController extends Controller {
             $data = json_decode($rawInput, true);
 
             if (!$data) {
-                return new DataResponse(['error' => 'Invalid JSON data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate name if provided
@@ -184,21 +188,21 @@ class RecurringIncomeController extends Controller {
             // Validate expectedDay range if provided
             if (isset($data['expectedDay']) && $data['expectedDay'] !== null) {
                 if ($data['expectedDay'] < 1 || $data['expectedDay'] > 31) {
-                    return new DataResponse(['error' => 'Expected day must be between 1 and 31'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Expected day must be between 1 and 31')], Http::STATUS_BAD_REQUEST);
                 }
             }
 
             // Validate expectedMonth range if provided
             if (isset($data['expectedMonth']) && $data['expectedMonth'] !== null) {
                 if ($data['expectedMonth'] < 1 || $data['expectedMonth'] > 12) {
-                    return new DataResponse(['error' => 'Expected month must be between 1 and 12'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Expected month must be between 1 and 12')], Http::STATUS_BAD_REQUEST);
                 }
             }
 
             $income = $this->service->update($id, $this->userId, $data);
             return new DataResponse($income);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Recurring income', ['incomeId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
         }
     }
 
@@ -210,9 +214,9 @@ class RecurringIncomeController extends Controller {
     public function destroy(int $id): DataResponse {
         try {
             $this->service->delete($id, $this->userId);
-            return new DataResponse(['message' => 'Recurring income deleted']);
+            return new DataResponse(['message' => $this->l->t('Recurring income deleted')]);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Recurring income', ['incomeId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
         }
     }
 
@@ -225,7 +229,7 @@ class RecurringIncomeController extends Controller {
             $incomes = $this->service->findUpcoming($this->userId, $days);
             return new DataResponse($incomes);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve upcoming income');
+            return $this->handleError($e, $this->l->t('Failed to retrieve upcoming income'));
         }
     }
 
@@ -238,7 +242,7 @@ class RecurringIncomeController extends Controller {
             $incomes = $this->service->findExpectedThisMonth($this->userId);
             return new DataResponse($incomes);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve expected income');
+            return $this->handleError($e, $this->l->t('Failed to retrieve expected income'));
         }
     }
 
@@ -251,7 +255,7 @@ class RecurringIncomeController extends Controller {
             $summary = $this->service->getMonthlySummary($this->userId);
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve income summary');
+            return $this->handleError($e, $this->l->t('Failed to retrieve income summary'));
         }
     }
 
@@ -268,7 +272,7 @@ class RecurringIncomeController extends Controller {
             $income = $this->service->markReceived($id, $this->userId, $receivedDate, $createTransaction);
             return new DataResponse($income);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Recurring income', ['incomeId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
         }
     }
 
@@ -281,7 +285,7 @@ class RecurringIncomeController extends Controller {
             $detected = $this->service->detectRecurringIncome($this->userId, $months, $debug);
             return new DataResponse($detected);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to detect recurring income');
+            return $this->handleError($e, $this->l->t('Failed to detect recurring income'));
         }
     }
 
@@ -294,7 +298,7 @@ class RecurringIncomeController extends Controller {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             if (!is_array($data) || !isset($data['incomes'])) {
-                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
             $created = $this->service->createFromDetected($this->userId, $data['incomes']);
@@ -303,7 +307,7 @@ class RecurringIncomeController extends Controller {
                 'incomes' => $created,
             ], Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create recurring income from detected patterns');
+            return $this->handleError($e, $this->l->t('Failed to create recurring income from detected patterns'));
         }
     }
 }

@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\AlertController;
 use OCA\Budget\Service\BudgetAlertService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -19,10 +20,15 @@ class AlertControllerTest extends TestCase {
 		$request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(BudgetAlertService::class);
 		$logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new AlertController(
 			$request,
 			$this->service,
+			$l,
 			'user1',
 			$logger
 		);

@@ -13,6 +13,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,6 +23,7 @@ class ImportRuleController extends Controller {
 
     private ImportRuleService $service;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount'];
@@ -31,12 +33,14 @@ class ImportRuleController extends Controller {
         IRequest $request,
         ImportRuleService $service,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -50,7 +54,7 @@ class ImportRuleController extends Controller {
             $rules = $this->service->findAll($this->userId);
             return new DataResponse($rules);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve import rules');
+            return $this->handleError($e, $this->l->t('Failed to retrieve import rules'));
         }
     }
 
@@ -62,7 +66,7 @@ class ImportRuleController extends Controller {
             $rule = $this->service->find($id, $this->userId);
             return new DataResponse($rule);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Import rule', ['ruleId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
         }
     }
 
@@ -96,13 +100,13 @@ class ImportRuleController extends Controller {
             if ($schemaVersion === 2) {
                 // v2 format: criteria required
                 if ($criteria === null) {
-                    return new DataResponse(['error' => 'Criteria required for v2 rules'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Criteria required for v2 rules')], Http::STATUS_BAD_REQUEST);
                 }
                 // Validation happens in service layer
             } else {
                 // v1 format: pattern, field, matchType required
                 if (!$pattern || !$field || !$matchType) {
-                    return new DataResponse(['error' => 'Pattern, field, and matchType required for v1 rules'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Pattern, field, and matchType required for v1 rules')], Http::STATUS_BAD_REQUEST);
                 }
 
                 // Validate pattern
@@ -114,18 +118,18 @@ class ImportRuleController extends Controller {
 
                 // Validate field
                 if (!in_array($field, self::VALID_FIELDS, true)) {
-                    return new DataResponse(['error' => 'Invalid field. Must be one of: ' . implode(', ', self::VALID_FIELDS)], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid field. Must be one of: %1$s', [implode(', ', self::VALID_FIELDS)])], Http::STATUS_BAD_REQUEST);
                 }
 
                 // Validate matchType
                 if (!in_array($matchType, self::VALID_MATCH_TYPES, true)) {
-                    return new DataResponse(['error' => 'Invalid match type. Must be one of: ' . implode(', ', self::VALID_MATCH_TYPES)], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
                 }
 
                 // Validate regex pattern if matchType is regex
                 if ($matchType === 'regex') {
                     if (@preg_match('/' . $pattern . '/', '') === false) {
-                        return new DataResponse(['error' => 'Invalid regex pattern'], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
                     }
                 }
             }
@@ -165,7 +169,7 @@ class ImportRuleController extends Controller {
             );
             return new DataResponse($rule, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create import rule');
+            return $this->handleError($e, $this->l->t('Failed to create import rule'));
         }
     }
 
@@ -213,7 +217,7 @@ class ImportRuleController extends Controller {
             // Validate field if provided
             if ($field !== null) {
                 if (!in_array($field, self::VALID_FIELDS, true)) {
-                    return new DataResponse(['error' => 'Invalid field. Must be one of: ' . implode(', ', self::VALID_FIELDS)], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid field. Must be one of: %1$s', [implode(', ', self::VALID_FIELDS)])], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['field'] = $field;
             }
@@ -221,7 +225,7 @@ class ImportRuleController extends Controller {
             // Validate matchType if provided
             if ($matchType !== null) {
                 if (!in_array($matchType, self::VALID_MATCH_TYPES, true)) {
-                    return new DataResponse(['error' => 'Invalid match type. Must be one of: ' . implode(', ', self::VALID_MATCH_TYPES)], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['matchType'] = $matchType;
 
@@ -229,7 +233,7 @@ class ImportRuleController extends Controller {
                 $patternToValidate = $updates['pattern'] ?? $pattern;
                 if ($matchType === 'regex' && $patternToValidate !== null) {
                     if (@preg_match('/' . $patternToValidate . '/', '') === false) {
-                        return new DataResponse(['error' => 'Invalid regex pattern'], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
                     }
                 }
             }
@@ -281,13 +285,13 @@ class ImportRuleController extends Controller {
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $rule = $this->service->update($id, $this->userId, $updates);
             return new DataResponse($rule);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update import rule', Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to update import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
         }
     }
 
@@ -300,7 +304,7 @@ class ImportRuleController extends Controller {
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Import rule', ['ruleId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
         }
     }
 
@@ -312,7 +316,7 @@ class ImportRuleController extends Controller {
             $results = $this->service->testRules($this->userId, $transactionData);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to test import rules');
+            return $this->handleError($e, $this->l->t('Failed to test import rules'));
         }
     }
 
@@ -338,7 +342,7 @@ class ImportRuleController extends Controller {
             $results = $this->service->previewRuleApplication($this->userId, $ruleIds, $filters);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to preview rule application');
+            return $this->handleError($e, $this->l->t('Failed to preview rule application'));
         }
     }
 
@@ -366,7 +370,7 @@ class ImportRuleController extends Controller {
             $results = $this->service->testUnsavedRule($this->userId, $criteria, $schemaVersion, $filters, $limit);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to test rule against transactions');
+            return $this->handleError($e, $this->l->t('Failed to test rule against transactions'));
         }
     }
 
@@ -393,7 +397,7 @@ class ImportRuleController extends Controller {
             $results = $this->service->applyRulesToTransactions($this->userId, $ruleIds, $filters);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to apply rules to transactions');
+            return $this->handleError($e, $this->l->t('Failed to apply rules to transactions'));
         }
     }
 
@@ -407,7 +411,7 @@ class ImportRuleController extends Controller {
             $rule = $this->service->migrateLegacyRule($id, $this->userId);
             return new DataResponse($rule);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to migrate import rule', Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to migrate import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
         }
     }
 
@@ -424,7 +428,7 @@ class ImportRuleController extends Controller {
                 'count' => count($migrated)
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to migrate import rules');
+            return $this->handleError($e, $this->l->t('Failed to migrate import rules'));
         }
     }
 

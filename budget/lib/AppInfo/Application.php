@@ -140,7 +140,8 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\AuthService::class, function($c) {
             return new \OCA\Budget\Service\AuthService(
                 $c->get(\OCA\Budget\Db\AuthMapper::class),
-                $c->get(\OCA\Budget\Service\SettingService::class)
+                $c->get(\OCA\Budget\Service\SettingService::class),
+                $c->get(\OCP\IL10N::class)
             );
         });
         $context->registerServiceAlias('AuthService', \OCA\Budget\Service\AuthService::class);
@@ -149,8 +150,10 @@ class Application extends App implements IBootstrap {
         // Validation Service
         // ==========================================
 
-        $context->registerService(\OCA\Budget\Service\ValidationService::class, function() {
-            return new \OCA\Budget\Service\ValidationService();
+        $context->registerService(\OCA\Budget\Service\ValidationService::class, function($c) {
+            return new \OCA\Budget\Service\ValidationService(
+                $c->get(\OCP\IL10N::class)
+            );
         });
         $context->registerServiceAlias('ValidationService', \OCA\Budget\Service\ValidationService::class);
 
@@ -158,8 +161,10 @@ class Application extends App implements IBootstrap {
         // Import Services
         // ==========================================
 
-        $context->registerService(\OCA\Budget\Service\Import\FileValidator::class, function() {
-            return new \OCA\Budget\Service\Import\FileValidator();
+        $context->registerService(\OCA\Budget\Service\Import\FileValidator::class, function($c) {
+            return new \OCA\Budget\Service\Import\FileValidator(
+                $c->get(\OCP\IL10N::class)
+            );
         });
 
         $context->registerService(\OCA\Budget\Service\Import\ParserFactory::class, function() {
@@ -292,7 +297,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\AccountService(
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
-                $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
+                $c->get(\OCA\Budget\Service\CurrencyConversionService::class),
+                $c->get(\OCP\IL10N::class)
             );
         });
         $context->registerServiceAlias('AccountService', \OCA\Budget\Service\AccountService::class);
@@ -320,7 +326,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
                 $c->get(\OCA\Budget\Db\TagSetMapper::class),
                 $c->get(\OCA\Budget\Db\TagMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionTagMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionTagMapper::class),
+                $c->get(\OCP\IL10N::class)
             );
         });
         $context->registerServiceAlias('CategoryService', \OCA\Budget\Service\CategoryService::class);
@@ -382,7 +389,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\BillMapper::class),
                 $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class),
                 $c->get(\OCA\Budget\Service\Bill\RecurringBillDetector::class),
-                $c->get(\OCA\Budget\Service\TransactionService::class)
+                $c->get(\OCA\Budget\Service\TransactionService::class),
+                $c->get(\OCP\IL10N::class)
             );
         });
         $context->registerServiceAlias('BillService', \OCA\Budget\Service\BillService::class);
@@ -419,7 +427,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Service\Import\ParserFactory::class),
                 $c->get(\OCA\Budget\Service\Import\TransactionNormalizer::class),
                 $c->get(\OCA\Budget\Service\Import\DuplicateDetector::class),
-                $c->get(\OCA\Budget\Service\Import\ImportRuleApplicator::class)
+                $c->get(\OCA\Budget\Service\Import\ImportRuleApplicator::class),
+                $c->get(\OCP\IL10N::class)
             );
         });
         $context->registerServiceAlias('ImportService', \OCA\Budget\Service\ImportService::class);
@@ -640,7 +649,8 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\ManualExchangeRateService(
                 $c->get(\OCA\Budget\Db\ManualExchangeRateMapper::class),
                 $c->get(\OCA\Budget\Service\ExchangeRateService::class),
-                $c->get(\OCA\Budget\Service\SettingService::class)
+                $c->get(\OCA\Budget\Service\SettingService::class),
+                $c->get(\OCP\IL10N::class)
             );
         });
         $context->registerServiceAlias('ManualExchangeRateService', \OCA\Budget\Service\ManualExchangeRateService::class);

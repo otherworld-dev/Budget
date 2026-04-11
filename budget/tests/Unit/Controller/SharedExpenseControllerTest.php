@@ -10,6 +10,7 @@ use OCA\Budget\Db\ExpenseShare;
 use OCA\Budget\Db\Settlement;
 use OCA\Budget\Service\SharedExpenseService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -24,10 +25,15 @@ class SharedExpenseControllerTest extends TestCase {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(SharedExpenseService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new SharedExpenseController(
 			$this->request,
 			$this->service,
+			$l,
 			'user1',
 			$this->logger
 		);

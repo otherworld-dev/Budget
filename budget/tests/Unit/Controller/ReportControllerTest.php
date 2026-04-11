@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\ReportController;
 use OCA\Budget\Service\ReportService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -21,10 +22,15 @@ class ReportControllerTest extends TestCase {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(ReportService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new ReportController(
 			$this->request,
 			$this->service,
+			$l,
 			'user1',
 			$this->logger
 		);

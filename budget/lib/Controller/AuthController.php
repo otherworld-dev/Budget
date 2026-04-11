@@ -12,6 +12,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -21,18 +22,21 @@ class AuthController extends Controller {
     private $userId;
     private AuthService $authService;
     private SettingService $settingService;
+    private IL10N $l;
 
     public function __construct(
         IRequest $request,
         ?string $userId,
         AuthService $authService,
         SettingService $settingService,
+        IL10N $l,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->userId = $userId;
         $this->authService = $authService;
         $this->settingService = $settingService;
+        $this->l = $l;
         $this->setLogger($logger);
     }
 
@@ -64,7 +68,7 @@ class AuthController extends Controller {
 
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to get auth status', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to get auth status'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -78,7 +82,7 @@ class AuthController extends Controller {
         try {
             if (strlen($password) < 6) {
                 return new DataResponse([
-                    'error' => 'Password must be at least 6 characters long'
+                    'error' => $this->l->t('Password must be at least 6 characters long')
                 ], Http::STATUS_BAD_REQUEST);
             }
 
@@ -100,7 +104,7 @@ class AuthController extends Controller {
                 'error' => $e->getMessage()
             ], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to set up password protection', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to set up password protection'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -127,7 +131,7 @@ class AuthController extends Controller {
                 ], Http::STATUS_UNAUTHORIZED);
             }
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to verify password', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to verify password'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -141,7 +145,7 @@ class AuthController extends Controller {
             $this->authService->lockSession($this->userId);
             return new DataResponse(['success' => true]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to lock session', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to lock session'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -157,7 +161,7 @@ class AuthController extends Controller {
 
             if (!$sessionToken) {
                 return new DataResponse([
-                    'error' => 'No session token provided'
+                    'error' => $this->l->t('No session token provided')
                 ], Http::STATUS_BAD_REQUEST);
             }
 
@@ -167,11 +171,11 @@ class AuthController extends Controller {
                 return new DataResponse(['success' => true]);
             } else {
                 return new DataResponse([
-                    'error' => 'Invalid session'
+                    'error' => $this->l->t('Invalid session')
                 ], Http::STATUS_UNAUTHORIZED);
             }
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to extend session', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to extend session'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -189,11 +193,11 @@ class AuthController extends Controller {
                 return new DataResponse(['success' => true]);
             } else {
                 return new DataResponse([
-                    'error' => 'Incorrect password'
+                    'error' => $this->l->t('Incorrect password')
                 ], Http::STATUS_UNAUTHORIZED);
             }
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to disable password protection', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to disable password protection'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -207,7 +211,7 @@ class AuthController extends Controller {
         try {
             if (strlen($newPassword) < 6) {
                 return new DataResponse([
-                    'error' => 'Password must be at least 6 characters long'
+                    'error' => $this->l->t('Password must be at least 6 characters long')
                 ], Http::STATUS_BAD_REQUEST);
             }
 
@@ -217,7 +221,7 @@ class AuthController extends Controller {
                 return new DataResponse(['success' => true]);
             } else {
                 return new DataResponse([
-                    'error' => 'Incorrect current password'
+                    'error' => $this->l->t('Incorrect current password')
                 ], Http::STATUS_UNAUTHORIZED);
             }
         } catch (\InvalidArgumentException $e) {
@@ -225,7 +229,7 @@ class AuthController extends Controller {
                 'error' => $e->getMessage()
             ], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to change password', Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Failed to change password'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 }

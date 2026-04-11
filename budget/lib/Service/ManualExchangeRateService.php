@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\ManualExchangeRate;
 use OCA\Budget\Db\ManualExchangeRateMapper;
 use OCA\Budget\Enum\Currency;
+use OCP\IL10N;
 
 /**
  * Manages per-user manual exchange rate overrides.
@@ -20,15 +21,18 @@ class ManualExchangeRateService {
     private ManualExchangeRateMapper $mapper;
     private ExchangeRateService $exchangeRateService;
     private SettingService $settingService;
+    private IL10N $l;
 
     public function __construct(
         ManualExchangeRateMapper $mapper,
         ExchangeRateService $exchangeRateService,
-        SettingService $settingService
+        SettingService $settingService,
+        IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->exchangeRateService = $exchangeRateService;
         $this->settingService = $settingService;
+        $this->l = $l;
     }
 
     /**
@@ -55,23 +59,23 @@ class ManualExchangeRateService {
         // Validate currency exists in enum
         $currencyEnum = Currency::tryFrom($currency);
         if ($currencyEnum === null) {
-            throw new \InvalidArgumentException("Invalid currency code: {$currency}");
+            throw new \InvalidArgumentException($this->l->t('Invalid currency code: %1$s', [$currency]));
         }
 
         // Cannot set rate for EUR (always 1.0)
         if ($currency === 'EUR') {
-            throw new \InvalidArgumentException('Cannot set a manual rate for EUR');
+            throw new \InvalidArgumentException($this->l->t('Cannot set a manual rate for EUR'));
         }
 
         // Cannot set rate for user's own base currency
         $baseCurrency = $this->getBaseCurrency($userId);
         if ($currency === strtoupper($baseCurrency)) {
-            throw new \InvalidArgumentException('Cannot set a manual rate for your base currency');
+            throw new \InvalidArgumentException($this->l->t('Cannot set a manual rate for your base currency'));
         }
 
         // Validate rate is positive numeric
         if (!is_numeric($ratePerBaseCurrency) || (float) $ratePerBaseCurrency <= 0) {
-            throw new \InvalidArgumentException('Rate must be a positive number');
+            throw new \InvalidArgumentException($this->l->t('Rate must be a positive number'));
         }
 
         // Convert from "per base currency" to "per EUR"
@@ -120,7 +124,7 @@ class ManualExchangeRateService {
         $baseRatePerEur = $this->exchangeRateService->getRateLocal($baseCurrency);
         if ($baseRatePerEur === null) {
             throw new \InvalidArgumentException(
-                "Cannot convert rate: no exchange rate available for base currency {$baseCurrency}"
+                $this->l->t('Cannot convert rate: no exchange rate available for base currency %1$s', [$baseCurrency])
             );
         }
 

@@ -15,6 +15,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import flatpickr from 'flatpickr';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 export default class TransactionsModule {
     constructor(app) {
@@ -327,7 +328,7 @@ export default class TransactionsModule {
         // Populate account filter
         const accountFilter = document.getElementById('filter-account');
         if (accountFilter && this.accounts) {
-            accountFilter.innerHTML = '<option value="">All Accounts</option>';
+            accountFilter.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
             this.accounts.forEach(account => {
                 accountFilter.innerHTML += `<option value="${account.id}">${account.name}</option>`;
             });
@@ -339,7 +340,7 @@ export default class TransactionsModule {
         // Populate category filter
         const categoryFilter = document.getElementById('filter-category');
         if (categoryFilter && this.categories) {
-            categoryFilter.innerHTML = '<option value="">All Categories</option><option value="uncategorized">Uncategorized</option>';
+            categoryFilter.innerHTML = `<option value="">${t('budget', 'All Categories')}</option><option value="uncategorized">${t('budget', 'Uncategorized')}</option>`;
             dom.populateCategorySelect(categoryFilter, this.categoryTree || this.categories);
             if (this.app.transactionFilters?.category) {
                 categoryFilter.value = this.app.transactionFilters.category;
@@ -349,7 +350,7 @@ export default class TransactionsModule {
         // Populate reconcile account select
         const reconcileAccount = document.getElementById('reconcile-account');
         if (reconcileAccount && this.accounts) {
-            reconcileAccount.innerHTML = '<option value="">Select account to reconcile</option>';
+            reconcileAccount.innerHTML = `<option value="">${t('budget', 'Select account to reconcile')}</option>`;
             this.accounts.forEach(account => {
                 reconcileAccount.innerHTML += `<option value="${account.id}">${account.name}</option>`;
             });
@@ -378,7 +379,7 @@ export default class TransactionsModule {
                     this.allFilterTagSets = this.allFilterTagSets || [];
                     this.allFilterTagSets.unshift({
                         id: 'global',
-                        name: 'Tags',
+                        name: t('budget', 'Tags'),
                         tags: globalTags
                     });
                 }
@@ -395,7 +396,7 @@ export default class TransactionsModule {
         container.innerHTML = '';
 
         if (!this.allFilterTagSets || this.allFilterTagSets.length === 0) {
-            container.innerHTML = '<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">No tags available</div>';
+            container.innerHTML = `<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">${t('budget', 'No tags available')}</div>`;
             return;
         }
 
@@ -406,7 +407,7 @@ export default class TransactionsModule {
         input.type = 'text';
         input.id = 'filter-tags-input';
         input.className = 'tags-autocomplete-input';
-        input.placeholder = 'Type to filter tags...';
+        input.placeholder = t('budget', 'Type to filter tags...');
 
         const dropdown = document.createElement('div');
         dropdown.className = 'tags-autocomplete-dropdown';
@@ -424,7 +425,7 @@ export default class TransactionsModule {
             }
             chipsArea.style.display = 'flex';
             this.selectedFilterTags.forEach(tagId => {
-                const tag = allTags.find(t => t.id === tagId);
+                const tag = allTags.find(tg => tg.id === tagId);
                 if (!tag) return;
                 const chip = document.createElement('span');
                 chip.className = 'filter-tag-chip';
@@ -457,9 +458,9 @@ export default class TransactionsModule {
 
         const renderDropdown = (filter = '') => {
             const filtered = filter
-                ? allTags.filter(t =>
-                    t.name.toLowerCase().includes(filter.toLowerCase()) ||
-                    t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                ? allTags.filter(tg =>
+                    tg.name.toLowerCase().includes(filter.toLowerCase()) ||
+                    tg.tagSetName.toLowerCase().includes(filter.toLowerCase())
                 )
                 : allTags;
 
@@ -490,7 +491,7 @@ export default class TransactionsModule {
                 });
             });
 
-            dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+            dropdown.innerHTML = html || `<div class="tags-autocomplete-empty">${t('budget', 'No tags found')}</div>`;
             dropdown.style.display = 'block';
         };
 
@@ -506,14 +507,14 @@ export default class TransactionsModule {
             const item = e.target.closest('.tags-autocomplete-item');
             if (item) {
                 const tagId = parseInt(item.dataset.tagId);
-                const clickedTag = allTags.find(t => t.id === tagId);
+                const clickedTag = allTags.find(tg => tg.id === tagId);
                 if (!clickedTag) return;
 
                 // Single selection per tag set
-                const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
-                tagsFromSameSet.forEach(t => {
-                    if (t.id !== tagId) {
-                        this.selectedFilterTags.delete(t.id);
+                const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
+                tagsFromSameSet.forEach(tg => {
+                    if (tg.id !== tagId) {
+                        this.selectedFilterTags.delete(tg.id);
                     }
                 });
 
@@ -716,12 +717,12 @@ export default class TransactionsModule {
             return;
         }
 
-        const selected = this.transactions.filter(t => this.selectedTransactions.has(t.id));
-        const billCount = selected.filter(t => t.billId).length;
-        let message = `Are you sure you want to delete ${this.selectedTransactions.size} transactions? This action cannot be undone.`;
+        const selected = this.transactions.filter(tx => this.selectedTransactions.has(tx.id));
+        const billCount = selected.filter(tx => tx.billId).length;
+        let message = n('budget', 'Are you sure you want to delete %n transaction? This action cannot be undone.', 'Are you sure you want to delete %n transactions? This action cannot be undone.', this.selectedTransactions.size);
 
         if (billCount > 0) {
-            message += `\n\n${billCount} of these were auto-generated from bill payments. Deleting real payments will cause your balance to diverge from your bank statement.`;
+            message += '\n\n' + n('budget', '%n of these was auto-generated from bill payments. Deleting real payments will cause your balance to diverge from your bank statement.', '%n of these were auto-generated from bill payments. Deleting real payments will cause your balance to diverge from your bank statement.', billCount);
         }
 
         if (!confirm(message)) {
@@ -743,18 +744,18 @@ export default class TransactionsModule {
             const result = await response.json();
 
             if (result.success > 0) {
-                showSuccess(`Successfully deleted ${result.success} transaction(s)`);
+                showSuccess(n('budget', 'Successfully deleted %n transaction', 'Successfully deleted %n transactions', result.success));
                 this.selectedTransactions.clear();
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
 
             if (result.failed > 0) {
-                showError(`Failed to delete ${result.failed} transaction(s)`);
+                showError(n('budget', 'Failed to delete %n transaction', 'Failed to delete %n transactions', result.failed));
             }
         } catch (error) {
             console.error('Bulk deletion failed:', error);
-            showError('Failed to delete transactions');
+            showError(t('budget', 'Failed to delete transactions'));
         }
     }
 
@@ -763,7 +764,7 @@ export default class TransactionsModule {
             return;
         }
 
-        if (!confirm(`Are you sure you want to mark ${this.selectedTransactions.size} transactions as reconciled?`)) {
+        if (!confirm(n('budget', 'Are you sure you want to mark %n transaction as reconciled?', 'Are you sure you want to mark %n transactions as reconciled?', this.selectedTransactions.size))) {
             return;
         }
 
@@ -783,18 +784,18 @@ export default class TransactionsModule {
             const result = await response.json();
 
             if (result.success > 0) {
-                showSuccess(`Successfully reconciled ${result.success} transaction(s)`);
+                showSuccess(n('budget', 'Successfully reconciled %n transaction', 'Successfully reconciled %n transactions', result.success));
                 this.selectedTransactions.clear();
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
 
             if (result.failed > 0) {
-                showError(`Failed to reconcile ${result.failed} transaction(s)`);
+                showError(n('budget', 'Failed to reconcile %n transaction', 'Failed to reconcile %n transactions', result.failed));
             }
         } catch (error) {
             console.error('Bulk reconcile failed:', error);
-            showError('Failed to reconcile transactions');
+            showError(t('budget', 'Failed to reconcile transactions'));
         }
     }
 
@@ -803,7 +804,7 @@ export default class TransactionsModule {
             return;
         }
 
-        if (!confirm(`Are you sure you want to mark ${this.selectedTransactions.size} transactions as unreconciled?`)) {
+        if (!confirm(n('budget', 'Are you sure you want to mark %n transaction as unreconciled?', 'Are you sure you want to mark %n transactions as unreconciled?', this.selectedTransactions.size))) {
             return;
         }
 
@@ -823,18 +824,18 @@ export default class TransactionsModule {
             const result = await response.json();
 
             if (result.success > 0) {
-                showSuccess(`Successfully unreconciled ${result.success} transaction(s)`);
+                showSuccess(n('budget', 'Successfully unreconciled %n transaction', 'Successfully unreconciled %n transactions', result.success));
                 this.selectedTransactions.clear();
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
 
             if (result.failed > 0) {
-                showError(`Failed to unreconcile ${result.failed} transaction(s)`);
+                showError(n('budget', 'Failed to unreconcile %n transaction', 'Failed to unreconcile %n transactions', result.failed));
             }
         } catch (error) {
             console.error('Bulk unreconcile failed:', error);
-            showError('Failed to unreconcile transactions');
+            showError(t('budget', 'Failed to unreconcile transactions'));
         }
     }
 
@@ -854,7 +855,7 @@ export default class TransactionsModule {
 
         // Populate category dropdown
         if (categorySelect && this.categories) {
-            categorySelect.innerHTML = '<option value="">Don\'t change</option>';
+            categorySelect.innerHTML = `<option value="">${t('budget', 'Don\'t change')}</option>`;
             dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
         }
 
@@ -880,11 +881,11 @@ export default class TransactionsModule {
         if (notes) updates.notes = notes;
 
         if (Object.keys(updates).length === 0) {
-            showWarning('Please fill in at least one field to update');
+            showWarning(t('budget', 'Please fill in at least one field to update'));
             return;
         }
 
-        if (!confirm(`Are you sure you want to update ${this.selectedTransactions.size} transactions?`)) {
+        if (!confirm(n('budget', 'Are you sure you want to update %n transaction?', 'Are you sure you want to update %n transactions?', this.selectedTransactions.size))) {
             return;
         }
 
@@ -904,7 +905,7 @@ export default class TransactionsModule {
             const result = await response.json();
 
             if (result.success > 0) {
-                showSuccess(`Successfully updated ${result.success} transaction(s)`);
+                showSuccess(n('budget', 'Successfully updated %n transaction', 'Successfully updated %n transactions', result.success));
                 this.selectedTransactions.clear();
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
@@ -914,11 +915,11 @@ export default class TransactionsModule {
             }
 
             if (result.failed > 0) {
-                showError(`Failed to update ${result.failed} transaction(s)`);
+                showError(n('budget', 'Failed to update %n transaction', 'Failed to update %n transactions', result.failed));
             }
         } catch (error) {
             console.error('Bulk edit failed:', error);
-            showError('Failed to update transactions');
+            showError(t('budget', 'Failed to update transactions'));
         }
     }
 
@@ -945,7 +946,7 @@ export default class TransactionsModule {
         const statementDate = document.getElementById('reconcile-statement-date').value;
 
         if (!accountId || !statementBalance || !statementDate) {
-            showWarning('Please fill in all reconciliation fields');
+            showWarning(t('budget', 'Please fill in all reconciliation fields'));
             return;
         }
 
@@ -1008,10 +1009,10 @@ export default class TransactionsModule {
             document.getElementById('reconcile-panel').style.display = 'none';
             this.showReconcileInfo(result);
 
-            showSuccess('Reconciliation mode started');
+            showSuccess(t('budget', 'Reconciliation mode started'));
         } catch (error) {
             console.error('Reconciliation failed:', error);
-            showError('Failed to start reconciliation: ' + error.message);
+            showError(t('budget', 'Failed to start reconciliation: {message}', { message: error.message }));
         }
     }
 
@@ -1028,39 +1029,39 @@ export default class TransactionsModule {
         const differenceAmount = reconcileData.difference || 0;
         const absDifference = Math.abs(differenceAmount);
         const adjustmentType = differenceAmount > 0 ? 'credit' : 'debit';
-        const adjustmentLabel = differenceAmount > 0 ? 'deposit' : 'withdrawal';
+        const adjustmentLabel = differenceAmount > 0 ? t('budget', 'deposit') : t('budget', 'withdrawal');
 
         infoPanel.innerHTML = `
             <div class="reconcile-info-content">
-                <h4>Account Reconciliation</h4>
+                <h4>${t('budget', 'Account Reconciliation')}</h4>
                 <div class="reconcile-stats">
                     <div class="stat">
-                        <label>Current Balance:</label>
+                        <label>${t('budget', 'Current Balance:')}</label>
                         <span class="amount">${this.formatCurrency(reconcileData.currentBalance || 0)}</span>
                     </div>
                     <div class="stat">
-                        <label>Statement Balance:</label>
+                        <label>${t('budget', 'Statement Balance:')}</label>
                         <span class="amount">${this.formatCurrency(reconcileData.statementBalance || 0)}</span>
                     </div>
                     <div class="stat ${reconcileData.isBalanced ? 'balanced' : 'unbalanced'}">
-                        <label>Difference:</label>
+                        <label>${t('budget', 'Difference:')}</label>
                         <span class="amount">${this.formatCurrency(differenceAmount)}</span>
                     </div>
                 </div>
                 ${reconcileData.isBalanced
-                    ? '<p class="reconcile-message balanced">Balances match. You can finish reconciliation.</p>'
-                    : `<p class="reconcile-message unbalanced">The difference of ${this.formatCurrency(absDifference)} must be resolved before finishing. You can create an adjustment transaction to match the statement balance.</p>`
+                    ? `<p class="reconcile-message balanced">${t('budget', 'Balances match. You can finish reconciliation.')}</p>`
+                    : `<p class="reconcile-message unbalanced">${t('budget', 'The difference of {amount} must be resolved before finishing. You can create an adjustment transaction to match the statement balance.', { amount: this.formatCurrency(absDifference) })}</p>`
                 }
                 <div class="reconcile-actions">
                     <button id="finish-reconcile-btn" class="primary" ${!reconcileData.isBalanced ? 'disabled' : ''}>
-                        Finish Reconciliation
+                        ${t('budget', 'Finish Reconciliation')}
                     </button>
                     ${!reconcileData.isBalanced ? `
                         <button id="adjust-reconcile-btn" class="primary">
-                            Create ${this.formatCurrency(absDifference)} Adjustment (${adjustmentLabel})
+                            ${t('budget', 'Create {amount} Adjustment ({type})', { amount: this.formatCurrency(absDifference), type: adjustmentLabel })}
                         </button>
                     ` : ''}
-                    <button id="cancel-reconcile-info-btn" class="secondary">Cancel</button>
+                    <button id="cancel-reconcile-info-btn" class="secondary">${t('budget', 'Cancel')}</button>
                 </div>
             </div>
         `;
@@ -1109,7 +1110,7 @@ export default class TransactionsModule {
     finishReconciliation() {
         this.cancelReconciliation();
         this.app.loadAccounts();
-        showSuccess('Reconciliation completed successfully');
+        showSuccess(t('budget', 'Reconciliation completed successfully'));
     }
 
     async createReconciliationAdjustment(reconcileData, type, amount) {
@@ -1117,7 +1118,7 @@ export default class TransactionsModule {
             || document.getElementById('reconcile-account')?.value;
 
         if (!accountId) {
-            showError('No account selected for adjustment');
+            showError(t('budget', 'No account selected for adjustment'));
             return;
         }
 
@@ -1135,8 +1136,8 @@ export default class TransactionsModule {
                     accountId: parseInt(accountId),
                     type: type,
                     amount: amount,
-                    description: 'Reconciliation Adjustment',
-                    notes: `Adjustment to match statement balance of ${this.formatCurrency(reconcileData.statementBalance)}`
+                    description: t('budget', 'Reconciliation Adjustment'),
+                    notes: t('budget', 'Adjustment to match statement balance of {amount}', { amount: this.formatCurrency(reconcileData.statementBalance) })
                 })
             });
 
@@ -1145,7 +1146,7 @@ export default class TransactionsModule {
                 throw new Error(error.error || 'Failed to create adjustment');
             }
 
-            showSuccess('Adjustment transaction created');
+            showSuccess(t('budget', 'Adjustment transaction created'));
 
             // Reload transactions and update reconcile data
             await this.app.loadTransactions();
@@ -1160,7 +1161,7 @@ export default class TransactionsModule {
             await this.startReconciliation();
         } catch (error) {
             console.error('Failed to create adjustment:', error);
-            showError('Failed to create adjustment: ' + error.message);
+            showError(t('budget', 'Failed to create adjustment: {message}', { message: error.message }));
         }
     }
 
@@ -1172,11 +1173,11 @@ export default class TransactionsModule {
 
     // Rendering
     renderTransactionsList(transactions) {
-        return transactions.map(t => `
+        return transactions.map(tx => `
             <div class="transaction-item">
-                <span class="transaction-date">${this.formatDate(t.date)}</span>
-                <span class="transaction-description">${t.description}</span>
-                <span class="amount ${t.type}">${this.formatCurrency(t.amount, t.accountCurrency)}</span>
+                <span class="transaction-date">${this.formatDate(tx.date)}</span>
+                <span class="transaction-description">${tx.description}</span>
+                <span class="amount ${tx.type}">${this.formatCurrency(tx.amount, tx.accountCurrency)}</span>
             </div>
         `).join('');
     }
@@ -1189,7 +1190,7 @@ export default class TransactionsModule {
             const currentValue = accountSelect.value;
 
             // Clear and rebuild options
-            accountSelect.innerHTML = '<option value="">Choose an account</option>';
+            accountSelect.innerHTML = `<option value="">${t('budget', 'Choose an account')}</option>`;
             this.accounts.forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;
@@ -1210,7 +1211,7 @@ export default class TransactionsModule {
             const currentValue = toAccountSelect.value;
 
             // Clear and rebuild options
-            toAccountSelect.innerHTML = '<option value="">Select account...</option>';
+            toAccountSelect.innerHTML = `<option value="">${t('budget', 'Select account...')}</option>`;
             this.accounts.forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;
@@ -1231,7 +1232,7 @@ export default class TransactionsModule {
             const currentValue = categorySelect.value;
 
             // Clear and rebuild options
-            categorySelect.innerHTML = '<option value="">No category</option>';
+            categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
             dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
 
             // Restore previous value if it exists
@@ -1254,7 +1255,7 @@ export default class TransactionsModule {
                 if (transaction && existingTransferOpt) {
                     existingTransferOpt.remove();
                 } else if (!transaction && !existingTransferOpt) {
-                    typeEl.appendChild(new Option('Transfer', 'transfer'));
+                    typeEl.appendChild(new Option(t('budget', 'Transfer'), 'transfer'));
                 }
             }
 
@@ -1324,11 +1325,11 @@ export default class TransactionsModule {
 
     async editTransaction(id) {
         // First check TransactionsModule's list
-        let transaction = this.transactions.find(t => t.id === id);
+        let transaction = this.transactions.find(tx => tx.id === id);
 
         // If not found, check AccountsModule's accountTransactions (for account detail view)
         if (!transaction && this.app.accountsModule?.accountTransactions) {
-            transaction = this.app.accountsModule.accountTransactions.find(t => t.id === id);
+            transaction = this.app.accountsModule.accountTransactions.find(tx => tx.id === id);
         }
 
         // If still not found, fetch from API
@@ -1338,7 +1339,7 @@ export default class TransactionsModule {
                 transaction = response.data;
             } catch (error) {
                 console.error('Failed to fetch transaction for editing:', error);
-                this.app.showNotification('Failed to load transaction', 'error');
+                this.app.showNotification(t('budget', 'Failed to load transaction'), 'error');
                 return;
             }
         }
@@ -1366,11 +1367,11 @@ export default class TransactionsModule {
 
             // Validation
             if (!toAccountId) {
-                showWarning('Please select destination account');
+                showWarning(t('budget', 'Please select destination account'));
                 return;
             }
             if (toAccountId === accountId) {
-                showWarning('Cannot transfer to same account');
+                showWarning(t('budget', 'Cannot transfer to same account'));
                 return;
             }
 
@@ -1445,7 +1446,7 @@ export default class TransactionsModule {
                 }
 
                 // Success
-                showSuccess('Transfer created successfully');
+                showSuccess(t('budget', 'Transfer created successfully'));
                 this.app.hideModals();
                 await this.app.loadTransactions();
                 await this.app.loadAccounts();
@@ -1460,7 +1461,7 @@ export default class TransactionsModule {
                 return;
             } catch (error) {
                 console.error('Transfer creation failed:', error);
-                showError(error.message || 'Failed to create transfer');
+                showError(error.message || t('budget', 'Failed to create transfer'));
                 return;
             }
         }
@@ -1515,7 +1516,7 @@ export default class TransactionsModule {
                     }
                 }
 
-                showSuccess(id ? 'Transaction updated' : 'Transaction created');
+                showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));
                 this.app.hideModals();
                 await this.app.loadTransactions();
                 await this.app.loadAccounts(); // Refresh account balances
@@ -1529,17 +1530,17 @@ export default class TransactionsModule {
                 }
             } else {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to save transaction');
+                throw new Error(error.error || t('budget', 'Failed to save transaction'));
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
-            showError(error.message || 'Failed to save transaction');
+            showError(error.message || t('budget', 'Failed to save transaction'));
         }
     }
 
     async deleteTransaction(id) {
-        const transaction = this.transactions.find(t => t.id === id);
-        let message = 'Are you sure you want to delete this transaction?';
+        const transaction = this.transactions.find(tx => tx.id === id);
+        let message = t('budget', 'Are you sure you want to delete this transaction?');
 
         if (transaction) {
             const amount = formatters.formatCurrency(
@@ -1548,13 +1549,13 @@ export default class TransactionsModule {
                 this.settings
             );
             const balanceEffect = transaction.type === 'credit'
-                ? `This will decrease the account balance by ${amount}.`
-                : `This will increase the account balance by ${amount}.`;
+                ? t('budget', 'This will decrease the account balance by {amount}.', { amount })
+                : t('budget', 'This will increase the account balance by {amount}.', { amount });
 
             if (transaction.billId) {
-                message = `This transaction was auto-generated from a bill payment.\n\n${balanceEffect}\n\nIf this is a real payment, deleting it will cause your balance to diverge from your bank statement. Are you sure?`;
+                message = t('budget', 'This transaction was auto-generated from a bill payment.') + `\n\n${balanceEffect}\n\n` + t('budget', 'If this is a real payment, deleting it will cause your balance to diverge from your bank statement. Are you sure?');
             } else {
-                message = `Are you sure you want to delete this transaction?\n\n${balanceEffect}`;
+                message = t('budget', 'Are you sure you want to delete this transaction?') + `\n\n${balanceEffect}`;
             }
         }
 
@@ -1571,7 +1572,7 @@ export default class TransactionsModule {
             });
 
             if (response.ok) {
-                showSuccess('Transaction deleted');
+                showSuccess(t('budget', 'Transaction deleted'));
                 await this.app.loadTransactions();
                 await this.app.loadAccounts(); // Refresh account balances
 
@@ -1584,11 +1585,11 @@ export default class TransactionsModule {
                 }
             } else {
                 const error = await response.json().catch(() => ({}));
-                showError(error.error || 'Failed to delete transaction');
+                showError(error.error || t('budget', 'Failed to delete transaction'));
             }
         } catch (error) {
             console.error('Failed to delete transaction:', error);
-            showError('Failed to delete transaction');
+            showError(t('budget', 'Failed to delete transaction'));
         }
     }
 
@@ -1650,9 +1651,9 @@ export default class TransactionsModule {
     }
 
     async showMatchingModal(transactionId) {
-        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
         if (!transaction) {
-            showWarning('Transaction not found');
+            showWarning(t('budget', 'Transaction not found'));
             return;
         }
 
@@ -1671,7 +1672,7 @@ export default class TransactionsModule {
         sourceDetails.querySelector('.source-description').textContent = transaction.description;
         sourceDetails.querySelector('.source-amount').textContent = this.formatCurrency(transaction.amount, currency);
         sourceDetails.querySelector('.source-amount').className = `source-amount ${typeClass}`;
-        sourceDetails.querySelector('.source-account').textContent = account?.name || 'Unknown Account';
+        sourceDetails.querySelector('.source-account').textContent = account?.name || t('budget', 'Unknown Account');
 
         // Show modal and loading state
         modal.style.display = 'flex';
@@ -1699,9 +1700,9 @@ export default class TransactionsModule {
                         <span class="match-date">${this.formatDate(match.date)}</span>
                         <span class="match-description">${this.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || 'Unknown'}</span>
+                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
-                            Link as Transfer
+                            ${t('budget', 'Link as Transfer')}
                         </button>
                     </div>
                 `;
@@ -1710,42 +1711,42 @@ export default class TransactionsModule {
         } catch (error) {
             loadingEl.style.display = 'none';
             emptyEl.style.display = 'flex';
-            emptyEl.querySelector('p').textContent = 'Failed to search for matches. Please try again.';
+            emptyEl.querySelector('p').textContent = t('budget', 'Failed to search for matches. Please try again.');
         }
     }
 
     async handleLinkMatch(sourceId, targetId) {
         try {
             await this.linkTransactions(sourceId, targetId);
-            showSuccess('Transactions linked as transfer');
+            showSuccess(t('budget', 'Transactions linked as transfer'));
 
             // Close modal and refresh transactions
             document.getElementById('matching-modal').style.display = 'none';
             await this.app.loadTransactions();
         } catch (error) {
-            showError(error.message || 'Failed to link transactions');
+            showError(error.message || t('budget', 'Failed to link transactions'));
         }
     }
 
     async handleUnlinkTransaction(transactionId) {
-        if (!confirm('Are you sure you want to unlink this transaction from its transfer pair?')) {
+        if (!confirm(t('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
             return;
         }
 
         try {
             await this.unlinkTransaction(transactionId);
-            showSuccess('Transaction unlinked');
+            showSuccess(t('budget', 'Transaction unlinked'));
             await this.app.loadTransactions();
         } catch (error) {
-            showError(error.message || 'Failed to unlink transaction');
+            showError(error.message || t('budget', 'Failed to unlink transaction'));
         }
     }
 
     // Transaction splits
     async showSplitModal(transactionId) {
-        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
         if (!transaction) {
-            showWarning('Transaction not found');
+            showWarning(t('budget', 'Transaction not found'));
             return;
         }
 
@@ -1761,7 +1762,7 @@ export default class TransactionsModule {
         const splitsContainer = document.getElementById('splits-container');
 
         // Set title and store transaction id
-        titleEl.textContent = isSplit ? 'Edit Transaction Splits' : 'Split Transaction';
+        titleEl.textContent = isSplit ? t('budget', 'Edit Transaction Splits') : t('budget', 'Split Transaction');
         modal.dataset.transactionId = transactionId;
 
         // Display transaction info
@@ -1769,15 +1770,15 @@ export default class TransactionsModule {
         const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
         transactionInfoEl.innerHTML = `
             <div class="split-info-row">
-                <span class="split-info-label">Date:</span>
+                <span class="split-info-label">${t('budget', 'Date:')}</span>
                 <span>${this.formatDate(transaction.date)}</span>
             </div>
             <div class="split-info-row">
-                <span class="split-info-label">Description:</span>
+                <span class="split-info-label">${t('budget', 'Description:')}</span>
                 <span>${this.escapeHtml(transaction.description)}</span>
             </div>
             <div class="split-info-row">
-                <span class="split-info-label">Total Amount:</span>
+                <span class="split-info-label">${t('budget', 'Total Amount:')}</span>
                 <span class="split-total-amount">${this.formatCurrency(transaction.amount, currency)}</span>
             </div>
         `;
@@ -1826,7 +1827,7 @@ export default class TransactionsModule {
 
         // Get the transaction to determine its type
         const transactionId = parseInt(modal?.dataset.transactionId);
-        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
         const transactionType = transaction?.type || 'debit';
 
         const row = document.createElement('div');
@@ -1835,25 +1836,25 @@ export default class TransactionsModule {
 
         row.innerHTML = `
             <div class="split-field split-amount-field">
-                <label>Amount</label>
+                <label>${t('budget', 'Amount')}</label>
                 <input type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
-                <label>Category</label>
+                <label>${t('budget', 'Category')}</label>
                 <select class="split-category">
-                    <option value="">Uncategorized</option>
+                    <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
-                <label>Description</label>
+                <label>${t('budget', 'Description')}</label>
                 <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="Optional note">
+                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="Remove split">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}">
                     <span class="icon-delete"></span>
                 </button>
             </div>
@@ -1925,13 +1926,13 @@ export default class TransactionsModule {
 
         // Validate
         if (splits.length < 2) {
-            showWarning('A split transaction must have at least 2 parts');
+            showWarning(t('budget', 'A split transaction must have at least 2 parts'));
             return;
         }
 
         const splitTotal = splits.reduce((sum, s) => sum + s.amount, 0);
         if (Math.abs(splitTotal - totalAmount) > 0.01) {
-            showWarning(`Split amounts (${splitTotal.toFixed(2)}) must equal transaction amount (${totalAmount.toFixed(2)})`);
+            showWarning(t('budget', 'Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})', { splitTotal: splitTotal.toFixed(2), totalAmount: totalAmount.toFixed(2) }));
             return;
         }
 
@@ -1951,11 +1952,11 @@ export default class TransactionsModule {
             }
 
             this.hideSplitModal();
-            showSuccess('Transaction split successfully');
+            showSuccess(t('budget', 'Transaction split successfully'));
             await this.app.loadTransactions();
         } catch (error) {
             console.error('Failed to save splits:', error);
-            showError(error.message || 'Failed to save splits');
+            showError(error.message || t('budget', 'Failed to save splits'));
         }
     }
 
@@ -1963,7 +1964,7 @@ export default class TransactionsModule {
         const modal = document.getElementById('split-modal');
         const transactionId = parseInt(modal?.dataset.transactionId);
 
-        if (!confirm('Are you sure you want to remove the split and revert to a single transaction?')) {
+        if (!confirm(t('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
             return;
         }
 
@@ -1979,11 +1980,11 @@ export default class TransactionsModule {
             }
 
             this.hideSplitModal();
-            showSuccess('Transaction unsplit successfully');
+            showSuccess(t('budget', 'Transaction unsplit successfully'));
             await this.app.loadTransactions();
         } catch (error) {
             console.error('Failed to unsplit transaction:', error);
-            showError(error.message || 'Failed to unsplit transaction');
+            showError(error.message || t('budget', 'Failed to unsplit transaction'));
         }
     }
 
@@ -2052,28 +2053,28 @@ export default class TransactionsModule {
         // Render config dialog
         configEl.innerHTML = `
             <div class="config-field">
-                <label for="match-date-window">Date window (days):</label>
+                <label for="match-date-window">${t('budget', 'Date window (days):')}</label>
                 <div class="date-window-control">
                     <input type="range" id="match-date-window" min="0" max="14" value="3" step="1">
                     <span id="match-date-window-value" class="date-window-value">3</span>
                 </div>
-                <p class="hint">Matches must be within this many days of each other. Use 0 for exact date match.</p>
+                <p class="hint">${t('budget', 'Matches must be within this many days of each other. Use 0 for exact date match.')}</p>
             </div>
             <div class="config-field">
-                <label>Matching mode:</label>
+                <label>${t('budget', 'Matching mode:')}</label>
                 <div class="mode-options">
                     <label class="mode-option">
                         <input type="radio" name="match-mode" value="auto" checked>
                         <div class="mode-option-content">
-                            <span class="mode-option-title">Auto-link exact matches</span>
-                            <span class="mode-option-desc">Single-match pairs linked automatically. Multi-match shown for review.</span>
+                            <span class="mode-option-title">${t('budget', 'Auto-link exact matches')}</span>
+                            <span class="mode-option-desc">${t('budget', 'Single-match pairs linked automatically. Multi-match shown for review.')}</span>
                         </div>
                     </label>
                     <label class="mode-option">
                         <input type="radio" name="match-mode" value="review">
                         <div class="mode-option-content">
-                            <span class="mode-option-title">Review all matches</span>
-                            <span class="mode-option-desc">All candidates shown for your confirmation before linking.</span>
+                            <span class="mode-option-title">${t('budget', 'Review all matches')}</span>
+                            <span class="mode-option-desc">${t('budget', 'All candidates shown for your confirmation before linking.')}</span>
                         </div>
                     </label>
                 </div>
@@ -2105,7 +2106,7 @@ export default class TransactionsModule {
         const scanBtn = document.getElementById('start-scan-btn');
         if (scanBtn) scanBtn.style.display = 'none';
         loadingEl.style.display = 'flex';
-        loadingEl.querySelector('p').textContent = 'Scanning for matching transactions...';
+        loadingEl.querySelector('p').textContent = t('budget', 'Scanning for matching transactions...');
 
         try {
             const result = await this.scanForMatches(dateWindow);
@@ -2116,7 +2117,7 @@ export default class TransactionsModule {
                 const emptyEl = document.getElementById('bulk-match-empty');
                 resultsEl.style.display = 'block';
                 emptyEl.style.display = 'flex';
-                emptyEl.querySelector('p').textContent = 'No matching transactions found.';
+                emptyEl.querySelector('p').textContent = t('budget', 'No matching transactions found.');
                 return;
             }
 
@@ -2131,7 +2132,7 @@ export default class TransactionsModule {
             const emptyEl = document.getElementById('bulk-match-empty');
             resultsEl.style.display = 'block';
             emptyEl.style.display = 'flex';
-            emptyEl.querySelector('p').textContent = error.message || 'Failed to scan for matches. Please try again.';
+            emptyEl.querySelector('p').textContent = error.message || t('budget', 'Failed to scan for matches. Please try again.');
         }
     }
 
@@ -2151,7 +2152,7 @@ export default class TransactionsModule {
         // Auto-link single-match pairs
         if (singleMatches.length > 0) {
             loadingEl.style.display = 'flex';
-            loadingEl.querySelector('p').textContent = `Linking ${singleMatches.length} exact match pairs...`;
+            loadingEl.querySelector('p').textContent = n('budget', 'Linking %n exact match pair...', 'Linking %n exact match pairs...', singleMatches.length);
 
             const pairs = singleMatches.map(c => ({
                 sourceId: parseInt(c.transaction.id),
@@ -2219,8 +2220,8 @@ export default class TransactionsModule {
         // Render single-match items with checkboxes (pre-checked)
         if (singleMatches.length > 0) {
             autoMatchedSection.style.display = 'block';
-            autoMatchedSection.querySelector('h4').textContent = 'Exact Matches';
-            autoMatchedSection.querySelector('.section-hint').textContent = 'These transactions have exactly one match. Uncheck any you don\'t want to link.';
+            autoMatchedSection.querySelector('h4').textContent = t('budget', 'Exact Matches');
+            autoMatchedSection.querySelector('.section-hint').textContent = t('budget', 'These transactions have exactly one match. Uncheck any you don\'t want to link.');
             autoMatchedList.innerHTML = singleMatches.map((c, index) =>
                 this.renderReviewSingleMatch(c, index)
             ).join('');
@@ -2269,7 +2270,7 @@ export default class TransactionsModule {
                         <span class="pair-account">${this.escapeHtml(linked.accountName)}</span>
                     </div>
                 </div>
-                <button class="undo-match-btn" data-tx-id="${tx.id}">Undo</button>
+                <button class="undo-match-btn" data-tx-id="${tx.id}">${t('budget', 'Undo')}</button>
             </div>
         `;
     }
@@ -2346,11 +2347,11 @@ export default class TransactionsModule {
                         </div>
                     </div>
                 </div>
-                <div class="review-matches-label">Select a match (${item.matchCount} options):</div>
+                <div class="review-matches-label">${n('budget', 'Select a match (%n option):', 'Select a match (%n options):', item.matchCount)}</div>
                 <div class="review-matches">
                     ${matchesHtml}
                 </div>
-                <button class="link-selected-btn" data-tx-id="${tx.id}" data-index="${index}" disabled>Link Selected</button>
+                <button class="link-selected-btn" data-tx-id="${tx.id}" data-index="${index}" disabled>${t('budget', 'Link Selected')}</button>
             </div>
         `;
     }
@@ -2378,23 +2379,23 @@ export default class TransactionsModule {
         });
 
         if (pairs.length === 0) {
-            showWarning('No matches selected');
+            showWarning(t('budget', 'No matches selected'));
             return;
         }
 
         const confirmBtn = document.getElementById('confirm-selected-btn');
         if (confirmBtn) {
             confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Linking...';
+            confirmBtn.textContent = t('budget', 'Linking...');
         }
 
         try {
             const result = await this.bulkLinkPairs(pairs);
             this._bulkMatchDirty = true;
 
-            let message = `Linked ${result.stats.linkedCount} pair(s)`;
+            let message = n('budget', 'Linked %n pair', 'Linked %n pairs', result.stats.linkedCount);
             if (result.stats.failedCount > 0) {
-                message += `, ${result.stats.failedCount} failed`;
+                message += ', ' + n('budget', '%n failed', '%n failed', result.stats.failedCount);
             }
             showSuccess(message);
 
@@ -2407,8 +2408,8 @@ export default class TransactionsModule {
             // Convert review to auto-matched view with undo buttons
             if (result.stats.linkedCount > 0) {
                 autoMatchedSection.style.display = 'block';
-                autoMatchedSection.querySelector('h4').textContent = 'Linked Pairs';
-                autoMatchedSection.querySelector('.section-hint').textContent = 'These transactions have been linked. Click Undo to unlink a pair.';
+                autoMatchedSection.querySelector('h4').textContent = t('budget', 'Linked Pairs');
+                autoMatchedSection.querySelector('.section-hint').textContent = t('budget', 'These transactions have been linked. Click Undo to unlink a pair.');
 
                 // Build auto-matched HTML from the successfully linked pairs
                 const linkedHtml = [];
@@ -2425,7 +2426,7 @@ export default class TransactionsModule {
                             linkedHtml.push(`
                                 <div class="bulk-match-pair" data-tx-id="${sourceId}" data-linked-id="${targetId}">
                                     ${pairContent.innerHTML}
-                                    <button class="undo-match-btn" data-tx-id="${sourceId}">Undo</button>
+                                    <button class="undo-match-btn" data-tx-id="${sourceId}">${t('budget', 'Undo')}</button>
                                 </div>
                             `);
                         }
@@ -2441,11 +2442,11 @@ export default class TransactionsModule {
             document.getElementById('needs-review-count').textContent = '0';
 
         } catch (error) {
-            showError(error.message || 'Failed to link transactions');
+            showError(error.message || t('budget', 'Failed to link transactions'));
         } finally {
             if (confirmBtn) {
                 confirmBtn.disabled = false;
-                confirmBtn.textContent = 'Confirm Selected';
+                confirmBtn.textContent = t('budget', 'Confirm Selected');
             }
         }
     }
@@ -2472,9 +2473,9 @@ export default class TransactionsModule {
                 document.getElementById('auto-matched-section').style.display = 'none';
             }
 
-            showSuccess('Match undone');
+            showSuccess(t('budget', 'Match undone'));
         } catch (error) {
-            showError(error.message || 'Failed to undo match');
+            showError(error.message || t('budget', 'Failed to undo match'));
         }
     }
 
@@ -2483,7 +2484,7 @@ export default class TransactionsModule {
         const selectedRadio = reviewItem.querySelector(`input[name="review-match-${index}"]:checked`);
 
         if (!selectedRadio) {
-            showWarning('Please select a match first');
+            showWarning(t('budget', 'Please select a match first'));
             return;
         }
 
@@ -2511,9 +2512,9 @@ export default class TransactionsModule {
                 document.getElementById('needs-review-section').style.display = 'none';
             }
 
-            showSuccess('Transactions linked');
+            showSuccess(t('budget', 'Transactions linked'));
         } catch (error) {
-            showError(error.message || 'Failed to link transactions');
+            showError(error.message || t('budget', 'Failed to link transactions'));
         }
     }
 
@@ -2549,7 +2550,7 @@ export default class TransactionsModule {
         const field = cell.dataset.field;
         const value = cell.dataset.value;
         const transactionId = parseInt(cell.dataset.transactionId);
-        const transaction = this.transactions.find(t => t.id === transactionId);
+        const transaction = this.transactions.find(tx => tx.id === transactionId);
 
         if (!transaction) {
             return;
@@ -2636,7 +2637,7 @@ export default class TransactionsModule {
         input.type = 'text';
         input.className = 'inline-edit-input';
         input.value = value || '';
-        input.placeholder = field === 'description' ? 'Enter description...' : '';
+        input.placeholder = field === 'description' ? t('budget', 'Enter description...') : '';
 
         this.setupEditorEvents(input, cell, field);
         cell.innerHTML = '';
@@ -2668,7 +2669,7 @@ export default class TransactionsModule {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'category-autocomplete-input';
-        input.placeholder = 'Type to search...';
+        input.placeholder = t('budget', 'Type to search...');
 
         // Try hierarchical first (for categories page), then flat (for transactions page)
         let categoryData = null;
@@ -2701,7 +2702,7 @@ export default class TransactionsModule {
                 : flatCategories;
 
             if (filtered.length === 0) {
-                dropdown.innerHTML = '<div class="category-autocomplete-empty">No categories found</div>';
+                dropdown.innerHTML = `<div class="category-autocomplete-empty">${t('budget', 'No categories found')}</div>`;
             } else {
                 dropdown.innerHTML = filtered.map(c => `
                     <div class="category-autocomplete-item ${c.id === parseInt(input.dataset.categoryId) ? 'selected' : ''}"
@@ -2717,7 +2718,7 @@ export default class TransactionsModule {
                 <div class="category-autocomplete-item ${!input.dataset.categoryId ? 'selected' : ''}"
                      data-category-id=""
                      data-category-name="">
-                    Uncategorized
+                    ${t('budget', 'Uncategorized')}
                 </div>
             ` + dropdown.innerHTML;
 
@@ -2839,7 +2840,7 @@ export default class TransactionsModule {
     async createTagsEditor(cell, transaction) {
         const categoryId = transaction.categoryId;
 
-        cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px;">Loading...</span>';
+        cell.innerHTML = `<span style="color: var(--color-text-maxcontrast); font-size: 11px;">${t('budget', 'Loading...')}</span>`;
 
         try {
             // Load both global tags and category tag sets
@@ -2851,7 +2852,7 @@ export default class TransactionsModule {
             const globalTags = globalTagsResponse || [];
 
             if (globalTags.length === 0 && tagSets.length === 0) {
-                cell.innerHTML = '<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">No tags</span>';
+                cell.innerHTML = `<span style="color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;">${t('budget', 'No tags')}</span>`;
                 setTimeout(() => this.cancelInlineEdit(cell), 1500);
                 return;
             }
@@ -2865,7 +2866,7 @@ export default class TransactionsModule {
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'tags-autocomplete-input';
-            input.placeholder = 'Type to filter tags...';
+            input.placeholder = t('budget', 'Type to filter tags...');
 
             const dropdown = document.createElement('div');
             dropdown.className = 'tags-autocomplete-dropdown';
@@ -2883,7 +2884,7 @@ export default class TransactionsModule {
                         id: tag.id,
                         name: tag.name,
                         color: tag.color,
-                        tagSetName: 'Tags',
+                        tagSetName: t('budget', 'Tags'),
                         tagSetId: 'global'
                     });
                 });
@@ -2904,9 +2905,9 @@ export default class TransactionsModule {
 
             const renderDropdown = (filter = '') => {
                 const filtered = filter
-                    ? allTags.filter(t =>
-                        t.name.toLowerCase().includes(filter.toLowerCase()) ||
-                        t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                    ? allTags.filter(tg =>
+                        tg.name.toLowerCase().includes(filter.toLowerCase()) ||
+                        tg.tagSetName.toLowerCase().includes(filter.toLowerCase())
                     )
                     : allTags;
 
@@ -2940,7 +2941,7 @@ export default class TransactionsModule {
                     });
                 });
 
-                dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+                dropdown.innerHTML = html || `<div class="tags-autocomplete-empty">${t('budget', 'No tags found')}</div>`;
                 dropdown.style.display = 'block';
             };
 
@@ -2956,15 +2957,15 @@ export default class TransactionsModule {
                 const item = e.target.closest('.tags-autocomplete-item');
                 if (item) {
                     const tagId = parseInt(item.dataset.tagId);
-                    const clickedTag = allTags.find(t => t.id === tagId);
+                    const clickedTag = allTags.find(tg => tg.id === tagId);
                     if (!clickedTag) return;
 
                     // Single-selection per category tag set (not for global tags)
                     if (clickedTag.tagSetId !== 'global') {
-                        const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
-                        tagsFromSameSet.forEach(t => {
-                            if (t.id !== tagId) {
-                                selectedTags.delete(t.id);
+                        const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
+                        tagsFromSameSet.forEach(tg => {
+                            if (tg.id !== tagId) {
+                                selectedTags.delete(tg.id);
                             }
                         });
                     }
@@ -3003,7 +3004,7 @@ export default class TransactionsModule {
 
         } catch (error) {
             console.error('Failed to load tag sets:', error);
-            cell.innerHTML = '<span style="color: var(--color-error); font-size: 11px;">Error loading tags</span>';
+            cell.innerHTML = `<span style="color: var(--color-error); font-size: 11px;">${t('budget', 'Error loading tags')}</span>`;
             setTimeout(() => this.cancelInlineEdit(cell), 1500);
         }
     }
@@ -3085,7 +3086,7 @@ export default class TransactionsModule {
 
     async saveInlineEdit(cell, field, value, extra = {}) {
         const transactionId = parseInt(cell.dataset.transactionId);
-        const transaction = this.transactions.find(t => t.id === transactionId);
+        const transaction = this.transactions.find(tx => tx.id === transactionId);
 
         if (!transaction) {
             this.cancelInlineEdit(cell);
@@ -3148,13 +3149,13 @@ export default class TransactionsModule {
 
                 this.app.renderEnhancedTransactionsTable();
                 this.app.applyColumnVisibility();
-                showSuccess('Transaction updated');
+                showSuccess(t('budget', 'Transaction updated'));
             } else {
                 throw new Error('Update failed');
             }
         } catch (error) {
             console.error('Failed to save inline edit:', error);
-            showError('Failed to update transaction');
+            showError(t('budget', 'Failed to update transaction'));
             this.cancelInlineEdit(cell);
         }
     }
@@ -3204,13 +3205,13 @@ export default class TransactionsModule {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Find Duplicate Transactions</h2>
-                    <button class="close-btn" title="Close">&times;</button>
+                    <h2>${t('budget', 'Find Duplicate Transactions')}</h2>
+                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     <div id="duplicates-loading" class="loading-indicator">
                         <span class="icon-loading"></span>
-                        <p>Scanning for duplicates...</p>
+                        <p>${t('budget', 'Scanning for duplicates...')}</p>
                     </div>
                     <div id="duplicates-content" style="display: none;"></div>
                 </div>
@@ -3251,7 +3252,7 @@ export default class TransactionsModule {
             content.style.display = 'block';
 
             if (!data.groups || data.groups.length === 0) {
-                content.innerHTML = '<p class="empty-message">No duplicate transactions found.</p>';
+                content.innerHTML = `<p class="empty-message">${t('budget', 'No duplicate transactions found.')}</p>`;
                 return;
             }
 
@@ -3261,7 +3262,7 @@ export default class TransactionsModule {
             document.getElementById('duplicates-loading').style.display = 'none';
             const content = document.getElementById('duplicates-content');
             content.style.display = 'block';
-            content.innerHTML = '<p class="error-message">Failed to scan for duplicates. Please try again.</p>';
+            content.innerHTML = `<p class="error-message">${t('budget', 'Failed to scan for duplicates. Please try again.')}</p>`;
         }
     }
 
@@ -3270,13 +3271,12 @@ export default class TransactionsModule {
 
         let html = `
             <div class="duplicates-summary">
-                <p>Found <strong>${groups.length} group(s)</strong> with <strong>${totalDuplicates} suspected duplicate(s)</strong>.
-                The oldest transaction in each group is kept by default. Review and adjust the selection, then delete the checked items.</p>
+                <p>${t('budget', 'Found {groupCount} group(s) with {duplicateCount} suspected duplicate(s). The oldest transaction in each group is kept by default. Review and adjust the selection, then delete the checked items.', { groupCount: groups.length, duplicateCount: totalDuplicates })}</p>
                 <div class="duplicates-actions">
                     <button id="duplicates-delete-btn" class="budget-btn primary">
-                        Delete Selected (<span id="duplicates-selected-count">${totalDuplicates}</span>)
+                        ${t('budget', 'Delete Selected')} (<span id="duplicates-selected-count">${totalDuplicates}</span>)
                     </button>
-                    <button id="duplicates-select-none-btn" class="budget-btn secondary">Deselect All</button>
+                    <button id="duplicates-select-none-btn" class="budget-btn secondary">${t('budget', 'Deselect All')}</button>
                 </div>
             </div>
             <div class="duplicates-groups">
@@ -3289,7 +3289,7 @@ export default class TransactionsModule {
             html += `
                 <div class="duplicate-group">
                     <div class="duplicate-group-header">
-                        <strong>${this.escapeHtml(first.description) || '(no description)'}</strong>
+                        <strong>${this.escapeHtml(first.description) || t('budget', '(no description)')}</strong>
                         &mdash; ${amount} (${this.escapeHtml(first.type)})
                         &mdash; ${this.escapeHtml(first.accountName)}
                     </div>
@@ -3300,9 +3300,9 @@ export default class TransactionsModule {
                 // Pre-select all except the first (oldest) in the group
                 const isExtra = txIdx > 0;
                 const checked = isExtra ? 'checked' : '';
-                const keepLabel = !isExtra ? '<span class="keep-badge">keep</span>' : '';
-                const billLabel = tx.billId ? '<span class="bill-badge">bill</span>' : '';
-                const statusLabel = tx.status === 'scheduled' ? '<span class="scheduled-badge">scheduled</span>' : '';
+                const keepLabel = !isExtra ? `<span class="keep-badge">${t('budget', 'keep')}</span>` : '';
+                const billLabel = tx.billId ? `<span class="bill-badge">${t('budget', 'bill')}</span>` : '';
+                const statusLabel = tx.status === 'scheduled' ? `<span class="scheduled-badge">${t('budget', 'scheduled')}</span>` : '';
 
                 html += `
                     <label class="duplicate-item ${isExtra ? 'pre-selected' : 'keep-item'}">
@@ -3363,16 +3363,16 @@ export default class TransactionsModule {
             return item && item.querySelector('.bill-badge');
         }).length;
 
-        let message = `Delete ${ids.length} suspected duplicate transaction(s)? This cannot be undone.`;
+        let message = n('budget', 'Delete %n suspected duplicate transaction? This cannot be undone.', 'Delete %n suspected duplicate transactions? This cannot be undone.', ids.length);
         if (billCount > 0) {
-            message += `\n\n${billCount} of these were generated from bill payments. Make sure they are truly duplicates before deleting.`;
+            message += '\n\n' + n('budget', '%n of these was generated from bill payments. Make sure they are truly duplicates before deleting.', '%n of these were generated from bill payments. Make sure they are truly duplicates before deleting.', billCount);
         }
 
         if (!confirm(message)) return;
 
         const deleteBtn = document.getElementById('duplicates-delete-btn');
         deleteBtn.disabled = true;
-        deleteBtn.textContent = 'Deleting...';
+        deleteBtn.textContent = t('budget', 'Deleting...');
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
@@ -3391,7 +3391,7 @@ export default class TransactionsModule {
             const result = await response.json();
 
             if (result.success > 0) {
-                showSuccess(`Deleted ${result.success} duplicate transaction(s)`);
+                showSuccess(n('budget', 'Deleted %n duplicate transaction', 'Deleted %n duplicate transactions', result.success));
                 this._duplicatesDirty = true;
 
                 // Remove deleted items from the UI
@@ -3414,20 +3414,20 @@ export default class TransactionsModule {
                 const remainingGroups = document.querySelectorAll('.duplicate-group');
                 if (remainingGroups.length === 0) {
                     const content = document.getElementById('duplicates-content');
-                    content.innerHTML = '<p class="empty-message">All duplicates have been resolved.</p>';
+                    content.innerHTML = `<p class="empty-message">${t('budget', 'All duplicates have been resolved.')}</p>`;
                 }
             }
 
             if (result.failed > 0) {
-                showError(`Failed to delete ${result.failed} transaction(s)`);
+                showError(n('budget', 'Failed to delete %n transaction', 'Failed to delete %n transactions', result.failed));
             }
         } catch (error) {
             console.error('Failed to delete duplicates:', error);
-            showError('Failed to delete duplicates');
+            showError(t('budget', 'Failed to delete duplicates'));
         } finally {
             if (deleteBtn && document.body.contains(deleteBtn)) {
                 deleteBtn.disabled = false;
-                deleteBtn.textContent = `Delete Selected (${document.querySelectorAll('.duplicate-checkbox:checked').length})`;
+                deleteBtn.textContent = t('budget', 'Delete Selected') + ` (${document.querySelectorAll('.duplicate-checkbox:checked').length})`;
             }
         }
     }

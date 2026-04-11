@@ -12,6 +12,7 @@ use OCA\Budget\Service\Import\ParserFactory;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
+use OCP\IL10N;
 
 /**
  * Orchestrates the import process for financial data files.
@@ -25,6 +26,7 @@ class ImportService {
     private TransactionNormalizer $normalizer;
     private DuplicateDetector $duplicateDetector;
     private ImportRuleApplicator $ruleApplicator;
+    private IL10N $l;
 
     public function __construct(
         IAppData $appData,
@@ -34,7 +36,8 @@ class ImportService {
         ParserFactory $parserFactory,
         TransactionNormalizer $normalizer,
         DuplicateDetector $duplicateDetector,
-        ImportRuleApplicator $ruleApplicator
+        ImportRuleApplicator $ruleApplicator,
+        IL10N $l
     ) {
         $this->appData = $appData;
         $this->transactionService = $transactionService;
@@ -44,6 +47,7 @@ class ImportService {
         $this->normalizer = $normalizer;
         $this->duplicateDetector = $duplicateDetector;
         $this->ruleApplicator = $ruleApplicator;
+        $this->l = $l;
     }
 
     /**
@@ -84,7 +88,7 @@ class ImportService {
             return $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize, $delimiter);
 
         } catch (\Exception $e) {
-            throw new \Exception('Failed to process upload: ' . $e->getMessage());
+            throw new \Exception($this->l->t('Failed to process upload: %1$s', [$e->getMessage()]));
         }
     }
 
@@ -244,7 +248,7 @@ class ImportService {
             try {
                 return $importsFolder->getFile($fileId . '.dat');
             } catch (NotFoundException $e) {
-                throw new \Exception('Import file not found');
+                throw new \Exception($this->l->t('Import file not found'));
             }
         }
     }
@@ -420,7 +424,7 @@ class ImportService {
 
     private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ','): array {
         if (!$accountId) {
-            throw new \Exception('Account ID is required for single-account imports');
+            throw new \Exception($this->l->t('Account ID is required for single-account imports'));
         }
 
         $account = $this->accountMapper->find($accountId, $userId);
@@ -553,7 +557,7 @@ class ImportService {
 
     private function executeSingleAccountImport(string $userId, string $fileId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, bool $applyRules, string $delimiter = ','): array {
         if (!$accountId) {
-            throw new \Exception('Account ID is required for single-account imports');
+            throw new \Exception($this->l->t('Account ID is required for single-account imports'));
         }
 
         $account = $this->accountMapper->find($accountId, $userId);

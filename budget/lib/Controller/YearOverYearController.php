@@ -11,22 +11,26 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class YearOverYearController extends Controller {
     private YearOverYearService $service;
+    private IL10N $l;
     private string $userId;
     private LoggerInterface $logger;
 
     public function __construct(
         IRequest $request,
         YearOverYearService $service,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
     }
@@ -55,7 +59,7 @@ class YearOverYearController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to compare month data'],
+                ['error' => $this->l->t('Failed to compare month data')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -80,7 +84,7 @@ class YearOverYearController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to compare year data'],
+                ['error' => $this->l->t('Failed to compare year data')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -105,7 +109,7 @@ class YearOverYearController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to compare category data'],
+                ['error' => $this->l->t('Failed to compare category data')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -130,7 +134,7 @@ class YearOverYearController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to get monthly trends'],
+                ['error' => $this->l->t('Failed to get monthly trends')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -179,7 +183,7 @@ class YearOverYearController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to export YoY data'],
+                ['error' => $this->l->t('Failed to export YoY data')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }

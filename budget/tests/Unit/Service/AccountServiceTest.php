@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class AccountServiceTest extends TestCase {
@@ -23,10 +24,18 @@ class AccountServiceTest extends TestCase {
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->conversionService = $this->createMock(CurrencyConversionService::class);
 
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+            foreach ($params as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+            }
+            return $text;
+        });
         $this->service = new AccountService(
             $this->accountMapper,
             $this->transactionMapper,
-            $this->conversionService
+            $this->conversionService,
+            $l
         );
     }
 

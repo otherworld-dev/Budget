@@ -8,20 +8,24 @@ use DateTime;
 use OCA\Budget\Db\Auth;
 use OCA\Budget\Db\AuthMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IL10N;
 
 class AuthService {
     private AuthMapper $mapper;
     private SettingService $settingService;
+    private IL10N $l;
 
     private const LOCKOUT_DURATION_MINUTES = 5;
     private const MAX_FAILED_ATTEMPTS = 5;
 
     public function __construct(
         AuthMapper $mapper,
-        SettingService $settingService
+        SettingService $settingService,
+        IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->settingService = $settingService;
+        $this->l = $l;
     }
 
     /**
@@ -60,7 +64,7 @@ class AuthService {
     public function setupPassword(string $userId, string $password): Auth {
         // Validate password length
         if (strlen($password) < 6) {
-            throw new \InvalidArgumentException('Password must be at least 6 characters long');
+            throw new \InvalidArgumentException($this->l->t('Password must be at least 6 characters long'));
         }
 
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
@@ -98,7 +102,7 @@ class AuthService {
         try {
             $auth = $this->mapper->findByUserId($userId);
         } catch (DoesNotExistException $e) {
-            return ['success' => false, 'error' => 'Password protection not set up'];
+            return ['success' => false, 'error' => $this->l->t('Password protection not set up')];
         }
 
         // Check if account is locked
@@ -108,7 +112,7 @@ class AuthService {
             $minutesRemaining = (int) ceil(($lockedUntil->getTimestamp() - $now->getTimestamp()) / 60);
             return [
                 'success' => false,
-                'error' => "Account locked. Try again in {$minutesRemaining} minute(s)."
+                'error' => $this->l->t('Account locked. Try again in %1$s minute(s).', [(string) $minutesRemaining])
             ];
         }
 
@@ -120,13 +124,13 @@ class AuthService {
             if ($remainingAttempts <= 0) {
                 return [
                     'success' => false,
-                    'error' => 'Too many failed attempts. Account locked for ' . self::LOCKOUT_DURATION_MINUTES . ' minutes.'
+                    'error' => $this->l->t('Too many failed attempts. Account locked for %1$s minutes.', [(string) self::LOCKOUT_DURATION_MINUTES])
                 ];
             }
 
             return [
                 'success' => false,
-                'error' => "Incorrect password. {$remainingAttempts} attempt(s) remaining."
+                'error' => $this->l->t('Incorrect password. %1$s attempt(s) remaining.', [(string) $remainingAttempts])
             ];
         }
 
@@ -278,7 +282,7 @@ class AuthService {
 
             // Validate new password length
             if (strlen($newPassword) < 6) {
-                throw new \InvalidArgumentException('Password must be at least 6 characters long');
+                throw new \InvalidArgumentException($this->l->t('Password must be at least 6 characters long'));
             }
 
             // Update password

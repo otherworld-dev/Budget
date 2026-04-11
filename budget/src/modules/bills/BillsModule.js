@@ -1,6 +1,7 @@
 /**
  * Bills Module - Recurring bill tracking and detection
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
@@ -48,7 +49,7 @@ export default class BillsModule {
             this.populateBillModalDropdowns();
         } catch (error) {
             console.error('Failed to load bills:', error);
-            showError('Failed to load bills');
+            showError(t('budget', 'Failed to load bills'));
         }
     }
 
@@ -94,27 +95,27 @@ export default class BillsModule {
             let statusText = '';
             if (isPaid) {
                 statusClass = 'paid';
-                statusText = 'Paid';
+                statusText = t('budget', 'Paid');
             } else if (isOverdue) {
                 statusClass = 'overdue';
-                statusText = 'Overdue';
+                statusText = t('budget', 'Overdue');
             } else if (isDueSoon) {
                 statusClass = 'due-soon';
-                statusText = 'Due Soon';
+                statusText = t('budget', 'Due Soon');
             } else {
                 statusClass = 'upcoming';
-                statusText = 'Upcoming';
+                statusText = t('budget', 'Upcoming');
             }
 
             const frequency = bill.frequency || 'monthly';
             const frequencyLabels = {
-                'weekly': 'Weekly',
-                'biweekly': 'Bi-Weekly',
-                'monthly': 'Monthly',
-                'quarterly': 'Quarterly',
-                'semi-annually': 'Semi-Annually',
-                'yearly': 'Yearly',
-                'one-time': 'One-Time'
+                'weekly': t('budget', 'Weekly'),
+                'biweekly': t('budget', 'Bi-Weekly'),
+                'monthly': t('budget', 'Monthly'),
+                'quarterly': t('budget', 'Quarterly'),
+                'semi-annually': t('budget', 'Semi-Annually'),
+                'yearly': t('budget', 'Yearly'),
+                'one-time': t('budget', 'One-Time')
             };
             const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
 
@@ -135,27 +136,27 @@ export default class BillsModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : 'No due date'}
+                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : t('budget', 'No due date')}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="Auto-pay enabled" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> Auto-pay</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="Auto-pay failed - disabled" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> Auto-pay Failed</span>` : ''}
-                            ${remainingPayments !== null ? `<span class="status-badge" title="Remaining payments" style="background: #6c757d; margin-left: 5px;">${remainingPayments} left</span>` : ''}
-                            ${endDate ? `<span class="status-badge" title="Ends ${formatters.formatDate(endDate, this.settings)}" style="background: #6c757d; margin-left: 5px;">Ends ${formatters.formatDate(endDate, this.settings)}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${remainingPayments !== null ? `<span class="status-badge" title="${t('budget', 'Remaining payments')}" style="background: #6c757d; margin-left: 5px;">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
+                            ${endDate ? `<span class="status-badge" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}" style="background: #6c757d; margin-left: 5px;">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">
                         ${!isPaid ? `
-                            <button class="bill-action-btn bill-paid-btn" data-bill-id="${bill.id}" title="Mark as paid">
+                            <button class="bill-action-btn bill-paid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
-                                Mark Paid
+                                ${t('budget', 'Mark Paid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="Edit bill">
+                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="Delete bill">
+                        <button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -289,7 +290,7 @@ export default class BillsModule {
         // Bills filter tabs
         document.querySelectorAll('.bills-tabs .tab-button').forEach(tab => {
             tab.addEventListener('click', (e) => {
-                document.querySelectorAll('.bills-tabs .tab-button').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.bills-tabs .tab-button').forEach(el => el.classList.remove('active'));
                 e.target.classList.add('active');
                 this.filterBills(e.target.dataset.filter);
             });
@@ -344,7 +345,7 @@ export default class BillsModule {
         document.getElementById('bill-id').value = '';
 
         if (bill) {
-            title.textContent = 'Edit Bill';
+            title.textContent = t('budget', 'Edit Bill');
             document.getElementById('bill-id').value = bill.id;
             document.getElementById('bill-name').value = bill.name || '';
             document.getElementById('bill-amount').value = bill.amount || '';
@@ -392,7 +393,7 @@ export default class BillsModule {
                 if (tagsContainer) tagsContainer.innerHTML = '';
             }
         } else {
-            title.textContent = 'Add Bill';
+            title.textContent = t('budget', 'Add Bill');
             // Clear all month checkboxes for new bill
             document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
 
@@ -458,16 +459,16 @@ export default class BillsModule {
         const dueDayHelp = document.getElementById('bill-due-day-help');
 
         if (frequency === 'weekly' || frequency === 'biweekly') {
-            dueDayLabel.textContent = 'Due Day (1-7)';
-            dueDayHelp.textContent = 'Day of the week (1=Monday, 7=Sunday)';
+            dueDayLabel.textContent = t('budget', 'Due Day (1-7)');
+            dueDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
             document.getElementById('bill-due-day').max = 7;
         } else if (frequency === 'custom') {
-            dueDayLabel.textContent = 'Due Day';
-            dueDayHelp.textContent = 'Day of the selected months when bill is due';
+            dueDayLabel.textContent = t('budget', 'Due Day');
+            dueDayHelp.textContent = t('budget', 'Day of the selected months when bill is due');
             document.getElementById('bill-due-day').max = 31;
         } else {
-            dueDayLabel.textContent = 'Due Day';
-            dueDayHelp.textContent = 'Day of the month when bill is due';
+            dueDayLabel.textContent = t('budget', 'Due Day');
+            dueDayHelp.textContent = t('budget', 'Day of the month when bill is due');
             document.getElementById('bill-due-day').max = 31;
         }
     }
@@ -477,7 +478,7 @@ export default class BillsModule {
         const categorySelect = document.getElementById('bill-category');
         if (categorySelect && this.categories) {
             const currentValue = categorySelect.value;
-            categorySelect.innerHTML = '<option value="">No category</option>';
+            categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
             dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories, { typeFilter: 'expense' });
             if (currentValue) categorySelect.value = currentValue;
         }
@@ -486,7 +487,7 @@ export default class BillsModule {
         const accountSelect = document.getElementById('bill-account');
         if (accountSelect && this.accounts) {
             const currentValue = accountSelect.value;
-            accountSelect.innerHTML = '<option value="">No specific account</option>';
+            accountSelect.innerHTML = `<option value="">${t('budget', 'No specific account')}</option>`;
             this.accounts.forEach(acc => {
                 accountSelect.innerHTML += `<option value="${acc.id}">${dom.escapeHtml(acc.name)}</option>`;
             });
@@ -524,7 +525,7 @@ export default class BillsModule {
         if (frequency === 'custom') {
             const customPattern = this.getCustomMonthsPattern();
             if (!customPattern) {
-                showWarning('Please select at least one month for custom frequency');
+                showWarning(t('budget', 'Please select at least one month for custom frequency'));
                 return;
             }
             billData.customRecurrencePattern = customPattern;
@@ -554,11 +555,11 @@ export default class BillsModule {
             }
 
             this.hideBillModal();
-            showSuccess(isNew ? 'Bill created successfully' : 'Bill updated successfully');
+            showSuccess(isNew ? t('budget', 'Bill created successfully') : t('budget', 'Bill updated successfully'));
             await this.loadBillsView();
         } catch (error) {
             console.error('Failed to save bill:', error);
-            showError(error.message || 'Failed to save bill');
+            showError(error.message || t('budget', 'Failed to save bill'));
         }
     }
 
@@ -574,12 +575,12 @@ export default class BillsModule {
             this.showBillModal(bill);
         } catch (error) {
             console.error('Failed to load bill:', error);
-            showError('Failed to load bill');
+            showError(t('budget', 'Failed to load bill'));
         }
     }
 
     async deleteBill(billId) {
-        if (!confirm('Are you sure you want to delete this bill?')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this bill?'))) {
             return;
         }
 
@@ -591,11 +592,11 @@ export default class BillsModule {
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            showSuccess('Bill deleted successfully');
+            showSuccess(t('budget', 'Bill deleted successfully'));
             await this.loadBillsView();
         } catch (error) {
             console.error('Failed to delete bill:', error);
-            showError('Failed to delete bill');
+            showError(t('budget', 'Failed to delete bill'));
         }
     }
 
@@ -636,8 +637,8 @@ export default class BillsModule {
 
             const isOneTime = (bill.frequency === 'one-time');
             const message = isOneTime
-                ? 'Bill marked as paid. Transaction created.'
-                : 'Bill marked as paid. Future transaction created.';
+                ? t('budget', 'Bill marked as paid. Transaction created.')
+                : t('budget', 'Bill marked as paid. Future transaction created.');
             this.showUndoNotification(message, () => this.undoMarkBillPaid());
 
             this._undoTimer = setTimeout(() => {
@@ -647,7 +648,7 @@ export default class BillsModule {
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
-            showError('Failed to mark bill as paid');
+            showError(t('budget', 'Failed to mark bill as paid'));
         }
     }
 
@@ -681,10 +682,10 @@ export default class BillsModule {
             this._undoData = null;
             await this.loadBillsView();
 
-            showSuccess('Action undone');
+            showSuccess(t('budget', 'Action undone'));
         } catch (error) {
             console.error('Failed to undo mark paid:', error);
-            showError(`Failed to undo action: ${error.message}`);
+            showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
     }
 
@@ -693,7 +694,7 @@ export default class BillsModule {
         notification.className = 'undo-notification';
         notification.innerHTML = `
             <span class="undo-message">${message}</span>
-            <button class="undo-btn">Undo</button>
+            <button class="undo-btn">${t('budget', 'Undo')}</button>
         `;
 
         Object.assign(notification.style, {
@@ -743,7 +744,7 @@ export default class BillsModule {
     async detectBills() {
         const detectBtn = document.getElementById('detect-bills-btn');
         detectBtn.disabled = true;
-        detectBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Detecting...';
+        detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/bills/detect?months=6'), {
@@ -755,7 +756,7 @@ export default class BillsModule {
             const detected = await response.json();
 
             if (!detected || detected.length === 0) {
-                showInfo('No recurring transactions detected');
+                showInfo(t('budget', 'No recurring transactions detected'));
                 return;
             }
 
@@ -763,10 +764,10 @@ export default class BillsModule {
             document.getElementById('detected-bills-panel').style.display = 'flex';
         } catch (error) {
             console.error('Failed to detect bills:', error);
-            showError('Failed to detect recurring bills');
+            showError(t('budget', 'Failed to detect recurring bills'));
         } finally {
             detectBtn.disabled = false;
-            detectBtn.innerHTML = '<span class="icon-search" aria-hidden="true"></span> Detect Bills';
+            detectBtn.innerHTML = `<span class="icon-search" aria-hidden="true"></span> ${t('budget', 'Detect Bills')}`;
         }
     }
 
@@ -787,7 +788,7 @@ export default class BillsModule {
                         <div class="detected-bill-meta">
                             <span class="detected-amount">${formatters.formatCurrency(item.avgAmount || item.amount, null, this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
-                            <span class="detected-confidence ${confidenceClass}">${confidencePercent}% confidence</span>
+                            <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                         </div>
                     </div>
                 </div>
@@ -803,7 +804,7 @@ export default class BillsModule {
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-', '')));
 
         if (selectedIndices.length === 0) {
-            showWarning('Please select at least one bill to add');
+            showWarning(t('budget', 'Please select at least one bill to add'));
             return;
         }
 
@@ -823,11 +824,11 @@ export default class BillsModule {
 
             const result = await response.json();
             document.getElementById('detected-bills-panel').style.display = 'none';
-            showSuccess(`${result.created} bills added successfully`);
+            showSuccess(n('budget', '%n bill added successfully', '%n bills added successfully', result.created));
             await this.loadBillsView();
         } catch (error) {
             console.error('Failed to add bills:', error);
-            showError('Failed to add selected bills');
+            showError(t('budget', 'Failed to add selected bills'));
         }
     }
 
@@ -881,7 +882,7 @@ export default class BillsModule {
             if (globalTags.length > 0) {
                 html += `
                     <div class="form-group tag-set-selector">
-                        <label class="tag-set-label">Tags</label>
+                        <label class="tag-set-label">${t('budget', 'Tags')}</label>
                         <div class="tag-options" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
                             ${globalTags.map(tag => `
                                 <label class="tag-option" style="cursor: pointer;">
@@ -917,7 +918,7 @@ export default class BillsModule {
                                         ${dom.escapeHtml(tag.name)}
                                     </span>
                                 </label>
-                            `).join('') : '<span style="color: #999; font-size: 11px; font-style: italic;">No tags defined</span>'}
+                            `).join('') : `<span style="color: #999; font-size: 11px; font-style: italic;">${t('budget', 'No tags defined')}</span>`}
                         </div>
                     </div>
                 `;

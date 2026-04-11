@@ -14,6 +14,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -23,18 +24,21 @@ class BillController extends Controller {
 
     private BillService $service;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         BillService $service,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -64,7 +68,7 @@ class BillController extends Controller {
             }
             return new DataResponse($bills);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve bills');
+            return $this->handleError($e, $this->l->t('Failed to retrieve bills'));
         }
     }
 
@@ -87,7 +91,7 @@ class BillController extends Controller {
             $bill = $this->service->find($id, $this->userId);
             return new DataResponse($bill);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Bill', ['billId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
         }
     }
 
@@ -100,12 +104,12 @@ class BillController extends Controller {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             if (!is_array($data)) {
-                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
             // Extract and validate required fields
             if (!isset($data['name']) || !isset($data['amount'])) {
-                return new DataResponse(['error' => 'Name and amount are required'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Name and amount are required')], Http::STATUS_BAD_REQUEST);
             }
 
             $name = $data['name'];
@@ -132,7 +136,7 @@ class BillController extends Controller {
             // Validate auto-pay requires account
             if ($autoPayEnabled && $accountId === null) {
                 return new DataResponse(
-                    ['error' => 'Auto-pay requires an account to be set'],
+                    ['error' => $this->l->t('Auto-pay requires an account to be set')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -140,7 +144,7 @@ class BillController extends Controller {
             // Validate transfer requires destination account
             if ($isTransfer && $destinationAccountId === null) {
                 return new DataResponse(
-                    ['error' => 'Transfer requires a destination account'],
+                    ['error' => $this->l->t('Transfer requires a destination account')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -148,7 +152,7 @@ class BillController extends Controller {
             // Validate transfer cannot have same source and destination
             if ($isTransfer && $accountId !== null && $accountId === $destinationAccountId) {
                 return new DataResponse(
-                    ['error' => 'Cannot transfer to the same account'],
+                    ['error' => $this->l->t('Cannot transfer to the same account')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -169,12 +173,12 @@ class BillController extends Controller {
 
             // Validate dueDay range
             if ($dueDay !== null && ($dueDay < 1 || $dueDay > 31)) {
-                return new DataResponse(['error' => 'Due day must be between 1 and 31'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Due day must be between 1 and 31')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate dueMonth range
             if ($dueMonth !== null && ($dueMonth < 1 || $dueMonth > 12)) {
-                return new DataResponse(['error' => 'Due month must be between 1 and 12'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Due month must be between 1 and 12')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate autoDetectPattern if provided
@@ -197,7 +201,7 @@ class BillController extends Controller {
 
             // Validate reminderDays if provided
             if ($reminderDays !== null && ($reminderDays < 0 || $reminderDays > 30)) {
-                return new DataResponse(['error' => 'Reminder days must be between 0 and 30'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Reminder days must be between 0 and 30')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate customRecurrencePattern if provided
@@ -210,7 +214,7 @@ class BillController extends Controller {
 
             // Validate transactionDate if provided
             if ($transactionDate !== null && $transactionDate !== '') {
-                $dateValidation = $this->validationService->validateDate($transactionDate, 'Transaction date', false);
+                $dateValidation = $this->validationService->validateDate($transactionDate, $this->l->t('Transaction date'), false);
                 if (!$dateValidation['valid']) {
                     return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -218,7 +222,7 @@ class BillController extends Controller {
 
             // Validate endDate if provided
             if ($endDate !== null && $endDate !== '') {
-                $endDateValidation = $this->validationService->validateDate($endDate, 'End date', false);
+                $endDateValidation = $this->validationService->validateDate($endDate, $this->l->t('End date'), false);
                 if (!$endDateValidation['valid']) {
                     return new DataResponse(['error' => $endDateValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -228,7 +232,7 @@ class BillController extends Controller {
 
             // Validate remainingPayments if provided
             if ($remainingPayments !== null && $remainingPayments < 1) {
-                return new DataResponse(['error' => 'Remaining payments must be at least 1'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Remaining payments must be at least 1')], Http::STATUS_BAD_REQUEST);
             }
 
             $bill = $this->service->create(
@@ -257,7 +261,7 @@ class BillController extends Controller {
 
             return new DataResponse($bill, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create bill');
+            return $this->handleError($e, $this->l->t('Failed to create bill'));
         }
     }
 
@@ -270,7 +274,7 @@ class BillController extends Controller {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             if (!is_array($data)) {
-                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
             $updates = [];
@@ -297,7 +301,7 @@ class BillController extends Controller {
             if (array_key_exists('dueDay', $data)) {
                 if ($data['dueDay'] !== null) {
                     if ($data['dueDay'] < 1 || $data['dueDay'] > 31) {
-                        return new DataResponse(['error' => 'Due day must be between 1 and 31'], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Due day must be between 1 and 31')], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['dueDay'] = (int) $data['dueDay'];
                 } else {
@@ -309,7 +313,7 @@ class BillController extends Controller {
             if (array_key_exists('dueMonth', $data)) {
                 if ($data['dueMonth'] !== null) {
                     if ($data['dueMonth'] < 1 || $data['dueMonth'] > 12) {
-                        return new DataResponse(['error' => 'Due month must be between 1 and 12'], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Due month must be between 1 and 12')], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['dueMonth'] = (int) $data['dueMonth'];
                 } else {
@@ -359,7 +363,7 @@ class BillController extends Controller {
             if (array_key_exists('reminderDays', $data)) {
                 if ($data['reminderDays'] !== null) {
                     if ($data['reminderDays'] < 0 || $data['reminderDays'] > 30) {
-                        return new DataResponse(['error' => 'Reminder days must be between 0 and 30'], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Reminder days must be between 0 and 30')], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['reminderDays'] = (int) $data['reminderDays'];
                 } else {
@@ -401,7 +405,7 @@ class BillController extends Controller {
             }
             if (array_key_exists('endDate', $data)) {
                 if ($data['endDate'] !== null && $data['endDate'] !== '') {
-                    $endDateValidation = $this->validationService->validateDate($data['endDate'], 'End date', false);
+                    $endDateValidation = $this->validationService->validateDate($data['endDate'], $this->l->t('End date'), false);
                     if (!$endDateValidation['valid']) {
                         return new DataResponse(['error' => $endDateValidation['error']], Http::STATUS_BAD_REQUEST);
                     }
@@ -414,7 +418,7 @@ class BillController extends Controller {
                 if ($data['remainingPayments'] !== null && $data['remainingPayments'] !== '') {
                     $remaining = (int) $data['remainingPayments'];
                     if ($remaining < 1) {
-                        return new DataResponse(['error' => 'Remaining payments must be at least 1'], Http::STATUS_BAD_REQUEST);
+                        return new DataResponse(['error' => $this->l->t('Remaining payments must be at least 1')], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['remainingPayments'] = $remaining;
                 } else {
@@ -436,7 +440,7 @@ class BillController extends Controller {
                 }
                 if ($destinationId === null) {
                     return new DataResponse(
-                        ['error' => 'Transfer requires a destination account'],
+                        ['error' => $this->l->t('Transfer requires a destination account')],
                         Http::STATUS_BAD_REQUEST
                     );
                 }
@@ -464,20 +468,20 @@ class BillController extends Controller {
 
                 if ($accountId !== null && $destinationId !== null && $accountId === $destinationId) {
                     return new DataResponse(
-                        ['error' => 'Cannot transfer to the same account'],
+                        ['error' => $this->l->t('Cannot transfer to the same account')],
                         Http::STATUS_BAD_REQUEST
                     );
                 }
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $bill = $this->service->update($id, $this->userId, $updates);
             return new DataResponse($bill);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update bill', Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to update bill'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
         }
     }
 
@@ -491,7 +495,7 @@ class BillController extends Controller {
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Bill', ['billId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
         }
     }
 
@@ -508,7 +512,7 @@ class BillController extends Controller {
             $bill = $this->service->markPaid($id, $this->userId, $paidDate, $createNextTransaction);
             return new DataResponse($bill);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to mark bill as paid', Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
         }
     }
 
@@ -521,7 +525,7 @@ class BillController extends Controller {
             $bills = $this->service->findUpcoming($this->userId, $days);
             return new DataResponse($bills);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve upcoming bills');
+            return $this->handleError($e, $this->l->t('Failed to retrieve upcoming bills'));
         }
     }
 
@@ -534,7 +538,7 @@ class BillController extends Controller {
             $bills = $this->service->findDueThisMonth($this->userId);
             return new DataResponse($bills);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve bills due this month');
+            return $this->handleError($e, $this->l->t('Failed to retrieve bills due this month'));
         }
     }
 
@@ -547,7 +551,7 @@ class BillController extends Controller {
             $bills = $this->service->findOverdue($this->userId);
             return new DataResponse($bills);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve overdue bills');
+            return $this->handleError($e, $this->l->t('Failed to retrieve overdue bills'));
         }
     }
 
@@ -560,7 +564,7 @@ class BillController extends Controller {
             $summary = $this->service->getMonthlySummary($this->userId);
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve bill summary');
+            return $this->handleError($e, $this->l->t('Failed to retrieve bill summary'));
         }
     }
 
@@ -573,7 +577,7 @@ class BillController extends Controller {
             $status = $this->service->getBillStatusForMonth($this->userId, $month);
             return new DataResponse($status);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve bill status');
+            return $this->handleError($e, $this->l->t('Failed to retrieve bill status'));
         }
     }
 
@@ -586,7 +590,7 @@ class BillController extends Controller {
             $detected = $this->service->detectRecurringBills($this->userId, $months);
             return new DataResponse($detected);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to detect recurring bills');
+            return $this->handleError($e, $this->l->t('Failed to detect recurring bills'));
         }
     }
 
@@ -599,7 +603,7 @@ class BillController extends Controller {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             if (!is_array($data) || !isset($data['bills'])) {
-                return new DataResponse(['error' => 'Invalid request data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
             $created = $this->service->createFromDetected($this->userId, $data['bills']);
@@ -608,7 +612,7 @@ class BillController extends Controller {
                 'bills' => $created,
             ], Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create bills from detected patterns');
+            return $this->handleError($e, $this->l->t('Failed to create bills from detected patterns'));
         }
     }
 
@@ -623,7 +627,7 @@ class BillController extends Controller {
 
             // Validate year
             if ($year < 2000 || $year > 2100) {
-                return new DataResponse(['error' => 'Invalid year'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid year')], Http::STATUS_BAD_REQUEST);
             }
 
             // Convert string parameters to boolean
@@ -638,7 +642,7 @@ class BillController extends Controller {
             $overview = $this->service->getAnnualOverview($this->userId, $year, $includeTransfersBool, $billStatus, $accountId);
             return new DataResponse($overview);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate annual overview');
+            return $this->handleError($e, $this->l->t('Failed to generate annual overview'));
         }
     }
 
@@ -656,7 +660,7 @@ class BillController extends Controller {
         try {
             $year = $year ?? (int) date('Y');
             if ($year < 2000 || $year > 2100) {
-                return new DataResponse(['error' => 'Invalid year'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid year')], Http::STATUS_BAD_REQUEST);
             }
 
             $includeTransfersBool = $this->toBool($includeTransfers);
@@ -679,7 +683,7 @@ class BillController extends Controller {
                 $result['contentType']
             );
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to export bills calendar');
+            return $this->handleError($e, $this->l->t('Failed to export bills calendar'));
         }
     }
 
@@ -822,14 +826,14 @@ class BillController extends Controller {
         if (json_last_error() !== JSON_ERROR_NONE) {
             return [
                 'valid' => false,
-                'error' => 'Invalid JSON in custom recurrence pattern',
+                'error' => $this->l->t('Invalid JSON in custom recurrence pattern'),
             ];
         }
 
         if (!is_array($decoded)) {
             return [
                 'valid' => false,
-                'error' => 'Custom recurrence pattern must be a JSON object',
+                'error' => $this->l->t('Custom recurrence pattern must be a JSON object'),
             ];
         }
 
@@ -838,14 +842,14 @@ class BillController extends Controller {
             if (!is_array($decoded['months'])) {
                 return [
                     'valid' => false,
-                    'error' => 'Months must be an array',
+                    'error' => $this->l->t('Months must be an array'),
                 ];
             }
 
             if (empty($decoded['months'])) {
                 return [
                     'valid' => false,
-                    'error' => 'At least one month must be specified',
+                    'error' => $this->l->t('At least one month must be specified'),
                 ];
             }
 
@@ -853,7 +857,7 @@ class BillController extends Controller {
                 if (!is_int($month) || $month < 1 || $month > 12) {
                     return [
                         'valid' => false,
-                        'error' => 'Each month must be a number between 1 and 12',
+                        'error' => $this->l->t('Each month must be a number between 1 and 12'),
                     ];
                 }
             }
@@ -866,14 +870,14 @@ class BillController extends Controller {
             if (!is_array($decoded['dates'])) {
                 return [
                     'valid' => false,
-                    'error' => 'Dates must be an array',
+                    'error' => $this->l->t('Dates must be an array'),
                 ];
             }
 
             if (empty($decoded['dates'])) {
                 return [
                     'valid' => false,
-                    'error' => 'At least one date must be specified',
+                    'error' => $this->l->t('At least one date must be specified'),
                 ];
             }
 
@@ -881,21 +885,21 @@ class BillController extends Controller {
                 if (!is_array($date) || !isset($date['month']) || !isset($date['day'])) {
                     return [
                         'valid' => false,
-                        'error' => 'Each date must have "month" and "day" fields',
+                        'error' => $this->l->t('Each date must have "month" and "day" fields'),
                     ];
                 }
 
                 if (!is_int($date['month']) || $date['month'] < 1 || $date['month'] > 12) {
                     return [
                         'valid' => false,
-                        'error' => 'Month must be a number between 1 and 12',
+                        'error' => $this->l->t('Month must be a number between 1 and 12'),
                     ];
                 }
 
                 if (!is_int($date['day']) || $date['day'] < 1 || $date['day'] > 31) {
                     return [
                         'valid' => false,
-                        'error' => 'Day must be a number between 1 and 31',
+                        'error' => $this->l->t('Day must be a number between 1 and 31'),
                     ];
                 }
             }
@@ -905,7 +909,7 @@ class BillController extends Controller {
 
         return [
             'valid' => false,
-            'error' => 'Custom pattern must contain either "months" or "dates" field',
+            'error' => $this->l->t('Custom pattern must contain either "months" or "dates" field'),
         ];
     }
 }

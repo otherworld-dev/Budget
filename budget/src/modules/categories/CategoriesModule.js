@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 
 export default class CategoriesModule {
@@ -94,7 +95,7 @@ export default class CategoriesModule {
             this.setupCategoriesEventListeners();
         } catch (error) {
             console.error('Failed to load categories:', error);
-            showError('Failed to load categories');
+            showError(t('budget', 'Failed to load categories'));
         }
     }
 
@@ -269,7 +270,7 @@ export default class CategoriesModule {
 
                         <button class="category-delete-btn"
                                 data-category-id="${category.id}"
-                                title="Delete ${category.name}">
+                                title="${t('budget', 'Delete {name}', { name: category.name })}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -445,14 +446,14 @@ export default class CategoriesModule {
             if (response.ok) {
                 // Reload categories to reflect changes
                 await this.loadCategories();
-                showSuccess('Category reordered successfully');
+                showSuccess(t('budget', 'Category reordered successfully'));
             } else {
-                throw new Error('Failed to reorder category');
+                throw new Error(t('budget', 'Failed to reorder category'));
             }
 
         } catch (error) {
             console.error('Failed to reorder category:', error);
-            showError('Failed to reorder category');
+            showError(t('budget', 'Failed to reorder category'));
         }
     }
 
@@ -516,7 +517,8 @@ export default class CategoriesModule {
 
         const typeEl = document.getElementById('category-display-type');
         if (typeEl) {
-            typeEl.textContent = category.type;
+            const typeLabels = { expense: t('budget', 'Expense'), income: t('budget', 'Income') };
+            typeEl.textContent = typeLabels[category.type] || category.type;
             typeEl.className = `category-type-badge ${category.type}`;
         }
 
@@ -536,9 +538,9 @@ export default class CategoriesModule {
         const trendEl = document.getElementById('category-trend');
         if (trendEl) {
             const trendMap = {
-                increasing: '\u2197 Increasing',
-                decreasing: '\u2198 Decreasing',
-                stable: '\u2192 Stable',
+                increasing: '\u2197 ' + t('budget', 'Increasing'),
+                decreasing: '\u2198 ' + t('budget', 'Decreasing'),
+                stable: '\u2192 ' + t('budget', 'Stable'),
             };
             trendEl.textContent = trendMap[details.trend] || '\u2014';
         }
@@ -555,7 +557,7 @@ export default class CategoriesModule {
         if (!container) return;
 
         if (!transactions || transactions.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No transactions in this category yet.</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>' + t('budget', 'No transactions in this category yet.') + '</p></div>';
             return;
         }
 
@@ -705,7 +707,7 @@ export default class CategoriesModule {
             }
         }
 
-        return path.length > 0 ? path.join(' › ') : 'Root';
+        return path.length > 0 ? path.join(' › ') : t('budget', 'Root');
     }
 
     getAllCategoryIds(categories) {
@@ -729,7 +731,7 @@ export default class CategoriesModule {
             return;
         }
 
-        title.textContent = 'Add Category';
+        title.textContent = t('budget', 'Add Category');
         this.resetCategoryForm();
 
         // Set category type BEFORE populating parent dropdown so it filters correctly
@@ -765,7 +767,7 @@ export default class CategoriesModule {
             return;
         }
 
-        title.textContent = 'Edit Category';
+        title.textContent = t('budget', 'Edit Category');
         this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId);
         this.loadCategoryData(this.selectedCategory);
 
@@ -784,7 +786,7 @@ export default class CategoriesModule {
         }
 
         const categoryName = this.selectedCategory.name;
-        if (!confirm(`Are you sure you want to delete the category "${categoryName}"? This action cannot be undone.`)) {
+        if (!confirm(t('budget', 'Are you sure you want to delete the category "{name}"? This action cannot be undone.', { name: categoryName }))) {
             return;
         }
 
@@ -797,26 +799,26 @@ export default class CategoriesModule {
             });
 
             if (response.ok) {
-                showSuccess('Category deleted successfully');
+                showSuccess(t('budget', 'Category deleted successfully'));
                 this.selectedCategory = null;
                 await this.loadCategories();
                 await this.app.loadInitialData();
                 this.showCategoryDetailsEmpty();
             } else {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to delete category');
+                throw new Error(error.error || t('budget', 'Failed to delete category'));
             }
         } catch (error) {
             console.error('Failed to delete category:', error);
-            showError(error.message || 'Failed to delete category');
+            showError(error.message || t('budget', 'Failed to delete category'));
         }
     }
 
     async deleteCategoryById(categoryId) {
         const category = this.findCategoryById(categoryId);
-        const categoryName = category ? category.name : 'this category';
+        const categoryName = category ? category.name : t('budget', 'this category');
 
-        if (!confirm(`Are you sure you want to delete "${categoryName}"? This action cannot be undone.`)) {
+        if (!confirm(t('budget', 'Are you sure you want to delete "{name}"? This action cannot be undone.', { name: categoryName }))) {
             return;
         }
 
@@ -829,7 +831,7 @@ export default class CategoriesModule {
             });
 
             if (response.ok) {
-                showSuccess('Category deleted successfully');
+                showSuccess(t('budget', 'Category deleted successfully'));
                 if (this.selectedCategory?.id === categoryId) {
                     this.selectedCategory = null;
                     this.showCategoryDetailsEmpty();
@@ -839,11 +841,11 @@ export default class CategoriesModule {
                 await this.app.loadInitialData();
             } else {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to delete category');
+                throw new Error(error.error || t('budget', 'Failed to delete category'));
             }
         } catch (error) {
             console.error('Failed to delete category:', error);
-            showError(error.message || 'Failed to delete category');
+            showError(error.message || t('budget', 'Failed to delete category'));
         }
     }
 
@@ -856,7 +858,7 @@ export default class CategoriesModule {
             toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
         }
         if (countSpan) {
-            countSpan.textContent = `${selectedCount} selected`;
+            countSpan.textContent = n('budget', '%n selected', '%n selected', selectedCount);
         }
     }
 
@@ -864,7 +866,7 @@ export default class CategoriesModule {
         const count = this.selectedCategoryIds.size;
         if (count === 0) return;
 
-        if (!confirm(`Are you sure you want to delete ${count} categor${count === 1 ? 'y' : 'ies'}? This action cannot be undone.`)) {
+        if (!confirm(n('budget', 'Are you sure you want to delete %n category? This action cannot be undone.', 'Are you sure you want to delete %n categories? This action cannot be undone.', count))) {
             return;
         }
 
@@ -887,7 +889,7 @@ export default class CategoriesModule {
                 } else {
                     const error = await response.json();
                     const category = this.findCategoryById(categoryId);
-                    errors.push(`${category?.name || categoryId}: ${error.error || 'Failed to delete'}`);
+                    errors.push(`${category?.name || categoryId}: ${error.error || t('budget', 'Failed to delete')}`);
                 }
             } catch (error) {
                 const category = this.findCategoryById(categoryId);
@@ -896,7 +898,7 @@ export default class CategoriesModule {
         }
 
         if (deleted > 0) {
-            showSuccess(`${deleted} categor${deleted === 1 ? 'y' : 'ies'} deleted successfully`);
+            showSuccess(n('budget', '%n category deleted successfully', '%n categories deleted successfully', deleted));
             this.selectedCategory = null;
             this.showCategoryDetailsEmpty();
             await this.loadCategories();
@@ -904,7 +906,7 @@ export default class CategoriesModule {
         }
 
         if (errors.length > 0) {
-            showError(`Failed to delete: ${errors.join(', ')}`);
+            showError(t('budget', 'Failed to delete: {errors}', { errors: errors.join(', ') }));
         }
 
         this.updateBulkCategoryActions();
@@ -963,7 +965,7 @@ export default class CategoriesModule {
         const typeSelect = document.getElementById('category-type');
         const currentType = typeSelect ? typeSelect.value : 'expense';
 
-        parentSelect.innerHTML = '<option value="">None (Top Level)</option>';
+        parentSelect.innerHTML = `<option value="">${t('budget', 'None (Top Level)')}</option>`;
 
         if (this.categoryTree) {
             dom.populateCategorySelect(parentSelect, this.categoryTree, {
@@ -982,7 +984,7 @@ export default class CategoriesModule {
         const color = document.getElementById('category-color').value;
 
         if (!name) {
-            showWarning('Category name is required');
+            showWarning(t('budget', 'Category name is required'));
             return;
         }
 
@@ -1011,7 +1013,7 @@ export default class CategoriesModule {
 
             if (response.ok) {
                 const savedCategory = await response.json();
-                showSuccess(isEdit ? 'Category updated successfully' : 'Category created successfully');
+                showSuccess(isEdit ? t('budget', 'Category updated successfully') : t('budget', 'Category created successfully'));
                 this.app.hideModals();
                 await this.loadCategories();
                 await this.app.loadInitialData();
@@ -1023,11 +1025,11 @@ export default class CategoriesModule {
                 }
             } else {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to save category');
+                throw new Error(error.error || t('budget', 'Failed to save category'));
             }
         } catch (error) {
             console.error('Failed to save category:', error);
-            showError(error.message || 'Failed to save category');
+            showError(error.message || t('budget', 'Failed to save category'));
         }
     }
 
@@ -1043,11 +1045,11 @@ export default class CategoriesModule {
             });
 
             if (response.ok) {
-                showSuccess('Default categories created successfully');
+                showSuccess(t('budget', 'Default categories created successfully'));
                 await this.loadCategories();
                 await this.app.loadInitialData();
             } else {
-                let message = 'Failed to create default categories';
+                let message = t('budget', 'Failed to create default categories');
                 try {
                     const error = await response.json();
                     message = error.error || message;
@@ -1058,7 +1060,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to create default categories:', error);
-            showError(error.message || 'Failed to create default categories');
+            showError(error.message || t('budget', 'Failed to create default categories'));
         }
     }
 
@@ -1153,7 +1155,7 @@ export default class CategoriesModule {
         for (let i = -12; i <= 3; i++) {
             const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const value = date.toISOString().slice(0, 7);
-            const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const label = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
             options.push({ value, label });
         }
 
@@ -1281,7 +1283,7 @@ export default class CategoriesModule {
                         <span class="category-color" style="background-color: ${category.color || '#3b82f6'}"></span>
                         <span class="category-label">${category.name}</span>
                     </div>
-                    <div class="budget-input-wrapper" data-label="Budget">
+                    <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="number"
                                class="budget-input"
                                data-category-id="${category.id}"
@@ -1290,27 +1292,27 @@ export default class CategoriesModule {
                                step="0.01"
                                min="0">
                     </div>
-                    <div data-label="Period">
+                    <div data-label="${t('budget', 'Period')}">
                         <select class="budget-period-select" data-category-id="${category.id}">
-                            <option value="monthly" ${category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : ''}>Monthly</option>
-                            <option value="weekly" ${category.budgetPeriod === 'weekly' ? 'selected' : ''}>Weekly</option>
-                            <option value="quarterly" ${category.budgetPeriod === 'quarterly' ? 'selected' : ''}>Quarterly</option>
-                            <option value="yearly" ${category.budgetPeriod === 'yearly' ? 'selected' : ''}>Yearly</option>
+                            <option value="monthly" ${category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
+                            <option value="weekly" ${category.budgetPeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
+                            <option value="quarterly" ${category.budgetPeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
+                            <option value="yearly" ${category.budgetPeriod === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                         </select>
                     </div>
-                    <div class="budget-spent" data-label="Spent">
+                    <div class="budget-spent" data-label="${t('budget', 'Spent')}">
                         ${this.formatCurrency(spent)}
                     </div>
-                    <div class="budget-remaining ${remainingClass}" data-label="Remaining">
+                    <div class="budget-remaining ${remainingClass}" data-label="${t('budget', 'Remaining')}">
                         ${budget > 0 ? this.formatCurrency(remaining) : '<span class="no-budget">—</span>'}
                     </div>
-                    <div class="budget-progress-wrapper" data-label="Progress">
+                    <div class="budget-progress-wrapper" data-label="${t('budget', 'Progress')}">
                         ${budget > 0 ? `
                             <div class="budget-progress-bar">
                                 <div class="budget-progress-fill ${progressStatus}" style="width: ${percentage}%"></div>
                             </div>
                             <span class="budget-progress-text">${Math.round(percentage)}%</span>
-                        ` : '<span class="no-budget">No budget set</span>'}
+                        ` : `<span class="no-budget">${t('budget', 'No budget set')}</span>`}
                     </div>
                 </div>
                 ${hasChildren ? this.renderBudgetCategoryNodes(category.children, level + 1) : ''}
@@ -1431,10 +1433,10 @@ export default class CategoriesModule {
                     await this.app.loadDashboard();
                 }
 
-                showSuccess('Budget updated');
+                showSuccess(t('budget', 'Budget updated'));
             } else {
                 // Try to get detailed error message
-                let errorMessage = 'Failed to update budget';
+                let errorMessage = t('budget', 'Failed to update budget');
                 try {
                     const errorData = await response.json();
                     if (errorData.error) {
@@ -1447,7 +1449,7 @@ export default class CategoriesModule {
             }
         } catch (error) {
             console.error('Failed to save budget:', error);
-            showError(`Failed to update budget: ${error.message}`);
+            showError(t('budget', 'Failed to update budget: {message}', { message: error.message }));
         }
     }
 

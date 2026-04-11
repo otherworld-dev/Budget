@@ -9,6 +9,7 @@ use OCA\Budget\Db\SavingsGoal;
 use OCA\Budget\Service\GoalsService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -21,13 +22,21 @@ class GoalsControllerTest extends TestCase {
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(GoalsService::class);
-		$validationService = new ValidationService();
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+			}
+			return $text;
+		});
+		$validationService = new ValidationService($l);
 		$logger = $this->createMock(LoggerInterface::class);
 
 		$this->controller = new GoalsController(
 			$this->request,
 			$this->service,
 			$validationService,
+			$l,
 			'user1',
 			$logger
 		);

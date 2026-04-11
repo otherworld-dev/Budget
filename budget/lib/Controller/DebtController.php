@@ -10,22 +10,26 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class DebtController extends Controller {
     private DebtPayoffService $service;
+    private IL10N $l;
     private string $userId;
     private LoggerInterface $logger;
 
     public function __construct(
         IRequest $request,
         DebtPayoffService $service,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
     }
@@ -45,7 +49,7 @@ class DebtController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to retrieve debts'],
+                ['error' => $this->l->t('Failed to retrieve debts')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -66,7 +70,7 @@ class DebtController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to retrieve debt summary'],
+                ['error' => $this->l->t('Failed to retrieve debt summary')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -83,7 +87,7 @@ class DebtController extends Controller {
             // Validate strategy
             if (!in_array($strategy, ['avalanche', 'snowball'], true)) {
                 return new DataResponse(
-                    ['error' => 'Invalid strategy. Must be "avalanche" or "snowball"'],
+                    ['error' => $this->l->t('Invalid strategy. Must be "avalanche" or "snowball"')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -91,7 +95,7 @@ class DebtController extends Controller {
             // Validate extra payment
             if ($extraPayment !== null && $extraPayment < 0) {
                 return new DataResponse(
-                    ['error' => 'Extra payment cannot be negative'],
+                    ['error' => $this->l->t('Extra payment cannot be negative')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -105,7 +109,7 @@ class DebtController extends Controller {
                 'strategy' => $strategy,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to calculate payoff plan'],
+                ['error' => $this->l->t('Failed to calculate payoff plan')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
@@ -122,7 +126,7 @@ class DebtController extends Controller {
             // Validate extra payment
             if ($extraPayment !== null && $extraPayment < 0) {
                 return new DataResponse(
-                    ['error' => 'Extra payment cannot be negative'],
+                    ['error' => $this->l->t('Extra payment cannot be negative')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -135,7 +139,7 @@ class DebtController extends Controller {
                 'userId' => $this->userId,
             ]);
             return new DataResponse(
-                ['error' => 'Failed to compare strategies'],
+                ['error' => $this->l->t('Failed to compare strategies')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }

@@ -1,6 +1,8 @@
 /**
  * Auth Module - Authentication and session management
  */
+import { translate as t } from '@nextcloud/l10n';
+
 export default class AuthModule {
     constructor(app) {
         this.app = app;
@@ -116,18 +118,18 @@ export default class AuthModule {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Password Required</h2>
+                    <h2>${t('budget', 'Password Required')}</h2>
                 </div>
                 <div class="budget-modal-body">
-                    <p>This budget app is password protected. Please enter your password to continue.</p>
+                    <p>${t('budget', 'This budget app is password protected. Please enter your password to continue.')}</p>
                     <form id="budget-auth-form">
                         <div class="form-group">
-                            <label for="budget-auth-password">Password</label>
+                            <label for="budget-auth-password">${t('budget', 'Password')}</label>
                             <input type="password" id="budget-auth-password" class="budget-input" required autocomplete="current-password">
                         </div>
                         <div id="budget-auth-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="submit" class="budget-btn primary">Unlock</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Unlock')}</button>
                         </div>
                     </form>
                 </div>
@@ -174,14 +176,14 @@ export default class AuthModule {
                     this.showView('dashboard');
                 } else {
                     // Show error
-                    errorDiv.textContent = result.error || 'Incorrect password';
+                    errorDiv.textContent = result.error || t('budget', 'Incorrect password');
                     errorDiv.style.display = 'block';
                     passwordInput.value = '';
                     passwordInput.focus();
                 }
             } catch (error) {
                 console.error('Password verification failed:', error);
-                errorDiv.textContent = 'Failed to verify password. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to verify password. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });

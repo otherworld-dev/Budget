@@ -1,6 +1,7 @@
 /**
  * Pensions Module - Pension tracking and projection
  */
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
@@ -27,7 +28,7 @@ export default class PensionsModule {
             this.setupPensionEventListeners();
         } catch (error) {
             console.error('Failed to load pensions view:', error);
-            showError('Failed to load pensions');
+            showError(t('budget', 'Failed to load pensions'));
         }
     }
 
@@ -83,11 +84,11 @@ export default class PensionsModule {
     renderPensionCard(pension) {
         const currency = pension.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
         const typeLabels = {
-            workplace: 'Workplace',
-            personal: 'Personal',
-            sipp: 'SIPP',
-            defined_benefit: 'Defined Benefit',
-            state: 'State Pension'
+            workplace: t('budget', 'Workplace'),
+            personal: t('budget', 'Personal'),
+            sipp: t('budget', 'SIPP'),
+            defined_benefit: t('budget', 'Defined Benefit'),
+            state: t('budget', 'State Pension')
         };
         const typeLabel = typeLabels[pension.type] || pension.type;
 
@@ -95,7 +96,7 @@ export default class PensionsModule {
         if (pension.isDefinedContribution && pension.currentBalance !== null) {
             valueDisplay = formatters.formatCurrency(pension.currentBalance, currency, this.settings);
         } else if (pension.annualIncome !== null) {
-            valueDisplay = formatters.formatCurrency(pension.annualIncome, currency, this.settings) + '/year';
+            valueDisplay = t('budget', '{amount}/year', { amount: formatters.formatCurrency(pension.annualIncome, currency, this.settings) });
         }
 
         return `
@@ -107,16 +108,16 @@ export default class PensionsModule {
                 <div class="pension-card-body">
                     <div class="pension-value">${valueDisplay}</div>
                     ${pension.provider ? `<div class="pension-provider">${dom.escapeHtml(pension.provider)}</div>` : ''}
-                    ${pension.monthlyContribution ? `<div class="pension-contribution">${formatters.formatCurrency(pension.monthlyContribution, currency, this.settings)}/month</div>` : ''}
+                    ${pension.monthlyContribution ? `<div class="pension-contribution">${t('budget', '{amount}/month', { amount: formatters.formatCurrency(pension.monthlyContribution, currency, this.settings) })}</div>` : ''}
                 </div>
                 <div class="pension-card-actions">
-                    <button class="pension-view-btn icon-button" title="View details" data-id="${pension.id}">
+                    <button class="pension-view-btn icon-button" title="${t('budget', 'View details')}" data-id="${pension.id}">
                         <span class="icon-info" aria-hidden="true"></span>
                     </button>
-                    <button class="pension-edit-btn icon-button" title="Edit" data-id="${pension.id}">
+                    <button class="pension-edit-btn icon-button" title="${t('budget', 'Edit')}" data-id="${pension.id}">
                         <span class="icon-rename" aria-hidden="true"></span>
                     </button>
-                    <button class="pension-delete-btn icon-button" title="Delete" data-id="${pension.id}">
+                    <button class="pension-delete-btn icon-button" title="${t('budget', 'Delete')}" data-id="${pension.id}">
                         <span class="icon-delete" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -149,20 +150,20 @@ export default class PensionsModule {
             // Show pension worth if available, otherwise show projected income
             if (pensionWorth > 0) {
                 heroPensionValue.textContent = formatters.formatCurrency(pensionWorth, currency, this.settings);
-                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Worth';
+                if (heroPensionLabel) heroPensionLabel.textContent = t('budget', 'Pension Worth');
             } else if (projectedIncome > 0) {
-                heroPensionValue.textContent = formatters.formatCurrency(projectedIncome, currency, this.settings) + '/yr';
-                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Income';
+                heroPensionValue.textContent = t('budget', '{amount}/yr', { amount: formatters.formatCurrency(projectedIncome, currency, this.settings) });
+                if (heroPensionLabel) heroPensionLabel.textContent = t('budget', 'Pension Income');
             } else {
                 heroPensionValue.textContent = formatters.formatCurrency(0, currency, this.settings);
-                if (heroPensionLabel) heroPensionLabel.textContent = 'Pension Worth';
+                if (heroPensionLabel) heroPensionLabel.textContent = t('budget', 'Pension Worth');
             }
         }
         if (heroPensionCount) {
-            let subtext = count === 1 ? '1 pension' : `${count} pensions`;
+            let subtext = n('budget', '%n pension', '%n pensions', count);
             // If showing income but also have some pot value, mention it
             if (pensionWorth > 0 && projectedIncome > 0) {
-                subtext += ` · ${formatters.formatCurrency(projectedIncome, currency, this.settings)}/yr income`;
+                subtext += ` · ${t('budget', '{amount}/yr income', { amount: formatters.formatCurrency(projectedIncome, currency, this.settings) })}`;
             }
             heroPensionCount.textContent = subtext;
         }
@@ -315,7 +316,7 @@ export default class PensionsModule {
             const pension = this.pensions.find(p => p.id === pensionId);
             if (!pension) return;
 
-            title.textContent = 'Edit Pension';
+            title.textContent = t('budget', 'Edit Pension');
             document.getElementById('pension-id').value = pension.id;
             document.getElementById('pension-name').value = pension.name;
             document.getElementById('pension-type').value = pension.type;
@@ -335,7 +336,7 @@ export default class PensionsModule {
 
             this.togglePensionFields();
         } else {
-            title.textContent = 'Add Pension';
+            title.textContent = t('budget', 'Add Pension');
             document.getElementById('pension-id').value = '';
             document.getElementById('pension-currency').value = formatters.getPrimaryCurrency(this.app.accounts, this.settings);
             this.togglePensionFields();
@@ -392,20 +393,20 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to save pension');
+                throw new Error(error.error || t('budget', 'Failed to save pension'));
             }
 
             this.closePensionModal();
             await this.loadPensions();
             this.renderPensions();
-            showSuccess(pensionId ? 'Pension updated' : 'Pension added');
+            showSuccess(pensionId ? t('budget', 'Pension updated') : t('budget', 'Pension added'));
         } catch (error) {
             showError(error.message);
         }
     }
 
     async deletePension(pensionId) {
-        if (!confirm('Are you sure you want to delete this pension? This action cannot be undone.')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.'))) {
             return;
         }
 
@@ -417,13 +418,13 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to delete pension');
+                throw new Error(error.error || t('budget', 'Failed to delete pension'));
             }
 
             await this.loadPensions();
             this.renderPensions();
             this.closePensionDetails();
-            showSuccess('Pension deleted');
+            showSuccess(t('budget', 'Pension deleted'));
         } catch (error) {
             showError(error.message);
         }
@@ -443,11 +444,11 @@ export default class PensionsModule {
 
         nameEl.textContent = pension.name;
         typeEl.textContent = {
-            workplace: 'Workplace',
-            personal: 'Personal',
-            sipp: 'SIPP',
-            defined_benefit: 'Defined Benefit',
-            state: 'State Pension'
+            workplace: t('budget', 'Workplace'),
+            personal: t('budget', 'Personal'),
+            sipp: t('budget', 'SIPP'),
+            defined_benefit: t('budget', 'Defined Benefit'),
+            state: t('budget', 'State Pension')
         }[pension.type] || pension.type;
 
         if (pension.provider) {
@@ -461,7 +462,7 @@ export default class PensionsModule {
         if (pension.isDefinedContribution && pension.currentBalance !== null) {
             valueEl.textContent = formatters.formatCurrency(pension.currentBalance, currency, this.settings);
         } else if (pension.annualIncome !== null) {
-            valueEl.textContent = formatters.formatCurrency(pension.annualIncome, currency, this.settings) + '/year';
+            valueEl.textContent = t('budget', '{amount}/year', { amount: formatters.formatCurrency(pension.annualIncome, currency, this.settings) });
         } else {
             valueEl.textContent = '--';
         }
@@ -501,7 +502,7 @@ export default class PensionsModule {
                 data: {
                     labels: data.labels,
                     datasets: [{
-                        label: 'Balance',
+                        label: t('budget', 'Balance'),
                         data: data.values,
                         borderColor: '#0082c9',
                         backgroundColor: 'rgba(0, 130, 201, 0.1)',
@@ -552,7 +553,7 @@ export default class PensionsModule {
                 data: {
                     labels: data.labels,
                     datasets: [{
-                        label: 'Projected Value',
+                        label: t('budget', 'Projected Value'),
                         data: data.values,
                         borderColor: '#46ba61',
                         backgroundColor: 'rgba(70, 186, 97, 0.1)',
@@ -593,7 +594,7 @@ export default class PensionsModule {
             const container = document.getElementById('pension-activity-list');
 
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="empty-state-small">No activity yet</div>';
+                container.innerHTML = `<div class="empty-state-small">${t('budget', 'No activity yet')}</div>`;
                 return;
             }
 
@@ -601,8 +602,8 @@ export default class PensionsModule {
 
             container.innerHTML = data.map(activity => {
                 const typeLabels = {
-                    snapshot: 'Balance Update',
-                    contribution: 'Contribution'
+                    snapshot: t('budget', 'Balance Update'),
+                    contribution: t('budget', 'Contribution')
                 };
                 const typeLabel = typeLabels[activity.type] || activity.type;
                 const icon = activity.type === 'contribution' ? 'icon-add' : 'icon-checkmark';
@@ -663,14 +664,14 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to update balance');
+                throw new Error(error.error || t('budget', 'Failed to update balance'));
             }
 
             this.closeBalanceModal();
             await this.loadPensions();
             this.renderPensions();
             await this.showPensionDetails(parseInt(pensionId));
-            showSuccess('Balance updated');
+            showSuccess(t('budget', 'Balance updated'));
         } catch (error) {
             showError(error.message);
         }
@@ -712,12 +713,12 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to log contribution');
+                throw new Error(error.error || t('budget', 'Failed to log contribution'));
             }
 
             this.closeContributionModal();
             await this.showPensionDetails(parseInt(pensionId));
-            showSuccess('Contribution logged');
+            showSuccess(t('budget', 'Contribution logged'));
         } catch (error) {
             showError(error.message);
         }

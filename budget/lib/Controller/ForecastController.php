@@ -10,6 +10,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -17,16 +18,19 @@ class ForecastController extends Controller {
     use ApiErrorHandlerTrait;
 
     private ForecastService $service;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         ForecastService $service,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
     }
@@ -48,7 +52,7 @@ class ForecastController extends Controller {
             );
             return new DataResponse($forecast);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate forecast');
+            return $this->handleError($e, $this->l->t('Failed to generate forecast'));
         }
     }
 
@@ -76,7 +80,7 @@ class ForecastController extends Controller {
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate cash flow forecast');
+            return $this->handleError($e, $this->l->t('Failed to generate cash flow forecast'));
         }
     }
 
@@ -95,7 +99,7 @@ class ForecastController extends Controller {
             );
             return new DataResponse($trends);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve spending trends');
+            return $this->handleError($e, $this->l->t('Failed to retrieve spending trends'));
         }
     }
 
@@ -114,7 +118,7 @@ class ForecastController extends Controller {
             );
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to run forecast scenarios');
+            return $this->handleError($e, $this->l->t('Failed to run forecast scenarios'));
         }
     }
 
@@ -137,7 +141,7 @@ class ForecastController extends Controller {
             );
             return new DataResponse($enhancedForecast);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate enhanced forecast');
+            return $this->handleError($e, $this->l->t('Failed to generate enhanced forecast'));
         }
     }
 
@@ -153,7 +157,7 @@ class ForecastController extends Controller {
             );
             return new DataResponse($forecast);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve live forecast');
+            return $this->handleError($e, $this->l->t('Failed to retrieve live forecast'));
         }
     }
 
@@ -171,7 +175,7 @@ class ForecastController extends Controller {
                 'Content-Disposition' => 'attachment; filename="forecast-export.json"'
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to export forecast');
+            return $this->handleError($e, $this->l->t('Failed to export forecast'));
         }
     }
 }

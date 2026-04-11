@@ -15,11 +15,13 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 
 class SetupController extends Controller {
     private CategoryService $categoryService;
     private ImportRuleService $importRuleService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
@@ -29,11 +31,13 @@ class SetupController extends Controller {
         private FactoryResetService $factoryResetService,
         private AuditService $auditService,
         private AccountService $accountService,
+        IL10N $l,
         string $userId
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->categoryService = $categoryService;
         $this->importRuleService = $importRuleService;
+        $this->l = $l;
         $this->userId = $userId;
     }
 
@@ -52,7 +56,7 @@ class SetupController extends Controller {
             $rules = $this->importRuleService->createDefaultRules($this->userId);
             $results['rulesCreated'] = count($rules);
             
-            $results['message'] = 'Budget app initialized successfully';
+            $results['message'] = $this->l->t('Budget app initialized successfully');
             
             return new DataResponse($results, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -88,7 +92,7 @@ class SetupController extends Controller {
             return new DataResponse([
                 'deleted' => $deleted,
                 'count' => count($deleted),
-                'message' => count($deleted) . ' duplicate categories removed'
+                'message' => $this->l->t('%1$s duplicate categories removed', [count($deleted)])
             ]);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
@@ -106,7 +110,7 @@ class SetupController extends Controller {
             return new DataResponse([
                 'deleted' => $deletedCount,
                 'created' => count($categories),
-                'message' => "Reset complete: deleted $deletedCount, created " . count($categories)
+                'message' => $this->l->t('Reset complete: deleted %1$s, created %2$s', [$deletedCount, count($categories)])
             ]);
         } catch (\Exception $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
@@ -126,7 +130,7 @@ class SetupController extends Controller {
             $confirmed = $this->request->getParam('confirmed', false);
             if (!$confirmed) {
                 return new DataResponse([
-                    'error' => 'Factory reset requires confirmed=true parameter. This will permanently delete ALL your data.'
+                    'error' => $this->l->t('Factory reset requires confirmed=true parameter. This will permanently delete ALL your data.')
                 ], Http::STATUS_BAD_REQUEST);
             }
 
@@ -144,12 +148,12 @@ class SetupController extends Controller {
 
             return new DataResponse([
                 'success' => true,
-                'message' => 'Factory reset completed successfully. All data has been deleted.',
+                'message' => $this->l->t('Factory reset completed successfully. All data has been deleted.'),
                 'deletedCounts' => $counts
             ]);
         } catch (\Exception $e) {
             return new DataResponse([
-                'error' => 'Factory reset failed: ' . $e->getMessage()
+                'error' => $this->l->t('Factory reset failed: %1$s', [$e->getMessage()])
             ], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
@@ -175,7 +179,7 @@ class SetupController extends Controller {
             return new DataResponse($results);
         } catch (\Exception $e) {
             return new DataResponse([
-                'error' => 'Balance recalculation failed: ' . $e->getMessage()
+                'error' => $this->l->t('Balance recalculation failed: %1$s', [$e->getMessage()])
             ], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }

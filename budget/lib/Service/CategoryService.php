@@ -11,6 +11,7 @@ use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\Entity;
+use OCP\IL10N;
 
 /**
  * @extends AbstractCrudService<Category>
@@ -20,19 +21,22 @@ class CategoryService extends AbstractCrudService {
     private TagSetMapper $tagSetMapper;
     private TagMapper $tagMapper;
     private TransactionTagMapper $transactionTagMapper;
+    private IL10N $l;
 
     public function __construct(
         CategoryMapper $mapper,
         TransactionMapper $transactionMapper,
         TagSetMapper $tagSetMapper,
         TagMapper $tagMapper,
-        TransactionTagMapper $transactionTagMapper
+        TransactionTagMapper $transactionTagMapper,
+        IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
         $this->tagSetMapper = $tagSetMapper;
         $this->tagMapper = $tagMapper;
         $this->transactionTagMapper = $transactionTagMapper;
+        $this->l = $l;
     }
 
     /**
@@ -64,7 +68,7 @@ class CategoryService extends AbstractCrudService {
 
         // Prevent duplicate categories (same name, type, and parent)
         if ($this->getCategoryMapper()->existsDuplicate($userId, $name, $type, $parentId)) {
-            throw new \Exception('A category with this name already exists at this level');
+            throw new \Exception($this->l->t('A category with this name already exists at this level'));
         }
 
         $category = new Category();
@@ -88,7 +92,7 @@ class CategoryService extends AbstractCrudService {
         // Validate parent if being updated
         if (isset($updates['parentId']) && $updates['parentId'] !== null) {
             if ($updates['parentId'] === $entity->getId()) {
-                throw new \Exception('Category cannot be its own parent');
+                throw new \Exception($this->l->t('Category cannot be its own parent'));
             }
             $this->find($updates['parentId'], $userId);
         }
@@ -98,7 +102,7 @@ class CategoryService extends AbstractCrudService {
         $type = $updates['type'] ?? $entity->getType();
         $parentId = array_key_exists('parentId', $updates) ? $updates['parentId'] : $entity->getParentId();
         if ($this->getCategoryMapper()->existsDuplicate($userId, $name, $type, $parentId, $entity->getId())) {
-            throw new \Exception('A category with this name already exists at this level');
+            throw new \Exception($this->l->t('A category with this name already exists at this level'));
         }
     }
 
@@ -116,7 +120,7 @@ class CategoryService extends AbstractCrudService {
         // Check for transactions
         $transactions = $this->transactionMapper->findByCategory($entity->getId(), $userId, 1);
         if (!empty($transactions)) {
-            throw new \Exception('Cannot delete category with existing transactions');
+            throw new \Exception($this->l->t('Cannot delete category with existing transactions'));
         }
 
         // Cascade delete: Delete all tag sets for this category

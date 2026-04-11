@@ -5,13 +5,21 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Import;
 
 use OCA\Budget\Service\Import\FileValidator;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class FileValidatorTest extends TestCase {
 	private FileValidator $validator;
 
 	protected function setUp(): void {
-		$this->validator = new FileValidator();
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+			}
+			return $text;
+		});
+		$this->validator = new FileValidator($l);
 	}
 
 	// ── validateSize ────────────────────────────────────────────────

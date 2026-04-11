@@ -9,6 +9,7 @@ use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -25,11 +26,16 @@ class ImportRuleControllerTest extends TestCase {
 		$this->service = $this->createMock(ImportRuleService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new ImportRuleController(
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$l,
 			'user1',
 			$this->logger
 		);

@@ -10,6 +10,7 @@ use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\TransactionService;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class BillServiceTest extends TestCase {
@@ -25,11 +26,19 @@ class BillServiceTest extends TestCase {
 		$this->recurringDetector = $this->createMock(RecurringBillDetector::class);
 		$this->transactionService = $this->createMock(TransactionService::class);
 
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+			}
+			return $text;
+		});
 		$this->service = new BillService(
 			$this->mapper,
 			$this->frequencyCalculator,
 			$this->recurringDetector,
-			$this->transactionService
+			$this->transactionService,
+			$l
 		);
 	}
 

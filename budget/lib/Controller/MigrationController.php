@@ -13,6 +13,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,14 +23,18 @@ use Psr\Log\LoggerInterface;
 class MigrationController extends Controller {
     use ApiErrorHandlerTrait;
 
+    private IL10N $l;
+
     public function __construct(
         IRequest $request,
         private MigrationService $migrationService,
         private AuditService $auditService,
+        IL10N $l,
         private string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
+        $this->l = $l;
         $this->setLogger($logger);
     }
 
@@ -59,7 +64,7 @@ class MigrationController extends Controller {
                 $result['contentType']
             );
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to export data');
+            return $this->handleError($e, $this->l->t('Failed to export data'));
         }
     }
 
@@ -75,14 +80,14 @@ class MigrationController extends Controller {
             $uploadedFile = $this->request->getUploadedFile('file');
             if (!$uploadedFile) {
                 return new DataResponse(
-                    ['error' => 'No file uploaded'],
+                    ['error' => $this->l->t('No file uploaded')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
 
             if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
                 return new DataResponse(
-                    ['error' => 'File upload failed'],
+                    ['error' => $this->l->t('File upload failed')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -97,7 +102,7 @@ class MigrationController extends Controller {
                 Http::STATUS_BAD_REQUEST
             );
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to preview import');
+            return $this->handleError($e, $this->l->t('Failed to preview import'));
         }
     }
 
@@ -113,14 +118,14 @@ class MigrationController extends Controller {
             $uploadedFile = $this->request->getUploadedFile('file');
             if (!$uploadedFile) {
                 return new DataResponse(
-                    ['error' => 'No file uploaded'],
+                    ['error' => $this->l->t('No file uploaded')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
 
             if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
                 return new DataResponse(
-                    ['error' => 'File upload failed'],
+                    ['error' => $this->l->t('File upload failed')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -129,7 +134,7 @@ class MigrationController extends Controller {
             $confirmed = $this->request->getParam('confirmed', false);
             if (!$confirmed) {
                 return new DataResponse(
-                    ['error' => 'Import not confirmed. This operation will replace ALL existing data. Pass confirmed=true to proceed.'],
+                    ['error' => $this->l->t('Import not confirmed. This operation will replace ALL existing data. Pass confirmed=true to proceed.')],
                     Http::STATUS_BAD_REQUEST
                 );
             }
@@ -177,7 +182,7 @@ class MigrationController extends Controller {
                 0,
                 ['error' => $e->getMessage()]
             );
-            return $this->handleError($e, 'Failed to import data');
+            return $this->handleError($e, $this->l->t('Failed to import data'));
         }
     }
 }

@@ -3,6 +3,7 @@
  */
 
 import Chart from 'chart.js/auto';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 // Utilities
 import * as formatters from './utils/formatters.js';
@@ -336,7 +337,7 @@ class BudgetApp {
                 if (existing) existing.remove();
 
                 const transactionId = moreBtn.getAttribute('data-transaction-id');
-                const transaction = this.transactions?.find(t => t.id === parseInt(transactionId));
+                const transaction = this.transactions?.find(tx => tx.id === parseInt(transactionId));
                 const isLinked = transaction?.linkedTransactionId != null;
                 const rect = moreBtn.getBoundingClientRect();
 
@@ -346,17 +347,17 @@ class BudgetApp {
                 menu.style.left = `${rect.left - 4}px`;
                 menu.style.transform = 'translate(-100%, -50%)';
                 menu.innerHTML = `
-                    <button class="action-menu-item transaction-split-btn" data-transaction-id="${transactionId}" title="Split transaction">
+                    <button class="action-menu-item transaction-split-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Split transaction')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22V8"/><path d="M3 8l9-5 9 5"/></svg>
                     </button>
-                    <button class="action-menu-item transaction-share-btn" data-transaction-id="${transactionId}" title="Share expense">
+                    <button class="action-menu-item transaction-share-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Share expense')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     </button>
                     ${isLinked
-                        ? `<button class="action-menu-item transaction-unlink-btn" data-transaction-id="${transactionId}" title="Unlink transfer">
+                        ? `<button class="action-menu-item transaction-unlink-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Unlink transfer')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
                         </button>`
-                        : `<button class="action-menu-item transaction-match-btn" data-transaction-id="${transactionId}" title="Match transfer">
+                        : `<button class="action-menu-item transaction-match-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Match transfer')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                         </button>`
                     }
@@ -404,7 +405,7 @@ class BudgetApp {
             } else if (e.target.classList.contains('transaction-share-btn') || e.target.closest('.transaction-share-btn')) {
                 const button = e.target.classList.contains('transaction-share-btn') ? e.target : e.target.closest('.transaction-share-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
-                const transaction = this.transactions?.find(t => t.id === transactionId);
+                const transaction = this.transactions?.find(tx => tx.id === transactionId);
                 if (transaction) {
                     this.showShareExpenseModal(transaction);
                 }
@@ -692,7 +693,7 @@ class BudgetApp {
             }
 
             if (!accountsResponse.ok) {
-                throw new Error(`Failed to load accounts: ${accountsResponse.status} ${accountsResponse.statusText}`);
+                throw new Error(t('budget', 'Failed to load accounts: {status} {statusText}', { status: accountsResponse.status, statusText: accountsResponse.statusText }));
             }
             const accountsData = await accountsResponse.json();
             this.accounts = Array.isArray(accountsData) ? accountsData : [];
@@ -712,7 +713,7 @@ class BudgetApp {
             this.populateCurrencyDropdowns();
         } catch (error) {
             console.error('Failed to load initial data:', error);
-            showError('Failed to load data');
+            showError(t('budget', 'Failed to load data'));
         }
     }
 
@@ -962,18 +963,18 @@ class BudgetApp {
             const isLinked = transaction.linkedTransactionId != null;
             const linkedAccountName = transaction.linkedAccountName || this.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
             const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? `Transfer ${linkedDirection} ${this.escapeHtml(linkedAccountName)}` : 'Transfer';
-            const linkedTitle = linkedAccountName ? `Click to view linked transaction in ${this.escapeHtml(linkedAccountName)}` : 'Linked transfer';
+            const linkedLabel = linkedAccountName ? `${t('budget', 'Transfer')} ${linkedDirection} ${this.escapeHtml(linkedAccountName)}` : t('budget', 'Transfer');
+            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: this.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
             const linkedBadge = isLinked
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
                 : '';
             const isSplit = transaction.isSplit || transaction.is_split;
             const splitBadge = isSplit
-                ? `<span class="split-indicator" title="Split transaction">Split</span>`
+                ? `<span class="split-indicator" title="${t('budget', 'Split transaction')}">${t('budget', 'Split')}</span>`
                 : '';
             const matchOption = !isLinked
-                ? `<option value="match">Match Transfer</option>`
-                : `<option value="unlink">Unlink Transfer</option>`;
+                ? `<option value="match">${t('budget', 'Match Transfer')}</option>`
+                : `<option value="unlink">${t('budget', 'Unlink Transfer')}</option>`;
 
             return `
                 <tr class="transaction-row ${isLinked ? 'is-linked' : ''}" data-transaction-id="${transaction.id}">
@@ -993,7 +994,7 @@ class BudgetApp {
                         data-value="${this.escapeHtml(transaction.description)}"
                         data-transaction-id="${transaction.id}">
                         <div class="transaction-description">
-                            <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || 'No description'}</span>
+                            <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
                             ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
                             ${linkedBadge}
                             ${splitBadge}
@@ -1010,7 +1011,7 @@ class BudgetApp {
                         data-value="${transaction.categoryId || ''}"
                         data-transaction-id="${transaction.id}">
                         <span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
-                            ${category ? this.escapeHtml(category.name) : 'Uncategorized'}
+                            ${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}
                         </span>
                     </td>
                     <td class="tags-column editable-cell"
@@ -1038,23 +1039,23 @@ class BudgetApp {
                         data-field="accountId"
                         data-value="${transaction.accountId}"
                         data-transaction-id="${transaction.id}">
-                        <span class="account-name cell-display">${account ? this.escapeHtml(account.name) : 'Unknown Account'}</span>
+                        <span class="account-name cell-display">${account ? this.escapeHtml(account.name) : t('budget', 'Unknown Account')}</span>
                     </td>
                     <td class="actions-column">
                         <div class="transaction-actions">
                             <button class="action-btn more-actions-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="More actions">
+                                    title="${t('budget', 'More actions')}">
                                 <span aria-hidden="true">&#x22EE;</span>
                             </button>
                             <button class="action-btn edit-btn transaction-edit-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="Edit transaction">
+                                    title="${t('budget', 'Edit transaction')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
                             <button class="action-btn delete-btn transaction-delete-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="Delete transaction">
+                                    title="${t('budget', 'Delete transaction')}">
                                 <span class="icon-delete" aria-hidden="true"></span>
                             </button>
                         </div>
@@ -1255,7 +1256,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to load transactions:', error);
-            showError('Failed to load transactions');
+            showError(t('budget', 'Failed to load transactions'));
         }
     }
 
@@ -1301,25 +1302,25 @@ class BudgetApp {
             const totalTransactions = result.total || this.transactions.length;
             const displayedTransactions = this.transactions.length;
             countElement.textContent = result.total ?
-                `${displayedTransactions} of ${totalTransactions} transactions` :
-                `${displayedTransactions} transactions`;
+                t('budget', '{displayed} of {total} transactions', { displayed: displayedTransactions, total: totalTransactions }) :
+                n('budget', '%n transaction', '%n transactions', displayedTransactions);
         }
 
         if (totalElement && this.transactions) {
-            const total = this.transactions.reduce((sum, t) => {
-                return sum + (t.type === 'credit' ? t.amount : -t.amount);
+            const total = this.transactions.reduce((sum, tx) => {
+                return sum + (tx.type === 'credit' ? tx.amount : -tx.amount);
             }, 0);
 
             // Determine most common currency from displayed transactions
             const currencyCounts = {};
-            this.transactions.forEach(t => {
-                const currency = t.accountCurrency || this.getPrimaryCurrency();
+            this.transactions.forEach(tx => {
+                const currency = tx.accountCurrency || this.getPrimaryCurrency();
                 currencyCounts[currency] = (currencyCounts[currency] || 0) + 1;
             });
             const mostCommonCurrency = Object.entries(currencyCounts)
                 .sort((a, b) => b[1] - a[1])[0]?.[0] || this.getPrimaryCurrency();
 
-            totalElement.textContent = `Total: ${this.formatCurrency(total, mostCommonCurrency)}`;
+            totalElement.textContent = t('budget', 'Total: {amount}', { amount: this.formatCurrency(total, mostCommonCurrency) });
         }
     }
 
@@ -1338,7 +1339,7 @@ class BudgetApp {
 
         if (result && result.total && result.totalPages) {
             const currentPage = this.currentPage || 1;
-            const pageText = `Page ${currentPage} of ${result.totalPages}`;
+            const pageText = t('budget', 'Page {current} of {total}', { current: currentPage, total: result.totalPages });
             const atFirstPage = currentPage <= 1;
             const atLastPage = currentPage >= result.totalPages;
 
@@ -1523,25 +1524,25 @@ class BudgetApp {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Set Up Password Protection</h2>
+                    <h2>${t('budget', 'Set Up Password Protection')}</h2>
                     <button class="close-btn">×</button>
                 </div>
                 <div class="budget-modal-body">
-                    <p>Enter a password to protect your budget app. You will need to enter this password when accessing the app.</p>
+                    <p>${t('budget', 'Enter a password to protect your budget app. You will need to enter this password when accessing the app.')}</p>
                     <form id="setup-password-form">
                         <div class="form-group">
-                            <label for="new-password">New Password</label>
+                            <label for="new-password">${t('budget', 'New Password')}</label>
                             <input type="password" id="new-password" class="budget-input" required minlength="6" autocomplete="new-password">
-                            <small>Minimum 6 characters</small>
+                            <small>${t('budget', 'Minimum 6 characters')}</small>
                         </div>
                         <div class="form-group">
-                            <label for="confirm-password">Confirm Password</label>
+                            <label for="confirm-password">${t('budget', 'Confirm Password')}</label>
                             <input type="password" id="confirm-password" class="budget-input" required autocomplete="new-password">
                         </div>
                         <div id="setup-password-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
-                            <button type="submit" class="budget-btn primary">Set Password</button>
+                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Set Password')}</button>
                         </div>
                     </form>
                 </div>
@@ -1562,7 +1563,7 @@ class BudgetApp {
             const confirmPassword = confirmPasswordInput.value;
 
             if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'Passwords do not match';
+                errorDiv.textContent = t('budget', 'Passwords do not match');
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -1584,18 +1585,18 @@ class BudgetApp {
                     this.sessionToken = result.sessionToken;
                     localStorage.setItem('budget_session_token', result.sessionToken);
 
-                    showSuccess('Password protection enabled');
+                    showSuccess(t('budget', 'Password protection enabled'));
                     modal.remove();
 
                     // Update UI
                     this.updatePasswordButtons(true);
                 } else {
-                    errorDiv.textContent = result.error || 'Failed to set password';
+                    errorDiv.textContent = result.error || t('budget', 'Failed to set password');
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Failed to set password:', error);
-                errorDiv.textContent = 'Failed to set password. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to set password. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });
@@ -1619,28 +1620,28 @@ class BudgetApp {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Change Password</h2>
+                    <h2>${t('budget', 'Change Password')}</h2>
                     <button class="close-btn">×</button>
                 </div>
                 <div class="budget-modal-body">
                     <form id="change-password-form">
                         <div class="form-group">
-                            <label for="current-password">Current Password</label>
+                            <label for="current-password">${t('budget', 'Current Password')}</label>
                             <input type="password" id="current-password" class="budget-input" required autocomplete="current-password">
                         </div>
                         <div class="form-group">
-                            <label for="new-password-change">New Password</label>
+                            <label for="new-password-change">${t('budget', 'New Password')}</label>
                             <input type="password" id="new-password-change" class="budget-input" required minlength="6" autocomplete="new-password">
-                            <small>Minimum 6 characters</small>
+                            <small>${t('budget', 'Minimum 6 characters')}</small>
                         </div>
                         <div class="form-group">
-                            <label for="confirm-password-change">Confirm New Password</label>
+                            <label for="confirm-password-change">${t('budget', 'Confirm New Password')}</label>
                             <input type="password" id="confirm-password-change" class="budget-input" required autocomplete="new-password">
                         </div>
                         <div id="change-password-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
-                            <button type="submit" class="budget-btn primary">Change Password</button>
+                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Change Password')}</button>
                         </div>
                     </form>
                 </div>
@@ -1663,7 +1664,7 @@ class BudgetApp {
             const confirmPassword = confirmPasswordInput.value;
 
             if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'New passwords do not match';
+                errorDiv.textContent = t('budget', 'New passwords do not match');
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -1684,15 +1685,15 @@ class BudgetApp {
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    showSuccess('Password changed successfully');
+                    showSuccess(t('budget', 'Password changed successfully'));
                     modal.remove();
                 } else {
-                    errorDiv.textContent = result.error || 'Failed to change password';
+                    errorDiv.textContent = result.error || t('budget', 'Failed to change password');
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Failed to change password:', error);
-                errorDiv.textContent = 'Failed to change password. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to change password. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });
@@ -1716,20 +1717,20 @@ class BudgetApp {
         modal.innerHTML = `
             <div class="budget-modal">
                 <div class="budget-modal-header">
-                    <h2>Disable Password Protection</h2>
+                    <h2>${t('budget', 'Disable Password Protection')}</h2>
                     <button class="close-btn">×</button>
                 </div>
                 <div class="budget-modal-body">
-                    <p>Enter your current password to disable password protection.</p>
+                    <p>${t('budget', 'Enter your current password to disable password protection.')}</p>
                     <form id="disable-password-form">
                         <div class="form-group">
-                            <label for="disable-current-password">Current Password</label>
+                            <label for="disable-current-password">${t('budget', 'Current Password')}</label>
                             <input type="password" id="disable-current-password" class="budget-input" required autocomplete="current-password">
                         </div>
                         <div id="disable-password-error" class="error-message" style="display: none;"></div>
                         <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">Cancel</button>
-                            <button type="submit" class="budget-btn primary">Disable Protection</button>
+                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
+                            <button type="submit" class="budget-btn primary">${t('budget', 'Disable Protection')}</button>
                         </div>
                     </form>
                 </div>
@@ -1767,15 +1768,15 @@ class BudgetApp {
                     const passwordConfig = document.getElementById('password-protection-config');
                     if (passwordConfig) passwordConfig.style.display = 'none';
 
-                    showSuccess('Password protection disabled');
+                    showSuccess(t('budget', 'Password protection disabled'));
                     modal.remove();
                 } else {
-                    errorDiv.textContent = result.error || 'Failed to disable password protection';
+                    errorDiv.textContent = result.error || t('budget', 'Failed to disable password protection');
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Failed to disable password protection:', error);
-                errorDiv.textContent = 'Failed to disable password protection. Please try again.';
+                errorDiv.textContent = t('budget', 'Failed to disable password protection. Please try again.');
                 errorDiv.style.display = 'block';
             }
         });
@@ -1799,7 +1800,7 @@ class BudgetApp {
         btn.addEventListener('click', async () => {
             const originalText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Recalculating...';
+            btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Recalculating...');
 
             try {
                 const response = await fetch(OC.generateUrl('/apps/budget/api/setup/recalculate-balances'), {
@@ -1813,18 +1814,18 @@ class BudgetApp {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Recalculation failed');
+                    throw new Error(data.error || t('budget', 'Recalculation failed'));
                 }
 
                 if (data.updated > 0) {
-                    showSuccess(`Recalculated ${data.updated} of ${data.total} account balances`);
+                    showSuccess(t('budget', 'Recalculated {updated} of {total} account balances', { updated: data.updated, total: data.total }));
                     this.loadAccounts();
                 } else {
-                    showSuccess('All account balances are correct');
+                    showSuccess(t('budget', 'All account balances are correct'));
                 }
             } catch (error) {
                 console.error('Failed to recalculate balances:', error);
-                showError('Failed to recalculate balances: ' + error.message);
+                showError(t('budget', 'Failed to recalculate balances: {error}', { error: error.message }));
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
@@ -1910,7 +1911,7 @@ class BudgetApp {
             const confirmBtn = document.getElementById('factory-reset-confirm-btn');
             if (confirmBtn) {
                 confirmBtn.disabled = true;
-                confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> Deleting...';
+                confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Deleting...');
             }
 
             const response = await fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
@@ -1927,14 +1928,14 @@ class BudgetApp {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Factory reset failed');
+                throw new Error(data.error || t('budget', 'Factory reset failed'));
             }
 
             // Close modal
             this.closeFactoryResetModal();
 
             // Show success message
-            showSuccess('Factory reset completed successfully. All data has been deleted.');
+            showSuccess(t('budget', 'Factory reset completed successfully. All data has been deleted.'));
 
             // Reload the page to show empty state
             setTimeout(() => {
@@ -1948,10 +1949,10 @@ class BudgetApp {
             const confirmBtn = document.getElementById('factory-reset-confirm-btn');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> Delete Everything';
+                confirmBtn.innerHTML = '<span class="icon-delete" aria-hidden="true"></span> ' + t('budget', 'Delete Everything');
             }
 
-            showError(error.message || 'Failed to perform factory reset');
+            showError(error.message || t('budget', 'Failed to perform factory reset'));
         }
     }
 
@@ -2024,7 +2025,7 @@ class BudgetApp {
 
         try {
             exportBtn.disabled = true;
-            exportBtn.innerHTML = '<span class="icon-loading-small"></span> Exporting...';
+            exportBtn.innerHTML = '<span class="icon-loading-small"></span> ' + t('budget', 'Exporting...');
 
             const response = await fetch(OC.generateUrl('/apps/budget/api/migration/export'), {
                 headers: {
@@ -2033,7 +2034,7 @@ class BudgetApp {
             });
 
             if (!response.ok) {
-                throw new Error('Export failed');
+                throw new Error(t('budget', 'Export failed'));
             }
 
             // Get filename from Content-Disposition header or use default
@@ -2057,10 +2058,10 @@ class BudgetApp {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            showSuccess('Export completed successfully');
+            showSuccess(t('budget', 'Export completed successfully'));
         } catch (error) {
             console.error('Export error:', error);
-            showError('Failed to export data: ' + error.message);
+            showError(t('budget', 'Failed to export data: {error}', { error: error.message }));
         } finally {
             exportBtn.disabled = false;
             exportBtn.innerHTML = originalText;
@@ -2069,7 +2070,7 @@ class BudgetApp {
 
     async handleMigrationFileSelect(file) {
         if (!file.name.endsWith('.zip')) {
-            showWarning('Please select a ZIP file');
+            showWarning(t('budget', 'Please select a ZIP file'));
             return;
         }
 
@@ -2082,7 +2083,7 @@ class BudgetApp {
 
         dropzone.style.display = 'none';
         progress.style.display = 'block';
-        document.getElementById('migration-progress-text').textContent = 'Validating file...';
+        document.getElementById('migration-progress-text').textContent = t('budget', 'Validating file...');
 
         try {
             const formData = new FormData();
@@ -2099,14 +2100,14 @@ class BudgetApp {
             const result = await response.json();
 
             if (!response.ok || !result.valid) {
-                throw new Error(result.error || 'Invalid export file');
+                throw new Error(result.error || t('budget', 'Invalid export file'));
             }
 
             // Populate preview
-            document.getElementById('preview-version').textContent = result.manifest?.version || 'Unknown';
+            document.getElementById('preview-version').textContent = result.manifest?.version || t('budget', 'Unknown');
             document.getElementById('preview-date').textContent = result.manifest?.exportedAt
                 ? new Date(result.manifest.exportedAt).toLocaleString()
-                : 'Unknown';
+                : t('budget', 'Unknown');
 
             document.getElementById('preview-categories').textContent = result.counts?.categories || 0;
             document.getElementById('preview-accounts').textContent = result.counts?.accounts || 0;
@@ -2130,7 +2131,7 @@ class BudgetApp {
             preview.style.display = 'block';
         } catch (error) {
             console.error('Preview error:', error);
-            showError('Failed to preview file: ' + error.message);
+            showError(t('budget', 'Failed to preview file: {error}', { error: error.message }));
             this.resetMigrationUI();
         }
     }
@@ -2142,12 +2143,12 @@ class BudgetApp {
 
     async confirmMigrationImport() {
         if (!this.migrationFile) {
-            showWarning('No file selected');
+            showWarning(t('budget', 'No file selected'));
             return;
         }
 
         // Double confirmation
-        if (!confirm('This will PERMANENTLY DELETE all your existing data and replace it with the imported data.\n\nAre you absolutely sure you want to continue?')) {
+        if (!confirm(t('budget', 'This will PERMANENTLY DELETE all your existing data and replace it with the imported data.') + '\n\n' + t('budget', 'Are you absolutely sure you want to continue?'))) {
             return;
         }
 
@@ -2157,7 +2158,7 @@ class BudgetApp {
 
         preview.style.display = 'none';
         progress.style.display = 'block';
-        document.getElementById('migration-progress-text').textContent = 'Importing data... This may take a moment.';
+        document.getElementById('migration-progress-text').textContent = t('budget', 'Importing data... This may take a moment.');
 
         try {
             const formData = new FormData();
@@ -2177,7 +2178,7 @@ class BudgetApp {
             progress.style.display = 'none';
 
             if (!response.ok || !data.success) {
-                throw new Error(data.error || 'Import failed');
+                throw new Error(data.error || t('budget', 'Import failed'));
             }
 
             // Show success result
@@ -2185,15 +2186,15 @@ class BudgetApp {
             resultContent.innerHTML = `
                 <div class="result-success">
                     <span class="icon-checkmark-color"></span>
-                    <h5>Import Successful!</h5>
-                    <p>Your data has been imported successfully.</p>
+                    <h5>${t('budget', 'Import Successful!')}</h5>
+                    <p>${t('budget', 'Your data has been imported successfully.')}</p>
                     <div class="result-counts">
-                        <div class="result-count"><strong>${data.counts.categories}</strong> categories</div>
-                        <div class="result-count"><strong>${data.counts.accounts}</strong> accounts</div>
-                        <div class="result-count"><strong>${data.counts.transactions}</strong> transactions</div>
-                        <div class="result-count"><strong>${data.counts.bills}</strong> bills</div>
-                        <div class="result-count"><strong>${data.counts.importRules}</strong> import rules</div>
-                        <div class="result-count"><strong>${data.counts.settings}</strong> settings</div>
+                        <div class="result-count"><strong>${data.counts.categories}</strong> ${t('budget', 'categories')}</div>
+                        <div class="result-count"><strong>${data.counts.accounts}</strong> ${t('budget', 'accounts')}</div>
+                        <div class="result-count"><strong>${data.counts.transactions}</strong> ${t('budget', 'transactions')}</div>
+                        <div class="result-count"><strong>${data.counts.bills}</strong> ${t('budget', 'bills')}</div>
+                        <div class="result-count"><strong>${data.counts.importRules}</strong> ${t('budget', 'import rules')}</div>
+                        <div class="result-count"><strong>${data.counts.settings}</strong> ${t('budget', 'settings')}</div>
                     </div>
                 </div>
             `;
@@ -2201,7 +2202,7 @@ class BudgetApp {
 
             // Reload application data
             this.loadInitialData();
-            showSuccess('Import completed successfully');
+            showSuccess(t('budget', 'Import completed successfully'));
         } catch (error) {
             console.error('Import error:', error);
 
@@ -2209,9 +2210,9 @@ class BudgetApp {
             resultContent.innerHTML = `
                 <div class="result-error">
                     <span class="icon-error-color"></span>
-                    <h5>Import Failed</h5>
+                    <h5>${t('budget', 'Import Failed')}</h5>
                     <p>${error.message}</p>
-                    <p class="result-hint">Your existing data has not been modified.</p>
+                    <p class="result-hint">${t('budget', 'Your existing data has not been modified.')}</p>
                 </div>
             `;
             result.style.display = 'block';
@@ -2397,7 +2398,7 @@ class BudgetApp {
                 const countEl = document.getElementById('debt-view-count');
 
                 if (totalEl) totalEl.textContent = this.formatCurrency(summary.totalBalance, currency);
-                if (rateEl) rateEl.textContent = summary.highestInterestRate > 0 ? `${summary.highestInterestRate.toFixed(1)}%` : 'N/A';
+                if (rateEl) rateEl.textContent = summary.highestInterestRate > 0 ? `${summary.highestInterestRate.toFixed(1)}%` : t('budget', 'N/A');
                 if (minEl) minEl.textContent = this.formatCurrency(summary.totalMinimumPayment, currency);
                 if (countEl) countEl.textContent = summary.debtCount.toString();
             }
@@ -2418,7 +2419,7 @@ class BudgetApp {
         if (!container) return;
 
         if (!Array.isArray(debts) || debts.length === 0) {
-            container.innerHTML = '<div class="empty-state">No debt accounts found. Debts are pulled from liability accounts (credit cards, loans, mortgages).</div>';
+            container.innerHTML = '<div class="empty-state">' + t('budget', 'No debt accounts found. Debts are pulled from liability accounts (credit cards, loans, mortgages).') + '</div>';
             return;
         }
 
@@ -2436,16 +2437,16 @@ class BudgetApp {
                     </div>
                     <div class="debt-item-details">
                         <div class="debt-detail">
-                            <span class="detail-label">Balance</span>
+                            <span class="detail-label">${t('budget', 'Balance')}</span>
                             <span class="detail-value debt-balance">${this.formatCurrency(balance, currency)}</span>
                         </div>
                         <div class="debt-detail">
-                            <span class="detail-label">Interest Rate</span>
-                            <span class="detail-value">${rate > 0 ? rate.toFixed(1) + '%' : 'N/A'}</span>
+                            <span class="detail-label">${t('budget', 'Interest Rate')}</span>
+                            <span class="detail-value">${rate > 0 ? rate.toFixed(1) + '%' : t('budget', 'N/A')}</span>
                         </div>
                         <div class="debt-detail">
-                            <span class="detail-label">Min Payment</span>
-                            <span class="detail-value">${minPayment > 0 ? this.formatCurrency(minPayment, currency) : 'Not set'}</span>
+                            <span class="detail-label">${t('budget', 'Min Payment')}</span>
+                            <span class="detail-value">${minPayment > 0 ? this.formatCurrency(minPayment, currency) : t('budget', 'Not set')}</span>
                         </div>
                     </div>
                 </div>
@@ -2475,7 +2476,7 @@ class BudgetApp {
                 headers: { 'requesttoken': OC.requestToken }
             });
 
-            if (!response.ok) throw new Error('Failed to calculate payoff plan');
+            if (!response.ok) throw new Error(t('budget', 'Failed to calculate payoff plan'));
 
             const plan = await response.json();
             this.displayPayoffPlan(plan);
@@ -2486,7 +2487,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to calculate payoff plan:', error);
-            showError('Failed to calculate payoff plan');
+            showError(t('budget', 'Failed to calculate payoff plan'));
         }
     }
 
@@ -2507,15 +2508,15 @@ class BudgetApp {
             const years = Math.floor(plan.totalMonths / 12);
             const months = plan.totalMonths % 12;
             if (years > 0) {
-                monthsEl.textContent = `${years}y ${months}m`;
+                monthsEl.textContent = t('budget', '{years}y {months}m', { years, months });
             } else {
-                monthsEl.textContent = `${months} months`;
+                monthsEl.textContent = n('budget', '%n month', '%n months', months);
             }
         }
 
         if (dateEl && plan.payoffDate) {
             const date = new Date(plan.payoffDate);
-            dateEl.textContent = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            dateEl.textContent = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
         }
 
         if (interestEl) interestEl.textContent = this.formatCurrency(plan.totalInterest, currency);
@@ -2532,13 +2533,13 @@ class BudgetApp {
                         <div class="payoff-order-meta">
                             <span>${this.formatCurrency(debt.originalBalance, currency)}</span>
                             <span class="meta-separator">•</span>
-                            <span>${debt.interestRate}% APR</span>
+                            <span>${debt.interestRate}% ${t('budget', 'APR')}</span>
                             <span class="meta-separator">•</span>
-                            <span>Paid off month ${debt.payoffMonth}</span>
+                            <span>${t('budget', 'Paid off month {month}', { month: debt.payoffMonth })}</span>
                         </div>
                     </div>
                     <div class="payoff-order-interest">
-                        <span class="interest-label">Interest</span>
+                        <span class="interest-label">${t('budget', 'Interest')}</span>
                         <span class="interest-value">${this.formatCurrency(debt.interestPaid, currency)}</span>
                     </div>
                 </div>
@@ -2554,7 +2555,7 @@ class BudgetApp {
                 headers: { 'requesttoken': OC.requestToken }
             });
 
-            if (!response.ok) throw new Error('Failed to compare strategies');
+            if (!response.ok) throw new Error(t('budget', 'Failed to compare strategies'));
 
             const comparison = await response.json();
             this.displayComparison(comparison);
@@ -2565,7 +2566,7 @@ class BudgetApp {
 
         } catch (error) {
             console.error('Failed to compare strategies:', error);
-            showError('Failed to compare strategies');
+            showError(t('budget', 'Failed to compare strategies'));
         }
     }
 
@@ -2579,13 +2580,13 @@ class BudgetApp {
         // Update avalanche stats
         const avalancheMonths = document.getElementById('avalanche-months');
         const avalancheInterest = document.getElementById('avalanche-interest');
-        if (avalancheMonths) avalancheMonths.textContent = `${comparison.avalanche.totalMonths} months`;
+        if (avalancheMonths) avalancheMonths.textContent = n('budget', '%n month', '%n months', comparison.avalanche.totalMonths);
         if (avalancheInterest) avalancheInterest.textContent = this.formatCurrency(comparison.avalanche.totalInterest, currency);
 
         // Update snowball stats
         const snowballMonths = document.getElementById('snowball-months');
         const snowballInterest = document.getElementById('snowball-interest');
-        if (snowballMonths) snowballMonths.textContent = `${comparison.snowball.totalMonths} months`;
+        if (snowballMonths) snowballMonths.textContent = n('budget', '%n month', '%n months', comparison.snowball.totalMonths);
         if (snowballInterest) snowballInterest.textContent = this.formatCurrency(comparison.snowball.totalInterest, currency);
 
         // Update recommendation
@@ -2598,12 +2599,12 @@ class BudgetApp {
             recommendationEl.innerHTML = `
                 <div class="recommendation-box ${recClass}">
                     <div class="recommendation-title">
-                        ${c.recommendation === 'avalanche' ? 'Avalanche Recommended' :
-                          c.recommendation === 'snowball' ? 'Snowball Recommended' : 'Either Works'}
+                        ${c.recommendation === 'avalanche' ? t('budget', 'Avalanche Recommended') :
+                          c.recommendation === 'snowball' ? t('budget', 'Snowball Recommended') : t('budget', 'Either Works')}
                     </div>
                     <div class="recommendation-text">${this.escapeHtml(c.explanation)}</div>
-                    ${c.interestSavedByAvalanche > 0 ? `<div class="recommendation-savings">Avalanche saves ${this.formatCurrency(c.interestSavedByAvalanche, currency)} in interest</div>` : ''}
-                    ${c.interestSavedByAvalanche < 0 ? `<div class="recommendation-savings">Snowball saves ${this.formatCurrency(Math.abs(c.interestSavedByAvalanche), currency)} in interest</div>` : ''}
+                    ${c.interestSavedByAvalanche > 0 ? `<div class="recommendation-savings">${t('budget', 'Avalanche saves {amount} in interest', { amount: this.formatCurrency(c.interestSavedByAvalanche, currency) })}</div>` : ''}
+                    ${c.interestSavedByAvalanche < 0 ? `<div class="recommendation-savings">${t('budget', 'Snowball saves {amount} in interest', { amount: this.formatCurrency(Math.abs(c.interestSavedByAvalanche), currency) })}</div>` : ''}
                 </div>
             `;
         }
@@ -2691,9 +2692,9 @@ class BudgetApp {
      * Show the matching modal for a transaction
      */
     async showMatchingModal(transactionId) {
-        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
         if (!transaction) {
-            showWarning('Transaction not found');
+            showWarning(t('budget', 'Transaction not found'));
             return;
         }
 
@@ -2712,7 +2713,7 @@ class BudgetApp {
         sourceDetails.querySelector('.source-description').textContent = transaction.description;
         sourceDetails.querySelector('.source-amount').textContent = this.formatCurrency(transaction.amount, currency);
         sourceDetails.querySelector('.source-amount').className = `source-amount ${typeClass}`;
-        sourceDetails.querySelector('.source-account').textContent = account?.name || 'Unknown Account';
+        sourceDetails.querySelector('.source-account').textContent = account?.name || t('budget', 'Unknown Account');
 
         // Show modal and loading state
         modal.style.display = 'flex';
@@ -2740,9 +2741,9 @@ class BudgetApp {
                         <span class="match-date">${this.formatDate(match.date)}</span>
                         <span class="match-description">${this.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || 'Unknown'}</span>
+                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
-                            Link as Transfer
+                            ${t('budget', 'Link as Transfer')}
                         </button>
                     </div>
                 `;
@@ -2751,7 +2752,7 @@ class BudgetApp {
         } catch (error) {
             loadingEl.style.display = 'none';
             emptyEl.style.display = 'flex';
-            emptyEl.querySelector('p').textContent = 'Failed to search for matches. Please try again.';
+            emptyEl.querySelector('p').textContent = t('budget', 'Failed to search for matches. Please try again.');
         }
     }
 
@@ -2761,13 +2762,13 @@ class BudgetApp {
     async handleLinkMatch(sourceId, targetId) {
         try {
             await this.linkTransactions(sourceId, targetId);
-            showSuccess('Transactions linked as transfer');
+            showSuccess(t('budget', 'Transactions linked as transfer'));
 
             // Close modal and refresh transactions
             document.getElementById('matching-modal').style.display = 'none';
             await this.loadTransactions();
         } catch (error) {
-            showError(error.message || 'Failed to link transactions');
+            showError(error.message || t('budget', 'Failed to link transactions'));
         }
     }
 
@@ -2786,7 +2787,7 @@ class BudgetApp {
         }
 
         if (!linkedAccountId) {
-            showWarning('Could not navigate to linked transaction');
+            showWarning(t('budget', 'Could not navigate to linked transaction'));
             return;
         }
 
@@ -2837,16 +2838,16 @@ class BudgetApp {
     }
 
     async handleUnlinkTransaction(transactionId) {
-        if (!confirm('Are you sure you want to unlink this transaction from its transfer pair?')) {
+        if (!confirm(t('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
             return;
         }
 
         try {
             await this.unlinkTransaction(transactionId);
-            showSuccess('Transaction unlinked');
+            showSuccess(t('budget', 'Transaction unlinked'));
             await this.loadTransactions();
         } catch (error) {
-            showError(error.message || 'Failed to unlink transaction');
+            showError(error.message || t('budget', 'Failed to unlink transaction'));
         }
     }
 
@@ -2856,9 +2857,9 @@ class BudgetApp {
      * Show the split modal for a transaction
      */
     async showSplitModal(transactionId) {
-        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
         if (!transaction) {
-            showWarning('Transaction not found');
+            showWarning(t('budget', 'Transaction not found'));
             return;
         }
 
@@ -2874,7 +2875,7 @@ class BudgetApp {
         const splitsContainer = document.getElementById('splits-container');
 
         // Set title and store transaction id
-        titleEl.textContent = isSplit ? 'Edit Transaction Splits' : 'Split Transaction';
+        titleEl.textContent = isSplit ? t('budget', 'Edit Transaction Splits') : t('budget', 'Split Transaction');
         modal.dataset.transactionId = transactionId;
 
         // Display transaction info
@@ -2882,15 +2883,15 @@ class BudgetApp {
         const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
         transactionInfoEl.innerHTML = `
             <div class="split-info-row">
-                <span class="split-info-label">Date:</span>
+                <span class="split-info-label">${t('budget', 'Date')}:</span>
                 <span>${this.formatDate(transaction.date)}</span>
             </div>
             <div class="split-info-row">
-                <span class="split-info-label">Description:</span>
+                <span class="split-info-label">${t('budget', 'Description')}:</span>
                 <span>${this.escapeHtml(transaction.description)}</span>
             </div>
             <div class="split-info-row">
-                <span class="split-info-label">Total Amount:</span>
+                <span class="split-info-label">${t('budget', 'Total Amount')}:</span>
                 <span class="split-total-amount">${this.formatCurrency(transaction.amount, currency)}</span>
             </div>
         `;
@@ -2942,7 +2943,7 @@ class BudgetApp {
 
         // Get the transaction to determine its type
         const transactionId = parseInt(modal?.dataset.transactionId);
-        const transaction = this.transactions?.find(t => t.id === transactionId);
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
         const transactionType = transaction?.type || 'debit';
 
         const row = document.createElement('div');
@@ -2951,25 +2952,25 @@ class BudgetApp {
 
         row.innerHTML = `
             <div class="split-field split-amount-field">
-                <label>Amount</label>
+                <label>${t('budget', 'Amount')}</label>
                 <input type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
-                <label>Category</label>
+                <label>${t('budget', 'Category')}</label>
                 <select class="split-category">
-                    <option value="">Uncategorized</option>
+                    <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
-                <label>Description</label>
+                <label>${t('budget', 'Description')}</label>
                 <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="Optional note">
+                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="Remove split">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}">
                     <span class="icon-delete"></span>
                 </button>
             </div>
@@ -3093,13 +3094,13 @@ class BudgetApp {
 
         // Validate
         if (splits.length < 2) {
-            showWarning('A split transaction must have at least 2 parts');
+            showWarning(t('budget', 'A split transaction must have at least 2 parts'));
             return;
         }
 
         const splitTotal = splits.reduce((sum, s) => sum + s.amount, 0);
         if (Math.abs(splitTotal - totalAmount) > 0.01) {
-            showWarning(`Split amounts (${splitTotal.toFixed(2)}) must equal transaction amount (${totalAmount.toFixed(2)})`);
+            showWarning(t('budget', 'Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})', { splitTotal: splitTotal.toFixed(2), totalAmount: totalAmount.toFixed(2) }));
             return;
         }
 
@@ -3119,11 +3120,11 @@ class BudgetApp {
             }
 
             this.hideSplitModal();
-            showSuccess('Transaction split successfully');
+            showSuccess(t('budget', 'Transaction split successfully'));
             await this.loadTransactions();
         } catch (error) {
             console.error('Failed to save splits:', error);
-            showError(error.message || 'Failed to save splits');
+            showError(error.message || t('budget', 'Failed to save splits'));
         }
     }
 
@@ -3134,7 +3135,7 @@ class BudgetApp {
         const modal = document.getElementById('split-modal');
         const transactionId = parseInt(modal?.dataset.transactionId);
 
-        if (!confirm('Are you sure you want to remove the split and revert to a single transaction?')) {
+        if (!confirm(t('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
             return;
         }
 
@@ -3150,11 +3151,11 @@ class BudgetApp {
             }
 
             this.hideSplitModal();
-            showSuccess('Transaction unsplit successfully');
+            showSuccess(t('budget', 'Transaction unsplit successfully'));
             await this.loadTransactions();
         } catch (error) {
             console.error('Failed to unsplit transaction:', error);
-            showError(error.message || 'Failed to unsplit transaction');
+            showError(error.message || t('budget', 'Failed to unsplit transaction'));
         }
     }
 
@@ -3471,7 +3472,7 @@ class BudgetApp {
         // Prevent hiding all columns (enforce minimum 1 visible)
         const visibleCount = Object.values(this.columnVisibility).filter(v => v).length;
         if (!visible && visibleCount <= 1) {
-            showWarning('At least one column must remain visible');
+            showWarning(t('budget', 'At least one column must remain visible'));
             document.getElementById(`col-toggle-${columnKey}`).checked = true;
             return;
         }
@@ -3498,14 +3499,14 @@ class BudgetApp {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to save column visibility');
+                throw new Error(t('budget', 'Failed to save column visibility'));
             }
 
             this.settings.transaction_columns_visible = JSON.stringify(this.columnVisibility);
 
         } catch (error) {
             console.error('Failed to save column visibility:', error);
-            showError('Failed to save column preferences');
+            showError(t('budget', 'Failed to save column preferences'));
 
             // Revert on failure
             this.columnVisibility[columnKey] = !visible;

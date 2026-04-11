@@ -15,6 +15,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -25,6 +26,7 @@ class AssetController extends Controller {
 	private AssetService $service;
 	private AssetProjector $projector;
 	private ValidationService $validationService;
+	private IL10N $l;
 	private ?string $userId;
 
 	public function __construct(
@@ -32,6 +34,7 @@ class AssetController extends Controller {
 		AssetService $service,
 		AssetProjector $projector,
 		ValidationService $validationService,
+		IL10N $l,
 		?string $userId,
 		LoggerInterface $logger
 	) {
@@ -39,6 +42,7 @@ class AssetController extends Controller {
 		$this->service = $service;
 		$this->projector = $projector;
 		$this->validationService = $validationService;
+		$this->l = $l;
 		$this->userId = $userId;
 		$this->setLogger($logger);
 		$this->setInputValidator($validationService);
@@ -66,7 +70,7 @@ class AssetController extends Controller {
 			$assets = $this->service->findAll($this->getUserId());
 			return new DataResponse($assets);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to retrieve assets');
+			return $this->handleError($e, $this->l->t('Failed to retrieve assets'));
 		}
 	}
 
@@ -78,7 +82,7 @@ class AssetController extends Controller {
 			$asset = $this->service->find($id, $this->getUserId());
 			return new DataResponse($asset);
 		} catch (\Exception $e) {
-			return $this->handleNotFoundError($e, 'Asset', ['assetId' => $id]);
+			return $this->handleNotFoundError($e, $this->l->t('Asset'), ['assetId' => $id]);
 		}
 	}
 
@@ -92,7 +96,7 @@ class AssetController extends Controller {
 			$data = json_decode($rawInput, true);
 
 			if (!$data) {
-				return new DataResponse(['error' => 'Invalid JSON data'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
 			$name = $data['name'] ?? null;
@@ -106,7 +110,7 @@ class AssetController extends Controller {
 
 			// Validate required fields
 			if (!$name || !$type) {
-				return new DataResponse(['error' => 'Name and type are required'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Name and type are required')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate name
@@ -119,7 +123,7 @@ class AssetController extends Controller {
 			// Validate asset type
 			if (!in_array($type, Asset::VALID_TYPES, true)) {
 				return new DataResponse([
-					'error' => 'Invalid asset type. Must be one of: ' . implode(', ', Asset::VALID_TYPES)
+					'error' => $this->l->t('Invalid asset type. Must be one of: %1$s', [implode(', ', Asset::VALID_TYPES)])
 				], Http::STATUS_BAD_REQUEST);
 			}
 
@@ -134,23 +138,23 @@ class AssetController extends Controller {
 
 			// Validate currency if provided
 			if ($currency !== null && strlen($currency) !== 3) {
-				return new DataResponse(['error' => 'Currency must be a 3-letter code'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Currency must be a 3-letter code')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate numeric fields
 			if ($currentValue !== null && $currentValue < 0) {
-				return new DataResponse(['error' => 'Current value cannot be negative'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Current value cannot be negative')], Http::STATUS_BAD_REQUEST);
 			}
 			if ($purchasePrice !== null && $purchasePrice < 0) {
-				return new DataResponse(['error' => 'Purchase price cannot be negative'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Purchase price cannot be negative')], Http::STATUS_BAD_REQUEST);
 			}
 			if ($annualChangeRate !== null && ($annualChangeRate < -1 || $annualChangeRate > 1)) {
-				return new DataResponse(['error' => 'Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%)'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate purchase date if provided
 			if ($purchaseDate !== null && $purchaseDate !== '') {
-				$dateValidation = $this->validationService->validateDate($purchaseDate, 'Purchase date', false);
+				$dateValidation = $this->validationService->validateDate($purchaseDate, $this->l->t('Purchase date'), false);
 				if (!$dateValidation['valid']) {
 					return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
 				}
@@ -169,7 +173,7 @@ class AssetController extends Controller {
 			);
 			return new DataResponse($asset, Http::STATUS_CREATED);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to create asset');
+			return $this->handleError($e, $this->l->t('Failed to create asset'));
 		}
 	}
 
@@ -183,7 +187,7 @@ class AssetController extends Controller {
 			$data = json_decode($rawInput, true);
 
 			if (!$data) {
-				return new DataResponse(['error' => 'Invalid JSON data'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
 			$name = $data['name'] ?? null;
@@ -207,7 +211,7 @@ class AssetController extends Controller {
 			// Validate asset type if provided
 			if ($type !== null && !in_array($type, Asset::VALID_TYPES, true)) {
 				return new DataResponse([
-					'error' => 'Invalid asset type. Must be one of: ' . implode(', ', Asset::VALID_TYPES)
+					'error' => $this->l->t('Invalid asset type. Must be one of: %1$s', [implode(', ', Asset::VALID_TYPES)])
 				], Http::STATUS_BAD_REQUEST);
 			}
 
@@ -222,23 +226,23 @@ class AssetController extends Controller {
 
 			// Validate currency if provided
 			if ($currency !== null && strlen($currency) !== 3) {
-				return new DataResponse(['error' => 'Currency must be a 3-letter code'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Currency must be a 3-letter code')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate numeric fields
 			if ($currentValue !== null && $currentValue < 0) {
-				return new DataResponse(['error' => 'Current value cannot be negative'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Current value cannot be negative')], Http::STATUS_BAD_REQUEST);
 			}
 			if ($purchasePrice !== null && $purchasePrice < 0) {
-				return new DataResponse(['error' => 'Purchase price cannot be negative'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Purchase price cannot be negative')], Http::STATUS_BAD_REQUEST);
 			}
 			if ($annualChangeRate !== null && ($annualChangeRate < -1 || $annualChangeRate > 1)) {
-				return new DataResponse(['error' => 'Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%)'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate purchase date if provided
 			if ($purchaseDate !== null && $purchaseDate !== '') {
-				$dateValidation = $this->validationService->validateDate($purchaseDate, 'Purchase date', false);
+				$dateValidation = $this->validationService->validateDate($purchaseDate, $this->l->t('Purchase date'), false);
 				if (!$dateValidation['valid']) {
 					return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
 				}
@@ -258,7 +262,7 @@ class AssetController extends Controller {
 			);
 			return new DataResponse($asset);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to update asset', Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
+			return $this->handleError($e, $this->l->t('Failed to update asset'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
 		}
 	}
 
@@ -269,9 +273,9 @@ class AssetController extends Controller {
 	public function destroy(int $id): DataResponse {
 		try {
 			$this->service->delete($id, $this->getUserId());
-			return new DataResponse(['message' => 'Asset deleted successfully']);
+			return new DataResponse(['message' => $this->l->t('Asset deleted successfully')]);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to delete asset', Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
+			return $this->handleError($e, $this->l->t('Failed to delete asset'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
 		}
 	}
 
@@ -287,7 +291,7 @@ class AssetController extends Controller {
 			$snapshots = $this->service->getSnapshots($id, $this->getUserId());
 			return new DataResponse($snapshots);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to retrieve snapshots', Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
+			return $this->handleError($e, $this->l->t('Failed to retrieve snapshots'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
 		}
 	}
 
@@ -301,23 +305,23 @@ class AssetController extends Controller {
 			$data = json_decode($rawInput, true);
 
 			if (!$data) {
-				return new DataResponse(['error' => 'Invalid JSON data'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
 			$value = isset($data['value']) ? (float)$data['value'] : null;
 			$date = $data['date'] ?? null;
 
 			if ($value === null || $date === null) {
-				return new DataResponse(['error' => 'Value and date are required'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Value and date are required')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate value
 			if ($value < 0) {
-				return new DataResponse(['error' => 'Value cannot be negative'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Value cannot be negative')], Http::STATUS_BAD_REQUEST);
 			}
 
 			// Validate date
-			$dateValidation = $this->validationService->validateDate($date, 'Date', true);
+			$dateValidation = $this->validationService->validateDate($date, $this->l->t('Date'), true);
 			if (!$dateValidation['valid']) {
 				return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
 			}
@@ -325,7 +329,7 @@ class AssetController extends Controller {
 			$snapshot = $this->service->createSnapshot($id, $this->getUserId(), $value, $date);
 			return new DataResponse($snapshot, Http::STATUS_CREATED);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to create snapshot', Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
+			return $this->handleError($e, $this->l->t('Failed to create snapshot'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
 		}
 	}
 
@@ -336,9 +340,9 @@ class AssetController extends Controller {
 	public function destroySnapshot(int $snapshotId): DataResponse {
 		try {
 			$this->service->deleteSnapshot($snapshotId, $this->getUserId());
-			return new DataResponse(['message' => 'Snapshot deleted successfully']);
+			return new DataResponse(['message' => $this->l->t('Snapshot deleted successfully')]);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to delete snapshot', Http::STATUS_BAD_REQUEST, ['snapshotId' => $snapshotId]);
+			return $this->handleError($e, $this->l->t('Failed to delete snapshot'), Http::STATUS_BAD_REQUEST, ['snapshotId' => $snapshotId]);
 		}
 	}
 
@@ -354,7 +358,7 @@ class AssetController extends Controller {
 			$summary = $this->service->getSummary($this->getUserId());
 			return new DataResponse($summary);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to retrieve asset summary');
+			return $this->handleError($e, $this->l->t('Failed to retrieve asset summary'));
 		}
 	}
 
@@ -366,7 +370,7 @@ class AssetController extends Controller {
 			$projection = $this->projector->getProjection($id, $this->getUserId(), $years ?? 10);
 			return new DataResponse($projection);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to retrieve asset projection', Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
+			return $this->handleError($e, $this->l->t('Failed to retrieve asset projection'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
 		}
 	}
 
@@ -378,7 +382,7 @@ class AssetController extends Controller {
 			$projection = $this->projector->getCombinedProjection($this->getUserId(), $years ?? 10);
 			return new DataResponse($projection);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to retrieve combined asset projection');
+			return $this->handleError($e, $this->l->t('Failed to retrieve combined asset projection'));
 		}
 	}
 
@@ -398,7 +402,7 @@ class AssetController extends Controller {
 			$result = $this->service->getValueHistory($this->getUserId(), $days);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
-			return $this->handleError($e, 'Failed to retrieve asset value history');
+			return $this->handleError($e, $this->l->t('Failed to retrieve asset value history'));
 		}
 	}
 }

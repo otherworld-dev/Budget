@@ -12,6 +12,7 @@ use OCA\Budget\Service\PensionProjector;
 use OCA\Budget\Service\PensionService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,7 @@ class PensionControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 	private bool $streamOverridden = false;
 
 	protected function setUp(): void {
@@ -31,6 +33,10 @@ class PensionControllerTest extends TestCase {
 		$this->projector = $this->createMock(PensionProjector::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		// Default validation mocks
 		$this->validationService->method('validateName')
@@ -45,6 +51,7 @@ class PensionControllerTest extends TestCase {
 			$this->service,
 			$this->projector,
 			$this->validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -149,7 +156,7 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Name required']);
 
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['name' => '', 'type' => 'workplace']));
@@ -179,7 +186,7 @@ class PensionControllerTest extends TestCase {
 			});
 
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -332,7 +339,7 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Bad name']);
 
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['name' => '']));
@@ -486,7 +493,7 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['balance' => 50000, 'date' => 'bad']));
@@ -609,7 +616,7 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['amount' => 500, 'date' => 'bad']));
@@ -626,7 +633,7 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateDescription')->willReturn(['valid' => false, 'error' => 'Note too long']);
 
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -758,7 +765,7 @@ class PensionControllerTest extends TestCase {
 	public function testNullUserIdThrowsOnIndex(): void {
 		$controller = new PensionController(
 			$this->request, $this->service, $this->projector,
-			$this->validationService, null, $this->logger
+			$this->validationService, $this->l, null, $this->logger
 		);
 
 		$response = $controller->index();

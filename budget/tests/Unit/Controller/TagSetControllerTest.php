@@ -10,6 +10,7 @@ use OCA\Budget\Db\TagSet;
 use OCA\Budget\Service\TagSetService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -20,12 +21,17 @@ class TagSetControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(TagSetService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		// Default pass-through for validation
 		$this->validationService->method('validateName')
@@ -41,6 +47,7 @@ class TagSetControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -64,6 +71,7 @@ class TagSetControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$vs,
+			$this->l,
 			'user1',
 			$this->logger
 		);

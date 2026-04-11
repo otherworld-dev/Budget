@@ -10,6 +10,7 @@ use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IL10N;
 
 /**
  * Manages bill CRUD operations and summary calculations.
@@ -19,17 +20,20 @@ class BillService {
     private FrequencyCalculator $frequencyCalculator;
     private RecurringBillDetector $recurringDetector;
     private TransactionService $transactionService;
+    private IL10N $l;
 
     public function __construct(
         BillMapper $mapper,
         FrequencyCalculator $frequencyCalculator,
         RecurringBillDetector $recurringDetector,
-        TransactionService $transactionService
+        TransactionService $transactionService,
+        IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->frequencyCalculator = $frequencyCalculator;
         $this->recurringDetector = $recurringDetector;
         $this->transactionService = $transactionService;
+        $this->l = $l;
     }
 
     /**
@@ -121,17 +125,17 @@ class BillService {
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
-            throw new \InvalidArgumentException('Auto-pay requires an account to be set');
+            throw new \InvalidArgumentException($this->l->t('Auto-pay requires an account to be set'));
         }
 
         // Validate transfer requires destination account
         if ($isTransfer && $destinationAccountId === null) {
-            throw new \InvalidArgumentException('Transfer requires a destination account');
+            throw new \InvalidArgumentException($this->l->t('Transfer requires a destination account'));
         }
 
         // Validate transfer cannot have same source and destination
         if ($isTransfer && $accountId !== null && $accountId === $destinationAccountId) {
-            throw new \InvalidArgumentException('Cannot transfer to the same account');
+            throw new \InvalidArgumentException($this->l->t('Cannot transfer to the same account'));
         }
 
         $bill = new Bill();
@@ -189,7 +193,7 @@ class BillService {
         if (isset($updates['autoPayEnabled']) && $updates['autoPayEnabled'] === true) {
             $currentAccountId = $updates['accountId'] ?? $bill->getAccountId();
             if ($currentAccountId === null) {
-                throw new \InvalidArgumentException('Auto-pay requires an account to be set');
+                throw new \InvalidArgumentException($this->l->t('Auto-pay requires an account to be set'));
             }
         }
 
@@ -496,7 +500,7 @@ class BillService {
             if (!$bill->getAutoPayEnabled()) {
                 return [
                     'success' => false,
-                    'message' => 'Auto-pay is not enabled for this bill',
+                    'message' => $this->l->t('Auto-pay is not enabled for this bill'),
                     'bill' => null,
                 ];
             }
@@ -509,7 +513,7 @@ class BillService {
                 ]);
                 return [
                     'success' => false,
-                    'message' => 'Bill has no account associated',
+                    'message' => $this->l->t('Bill has no account associated'),
                     'bill' => $this->find($id, $userId),
                 ];
             }
@@ -519,7 +523,7 @@ class BillService {
 
             return [
                 'success' => true,
-                'message' => 'Bill auto-paid successfully',
+                'message' => $this->l->t('Bill auto-paid successfully'),
                 'bill' => $bill,
             ];
 

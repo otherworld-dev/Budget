@@ -12,6 +12,7 @@ use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\ExchangeRateService;
 use OCA\Budget\Service\ManualExchangeRateService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -31,6 +32,10 @@ class ExchangeRateControllerTest extends TestCase {
 		$this->manualRateService = $this->createMock(ManualExchangeRateService::class);
 		$this->exchangeRateMapper = $this->createMock(ExchangeRateMapper::class);
 		$logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new ExchangeRateController(
 			$this->request,
@@ -38,6 +43,7 @@ class ExchangeRateControllerTest extends TestCase {
 			$this->conversionService,
 			$this->manualRateService,
 			$this->exchangeRateMapper,
+			$l,
 			'user1',
 			$logger
 		);

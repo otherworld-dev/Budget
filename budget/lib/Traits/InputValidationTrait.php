@@ -7,6 +7,7 @@ namespace OCA\Budget\Traits;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 
 /**
  * Trait for input validation in controllers.
@@ -90,10 +91,23 @@ trait InputValidationTrait {
      * @param array $errors Validation errors by field
      * @return DataResponse
      */
+    /**
+     * Get the IL10N instance for translations, if available.
+     * Controllers using this trait should have $this->l set via constructor injection.
+     */
+    protected function getL10NForValidation(): ?IL10N {
+        return property_exists($this, 'l') ? $this->l : null;
+    }
+
     protected function validationErrorResponse(array $errors): DataResponse {
-        $message = count($errors) === 1
-            ? array_values($errors)[0]
-            : 'Validation failed';
+        if (count($errors) === 1) {
+            $message = array_values($errors)[0];
+        } else {
+            $l = $this->getL10NForValidation();
+            $message = $l !== null
+                ? $l->t('Validation failed')
+                : 'Validation failed';
+        }
 
         return new DataResponse([
             'error' => $message,

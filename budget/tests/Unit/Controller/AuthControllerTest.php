@@ -8,6 +8,7 @@ use OCA\Budget\Controller\AuthController;
 use OCA\Budget\Service\AuthService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -24,12 +25,17 @@ class AuthControllerTest extends TestCase {
 		$this->authService = $this->createMock(AuthService::class);
 		$this->settingService = $this->createMock(SettingService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new AuthController(
 			$this->request,
 			'user1',
 			$this->authService,
 			$this->settingService,
+			$l,
 			$this->logger
 		);
 	}

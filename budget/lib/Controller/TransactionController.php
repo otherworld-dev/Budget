@@ -15,6 +15,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -26,6 +27,7 @@ class TransactionController extends Controller {
     private TransactionSplitService $splitService;
     private TransactionTagService $tagService;
     private ValidationService $validationService;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
@@ -34,6 +36,7 @@ class TransactionController extends Controller {
         TransactionSplitService $splitService,
         TransactionTagService $tagService,
         ValidationService $validationService,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -42,6 +45,7 @@ class TransactionController extends Controller {
         $this->splitService = $splitService;
         $this->tagService = $tagService;
         $this->validationService = $validationService;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
@@ -103,7 +107,7 @@ class TransactionController extends Controller {
 
             return new DataResponse($responseData);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve transactions');
+            return $this->handleError($e, $this->l->t('Failed to retrieve transactions'));
         }
     }
 
@@ -115,7 +119,7 @@ class TransactionController extends Controller {
             $transaction = $this->service->find($id, $this->userId);
             return new DataResponse($transaction);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         }
     }
 
@@ -143,7 +147,7 @@ class TransactionController extends Controller {
             $description = $descValidation['sanitized'];
 
             // Validate date
-            $dateValidation = $this->validationService->validateDate($date, 'Date', true);
+            $dateValidation = $this->validationService->validateDate($date, $this->l->t('Date'), true);
             if (!$dateValidation['valid']) {
                 return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
             }
@@ -151,7 +155,7 @@ class TransactionController extends Controller {
             // Validate type
             $validTypes = ['credit', 'debit'];
             if (!in_array($type, $validTypes, true)) {
-                return new DataResponse(['error' => 'Invalid transaction type. Must be credit or debit'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid transaction type. Must be credit or debit')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate optional fields
@@ -193,7 +197,7 @@ class TransactionController extends Controller {
             );
             return new DataResponse($transaction, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to create transaction');
+            return $this->handleError($e, $this->l->t('Failed to create transaction'));
         }
     }
 
@@ -230,7 +234,7 @@ class TransactionController extends Controller {
 
             // Validate date if provided
             if ($date !== null) {
-                $dateValidation = $this->validationService->validateDate($date, 'Date', false);
+                $dateValidation = $this->validationService->validateDate($date, $this->l->t('Date'), false);
                 if (!$dateValidation['valid']) {
                     return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
@@ -241,7 +245,7 @@ class TransactionController extends Controller {
             if ($type !== null) {
                 $validTypes = ['credit', 'debit'];
                 if (!in_array($type, $validTypes, true)) {
-                    return new DataResponse(['error' => 'Invalid transaction type. Must be credit or debit'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid transaction type. Must be credit or debit')], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['type'] = $type;
             }
@@ -289,19 +293,19 @@ class TransactionController extends Controller {
             }
             if ($status !== null) {
                 if (!in_array($status, ['cleared', 'scheduled'], true)) {
-                    return new DataResponse(['error' => 'Invalid status. Must be cleared or scheduled'], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Invalid status. Must be cleared or scheduled')], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['status'] = $status;
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No valid fields to update'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $transaction = $this->service->update($id, $this->userId, $updates);
             return new DataResponse($transaction);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update transaction', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to update transaction'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
     }
 
@@ -314,7 +318,7 @@ class TransactionController extends Controller {
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         }
     }
 
@@ -326,7 +330,7 @@ class TransactionController extends Controller {
             $transactions = $this->service->search($this->userId, $query, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to search transactions');
+            return $this->handleError($e, $this->l->t('Failed to search transactions'));
         }
     }
 
@@ -338,7 +342,7 @@ class TransactionController extends Controller {
             $transactions = $this->service->findUncategorized($this->userId, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve uncategorized transactions');
+            return $this->handleError($e, $this->l->t('Failed to retrieve uncategorized transactions'));
         }
     }
 
@@ -351,7 +355,7 @@ class TransactionController extends Controller {
             $results = $this->service->bulkCategorize($this->userId, $updates);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to categorize transactions');
+            return $this->handleError($e, $this->l->t('Failed to categorize transactions'));
         }
     }
 
@@ -368,7 +372,7 @@ class TransactionController extends Controller {
                 'count' => count($matches)
             ]);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         }
     }
 
@@ -399,7 +403,7 @@ class TransactionController extends Controller {
             $result = $this->service->unlinkTransaction($id, $this->userId);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to unlink transaction', Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, $this->l->t('Failed to unlink transaction'), Http::STATUS_BAD_REQUEST);
         }
     }
 
@@ -416,7 +420,7 @@ class TransactionController extends Controller {
             $result = $this->service->bulkFindAndMatch($this->userId, $dateWindow);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to bulk match transactions');
+            return $this->handleError($e, $this->l->t('Failed to bulk match transactions'));
         }
     }
 
@@ -431,7 +435,7 @@ class TransactionController extends Controller {
             $result = $this->service->scanForMatches($this->userId, $dateWindow);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to scan for matches');
+            return $this->handleError($e, $this->l->t('Failed to scan for matches'));
         }
     }
 
@@ -447,13 +451,13 @@ class TransactionController extends Controller {
             $pairs = $params['pairs'] ?? [];
 
             if (empty($pairs) || !is_array($pairs)) {
-                return new DataResponse(['error' => 'No valid pairs provided'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No valid pairs provided')], Http::STATUS_BAD_REQUEST);
             }
 
             $result = $this->service->bulkLinkTransactions($this->userId, $pairs);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to bulk link transactions');
+            return $this->handleError($e, $this->l->t('Failed to bulk link transactions'));
         }
     }
 
@@ -466,13 +470,13 @@ class TransactionController extends Controller {
     public function bulkDelete(array $ids): DataResponse {
         try {
             if (empty($ids)) {
-                return new DataResponse(['error' => 'No transaction IDs provided'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
             }
 
             $results = $this->service->bulkDelete($this->userId, $ids);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to delete transactions');
+            return $this->handleError($e, $this->l->t('Failed to delete transactions'));
         }
     }
 
@@ -485,13 +489,13 @@ class TransactionController extends Controller {
     public function bulkReconcile(array $ids, bool $reconciled): DataResponse {
         try {
             if (empty($ids)) {
-                return new DataResponse(['error' => 'No transaction IDs provided'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
             }
 
             $results = $this->service->bulkReconcile($this->userId, $ids, $reconciled);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to update reconcile status');
+            return $this->handleError($e, $this->l->t('Failed to update reconcile status'));
         }
     }
 
@@ -504,11 +508,11 @@ class TransactionController extends Controller {
     public function bulkEdit(array $ids, array $updates): DataResponse {
         try {
             if (empty($ids)) {
-                return new DataResponse(['error' => 'No transaction IDs provided'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
             }
 
             if (empty($updates)) {
-                return new DataResponse(['error' => 'No update fields provided'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No update fields provided')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate allowed fields
@@ -516,7 +520,7 @@ class TransactionController extends Controller {
             $invalidFields = array_diff(array_keys($updates), $allowedFields);
             if (!empty($invalidFields)) {
                 return new DataResponse([
-                    'error' => 'Invalid fields: ' . implode(', ', $invalidFields)
+                    'error' => $this->l->t('Invalid fields: %1$s', [implode(', ', $invalidFields)])
                 ], Http::STATUS_BAD_REQUEST);
             }
 
@@ -548,7 +552,7 @@ class TransactionController extends Controller {
             $results = $this->service->bulkEdit($this->userId, $ids, $updates);
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to bulk edit transactions');
+            return $this->handleError($e, $this->l->t('Failed to bulk edit transactions'));
         }
     }
 
@@ -562,7 +566,7 @@ class TransactionController extends Controller {
             $splits = $this->splitService->getSplits($id, $this->userId);
             return new DataResponse($splits);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['id' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
         }
     }
 
@@ -578,16 +582,16 @@ class TransactionController extends Controller {
             $data = json_decode($rawInput, true);
 
             if (!$data || !isset($data['splits']) || !is_array($data['splits'])) {
-                return new DataResponse(['error' => 'Invalid splits data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid splits data')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate each split
             foreach ($data['splits'] as $i => $split) {
                 if (!isset($split['amount']) || !is_numeric($split['amount'])) {
-                    return new DataResponse(['error' => "Split $i: amount is required"], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Split %1$s: amount is required', [$i])], Http::STATUS_BAD_REQUEST);
                 }
                 if ($split['amount'] <= 0) {
-                    return new DataResponse(['error' => "Split $i: amount must be positive"], Http::STATUS_BAD_REQUEST);
+                    return new DataResponse(['error' => $this->l->t('Split %1$s: amount must be positive', [$i])], Http::STATUS_BAD_REQUEST);
                 }
             }
 
@@ -596,7 +600,7 @@ class TransactionController extends Controller {
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['id' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
         }
     }
 
@@ -613,7 +617,7 @@ class TransactionController extends Controller {
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['id' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
         }
     }
 
@@ -629,7 +633,7 @@ class TransactionController extends Controller {
             $data = json_decode($rawInput, true);
 
             if (!$data) {
-                return new DataResponse(['error' => 'Invalid JSON data'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
             $split = $this->splitService->updateSplit($splitId, $this->userId, $data);
@@ -637,7 +641,7 @@ class TransactionController extends Controller {
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Split', ['splitId' => $splitId]);
+            return $this->handleNotFoundError($e, $this->l->t('Split'), ['splitId' => $splitId]);
         }
     }
 
@@ -651,7 +655,7 @@ class TransactionController extends Controller {
             $tags = $this->tagService->getTransactionTags($id, $this->userId);
             return new DataResponse($tags);
         } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, 'Transaction', ['transactionId' => $id]);
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         }
     }
 
@@ -667,7 +671,7 @@ class TransactionController extends Controller {
             $data = json_decode($rawInput, true);
 
             if (!isset($data['tagIds']) || !is_array($data['tagIds'])) {
-                return new DataResponse(['error' => 'tagIds array is required'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('tagIds array is required')], Http::STATUS_BAD_REQUEST);
             }
 
             $tagIds = array_map('intval', $data['tagIds']);
@@ -678,7 +682,7 @@ class TransactionController extends Controller {
                 'transactionTags' => $transactionTags
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to set transaction tags', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to set transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
     }
 
@@ -693,7 +697,7 @@ class TransactionController extends Controller {
             $this->tagService->clearTransactionTags($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to clear transaction tags', Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+            return $this->handleError($e, $this->l->t('Failed to clear transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
     }
 
@@ -711,7 +715,7 @@ class TransactionController extends Controller {
                 'totalGroups' => count($groups),
             ]);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to find duplicates');
+            return $this->handleError($e, $this->l->t('Failed to find duplicates'));
         }
     }
 

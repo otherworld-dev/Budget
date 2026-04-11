@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\Entity;
+use OCP\IL10N;
 
 /**
  * @extends AbstractCrudService<Account>
@@ -15,15 +16,18 @@ use OCP\AppFramework\Db\Entity;
 class AccountService extends AbstractCrudService {
     private TransactionMapper $transactionMapper;
     private CurrencyConversionService $conversionService;
+    private IL10N $l;
 
     public function __construct(
         AccountMapper $mapper,
         TransactionMapper $transactionMapper,
-        CurrencyConversionService $conversionService
+        CurrencyConversionService $conversionService,
+        IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
         $this->conversionService = $conversionService;
+        $this->l = $l;
     }
 
     public function create(
@@ -78,7 +82,7 @@ class AccountService extends AbstractCrudService {
         // Check if account has transactions
         $transactions = $this->transactionMapper->findByAccount($entity->getId(), 1);
         if (!empty($transactions)) {
-            throw new \Exception('Cannot delete account with existing transactions. Please delete all transactions first.');
+            throw new \Exception($this->l->t('Cannot delete account with existing transactions. Please delete all transactions first.'));
         }
     }
 

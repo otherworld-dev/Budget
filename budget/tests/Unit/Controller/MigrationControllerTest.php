@@ -9,6 +9,7 @@ use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\MigrationService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -25,11 +26,16 @@ class MigrationControllerTest extends TestCase {
 		$this->migrationService = $this->createMock(MigrationService::class);
 		$this->auditService = $this->createMock(AuditService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new MigrationController(
 			$this->request,
 			$this->migrationService,
 			$this->auditService,
+			$l,
 			'user1',
 			$this->logger
 		);

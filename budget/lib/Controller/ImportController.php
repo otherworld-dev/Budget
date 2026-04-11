@@ -13,6 +13,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\IAppData;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -22,6 +23,7 @@ class ImportController extends Controller {
     private ImportService $service;
     private AuditService $auditService;
     private IAppData $appData;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
@@ -29,6 +31,7 @@ class ImportController extends Controller {
         ImportService $service,
         AuditService $auditService,
         IAppData $appData,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
@@ -36,6 +39,7 @@ class ImportController extends Controller {
         $this->service = $service;
         $this->auditService = $auditService;
         $this->appData = $appData;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
     }
@@ -48,11 +52,11 @@ class ImportController extends Controller {
         try {
             $uploadedFile = $this->request->getUploadedFile('file');
             if (!$uploadedFile) {
-                return new DataResponse(['error' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('No file uploaded')], Http::STATUS_BAD_REQUEST);
             }
 
             if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
-                return new DataResponse(['error' => 'File upload failed'], Http::STATUS_BAD_REQUEST);
+                return new DataResponse(['error' => $this->l->t('File upload failed')], Http::STATUS_BAD_REQUEST);
             }
 
             // Log import start
@@ -71,7 +75,7 @@ class ImportController extends Controller {
                 $uploadedFile['name'] ?? 'unknown',
                 $e->getMessage()
             );
-            return $this->handleError($e, 'Failed to upload file');
+            return $this->handleError($e, $this->l->t('Failed to upload file'));
         }
     }
 
@@ -98,7 +102,7 @@ class ImportController extends Controller {
             );
             return new DataResponse($preview);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to preview import');
+            return $this->handleError($e, $this->l->t('Failed to preview import'));
         }
     }
 
@@ -144,7 +148,7 @@ class ImportController extends Controller {
             return new DataResponse($result);
         } catch (\Exception $e) {
             $this->auditService->logImportFailed($this->userId, $fileId, $e->getMessage());
-            return $this->handleError($e, 'Failed to process import');
+            return $this->handleError($e, $this->l->t('Failed to process import'));
         }
     }
 
@@ -156,7 +160,7 @@ class ImportController extends Controller {
             $templates = $this->service->getImportTemplates();
             return new DataResponse($templates);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve import templates');
+            return $this->handleError($e, $this->l->t('Failed to retrieve import templates'));
         }
     }
 
@@ -168,7 +172,7 @@ class ImportController extends Controller {
             $history = $this->service->getImportHistory($this->userId, $limit);
             return new DataResponse($history);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to retrieve import history');
+            return $this->handleError($e, $this->l->t('Failed to retrieve import history'));
         }
     }
 
@@ -180,7 +184,7 @@ class ImportController extends Controller {
             $validation = $this->service->validateFile($this->userId, $fileId);
             return new DataResponse($validation);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to validate file');
+            return $this->handleError($e, $this->l->t('Failed to validate file'));
         }
     }
 
@@ -202,7 +206,7 @@ class ImportController extends Controller {
             );
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to execute import');
+            return $this->handleError($e, $this->l->t('Failed to execute import'));
         }
     }
 
@@ -215,7 +219,7 @@ class ImportController extends Controller {
             $result = $this->service->rollbackImport($this->userId, $importId);
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to rollback import', Http::STATUS_BAD_REQUEST, ['importId' => $importId]);
+            return $this->handleError($e, $this->l->t('Failed to rollback import'), Http::STATUS_BAD_REQUEST, ['importId' => $importId]);
         }
     }
 }

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 export default class ImportModule {
     constructor(app) {
@@ -58,9 +59,9 @@ export default class ImportModule {
             if (cat) return cat.name;
         }
         if (transaction.appliedRule?.name) {
-            return `Rule: ${transaction.appliedRule.name}`;
+            return t('budget', 'Rule: {name}', { name: transaction.appliedRule.name });
         }
-        return 'Uncategorized';
+        return t('budget', 'Uncategorized');
     }
 
     // ============================================
@@ -85,11 +86,11 @@ export default class ImportModule {
                 this.currentImportData = result;
                 this.showImportMapping(result);
             } else {
-                throw new Error('Upload failed');
+                throw new Error(t('budget', 'Upload failed'));
             }
         } catch (error) {
             console.error('Failed to upload file:', error);
-            showError('Failed to upload file');
+            showError(t('budget', 'Failed to upload file'));
         }
     }
 
@@ -192,7 +193,7 @@ export default class ImportModule {
             fileDetails.innerHTML = `
                 <span class="file-name">${uploadResult.filename}</span>
                 <span class="file-size">${this.formatFileSize(uploadResult.size)}</span>
-                <span class="record-count">${uploadResult.recordCount} records</span>
+                <span class="record-count">${n('budget', '%n record', '%n records', uploadResult.recordCount)}</span>
             `;
         }
 
@@ -229,7 +230,7 @@ export default class ImportModule {
         if (!delimiterSelect) return;
 
         this.currentDelimiter = delimiterSelect.value;
-        showInfo('Delimiter changed. File will be re-parsed in the next step.');
+        showInfo(t('budget', 'Delimiter changed. File will be re-parsed in the next step.'));
     }
 
     populateColumnMappings(columns) {
@@ -373,7 +374,7 @@ export default class ImportModule {
         if (this.currentImportStep === 1) {
             // Step 1 → 2: File should be uploaded
             if (!this.currentImportData) {
-                showWarning('Please select a file first');
+                showWarning(t('budget', 'Please select a file first'));
                 return;
             }
             this.setImportStep(2);
@@ -491,14 +492,14 @@ export default class ImportModule {
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
             if (Object.keys(accountMapping).length === 0) {
-                showWarning('Please map at least one account');
+                showWarning(t('budget', 'Please map at least one account'));
                 return;
             }
             requestBody.accountMapping = accountMapping;
         } else {
             const accountId = document.getElementById('import-account')?.value;
             if (!accountId) {
-                showWarning('Please select an account first');
+                showWarning(t('budget', 'Please select an account first'));
                 return;
             }
             requestBody.accountId = parseInt(accountId);
@@ -522,11 +523,11 @@ export default class ImportModule {
                 this.filterPreviewTransactions();
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Processing failed');
+                throw new Error(errorData.error || t('budget', 'Processing failed'));
             }
         } catch (error) {
             console.error('Failed to process import data:', error);
-            showError('Failed to process import data: ' + error.message);
+            showError(t('budget', 'Failed to process import data: {message}', { message: error.message }));
         }
     }
 
@@ -535,7 +536,7 @@ export default class ImportModule {
         document.getElementById('new-transactions').textContent = result.validTransactions || 0;
         document.getElementById('duplicate-transactions').textContent = result.duplicates || 0;
         // Count transactions with categoryId set
-        const categorized = (result.transactions || []).filter(t => t.categoryId).length;
+        const categorized = (result.transactions || []).filter(tx => tx.categoryId).length;
         document.getElementById('categorized-transactions').textContent = categorized;
     }
 
@@ -547,9 +548,9 @@ export default class ImportModule {
 
         if (!transactions || transactions.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6" style="text-align: center; padding: 20px;">No transactions to import</td>';
+            row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">${t('budget', 'No transactions to import')}</td>`;
             tbody.appendChild(row);
-            document.getElementById('preview-info').textContent = 'No transactions found';
+            document.getElementById('preview-info').textContent = t('budget', 'No transactions found');
             return;
         }
 
@@ -558,8 +559,8 @@ export default class ImportModule {
             const amount = parseFloat(transaction.amount) || 0;
             const isDuplicate = transaction.isDuplicate || false;
             const statusBadge = isDuplicate
-                ? '<span class="status-badge status-error">Duplicate</span>'
-                : '<span class="status-badge status-success">New</span>';
+                ? `<span class="status-badge status-error">${t('budget', 'Duplicate')}</span>`
+                : `<span class="status-badge status-success">${t('budget', 'New')}</span>`;
 
             row.innerHTML = `
                 <td>
@@ -580,7 +581,7 @@ export default class ImportModule {
         });
 
         document.getElementById('preview-info').textContent =
-            `Showing ${Math.min(50, transactions.length)} of ${transactions.length}`;
+            t('budget', 'Showing {shown} of {total}', { shown: Math.min(50, transactions.length), total: transactions.length });
     }
 
     filterPreviewTransactions() {
@@ -597,8 +598,8 @@ export default class ImportModule {
             const statusBadge = row.querySelector('.status-badge');
             const category = row.cells[4]?.textContent?.trim();
 
-            const isDuplicate = statusBadge?.textContent?.trim() === 'Duplicate';
-            const isUncategorized = category === 'Uncategorized';
+            const isDuplicate = statusBadge?.textContent?.trim() === t('budget', 'Duplicate');
+            const isUncategorized = category === t('budget', 'Uncategorized');
 
             let shouldShow = true;
 
@@ -621,7 +622,7 @@ export default class ImportModule {
         // Update the preview info text
         const totalCount = rows.length;
         document.getElementById('preview-info').textContent =
-            `Showing ${visibleCount} of ${totalCount}`;
+            t('budget', 'Showing {shown} of {total}', { shown: visibleCount, total: totalCount });
     }
 
     async loadAccountsForImport() {
@@ -650,7 +651,7 @@ export default class ImportModule {
 
                 const select = document.getElementById('import-account');
                 if (select) {
-                    select.innerHTML = '<option value="">Select account...</option>';
+                    select.innerHTML = `<option value="">${t('budget', 'Select account…')}</option>`;
                     accounts.forEach(account => {
                         const option = document.createElement('option');
                         option.value = account.id;
@@ -680,14 +681,14 @@ export default class ImportModule {
             const details = [];
             if (sourceAccount.type) details.push(sourceAccount.type);
             if (sourceAccount.currency) details.push(sourceAccount.currency);
-            if (sourceAccount.transactionCount) details.push(`${sourceAccount.transactionCount} transactions`);
+            if (sourceAccount.transactionCount) details.push(n('budget', '%n transaction', '%n transactions', sourceAccount.transactionCount));
             if (sourceAccount.ledgerBalance !== null && sourceAccount.ledgerBalance !== undefined) {
-                details.push(`Balance: ${this.formatCurrency(sourceAccount.ledgerBalance)}`);
+                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance) }));
             }
 
             // Build account options HTML with auto-match selection
             const suggestedMatch = sourceAccount.suggestedMatch;
-            let optionsHtml = '<option value="">Skip this account</option>';
+            let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
             accounts.forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
@@ -740,7 +741,7 @@ export default class ImportModule {
 
     async executeImport() {
         if (!this.currentImportData?.fileId) {
-            showError('No file data available');
+            showError(t('budget', 'No file data available'));
             return;
         }
 
@@ -759,14 +760,14 @@ export default class ImportModule {
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
             if (Object.keys(accountMapping).length === 0) {
-                showWarning('Please map at least one account');
+                showWarning(t('budget', 'Please map at least one account'));
                 return;
             }
             requestBody.accountMapping = accountMapping;
         } else {
             const accountId = document.getElementById('import-account').value;
             if (!accountId) {
-                showWarning('Please select an account');
+                showWarning(t('budget', 'Please select an account'));
                 return;
             }
             requestBody.accountId = parseInt(accountId);
@@ -776,7 +777,7 @@ export default class ImportModule {
         const importBtn = document.getElementById('import-btn');
         const originalText = importBtn.textContent;
         importBtn.disabled = true;
-        importBtn.textContent = 'Importing...';
+        importBtn.textContent = t('budget', 'Importing…');
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/import/process'), {
@@ -794,20 +795,20 @@ export default class ImportModule {
                 result = JSON.parse(responseText);
             } catch (parseError) {
                 console.error('Server response:', responseText);
-                throw new Error(`Server error (${response.status}): Invalid response`);
+                throw new Error(t('budget', 'Server error ({status}): Invalid response', { status: response.status }));
             }
 
             if (response.ok) {
-                showSuccess(`Successfully imported ${result.imported} transactions (${result.skipped} skipped)`);
+                showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
                 this.resetImportWizard();
                 this.loadTransactions();
                 this.app.loadAccounts();
             } else {
-                throw new Error(result.error || 'Import failed');
+                throw new Error(result.error || t('budget', 'Import failed'));
             }
         } catch (error) {
             console.error('Failed to execute import:', error);
-            showError('Failed to import transactions: ' + error.message);
+            showError(t('budget', 'Failed to import transactions: {message}', { message: error.message }));
         } finally {
             // Restore button state
             importBtn.disabled = false;
@@ -883,8 +884,8 @@ export default class ImportModule {
                     </span>
                 </td>
                 <td>
-                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="Download"></button>
-                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="Rollback"></button>
+                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="${t('budget', 'Download')}"></button>
+                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="${t('budget', 'Rollback')}"></button>
                 </td>
             `;
             tbody.appendChild(row);
@@ -907,9 +908,9 @@ export default class ImportModule {
     }
 
     formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
+        if (bytes === 0) return t('budget', '0 Bytes');
         const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const sizes = [t('budget', 'Bytes'), t('budget', 'KB'), t('budget', 'MB'), t('budget', 'GB')];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
@@ -931,16 +932,16 @@ export default class ImportModule {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
             } else {
-                throw new Error('Download failed');
+                throw new Error(t('budget', 'Download failed'));
             }
         } catch (error) {
             console.error('Failed to download import:', error);
-            showError('Failed to download import file');
+            showError(t('budget', 'Failed to download import file'));
         }
     }
 
     async rollbackImport(importId) {
-        if (!confirm('Are you sure you want to rollback this import? All imported transactions will be deleted.')) {
+        if (!confirm(t('budget', 'Are you sure you want to rollback this import? All imported transactions will be deleted.'))) {
             return;
         }
 
@@ -955,16 +956,16 @@ export default class ImportModule {
 
             if (response.ok) {
                 const result = await response.json();
-                showSuccess(`Rolled back ${result.deleted} transactions`);
+                showSuccess(n('budget', 'Rolled back %n transaction', 'Rolled back %n transactions', result.deleted));
                 this.loadImportHistory();
                 this.loadTransactions();
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Rollback failed');
+                throw new Error(errorData.error || t('budget', 'Rollback failed'));
             }
         } catch (error) {
             console.error('Failed to rollback import:', error);
-            showError('Failed to rollback import: ' + error.message);
+            showError(t('budget', 'Failed to rollback import: {message}', { message: error.message }));
         }
     }
 }

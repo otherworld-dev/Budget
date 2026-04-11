@@ -8,8 +8,33 @@ use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Enum\Frequency;
 use OCA\Budget\Enum\TransactionType;
+use OCP\IL10N;
 
 class ValidationService {
+    private ?IL10N $l;
+
+    public function __construct(?IL10N $l = null) {
+        $this->l = $l;
+    }
+
+    /**
+     * Translate a message if IL10N is available, otherwise return as-is.
+     */
+    private function t(string $text, array $parameters = []): string {
+        if ($this->l !== null) {
+            return empty($parameters)
+                ? $this->l->t($text)
+                : $this->l->t($text, $parameters);
+        }
+        // Fallback: simple placeholder replacement for non-translated context
+        if (!empty($parameters)) {
+            foreach ($parameters as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+            }
+        }
+        return $text;
+    }
+
     /**
      * Maximum length constants for string fields.
      * These should match database column limits.
@@ -43,7 +68,7 @@ class ValidationService {
         // Handle null/empty
         if ($value === null || $value === '') {
             if ($required) {
-                return ['valid' => false, 'error' => "{$fieldName} is required", 'sanitized' => null];
+                return ['valid' => false, 'error' => $this->t('%1$s is required', [$fieldName]), 'sanitized' => null];
             }
             return ['valid' => true, 'error' => null, 'sanitized' => null];
         }
@@ -54,7 +79,7 @@ class ValidationService {
         if ($length < $minLength) {
             return [
                 'valid' => false,
-                'error' => "{$fieldName} must be at least {$minLength} characters",
+                'error' => $this->t('%1$s must be at least %2$s characters', [$fieldName, (string) $minLength]),
                 'sanitized' => null
             ];
         }
@@ -62,7 +87,7 @@ class ValidationService {
         if ($length > $maxLength) {
             return [
                 'valid' => false,
-                'error' => "{$fieldName} must not exceed {$maxLength} characters",
+                'error' => $this->t('%1$s must not exceed %2$s characters', [$fieldName, (string) $maxLength]),
                 'sanitized' => null
             ];
         }
@@ -118,7 +143,7 @@ class ValidationService {
         // Validate regex if it looks like one
         if ($result['sanitized'] !== null && str_starts_with($result['sanitized'], '/')) {
             if (@preg_match($result['sanitized'], '') === false) {
-                return ['valid' => false, 'error' => 'Invalid regular expression pattern', 'sanitized' => null];
+                return ['valid' => false, 'error' => $this->t('Invalid regular expression pattern'), 'sanitized' => null];
             }
         }
 
@@ -144,7 +169,7 @@ class ValidationService {
 
         // Validate hex color format
         if (!preg_match('/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/', $result['sanitized'])) {
-            return ['valid' => false, 'error' => 'Color must be a valid hex code (e.g., #FFF or #FFFFFF)', 'sanitized' => null];
+            return ['valid' => false, 'error' => $this->t('Color must be a valid hex code (e.g., #FFF or #FFFFFF)'), 'sanitized' => null];
         }
 
         return $result;
@@ -156,14 +181,14 @@ class ValidationService {
     public function validateDate(?string $date, string $fieldName = 'Date', bool $required = false): array {
         if ($date === null || $date === '') {
             if ($required) {
-                return ['valid' => false, 'error' => "{$fieldName} is required", 'formatted' => null];
+                return ['valid' => false, 'error' => $this->t('%1$s is required', [$fieldName]), 'formatted' => null];
             }
             return ['valid' => true, 'error' => null, 'formatted' => null];
         }
 
         $parsed = \DateTime::createFromFormat('Y-m-d', $date);
         if (!$parsed || $parsed->format('Y-m-d') !== $date) {
-            return ['valid' => false, 'error' => "{$fieldName} must be in YYYY-MM-DD format", 'formatted' => null];
+            return ['valid' => false, 'error' => $this->t('%1$s must be in YYYY-MM-DD format', [$fieldName]), 'formatted' => null];
         }
 
         return ['valid' => true, 'error' => null, 'formatted' => $date];
@@ -175,20 +200,20 @@ class ValidationService {
     public function validateAmount(mixed $amount, string $fieldName = 'Amount', bool $required = true): array {
         if ($amount === null || $amount === '') {
             if ($required) {
-                return ['valid' => false, 'error' => "{$fieldName} is required", 'value' => null];
+                return ['valid' => false, 'error' => $this->t('%1$s is required', [$fieldName]), 'value' => null];
             }
             return ['valid' => true, 'error' => null, 'value' => null];
         }
 
         if (!is_numeric($amount)) {
-            return ['valid' => false, 'error' => "{$fieldName} must be a number", 'value' => null];
+            return ['valid' => false, 'error' => $this->t('%1$s must be a number', [$fieldName]), 'value' => null];
         }
 
         $floatVal = (float) $amount;
 
         // Check for reasonable limits (prevent overflow)
         if (abs($floatVal) > 999999999999.99) {
-            return ['valid' => false, 'error' => "{$fieldName} exceeds maximum allowed value", 'value' => null];
+            return ['valid' => false, 'error' => $this->t('%1$s exceeds maximum allowed value', [$fieldName]), 'value' => null];
         }
 
         return ['valid' => true, 'error' => null, 'value' => $floatVal];
@@ -201,11 +226,11 @@ class ValidationService {
         $iban = strtoupper(str_replace(' ', '', $iban));
 
         if (strlen($iban) < 15 || strlen($iban) > 34) {
-            return ['valid' => false, 'error' => 'IBAN must be 15-34 characters long'];
+            return ['valid' => false, 'error' => $this->t('IBAN must be 15-34 characters long')];
         }
 
         if (!preg_match('/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/', $iban)) {
-            return ['valid' => false, 'error' => 'Invalid IBAN format'];
+            return ['valid' => false, 'error' => $this->t('Invalid IBAN format')];
         }
 
         // IBAN mod-97 checksum validation
@@ -224,7 +249,7 @@ class ValidationService {
         $remainder = bcmod($numericString, '97');
 
         if ($remainder !== '1') {
-            return ['valid' => false, 'error' => 'Invalid IBAN checksum'];
+            return ['valid' => false, 'error' => $this->t('Invalid IBAN checksum')];
         }
 
         return ['valid' => true, 'formatted' => $iban];
@@ -237,7 +262,7 @@ class ValidationService {
         $routingNumber = preg_replace('/\D/', '', $routingNumber);
 
         if (strlen($routingNumber) !== 9) {
-            return ['valid' => false, 'error' => 'Routing number must be 9 digits'];
+            return ['valid' => false, 'error' => $this->t('Routing number must be 9 digits')];
         }
 
         // ABA routing number checksum validation
@@ -249,7 +274,7 @@ class ValidationService {
         }
 
         if ($checksum % 10 !== 0) {
-            return ['valid' => false, 'error' => 'Invalid routing number checksum'];
+            return ['valid' => false, 'error' => $this->t('Invalid routing number checksum')];
         }
 
         return ['valid' => true, 'formatted' => $routingNumber];
@@ -262,7 +287,7 @@ class ValidationService {
         $sortCode = preg_replace('/\D/', '', $sortCode);
 
         if (strlen($sortCode) !== 6) {
-            return ['valid' => false, 'error' => 'Sort code must be 6 digits'];
+            return ['valid' => false, 'error' => $this->t('Sort code must be 6 digits')];
         }
 
         $formatted = substr($sortCode, 0, 2) . '-' . substr($sortCode, 2, 2) . '-' . substr($sortCode, 4, 2);
@@ -277,11 +302,11 @@ class ValidationService {
         $swiftBic = strtoupper(str_replace(' ', '', $swiftBic));
 
         if (!preg_match('/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $swiftBic)) {
-            return ['valid' => false, 'error' => 'Invalid SWIFT/BIC format'];
+            return ['valid' => false, 'error' => $this->t('Invalid SWIFT/BIC format')];
         }
 
         if (strlen($swiftBic) !== 8 && strlen($swiftBic) !== 11) {
-            return ['valid' => false, 'error' => 'SWIFT/BIC must be 8 or 11 characters'];
+            return ['valid' => false, 'error' => $this->t('SWIFT/BIC must be 8 or 11 characters')];
         }
 
         return ['valid' => true, 'formatted' => $swiftBic];
@@ -294,15 +319,15 @@ class ValidationService {
         $accountNumber = trim($accountNumber);
 
         if (empty($accountNumber)) {
-            return ['valid' => false, 'error' => 'Account number cannot be empty'];
+            return ['valid' => false, 'error' => $this->t('Account number cannot be empty')];
         }
 
         if (strlen($accountNumber) < 4) {
-            return ['valid' => false, 'error' => 'Account number too short'];
+            return ['valid' => false, 'error' => $this->t('Account number too short')];
         }
 
         if (strlen($accountNumber) > 20) {
-            return ['valid' => false, 'error' => 'Account number too long'];
+            return ['valid' => false, 'error' => $this->t('Account number too long')];
         }
 
         return ['valid' => true, 'formatted' => $accountNumber];
@@ -315,7 +340,7 @@ class ValidationService {
         $currencyEnum = Currency::tryFromString($currency);
 
         if ($currencyEnum === null) {
-            return ['valid' => false, 'error' => 'Invalid currency code'];
+            return ['valid' => false, 'error' => $this->t('Invalid currency code')];
         }
 
         return ['valid' => true, 'formatted' => $currencyEnum->value];
@@ -326,7 +351,7 @@ class ValidationService {
      */
     public function validateAccountType(string $type): array {
         if (!AccountType::isValid($type)) {
-            return ['valid' => false, 'error' => 'Invalid account type'];
+            return ['valid' => false, 'error' => $this->t('Invalid account type')];
         }
 
         return ['valid' => true, 'formatted' => $type];
@@ -339,7 +364,7 @@ class ValidationService {
         if (!Frequency::isValid($frequency)) {
             return [
                 'valid' => false,
-                'error' => 'Invalid frequency. Must be one of: ' . implode(', ', Frequency::values())
+                'error' => $this->t('Invalid frequency. Must be one of: %1$s', [implode(', ', Frequency::values())])
             ];
         }
 
@@ -351,7 +376,7 @@ class ValidationService {
      */
     public function validateTransactionType(string $type): array {
         if (!TransactionType::isValid($type)) {
-            return ['valid' => false, 'error' => 'Invalid transaction type'];
+            return ['valid' => false, 'error' => $this->t('Invalid transaction type')];
         }
 
         return ['valid' => true, 'formatted' => $type];

@@ -5,6 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 export default class AccountsModule {
     constructor(app) {
@@ -213,7 +214,7 @@ export default class AccountsModule {
         if (warningEl) {
             const unconverted = summary?.unconvertedCurrencies || [];
             if (unconverted.length > 0) {
-                warningEl.textContent = `Accounts in ${unconverted.join(', ')} are excluded from totals because exchange rates are unavailable. Add rates in Settings > Exchange Rates.`;
+                warningEl.textContent = t('budget', 'Accounts in {currencies} are excluded from totals because exchange rates are unavailable. Add rates in Settings > Exchange Rates.', { currencies: unconverted.join(', ') });
                 warningEl.style.display = 'block';
             } else {
                 warningEl.style.display = 'none';
@@ -231,7 +232,7 @@ export default class AccountsModule {
                 assetsGrid.innerHTML = assets.map(account => this.renderAccountCard(account, getField)).join('');
                 assetsSection.style.display = 'block';
             } else {
-                assetsGrid.innerHTML = '<div class="accounts-empty-state">No asset accounts yet</div>';
+                assetsGrid.innerHTML = '<div class="accounts-empty-state">' + t('budget', 'No asset accounts yet') + '</div>';
             }
         }
 
@@ -250,7 +251,7 @@ export default class AccountsModule {
 
     renderAccountCard(account, getField) {
         const accountType = getField(account, 'type') || 'unknown';
-        const accountName = getField(account, 'name') || 'Unnamed Account';
+        const accountName = getField(account, 'name') || t('budget', 'Unnamed Account');
         const accountBalance = parseFloat(getField(account, 'balance')) || 0;
         const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
         const accountId = getField(account, 'id') || 0;
@@ -264,8 +265,8 @@ export default class AccountsModule {
         const displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
         const balanceClass = accountBalance >= 0 ? 'positive' : 'negative';
         const balanceLabel = isLiability
-            ? (accountBalance < 0 ? 'Owed' : accountBalance > 0 ? 'Credit' : 'Balance')
-            : 'Balance';
+            ? (accountBalance < 0 ? t('budget', 'Owed') : accountBalance > 0 ? t('budget', 'Credit') : t('budget', 'Balance'))
+            : t('budget', 'Balance');
 
         return `
             <div class="account-card" data-type="${accountType}" data-account-id="${accountId}">
@@ -303,10 +304,10 @@ export default class AccountsModule {
                         <span>${healthStatus.tooltip}</span>
                     </div>
                     <div class="account-actions">
-                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="Edit Account">
+                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="Delete Account">
+                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -368,8 +369,8 @@ export default class AccountsModule {
             date.setHours(0, 0, 0, 0);
 
             // Find transactions on this day and reverse their effect
-            const dayTxns = sortedTxns.filter(t => {
-                const txnDate = new Date(t.date || t.Date);
+            const dayTxns = sortedTxns.filter(tx => {
+                const txnDate = new Date(tx.date || tx.Date);
                 txnDate.setHours(0, 0, 0, 0);
                 return txnDate.getTime() === date.getTime();
             });
@@ -378,8 +379,8 @@ export default class AccountsModule {
             balances.unshift(runningBalance);
 
             // Reverse transactions to get previous day's balance
-            dayTxns.forEach(t => {
-                const amount = parseFloat(t.amount || t.Amount) || 0;
+            dayTxns.forEach(tx => {
+                const amount = parseFloat(tx.amount || tx.Amount) || 0;
                 runningBalance -= amount;
             });
         }
@@ -465,7 +466,7 @@ export default class AccountsModule {
 
         } catch (error) {
             console.error('Failed to show account details:', error);
-            showError('Failed to load account details');
+            showError(t('budget', 'Failed to load account details'));
         }
     }
 
@@ -565,14 +566,14 @@ export default class AccountsModule {
         document.getElementById('account-available-balance').className = `balance-amount ${availableBalance >= 0 ? 'positive' : 'negative'}`;
 
         // Update account details
-        document.getElementById('account-number').textContent = account.accountNumber ? '***' + account.accountNumber.slice(-4) : 'Not provided';
-        document.getElementById('routing-number').textContent = account.routingNumber || 'Not provided';
-        document.getElementById('account-iban').textContent = account.iban || 'Not provided';
-        document.getElementById('sort-code').textContent = account.sortCode || 'Not provided';
-        document.getElementById('swift-bic').textContent = account.swiftBic || 'Not provided';
+        document.getElementById('account-number').textContent = account.accountNumber ? '***' + account.accountNumber.slice(-4) : t('budget', 'Not provided');
+        document.getElementById('routing-number').textContent = account.routingNumber || t('budget', 'Not provided');
+        document.getElementById('account-iban').textContent = account.iban || t('budget', 'Not provided');
+        document.getElementById('sort-code').textContent = account.sortCode || t('budget', 'Not provided');
+        document.getElementById('swift-bic').textContent = account.swiftBic || t('budget', 'Not provided');
         document.getElementById('account-display-currency').textContent = currency;
-        document.getElementById('account-opened').textContent = account.openedDate ? this.formatDate(account.openedDate) : 'Not provided';
-        document.getElementById('last-reconciled').textContent = account.lastReconciled ? this.formatDate(account.lastReconciled) : 'Never';
+        document.getElementById('account-opened').textContent = account.openedDate ? this.formatDate(account.openedDate) : t('budget', 'Not provided');
+        document.getElementById('last-reconciled').textContent = account.lastReconciled ? this.formatDate(account.lastReconciled) : t('budget', 'Never');
     }
 
     async loadAccountTransactions(accountId) {
@@ -615,7 +616,7 @@ export default class AccountsModule {
             } else {
                 // Fallback: filter from all transactions
                 await this.loadTransactions();
-                this.accountTransactions = this.transactions.filter(t => t.accountId === accountId);
+                this.accountTransactions = this.transactions.filter(tx => tx.accountId === accountId);
                 this.accountTotal = this.accountTransactions.length;
                 this.accountTotalPages = Math.ceil(this.accountTotal / this.accountRowsPerPage);
             }
@@ -642,8 +643,8 @@ export default class AccountsModule {
                     <td colspan="6" class="empty-state">
                         <div class="empty-content">
                             <span class="icon-menu" aria-hidden="true"></span>
-                            <h3>No transactions found</h3>
-                            <p>This account doesn't have any transactions yet.</p>
+                            <h3>${t('budget', 'No transactions found')}</h3>
+                            <p>${t('budget', 'This account doesn\'t have any transactions yet.')}</p>
                         </div>
                     </td>
                 </tr>
@@ -674,14 +675,14 @@ export default class AccountsModule {
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
             const category = this.categories?.find(c => c.id === transaction.categoryId);
             const isScheduled = transaction.status === 'scheduled';
-            const scheduledBadge = isScheduled ? '<span class="scheduled-badge">Scheduled</span>' : '';
+            const scheduledBadge = isScheduled ? '<span class="scheduled-badge">' + t('budget', 'Scheduled') + '</span>' : '';
 
             // Transfer badge
             const isLinked = transaction.linkedTransactionId != null;
             const linkedAccountName = transaction.linkedAccountName || this.app.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
             const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? `Transfer ${linkedDirection} ${dom.escapeHtml(linkedAccountName)}` : 'Transfer';
-            const linkedTitle = linkedAccountName ? `Click to view linked transaction in ${dom.escapeHtml(linkedAccountName)}` : 'Linked transfer';
+            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Transfer');
+            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
             const linkedBadge = isLinked
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
                 : '';
@@ -693,14 +694,14 @@ export default class AccountsModule {
                     </td>
                     <td class="description-column">
                         <div class="transaction-description">
-                            <span class="description-main">${transaction.description || 'No description'}</span>
+                            <span class="description-main">${transaction.description || t('budget', 'No description')}</span>
                             ${transaction.vendor ? `<span class="vendor-name">${transaction.vendor}</span>` : ''}
                             ${linkedBadge}
                         </div>
                     </td>
                     <td class="category-column">
                         <span class="category-name ${category ? '' : 'uncategorized'}">
-                            ${category ? category.name : 'Uncategorized'}
+                            ${category ? category.name : t('budget', 'Uncategorized')}
                         </span>
                         <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
                     </td>
@@ -718,10 +719,10 @@ export default class AccountsModule {
                         <div class="transaction-actions">
                             <button class="icon-rename edit-transaction-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="Edit transaction"></button>
+                                    title="${t('budget', 'Edit transaction')}"></button>
                             <button class="icon-delete delete-transaction-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="Delete transaction"></button>
+                                    title="${t('budget', 'Delete transaction')}"></button>
                         </div>
                     </td>
                 </tr>
@@ -773,23 +774,23 @@ export default class AccountsModule {
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
             // Filter transactions for this month
-            const thisMonthTransactions = this.accountTransactions.filter(t => {
-                const transDate = new Date(t.date);
+            const thisMonthTransactions = this.accountTransactions.filter(tx => {
+                const transDate = new Date(tx.date);
                 return transDate >= startOfMonth && transDate <= endOfMonth;
             });
 
             // Calculate metrics
             const totalTransactions = this.accountTransactions.length;
             const thisMonthIncome = thisMonthTransactions
-                .filter(t => t.type === 'credit')
-                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+                .filter(tx => tx.type === 'credit')
+                .reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0);
 
             const thisMonthExpenses = thisMonthTransactions
-                .filter(t => t.type === 'debit')
-                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+                .filter(tx => tx.type === 'debit')
+                .reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0);
 
             const avgTransaction = totalTransactions > 0
-                ? this.accountTransactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0) / totalTransactions
+                ? this.accountTransactions.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount) || 0), 0) / totalTransactions
                 : 0;
 
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
@@ -817,7 +818,7 @@ export default class AccountsModule {
 
         if (prevBtn) prevBtn.disabled = this.accountCurrentPage <= 1;
         if (nextBtn) nextBtn.disabled = this.accountCurrentPage >= this.accountTotalPages;
-        if (pageInfo) pageInfo.textContent = `Page ${this.accountCurrentPage} of ${this.accountTotalPages}`;
+        if (pageInfo) pageInfo.textContent = t('budget', 'Page {current} of {total}', { current: this.accountCurrentPage, total: this.accountTotalPages });
     }
 
     setupAccountDetailsEventListeners() {
@@ -909,7 +910,7 @@ export default class AccountsModule {
         // Auto-populate category filter
         const categoryFilter = document.getElementById('account-filter-category');
         if (categoryFilter && this.categories) {
-            categoryFilter.innerHTML = '<option value="">All Categories</option><option value="uncategorized">Uncategorized</option>';
+            categoryFilter.innerHTML = '<option value="">' + t('budget', 'All Categories') + '</option><option value="uncategorized">' + t('budget', 'Uncategorized') + '</option>';
             dom.populateCategorySelect(categoryFilter, this.categoryTree || this.categories);
         }
 
@@ -947,7 +948,7 @@ export default class AccountsModule {
                     this.allAccountFilterTagSets = this.allAccountFilterTagSets || [];
                     this.allAccountFilterTagSets.unshift({
                         id: 'global',
-                        name: 'Tags',
+                        name: t('budget', 'Tags'),
                         tags: globalTags
                     });
                 }
@@ -964,7 +965,7 @@ export default class AccountsModule {
         container.innerHTML = '';
 
         if (!this.allAccountFilterTagSets || this.allAccountFilterTagSets.length === 0) {
-            container.innerHTML = '<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">No tags available</div>';
+            container.innerHTML = '<div style="padding: 8px; color: var(--color-text-lighter); font-style: italic;">' + t('budget', 'No tags available') + '</div>';
             return;
         }
 
@@ -975,7 +976,7 @@ export default class AccountsModule {
         input.type = 'text';
         input.id = 'account-filter-tags-input';
         input.className = 'tags-autocomplete-input';
-        input.placeholder = 'Type to filter tags...';
+        input.placeholder = t('budget', 'Type to filter tags...');
 
         const dropdown = document.createElement('div');
         dropdown.className = 'tags-autocomplete-dropdown';
@@ -1008,7 +1009,7 @@ export default class AccountsModule {
             }
             chipsArea.style.display = 'flex';
             this.selectedAccountFilterTags.forEach(tagId => {
-                const tag = allTags.find(t => t.id === tagId);
+                const tag = allTags.find(tg => tg.id === tagId);
                 if (!tag) return;
                 const chip = document.createElement('span');
                 chip.className = 'filter-tag-chip';
@@ -1025,9 +1026,9 @@ export default class AccountsModule {
 
         const renderDropdown = (filter = '') => {
             const filtered = filter
-                ? allTags.filter(t =>
-                    t.name.toLowerCase().includes(filter.toLowerCase()) ||
-                    t.tagSetName.toLowerCase().includes(filter.toLowerCase())
+                ? allTags.filter(tg =>
+                    tg.name.toLowerCase().includes(filter.toLowerCase()) ||
+                    tg.tagSetName.toLowerCase().includes(filter.toLowerCase())
                 )
                 : allTags;
 
@@ -1058,7 +1059,7 @@ export default class AccountsModule {
                 });
             });
 
-            dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">No tags found</div>';
+            dropdown.innerHTML = html || '<div class="tags-autocomplete-empty">' + t('budget', 'No tags found') + '</div>';
             dropdown.style.display = 'block';
         };
 
@@ -1074,14 +1075,14 @@ export default class AccountsModule {
             const item = e.target.closest('.tags-autocomplete-item');
             if (item) {
                 const tagId = parseInt(item.dataset.tagId);
-                const clickedTag = allTags.find(t => t.id === tagId);
+                const clickedTag = allTags.find(tg => tg.id === tagId);
                 if (!clickedTag) return;
 
                 // Single selection per tag set
-                const tagsFromSameSet = allTags.filter(t => t.tagSetId === clickedTag.tagSetId);
-                tagsFromSameSet.forEach(t => {
-                    if (t.id !== tagId) {
-                        this.selectedAccountFilterTags.delete(t.id);
+                const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
+                tagsFromSameSet.forEach(tg => {
+                    if (tg.id !== tagId) {
+                        this.selectedAccountFilterTags.delete(tg.id);
                     }
                 });
 
@@ -1161,7 +1162,7 @@ export default class AccountsModule {
         if (reconcileAccountSelect) {
             // Populate the dropdown if empty (populateFilterDropdowns only runs on filter toggle)
             if (reconcileAccountSelect.options.length <= 1 && this.accounts) {
-                reconcileAccountSelect.innerHTML = '<option value="">Select account to reconcile</option>';
+                reconcileAccountSelect.innerHTML = '<option value="">' + t('budget', 'Select account to reconcile') + '</option>';
                 this.accounts.forEach(account => {
                     reconcileAccountSelect.innerHTML += `<option value="${account.id}">${account.name}</option>`;
                 });
@@ -1182,13 +1183,13 @@ export default class AccountsModule {
 
     finishReconciliation() {
         if (!this.reconcileData || !this.reconcileData.isBalanced) {
-            showWarning('Cannot finish reconciliation - balances do not match');
+            showWarning(t('budget', 'Cannot finish reconciliation - balances do not match'));
             return;
         }
 
         // Mark all checked transactions as reconciled and finish reconciliation
         this.cancelReconciliation();
-        showSuccess('Reconciliation completed successfully');
+        showSuccess(t('budget', 'Reconciliation completed successfully'));
     }
 
     async loadCategories() {
@@ -1252,26 +1253,26 @@ export default class AccountsModule {
 
         if (!accountId) {
             if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
-                showWarning('No accounts available. Please create an account first.');
+                showWarning(t('budget', 'No accounts available. Please create an account first.'));
                 return;
             }
-            showWarning('Please select an account');
+            showWarning(t('budget', 'Please select an account'));
             return;
         }
         if (!date) {
-            showWarning('Please enter a date');
+            showWarning(t('budget', 'Please enter a date'));
             return;
         }
         if (!type) {
-            showWarning('Please select a transaction type');
+            showWarning(t('budget', 'Please select a transaction type'));
             return;
         }
         if (amount === null || amount <= 0) {
-            showWarning('Please enter a valid amount');
+            showWarning(t('budget', 'Please enter a valid amount'));
             return;
         }
         if (!description) {
-            showWarning('Please enter a description');
+            showWarning(t('budget', 'Please enter a description'));
             return;
         }
 
@@ -1315,7 +1316,7 @@ export default class AccountsModule {
                     await this.saveTransactionTags(savedTransactionId, selectedTagIds);
                 }
 
-                showSuccess('Transaction saved successfully');
+                showSuccess(t('budget', 'Transaction saved successfully'));
                 this.hideModals();
                 this.loadTransactions();
                 // Also reload account transactions if we're on account details view
@@ -1324,7 +1325,7 @@ export default class AccountsModule {
                 }
             } else {
                 // Try to get the actual error message from backend
-                let errorMessage = 'Failed to save transaction';
+                let errorMessage = t('budget', 'Failed to save transaction');
                 try {
                     const errorData = await response.json();
                     if (errorData.error) {
@@ -1337,7 +1338,7 @@ export default class AccountsModule {
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
-            showError(error.message || 'Failed to save transaction');
+            showError(error.message || t('budget', 'Failed to save transaction'));
         }
     }
 
@@ -1375,26 +1376,26 @@ export default class AccountsModule {
 
         if (!accountId) {
             if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
-                this.showQuickAddMessage('No accounts available. Please create an account first.', 'error');
+                this.showQuickAddMessage(t('budget', 'No accounts available. Please create an account first.'), 'error');
                 return;
             }
-            this.showQuickAddMessage('Please select an account', 'error');
+            this.showQuickAddMessage(t('budget', 'Please select an account'), 'error');
             return;
         }
         if (!date) {
-            this.showQuickAddMessage('Please enter a date', 'error');
+            this.showQuickAddMessage(t('budget', 'Please enter a date'), 'error');
             return;
         }
         if (!type) {
-            this.showQuickAddMessage('Please select a transaction type', 'error');
+            this.showQuickAddMessage(t('budget', 'Please select a transaction type'), 'error');
             return;
         }
         if (amount === null || amount <= 0) {
-            this.showQuickAddMessage('Please enter a valid amount', 'error');
+            this.showQuickAddMessage(t('budget', 'Please enter a valid amount'), 'error');
             return;
         }
         if (!description) {
-            this.showQuickAddMessage('Please enter a description', 'error');
+            this.showQuickAddMessage(t('budget', 'Please enter a description'), 'error');
             return;
         }
 
@@ -1420,7 +1421,7 @@ export default class AccountsModule {
             });
 
             if (response.ok) {
-                this.showQuickAddMessage('Transaction added successfully!', 'success');
+                this.showQuickAddMessage(t('budget', 'Transaction added successfully!'), 'success');
                 this.resetQuickAddForm();
                 // Reload transactions if on transactions view
                 if (this.app.currentView === 'transactions') {
@@ -1431,7 +1432,7 @@ export default class AccountsModule {
                     this.app.loadDashboard();
                 }
             } else {
-                let errorMessage = 'Failed to add transaction';
+                let errorMessage = t('budget', 'Failed to add transaction');
                 try {
                     const errorData = await response.json();
                     if (errorData.error) {
@@ -1444,7 +1445,7 @@ export default class AccountsModule {
             }
         } catch (error) {
             console.error('Failed to save quick add transaction:', error);
-            this.showQuickAddMessage(error.message || 'Failed to add transaction', 'error');
+            this.showQuickAddMessage(error.message || t('budget', 'Failed to add transaction'), 'error');
         }
     }
 
@@ -1485,7 +1486,7 @@ export default class AccountsModule {
         // Populate account dropdown
         const accountSelect = document.getElementById('quick-add-account');
         if (accountSelect && this.accounts) {
-            accountSelect.innerHTML = '<option value="">Select account</option>';
+            accountSelect.innerHTML = '<option value="">' + t('budget', 'Select account') + '</option>';
             this.accounts.forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;
@@ -1497,7 +1498,7 @@ export default class AccountsModule {
         // Populate category dropdown (hierarchical with indentation)
         const categorySelect = document.getElementById('quick-add-category');
         if (categorySelect) {
-            categorySelect.innerHTML = '<option value="">No category</option>';
+            categorySelect.innerHTML = '<option value="">' + t('budget', 'No category') + '</option>';
             dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
         }
 
@@ -1516,13 +1517,13 @@ export default class AccountsModule {
 
             if (!nameElement) {
                 console.error('Account name element not found');
-                showError('Form error: Account name field not found');
+                showError(t('budget', 'Form error: Account name field not found'));
                 return;
             }
 
             if (!typeElement) {
                 console.error('Account type element not found');
-                showError('Form error: Account type field not found');
+                showError(t('budget', 'Form error: Account type field not found'));
                 return;
             }
 
@@ -1595,28 +1596,28 @@ export default class AccountsModule {
             // Validate required fields on frontend
             if (!formData.name || formData.name === '') {
                 console.error('Account name is empty');
-                showWarning('Please enter an account name');
+                showWarning(t('budget', 'Please enter an account name'));
                 nameElement.focus();
                 return;
             }
 
             if (!formData.type || formData.type === '') {
                 console.error('Account type is empty');
-                showWarning('Please select an account type');
+                showWarning(t('budget', 'Please select an account type'));
                 typeElement.focus();
                 return;
             }
 
             // Validate account name length
             if (formData.name.length > 255) {
-                showWarning('Account name is too long (maximum 255 characters)');
+                showWarning(t('budget', 'Account name is too long (maximum 255 characters)'));
                 nameElement.focus();
                 return;
             }
 
             // Validate balance on create only (balance is managed by transactions on edit)
             if (!isEdit && isNaN(formData.balance)) {
-                showWarning('Please enter a valid balance amount');
+                showWarning(t('budget', 'Please enter a valid balance amount'));
                 document.getElementById('account-balance').focus();
                 return;
             }
@@ -1648,7 +1649,7 @@ export default class AccountsModule {
                     }
                 }
 
-                showSuccess('Account saved successfully');
+                showSuccess(t('budget', 'Account saved successfully'));
                 this.hideModals();
                 await this.loadAccounts();
                 await this.loadInitialData(); // Refresh dropdowns
@@ -1669,7 +1670,7 @@ export default class AccountsModule {
                 }
             } else {
                 // Handle error responses more safely
-                let errorMessage = 'Failed to save account';
+                let errorMessage = t('budget', 'Failed to save account');
                 try {
                     const contentType = response.headers.get('content-type');
                     if (contentType && contentType.includes('application/json')) {
@@ -1692,8 +1693,8 @@ export default class AccountsModule {
             console.error('Failed to save account:', error);
 
             // Show specific error message if available
-            const errorMsg = error.message || 'Unknown error occurred';
-            showError(`Failed to save account: ${errorMsg}`);
+            const errorMsg = error.message || t('budget', 'Unknown error occurred');
+            showError(t('budget', 'Failed to save account: {error}', { error: errorMsg }));
 
             // Don't hide modal on error so user can fix and retry
         }
@@ -1709,10 +1710,10 @@ export default class AccountsModule {
         }
 
         if (accountId) {
-            title.textContent = 'Edit Account';
+            title.textContent = t('budget', 'Edit Account');
             this.loadAccountData(accountId);
         } else {
-            title.textContent = 'Add Account';
+            title.textContent = t('budget', 'Add Account');
             this.resetAccountForm();
         }
 
@@ -1750,11 +1751,11 @@ export default class AccountsModule {
             if (balanceField) {
                 balanceField.value = account.balance;
                 balanceField.disabled = true;
-                balanceField.title = 'Balance is calculated from transactions';
+                balanceField.title = t('budget', 'Balance is calculated from transactions');
             }
             const balanceLabel = document.getElementById('account-balance-label');
             if (balanceLabel) {
-                balanceLabel.textContent = 'Current Balance';
+                balanceLabel.textContent = t('budget', 'Current Balance');
             }
 
             // Show opening balance field on edit
@@ -1784,7 +1785,7 @@ export default class AccountsModule {
                 if (element) {
                     element.value = ''; // Don't populate with masked value
                     if (field.hasValue) {
-                        element.placeholder = '••••••••  (leave blank to keep current)';
+                        element.placeholder = t('budget', '••••••••  (leave blank to keep current)');
                     } else {
                         element.placeholder = '';
                     }
@@ -1799,7 +1800,7 @@ export default class AccountsModule {
             document.getElementById('account-minimum-payment').value = account.minimumPayment || '';
         } catch (error) {
             console.error('Failed to load account data:', error);
-            showError('Failed to load account data');
+            showError(t('budget', 'Failed to load account data'));
         }
     }
 
@@ -1825,7 +1826,7 @@ export default class AccountsModule {
         }
         const balanceLabel = document.getElementById('account-balance-label');
         if (balanceLabel) {
-            balanceLabel.textContent = 'Starting Balance';
+            balanceLabel.textContent = t('budget', 'Starting Balance');
         }
 
         // Hide opening balance field on new account form
@@ -1844,7 +1845,7 @@ export default class AccountsModule {
     }
 
     async deleteAccount(id) {
-        if (!confirm('Are you sure you want to delete this account? This action cannot be undone.')) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this account? This action cannot be undone.'))) {
             return;
         }
 
@@ -1857,7 +1858,7 @@ export default class AccountsModule {
             });
 
             if (response.ok) {
-                showSuccess('Account deleted successfully');
+                showSuccess(t('budget', 'Account deleted successfully'));
                 await this.loadAccounts();
                 await this.loadInitialData(); // Refresh dropdowns
 
@@ -1867,11 +1868,11 @@ export default class AccountsModule {
                 }
             } else {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to delete account');
+                throw new Error(error.error || t('budget', 'Failed to delete account'));
             }
         } catch (error) {
             console.error('Failed to delete account:', error);
-            showError('Failed to delete account: ' + error.message);
+            showError(t('budget', 'Failed to delete account: {error}', { error: error.message }));
         }
     }
 
@@ -2065,7 +2066,7 @@ export default class AccountsModule {
         } else if (result.valid) {
             const feedback = document.createElement('div');
             feedback.className = 'field-feedback success';
-            feedback.innerHTML = '<span class="icon-checkmark"></span> Valid';
+            feedback.innerHTML = '<span class="icon-checkmark"></span> ' + t('budget', 'Valid');
             feedback.id = `${fieldId}-feedback`;
             formGroup.appendChild(feedback);
         }
@@ -2131,44 +2132,44 @@ export default class AccountsModule {
             'checking': {
                 icon: 'icon-checkmark',
                 color: '#4A90E2',
-                label: 'Checking Account'
+                label: t('budget', 'Checking Account')
             },
             'savings': {
                 icon: 'icon-folder',
                 color: '#50E3C2',
-                label: 'Savings Account'
+                label: t('budget', 'Savings Account')
             },
             'credit_card': {
                 icon: 'icon-category-integration',
                 color: '#F5A623',
-                label: 'Credit Card'
+                label: t('budget', 'Credit Card')
             },
             'investment': {
                 icon: 'icon-trending',
                 color: '#7ED321',
-                label: 'Investment'
+                label: t('budget', 'Investment')
             },
             'loan': {
                 icon: 'icon-file',
                 color: '#D0021B',
-                label: 'Loan'
+                label: t('budget', 'Loan')
             },
             'cash': {
                 icon: 'icon-category-monitoring',
                 color: '#9013FE',
-                label: 'Cash'
+                label: t('budget', 'Cash')
             },
             'cryptocurrency': {
                 icon: 'icon-link',
                 color: '#F7931A',
-                label: 'Cryptocurrency'
+                label: t('budget', 'Cryptocurrency')
             }
         };
 
         return typeMap[accountType] || {
             icon: 'icon-folder',
             color: '#999999',
-            label: 'Unknown'
+            label: t('budget', 'Unknown')
         };
     }
 
@@ -2183,13 +2184,13 @@ export default class AccountsModule {
                 return {
                     class: 'critical',
                     icon: 'icon-error',
-                    tooltip: 'Credit utilization very high'
+                    tooltip: t('budget', 'Credit utilization very high')
                 };
             } else if (utilization > 0.7) {
                 return {
                     class: 'warning',
                     icon: 'icon-triangle-s',
-                    tooltip: 'Credit utilization high'
+                    tooltip: t('budget', 'Credit utilization high')
                 };
             }
         }
@@ -2199,7 +2200,7 @@ export default class AccountsModule {
             return {
                 class: 'warning',
                 icon: 'icon-triangle-s',
-                tooltip: 'Negative balance'
+                tooltip: t('budget', 'Negative balance')
             };
         }
 
@@ -2208,14 +2209,14 @@ export default class AccountsModule {
             return {
                 class: 'critical',
                 icon: 'icon-error',
-                tooltip: 'Exceeds overdraft limit'
+                tooltip: t('budget', 'Exceeds overdraft limit')
             };
         }
 
         return {
             class: 'healthy',
             icon: 'icon-checkmark',
-            tooltip: 'Account is in good standing'
+            tooltip: t('budget', 'Account is in good standing')
         };
     }
 
@@ -2235,7 +2236,7 @@ export default class AccountsModule {
 
     exportAccountTransactions() {
         if (!this.accountTransactions || this.accountTransactions.length === 0) {
-            OC.Notification.showTemporary('No transactions to export');
+            OC.Notification.showTemporary(t('budget', 'No transactions to export'));
             return;
         }
 
@@ -2248,7 +2249,7 @@ export default class AccountsModule {
             return cat ? cat.name : '';
         };
 
-        const rows = [['Date', 'Description', 'Type', 'Amount', 'Category']];
+        const rows = [[t('budget', 'Date'), t('budget', 'Description'), t('budget', 'Type'), t('budget', 'Amount'), t('budget', 'Category')]];
         for (const t of this.accountTransactions) {
             rows.push([
                 t.date,

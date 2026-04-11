@@ -61,6 +61,15 @@ test-php:
 psalm:
 	composer run psalm
 
+# Translations
+.PHONY: translations
+translations:
+	php translationtool.phar create-pot-files
+
+.PHONY: translations-compile
+translations-compile:
+	php translationtool.phar convert-po-files
+
 # Clean
 .PHONY: clean
 clean:
@@ -143,6 +152,10 @@ help:
 	@echo "  make lint-fix     - Fix linting issues"
 	@echo "  make test         - Run tests"
 	@echo "  make psalm        - Run static analysis"
+	@echo ""
+	@echo "Translations:"
+	@echo "  make translations         - Extract translatable strings to .pot"
+	@echo "  make translations-compile - Compile .po files to .json/.js"
 	@echo ""
 	@echo "Building:"
 	@echo "  make build        - Build the app"

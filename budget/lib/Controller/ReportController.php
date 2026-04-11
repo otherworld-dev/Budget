@@ -11,6 +11,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -18,16 +19,19 @@ class ReportController extends Controller {
     use ApiErrorHandlerTrait;
 
     private ReportService $service;
+    private IL10N $l;
     private string $userId;
 
     public function __construct(
         IRequest $request,
         ReportService $service,
+        IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
     }
@@ -60,7 +64,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate summary report');
+            return $this->handleError($e, $this->l->t('Failed to generate summary report'));
         }
     }
 
@@ -94,7 +98,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($spending);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate spending report');
+            return $this->handleError($e, $this->l->t('Failed to generate spending report'));
         }
     }
 
@@ -128,7 +132,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($income);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate income report');
+            return $this->handleError($e, $this->l->t('Failed to generate income report'));
         }
     }
 
@@ -165,7 +169,7 @@ class ReportController extends Controller {
                 $export['contentType']
             );
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to export report');
+            return $this->handleError($e, $this->l->t('Failed to export report'));
         }
     }
 
@@ -191,7 +195,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($budget);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate budget report');
+            return $this->handleError($e, $this->l->t('Failed to generate budget report'));
         }
     }
 
@@ -223,7 +227,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate comparison report');
+            return $this->handleError($e, $this->l->t('Failed to generate comparison report'));
         }
     }
 
@@ -255,7 +259,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate cash flow report');
+            return $this->handleError($e, $this->l->t('Failed to generate cash flow report'));
         }
     }
 
@@ -286,7 +290,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($dimensions);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate tag dimensions');
+            return $this->handleError($e, $this->l->t('Failed to generate tag dimensions'));
         }
     }
 
@@ -321,7 +325,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($combinations);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate tag combination report');
+            return $this->handleError($e, $this->l->t('Failed to generate tag combination report'));
         }
     }
 
@@ -356,7 +360,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($crossTab);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate cross-tabulation');
+            return $this->handleError($e, $this->l->t('Failed to generate cross-tabulation'));
         }
     }
 
@@ -387,7 +391,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($trends);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate tag trend report');
+            return $this->handleError($e, $this->l->t('Failed to generate tag trend report'));
         }
     }
 
@@ -420,7 +424,7 @@ class ReportController extends Controller {
             );
             return new DataResponse($breakdown);
         } catch (\Exception $e) {
-            return $this->handleError($e, 'Failed to generate tag set breakdown');
+            return $this->handleError($e, $this->l->t('Failed to generate tag set breakdown'));
         }
     }
 }

@@ -9,6 +9,7 @@ use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -19,12 +20,17 @@ class RecurringIncomeControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private IL10N $l;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(RecurringIncomeService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->validationService->method('validateName')
 			->willReturn(['valid' => true, 'sanitized' => 'Salary']);
@@ -37,6 +43,7 @@ class RecurringIncomeControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -155,6 +162,7 @@ class RecurringIncomeControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);
@@ -175,6 +183,7 @@ class RecurringIncomeControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$validationService,
+			$this->l,
 			'user1',
 			$this->logger
 		);

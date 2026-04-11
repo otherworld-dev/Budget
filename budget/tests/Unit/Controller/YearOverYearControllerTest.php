@@ -8,6 +8,7 @@ use OCA\Budget\Controller\YearOverYearController;
 use OCA\Budget\Service\YearOverYearService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -22,10 +23,15 @@ class YearOverYearControllerTest extends TestCase {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(YearOverYearService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 
 		$this->controller = new YearOverYearController(
 			$this->request,
 			$this->service,
+			$l,
 			'user1',
 			$this->logger
 		);

@@ -5,13 +5,21 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Service\ValidationService;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class ValidationServiceTest extends TestCase {
 	private ValidationService $service;
 
 	protected function setUp(): void {
-		$this->service = new ValidationService();
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+			}
+			return $text;
+		});
+		$this->service = new ValidationService($l);
 	}
 
 	// ── validateStringLength ────────────────────────────────────────

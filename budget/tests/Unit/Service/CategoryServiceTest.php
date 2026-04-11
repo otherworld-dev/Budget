@@ -14,6 +14,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Service\CategoryService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class CategoryServiceTest extends TestCase {
@@ -31,12 +32,20 @@ class CategoryServiceTest extends TestCase {
         $this->tagMapper = $this->createMock(TagMapper::class);
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
 
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+            foreach ($params as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+            }
+            return $text;
+        });
         $this->service = new CategoryService(
             $this->categoryMapper,
             $this->transactionMapper,
             $this->tagSetMapper,
             $this->tagMapper,
-            $this->transactionTagMapper
+            $this->transactionTagMapper,
+            $l
         );
     }
 
