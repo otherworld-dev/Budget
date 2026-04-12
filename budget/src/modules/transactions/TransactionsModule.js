@@ -498,12 +498,11 @@ export default class TransactionsModule {
         input.addEventListener('focus', () => renderDropdown(input.value));
         input.addEventListener('input', () => renderDropdown(input.value));
 
+        // Handle tag selection on mousedown for Safari/WebKit compatibility
         dropdown.addEventListener('mousedown', (e) => {
             e.preventDefault();
-        });
-
-        dropdown.addEventListener('click', (e) => {
             e.stopPropagation();
+
             const item = e.target.closest('.tags-autocomplete-item');
             if (item) {
                 const tagId = parseInt(item.dataset.tagId);
@@ -528,6 +527,11 @@ export default class TransactionsModule {
                 renderDropdown(input.value);
                 this.updateFilters();
             }
+        });
+
+        // Prevent clicks inside dropdown from closing it via document handler
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
 
         renderSelectedChips();
@@ -2728,13 +2732,11 @@ export default class TransactionsModule {
         input.addEventListener('focus', () => showDropdown(input.value));
         input.addEventListener('input', () => showDropdown(input.value));
 
-        // CRITICAL: Prevent input blur when clicking dropdown
+        // Handle category selection on mousedown for Safari/WebKit compatibility
         dropdown.addEventListener('mousedown', (e) => {
             e.preventDefault();
-        });
-
-        dropdown.addEventListener('click', (e) => {
             e.stopPropagation();
+
             const item = e.target.closest('.category-autocomplete-item');
             if (item) {
                 input.dataset.categoryId = item.dataset.categoryId;
@@ -2742,6 +2744,11 @@ export default class TransactionsModule {
                 dropdown.style.display = 'none';
                 this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
             }
+        });
+
+        // Prevent clicks inside dropdown from bubbling
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
 
         input.addEventListener('keydown', (e) => {
@@ -2948,12 +2955,11 @@ export default class TransactionsModule {
             input.addEventListener('focus', () => renderDropdown(input.value));
             input.addEventListener('input', () => renderDropdown(input.value));
 
+            // Handle tag selection on mousedown for Safari/WebKit compatibility
             dropdown.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-            });
-
-            dropdown.addEventListener('click', (e) => {
                 e.stopPropagation();
+
                 const item = e.target.closest('.tags-autocomplete-item');
                 if (item) {
                     const tagId = parseInt(item.dataset.tagId);
@@ -2978,6 +2984,11 @@ export default class TransactionsModule {
 
                     renderDropdown(input.value);
                 }
+            });
+
+            // Prevent clicks inside dropdown from bubbling
+            dropdown.addEventListener('click', (e) => {
+                e.stopPropagation();
             });
 
             input.addEventListener('keydown', (e) => {

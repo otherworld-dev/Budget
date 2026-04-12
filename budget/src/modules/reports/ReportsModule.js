@@ -284,14 +284,13 @@ export default class ReportsModule {
         input.addEventListener('focus', () => renderDropdown(input.value));
         input.addEventListener('input', () => renderDropdown(input.value));
 
-        // Prevent dropdown from closing when clicking inside
+        // Handle tag selection on mousedown (Safari/WebKit may suppress click
+        // events on non-interactive elements inside absolutely positioned containers
+        // when mousedown default is prevented, so we handle selection here instead)
         dropdown.addEventListener('mousedown', (e) => {
             e.preventDefault();
-        });
-
-        // Handle tag selection
-        dropdown.addEventListener('click', (e) => {
             e.stopPropagation();
+
             const item = e.target.closest('.tags-autocomplete-item');
             if (item) {
                 const tagId = parseInt(item.dataset.tagId);
@@ -315,6 +314,11 @@ export default class ReportsModule {
 
                 renderDropdown(input.value);
             }
+        });
+
+        // Prevent clicks inside dropdown from closing it via document handler
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
 
         // Close dropdown when clicking outside

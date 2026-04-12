@@ -1066,12 +1066,11 @@ export default class AccountsModule {
         input.addEventListener('focus', () => renderDropdown(input.value));
         input.addEventListener('input', () => renderDropdown(input.value));
 
+        // Handle tag selection on mousedown for Safari/WebKit compatibility
         dropdown.addEventListener('mousedown', (e) => {
             e.preventDefault();
-        });
-
-        dropdown.addEventListener('click', (e) => {
             e.stopPropagation();
+
             const item = e.target.closest('.tags-autocomplete-item');
             if (item) {
                 const tagId = parseInt(item.dataset.tagId);
@@ -1095,6 +1094,11 @@ export default class AccountsModule {
                 renderSelectedChips();
                 renderDropdown(input.value);
             }
+        });
+
+        // Prevent clicks inside dropdown from bubbling
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
 
         renderSelectedChips();

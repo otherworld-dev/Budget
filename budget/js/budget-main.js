@@ -22023,10 +22023,10 @@ var AccountsModule = /*#__PURE__*/function () {
       input.addEventListener('input', function () {
         return renderDropdown(input.value);
       });
+
+      // Handle tag selection on mousedown for Safari/WebKit compatibility
       dropdown.addEventListener('mousedown', function (e) {
         e.preventDefault();
-      });
-      dropdown.addEventListener('click', function (e) {
         e.stopPropagation();
         var item = e.target.closest('.tags-autocomplete-item');
         if (item) {
@@ -22053,6 +22053,11 @@ var AccountsModule = /*#__PURE__*/function () {
           _renderSelectedChips();
           renderDropdown(input.value);
         }
+      });
+
+      // Prevent clicks inside dropdown from bubbling
+      dropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
       });
       _renderSelectedChips();
       document.addEventListener('click', function (e) {
@@ -36835,13 +36840,11 @@ var ReportsModule = /*#__PURE__*/function () {
         return renderDropdown(input.value);
       });
 
-      // Prevent dropdown from closing when clicking inside
+      // Handle tag selection on mousedown (Safari/WebKit may suppress click
+      // events on non-interactive elements inside absolutely positioned containers
+      // when mousedown default is prevented, so we handle selection here instead)
       dropdown.addEventListener('mousedown', function (e) {
         e.preventDefault();
-      });
-
-      // Handle tag selection
-      dropdown.addEventListener('click', function (e) {
         e.stopPropagation();
         var item = e.target.closest('.tags-autocomplete-item');
         if (item) {
@@ -36869,6 +36872,11 @@ var ReportsModule = /*#__PURE__*/function () {
           }
           renderDropdown(input.value);
         }
+      });
+
+      // Prevent clicks inside dropdown from closing it via document handler
+      dropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
       });
 
       // Close dropdown when clicking outside
@@ -45674,10 +45682,10 @@ var TransactionsModule = /*#__PURE__*/function () {
       input.addEventListener('input', function () {
         return renderDropdown(input.value);
       });
+
+      // Handle tag selection on mousedown for Safari/WebKit compatibility
       dropdown.addEventListener('mousedown', function (e) {
         e.preventDefault();
-      });
-      dropdown.addEventListener('click', function (e) {
         e.stopPropagation();
         var item = e.target.closest('.tags-autocomplete-item');
         if (item) {
@@ -45705,6 +45713,11 @@ var TransactionsModule = /*#__PURE__*/function () {
           renderDropdown(input.value);
           _this4.updateFilters();
         }
+      });
+
+      // Prevent clicks inside dropdown from closing it via document handler
+      dropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
       });
       _renderSelectedChips();
       document.addEventListener('click', function (e) {
@@ -48463,11 +48476,9 @@ var TransactionsModule = /*#__PURE__*/function () {
         return showDropdown(input.value);
       });
 
-      // CRITICAL: Prevent input blur when clicking dropdown
+      // Handle category selection on mousedown for Safari/WebKit compatibility
       dropdown.addEventListener('mousedown', function (e) {
         e.preventDefault();
-      });
-      dropdown.addEventListener('click', function (e) {
         e.stopPropagation();
         var item = e.target.closest('.category-autocomplete-item');
         if (item) {
@@ -48476,6 +48487,11 @@ var TransactionsModule = /*#__PURE__*/function () {
           dropdown.style.display = 'none';
           _this17.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
         }
+      });
+
+      // Prevent clicks inside dropdown from bubbling
+      dropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
       });
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
@@ -48673,10 +48689,10 @@ var TransactionsModule = /*#__PURE__*/function () {
               input.addEventListener('input', function () {
                 return renderDropdown(input.value);
               });
+
+              // Handle tag selection on mousedown for Safari/WebKit compatibility
               dropdown.addEventListener('mousedown', function (e) {
                 e.preventDefault();
-              });
-              dropdown.addEventListener('click', function (e) {
                 e.stopPropagation();
                 var item = e.target.closest('.tags-autocomplete-item');
                 if (item) {
@@ -48704,6 +48720,11 @@ var TransactionsModule = /*#__PURE__*/function () {
                   }
                   renderDropdown(input.value);
                 }
+              });
+
+              // Prevent clicks inside dropdown from bubbling
+              dropdown.addEventListener('click', function (e) {
+                e.stopPropagation();
               });
               input.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') {
