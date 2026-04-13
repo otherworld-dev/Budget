@@ -3680,10 +3680,11 @@ button.danger:hover {
 }
 
 .tags-autocomplete-item .tag-check {
-    color: var(--color-success);
+    color: #2d8c3c;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 16px;
     margin-left: 8px;
+    text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .tags-autocomplete-empty {

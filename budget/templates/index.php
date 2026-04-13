@@ -2812,7 +2812,7 @@ style('budget', 'budget-main');
 
                 <div class="control-group">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="report-include-untagged" checked>
+                        <input type="checkbox" id="report-include-untagged">
                         <span><?php p($l->t('Include untagged transactions')); ?></span>
                     </label>
                 </div>
