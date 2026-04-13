@@ -59,7 +59,7 @@ class Version001000043Date20260408 extends SimpleMigrationStep {
 			$netChange = (string) ($netResult->fetchOne() ?: '0');
 			$netResult->closeCursor();
 
-			$newBalance = bcadd($openingBalance, $netChange, 2);
+			$newBalance = number_format((float) $openingBalance + (float) $netChange, 2, '.', '');
 
 			// Update the account balance
 			$qb3 = $this->db->getQueryBuilder();
