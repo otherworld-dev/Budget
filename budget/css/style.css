@@ -1,5 +1,11 @@
 /* Budget App Styles - Nextcloud Integration */
 
+/* Semantic color tokens — single source of truth for positive/negative amounts */
+:root {
+    --budget-color-negative: #b71c1c;
+    --budget-color-positive: #2e7d32;
+}
+
 /* App Navigation Search Bar - Match Files app style */
 .app-navigation-search {
     position: relative;
@@ -353,15 +359,15 @@
 }
 
 .hero-icon.income svg {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .hero-icon.expenses {
-    background: rgba(198, 40, 40, 0.1);
+    background: rgba(183, 28, 28, 0.1);
 }
 
 .hero-icon.expenses svg {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .hero-icon.savings {
@@ -420,11 +426,11 @@
 }
 
 .hero-value.income {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .hero-value.expenses {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .hero-change {
@@ -436,11 +442,11 @@
 }
 
 .hero-change.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .hero-change.negative {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .hero-subtext {
@@ -902,11 +908,11 @@
 }
 
 .account-widget-amount.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .account-widget-amount.negative {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .account-widget-converted {
@@ -964,7 +970,7 @@
 }
 
 .bill-widget-due.overdue {
-    color: #c62828;
+    color: var(--budget-color-negative);
     font-weight: 500;
 }
 
@@ -1146,12 +1152,12 @@
 
 .recent-transaction-icon.income {
     background: rgba(46, 125, 50, 0.1);
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .recent-transaction-icon.expense {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 .recent-transaction-details {
@@ -1196,11 +1202,11 @@
 }
 
 .recent-transaction-amount.credit {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .recent-transaction-amount.debit {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 /* Empty States */
@@ -2141,12 +2147,12 @@ button.danger:hover {
 
 .summary-card-assets .summary-icon {
     background: rgba(46, 125, 50, 0.1);
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .summary-card-liabilities .summary-icon {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 .summary-card-networth .summary-icon {
@@ -2174,19 +2180,19 @@ button.danger:hover {
 }
 
 .summary-card-assets .summary-value {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .summary-card-liabilities .summary-value {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .summary-value.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .summary-value.negative {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 /* ============================================
@@ -2225,11 +2231,11 @@ button.danger:hover {
 }
 
 #accounts-assets-section .section-subtotal {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 #accounts-liabilities-section .section-subtotal {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 /* ============================================
@@ -2365,11 +2371,11 @@ button.danger:hover {
 }
 
 .balance-amount.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .balance-amount.negative {
-    color: #d32f2f;
+    color: var(--budget-color-negative);
 }
 
 /* Account Card Sparkline */
@@ -2392,11 +2398,11 @@ button.danger:hover {
 }
 
 .sparkline-path.positive {
-    stroke: #2e7d32;
+    stroke: var(--budget-color-positive);
 }
 
 .sparkline-path.negative {
-    stroke: #c62828;
+    stroke: var(--budget-color-negative);
 }
 
 .sparkline-path.neutral {
@@ -2470,8 +2476,8 @@ button.danger:hover {
 }
 
 .account-action-btn.delete-btn:hover {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 .account-action-btn .btn-text {
@@ -2593,13 +2599,13 @@ button.danger:hover {
 
 .field-feedback.error {
     background: #ffebee;
-    color: #c62828;
+    color: var(--budget-color-negative);
     border: 1px solid #ffcdd2;
 }
 
 .field-feedback.success {
     background: #e8f5e8;
-    color: #46ba61;
+    color: var(--budget-color-positive);
     border: 1px solid #c8e6c9;
 }
 
@@ -3017,7 +3023,7 @@ button.danger:hover {
 }
 
 .reconcile-stats .stat.balanced .amount {
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 .reconcile-stats .stat.unbalanced .amount {
@@ -3380,12 +3386,12 @@ button.danger:hover {
 }
 
 .amount.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
     font-weight: 600;
 }
 
 .amount.negative {
-    color: #dc3545;
+    color: var(--budget-color-negative);
     font-weight: 600;
 }
 
@@ -4218,11 +4224,11 @@ button.danger:hover {
 }
 
 .balance-amount.negative {
-    color: #d32f2f;
+    color: var(--budget-color-negative);
 }
 
 .balance-amount.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .balance-converted {
@@ -4400,11 +4406,11 @@ button.danger:hover {
 }
 
 .transaction-balance.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .transaction-balance.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 /* Make account cards clickable */
@@ -4994,11 +5000,11 @@ button.danger:hover {
 }
 
 .remaining-amount.positive {
-    color: #69c97a;
+    color: var(--budget-color-positive);
 }
 
 .remaining-amount.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .budget-progress {
@@ -5083,7 +5089,7 @@ button.danger:hover {
 }
 
 .transaction-amount.credit {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .transaction-amount.debit {
@@ -5997,7 +6003,7 @@ button.danger:hover {
 
 .status-error {
     background: rgba(198, 40, 40, 0.15);
-    color: #d32f2f;
+    color: var(--budget-color-negative);
 }
 
 .status-pending {
@@ -6203,11 +6209,11 @@ button.danger:hover {
 }
 
 .overview-card .card-change.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .overview-card .card-change.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .overview-card.current-balance {
@@ -6252,11 +6258,11 @@ button.danger:hover {
 }
 
 .trend-direction.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .trend-direction.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .trend-direction.neutral {
@@ -6372,11 +6378,11 @@ button.danger:hover {
 }
 
 .category-trend-item .category-trend.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .category-trend-item .category-trend.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .category-trend-item .category-trend.neutral {
@@ -7660,7 +7666,7 @@ button.danger:hover {
 
 .rate-source-none .status-badge {
     background: rgba(var(--color-error-rgb, 198, 40, 40), 0.12);
-    color: var(--color-error, #c62828);
+    color: var(--budget-color-negative);
 }
 
 /* Rate Card Actions */
@@ -7700,7 +7706,7 @@ button.danger:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #46ba61;
+    color: var(--budget-color-positive);
     flex-shrink: 0;
 }
 
@@ -8223,8 +8229,8 @@ button.danger:hover {
 }
 
 .goal-card-actions button.delete-btn:hover {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 .goal-progress-section {
@@ -8263,7 +8269,7 @@ button.danger:hover {
 }
 
 .goal-card.completed .goal-current-amount {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .goal-target-amount {
@@ -8316,7 +8322,7 @@ button.danger:hover {
     gap: 6px;
     padding: 6px 12px;
     background: rgba(46, 125, 50, 0.1);
-    color: #46ba61;
+    color: var(--budget-color-positive);
     border-radius: 20px;
     font-size: 13px;
     font-weight: 500;
@@ -8904,11 +8910,11 @@ button.danger:hover {
 }
 
 .budget-remaining.positive {
-    color: #69c97a;
+    color: var(--budget-color-positive);
 }
 
 .budget-remaining.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .budget-remaining.zero {
@@ -9209,21 +9215,21 @@ button.danger:hover {
 }
 
 .summary-change.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .summary-change.negative {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .summary-card-income .summary-icon {
     background: rgba(46, 125, 50, 0.1);
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .summary-card-expenses .summary-icon {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 .summary-card-net .summary-icon {
@@ -9333,11 +9339,11 @@ button.danger:hover {
 }
 
 .data-table .positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .data-table .negative {
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .category-color {
@@ -9901,11 +9907,11 @@ button.danger:hover {
 }
 
 .source-amount.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .source-amount.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .source-account {
@@ -9974,11 +9980,11 @@ button.danger:hover {
 }
 
 .match-amount.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .match-amount.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .match-account {
@@ -10217,11 +10223,11 @@ tr.scheduled-transaction:hover {
 }
 
 .bulk-match-pair .pair-amount.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .bulk-match-pair .pair-amount.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .bulk-match-pair .pair-account {
@@ -11289,8 +11295,8 @@ tr.scheduled-transaction:hover {
 }
 
 .asset-card-actions button.delete-btn:hover {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 /* Asset Card Body */
@@ -11329,12 +11335,12 @@ tr.scheduled-transaction:hover {
 
 .asset-rate.positive {
     background: rgba(46, 125, 50, 0.1);
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .asset-rate.negative {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 .asset-rate svg {
@@ -11774,7 +11780,7 @@ tr.scheduled-transaction:hover {
 }
 
 .split-remaining-amount.balanced {
-    color: #69c97a;
+    color: var(--budget-color-positive);
 }
 
 .split-remaining-amount.unbalanced {
@@ -12523,11 +12529,11 @@ tr.scheduled-transaction:hover {
 }
 
 .yoy-stat .stat-value.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .yoy-stat .stat-value.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .yoy-change {
@@ -12628,11 +12634,11 @@ tr.scheduled-transaction:hover {
 }
 
 .yoy-category-change.positive {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .yoy-category-change.negative {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .yoy-no-data {
@@ -12678,12 +12684,12 @@ tr.scheduled-transaction:hover {
 
 .split-summary-header .summary-card-owed .summary-icon {
     background: #e8f5e8;
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .split-summary-header .summary-card-owing .summary-icon {
     background: #ffebee;
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .split-summary-header .summary-card-net .summary-icon {
@@ -12707,11 +12713,11 @@ tr.scheduled-transaction:hover {
 }
 
 .split-summary-header .summary-value.positive {
-    color: #46ba61;
+    color: var(--budget-color-positive);
 }
 
 .split-summary-header .summary-value.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .contacts-section,
@@ -12929,11 +12935,11 @@ tr.scheduled-transaction:hover {
 }
 
 .share-item .share-amount.positive {
-    color: var(--color-success);
+    color: var(--budget-color-positive);
 }
 
 .share-item .share-amount.negative {
-    color: var(--color-error);
+    color: var(--budget-color-negative);
 }
 
 .share-item .share-status {
@@ -14177,11 +14183,11 @@ tr.scheduled-transaction:hover {
 }
 
 .account-performance-item .account-change.positive {
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 .account-performance-item .account-change.negative {
-    color: var(--color-error, #c62828);
+    color: var(--budget-color-negative);
 }
 
 /* Phase 1: Budget Breakdown Table */
@@ -14210,11 +14216,11 @@ tr.scheduled-transaction:hover {
 }
 
 .budget-breakdown-table .positive {
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 .budget-breakdown-table .negative {
-    color: var(--color-error, #c62828);
+    color: var(--budget-color-negative);
 }
 
 /* Phase 1: Goals Summary Widget */
@@ -14334,7 +14340,7 @@ tr.scheduled-transaction:hover {
     font-size: 12px;
     font-weight: 500;
     background: rgba(76, 175, 80, 0.1);
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 /* Phase 2: Lazy-Loaded Hero Tile Styles */
@@ -14344,8 +14350,8 @@ tr.scheduled-transaction:hover {
 }
 
 .hero-low-balance .hero-icon {
-    background: rgba(198, 40, 40, 0.1);
-    color: #c62828;
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
 }
 
 /* Phase 2: Large Transactions Widget */
@@ -14381,11 +14387,11 @@ tr.scheduled-transaction:hover {
 }
 
 .transaction-amount.income {
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 .transaction-amount.expenses {
-    color: var(--color-error, #c62828);
+    color: var(--budget-color-negative);
 }
 
 .transaction-meta {
@@ -14443,7 +14449,7 @@ tr.scheduled-transaction:hover {
 }
 
 .income-received.income {
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 .income-received.warning {
@@ -14577,11 +14583,11 @@ tr.scheduled-transaction:hover {
 }
 
 .velocity-trend.positive {
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
 }
 
 .velocity-trend.negative {
-    color: var(--color-error, #c62828);
+    color: var(--budget-color-negative);
 }
 
 .velocity-trend.neutral {
@@ -14676,13 +14682,13 @@ tr.scheduled-transaction:hover {
 
 .quick-add-message.success {
     background: rgba(76, 175, 80, 0.1);
-    color: var(--color-success, #46ba61);
+    color: var(--budget-color-positive);
     border: 1px solid rgba(76, 175, 80, 0.3);
 }
 
 .quick-add-message.error {
-    background: rgba(198, 40, 40, 0.1);
-    color: var(--color-error, #c62828);
+    background: rgba(183, 28, 28, 0.1);
+    color: var(--budget-color-negative);
     border: 1px solid rgba(198, 40, 40, 0.3);
 }
 
@@ -15465,7 +15471,7 @@ tr.scheduled-transaction:hover {
 
 .bills-calendar-table .month-cell.has-bill {
     background-color: rgba(46, 125, 50, 0.08);
-    color: #46ba61;
+    color: var(--budget-color-positive);
     font-weight: 500;
 }
 
@@ -15475,7 +15481,7 @@ tr.scheduled-transaction:hover {
     background-color: rgba(198, 40, 40, 0.1);
     font-weight: 600;
     font-size: 12px;
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 .bills-calendar-table .totals-row {
@@ -15529,7 +15535,7 @@ tr.scheduled-transaction:hover {
 .heatmap-month-total {
     font-size: 18px;
     font-weight: 700;
-    color: #c62828;
+    color: var(--budget-color-negative);
 }
 
 @media (max-width: 1200px) {
@@ -15601,7 +15607,7 @@ tr.scheduled-transaction:hover {
 }
 
 .budget-toast-success {
-    background-color: var(--color-success, #46ba61);
+    background-color: var(--budget-color-positive);
 }
 
 .budget-toast-error {
