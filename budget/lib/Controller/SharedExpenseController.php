@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\SharedExpenseService;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -15,6 +17,8 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class SharedExpenseController extends Controller {
+    use SharedAccessTrait;
+
     private SharedExpenseService $service;
     private IL10N $l;
     private string $userId;
@@ -23,6 +27,7 @@ class SharedExpenseController extends Controller {
     public function __construct(
         IRequest $request,
         SharedExpenseService $service,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -32,6 +37,7 @@ class SharedExpenseController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
+        $this->setShareService($shareService);
     }
 
     // ==================== Contact Endpoints ====================
@@ -44,12 +50,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function contacts(): DataResponse {
         try {
-            $contacts = $this->service->getContacts($this->userId);
+            $contacts = $this->service->getContacts($this->getEffectiveUserId());
             return new DataResponse(array_map(fn($c) => $c->jsonSerialize(), $contacts));
         } catch (\Exception $e) {
             $this->logger->error('Failed to get contacts', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to get contacts')],
@@ -66,12 +72,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function createContact(string $name, ?string $email = null): DataResponse {
         try {
-            $contact = $this->service->createContact($this->userId, $name, $email);
+            $contact = $this->service->createContact($this->getEffectiveUserId(), $name, $email);
             return new DataResponse($contact->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\Exception $e) {
             $this->logger->error('Failed to create contact', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to create contact')],
@@ -88,12 +94,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function updateContact(int $id, string $name, ?string $email = null): DataResponse {
         try {
-            $contact = $this->service->updateContact($id, $this->userId, $name, $email);
+            $contact = $this->service->updateContact($id, $this->getEffectiveUserId(), $name, $email);
             return new DataResponse($contact->jsonSerialize());
         } catch (\Exception $e) {
             $this->logger->error('Failed to update contact', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to update contact')],
@@ -110,12 +116,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroyContact(int $id): DataResponse {
         try {
-            $this->service->deleteContact($id, $this->userId);
+            $this->service->deleteContact($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'deleted']);
         } catch (\Exception $e) {
             $this->logger->error('Failed to delete contact', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to delete contact')],
@@ -132,12 +138,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function contactDetails(int $id): DataResponse {
         try {
-            $details = $this->service->getContactDetails($id, $this->userId);
+            $details = $this->service->getContactDetails($id, $this->getEffectiveUserId());
             return new DataResponse($details);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get contact details', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to get contact details')],
@@ -156,12 +162,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function balances(): DataResponse {
         try {
-            $summary = $this->service->getBalanceSummary($this->userId);
+            $summary = $this->service->getBalanceSummary($this->getEffectiveUserId());
             return new DataResponse($summary);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get balances', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to get balances')],
@@ -178,12 +184,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function sharedTransactionIds(): DataResponse {
         try {
-            $statuses = $this->service->getSharedTransactionStatuses($this->userId);
+            $statuses = $this->service->getSharedTransactionStatuses($this->getEffectiveUserId());
             return new DataResponse($statuses);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get shared transaction statuses', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to get shared transactions')],
@@ -208,7 +214,7 @@ class SharedExpenseController extends Controller {
     ): DataResponse {
         try {
             $share = $this->service->shareExpense(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $transactionId,
                 $contactId,
                 $amount,
@@ -223,7 +229,7 @@ class SharedExpenseController extends Controller {
         } catch (\Exception $e) {
             $this->logger->error('Failed to share expense', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to share expense')],
@@ -240,7 +246,7 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function splitFiftyFifty(int $transactionId, int $contactId, ?string $notes = null): DataResponse {
         try {
-            $share = $this->service->splitFiftyFifty($this->userId, $transactionId, $contactId, $notes);
+            $share = $this->service->splitFiftyFifty($this->getEffectiveUserId(), $transactionId, $contactId, $notes);
             return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(
@@ -250,7 +256,7 @@ class SharedExpenseController extends Controller {
         } catch (\Exception $e) {
             $this->logger->error('Failed to split 50/50', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to split expense')],
@@ -267,12 +273,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function transactionShares(int $transactionId): DataResponse {
         try {
-            $shares = $this->service->getSharesByTransaction($transactionId, $this->userId);
+            $shares = $this->service->getSharesByTransaction($transactionId, $this->getEffectiveUserId());
             return new DataResponse(array_map(fn($s) => $s->jsonSerialize(), $shares));
         } catch (\Exception $e) {
             $this->logger->error('Failed to get transaction shares', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to get shares')],
@@ -289,12 +295,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function updateShare(int $id, float $amount, ?string $notes = null): DataResponse {
         try {
-            $share = $this->service->updateExpenseShare($id, $this->userId, $amount, $notes);
+            $share = $this->service->updateExpenseShare($id, $this->getEffectiveUserId(), $amount, $notes);
             return new DataResponse($share->jsonSerialize());
         } catch (\Exception $e) {
             $this->logger->error('Failed to update share', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to update share')],
@@ -311,12 +317,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markSettled(int $id): DataResponse {
         try {
-            $share = $this->service->markShareSettled($id, $this->userId);
+            $share = $this->service->markShareSettled($id, $this->getEffectiveUserId());
             return new DataResponse($share->jsonSerialize());
         } catch (\Exception $e) {
             $this->logger->error('Failed to mark share settled', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to mark settled')],
@@ -333,12 +339,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroyShare(int $id): DataResponse {
         try {
-            $this->service->deleteExpenseShare($id, $this->userId);
+            $this->service->deleteExpenseShare($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'deleted']);
         } catch (\Exception $e) {
             $this->logger->error('Failed to delete share', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to delete share')],
@@ -363,12 +369,12 @@ class SharedExpenseController extends Controller {
                     Http::STATUS_BAD_REQUEST
                 );
             }
-            $settlement = $this->service->settleSelectedShares($this->userId, $shareIds, $date, $notes);
+            $settlement = $this->service->settleSelectedShares($this->getEffectiveUserId(), $shareIds, $date, $notes);
             return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\Exception $e) {
             $this->logger->error('Failed to settle selected shares', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to settle expenses')],
@@ -391,7 +397,7 @@ class SharedExpenseController extends Controller {
     ): DataResponse {
         try {
             $settlement = $this->service->recordSettlement(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $contactId,
                 $amount,
                 $date,
@@ -401,7 +407,7 @@ class SharedExpenseController extends Controller {
         } catch (\Exception $e) {
             $this->logger->error('Failed to record settlement', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to record settlement')],
@@ -418,12 +424,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function settleWithContact(int $contactId, string $date, ?string $notes = null): DataResponse {
         try {
-            $settlement = $this->service->settleWithContact($this->userId, $contactId, $date, $notes);
+            $settlement = $this->service->settleWithContact($this->getEffectiveUserId(), $contactId, $date, $notes);
             return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\Exception $e) {
             $this->logger->error('Failed to settle with contact', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to settle')],
@@ -440,12 +446,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function settlements(): DataResponse {
         try {
-            $settlements = $this->service->getSettlements($this->userId);
+            $settlements = $this->service->getSettlements($this->getEffectiveUserId());
             return new DataResponse(array_map(fn($s) => $s->jsonSerialize(), $settlements));
         } catch (\Exception $e) {
             $this->logger->error('Failed to get settlements', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to get settlements')],
@@ -462,12 +468,12 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroySettlement(int $id): DataResponse {
         try {
-            $this->service->deleteSettlement($id, $this->userId);
+            $this->service->deleteSettlement($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'deleted']);
         } catch (\Exception $e) {
             $this->logger->error('Failed to delete settlement', [
                 'exception' => $e,
-                'userId' => $this->userId,
+                'userId' => $this->getEffectiveUserId(),
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to delete settlement')],

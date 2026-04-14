@@ -8,7 +8,9 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -20,6 +22,7 @@ use Psr\Log\LoggerInterface;
 
 class SettingController extends Controller {
     use ApiErrorHandlerTrait;
+    use SharedAccessTrait;
 
     private $userId;
     private $mapper;
@@ -48,6 +51,7 @@ class SettingController extends Controller {
     public function __construct(
         IRequest $request,
         SettingMapper $mapper,
+        ShareService $shareService,
         IL10N $l,
         ?string $userId,
         LoggerInterface $logger
@@ -57,6 +61,7 @@ class SettingController extends Controller {
         $this->mapper = $mapper;
         $this->l = $l;
         $this->setLogger($logger);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -66,7 +71,7 @@ class SettingController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $settings = $this->mapper->findAll($this->userId);
+            $settings = $this->mapper->findAll($this->getEffectiveUserId());
 
             // Convert to key-value array
             $settingsArray = [];
@@ -90,7 +95,7 @@ class SettingController extends Controller {
      */
     public function show(string $key): DataResponse {
         try {
-            $setting = $this->mapper->findByKey($this->userId, $key);
+            $setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
             return new DataResponse([
                 'key' => $setting->getKey(),
                 'value' => $setting->getValue()
@@ -131,14 +136,14 @@ class SettingController extends Controller {
 
                 try {
                     // Try to find existing setting
-                    $setting = $this->mapper->findByKey($this->userId, $key);
+                    $setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
                     $setting->setValue((string)$value);
                     $setting->setUpdatedAt($now);
                     $this->mapper->update($setting);
                 } catch (DoesNotExistException $e) {
                     // Create new setting
                     $setting = new Setting();
-                    $setting->setUserId($this->userId);
+                    $setting->setUserId($this->getEffectiveUserId());
                     $setting->setKey($key);
                     $setting->setValue((string)$value);
                     $setting->setCreatedAt($now);
@@ -179,14 +184,14 @@ class SettingController extends Controller {
 
             try {
                 // Try to find existing setting
-                $setting = $this->mapper->findByKey($this->userId, $key);
+                $setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
                 $setting->setValue((string)$value);
                 $setting->setUpdatedAt($now);
                 $this->mapper->update($setting);
             } catch (DoesNotExistException $e) {
                 // Create new setting
                 $setting = new Setting();
-                $setting->setUserId($this->userId);
+                $setting->setUserId($this->getEffectiveUserId());
                 $setting->setKey($key);
                 $setting->setValue((string)$value);
                 $setting->setCreatedAt($now);
@@ -212,7 +217,7 @@ class SettingController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(string $key): DataResponse {
         try {
-            $deleted = $this->mapper->deleteByKey($this->userId, $key);
+            $deleted = $this->mapper->deleteByKey($this->getEffectiveUserId(), $key);
 
             if ($deleted === 0) {
                 return new DataResponse(
@@ -239,7 +244,7 @@ class SettingController extends Controller {
     #[UserRateLimit(limit: 5, period: 60)]
     public function reset(): DataResponse {
         try {
-            $deleted = $this->mapper->deleteAll($this->userId);
+            $deleted = $this->mapper->deleteAll($this->getEffectiveUserId());
 
             return new DataResponse([
                 'message' => $this->l->t('All settings reset to defaults'),

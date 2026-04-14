@@ -6,7 +6,9 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BudgetAlertService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
@@ -15,6 +17,7 @@ use Psr\Log\LoggerInterface;
 
 class AlertController extends Controller {
     use ApiErrorHandlerTrait;
+    use SharedAccessTrait;
 
     private BudgetAlertService $alertService;
     private IL10N $l;
@@ -23,6 +26,7 @@ class AlertController extends Controller {
     public function __construct(
         IRequest $request,
         BudgetAlertService $alertService,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -32,6 +36,7 @@ class AlertController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -40,7 +45,7 @@ class AlertController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $alerts = $this->alertService->getAlerts($this->userId);
+            $alerts = $this->alertService->getAlerts($this->getEffectiveUserId());
             return new DataResponse($alerts);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve budget alerts'));
@@ -53,7 +58,7 @@ class AlertController extends Controller {
      */
     public function status(): DataResponse {
         try {
-            $status = $this->alertService->getBudgetStatus($this->userId);
+            $status = $this->alertService->getBudgetStatus($this->getEffectiveUserId());
             return new DataResponse($status);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve budget status'));
@@ -66,7 +71,7 @@ class AlertController extends Controller {
      */
     public function summary(): DataResponse {
         try {
-            $summary = $this->alertService->getSummary($this->userId);
+            $summary = $this->alertService->getSummary($this->getEffectiveUserId());
             return new DataResponse($summary);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve budget summary'));

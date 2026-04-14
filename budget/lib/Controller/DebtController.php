@@ -6,6 +6,8 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\DebtPayoffService;
+use OCA\Budget\Service\ShareService;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -15,6 +17,8 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class DebtController extends Controller {
+    use SharedAccessTrait;
+
     private DebtPayoffService $service;
     private IL10N $l;
     private string $userId;
@@ -23,6 +27,7 @@ class DebtController extends Controller {
     public function __construct(
         IRequest $request,
         DebtPayoffService $service,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -32,6 +37,7 @@ class DebtController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
+        $this->setShareService($shareService);
     }
 
     /**
@@ -41,7 +47,7 @@ class DebtController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $debts = $this->service->getDebts($this->userId);
+            $debts = $this->service->getDebts($this->getEffectiveUserId());
             return new DataResponse(array_values($debts));
         } catch (\Exception $e) {
             $this->logger->error('Failed to retrieve debts', [
@@ -62,7 +68,7 @@ class DebtController extends Controller {
      */
     public function summary(): DataResponse {
         try {
-            $summary = $this->service->getSummary($this->userId);
+            $summary = $this->service->getSummary($this->getEffectiveUserId());
             return new DataResponse($summary);
         } catch (\Exception $e) {
             $this->logger->error('Failed to retrieve debt summary', [
@@ -100,7 +106,7 @@ class DebtController extends Controller {
                 );
             }
 
-            $plan = $this->service->calculatePayoffPlan($this->userId, $strategy, $extraPayment);
+            $plan = $this->service->calculatePayoffPlan($this->getEffectiveUserId(), $strategy, $extraPayment);
             return new DataResponse($plan);
         } catch (\Exception $e) {
             $this->logger->error('Failed to calculate payoff plan', [
@@ -131,7 +137,7 @@ class DebtController extends Controller {
                 );
             }
 
-            $comparison = $this->service->compareStrategies($this->userId, $extraPayment);
+            $comparison = $this->service->compareStrategies($this->getEffectiveUserId(), $extraPayment);
             return new DataResponse($comparison);
         } catch (\Exception $e) {
             $this->logger->error('Failed to compare strategies', [

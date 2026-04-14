@@ -6,9 +6,11 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\GoalsService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -20,6 +22,7 @@ use Psr\Log\LoggerInterface;
 class GoalsController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private GoalsService $service;
     private ValidationService $validationService;
@@ -30,6 +33,7 @@ class GoalsController extends Controller {
         IRequest $request,
         GoalsService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -41,6 +45,7 @@ class GoalsController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -48,7 +53,7 @@ class GoalsController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $goals = $this->service->findAll($this->userId);
+            $goals = $this->service->findAll($this->getEffectiveUserId());
             return new DataResponse($goals);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve goals'));
@@ -60,7 +65,7 @@ class GoalsController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $goal = $this->service->find($id, $this->userId);
+            $goal = $this->service->find($id, $this->getEffectiveUserId());
             return new DataResponse($goal);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Goal'), ['goalId' => $id]);
@@ -128,7 +133,7 @@ class GoalsController extends Controller {
             }
 
             $goal = $this->service->create(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $name,
                 $targetAmount,
                 $targetMonths,
@@ -210,7 +215,7 @@ class GoalsController extends Controller {
 
             $goal = $this->service->update(
                 $id,
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $name,
                 $targetAmount,
                 $targetMonths,
@@ -232,7 +237,7 @@ class GoalsController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->userId);
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['message' => $this->l->t('Goal deleted successfully')]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete goal'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
@@ -244,7 +249,7 @@ class GoalsController extends Controller {
      */
     public function progress(int $id): DataResponse {
         try {
-            $progress = $this->service->getProgress($id, $this->userId);
+            $progress = $this->service->getProgress($id, $this->getEffectiveUserId());
             return new DataResponse($progress);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve goal progress'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
@@ -256,7 +261,7 @@ class GoalsController extends Controller {
      */
     public function forecast(int $id): DataResponse {
         try {
-            $forecast = $this->service->getForecast($id, $this->userId);
+            $forecast = $this->service->getForecast($id, $this->getEffectiveUserId());
             return new DataResponse($forecast);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve goal forecast'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);

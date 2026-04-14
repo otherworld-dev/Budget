@@ -288,6 +288,16 @@ return [
         ['name' => 'migration#preview', 'url' => '/api/migration/preview', 'verb' => 'POST'],
         ['name' => 'migration#import', 'url' => '/api/migration/import', 'verb' => 'POST'],
 
+        // Budget sharing routes
+        ['name' => 'share#outgoing', 'url' => '/api/shares/outgoing', 'verb' => 'GET'],
+        ['name' => 'share#incoming', 'url' => '/api/shares/incoming', 'verb' => 'GET'],
+        ['name' => 'share#pending', 'url' => '/api/shares/pending', 'verb' => 'GET'],
+        ['name' => 'share#create', 'url' => '/api/shares', 'verb' => 'POST'],
+        ['name' => 'share#accept', 'url' => '/api/shares/{id}/accept', 'verb' => 'POST'],
+        ['name' => 'share#decline', 'url' => '/api/shares/{id}/decline', 'verb' => 'POST'],
+        ['name' => 'share#revoke', 'url' => '/api/shares/{id}', 'verb' => 'DELETE'],
+        ['name' => 'share#leave', 'url' => '/api/shares/{id}/leave', 'verb' => 'POST'],
+
         // Exchange rate routes
         ['name' => 'exchangeRate#index', 'url' => '/api/exchange-rates', 'verb' => 'GET'],
         ['name' => 'exchangeRate#latest', 'url' => '/api/exchange-rates/latest', 'verb' => 'GET'],

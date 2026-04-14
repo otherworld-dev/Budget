@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\TagSetService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -20,6 +22,7 @@ use Psr\Log\LoggerInterface;
 class TagSetController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private TagSetService $service;
     private ValidationService $validationService;
@@ -30,6 +33,7 @@ class TagSetController extends Controller {
         IRequest $request,
         TagSetService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -41,6 +45,7 @@ class TagSetController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -49,10 +54,10 @@ class TagSetController extends Controller {
     public function index(?int $categoryId = null): DataResponse {
         try {
             if ($categoryId !== null) {
-                $tagSets = $this->service->getCategoryTagSetsWithTags($categoryId, $this->userId);
+                $tagSets = $this->service->getCategoryTagSetsWithTags($categoryId, $this->getEffectiveUserId());
             } else {
                 // Load all tag sets with their tags for reports filtering
-                $tagSets = $this->service->getAllTagSetsWithTags($this->userId);
+                $tagSets = $this->service->getAllTagSetsWithTags($this->getEffectiveUserId());
             }
             return new DataResponse($tagSets);
         } catch (\Exception $e) {
@@ -65,7 +70,7 @@ class TagSetController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $tagSet = $this->service->getTagSetWithTags($id, $this->userId);
+            $tagSet = $this->service->getTagSetWithTags($id, $this->getEffectiveUserId());
             return new DataResponse($tagSet);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Tag set'), ['tagSetId' => $id]);
@@ -98,7 +103,7 @@ class TagSetController extends Controller {
             $name = $nameValidation['sanitized'];
 
             $tagSet = $this->service->create(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $categoryId,
                 $name,
                 $description,
@@ -141,7 +146,7 @@ class TagSetController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $tagSet = $this->service->update($id, $this->userId, $updates);
+            $tagSet = $this->service->update($id, $this->getEffectiveUserId(), $updates);
             return new DataResponse($tagSet);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update tag set'), Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
@@ -154,7 +159,7 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->userId);
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete tag set'), Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
@@ -166,7 +171,7 @@ class TagSetController extends Controller {
      */
     public function getTags(int $tagSetId): DataResponse {
         try {
-            $tagSet = $this->service->getTagSetWithTags($tagSetId, $this->userId);
+            $tagSet = $this->service->getTagSetWithTags($tagSetId, $this->getEffectiveUserId());
             return new DataResponse($tagSet->getTags());
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve tags'));
@@ -208,7 +213,7 @@ class TagSetController extends Controller {
 
             $tag = $this->service->createTag(
                 $tagSetId,
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $name,
                 $color,
                 $sortOrder
@@ -256,7 +261,7 @@ class TagSetController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $tag = $this->service->updateTag($tagId, $this->userId, $updates);
+            $tag = $this->service->updateTag($tagId, $this->getEffectiveUserId(), $updates);
             return new DataResponse($tag);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
@@ -269,7 +274,7 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroyTag(int $tagSetId, int $tagId): DataResponse {
         try {
-            $this->service->deleteTag($tagId, $this->userId);
+            $this->service->deleteTag($tagId, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
@@ -285,7 +290,7 @@ class TagSetController extends Controller {
      */
     public function getGlobalTags(): DataResponse {
         try {
-            $tags = $this->service->getGlobalTags($this->userId);
+            $tags = $this->service->getGlobalTags($this->getEffectiveUserId());
             return new DataResponse($tags);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve global tags'));
@@ -318,7 +323,7 @@ class TagSetController extends Controller {
                 $color = $colorValidation['sanitized'];
             }
 
-            $tag = $this->service->createGlobalTag($this->userId, $nameValidation['sanitized'], $color);
+            $tag = $this->service->createGlobalTag($this->getEffectiveUserId(), $nameValidation['sanitized'], $color);
             return new DataResponse($tag, Http::STATUS_CREATED);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create global tag'));
@@ -354,7 +359,7 @@ class TagSetController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $tag = $this->service->updateGlobalTag($tagId, $this->userId, $updates);
+            $tag = $this->service->updateGlobalTag($tagId, $this->getEffectiveUserId(), $updates);
             return new DataResponse($tag);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update global tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
@@ -367,7 +372,7 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroyGlobalTag(int $tagId): DataResponse {
         try {
-            $this->service->deleteGlobalTag($tagId, $this->userId);
+            $this->service->deleteGlobalTag($tagId, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete global tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);

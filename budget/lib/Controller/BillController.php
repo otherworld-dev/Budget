@@ -6,9 +6,11 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -21,6 +23,7 @@ use Psr\Log\LoggerInterface;
 class BillController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private BillService $service;
     private ValidationService $validationService;
@@ -31,6 +34,7 @@ class BillController extends Controller {
         IRequest $request,
         BillService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -42,6 +46,7 @@ class BillController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -60,13 +65,13 @@ class BillController extends Controller {
             if ($isTransferBool !== null) {
                 // Convert activeOnly to isActive parameter: false -> null (all), true -> true (active only)
                 $isActive = $activeOnlyBool ? true : null;
-                $bills = $this->service->findByType($this->userId, $isTransferBool, $isActive);
+                $bills = $this->service->findByType($this->getEffectiveUserId(), $isTransferBool, $isActive);
             } elseif ($activeOnlyBool) {
-                $bills = $this->service->findActive($this->userId);
+                $bills = $this->service->findActive($this->getEffectiveUserId());
             } else {
-                $bills = $this->service->findAll($this->userId);
+                $bills = $this->service->findAll($this->getEffectiveUserId());
             }
-            $bills = $this->service->enrichBillsWithCurrency($bills, $this->userId);
+            $bills = $this->service->enrichBillsWithCurrency($bills, $this->getEffectiveUserId());
             return new DataResponse($bills);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve bills'));
@@ -89,8 +94,8 @@ class BillController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $bill = $this->service->find($id, $this->userId);
-            $this->service->enrichBillsWithCurrency([$bill], $this->userId);
+            $bill = $this->service->find($id, $this->getEffectiveUserId());
+            $this->service->enrichBillsWithCurrency([$bill], $this->getEffectiveUserId());
             return new DataResponse($bill);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
@@ -247,7 +252,7 @@ class BillController extends Controller {
             }
 
             $bill = $this->service->create(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $name,
                 $amount,
                 $frequency,
@@ -444,7 +449,7 @@ class BillController extends Controller {
                     $billAmount = $updates['amount'] ?? null;
                     if ($billAmount === null) {
                         // Get existing bill amount for validation
-                        $existingBill = $this->service->find($id, $this->userId);
+                        $existingBill = $this->service->find($id, $this->getEffectiveUserId());
                         $billAmount = $existingBill->getAmount();
                     }
                     $splitValidation = $this->validateSplitTemplate($data['splitTemplate'], $billAmount);
@@ -463,7 +468,7 @@ class BillController extends Controller {
                 if ($destinationId === null) {
                     // Check existing bill for destination account if not in updates
                     try {
-                        $existingBill = $this->service->find($id, $this->userId);
+                        $existingBill = $this->service->find($id, $this->getEffectiveUserId());
                         $destinationId = $existingBill->getDestinationAccountId();
                     } catch (\Exception $e) {
                         // Will be caught by outer try-catch
@@ -485,7 +490,7 @@ class BillController extends Controller {
                 // If only one is being updated, get the other from existing bill
                 if ($accountId === null || $destinationId === null) {
                     try {
-                        $existingBill = $this->service->find($id, $this->userId);
+                        $existingBill = $this->service->find($id, $this->getEffectiveUserId());
                         if ($accountId === null) {
                             $accountId = $existingBill->getAccountId();
                         }
@@ -509,7 +514,7 @@ class BillController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $bill = $this->service->update($id, $this->userId, $updates);
+            $bill = $this->service->update($id, $this->getEffectiveUserId(), $updates);
             return new DataResponse($bill);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update bill'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -523,7 +528,7 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->userId);
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
@@ -540,7 +545,7 @@ class BillController extends Controller {
             $params = $this->request->getParams();
             $createNextTransaction = (bool) ($params['createNextTransaction'] ?? false);
 
-            $bill = $this->service->markPaid($id, $this->userId, $paidDate, $createNextTransaction);
+            $bill = $this->service->markPaid($id, $this->getEffectiveUserId(), $paidDate, $createNextTransaction);
             return new DataResponse($bill);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -554,7 +559,7 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function skipPayment(int $id): DataResponse {
         try {
-            $result = $this->service->skipPayment($id, $this->userId);
+            $result = $this->service->skipPayment($id, $this->getEffectiveUserId());
             return new DataResponse($result);
         } catch (\InvalidArgumentException $e) {
             return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -577,7 +582,7 @@ class BillController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Missing previous due date')], Http::STATUS_BAD_REQUEST);
             }
 
-            $bill = $this->service->undoSkip($id, $this->userId, $previousNextDueDate);
+            $bill = $this->service->undoSkip($id, $this->getEffectiveUserId(), $previousNextDueDate);
             return new DataResponse($bill);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to undo skip'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -590,8 +595,8 @@ class BillController extends Controller {
      */
     public function upcoming(int $days = 30): DataResponse {
         try {
-            $bills = $this->service->findUpcoming($this->userId, $days);
-            $bills = $this->service->enrichBillsWithCurrency($bills, $this->userId);
+            $bills = $this->service->findUpcoming($this->getEffectiveUserId(), $days);
+            $bills = $this->service->enrichBillsWithCurrency($bills, $this->getEffectiveUserId());
             return new DataResponse($bills);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve upcoming bills'));
@@ -604,8 +609,8 @@ class BillController extends Controller {
      */
     public function dueThisMonth(): DataResponse {
         try {
-            $bills = $this->service->findDueThisMonth($this->userId);
-            $bills = $this->service->enrichBillsWithCurrency($bills, $this->userId);
+            $bills = $this->service->findDueThisMonth($this->getEffectiveUserId());
+            $bills = $this->service->enrichBillsWithCurrency($bills, $this->getEffectiveUserId());
             return new DataResponse($bills);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve bills due this month'));
@@ -618,8 +623,8 @@ class BillController extends Controller {
      */
     public function overdue(): DataResponse {
         try {
-            $bills = $this->service->findOverdue($this->userId);
-            $bills = $this->service->enrichBillsWithCurrency($bills, $this->userId);
+            $bills = $this->service->findOverdue($this->getEffectiveUserId());
+            $bills = $this->service->enrichBillsWithCurrency($bills, $this->getEffectiveUserId());
             return new DataResponse($bills);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve overdue bills'));
@@ -632,7 +637,7 @@ class BillController extends Controller {
      */
     public function summary(): DataResponse {
         try {
-            $summary = $this->service->getMonthlySummary($this->userId);
+            $summary = $this->service->getMonthlySummary($this->getEffectiveUserId());
             return new DataResponse($summary);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve bill summary'));
@@ -645,7 +650,7 @@ class BillController extends Controller {
      */
     public function statusForMonth(?string $month = null): DataResponse {
         try {
-            $status = $this->service->getBillStatusForMonth($this->userId, $month);
+            $status = $this->service->getBillStatusForMonth($this->getEffectiveUserId(), $month);
             return new DataResponse($status);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve bill status'));
@@ -658,7 +663,7 @@ class BillController extends Controller {
      */
     public function detect(int $months = 6): DataResponse {
         try {
-            $detected = $this->service->detectRecurringBills($this->userId, $months);
+            $detected = $this->service->detectRecurringBills($this->getEffectiveUserId(), $months);
             return new DataResponse($detected);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to detect recurring bills'));
@@ -677,7 +682,7 @@ class BillController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
-            $created = $this->service->createFromDetected($this->userId, $data['bills']);
+            $created = $this->service->createFromDetected($this->getEffectiveUserId(), $data['bills']);
             return new DataResponse([
                 'created' => count($created),
                 'bills' => $created,
@@ -710,7 +715,7 @@ class BillController extends Controller {
                 $billStatus = 'active';
             }
 
-            $overview = $this->service->getAnnualOverview($this->userId, $year, $includeTransfersBool, $billStatus, $accountId);
+            $overview = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId);
             return new DataResponse($overview);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to generate annual overview'));
@@ -740,7 +745,7 @@ class BillController extends Controller {
                 $billStatus = 'active';
             }
 
-            $data = $this->service->getAnnualOverview($this->userId, $year, $includeTransfersBool, $billStatus, $accountId);
+            $data = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId);
 
             if ($format === 'pdf') {
                 $result = $this->exportCalendarToPdf($data);

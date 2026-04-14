@@ -8,9 +8,11 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\PensionAccount;
 use OCA\Budget\Service\PensionProjector;
 use OCA\Budget\Service\PensionService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -22,6 +24,7 @@ use Psr\Log\LoggerInterface;
 class PensionController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private PensionService $service;
     private PensionProjector $projector;
@@ -34,6 +37,7 @@ class PensionController extends Controller {
         PensionService $service,
         PensionProjector $projector,
         ValidationService $validationService,
+        ShareService $shareService,
         IL10N $l,
         ?string $userId,
         LoggerInterface $logger
@@ -46,16 +50,17 @@ class PensionController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
      * Get the current user ID or throw an error if not authenticated.
      */
     private function getUserId(): string {
-        if ($this->userId === null) {
+        if ($this->getEffectiveUserId() === null) {
             throw new \RuntimeException('User not authenticated');
         }
-        return $this->userId;
+        return $this->getEffectiveUserId();
     }
 
     // =====================
@@ -67,7 +72,7 @@ class PensionController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $pensions = $this->service->findAll($this->getUserId());
+            $pensions = $this->service->findAll($this->getEffectiveUserId());
             return new DataResponse($pensions);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve pensions'));
@@ -79,7 +84,7 @@ class PensionController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $pension = $this->service->find($id, $this->getUserId());
+            $pension = $this->service->find($id, $this->getEffectiveUserId());
             return new DataResponse($pension);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Pension'), ['pensionId' => $id]);
@@ -165,7 +170,7 @@ class PensionController extends Controller {
             }
 
             $pension = $this->service->create(
-                $this->getUserId(),
+                $this->getEffectiveUserId(),
                 $name,
                 $type,
                 $provider,
@@ -260,7 +265,7 @@ class PensionController extends Controller {
 
             $pension = $this->service->update(
                 $id,
-                $this->getUserId(),
+                $this->getEffectiveUserId(),
                 $name,
                 $type,
                 $provider,
@@ -284,7 +289,7 @@ class PensionController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->getUserId());
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['message' => $this->l->t('Pension deleted successfully')]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete pension'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -300,7 +305,7 @@ class PensionController extends Controller {
      */
     public function snapshots(int $id): DataResponse {
         try {
-            $snapshots = $this->service->getSnapshots($id, $this->getUserId());
+            $snapshots = $this->service->getSnapshots($id, $this->getEffectiveUserId());
             return new DataResponse($snapshots);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve snapshots'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -339,7 +344,7 @@ class PensionController extends Controller {
                 return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
             }
 
-            $snapshot = $this->service->createSnapshot($id, $this->getUserId(), $balance, $date);
+            $snapshot = $this->service->createSnapshot($id, $this->getEffectiveUserId(), $balance, $date);
             return new DataResponse($snapshot, Http::STATUS_CREATED);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create snapshot'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -352,7 +357,7 @@ class PensionController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroySnapshot(int $snapshotId): DataResponse {
         try {
-            $this->service->deleteSnapshot($snapshotId, $this->getUserId());
+            $this->service->deleteSnapshot($snapshotId, $this->getEffectiveUserId());
             return new DataResponse(['message' => $this->l->t('Snapshot deleted successfully')]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete snapshot'), Http::STATUS_BAD_REQUEST, ['snapshotId' => $snapshotId]);
@@ -368,7 +373,7 @@ class PensionController extends Controller {
      */
     public function contributions(int $id): DataResponse {
         try {
-            $contributions = $this->service->getContributions($id, $this->getUserId());
+            $contributions = $this->service->getContributions($id, $this->getEffectiveUserId());
             return new DataResponse($contributions);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve contributions'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -417,7 +422,7 @@ class PensionController extends Controller {
                 $note = $noteValidation['sanitized'];
             }
 
-            $contribution = $this->service->createContribution($id, $this->getUserId(), $amount, $date, $note);
+            $contribution = $this->service->createContribution($id, $this->getEffectiveUserId(), $amount, $date, $note);
             return new DataResponse($contribution, Http::STATUS_CREATED);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create contribution'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -430,7 +435,7 @@ class PensionController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroyContribution(int $contributionId): DataResponse {
         try {
-            $this->service->deleteContribution($contributionId, $this->getUserId());
+            $this->service->deleteContribution($contributionId, $this->getEffectiveUserId());
             return new DataResponse(['message' => $this->l->t('Contribution deleted successfully')]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete contribution'), Http::STATUS_BAD_REQUEST, ['contributionId' => $contributionId]);
@@ -446,7 +451,7 @@ class PensionController extends Controller {
      */
     public function summary(): DataResponse {
         try {
-            $summary = $this->service->getSummary($this->getUserId());
+            $summary = $this->service->getSummary($this->getEffectiveUserId());
             return new DataResponse($summary);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve pension summary'));
@@ -458,7 +463,7 @@ class PensionController extends Controller {
      */
     public function projection(int $id, ?int $currentAge = null): DataResponse {
         try {
-            $projection = $this->projector->getProjection($id, $this->getUserId(), $currentAge);
+            $projection = $this->projector->getProjection($id, $this->getEffectiveUserId(), $currentAge);
             return new DataResponse($projection);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve pension projection'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -470,7 +475,7 @@ class PensionController extends Controller {
      */
     public function combinedProjection(?int $currentAge = null): DataResponse {
         try {
-            $projection = $this->projector->getCombinedProjection($this->getUserId(), $currentAge);
+            $projection = $this->projector->getCombinedProjection($this->getEffectiveUserId(), $currentAge);
             return new DataResponse($projection);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve combined pension projection'));

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\YearOverYearService;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -16,6 +18,8 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class YearOverYearController extends Controller {
+    use SharedAccessTrait;
+
     private YearOverYearService $service;
     private IL10N $l;
     private string $userId;
@@ -24,6 +28,7 @@ class YearOverYearController extends Controller {
     public function __construct(
         IRequest $request,
         YearOverYearService $service,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -33,6 +38,7 @@ class YearOverYearController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
+        $this->setShareService($shareService);
     }
 
     /**
@@ -51,7 +57,7 @@ class YearOverYearController extends Controller {
             // Limit years to reasonable range
             $years = max(1, min(10, $years));
 
-            $comparison = $this->service->compareMonth($this->userId, $month, $years, $accountId);
+            $comparison = $this->service->compareMonth($this->getEffectiveUserId(), $month, $years, $accountId);
             return new DataResponse($comparison);
         } catch (\Exception $e) {
             $this->logger->error('Failed to compare month', [
@@ -76,7 +82,7 @@ class YearOverYearController extends Controller {
             // Limit years to reasonable range
             $years = max(1, min(10, $years));
 
-            $comparison = $this->service->compareYears($this->userId, $years, $accountId);
+            $comparison = $this->service->compareYears($this->getEffectiveUserId(), $years, $accountId);
             return new DataResponse($comparison);
         } catch (\Exception $e) {
             $this->logger->error('Failed to compare years', [
@@ -101,7 +107,7 @@ class YearOverYearController extends Controller {
             // Limit years to reasonable range
             $years = max(1, min(5, $years));
 
-            $comparison = $this->service->compareCategorySpending($this->userId, $years, $accountId);
+            $comparison = $this->service->compareCategorySpending($this->getEffectiveUserId(), $years, $accountId);
             return new DataResponse($comparison);
         } catch (\Exception $e) {
             $this->logger->error('Failed to compare categories', [
@@ -126,7 +132,7 @@ class YearOverYearController extends Controller {
             // Limit years to reasonable range
             $years = max(1, min(5, $years));
 
-            $trends = $this->service->getMonthlyTrends($this->userId, $years, $accountId);
+            $trends = $this->service->getMonthlyTrends($this->getEffectiveUserId(), $years, $accountId);
             return new DataResponse($trends);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get monthly trends', [
@@ -157,13 +163,13 @@ class YearOverYearController extends Controller {
 
             $data = match ($comparisonType) {
                 'month' => $this->service->compareMonth(
-                    $this->userId,
+                    $this->getEffectiveUserId(),
                     ($month > 0 && $month <= 12) ? $month : (int) date('n'),
                     $years,
                     $accountId
                 ),
-                'categories' => $this->service->compareCategorySpending($this->userId, min($years, 5), $accountId),
-                default => $this->service->compareYears($this->userId, $years, $accountId),
+                'categories' => $this->service->compareCategorySpending($this->getEffectiveUserId(), min($years, 5), $accountId),
+                default => $this->service->compareYears($this->getEffectiveUserId(), $years, $accountId),
             };
 
             if ($format === 'pdf') {

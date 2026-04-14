@@ -8,9 +8,11 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Asset;
 use OCA\Budget\Service\AssetProjector;
 use OCA\Budget\Service\AssetService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -22,6 +24,7 @@ use Psr\Log\LoggerInterface;
 class AssetController extends Controller {
 	use ApiErrorHandlerTrait;
 	use InputValidationTrait;
+	use SharedAccessTrait;
 
 	private AssetService $service;
 	private AssetProjector $projector;
@@ -34,6 +37,7 @@ class AssetController extends Controller {
 		AssetService $service,
 		AssetProjector $projector,
 		ValidationService $validationService,
+		ShareService $shareService,
 		IL10N $l,
 		?string $userId,
 		LoggerInterface $logger
@@ -46,16 +50,17 @@ class AssetController extends Controller {
 		$this->userId = $userId;
 		$this->setLogger($logger);
 		$this->setInputValidator($validationService);
+		$this->setShareService($shareService);
 	}
 
 	/**
 	 * Get the current user ID or throw an error if not authenticated.
 	 */
 	private function getUserId(): string {
-		if ($this->userId === null) {
+		if ($this->getEffectiveUserId() === null) {
 			throw new \RuntimeException('User not authenticated');
 		}
-		return $this->userId;
+		return $this->getEffectiveUserId();
 	}
 
 	// =====================
@@ -67,7 +72,7 @@ class AssetController extends Controller {
 	 */
 	public function index(): DataResponse {
 		try {
-			$assets = $this->service->findAll($this->getUserId());
+			$assets = $this->service->findAll($this->getEffectiveUserId());
 			return new DataResponse($assets);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve assets'));
@@ -79,7 +84,7 @@ class AssetController extends Controller {
 	 */
 	public function show(int $id): DataResponse {
 		try {
-			$asset = $this->service->find($id, $this->getUserId());
+			$asset = $this->service->find($id, $this->getEffectiveUserId());
 			return new DataResponse($asset);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Asset'), ['assetId' => $id]);
@@ -161,7 +166,7 @@ class AssetController extends Controller {
 			}
 
 			$asset = $this->service->create(
-				$this->getUserId(),
+				$this->getEffectiveUserId(),
 				$name,
 				$type,
 				$description,
@@ -250,7 +255,7 @@ class AssetController extends Controller {
 
 			$asset = $this->service->update(
 				$id,
-				$this->getUserId(),
+				$this->getEffectiveUserId(),
 				$name,
 				$type,
 				$description,
@@ -272,7 +277,7 @@ class AssetController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroy(int $id): DataResponse {
 		try {
-			$this->service->delete($id, $this->getUserId());
+			$this->service->delete($id, $this->getEffectiveUserId());
 			return new DataResponse(['message' => $this->l->t('Asset deleted successfully')]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to delete asset'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
@@ -288,7 +293,7 @@ class AssetController extends Controller {
 	 */
 	public function snapshots(int $id): DataResponse {
 		try {
-			$snapshots = $this->service->getSnapshots($id, $this->getUserId());
+			$snapshots = $this->service->getSnapshots($id, $this->getEffectiveUserId());
 			return new DataResponse($snapshots);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve snapshots'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
@@ -326,7 +331,7 @@ class AssetController extends Controller {
 				return new DataResponse(['error' => $dateValidation['error']], Http::STATUS_BAD_REQUEST);
 			}
 
-			$snapshot = $this->service->createSnapshot($id, $this->getUserId(), $value, $date);
+			$snapshot = $this->service->createSnapshot($id, $this->getEffectiveUserId(), $value, $date);
 			return new DataResponse($snapshot, Http::STATUS_CREATED);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create snapshot'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
@@ -339,7 +344,7 @@ class AssetController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroySnapshot(int $snapshotId): DataResponse {
 		try {
-			$this->service->deleteSnapshot($snapshotId, $this->getUserId());
+			$this->service->deleteSnapshot($snapshotId, $this->getEffectiveUserId());
 			return new DataResponse(['message' => $this->l->t('Snapshot deleted successfully')]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to delete snapshot'), Http::STATUS_BAD_REQUEST, ['snapshotId' => $snapshotId]);
@@ -355,7 +360,7 @@ class AssetController extends Controller {
 	 */
 	public function summary(): DataResponse {
 		try {
-			$summary = $this->service->getSummary($this->getUserId());
+			$summary = $this->service->getSummary($this->getEffectiveUserId());
 			return new DataResponse($summary);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve asset summary'));
@@ -367,7 +372,7 @@ class AssetController extends Controller {
 	 */
 	public function projection(int $id, ?int $years = null): DataResponse {
 		try {
-			$projection = $this->projector->getProjection($id, $this->getUserId(), $years ?? 10);
+			$projection = $this->projector->getProjection($id, $this->getEffectiveUserId(), $years ?? 10);
 			return new DataResponse($projection);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve asset projection'), Http::STATUS_BAD_REQUEST, ['assetId' => $id]);
@@ -379,7 +384,7 @@ class AssetController extends Controller {
 	 */
 	public function combinedProjection(?int $years = null): DataResponse {
 		try {
-			$projection = $this->projector->getCombinedProjection($this->getUserId(), $years ?? 10);
+			$projection = $this->projector->getCombinedProjection($this->getEffectiveUserId(), $years ?? 10);
 			return new DataResponse($projection);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve combined asset projection'));
@@ -399,7 +404,7 @@ class AssetController extends Controller {
 				$days = 365;
 			}
 
-			$result = $this->service->getValueHistory($this->getUserId(), $days);
+			$result = $this->service->getValueHistory($this->getEffectiveUserId(), $days);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve asset value history'));

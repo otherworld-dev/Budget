@@ -627,6 +627,26 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('SharedExpenseService', \OCA\Budget\Service\SharedExpenseService::class);
 
         // ==========================================
+        // Budget Sharing Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\ShareMapper::class, function($c) {
+            return new \OCA\Budget\Db\ShareMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('ShareMapper', \OCA\Budget\Db\ShareMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\ShareService::class, function($c) {
+            return new \OCA\Budget\Service\ShareService(
+                $c->get(\OCA\Budget\Db\ShareMapper::class),
+                $c->get(\OCA\Budget\Service\AuditService::class),
+                $c->get(\OCP\IUserManager::class),
+                $c->get(\OCP\Notification\IManager::class),
+                $c->get(\OCP\IL10N::class)
+            );
+        });
+        $context->registerServiceAlias('ShareService', \OCA\Budget\Service\ShareService::class);
+
+        // ==========================================
         // Exchange Rate Services
         // ==========================================
 

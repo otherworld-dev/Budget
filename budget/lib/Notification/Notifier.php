@@ -224,6 +224,39 @@ class Notifier implements INotifier {
 
                 break;
 
+            case 'share_invitation':
+                $notification->setRichSubject(
+                    $l->t('{user} shared their budget with you'),
+                    [
+                        'user' => [
+                            'type' => 'user',
+                            'id' => $parameters['ownerUserId'],
+                            'name' => $parameters['ownerDisplayName'],
+                        ],
+                    ]
+                );
+
+                $notification->setRichMessage(
+                    $l->t('{user} has invited you to view their budget. Open Budget to accept or decline.'),
+                    [
+                        'user' => [
+                            'type' => 'user',
+                            'id' => $parameters['ownerUserId'],
+                            'name' => $parameters['ownerDisplayName'],
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#sharing');
+
+                break;
+
             default:
                 throw new \InvalidArgumentException('Unknown subject');
         }

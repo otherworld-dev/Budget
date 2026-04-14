@@ -40,6 +40,7 @@ import ImportModule from './modules/import/ImportModule.js';
 import AccountsModule from './modules/accounts/AccountsModule.js';
 import CategoriesModule from './modules/categories/CategoriesModule.js';
 import ExchangeRatesModule from './modules/exchange-rates/ExchangeRatesModule.js';
+import SharingModule from './modules/sharing/SharingModule.js';
 
 class BudgetApp {
     constructor() {
@@ -115,6 +116,7 @@ class BudgetApp {
         this.accountsModule = new AccountsModule(this);
         this.categoriesModule = new CategoriesModule(this);
         this.exchangeRatesModule = new ExchangeRatesModule(this);
+        this.sharingModule = new SharingModule(this);
 
         this.init();
     }
@@ -2245,6 +2247,11 @@ class BudgetApp {
         if (fileInput) {
             fileInput.value = '';
         }
+    }
+
+    // Sharing - delegated to SharingModule
+    async loadSharingView() {
+        return this.sharingModule.loadSharingView();
     }
 
     // Settings - delegated to SettingsModule

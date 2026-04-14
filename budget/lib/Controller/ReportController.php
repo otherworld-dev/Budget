@@ -6,7 +6,9 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\ReportService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
@@ -17,6 +19,7 @@ use Psr\Log\LoggerInterface;
 
 class ReportController extends Controller {
     use ApiErrorHandlerTrait;
+    use SharedAccessTrait;
 
     private ReportService $service;
     private IL10N $l;
@@ -25,6 +28,7 @@ class ReportController extends Controller {
     public function __construct(
         IRequest $request,
         ReportService $service,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -34,6 +38,7 @@ class ReportController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -55,7 +60,7 @@ class ReportController extends Controller {
             }
 
             $summary = $this->service->generateSummary(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -88,7 +93,7 @@ class ReportController extends Controller {
             }
 
             $spending = $this->service->getSpendingReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -122,7 +127,7 @@ class ReportController extends Controller {
             }
 
             $income = $this->service->getIncomeReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -155,7 +160,7 @@ class ReportController extends Controller {
             }
 
             $export = $this->service->exportReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $type,
                 $format,
                 $startDate,
@@ -189,7 +194,7 @@ class ReportController extends Controller {
             }
 
             $budget = $this->service->getBudgetReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate
             );
@@ -218,7 +223,7 @@ class ReportController extends Controller {
             }
 
             $summary = $this->service->generateSummaryWithComparison(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -250,7 +255,7 @@ class ReportController extends Controller {
             }
 
             $cashflow = $this->service->getCashFlowReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -282,7 +287,7 @@ class ReportController extends Controller {
             }
 
             $dimensions = $this->service->getTagDimensions(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -315,7 +320,7 @@ class ReportController extends Controller {
             }
 
             $combinations = $this->service->getTagCombinationReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId,
@@ -350,7 +355,7 @@ class ReportController extends Controller {
             }
 
             $crossTab = $this->service->getTagCrossTabulation(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $tagSetId1,
                 $tagSetId2,
                 $startDate,
@@ -383,7 +388,7 @@ class ReportController extends Controller {
             }
 
             $trends = $this->service->getTagTrendReport(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $tagIds ?? [],
                 $startDate,
                 $endDate,
@@ -415,7 +420,7 @@ class ReportController extends Controller {
             }
 
             $breakdown = $this->service->getTagSetBreakdown(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $tagSetId,
                 $startDate,
                 $endDate,

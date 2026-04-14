@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\TransactionTagService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -22,6 +24,7 @@ use Psr\Log\LoggerInterface;
 class TransactionController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private TransactionService $service;
     private TransactionSplitService $splitService;
@@ -36,6 +39,7 @@ class TransactionController extends Controller {
         TransactionSplitService $splitService,
         TransactionTagService $tagService,
         ValidationService $validationService,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -49,6 +53,7 @@ class TransactionController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -92,7 +97,7 @@ class TransactionController extends Controller {
                 'tagIds' => $tagIds,
             ];
 
-            $result = $this->service->findWithFilters($this->userId, $filters, $limit, $offset);
+            $result = $this->service->findWithFilters($this->getEffectiveUserId(), $filters, $limit, $offset);
 
             $responseData = [
                 'transactions' => $result['transactions'],
@@ -116,7 +121,7 @@ class TransactionController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $transaction = $this->service->find($id, $this->userId);
+            $transaction = $this->service->find($id, $this->getEffectiveUserId());
             return new DataResponse($transaction);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
@@ -184,7 +189,7 @@ class TransactionController extends Controller {
             }
 
             $transaction = $this->service->create(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $accountId,
                 $date,
                 $description,
@@ -302,7 +307,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $transaction = $this->service->update($id, $this->userId, $updates);
+            $transaction = $this->service->update($id, $this->getEffectiveUserId(), $updates);
             return new DataResponse($transaction);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update transaction'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
@@ -315,7 +320,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->userId);
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
@@ -327,7 +332,7 @@ class TransactionController extends Controller {
      */
     public function search(string $query, int $limit = 100): DataResponse {
         try {
-            $transactions = $this->service->search($this->userId, $query, $limit);
+            $transactions = $this->service->search($this->getEffectiveUserId(), $query, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to search transactions'));
@@ -339,7 +344,7 @@ class TransactionController extends Controller {
      */
     public function uncategorized(int $limit = 100): DataResponse {
         try {
-            $transactions = $this->service->findUncategorized($this->userId, $limit);
+            $transactions = $this->service->findUncategorized($this->getEffectiveUserId(), $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve uncategorized transactions'));
@@ -352,7 +357,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 10, period: 60)]
     public function bulkCategorize(array $updates): DataResponse {
         try {
-            $results = $this->service->bulkCategorize($this->userId, $updates);
+            $results = $this->service->bulkCategorize($this->getEffectiveUserId(), $updates);
             return new DataResponse($results);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to categorize transactions'));
@@ -366,7 +371,7 @@ class TransactionController extends Controller {
      */
     public function getMatches(int $id, int $dateWindow = 3): DataResponse {
         try {
-            $matches = $this->service->findPotentialMatches($id, $this->userId, $dateWindow);
+            $matches = $this->service->findPotentialMatches($id, $this->getEffectiveUserId(), $dateWindow);
             return new DataResponse([
                 'matches' => $matches,
                 'count' => count($matches)
@@ -384,7 +389,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function link(int $id, int $targetId): DataResponse {
         try {
-            $result = $this->service->linkTransactions($id, $targetId, $this->userId);
+            $result = $this->service->linkTransactions($id, $targetId, $this->getEffectiveUserId());
             return new DataResponse($result);
         } catch (\Exception $e) {
             // Use validation error handler to show actual message (e.g., "already linked")
@@ -400,7 +405,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function unlink(int $id): DataResponse {
         try {
-            $result = $this->service->unlinkTransaction($id, $this->userId);
+            $result = $this->service->unlinkTransaction($id, $this->getEffectiveUserId());
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to unlink transaction'), Http::STATUS_BAD_REQUEST);
@@ -417,7 +422,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 5, period: 60)]
     public function bulkMatch(int $dateWindow = 3): DataResponse {
         try {
-            $result = $this->service->bulkFindAndMatch($this->userId, $dateWindow);
+            $result = $this->service->bulkFindAndMatch($this->getEffectiveUserId(), $dateWindow);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to bulk match transactions'));
@@ -432,7 +437,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 5, period: 60)]
     public function scanMatches(int $dateWindow = 3): DataResponse {
         try {
-            $result = $this->service->scanForMatches($this->userId, $dateWindow);
+            $result = $this->service->scanForMatches($this->getEffectiveUserId(), $dateWindow);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to scan for matches'));
@@ -454,7 +459,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid pairs provided')], Http::STATUS_BAD_REQUEST);
             }
 
-            $result = $this->service->bulkLinkTransactions($this->userId, $pairs);
+            $result = $this->service->bulkLinkTransactions($this->getEffectiveUserId(), $pairs);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to bulk link transactions'));
@@ -473,7 +478,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
             }
 
-            $results = $this->service->bulkDelete($this->userId, $ids);
+            $results = $this->service->bulkDelete($this->getEffectiveUserId(), $ids);
             return new DataResponse($results);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete transactions'));
@@ -492,7 +497,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
             }
 
-            $results = $this->service->bulkReconcile($this->userId, $ids, $reconciled);
+            $results = $this->service->bulkReconcile($this->getEffectiveUserId(), $ids, $reconciled);
             return new DataResponse($results);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update reconcile status'));
@@ -549,7 +554,7 @@ class TransactionController extends Controller {
                 $updates['notes'] = $notesValidation['sanitized'];
             }
 
-            $results = $this->service->bulkEdit($this->userId, $ids, $updates);
+            $results = $this->service->bulkEdit($this->getEffectiveUserId(), $ids, $updates);
             return new DataResponse($results);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to bulk edit transactions'));
@@ -563,7 +568,7 @@ class TransactionController extends Controller {
      */
     public function getSplits(int $id): DataResponse {
         try {
-            $splits = $this->splitService->getSplits($id, $this->userId);
+            $splits = $this->splitService->getSplits($id, $this->getEffectiveUserId());
             return new DataResponse($splits);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
@@ -595,7 +600,7 @@ class TransactionController extends Controller {
                 }
             }
 
-            $splits = $this->splitService->splitTransaction($id, $this->userId, $data['splits']);
+            $splits = $this->splitService->splitTransaction($id, $this->getEffectiveUserId(), $data['splits']);
             return new DataResponse($splits, Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
@@ -612,7 +617,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function unsplit(int $id, ?int $categoryId = null): DataResponse {
         try {
-            $transaction = $this->splitService->unsplitTransaction($id, $this->userId, $categoryId);
+            $transaction = $this->splitService->unsplitTransaction($id, $this->getEffectiveUserId(), $categoryId);
             return new DataResponse($transaction);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
@@ -636,7 +641,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
-            $split = $this->splitService->updateSplit($splitId, $this->userId, $data);
+            $split = $this->splitService->updateSplit($splitId, $this->getEffectiveUserId(), $data);
             return new DataResponse($split);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
@@ -652,7 +657,7 @@ class TransactionController extends Controller {
      */
     public function getTags(int $id): DataResponse {
         try {
-            $tags = $this->tagService->getTransactionTags($id, $this->userId);
+            $tags = $this->tagService->getTransactionTags($id, $this->getEffectiveUserId());
             return new DataResponse($tags);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
@@ -675,7 +680,7 @@ class TransactionController extends Controller {
             }
 
             $tagIds = array_map('intval', $data['tagIds']);
-            $transactionTags = $this->tagService->setTransactionTags($id, $this->userId, $tagIds);
+            $transactionTags = $this->tagService->setTransactionTags($id, $this->getEffectiveUserId(), $tagIds);
 
             return new DataResponse([
                 'status' => 'success',
@@ -694,7 +699,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 60, period: 60)]
     public function clearTags(int $id): DataResponse {
         try {
-            $this->tagService->clearTransactionTags($id, $this->userId);
+            $this->tagService->clearTransactionTags($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to clear transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
@@ -709,7 +714,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 5, period: 60)]
     public function duplicates(): DataResponse {
         try {
-            $groups = $this->service->findDuplicates($this->userId);
+            $groups = $this->service->findDuplicates($this->getEffectiveUserId());
             return new DataResponse([
                 'groups' => $groups,
                 'totalGroups' => count($groups),

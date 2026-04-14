@@ -6,9 +6,11 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\RecurringIncomeService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -20,6 +22,7 @@ use Psr\Log\LoggerInterface;
 class RecurringIncomeController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private RecurringIncomeService $service;
     private ValidationService $validationService;
@@ -30,6 +33,7 @@ class RecurringIncomeController extends Controller {
         IRequest $request,
         RecurringIncomeService $service,
         ValidationService $validationService,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -41,6 +45,7 @@ class RecurringIncomeController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -50,9 +55,9 @@ class RecurringIncomeController extends Controller {
     public function index(?bool $activeOnly = false): DataResponse {
         try {
             if ($activeOnly) {
-                $incomes = $this->service->findActive($this->userId);
+                $incomes = $this->service->findActive($this->getEffectiveUserId());
             } else {
-                $incomes = $this->service->findAll($this->userId);
+                $incomes = $this->service->findAll($this->getEffectiveUserId());
             }
             return new DataResponse($incomes);
         } catch (\Exception $e) {
@@ -66,7 +71,7 @@ class RecurringIncomeController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $income = $this->service->find($id, $this->userId);
+            $income = $this->service->find($id, $this->getEffectiveUserId());
             return new DataResponse($income);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -134,7 +139,7 @@ class RecurringIncomeController extends Controller {
             }
 
             $income = $this->service->create(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $name,
                 $amount,
                 $frequency,
@@ -199,7 +204,7 @@ class RecurringIncomeController extends Controller {
                 }
             }
 
-            $income = $this->service->update($id, $this->userId, $data);
+            $income = $this->service->update($id, $this->getEffectiveUserId(), $data);
             return new DataResponse($income);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -213,7 +218,7 @@ class RecurringIncomeController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->userId);
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['message' => $this->l->t('Recurring income deleted')]);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -226,7 +231,7 @@ class RecurringIncomeController extends Controller {
      */
     public function upcoming(?int $days = 30): DataResponse {
         try {
-            $incomes = $this->service->findUpcoming($this->userId, $days);
+            $incomes = $this->service->findUpcoming($this->getEffectiveUserId(), $days);
             return new DataResponse($incomes);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve upcoming income'));
@@ -239,7 +244,7 @@ class RecurringIncomeController extends Controller {
      */
     public function expectedThisMonth(): DataResponse {
         try {
-            $incomes = $this->service->findExpectedThisMonth($this->userId);
+            $incomes = $this->service->findExpectedThisMonth($this->getEffectiveUserId());
             return new DataResponse($incomes);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve expected income'));
@@ -252,7 +257,7 @@ class RecurringIncomeController extends Controller {
      */
     public function summary(): DataResponse {
         try {
-            $summary = $this->service->getMonthlySummary($this->userId);
+            $summary = $this->service->getMonthlySummary($this->getEffectiveUserId());
             return new DataResponse($summary);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve income summary'));
@@ -269,7 +274,7 @@ class RecurringIncomeController extends Controller {
             $params = $this->request->getParams();
             $createTransaction = (bool) ($params['createTransaction'] ?? false);
 
-            $income = $this->service->markReceived($id, $this->userId, $receivedDate, $createTransaction);
+            $income = $this->service->markReceived($id, $this->getEffectiveUserId(), $receivedDate, $createTransaction);
             return new DataResponse($income);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -282,7 +287,7 @@ class RecurringIncomeController extends Controller {
      */
     public function detect(int $months = 24, ?bool $debug = false): DataResponse {
         try {
-            $detected = $this->service->detectRecurringIncome($this->userId, $months, $debug);
+            $detected = $this->service->detectRecurringIncome($this->getEffectiveUserId(), $months, $debug);
             return new DataResponse($detected);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to detect recurring income'));
@@ -301,7 +306,7 @@ class RecurringIncomeController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
-            $created = $this->service->createFromDetected($this->userId, $data['incomes']);
+            $created = $this->service->createFromDetected($this->getEffectiveUserId(), $data['incomes']);
             return new DataResponse([
                 'created' => count($created),
                 'incomes' => $created,

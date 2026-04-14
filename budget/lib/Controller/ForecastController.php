@@ -6,7 +6,9 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\ForecastService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -16,6 +18,7 @@ use Psr\Log\LoggerInterface;
 
 class ForecastController extends Controller {
     use ApiErrorHandlerTrait;
+    use SharedAccessTrait;
 
     private ForecastService $service;
     private IL10N $l;
@@ -24,6 +27,7 @@ class ForecastController extends Controller {
     public function __construct(
         IRequest $request,
         ForecastService $service,
+        ShareService $shareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -33,6 +37,7 @@ class ForecastController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
+        $this->setShareService($shareService);
     }
 
     /**
@@ -45,7 +50,7 @@ class ForecastController extends Controller {
     ): DataResponse {
         try {
             $forecast = $this->service->generateForecast(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $accountId,
                 $basedOnMonths,
                 $forecastMonths
@@ -73,7 +78,7 @@ class ForecastController extends Controller {
             }
 
             $cashflow = $this->service->getCashFlowForecast(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
                 $accountId
@@ -93,7 +98,7 @@ class ForecastController extends Controller {
     ): DataResponse {
         try {
             $trends = $this->service->getSpendingTrends(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $accountId,
                 $months
             );
@@ -112,7 +117,7 @@ class ForecastController extends Controller {
     ): DataResponse {
         try {
             $results = $this->service->runScenarios(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $accountId,
                 $scenarios
             );
@@ -133,7 +138,7 @@ class ForecastController extends Controller {
     ): DataResponse {
         try {
             $enhancedForecast = $this->service->generateEnhancedForecast(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $accountId,
                 $historicalPeriod,
                 $forecastHorizon,
@@ -152,7 +157,7 @@ class ForecastController extends Controller {
     public function live(int $forecastMonths = 6): DataResponse {
         try {
             $forecast = $this->service->getLiveForecast(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $forecastMonths
             );
             return new DataResponse($forecast);
@@ -167,7 +172,7 @@ class ForecastController extends Controller {
     public function export(array $forecastData): DataResponse {
         try {
             $exportData = $this->service->exportForecast(
-                $this->userId,
+                $this->getEffectiveUserId(),
                 $forecastData
             );
             return new DataResponse($exportData, Http::STATUS_OK, [

@@ -130,6 +130,9 @@ export default class Router {
                 case 'exchange-rates':
                     this.app.loadExchangeRatesView();
                     break;
+                case 'sharing':
+                    this.app.loadSharingView();
+                    break;
                 case 'settings':
                     this.app.loadSettingsView();
                     break;
@@ -193,6 +196,9 @@ export default class Router {
                 break;
             case 'exchange-rates':
                 this.app.loadExchangeRatesView();
+                break;
+            case 'sharing':
+                this.app.loadSharingView();
                 break;
             case 'settings':
                 // Don't reload settings view (we're already in it)
