@@ -414,7 +414,8 @@ class BillService {
             $bill->getDueDay(),
             $bill->getDueMonth(),
             $bill->getNextDueDate(),
-            $bill->getCustomRecurrencePattern()
+            $bill->getCustomRecurrencePattern(),
+            true // forceAdvance: always advance one cycle, even if not yet overdue
         );
         $bill->setNextDueDate($nextDue);
 

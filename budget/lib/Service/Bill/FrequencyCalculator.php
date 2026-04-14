@@ -26,10 +26,13 @@ class FrequencyCalculator {
         ?int $dueDay,
         ?int $dueMonth,
         ?string $fromDate = null,
-        ?string $customPattern = null
+        ?string $customPattern = null,
+        bool $forceAdvance = false
     ): string {
         $baseDate = $fromDate ? new \DateTime($fromDate) : new \DateTime();
-        $today = new \DateTime();
+        // When forceAdvance is true, treat the current due date as if it's already
+        // in the past so the calculator always advances to the next cycle.
+        $today = $forceAdvance ? new \DateTime('2099-12-31') : new \DateTime();
 
         switch ($frequency) {
             case 'daily':
@@ -106,7 +109,7 @@ class FrequencyCalculator {
                 return $next->format('Y-m-d');
 
             case 'custom':
-                return $this->calculateCustomNextDueDate($customPattern, $dueDay, $fromDate);
+                return $this->calculateCustomNextDueDate($customPattern, $dueDay, $fromDate, $forceAdvance);
 
             default:
                 return $baseDate->format('Y-m-d');
@@ -221,8 +224,8 @@ class FrequencyCalculator {
      * @param string|null $fromDate Base date to calculate from
      * @return string Next due date in Y-m-d format
      */
-    private function calculateCustomNextDueDate(?string $customPattern, ?int $dueDay, ?string $fromDate = null): string {
-        $today = new \DateTime();
+    private function calculateCustomNextDueDate(?string $customPattern, ?int $dueDay, ?string $fromDate = null, bool $forceAdvance = false): string {
+        $today = $forceAdvance ? new \DateTime('2099-12-31') : new \DateTime();
         $baseDate = $fromDate ? new \DateTime($fromDate) : clone $today;
 
         if (empty($customPattern)) {
