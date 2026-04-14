@@ -170,6 +170,28 @@ class SharedExpenseController extends Controller {
         }
     }
 
+    /**
+     * Get transaction IDs that have been shared with contacts.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function sharedTransactionIds(): DataResponse {
+        try {
+            $statuses = $this->service->getSharedTransactionStatuses($this->userId);
+            return new DataResponse($statuses);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to get shared transaction statuses', [
+                'exception' => $e,
+                'userId' => $this->userId,
+            ]);
+            return new DataResponse(
+                ['error' => $this->l->t('Failed to get shared transactions')],
+                Http::STATUS_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
     // ==================== Expense Share Endpoints ====================
 
     /**
@@ -193,6 +215,11 @@ class SharedExpenseController extends Controller {
                 $notes
             );
             return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(
+                ['error' => $this->l->t('This transaction is already shared with this contact')],
+                Http::STATUS_BAD_REQUEST
+            );
         } catch (\Exception $e) {
             $this->logger->error('Failed to share expense', [
                 'exception' => $e,
@@ -215,6 +242,11 @@ class SharedExpenseController extends Controller {
         try {
             $share = $this->service->splitFiftyFifty($this->userId, $transactionId, $contactId, $notes);
             return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(
+                ['error' => $this->l->t('This transaction is already shared with this contact')],
+                Http::STATUS_BAD_REQUEST
+            );
         } catch (\Exception $e) {
             $this->logger->error('Failed to split 50/50', [
                 'exception' => $e,
@@ -316,6 +348,34 @@ class SharedExpenseController extends Controller {
     }
 
     // ==================== Settlement Endpoints ====================
+
+    /**
+     * Settle selected expense shares.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function settleSelected(array $shareIds, string $date, ?string $notes = null): DataResponse {
+        try {
+            if (empty($shareIds)) {
+                return new DataResponse(
+                    ['error' => $this->l->t('Please select at least one expense to settle')],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+            $settlement = $this->service->settleSelectedShares($this->userId, $shareIds, $date, $notes);
+            return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to settle selected shares', [
+                'exception' => $e,
+                'userId' => $this->userId,
+            ]);
+            return new DataResponse(
+                ['error' => $this->l->t('Failed to settle expenses')],
+                Http::STATUS_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 
     /**
      * Record a settlement.

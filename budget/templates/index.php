@@ -5715,7 +5715,7 @@ style('budget', 'budget-main');
 <!-- Settlement Modal -->
 <div id="settlement-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="settlement-modal-title" aria-hidden="true">
     <div class="modal-content">
-        <h3 id="settlement-modal-title"><?php p($l->t('Record Settlement')); ?></h3>
+        <h3 id="settlement-modal-title"><?php p($l->t('Settle Expenses')); ?></h3>
         <form id="settlement-form" aria-label="<?php p($l->t('Settlement form')); ?>">
             <input type="hidden" id="settlement-contact-id" name="contactId">
 
@@ -5725,9 +5725,19 @@ style('budget', 'budget-main');
             </div>
 
             <div class="form-group">
-                <label for="settlement-amount"><?php p($l->t('Settlement Amount')); ?> <span class="required">*</span></label>
-                <input type="number" id="settlement-amount" name="amount" step="0.01" required placeholder="0.00">
-                <small class="form-text"><?php p($l->t('Positive = they paid you, negative = you paid them')); ?></small>
+                <label><?php p($l->t('Select expenses to settle')); ?></label>
+                <div class="settlement-select-all">
+                    <label>
+                        <input type="checkbox" id="settlement-select-all">
+                        <?php p($l->t('Select all')); ?>
+                    </label>
+                </div>
+                <div id="settlement-shares-list" class="settlement-shares-list">
+                </div>
+                <div class="settlement-total">
+                    <span><?php p($l->t('Total')); ?></span>
+                    <span id="settlement-total-amount">0.00</span>
+                </div>
             </div>
 
             <div class="form-group">
@@ -5741,7 +5751,7 @@ style('budget', 'budget-main');
             </div>
 
             <div class="modal-buttons">
-                <button type="submit" class="primary"><?php p($l->t('Record Settlement')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Settle Selected')); ?></button>
                 <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
         </form>

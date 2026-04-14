@@ -110,6 +110,14 @@ class SharedExpenseService {
         // Verify the contact exists and belongs to user
         $this->contactMapper->find($contactId, $userId);
 
+        // Check for existing share with this contact on this transaction
+        $existingShares = $this->expenseShareMapper->findByTransaction($transactionId, $userId);
+        foreach ($existingShares as $existing) {
+            if ($existing->getContactId() === $contactId) {
+                throw new \InvalidArgumentException('This transaction is already shared with this contact');
+            }
+        }
+
         $share = new ExpenseShare();
         $share->setUserId($userId);
         $share->setTransactionId($transactionId);
@@ -134,9 +142,9 @@ class SharedExpenseService {
         $transaction = $this->transactionMapper->find($transactionId, $userId);
         $amount = abs((float) $transaction->getAmount()) / 2;
 
-        // If it's an expense (negative), they owe you half
-        // If it's income (positive), you owe them half
-        if ($transaction->getAmount() < 0) {
+        // Debit = you paid (expense), so they owe you half (positive share)
+        // Credit = you received (income), so you owe them half (negative share)
+        if ($transaction->getType() === 'debit') {
             return $this->shareExpense($userId, $transactionId, $contactId, $amount, $notes);
         } else {
             return $this->shareExpense($userId, $transactionId, $contactId, -$amount, $notes);
@@ -246,6 +254,33 @@ class SharedExpenseService {
     }
 
     /**
+     * Settle selected shares by ID.
+     *
+     * @param int[] $shareIds
+     */
+    public function settleSelectedShares(
+        string $userId,
+        array $shareIds,
+        string $date,
+        ?string $notes = null
+    ): Settlement {
+        $totalAmount = 0.0;
+        $contactId = null;
+
+        foreach ($shareIds as $shareId) {
+            $share = $this->expenseShareMapper->find($shareId, $userId);
+            if ($contactId === null) {
+                $contactId = $share->getContactId();
+            }
+            $totalAmount += $share->getAmount();
+            $share->setIsSettled(true);
+            $this->expenseShareMapper->update($share);
+        }
+
+        return $this->recordSettlement($userId, $contactId, $totalAmount, $date, $notes);
+    }
+
+    /**
      * Settle all unsettled shares with a contact.
      */
     public function settleWithContact(
@@ -293,6 +328,15 @@ class SharedExpenseService {
     public function deleteSettlement(int $id, string $userId): Settlement {
         $settlement = $this->settlementMapper->find($id, $userId);
         return $this->settlementMapper->delete($settlement);
+    }
+
+    /**
+     * Get shared transaction statuses.
+     *
+     * @return array<int, string> transaction_id => 'shared' or 'settled'
+     */
+    public function getSharedTransactionStatuses(string $userId): array {
+        return $this->expenseShareMapper->getSharedTransactionStatuses($userId);
     }
 
     // ==================== Balance Methods ====================
@@ -361,10 +405,10 @@ class SharedExpenseService {
             }
         }
 
-        $unsettledBalance = 0.0;
+        $balance = 0.0;
         foreach ($shares as $share) {
             if (!$share->getIsSettled()) {
-                $unsettledBalance += $share->getAmount();
+                $balance += $share->getAmount();
             }
         }
 
@@ -372,8 +416,8 @@ class SharedExpenseService {
             'contact' => $contact->jsonSerialize(),
             'shares' => $enrichedShares,
             'settlements' => array_map(fn($s) => $s->jsonSerialize(), $settlements),
-            'balance' => $unsettledBalance,
-            'direction' => $unsettledBalance > 0 ? 'owed' : ($unsettledBalance < 0 ? 'owing' : 'settled'),
+            'balance' => $balance,
+            'direction' => $balance > 0 ? 'owed' : ($balance < 0 ? 'owing' : 'settled'),
         ];
     }
 }

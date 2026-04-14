@@ -226,6 +226,7 @@ return [
         ['name' => 'sharedExpense#contactDetails', 'url' => '/api/shared/contacts/{id}/details', 'verb' => 'GET'],
         // Shared Expense routes - balances
         ['name' => 'sharedExpense#balances', 'url' => '/api/shared/balances', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#sharedTransactionIds', 'url' => '/api/shared/transaction-ids', 'verb' => 'GET'],
         // Shared Expense routes - expense shares
         ['name' => 'sharedExpense#shareExpense', 'url' => '/api/shared/shares', 'verb' => 'POST'],
         ['name' => 'sharedExpense#splitFiftyFifty', 'url' => '/api/shared/shares/split', 'verb' => 'POST'],
@@ -235,6 +236,7 @@ return [
         ['name' => 'sharedExpense#destroyShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'DELETE'],
         // Shared Expense routes - settlements
         ['name' => 'sharedExpense#settlements', 'url' => '/api/shared/settlements', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#settleSelected', 'url' => '/api/shared/settle-selected', 'verb' => 'POST'],
         ['name' => 'sharedExpense#recordSettlement', 'url' => '/api/shared/settlements', 'verb' => 'POST'],
         ['name' => 'sharedExpense#settleWithContact', 'url' => '/api/shared/contacts/{contactId}/settle', 'verb' => 'POST'],
         ['name' => 'sharedExpense#destroySettlement', 'url' => '/api/shared/settlements/{id}', 'verb' => 'DELETE'],

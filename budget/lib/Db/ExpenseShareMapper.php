@@ -144,6 +144,35 @@ class ExpenseShareMapper extends QBMapper {
     }
 
     /**
+     * Get shared transaction IDs with their settlement status.
+     *
+     * @return array<int, string> transaction_id => 'shared' or 'settled'
+     */
+    public function getSharedTransactionStatuses(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('transaction_id')
+            ->addSelect('is_settled')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        $result = $qb->executeQuery();
+        $statuses = [];
+        while ($row = $result->fetch()) {
+            $txId = (int) $row['transaction_id'];
+            $isSettled = (bool) $row['is_settled'];
+            // If any share on this transaction is unsettled, status is 'shared'
+            if (!isset($statuses[$txId])) {
+                $statuses[$txId] = $isSettled ? 'settled' : 'shared';
+            } elseif (!$isSettled) {
+                $statuses[$txId] = 'shared';
+            }
+        }
+        $result->closeCursor();
+
+        return $statuses;
+    }
+
+    /**
      * Delete all expense shares for a user
      *
      * @param string $userId

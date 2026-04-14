@@ -972,6 +972,12 @@ class BudgetApp {
             const splitBadge = isSplit
                 ? `<span class="split-indicator" title="${t('budget', 'Split transaction')}">${t('budget', 'Split')}</span>`
                 : '';
+            const sharedStatus = this.sharedTransactionStatuses?.[transaction.id];
+            const sharedBadge = sharedStatus === 'shared'
+                ? `<span class="shared-indicator" title="${t('budget', 'Shared expense - unsettled')}">&#x1F91D; ${t('budget', 'Shared')}</span>`
+                : sharedStatus === 'settled'
+                ? `<span class="shared-settled-indicator" title="${t('budget', 'Shared expense - settled')}">&#x2705; ${t('budget', 'Settled')}</span>`
+                : '';
             const matchOption = !isLinked
                 ? `<option value="match">${t('budget', 'Match Transfer')}</option>`
                 : `<option value="unlink">${t('budget', 'Unlink Transfer')}</option>`;
@@ -996,8 +1002,7 @@ class BudgetApp {
                         <div class="transaction-description">
                             <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
                             ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
-                            ${linkedBadge}
-                            ${splitBadge}
+                            ${(linkedBadge || splitBadge || sharedBadge) ? `<div class="transaction-badges">${linkedBadge}${splitBadge}${sharedBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="vendor-column editable-cell"
@@ -1236,8 +1241,11 @@ class BudgetApp {
             this.transactions = Array.isArray(result) ? result : (result.transactions || result);
             this.balanceBeforePage = result.balanceBeforePage ?? null;
 
-            // Load tags for all displayed transactions
-            await this.loadAllTransactionTags();
+            // Load tags and shared status for all displayed transactions
+            await Promise.all([
+                this.loadAllTransactionTags(),
+                this.loadSharedTransactionIds(),
+            ]);
 
             // Apply client-side filtering if backend doesn't support it
             this.applyClientSideFilters();
@@ -3568,6 +3576,24 @@ class BudgetApp {
 
     async loadAllTransactionTags() {
         return this.tagSetsModule.loadAllTransactionTags();
+    }
+
+    async loadSharedTransactionIds() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/transaction-ids'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to load shared transaction statuses');
+            const statuses = await response.json();
+            // statuses is { "txId": "shared"|"settled", ... } with string keys
+            this.sharedTransactionStatuses = {};
+            for (const [id, status] of Object.entries(statuses)) {
+                this.sharedTransactionStatuses[parseInt(id)] = status;
+            }
+        } catch (error) {
+            console.error('Failed to load shared transaction statuses:', error);
+            this.sharedTransactionStatuses = {};
+        }
     }
 
     setupAddTagModalListeners() {

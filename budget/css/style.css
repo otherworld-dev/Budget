@@ -243,8 +243,28 @@
 }
 
 #app-content {
+    position: relative;
     width: 100%;
     overflow: auto;
+}
+
+#app-navigation-toggle {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    #app-navigation-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: var(--header-height, 50px);
+        left: 4px;
+        width: 44px;
+        height: 44px;
+        z-index: 1050;
+        cursor: pointer;
+    }
 }
 
 #app-content-wrapper {
@@ -3355,6 +3375,13 @@ button.danger:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.transactions-table.enhanced .transaction-description .transaction-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
 }
 
 .transactions-table.enhanced .transaction-description .secondary-text {
@@ -11810,6 +11837,156 @@ tr.scheduled-transaction:hover {
     padding: 2px 8px;
     background: var(--color-primary-element-light);
     color: var(--color-primary-element);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.shared-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(245, 127, 23, 0.12);
+    color: #f57f17;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.settlement-shares-list {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border, #ededed);
+    border-radius: 8px;
+    margin-top: 6px;
+    background: var(--color-background-dark, #f5f5f5);
+}
+
+.settlement-share-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border, #ededed);
+    transition: background 0.15s;
+}
+
+.settlement-share-item:last-child {
+    border-bottom: none;
+}
+
+.settlement-share-item:hover {
+    background: var(--color-background-hover, rgba(0,0,0,0.04));
+}
+
+.settlement-share-item input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    min-height: 16px;
+    margin: 0;
+    accent-color: var(--color-primary-element, #0082c9);
+}
+
+.settlement-share-date {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast, #767676);
+    min-width: 76px;
+}
+
+.settlement-share-desc {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.settlement-share-amount {
+    flex-shrink: 0;
+    font-weight: 600;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.settlement-select-all {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+}
+
+.settlement-select-all label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--color-text-maxcontrast, #767676);
+}
+
+.settlement-select-all input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    min-height: 16px;
+    margin: 0;
+    accent-color: var(--color-primary-element, #0082c9);
+}
+
+.settlement-total {
+    margin-top: 10px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--color-background-dark, #f5f5f5);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.settlement-total .positive {
+    color: var(--color-positive, #46ba61);
+}
+
+.settlement-total .negative {
+    color: var(--color-negative, #e9322d);
+}
+
+.settlement-contact-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    background: var(--color-background-dark, #f5f5f5);
+    border-radius: 8px;
+}
+
+.settlement-contact-info .contact-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.settlement-contact-info .balance-amount {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.shared-settled-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(56, 142, 60, 0.12);
+    color: #388e3c;
     border-radius: 10px;
     font-size: 11px;
     font-weight: 600;

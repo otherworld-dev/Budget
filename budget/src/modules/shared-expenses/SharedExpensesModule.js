@@ -178,25 +178,8 @@ export default class SharedExpensesModule {
             });
         }
 
-        // Share expense form
-        const shareForm = document.getElementById('share-expense-form');
-        if (shareForm) {
-            shareForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.saveShareExpense();
-            });
-        }
-
-        // Split type change
-        const splitType = document.getElementById('share-split-type');
-        if (splitType) {
-            splitType.addEventListener('change', () => {
-                const customGroup = document.getElementById('share-custom-amount-group');
-                if (customGroup) {
-                    customGroup.style.display = splitType.value === 'custom' ? 'block' : 'none';
-                }
-            });
-        }
+        // Share expense form (may already be attached via showShareExpenseModal)
+        this._ensureShareFormListeners();
 
         // Settlement form
         const settlementForm = document.getElementById('settlement-form');
@@ -207,8 +190,8 @@ export default class SharedExpensesModule {
             });
         }
 
-        // Modal close buttons
-        ['contact-modal', 'share-expense-modal', 'settlement-modal', 'contact-details-modal'].forEach(modalId => {
+        // Modal close buttons (share-expense-modal handled by _ensureShareFormListeners)
+        ['contact-modal', 'settlement-modal', 'contact-details-modal'].forEach(modalId => {
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.querySelectorAll('.cancel-btn, .close-btn').forEach(btn => {
@@ -333,7 +316,7 @@ export default class SharedExpensesModule {
 
             const recordSettlementBtn = document.getElementById('record-settlement-btn');
             if (recordSettlementBtn) {
-                recordSettlementBtn.onclick = () => this.showSettlementModal(contactId, data.contact.name, balance);
+                recordSettlementBtn.onclick = () => this.showSettlementModal(contactId, data.contact.name, data.balance);
             }
 
             // Tab switching
@@ -400,7 +383,7 @@ export default class SharedExpensesModule {
         `).join('');
     }
 
-    showSettlementModal(contactId, contactName, balance) {
+    async showSettlementModal(contactId, contactName, balance) {
         this.closeModal(document.getElementById('contact-details-modal'));
 
         const modal = document.getElementById('settlement-modal');
@@ -409,52 +392,120 @@ export default class SharedExpensesModule {
         document.getElementById('settlement-balance').textContent = balance === 0 ? t('budget', 'Settled') :
             (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
 
-        document.getElementById('settlement-amount').value = Math.abs(balance).toFixed(2);
         setDateValue('settlement-date', formatters.getTodayDateString());
         document.getElementById('settlement-notes').value = '';
 
-        // Ensure form submit handler is attached
-        const form = document.getElementById('settlement-form');
-        if (form && !form.dataset.listenerAttached) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.saveSettlement();
-            });
-            form.dataset.listenerAttached = 'true';
-        }
-
+        // Fetch unsettled shares for this contact
+        const sharesList = document.getElementById('settlement-shares-list');
+        sharesList.innerHTML = `<div class="loading">${t('budget', 'Loading...')}</div>`;
         modal.style.display = 'flex';
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/details`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to load shares');
+            const data = await response.json();
+
+            const unsettledShares = (data.shares || []).filter(item => !item.share.isSettled);
+
+            if (unsettledShares.length === 0) {
+                sharesList.innerHTML = `<div class="empty-state-small">${t('budget', 'No unsettled expenses')}</div>`;
+                return;
+            }
+
+            sharesList.innerHTML = unsettledShares.map(item => {
+                const share = item.share;
+                const txn = item.transaction;
+                return `
+                    <label class="settlement-share-item">
+                        <input type="checkbox" class="settlement-share-checkbox"
+                               data-share-id="${share.id}"
+                               data-amount="${share.amount}"
+                               checked>
+                        <span class="settlement-share-date">${txn.date}</span>
+                        <span class="settlement-share-desc">${this.escapeHtml(txn.description)}</span>
+                        <span class="settlement-share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
+                            ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount)}
+                        </span>
+                    </label>
+                `;
+            }).join('');
+
+            // Select all checkbox
+            const selectAll = document.getElementById('settlement-select-all');
+            selectAll.checked = true;
+            selectAll.onchange = () => {
+                sharesList.querySelectorAll('.settlement-share-checkbox').forEach(cb => {
+                    cb.checked = selectAll.checked;
+                });
+                this._updateSettlementTotal();
+            };
+
+            // Individual checkbox changes
+            sharesList.querySelectorAll('.settlement-share-checkbox').forEach(cb => {
+                cb.addEventListener('change', () => this._updateSettlementTotal());
+            });
+
+            this._updateSettlementTotal();
+        } catch (error) {
+            console.error('Failed to load unsettled shares:', error);
+            sharesList.innerHTML = `<div class="empty-state-small">${t('budget', 'Failed to load expenses')}</div>`;
+        }
+    }
+
+    _updateSettlementTotal() {
+        let total = 0;
+        document.querySelectorAll('.settlement-share-checkbox:checked').forEach(cb => {
+            total += parseFloat(cb.dataset.amount);
+        });
+        const totalEl = document.getElementById('settlement-total-amount');
+        if (totalEl) {
+            totalEl.textContent = this.formatCurrency(Math.abs(total));
+            totalEl.className = total >= 0 ? 'positive' : 'negative';
+        }
     }
 
     async saveSettlement() {
         const contactId = parseInt(document.getElementById('settlement-contact-id').value);
-        const amount = parseFloat(document.getElementById('settlement-amount').value);
         const date = document.getElementById('settlement-date').value;
         const notes = document.getElementById('settlement-notes').value.trim();
 
-        if (!amount || !date) {
-            showWarning(t('budget', 'Amount and date are required'));
+        const shareIds = [];
+        document.querySelectorAll('.settlement-share-checkbox:checked').forEach(cb => {
+            shareIds.push(parseInt(cb.dataset.shareId));
+        });
+
+        if (shareIds.length === 0) {
+            showWarning(t('budget', 'Please select at least one expense to settle'));
+            return;
+        }
+
+        if (!date) {
+            showWarning(t('budget', 'Date is required'));
             return;
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/settlements'), {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/settle-selected'), {
                 method: 'POST',
                 headers: {
                     'requesttoken': OC.requestToken,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ contactId, amount, date, notes: notes || null })
+                body: JSON.stringify({ shareIds, date, notes: notes || null })
             });
 
-            if (!response.ok) throw new Error('Failed to record settlement');
+            if (!response.ok) throw new Error('Failed to settle expenses');
 
             this.closeModal(document.getElementById('settlement-modal'));
-            showSuccess(t('budget', 'Settlement recorded'));
+            showSuccess(t('budget', 'Expenses settled'));
             await this.loadBalanceSummary();
+            await this.app.loadSharedTransactionIds();
+            await this.showContactDetails(contactId);
         } catch (error) {
-            console.error('Failed to record settlement:', error);
-            showError(t('budget', 'Failed to record settlement'));
+            console.error('Failed to settle expenses:', error);
+            showError(t('budget', 'Failed to settle expenses'));
         }
     }
 
@@ -479,6 +530,7 @@ export default class SharedExpensesModule {
             this.closeModal(document.getElementById('contact-details-modal'));
             showSuccess(t('budget', 'All expenses settled'));
             await this.loadBalanceSummary();
+            await this.app.loadSharedTransactionIds();
         } catch (error) {
             console.error('Failed to settle:', error);
             showError(t('budget', 'Failed to settle expenses'));
@@ -487,6 +539,9 @@ export default class SharedExpensesModule {
 
     async showShareExpenseModal(transaction) {
         const modal = document.getElementById('share-expense-modal');
+
+        // Ensure form listeners are attached (may not be if user hasn't visited Shared Expenses page)
+        this._ensureShareFormListeners();
 
         // Load contacts if not already loaded
         if (!this.contacts || this.contacts.length === 0) {
@@ -553,15 +608,57 @@ export default class SharedExpensesModule {
                 body: JSON.stringify(body)
             });
 
-            if (!response.ok) throw new Error('Failed to share expense');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const message = errorData?.error || t('budget', 'Failed to share expense');
+                showError(message);
+                return;
+            }
 
             this.closeModal(document.getElementById('share-expense-modal'));
             showSuccess(t('budget', 'Expense shared'));
-            await this.loadBalanceSummary();
+            await this.app.loadSharedTransactionIds();
+            // Refresh transaction table if visible to show shared badge
+            const tbody = document.querySelector('#transactions-table tbody');
+            if (tbody) {
+                this.app.renderEnhancedTransactionsTable();
+            }
         } catch (error) {
             console.error('Failed to share expense:', error);
             showError(t('budget', 'Failed to share expense'));
         }
+    }
+
+    _ensureShareFormListeners() {
+        if (this._shareFormListenersAttached) return;
+
+        const shareForm = document.getElementById('share-expense-form');
+        if (!shareForm) return;
+
+        shareForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveShareExpense();
+        });
+
+        const splitType = document.getElementById('share-split-type');
+        if (splitType) {
+            splitType.addEventListener('change', () => {
+                const customGroup = document.getElementById('share-custom-amount-group');
+                if (customGroup) {
+                    customGroup.style.display = splitType.value === 'custom' ? 'block' : 'none';
+                }
+            });
+        }
+
+        // Close buttons for share expense modal
+        const modal = document.getElementById('share-expense-modal');
+        if (modal) {
+            modal.querySelectorAll('.cancel-btn, .close-btn').forEach(btn => {
+                btn.addEventListener('click', () => this.closeModal(modal));
+            });
+        }
+
+        this._shareFormListenersAttached = true;
     }
 
     // Delegate helper methods to app

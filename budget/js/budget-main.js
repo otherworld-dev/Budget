@@ -42663,25 +42663,8 @@ var SharedExpensesModule = /*#__PURE__*/function () {
         });
       }
 
-      // Share expense form
-      var shareForm = document.getElementById('share-expense-form');
-      if (shareForm) {
-        shareForm.addEventListener('submit', function (e) {
-          e.preventDefault();
-          _this2.saveShareExpense();
-        });
-      }
-
-      // Split type change
-      var splitType = document.getElementById('share-split-type');
-      if (splitType) {
-        splitType.addEventListener('change', function () {
-          var customGroup = document.getElementById('share-custom-amount-group');
-          if (customGroup) {
-            customGroup.style.display = splitType.value === 'custom' ? 'block' : 'none';
-          }
-        });
-      }
+      // Share expense form (may already be attached via showShareExpenseModal)
+      this._ensureShareFormListeners();
 
       // Settlement form
       var settlementForm = document.getElementById('settlement-form');
@@ -42692,8 +42675,8 @@ var SharedExpensesModule = /*#__PURE__*/function () {
         });
       }
 
-      // Modal close buttons
-      ['contact-modal', 'share-expense-modal', 'settlement-modal', 'contact-details-modal'].forEach(function (modalId) {
+      // Modal close buttons (share-expense-modal handled by _ensureShareFormListeners)
+      ['contact-modal', 'settlement-modal', 'contact-details-modal'].forEach(function (modalId) {
         var modal = document.getElementById(modalId);
         if (modal) {
           modal.querySelectorAll('.cancel-btn, .close-btn').forEach(function (btn) {
@@ -42920,7 +42903,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               recordSettlementBtn = document.getElementById('record-settlement-btn');
               if (recordSettlementBtn) {
                 recordSettlementBtn.onclick = function () {
-                  return _this3.showSettlementModal(contactId, data.contact.name, balance);
+                  return _this3.showSettlementModal(contactId, data.contact.name, data.balance);
                 };
               }
 
@@ -42985,65 +42968,35 @@ var SharedExpensesModule = /*#__PURE__*/function () {
     }
   }, {
     key: "showSettlementModal",
-    value: function showSettlementModal(contactId, contactName, balance) {
-      var _this6 = this;
-      this.closeModal(document.getElementById('contact-details-modal'));
-      var modal = document.getElementById('settlement-modal');
-      document.getElementById('settlement-contact-id').value = contactId;
-      document.getElementById('settlement-contact-name').textContent = contactName;
-      document.getElementById('settlement-balance').textContent = balance === 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : balance > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
-        amount: this.formatCurrency(balance)
-      }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
-        amount: this.formatCurrency(Math.abs(balance))
-      });
-      document.getElementById('settlement-amount').value = Math.abs(balance).toFixed(2);
-      (0,_utils_datepicker_js__WEBPACK_IMPORTED_MODULE_4__.setDateValue)('settlement-date', _utils_formatters_js__WEBPACK_IMPORTED_MODULE_1__.getTodayDateString());
-      document.getElementById('settlement-notes').value = '';
-
-      // Ensure form submit handler is attached
-      var form = document.getElementById('settlement-form');
-      if (form && !form.dataset.listenerAttached) {
-        form.addEventListener('submit', function (e) {
-          e.preventDefault();
-          _this6.saveSettlement();
-        });
-        form.dataset.listenerAttached = 'true';
-      }
-      modal.style.display = 'flex';
-    }
-  }, {
-    key: "saveSettlement",
     value: function () {
-      var _saveSettlement = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
-        var contactId, amount, date, notes, response, _t6;
+      var _showSettlementModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(contactId, contactName, balance) {
+        var _this6 = this;
+        var modal, sharesList, response, data, unsettledShares, selectAll, _t6;
         return _regenerator().w(function (_context8) {
           while (1) switch (_context8.p = _context8.n) {
             case 0:
-              contactId = parseInt(document.getElementById('settlement-contact-id').value);
-              amount = parseFloat(document.getElementById('settlement-amount').value);
-              date = document.getElementById('settlement-date').value;
-              notes = document.getElementById('settlement-notes').value.trim();
-              if (!(!amount || !date)) {
-                _context8.n = 1;
-                break;
-              }
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Amount and date are required'));
-              return _context8.a(2);
-            case 1:
+              this.closeModal(document.getElementById('contact-details-modal'));
+              modal = document.getElementById('settlement-modal');
+              document.getElementById('settlement-contact-id').value = contactId;
+              document.getElementById('settlement-contact-name').textContent = contactName;
+              document.getElementById('settlement-balance').textContent = balance === 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : balance > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
+                amount: this.formatCurrency(balance)
+              }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
+                amount: this.formatCurrency(Math.abs(balance))
+              });
+              (0,_utils_datepicker_js__WEBPACK_IMPORTED_MODULE_4__.setDateValue)('settlement-date', _utils_formatters_js__WEBPACK_IMPORTED_MODULE_1__.getTodayDateString());
+              document.getElementById('settlement-notes').value = '';
+
+              // Fetch unsettled shares for this contact
+              sharesList = document.getElementById('settlement-shares-list');
+              sharesList.innerHTML = "<div class=\"loading\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Loading...'), "</div>");
+              modal.style.display = 'flex';
               _context8.p = 1;
               _context8.n = 2;
-              return fetch(OC.generateUrl('/apps/budget/api/shared/settlements'), {
-                method: 'POST',
+              return fetch(OC.generateUrl("/apps/budget/api/shared/contacts/".concat(contactId, "/details")), {
                 headers: {
-                  'requesttoken': OC.requestToken,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  contactId: contactId,
-                  amount: amount,
-                  date: date,
-                  notes: notes || null
-                })
+                  'requesttoken': OC.requestToken
+                }
               });
             case 2:
               response = _context8.v;
@@ -43051,24 +43004,148 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 _context8.n = 3;
                 break;
               }
-              throw new Error('Failed to record settlement');
+              throw new Error('Failed to load shares');
             case 3:
-              this.closeModal(document.getElementById('settlement-modal'));
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settlement recorded'));
               _context8.n = 4;
-              return this.loadBalanceSummary();
+              return response.json();
             case 4:
-              _context8.n = 6;
-              break;
+              data = _context8.v;
+              unsettledShares = (data.shares || []).filter(function (item) {
+                return !item.share.isSettled;
+              });
+              if (!(unsettledShares.length === 0)) {
+                _context8.n = 5;
+                break;
+              }
+              sharesList.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'No unsettled expenses'), "</div>");
+              return _context8.a(2);
             case 5:
-              _context8.p = 5;
-              _t6 = _context8.v;
-              console.error('Failed to record settlement:', _t6);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to record settlement'));
+              sharesList.innerHTML = unsettledShares.map(function (item) {
+                var share = item.share;
+                var txn = item.transaction;
+                return "\n                    <label class=\"settlement-share-item\">\n                        <input type=\"checkbox\" class=\"settlement-share-checkbox\"\n                               data-share-id=\"".concat(share.id, "\"\n                               data-amount=\"").concat(share.amount, "\"\n                               checked>\n                        <span class=\"settlement-share-date\">").concat(txn.date, "</span>\n                        <span class=\"settlement-share-desc\">").concat(_this6.escapeHtml(txn.description), "</span>\n                        <span class=\"settlement-share-amount ").concat(share.amount >= 0 ? 'positive' : 'negative', "\">\n                            ").concat(share.amount >= 0 ? '+' : '').concat(_this6.formatCurrency(share.amount), "\n                        </span>\n                    </label>\n                ");
+              }).join('');
+
+              // Select all checkbox
+              selectAll = document.getElementById('settlement-select-all');
+              selectAll.checked = true;
+              selectAll.onchange = function () {
+                sharesList.querySelectorAll('.settlement-share-checkbox').forEach(function (cb) {
+                  cb.checked = selectAll.checked;
+                });
+                _this6._updateSettlementTotal();
+              };
+
+              // Individual checkbox changes
+              sharesList.querySelectorAll('.settlement-share-checkbox').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                  return _this6._updateSettlementTotal();
+                });
+              });
+              this._updateSettlementTotal();
+              _context8.n = 7;
+              break;
             case 6:
+              _context8.p = 6;
+              _t6 = _context8.v;
+              console.error('Failed to load unsettled shares:', _t6);
+              sharesList.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to load expenses'), "</div>");
+            case 7:
               return _context8.a(2);
           }
-        }, _callee8, this, [[1, 5]]);
+        }, _callee8, this, [[1, 6]]);
+      }));
+      function showSettlementModal(_x4, _x5, _x6) {
+        return _showSettlementModal.apply(this, arguments);
+      }
+      return showSettlementModal;
+    }()
+  }, {
+    key: "_updateSettlementTotal",
+    value: function _updateSettlementTotal() {
+      var total = 0;
+      document.querySelectorAll('.settlement-share-checkbox:checked').forEach(function (cb) {
+        total += parseFloat(cb.dataset.amount);
+      });
+      var totalEl = document.getElementById('settlement-total-amount');
+      if (totalEl) {
+        totalEl.textContent = this.formatCurrency(Math.abs(total));
+        totalEl.className = total >= 0 ? 'positive' : 'negative';
+      }
+    }
+  }, {
+    key: "saveSettlement",
+    value: function () {
+      var _saveSettlement = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
+        var contactId, date, notes, shareIds, response, _t7;
+        return _regenerator().w(function (_context9) {
+          while (1) switch (_context9.p = _context9.n) {
+            case 0:
+              contactId = parseInt(document.getElementById('settlement-contact-id').value);
+              date = document.getElementById('settlement-date').value;
+              notes = document.getElementById('settlement-notes').value.trim();
+              shareIds = [];
+              document.querySelectorAll('.settlement-share-checkbox:checked').forEach(function (cb) {
+                shareIds.push(parseInt(cb.dataset.shareId));
+              });
+              if (!(shareIds.length === 0)) {
+                _context9.n = 1;
+                break;
+              }
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Please select at least one expense to settle'));
+              return _context9.a(2);
+            case 1:
+              if (date) {
+                _context9.n = 2;
+                break;
+              }
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Date is required'));
+              return _context9.a(2);
+            case 2:
+              _context9.p = 2;
+              _context9.n = 3;
+              return fetch(OC.generateUrl('/apps/budget/api/shared/settle-selected'), {
+                method: 'POST',
+                headers: {
+                  'requesttoken': OC.requestToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  shareIds: shareIds,
+                  date: date,
+                  notes: notes || null
+                })
+              });
+            case 3:
+              response = _context9.v;
+              if (response.ok) {
+                _context9.n = 4;
+                break;
+              }
+              throw new Error('Failed to settle expenses');
+            case 4:
+              this.closeModal(document.getElementById('settlement-modal'));
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Expenses settled'));
+              _context9.n = 5;
+              return this.loadBalanceSummary();
+            case 5:
+              _context9.n = 6;
+              return this.app.loadSharedTransactionIds();
+            case 6:
+              _context9.n = 7;
+              return this.showContactDetails(contactId);
+            case 7:
+              _context9.n = 9;
+              break;
+            case 8:
+              _context9.p = 8;
+              _t7 = _context9.v;
+              console.error('Failed to settle expenses:', _t7);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to settle expenses'));
+            case 9:
+              return _context9.a(2);
+          }
+        }, _callee9, this, [[2, 8]]);
       }));
       function saveSettlement() {
         return _saveSettlement.apply(this, arguments);
@@ -43078,20 +43155,20 @@ var SharedExpensesModule = /*#__PURE__*/function () {
   }, {
     key: "settleAllWithContact",
     value: function () {
-      var _settleAllWithContact = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(contactId) {
-        var date, response, _t7;
-        return _regenerator().w(function (_context9) {
-          while (1) switch (_context9.p = _context9.n) {
+      var _settleAllWithContact = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(contactId) {
+        var date, response, _t8;
+        return _regenerator().w(function (_context0) {
+          while (1) switch (_context0.p = _context0.n) {
             case 0:
               if (confirm((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'This will mark all shared expenses with this contact as settled. Continue?'))) {
-                _context9.n = 1;
+                _context0.n = 1;
                 break;
               }
-              return _context9.a(2);
+              return _context0.a(2);
             case 1:
-              _context9.p = 1;
+              _context0.p = 1;
               date = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_1__.getTodayDateString();
-              _context9.n = 2;
+              _context0.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/shared/contacts/".concat(contactId, "/settle")), {
                 method: 'POST',
                 headers: {
@@ -43103,31 +43180,34 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 })
               });
             case 2:
-              response = _context9.v;
+              response = _context0.v;
               if (response.ok) {
-                _context9.n = 3;
+                _context0.n = 3;
                 break;
               }
               throw new Error('Failed to settle');
             case 3:
               this.closeModal(document.getElementById('contact-details-modal'));
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'All expenses settled'));
-              _context9.n = 4;
+              _context0.n = 4;
               return this.loadBalanceSummary();
             case 4:
-              _context9.n = 6;
-              break;
+              _context0.n = 5;
+              return this.app.loadSharedTransactionIds();
             case 5:
-              _context9.p = 5;
-              _t7 = _context9.v;
-              console.error('Failed to settle:', _t7);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to settle expenses'));
+              _context0.n = 7;
+              break;
             case 6:
-              return _context9.a(2);
+              _context0.p = 6;
+              _t8 = _context0.v;
+              console.error('Failed to settle:', _t8);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to settle expenses'));
+            case 7:
+              return _context0.a(2);
           }
-        }, _callee9, this, [[1, 5]]);
+        }, _callee0, this, [[1, 6]]);
       }));
-      function settleAllWithContact(_x4) {
+      function settleAllWithContact(_x7) {
         return _settleAllWithContact.apply(this, arguments);
       }
       return settleAllWithContact;
@@ -43135,26 +43215,29 @@ var SharedExpensesModule = /*#__PURE__*/function () {
   }, {
     key: "showShareExpenseModal",
     value: function () {
-      var _showShareExpenseModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(transaction) {
+      var _showShareExpenseModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(transaction) {
         var _this7 = this;
         var modal, contactSelect;
-        return _regenerator().w(function (_context0) {
-          while (1) switch (_context0.n) {
+        return _regenerator().w(function (_context1) {
+          while (1) switch (_context1.n) {
             case 0:
-              modal = document.getElementById('share-expense-modal'); // Load contacts if not already loaded
+              modal = document.getElementById('share-expense-modal'); // Ensure form listeners are attached (may not be if user hasn't visited Shared Expenses page)
+              this._ensureShareFormListeners();
+
+              // Load contacts if not already loaded
               if (!(!this.contacts || this.contacts.length === 0)) {
-                _context0.n = 1;
+                _context1.n = 1;
                 break;
               }
-              _context0.n = 1;
+              _context1.n = 1;
               return this.loadContacts();
             case 1:
               if (!(!this.contacts || this.contacts.length === 0)) {
-                _context0.n = 2;
+                _context1.n = 2;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Please add contacts first in Shared Expenses'));
-              return _context0.a(2);
+              return _context1.a(2);
             case 2:
               document.getElementById('share-transaction-id').value = transaction.id;
               document.getElementById('share-transaction-date').textContent = transaction.date;
@@ -43172,11 +43255,11 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               document.getElementById('share-notes').value = '';
               modal.style.display = 'flex';
             case 3:
-              return _context0.a(2);
+              return _context1.a(2);
           }
-        }, _callee0, this);
+        }, _callee1, this);
       }));
-      function showShareExpenseModal(_x5) {
+      function showShareExpenseModal(_x8) {
         return _showShareExpenseModal.apply(this, arguments);
       }
       return showShareExpenseModal;
@@ -43184,25 +43267,25 @@ var SharedExpensesModule = /*#__PURE__*/function () {
   }, {
     key: "saveShareExpense",
     value: function () {
-      var _saveShareExpense = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
-        var transactionId, contactId, splitType, notes, url, body, amount, response, _t8;
-        return _regenerator().w(function (_context1) {
-          while (1) switch (_context1.p = _context1.n) {
+      var _saveShareExpense = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
+        var transactionId, contactId, splitType, notes, url, body, amount, response, errorData, message, tbody, _t9;
+        return _regenerator().w(function (_context10) {
+          while (1) switch (_context10.p = _context10.n) {
             case 0:
               transactionId = parseInt(document.getElementById('share-transaction-id').value);
               contactId = parseInt(document.getElementById('share-contact').value);
               splitType = document.getElementById('share-split-type').value;
               notes = document.getElementById('share-notes').value.trim();
               if (contactId) {
-                _context1.n = 1;
+                _context10.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Please select a contact'));
-              return _context1.a(2);
+              return _context10.a(2);
             case 1:
-              _context1.p = 1;
+              _context10.p = 1;
               if (!(splitType === '50-50')) {
-                _context1.n = 2;
+                _context10.n = 2;
                 break;
               }
               url = OC.generateUrl('/apps/budget/api/shared/shares/split');
@@ -43211,16 +43294,16 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 contactId: contactId,
                 notes: notes || null
               };
-              _context1.n = 4;
+              _context10.n = 4;
               break;
             case 2:
               amount = parseFloat(document.getElementById('share-amount').value);
               if (amount) {
-                _context1.n = 3;
+                _context10.n = 3;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Amount is required for custom splits'));
-              return _context1.a(2);
+              return _context10.a(2);
             case 3:
               url = OC.generateUrl('/apps/budget/api/shared/shares');
               body = {
@@ -43230,7 +43313,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 notes: notes || null
               };
             case 4:
-              _context1.n = 5;
+              _context10.n = 5;
               return fetch(url, {
                 method: 'POST',
                 headers: {
@@ -43240,35 +43323,82 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 body: JSON.stringify(body)
               });
             case 5:
-              response = _context1.v;
+              response = _context10.v;
               if (response.ok) {
-                _context1.n = 6;
+                _context10.n = 7;
                 break;
               }
-              throw new Error('Failed to share expense');
+              _context10.n = 6;
+              return response.json()["catch"](function () {
+                return null;
+              });
             case 6:
+              errorData = _context10.v;
+              message = (errorData === null || errorData === void 0 ? void 0 : errorData.error) || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to share expense');
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)(message);
+              return _context10.a(2);
+            case 7:
               this.closeModal(document.getElementById('share-expense-modal'));
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Expense shared'));
-              _context1.n = 7;
-              return this.loadBalanceSummary();
-            case 7:
-              _context1.n = 9;
-              break;
+              _context10.n = 8;
+              return this.app.loadSharedTransactionIds();
             case 8:
-              _context1.p = 8;
-              _t8 = _context1.v;
-              console.error('Failed to share expense:', _t8);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to share expense'));
+              // Refresh transaction table if visible to show shared badge
+              tbody = document.querySelector('#transactions-table tbody');
+              if (tbody) {
+                this.app.renderEnhancedTransactionsTable();
+              }
+              _context10.n = 10;
+              break;
             case 9:
-              return _context1.a(2);
+              _context10.p = 9;
+              _t9 = _context10.v;
+              console.error('Failed to share expense:', _t9);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to share expense'));
+            case 10:
+              return _context10.a(2);
           }
-        }, _callee1, this, [[1, 8]]);
+        }, _callee10, this, [[1, 9]]);
       }));
       function saveShareExpense() {
         return _saveShareExpense.apply(this, arguments);
       }
       return saveShareExpense;
-    }() // Delegate helper methods to app
+    }()
+  }, {
+    key: "_ensureShareFormListeners",
+    value: function _ensureShareFormListeners() {
+      var _this8 = this;
+      if (this._shareFormListenersAttached) return;
+      var shareForm = document.getElementById('share-expense-form');
+      if (!shareForm) return;
+      shareForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        _this8.saveShareExpense();
+      });
+      var splitType = document.getElementById('share-split-type');
+      if (splitType) {
+        splitType.addEventListener('change', function () {
+          var customGroup = document.getElementById('share-custom-amount-group');
+          if (customGroup) {
+            customGroup.style.display = splitType.value === 'custom' ? 'block' : 'none';
+          }
+        });
+      }
+
+      // Close buttons for share expense modal
+      var modal = document.getElementById('share-expense-modal');
+      if (modal) {
+        modal.querySelectorAll('.cancel-btn, .close-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            return _this8.closeModal(modal);
+          });
+        });
+      }
+      this._shareFormListenersAttached = true;
+    }
+
+    // Delegate helper methods to app
   }, {
     key: "formatCurrency",
     value: function formatCurrency(amount) {
@@ -53522,7 +53652,7 @@ var BudgetApp = /*#__PURE__*/function () {
         }
       }
       tbody.innerHTML = this.transactions.map(function (transaction) {
-        var _this4$accounts, _this4$categories, _this4$accounts2, _this4$transactionsMo;
+        var _this4$accounts, _this4$categories, _this4$accounts2, _this4$sharedTransact, _this4$transactionsMo;
         var account = (_this4$accounts = _this4.accounts) === null || _this4$accounts === void 0 ? void 0 : _this4$accounts.find(function (a) {
           return a.id === transaction.accountId;
         });
@@ -53544,8 +53674,10 @@ var BudgetApp = /*#__PURE__*/function () {
         var linkedBadge = isLinked ? "<span class=\"linked-indicator\" data-transaction-id=\"".concat(transaction.id, "\" data-linked-id=\"").concat(transaction.linkedTransactionId, "\" data-linked-account-id=\"").concat(transaction.linkedAccountId || '', "\" title=\"").concat(linkedTitle, "\">&#x1F517; ").concat(linkedLabel, "</span>") : '';
         var isSplit = transaction.isSplit || transaction.is_split;
         var splitBadge = isSplit ? "<span class=\"split-indicator\" title=\"".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Split transaction'), "\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Split'), "</span>") : '';
+        var sharedStatus = (_this4$sharedTransact = _this4.sharedTransactionStatuses) === null || _this4$sharedTransact === void 0 ? void 0 : _this4$sharedTransact[transaction.id];
+        var sharedBadge = sharedStatus === 'shared' ? "<span class=\"shared-indicator\" title=\"".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Shared expense - unsettled'), "\">&#x1F91D; ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Shared'), "</span>") : sharedStatus === 'settled' ? "<span class=\"shared-settled-indicator\" title=\"".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Shared expense - settled'), "\">&#x2705; ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Settled'), "</span>") : '';
         var matchOption = !isLinked ? "<option value=\"match\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Match Transfer'), "</option>") : "<option value=\"unlink\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Unlink Transfer'), "</option>");
-        return "\n                <tr class=\"transaction-row ".concat(isLinked ? 'is-linked' : '', "\" data-transaction-id=\"").concat(transaction.id, "\">\n                    <td class=\"select-column\">\n                        <input type=\"checkbox\" class=\"transaction-checkbox\"\n                               data-transaction-id=\"").concat(transaction.id, "\"\n                               ").concat((_this4$transactionsMo = _this4.transactionsModule.selectedTransactions) !== null && _this4$transactionsMo !== void 0 && _this4$transactionsMo.has(transaction.id) ? 'checked' : '', ">\n                    </td>\n                    <td class=\"date-column editable-cell\"\n                        data-field=\"date\"\n                        data-value=\"").concat(transaction.date, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.formatDate(transaction.date), "</span>\n                    </td>\n                    <td class=\"description-column editable-cell\"\n                        data-field=\"description\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.description), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <div class=\"transaction-description\">\n                            <span class=\"primary-text cell-display\">").concat(_this4.escapeHtml(transaction.description) || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'No description'), "</span>\n                            ").concat(transaction.reference ? "<span class=\"secondary-text\">".concat(_this4.escapeHtml(transaction.reference), "</span>") : '', "\n                            ").concat(linkedBadge, "\n                            ").concat(splitBadge, "\n                        </div>\n                    </td>\n                    <td class=\"vendor-column editable-cell\"\n                        data-field=\"vendor\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.vendor || ''), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.escapeHtml(transaction.vendor) || '-', "</span>\n                    </td>\n                    <td class=\"category-column editable-cell\"\n                        data-field=\"categoryId\"\n                        data-value=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"category-badge cell-display ").concat(category ? 'categorized' : 'uncategorized', "\">\n                            ").concat(category ? _this4.escapeHtml(category.name) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Uncategorized'), "\n                        </span>\n                    </td>\n                    <td class=\"tags-column editable-cell\"\n                        data-field=\"tags\"\n                        data-value=\"").concat(_this4.getTransactionTagIds(transaction.id).join(','), "\"\n                        data-category-id=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">\n                            ").concat(_this4.renderTransactionTags(transaction.id), "\n                        </span>\n                    </td>\n                    <td class=\"amount-column editable-cell\"\n                        data-field=\"amount\"\n                        data-value=\"").concat(transaction.amount, "\"\n                        data-type=\"").concat(transaction.type, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"amount cell-display ").concat(typeClass, "\">").concat(formattedAmount, "</span>\n                    </td>\n                    <td class=\"balance-column\">\n                        ").concat(balanceMap !== null && balanceMap[transaction.id] !== undefined ? "<span class=\"transaction-balance ".concat(balanceMap[transaction.id] >= 0 ? 'positive' : 'negative', "\">").concat(_this4.formatCurrency(balanceMap[transaction.id], currency), "</span>") : '', "\n                    </td>\n                    <td class=\"account-column editable-cell\"\n                        data-field=\"accountId\"\n                        data-value=\"").concat(transaction.accountId, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"account-name cell-display\">").concat(account ? _this4.escapeHtml(account.name) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Unknown Account'), "</span>\n                    </td>\n                    <td class=\"actions-column\">\n                        <div class=\"transaction-actions\">\n                            <button class=\"action-btn more-actions-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'More actions'), "\">\n                                <span aria-hidden=\"true\">&#x22EE;</span>\n                            </button>\n                            <button class=\"action-btn edit-btn transaction-edit-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Edit transaction'), "\">\n                                <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                            </button>\n                            <button class=\"action-btn delete-btn transaction-delete-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Delete transaction'), "\">\n                                <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                            </button>\n                        </div>\n                    </td>\n                </tr>\n            ");
+        return "\n                <tr class=\"transaction-row ".concat(isLinked ? 'is-linked' : '', "\" data-transaction-id=\"").concat(transaction.id, "\">\n                    <td class=\"select-column\">\n                        <input type=\"checkbox\" class=\"transaction-checkbox\"\n                               data-transaction-id=\"").concat(transaction.id, "\"\n                               ").concat((_this4$transactionsMo = _this4.transactionsModule.selectedTransactions) !== null && _this4$transactionsMo !== void 0 && _this4$transactionsMo.has(transaction.id) ? 'checked' : '', ">\n                    </td>\n                    <td class=\"date-column editable-cell\"\n                        data-field=\"date\"\n                        data-value=\"").concat(transaction.date, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.formatDate(transaction.date), "</span>\n                    </td>\n                    <td class=\"description-column editable-cell\"\n                        data-field=\"description\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.description), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <div class=\"transaction-description\">\n                            <span class=\"primary-text cell-display\">").concat(_this4.escapeHtml(transaction.description) || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'No description'), "</span>\n                            ").concat(transaction.reference ? "<span class=\"secondary-text\">".concat(_this4.escapeHtml(transaction.reference), "</span>") : '', "\n                            ").concat(linkedBadge || splitBadge || sharedBadge ? "<div class=\"transaction-badges\">".concat(linkedBadge).concat(splitBadge).concat(sharedBadge, "</div>") : '', "\n                        </div>\n                    </td>\n                    <td class=\"vendor-column editable-cell\"\n                        data-field=\"vendor\"\n                        data-value=\"").concat(_this4.escapeHtml(transaction.vendor || ''), "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">").concat(_this4.escapeHtml(transaction.vendor) || '-', "</span>\n                    </td>\n                    <td class=\"category-column editable-cell\"\n                        data-field=\"categoryId\"\n                        data-value=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"category-badge cell-display ").concat(category ? 'categorized' : 'uncategorized', "\">\n                            ").concat(category ? _this4.escapeHtml(category.name) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Uncategorized'), "\n                        </span>\n                    </td>\n                    <td class=\"tags-column editable-cell\"\n                        data-field=\"tags\"\n                        data-value=\"").concat(_this4.getTransactionTagIds(transaction.id).join(','), "\"\n                        data-category-id=\"").concat(transaction.categoryId || '', "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"cell-display\">\n                            ").concat(_this4.renderTransactionTags(transaction.id), "\n                        </span>\n                    </td>\n                    <td class=\"amount-column editable-cell\"\n                        data-field=\"amount\"\n                        data-value=\"").concat(transaction.amount, "\"\n                        data-type=\"").concat(transaction.type, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"amount cell-display ").concat(typeClass, "\">").concat(formattedAmount, "</span>\n                    </td>\n                    <td class=\"balance-column\">\n                        ").concat(balanceMap !== null && balanceMap[transaction.id] !== undefined ? "<span class=\"transaction-balance ".concat(balanceMap[transaction.id] >= 0 ? 'positive' : 'negative', "\">").concat(_this4.formatCurrency(balanceMap[transaction.id], currency), "</span>") : '', "\n                    </td>\n                    <td class=\"account-column editable-cell\"\n                        data-field=\"accountId\"\n                        data-value=\"").concat(transaction.accountId, "\"\n                        data-transaction-id=\"").concat(transaction.id, "\">\n                        <span class=\"account-name cell-display\">").concat(account ? _this4.escapeHtml(account.name) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Unknown Account'), "</span>\n                    </td>\n                    <td class=\"actions-column\">\n                        <div class=\"transaction-actions\">\n                            <button class=\"action-btn more-actions-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'More actions'), "\">\n                                <span aria-hidden=\"true\">&#x22EE;</span>\n                            </button>\n                            <button class=\"action-btn edit-btn transaction-edit-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Edit transaction'), "\">\n                                <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                            </button>\n                            <button class=\"action-btn delete-btn transaction-delete-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Delete transaction'), "\">\n                                <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                            </button>\n                        </div>\n                    </td>\n                </tr>\n            ");
       }).join('');
     }
 
@@ -53947,9 +54079,9 @@ var BudgetApp = /*#__PURE__*/function () {
               this.transactions = Array.isArray(result) ? result : result.transactions || result;
               this.balanceBeforePage = (_result$balanceBefore = result.balanceBeforePage) !== null && _result$balanceBefore !== void 0 ? _result$balanceBefore : null;
 
-              // Load tags for all displayed transactions
+              // Load tags and shared status for all displayed transactions
               _context29.n = 5;
-              return this.loadAllTransactionTags();
+              return Promise.all([this.loadAllTransactionTags(), this.loadSharedTransactionIds()]);
             case 5:
               // Apply client-side filtering if backend doesn't support it
               this.applyClientSideFilters();
@@ -57265,6 +57397,56 @@ var BudgetApp = /*#__PURE__*/function () {
         return _loadAllTransactionTags.apply(this, arguments);
       }
       return loadAllTransactionTags;
+    }()
+  }, {
+    key: "loadSharedTransactionIds",
+    value: function () {
+      var _loadSharedTransactionIds = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee104() {
+        var response, statuses, _i, _Object$entries, _Object$entries$_i, id, status, _t24;
+        return _regenerator().w(function (_context104) {
+          while (1) switch (_context104.p = _context104.n) {
+            case 0:
+              _context104.p = 0;
+              _context104.n = 1;
+              return fetch(OC.generateUrl('/apps/budget/api/shared/transaction-ids'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              response = _context104.v;
+              if (response.ok) {
+                _context104.n = 2;
+                break;
+              }
+              throw new Error('Failed to load shared transaction statuses');
+            case 2:
+              _context104.n = 3;
+              return response.json();
+            case 3:
+              statuses = _context104.v;
+              // statuses is { "txId": "shared"|"settled", ... } with string keys
+              this.sharedTransactionStatuses = {};
+              for (_i = 0, _Object$entries = Object.entries(statuses); _i < _Object$entries.length; _i++) {
+                _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2), id = _Object$entries$_i[0], status = _Object$entries$_i[1];
+                this.sharedTransactionStatuses[parseInt(id)] = status;
+              }
+              _context104.n = 5;
+              break;
+            case 4:
+              _context104.p = 4;
+              _t24 = _context104.v;
+              console.error('Failed to load shared transaction statuses:', _t24);
+              this.sharedTransactionStatuses = {};
+            case 5:
+              return _context104.a(2);
+          }
+        }, _callee104, this, [[0, 4]]);
+      }));
+      function loadSharedTransactionIds() {
+        return _loadSharedTransactionIds.apply(this, arguments);
+      }
+      return loadSharedTransactionIds;
     }()
   }, {
     key: "setupAddTagModalListeners",

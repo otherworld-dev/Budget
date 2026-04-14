@@ -9,6 +9,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\RecurringIncome;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -18,15 +19,18 @@ class TransactionService {
     private TransactionMapper $mapper;
     private AccountMapper $accountMapper;
     private TransactionTagMapper $transactionTagMapper;
+    private ExpenseShareMapper $expenseShareMapper;
 
     public function __construct(
         TransactionMapper $mapper,
         AccountMapper $accountMapper,
-        TransactionTagMapper $transactionTagMapper
+        TransactionTagMapper $transactionTagMapper,
+        ExpenseShareMapper $expenseShareMapper
     ) {
         $this->mapper = $mapper;
         $this->accountMapper = $accountMapper;
         $this->transactionTagMapper = $transactionTagMapper;
+        $this->expenseShareMapper = $expenseShareMapper;
     }
 
     /**
@@ -386,8 +390,9 @@ class TransactionService {
             $this->updateAccountBalance($account, $transaction->getAmount(), $reverseType, $userId);
         }
 
-        // Cascade delete: Delete transaction tags first
+        // Cascade delete: Delete transaction tags and expense shares
         $this->transactionTagMapper->deleteByTransaction($id);
+        $this->expenseShareMapper->deleteByTransaction($id, $userId);
 
         $this->mapper->delete($transaction);
     }
