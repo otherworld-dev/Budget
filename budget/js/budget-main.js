@@ -28220,10 +28220,8 @@ var CategoriesModule = /*#__PURE__*/function () {
               }
               _context9.p = 1;
               _context9.n = 2;
-              return fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                headers: {
-                  'requesttoken': OC.requestToken
-                }
+              return fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
+                headers: this.app.getAuthHeaders()
               });
             case 2:
               response = _context9.v;
@@ -53823,9 +53821,9 @@ var BudgetApp = /*#__PURE__*/function () {
                 headers: this.getAuthHeaders()
               }), fetch(OC.generateUrl('/apps/budget/api/accounts'), {
                 headers: this.getAuthHeaders()
-              }), fetch(OC.generateUrl('/apps/budget/api/categories'), {
+              }), fetch(OC.generateUrl('/apps/budget/api/categories?includeShared=1'), {
                 headers: this.getAuthHeaders()
-              }), fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
+              }), fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
                 headers: this.getAuthHeaders()
               }), fetch(OC.generateUrl('/apps/budget/api/settings/options'), {
                 headers: this.getAuthHeaders()

@@ -51,7 +51,7 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function index(?string $type = null): DataResponse {
+    public function index(?string $type = null, ?bool $includeShared = false): DataResponse {
         try {
             if ($type) {
                 $categories = $this->service->findByType($this->userId, $type);
@@ -59,17 +59,18 @@ class CategoryController extends Controller {
                 $categories = $this->service->findAll($this->userId);
             }
 
-            // Merge shared categories
-            $shared = $this->granularShareService->getSharedCategories($this->userId);
-            if (!empty($shared)) {
-                if ($type) {
-                    $shared = array_filter($shared, fn($c) => ($c['type'] ?? '') === $type);
+            // Only merge shared categories when explicitly requested
+            if ($includeShared) {
+                $shared = $this->granularShareService->getSharedCategories($this->userId);
+                if (!empty($shared)) {
+                    if ($type) {
+                        $shared = array_filter($shared, fn($c) => ($c['type'] ?? '') === $type);
+                    }
+                    $categories = array_merge(
+                        array_map(fn($c) => $c->jsonSerialize(), $categories),
+                        array_values($shared)
+                    );
                 }
-                $categories = array_merge(
-                    array_map(fn($c) => $c->jsonSerialize(), $categories),
-                    array_values($shared)
-                );
-                return new DataResponse($categories);
             }
 
             return new DataResponse($categories);
@@ -81,12 +82,14 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function tree(): DataResponse {
+    public function tree(?bool $includeShared = false): DataResponse {
         try {
             $tree = $this->service->getCategoryTree($this->userId);
 
             // Build shared categories into their own tree and append
-            $shared = $this->granularShareService->getSharedCategories($this->userId);
+            $shared = $includeShared
+                ? $this->granularShareService->getSharedCategories($this->userId)
+                : [];
             if (!empty($shared)) {
                 // Index by ID and build parent-child hierarchy
                 $byId = [];

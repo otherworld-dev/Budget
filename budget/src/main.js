@@ -666,10 +666,10 @@ class BudgetApp {
                 fetch(OC.generateUrl('/apps/budget/api/accounts'), {
                     headers: this.getAuthHeaders()
                 }),
-                fetch(OC.generateUrl('/apps/budget/api/categories'), {
+                fetch(OC.generateUrl('/apps/budget/api/categories?includeShared=1'), {
                     headers: this.getAuthHeaders()
                 }),
-                fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
+                fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
                     headers: this.getAuthHeaders()
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/settings/options'), {

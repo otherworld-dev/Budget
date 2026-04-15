@@ -1085,10 +1085,8 @@ export default class CategoriesModule {
         // Fetch categories if not already loaded
         if (!this.allCategories || this.allCategories.length === 0) {
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                    headers: {
-                        'requesttoken': OC.requestToken
-                    }
+                const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
+                    headers: this.app.getAuthHeaders()
                 });
                 if (response.ok) {
                     this.categoryTree = await response.json();
