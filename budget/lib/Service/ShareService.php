@@ -38,6 +38,15 @@ class ShareService {
     }
 
     /**
+     * Find a share by ID.
+     *
+     * @throws \OCP\AppFramework\Db\DoesNotExistException
+     */
+    public function findById(int $shareId): Share {
+        return $this->mapper->findById($shareId);
+    }
+
+    /**
      * Share budget with another Nextcloud user.
      * Creates a pending share that the recipient must accept.
      */
@@ -50,7 +59,7 @@ class ShareService {
         // Verify recipient exists in Nextcloud
         $recipient = $this->userManager->get($sharedWithUserId);
         if ($recipient === null) {
-            throw new \InvalidArgumentException($this->l->t('User not found: %1$s', [$sharedWithUserId]));
+            throw new \InvalidArgumentException($this->l->t('Unable to share with this user'));
         }
 
         // Check for existing share (any status)

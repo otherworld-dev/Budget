@@ -181,6 +181,13 @@ class ShareController extends Controller {
      */
     public function getConfig(int $id): DataResponse {
         try {
+            // Verify the caller is the owner or recipient of this share
+            $share = $this->shareService->findById($id);
+            if ($share->getOwnerUserId() !== $this->userId
+                && $share->getSharedWithUserId() !== $this->userId) {
+                return new DataResponse(['error' => $this->l->t('Share not found')], Http::STATUS_NOT_FOUND);
+            }
+
             $config = $this->granularShareService->getShareConfig($id);
             return new DataResponse($config);
         } catch (DoesNotExistException $e) {
@@ -198,10 +205,8 @@ class ShareController extends Controller {
      */
     public function updateTypeItems(int $id, string $type): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
-
-            $entityIds = $data['entityIds'] ?? [];
-            $permission = $data['permission'] ?? 'read';
+            $entityIds = $this->request->getParam('entityIds', []);
+            $permission = $this->request->getParam('permission', 'read');
 
             $this->granularShareService->updateShareItems(
                 $this->userId,

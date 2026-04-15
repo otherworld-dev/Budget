@@ -126,20 +126,28 @@ class ShareItemMapper extends QBMapper {
      * @param int[] $entityIds
      */
     public function replaceForShareAndType(int $shareId, string $entityType, array $entityIds, string $permission): void {
-        // Delete existing
-        $this->deleteByShareIdAndType($shareId, $entityType);
+        $this->db->beginTransaction();
+        try {
+            // Delete existing
+            $this->deleteByShareIdAndType($shareId, $entityType);
 
-        // Insert new
-        $now = date('Y-m-d H:i:s');
-        foreach ($entityIds as $entityId) {
-            $item = new ShareItem();
-            $item->setShareId($shareId);
-            $item->setEntityType($entityType);
-            $item->setEntityId((int) $entityId);
-            $item->setPermission($permission);
-            $item->setCreatedAt($now);
-            $item->setUpdatedAt($now);
-            $this->insert($item);
+            // Insert new
+            $now = date('Y-m-d H:i:s');
+            foreach ($entityIds as $entityId) {
+                $item = new ShareItem();
+                $item->setShareId($shareId);
+                $item->setEntityType($entityType);
+                $item->setEntityId((int) $entityId);
+                $item->setPermission($permission);
+                $item->setCreatedAt($now);
+                $item->setUpdatedAt($now);
+                $this->insert($item);
+            }
+
+            $this->db->commit();
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            throw $e;
         }
     }
 
