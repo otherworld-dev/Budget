@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: 2026-04-15 23:29+0000\n"
+"PO-Revision-Date: 2026-04-17 00:09+0000\n"
 "Last-Translator: H2Oufoe <regularwater@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "nextcloud-budget/budget/pt_BR/>\n"
@@ -33,7 +33,7 @@ msgstr "Orçamento"
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:44
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:44
 msgid "Bill reminder: {bill}"
-msgstr "Lembrete de despesa: {Despesa}"
+msgstr "Lembrete de despesa: {bill}"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:55
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:55
@@ -54,32 +54,32 @@ msgstr "vence em %s dias"
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:63
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:63
 msgid "{bill} ({amount}) is {dueText}"
-msgstr ""
+msgstr "{bill} ({amount}) está {dueText}"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:95
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:95
 msgid "Overdue bill: {bill}"
-msgstr ""
+msgstr "Conta atrasada: {bill}"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:107
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:107
 msgid "1 day overdue"
-msgstr ""
+msgstr "1 dia de atraso"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:108
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:108
 #, php-format
 msgid "%s days overdue"
-msgstr ""
+msgstr "%s dias de atraso"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:111
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:111
 msgid "{bill} ({amount}) is {overdueText}"
-msgstr ""
+msgstr "{bill} ({amount}) está {overdueText}"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:61
 msgid "Failed to retrieve accounts"
-msgstr ""
+msgstr "Não há contas para exibir"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:74
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:427
@@ -97,64 +97,64 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:4596
 #: /var/www/html/apps-extra/budget/templates/index.php:5138
 msgid "Account"
-msgstr ""
+msgstr "Conta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:90
 msgid "Invalid JSON data or empty request"
-msgstr ""
+msgstr "Dados de JSON inválido ou pedido vazio"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:102
 msgid "Account type is required and cannot be empty"
-msgstr ""
+msgstr "O tipo da conta é necessário e não pode ficar vazio"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:108
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:267
 #, php-format
 msgid "Invalid account type: %1$s"
-msgstr ""
+msgstr "Tipo de conta inválido: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:115
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:276
 #, php-format
 msgid "Invalid currency: %1$s"
-msgstr ""
+msgstr "Tipo de moeda inválida: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:121
 #: /var/www/html/apps-extra/budget/templates/index.php:4716
 msgid "Institution"
-msgstr ""
+msgstr "Instituição"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:130
 msgid "Account holder name"
-msgstr ""
+msgstr "Nome do titular da conta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:178
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:305
 #, php-format
 msgid "Invalid routing number: %1$s"
-msgstr ""
+msgstr "Número de roteamento inválido: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:186
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:318
 #, php-format
 msgid "Invalid sort code: %1$s"
-msgstr ""
+msgstr "Código de classificação inválido: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:194
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:331
 #, php-format
 msgid "Invalid IBAN: %1$s"
-msgstr ""
+msgstr "IBAN inválido: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:202
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:344
 #, php-format
 msgid "Invalid SWIFT/BIC: %1$s"
-msgstr ""
+msgstr "SWIFT/BIC inválido: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:235
 msgid "Failed to create account"
-msgstr ""
+msgstr "Falha ao tentar criar a conta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:249
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:107
@@ -162,7 +162,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:606
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:301
 msgid "Invalid request data"
-msgstr ""
+msgstr "Pedido de dados inválido"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:396
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:478
@@ -173,27 +173,27 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/TagSetController.php:354
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:302
 msgid "No valid fields to update"
-msgstr ""
+msgstr "Nenhum campo válido para atualizar"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:406
 msgid "Failed to update account"
-msgstr ""
+msgstr "Não foi possível atualizar a conta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:448
 msgid "This account has no sensitive banking data to reveal"
-msgstr ""
+msgstr "Essa conta não tem dados bancários sensíveis para revelar"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:474
 msgid "Failed to retrieve account summary"
-msgstr ""
+msgstr "Falha ao tentar recuperar o resumo da conta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:546
 msgid "Failed to reconcile account"
-msgstr ""
+msgstr "Falha ao tentar reconciliar a conta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AlertController.php:46
 msgid "Failed to retrieve budget alerts"
-msgstr ""
+msgstr "Falha ao tentar recuperar os alertas orçamentários"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AlertController.php:59
 msgid "Failed to retrieve budget status"
