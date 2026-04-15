@@ -349,6 +349,9 @@ class BudgetApp {
                 menu.style.left = `${rect.left - 4}px`;
                 menu.style.transform = 'translate(-100%, -50%)';
                 menu.innerHTML = `
+                    <button class="action-menu-item transaction-duplicate-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Duplicate transaction')}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
                     <button class="action-menu-item transaction-split-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Split transaction')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22V8"/><path d="M3 8l9-5 9 5"/></svg>
                     </button>
@@ -400,6 +403,10 @@ class BudgetApp {
                 const button = e.target.classList.contains('transaction-delete-btn') ? e.target : e.target.closest('.transaction-delete-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.deleteTransaction(transactionId);
+            } else if (e.target.classList.contains('transaction-duplicate-btn') || e.target.closest('.transaction-duplicate-btn')) {
+                const button = e.target.classList.contains('transaction-duplicate-btn') ? e.target : e.target.closest('.transaction-duplicate-btn');
+                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
+                this.duplicateTransaction(transactionId);
             } else if (e.target.classList.contains('transaction-split-btn') || e.target.closest('.transaction-split-btn')) {
                 const button = e.target.classList.contains('transaction-split-btn') ? e.target : e.target.closest('.transaction-split-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
@@ -1122,6 +1129,10 @@ class BudgetApp {
 
     editTransaction(id) {
         return this.transactionsModule.editTransaction(id);
+    }
+
+    duplicateTransaction(id) {
+        return this.transactionsModule.duplicateTransaction(id);
     }
 
     async saveTransaction() {

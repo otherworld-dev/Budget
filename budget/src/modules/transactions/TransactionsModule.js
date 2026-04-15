@@ -1264,8 +1264,8 @@ export default class TransactionsModule {
             }
 
             if (transaction) {
-                // Populate form with transaction data (editing mode)
-                document.getElementById('transaction-id').value = transaction.id;
+                // Populate form with transaction data (editing or duplicating mode)
+                document.getElementById('transaction-id').value = transaction.id || '';
                 setDateValue('transaction-date', transaction.date);
                 document.getElementById('transaction-account').value = transaction.accountId;
                 document.getElementById('transaction-type').value = transaction.type;
@@ -1350,6 +1350,31 @@ export default class TransactionsModule {
 
         if (transaction) {
             this.showTransactionModal(transaction);
+        }
+    }
+
+    async duplicateTransaction(id) {
+        let transaction = this.transactions.find(tx => tx.id === id);
+
+        if (!transaction && this.app.accountsModule?.accountTransactions) {
+            transaction = this.app.accountsModule.accountTransactions.find(tx => tx.id === id);
+        }
+
+        if (!transaction) {
+            try {
+                const response = await this.app.api.get(`/apps/budget/api/transactions/${id}`);
+                transaction = response.data;
+            } catch (error) {
+                console.error('Failed to fetch transaction for duplicating:', error);
+                this.app.showNotification(t('budget', 'Failed to load transaction'), 'error');
+                return;
+            }
+        }
+
+        if (transaction) {
+            // Open modal with all data pre-filled but no ID, so save creates a new transaction
+            const duplicate = { ...transaction, id: null };
+            this.showTransactionModal(duplicate);
         }
     }
 
