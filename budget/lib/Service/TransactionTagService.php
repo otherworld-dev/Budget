@@ -96,6 +96,19 @@ class TransactionTagService {
     }
 
     /**
+     * Get tags for a transaction without user ownership check.
+     * Caller must verify access separately (e.g. via visible account IDs).
+     */
+    public function getTransactionTagsUnscoped(int $transactionId): array {
+        $transactionTags = $this->transactionTagMapper->findByTransaction($transactionId);
+        if (empty($transactionTags)) {
+            return [];
+        }
+        $tagIds = array_map(fn($tt) => $tt->getTagId(), $transactionTags);
+        return array_values($this->tagMapper->findByIds($tagIds));
+    }
+
+    /**
      * Clear all tags from a transaction
      *
      * @param int $transactionId

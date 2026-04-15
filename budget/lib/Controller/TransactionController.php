@@ -672,7 +672,15 @@ class TransactionController extends Controller {
      */
     public function getTags(int $id): DataResponse {
         try {
-            $tags = $this->tagService->getTransactionTags($id, $this->getEffectiveUserId());
+            // Try own first, fall back to shared via visible accounts
+            try {
+                $tags = $this->tagService->getTransactionTags($id, $this->userId);
+            } catch (\Exception $e) {
+                // Verify the transaction is in a visible account
+                $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+                // Fetch tags without user ownership check
+                $tags = $this->tagService->getTransactionTagsUnscoped($id);
+            }
             return new DataResponse($tags);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
