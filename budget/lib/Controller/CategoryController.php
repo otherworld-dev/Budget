@@ -51,7 +51,7 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function index(?string $type = null, ?bool $includeShared = false): DataResponse {
+    public function index(?string $type = null, $includeShared = null): DataResponse {
         try {
             if ($type) {
                 $categories = $this->service->findByType($this->userId, $type);
@@ -60,7 +60,7 @@ class CategoryController extends Controller {
             }
 
             // Only merge shared categories when explicitly requested
-            if ($includeShared) {
+            if ($includeShared === '1' || $includeShared === 'true' || $includeShared === true) {
                 $shared = $this->granularShareService->getSharedCategories($this->userId);
                 if (!empty($shared)) {
                     if ($type) {
@@ -82,12 +82,12 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function tree(?bool $includeShared = false): DataResponse {
+    public function tree($includeShared = null): DataResponse {
         try {
             $tree = $this->service->getCategoryTree($this->userId);
 
             // Build shared categories into their own tree and append
-            $shared = $includeShared
+            $shared = ($includeShared === '1' || $includeShared === 'true' || $includeShared === true)
                 ? $this->granularShareService->getSharedCategories($this->userId)
                 : [];
             if (!empty($shared)) {
