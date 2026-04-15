@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-04-16
+
+### Added
+- **Granular budget sharing between Nextcloud users**: Share accounts, categories, budgets, and savings goals with other Nextcloud users with read/write permissions ([#23](https://github.com/otherworld-dev/budget/issues/23))
+- **Duplicate transaction option**: Quickly duplicate an existing transaction ([#138](https://github.com/otherworld-dev/budget/issues/138))
+- **Skip payment option for recurring bills**: Skip a bill payment and advance to the next due date ([#132](https://github.com/otherworld-dev/budget/issues/132))
+- **New translations**: Spanish, French, Russian, Portuguese (Brazil) via Weblate
+
+### Fixed
+- **Category drag-and-drop throws DOM insertBefore error**: Fixed drag-and-drop reordering of categories
+- **Cannot change subcategory to top-level category** ([#141](https://github.com/otherworld-dev/budget/issues/141))
+- **Recent Transactions dashboard tile shows empty** ([#139](https://github.com/otherworld-dev/budget/issues/139))
+- **Auto-generated bill/income transactions use null description** ([#137](https://github.com/otherworld-dev/budget/issues/137))
+- **Undo mark-as-paid now properly deletes created transactions** ([#136](https://github.com/otherworld-dev/budget/issues/136))
+- **Shared expenses overhaul**: Fixed settlements, badges, and UI layout ([#134](https://github.com/otherworld-dev/budget/issues/134))
+- **Standardize positive/negative amount colors** with CSS custom properties ([#133](https://github.com/otherworld-dev/budget/issues/133))
+- **Security audit fixes**: Added missing write-access checks and input validation
+- **Database review fixes**: Cascade delete and parameter type corrections
+- **Frontend review fixes**: Error handling, partial saves, and performance improvements
+
 ## [2.10.2] - 2026-04-13
 
 ### Fixed
