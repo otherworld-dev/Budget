@@ -50,18 +50,15 @@ export default class SharingModule {
     }
 
     async loadOutgoingShares() {
-        try { this.outgoingShares = await this.fetchApi('/apps/budget/api/shares/outgoing'); }
-        catch (e) { this.outgoingShares = []; }
+        this.outgoingShares = await this.fetchApi('/apps/budget/api/shares/outgoing');
     }
 
     async loadIncomingShares() {
-        try { this.incomingShares = await this.fetchApi('/apps/budget/api/shares/incoming'); }
-        catch (e) { this.incomingShares = []; }
+        this.incomingShares = await this.fetchApi('/apps/budget/api/shares/incoming');
     }
 
     async loadPendingShares() {
-        try { this.pendingShares = await this.fetchApi('/apps/budget/api/shares/pending'); }
-        catch (e) { this.pendingShares = []; }
+        this.pendingShares = await this.fetchApi('/apps/budget/api/shares/pending');
     }
 
     renderSharingView(container) {
@@ -214,25 +211,22 @@ export default class SharingModule {
         if (!panel) return;
 
         try {
-            // Load current config and all available entities in parallel
-            const [config, accounts, categoryTree, bills, income, goals] = await Promise.all([
-                this.fetchApi(`/apps/budget/api/shares/${shareId}/items`),
-                this.fetchApi('/apps/budget/api/accounts'),
-                this.fetchApi('/apps/budget/api/categories/tree'),
-                this.fetchApi('/apps/budget/api/bills'),
-                this.fetchApi('/apps/budget/api/recurring-income'),
-                this.fetchApi('/apps/budget/api/savings-goals'),
-            ]);
+            // Only fetch the share config — use cached app state for entity lists
+            const config = await this.fetchApi(`/apps/budget/api/shares/${shareId}/items`);
 
-            // Flatten category tree with depth for indentation
+            // Use app state for entity lists (already loaded by loadInitialData)
+            const accounts = this.app.accounts || [];
+            const categoryTree = this.app.categoryTree || [];
             const flatCategories = this.flattenCategoryTree(Array.isArray(categoryTree) ? categoryTree : [], 0);
+            // Filter to own categories only (owner configures their own entities)
+            const ownCategories = flatCategories.filter(c => !c._shared);
 
             this.renderConfigPanel(panel, shareId, config, {
-                account: Array.isArray(accounts) ? accounts : (accounts.accounts || []),
-                category: flatCategories,
-                bill: Array.isArray(bills) ? bills : (bills.bills || []),
-                recurring_income: Array.isArray(income) ? income : (income.income || []),
-                savings_goal: Array.isArray(goals) ? goals : (goals.goals || []),
+                account: accounts,
+                category: ownCategories,
+                bill: this.app.bills || [],
+                recurring_income: this.app.recurringIncome || [],
+                savings_goal: this.app.savingsGoals || [],
             });
         } catch (error) {
             console.error('Failed to load config:', error);
@@ -316,28 +310,33 @@ export default class SharingModule {
         if (!panel) return;
 
         const types = ['account', 'category', 'bill', 'recurring_income', 'savings_goal'];
+        const errors = [];
 
-        try {
-            for (const type of types) {
-                const section = panel.querySelector(`.share-config-section[data-type="${type}"]`);
-                if (!section) continue;
+        for (const type of types) {
+            const section = panel.querySelector(`.share-config-section[data-type="${type}"]`);
+            if (!section) continue;
 
-                const permSelect = section.querySelector('.share-config-permission');
-                const permission = permSelect ? permSelect.value : 'read';
+            const permSelect = section.querySelector('.share-config-permission');
+            const permission = permSelect ? permSelect.value : 'read';
 
-                const checkboxes = section.querySelectorAll(`input[data-type="${type}"]:checked`);
-                const entityIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.entityId));
+            const checkboxes = section.querySelectorAll(`input[data-type="${type}"]:checked`);
+            const entityIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.entityId));
 
+            try {
                 await this.fetchApi(`/apps/budget/api/shares/${shareId}/items/${type}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ entityIds, permission }),
                 });
+            } catch (e) {
+                errors.push(type);
             }
+        }
 
+        if (errors.length > 0) {
+            showError(t('budget', 'Failed to save some sections: {types}', { types: errors.join(', ') }));
+        } else {
             showSuccess(t('budget', 'Share configuration saved'));
-        } catch (error) {
-            showError(error.message || t('budget', 'Failed to save configuration'));
         }
     }
 
@@ -394,15 +393,6 @@ export default class SharingModule {
     }
 
     // ==================== Helpers ====================
-
-    getStatusLabel(status) {
-        switch (status) {
-            case 'pending': return t('budget', 'Pending');
-            case 'accepted': return t('budget', 'Active');
-            case 'declined': return t('budget', 'Declined');
-            default: return status;
-        }
-    }
 
     /**
      * Flatten a category tree into a flat array with _depth for indentation.
