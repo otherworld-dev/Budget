@@ -392,11 +392,11 @@ export default class CategoriesModule {
         if (y < threshold) {
             // Drop above
             indicator.classList.add('top');
-            targetItem.parentNode.insertBefore(indicator, targetItem.parentNode);
+            targetItem.parentNode.insertBefore(indicator, targetItem);
         } else if (y > rect.height - threshold) {
             // Drop below
             indicator.classList.add('bottom');
-            targetItem.parentNode.insertBefore(indicator, targetItem.parentNode.nextSibling);
+            targetItem.parentNode.insertBefore(indicator, targetItem.nextSibling);
         } else {
             // Drop as child
             indicator.classList.add('child');
