@@ -81,12 +81,13 @@ export default class CategoriesModule {
                 }),
             ]);
             if (treeResponse.ok) {
-                this.categoryTree = await treeResponse.json();
-                this.allCategories = this.flattenCategories(this.categoryTree);
-                // Sync to app-level state so other modules (e.g. TransactionsModule) can access it
-                this.app.categoryTree = this.categoryTree;
-                this.app.allCategories = this.allCategories;
-                this.app.categories = this.allCategories;
+                const fullTree = await treeResponse.json();
+                // Store full tree (with shared) for dropdowns and budget view
+                this.app.categoryTree = fullTree;
+                this.app.allCategories = this.flattenCategories(fullTree);
+                this.app.categories = this.app.allCategories;
+                // For the management view, filter out shared categories
+                this.managementTree = fullTree.filter(cat => !cat._shared);
             }
             if (countsResponse.ok) {
                 this.serverTransactionCounts = await countsResponse.json();
@@ -197,15 +198,16 @@ export default class CategoriesModule {
 
         if (!treeContainer) return;
 
-        // Handle case where categoryTree is not loaded or empty
-        if (!this.categoryTree || !Array.isArray(this.categoryTree) || this.categoryTree.length === 0) {
+        // Use management tree (own categories only, no shared) for the management page
+        const tree = this.managementTree || this.categoryTree;
+        if (!tree || !Array.isArray(tree) || tree.length === 0) {
             treeContainer.innerHTML = '';
             if (emptyState) emptyState.style.display = 'block';
             return;
         }
 
         // Filter categories by current type
-        const typedCategories = this.categoryTree.filter(cat => cat.type === this.currentCategoryType);
+        const typedCategories = tree.filter(cat => cat.type === this.currentCategoryType);
 
         if (typedCategories.length === 0) {
             treeContainer.innerHTML = '';
@@ -1084,7 +1086,7 @@ export default class CategoriesModule {
 
         // Always fetch fresh with shared categories for budget view
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: this.app.getAuthHeaders()
             });
             if (response.ok) {

@@ -26902,7 +26902,7 @@ var CategoriesModule = /*#__PURE__*/function () {
     key: "loadCategories",
     value: function () {
       var _loadCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-        var _yield$Promise$all, _yield$Promise$all2, treeResponse, countsResponse, _t;
+        var _yield$Promise$all, _yield$Promise$all2, treeResponse, countsResponse, fullTree, _t;
         return _regenerator().w(function (_context) {
           while (1) switch (_context.p = _context.n) {
             case 0:
@@ -26929,12 +26929,15 @@ var CategoriesModule = /*#__PURE__*/function () {
               _context.n = 2;
               return treeResponse.json();
             case 2:
-              this.categoryTree = _context.v;
-              this.allCategories = this.flattenCategories(this.categoryTree);
-              // Sync to app-level state so other modules (e.g. TransactionsModule) can access it
-              this.app.categoryTree = this.categoryTree;
-              this.app.allCategories = this.allCategories;
-              this.app.categories = this.allCategories;
+              fullTree = _context.v;
+              // Store full tree (with shared) for dropdowns and budget view
+              this.app.categoryTree = fullTree;
+              this.app.allCategories = this.flattenCategories(fullTree);
+              this.app.categories = this.app.allCategories;
+              // For the management view, filter out shared categories
+              this.managementTree = fullTree.filter(function (cat) {
+                return !cat._shared;
+              });
             case 3:
               if (!countsResponse.ok) {
                 _context.n = 5;
@@ -27075,15 +27078,16 @@ var CategoriesModule = /*#__PURE__*/function () {
       var emptyState = document.getElementById('empty-categories');
       if (!treeContainer) return;
 
-      // Handle case where categoryTree is not loaded or empty
-      if (!this.categoryTree || !Array.isArray(this.categoryTree) || this.categoryTree.length === 0) {
+      // Use management tree (own categories only, no shared) for the management page
+      var tree = this.managementTree || this.categoryTree;
+      if (!tree || !Array.isArray(tree) || tree.length === 0) {
         treeContainer.innerHTML = '';
         if (emptyState) emptyState.style.display = 'block';
         return;
       }
 
       // Filter categories by current type
-      var typedCategories = this.categoryTree.filter(function (cat) {
+      var typedCategories = tree.filter(function (cat) {
         return cat.type === _this3.currentCategoryType;
       });
       if (typedCategories.length === 0) {
@@ -28216,7 +28220,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               // Always fetch fresh with shared categories for budget view
               _context9.p = 1;
               _context9.n = 2;
-              return fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
+              return fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: this.app.getAuthHeaders()
               });
             case 2:
@@ -53815,9 +53819,9 @@ var BudgetApp = /*#__PURE__*/function () {
                 headers: this.getAuthHeaders()
               }), fetch(OC.generateUrl('/apps/budget/api/accounts'), {
                 headers: this.getAuthHeaders()
-              }), fetch(OC.generateUrl('/apps/budget/api/categories?includeShared=1'), {
+              }), fetch(OC.generateUrl('/apps/budget/api/categories'), {
                 headers: this.getAuthHeaders()
-              }), fetch(OC.generateUrl('/apps/budget/api/categories/tree?includeShared=1'), {
+              }), fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: this.getAuthHeaders()
               }), fetch(OC.generateUrl('/apps/budget/api/settings/options'), {
                 headers: this.getAuthHeaders()
