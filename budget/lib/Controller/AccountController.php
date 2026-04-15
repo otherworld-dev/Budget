@@ -464,7 +464,12 @@ class AccountController extends Controller {
     #[UserRateLimit(limit: 10, period: 60)]
     public function reveal(int $id): DataResponse {
         try {
-            $account = $this->service->find($id, $this->getEffectiveUserId());
+            // Only account owners can reveal sensitive data — never shared users
+            $ownIds = $this->granularShareService->getOwnAccountIds($this->userId);
+            if (!in_array($id, $ownIds, true)) {
+                return new DataResponse(['error' => $this->l->t('Account not found')], Http::STATUS_NOT_FOUND);
+            }
+            $account = $this->service->find($id, $this->userId);
 
             // Check if account has sensitive data to reveal
             if (!$account->hasSensitiveData()) {
@@ -564,6 +569,7 @@ class AccountController extends Controller {
      */
     public function reconcile(int $id, float $statementBalance): DataResponse {
         try {
+            $this->requireWriteAccess('account', $id);
             $result = $this->service->reconcile($id, $this->getEffectiveUserId(), $statementBalance);
             return new DataResponse($result);
         } catch (\Exception $e) {

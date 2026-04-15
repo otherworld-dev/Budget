@@ -554,6 +554,7 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markPaid(int $id, ?string $paidDate = null): DataResponse {
         try {
+            $this->requireWriteAccess('bill', $id);
             $params = $this->request->getParams();
             $createNextTransaction = (bool) ($params['createNextTransaction'] ?? false);
 
@@ -571,6 +572,7 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function skipPayment(int $id): DataResponse {
         try {
+            $this->requireWriteAccess('bill', $id);
             $result = $this->service->skipPayment($id, $this->getEffectiveUserId());
             return new DataResponse($result);
         } catch (\InvalidArgumentException $e) {
@@ -587,6 +589,7 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function undoSkip(int $id): DataResponse {
         try {
+            $this->requireWriteAccess('bill', $id);
             $params = $this->request->getParams();
             $previousNextDueDate = $params['previousNextDueDate'] ?? null;
 

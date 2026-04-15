@@ -208,6 +208,11 @@ class ShareController extends Controller {
             $entityIds = $this->request->getParam('entityIds', []);
             $permission = $this->request->getParam('permission', 'read');
 
+            if (!is_array($entityIds)) {
+                return new DataResponse(['error' => $this->l->t('Invalid entity IDs')], Http::STATUS_BAD_REQUEST);
+            }
+            $entityIds = array_map('intval', $entityIds);
+
             $this->granularShareService->updateShareItems(
                 $this->userId,
                 $id,
