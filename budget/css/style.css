@@ -16302,6 +16302,25 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     font-style: italic;
 }
 
+/* Sharing intro text */
+.sharing-intro {
+    margin-bottom: 24px;
+    padding: 14px 16px;
+    background: var(--color-background-dark, #f5f5f5);
+    border-radius: var(--border-radius-large, 8px);
+    line-height: 1.6;
+    color: var(--color-text-maxcontrast);
+    font-size: 14px;
+}
+
+.sharing-intro p {
+    margin: 0 0 8px 0;
+}
+
+.sharing-intro p:last-child {
+    margin-bottom: 0;
+}
+
 /* Share item block (item + config panel) */
 .sharing-item-block {
     border-radius: var(--border-radius-large, 8px);

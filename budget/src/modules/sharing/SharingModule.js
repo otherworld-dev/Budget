@@ -71,6 +71,11 @@ export default class SharingModule {
 
         container.innerHTML = `
             <div class="sharing-page">
+                <div class="sharing-intro">
+                    <p>${t('budget', 'Share parts of your budget with other Nextcloud users. You choose exactly which accounts, categories, bills, income, and savings goals to share, and whether the other person can view or also edit them.')}</p>
+                    <p>${t('budget', 'Shared categories merge with the other user\'s own categories — matching names are combined so you both work from the same budgets and spending totals. Transactions in shared accounts count toward shared category budgets for both users.')}</p>
+                </div>
+
                 ${this.pendingShares.length > 0 ? `
                 <div class="sharing-section">
                     <h3>${t('budget', 'Pending Invitations')}</h3>
