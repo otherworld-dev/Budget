@@ -43440,6 +43440,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 var _excluded = ["headers"];
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
+function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
@@ -43744,7 +43749,7 @@ var SharingModule = /*#__PURE__*/function () {
     key: "loadConfigPanel",
     value: function () {
       var _loadConfigPanel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(shareId) {
-        var panel, _yield$Promise$all, _yield$Promise$all2, config, accounts, categories, bills, income, goals, _t5;
+        var panel, _yield$Promise$all, _yield$Promise$all2, config, accounts, categoryTree, bills, income, goals, flatCategories, _t5;
         return _regenerator().w(function (_context7) {
           while (1) switch (_context7.p = _context7.n) {
             case 0:
@@ -43757,19 +43762,21 @@ var SharingModule = /*#__PURE__*/function () {
             case 1:
               _context7.p = 1;
               _context7.n = 2;
-              return Promise.all([this.fetchApi("/apps/budget/api/shares/".concat(shareId, "/items")), this.fetchApi('/apps/budget/api/accounts'), this.fetchApi('/apps/budget/api/categories'), this.fetchApi('/apps/budget/api/bills'), this.fetchApi('/apps/budget/api/recurring-income'), this.fetchApi('/apps/budget/api/savings-goals')]);
+              return Promise.all([this.fetchApi("/apps/budget/api/shares/".concat(shareId, "/items")), this.fetchApi('/apps/budget/api/accounts'), this.fetchApi('/apps/budget/api/categories/tree'), this.fetchApi('/apps/budget/api/bills'), this.fetchApi('/apps/budget/api/recurring-income'), this.fetchApi('/apps/budget/api/savings-goals')]);
             case 2:
               _yield$Promise$all = _context7.v;
               _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 6);
               config = _yield$Promise$all2[0];
               accounts = _yield$Promise$all2[1];
-              categories = _yield$Promise$all2[2];
+              categoryTree = _yield$Promise$all2[2];
               bills = _yield$Promise$all2[3];
               income = _yield$Promise$all2[4];
               goals = _yield$Promise$all2[5];
+              // Flatten category tree with depth for indentation
+              flatCategories = this.flattenCategoryTree(Array.isArray(categoryTree) ? categoryTree : [], 0);
               this.renderConfigPanel(panel, shareId, config, {
                 account: Array.isArray(accounts) ? accounts : accounts.accounts || [],
-                category: Array.isArray(categories) ? categories : [],
+                category: flatCategories,
                 bill: Array.isArray(bills) ? bills : bills.bills || [],
                 recurring_income: Array.isArray(income) ? income : income.income || [],
                 savings_goal: Array.isArray(goals) ? goals : goals.goals || []
@@ -43824,11 +43831,12 @@ var SharingModule = /*#__PURE__*/function () {
           permission: 'read'
         };
         if (items.length === 0) return '';
-        return "\n                        <div class=\"share-config-section\" data-type=\"".concat(section.type, "\">\n                            <div class=\"share-config-section-header\">\n                                <h4>").concat(section.label, "</h4>\n                                <select class=\"share-config-permission\" data-type=\"").concat(section.type, "\">\n                                    <option value=\"read\" ").concat(currentConfig.permission === 'read' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Read only'), "</option>\n                                    <option value=\"write\" ").concat(currentConfig.permission === 'write' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Read & Write'), "</option>\n                                </select>\n                            </div>\n                            <div class=\"share-config-checklist\">\n                                ").concat(items.map(function (item) {
+        return "\n                        <div class=\"share-config-section\" data-type=\"".concat(section.type, "\">\n                            <div class=\"share-config-section-header\">\n                                <h4>").concat(section.label, "</h4>\n                                <div class=\"share-config-header-actions\">\n                                    <button class=\"btn btn-small btn-select-all\" data-type=\"").concat(section.type, "\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Select All'), "</button>\n                                    <select class=\"share-config-permission\" data-type=\"").concat(section.type, "\">\n                                        <option value=\"read\" ").concat(currentConfig.permission === 'read' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Read only'), "</option>\n                                        <option value=\"write\" ").concat(currentConfig.permission === 'write' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Read & Write'), "</option>\n                                    </select>\n                                </div>\n                            </div>\n                            <div class=\"share-config-checklist\">\n                                ").concat(items.map(function (item) {
           var id = item.id;
           var name = item[section.nameField] || "#".concat(id);
           var checked = currentConfig.ids.includes(id);
-          var indent = section.type === 'category' && item.parentId ? ' style="padding-left: 24px;"' : '';
+          var depth = item._depth || 0;
+          var indent = depth > 0 ? " style=\"padding-left: ".concat(depth * 20, "px;\"") : '';
           return "\n                                        <label class=\"share-config-item\"".concat(indent, ">\n                                            <input type=\"checkbox\" data-type=\"").concat(section.type, "\" data-entity-id=\"").concat(id, "\"\n                                                   ").concat(checked ? 'checked' : '', " />\n                                            <span>").concat(_this3.esc(name), "</span>\n                                        </label>\n                                    ");
         }).join(''), "\n                            </div>\n                        </div>\n                    ");
       }).join(''), "\n                <div class=\"share-config-actions\">\n                    <button class=\"btn btn-primary btn-save-config\" data-share-id=\"").concat(shareId, "\">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Save Configuration'), "\n                    </button>\n                </div>\n            </div>\n        ");
@@ -43836,6 +43844,21 @@ var SharingModule = /*#__PURE__*/function () {
       // Bind save button
       (_panel$querySelector = panel.querySelector('.btn-save-config')) === null || _panel$querySelector === void 0 || _panel$querySelector.addEventListener('click', function () {
         return _this3.saveConfig(shareId);
+      });
+
+      // Bind select all buttons
+      panel.querySelectorAll('.btn-select-all').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var type = btn.dataset.type;
+          var checkboxes = panel.querySelectorAll("input[data-type=\"".concat(type, "\"]"));
+          var allChecked = Array.from(checkboxes).every(function (cb) {
+            return cb.checked;
+          });
+          checkboxes.forEach(function (cb) {
+            return cb.checked = !allChecked;
+          });
+          btn.textContent = allChecked ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Select All') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Deselect All');
+        });
       });
     }
   }, {
@@ -44125,6 +44148,33 @@ var SharingModule = /*#__PURE__*/function () {
         default:
           return status;
       }
+    }
+
+    /**
+     * Flatten a category tree into a flat array with _depth for indentation.
+     */
+  }, {
+    key: "flattenCategoryTree",
+    value: function flattenCategoryTree(tree, depth) {
+      var result = [];
+      var _iterator = _createForOfIteratorHelper(tree),
+        _step;
+      try {
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var node = _step.value;
+          result.push(_objectSpread(_objectSpread({}, node), {}, {
+            _depth: depth
+          }));
+          if (node.children && node.children.length > 0) {
+            result.push.apply(result, _toConsumableArray(this.flattenCategoryTree(node.children, depth + 1)));
+          }
+        }
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
+      }
+      return result;
     }
   }, {
     key: "esc",

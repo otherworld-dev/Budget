@@ -210,18 +210,21 @@ export default class SharingModule {
 
         try {
             // Load current config and all available entities in parallel
-            const [config, accounts, categories, bills, income, goals] = await Promise.all([
+            const [config, accounts, categoryTree, bills, income, goals] = await Promise.all([
                 this.fetchApi(`/apps/budget/api/shares/${shareId}/items`),
                 this.fetchApi('/apps/budget/api/accounts'),
-                this.fetchApi('/apps/budget/api/categories'),
+                this.fetchApi('/apps/budget/api/categories/tree'),
                 this.fetchApi('/apps/budget/api/bills'),
                 this.fetchApi('/apps/budget/api/recurring-income'),
                 this.fetchApi('/apps/budget/api/savings-goals'),
             ]);
 
+            // Flatten category tree with depth for indentation
+            const flatCategories = this.flattenCategoryTree(Array.isArray(categoryTree) ? categoryTree : [], 0);
+
             this.renderConfigPanel(panel, shareId, config, {
                 account: Array.isArray(accounts) ? accounts : (accounts.accounts || []),
-                category: Array.isArray(categories) ? categories : [],
+                category: flatCategories,
                 bill: Array.isArray(bills) ? bills : (bills.bills || []),
                 recurring_income: Array.isArray(income) ? income : (income.income || []),
                 savings_goal: Array.isArray(goals) ? goals : (goals.goals || []),
@@ -253,17 +256,21 @@ export default class SharingModule {
                         <div class="share-config-section" data-type="${section.type}">
                             <div class="share-config-section-header">
                                 <h4>${section.label}</h4>
-                                <select class="share-config-permission" data-type="${section.type}">
-                                    <option value="read" ${currentConfig.permission === 'read' ? 'selected' : ''}>${t('budget', 'Read only')}</option>
-                                    <option value="write" ${currentConfig.permission === 'write' ? 'selected' : ''}>${t('budget', 'Read & Write')}</option>
-                                </select>
+                                <div class="share-config-header-actions">
+                                    <button class="btn btn-small btn-select-all" data-type="${section.type}">${t('budget', 'Select All')}</button>
+                                    <select class="share-config-permission" data-type="${section.type}">
+                                        <option value="read" ${currentConfig.permission === 'read' ? 'selected' : ''}>${t('budget', 'Read only')}</option>
+                                        <option value="write" ${currentConfig.permission === 'write' ? 'selected' : ''}>${t('budget', 'Read & Write')}</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="share-config-checklist">
                                 ${items.map(item => {
                                     const id = item.id;
                                     const name = item[section.nameField] || `#${id}`;
                                     const checked = currentConfig.ids.includes(id);
-                                    const indent = (section.type === 'category' && item.parentId) ? ' style="padding-left: 24px;"' : '';
+                                    const depth = item._depth || 0;
+                                    const indent = depth > 0 ? ` style="padding-left: ${depth * 20}px;"` : '';
                                     return `
                                         <label class="share-config-item"${indent}>
                                             <input type="checkbox" data-type="${section.type}" data-entity-id="${id}"
@@ -286,6 +293,17 @@ export default class SharingModule {
 
         // Bind save button
         panel.querySelector('.btn-save-config')?.addEventListener('click', () => this.saveConfig(shareId));
+
+        // Bind select all buttons
+        panel.querySelectorAll('.btn-select-all').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                const checkboxes = panel.querySelectorAll(`input[data-type="${type}"]`);
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                checkboxes.forEach(cb => cb.checked = !allChecked);
+                btn.textContent = allChecked ? t('budget', 'Select All') : t('budget', 'Deselect All');
+            });
+        });
     }
 
     async saveConfig(shareId) {
@@ -379,6 +397,20 @@ export default class SharingModule {
             case 'declined': return t('budget', 'Declined');
             default: return status;
         }
+    }
+
+    /**
+     * Flatten a category tree into a flat array with _depth for indentation.
+     */
+    flattenCategoryTree(tree, depth) {
+        const result = [];
+        for (const node of tree) {
+            result.push({ ...node, _depth: depth });
+            if (node.children && node.children.length > 0) {
+                result.push(...this.flattenCategoryTree(node.children, depth + 1));
+            }
+        }
+        return result;
     }
 
     esc(str) {

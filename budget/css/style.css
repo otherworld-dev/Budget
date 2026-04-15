@@ -16346,6 +16346,18 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     font-weight: 600;
 }
 
+.share-config-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-select-all {
+    padding: 3px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
 .share-config-permission {
     padding: 4px 8px;
     border: 1px solid var(--color-border-dark);
