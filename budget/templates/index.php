@@ -4,6 +4,12 @@ style('budget', 'style');
 style('budget', 'budget-main');
 ?>
 
+<div id="budget-nav-toggle-wrapper">
+    <button id="budget-nav-toggle" aria-label="<?php p($l->t('Toggle navigation')); ?>">
+        <svg id="nav-toggle-icon-open" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        <svg id="nav-toggle-icon-close" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M3 18h13v-2H3v2zm0-5h10v-2H3v2zm0-7v2h13V6H3zm18 9.59L17.42 12 21 8.41 19.59 7l-5 5 5 5L21 15.59z"/></svg>
+    </button>
+</div>
 <div id="app-navigation">
     <!-- Search Bar -->
     <div class="app-navigation-search">
@@ -260,9 +266,9 @@ style('budget', 'budget-main');
     </div>
 </div>
 
+<div id="nav-backdrop" class="nav-open-backdrop"></div>
+
 <div id="app-content" class="app-content">
-    <div id="app-navigation-toggle" class="icon-menu"></div>
-    <div id="app-navigation-backdrop"></div>
     <div id="app-content-wrapper">
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">

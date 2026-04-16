@@ -248,22 +248,44 @@
     overflow: auto;
 }
 
-#app-navigation-toggle {
+/* Navigation toggle — matches NcAppNavigationToggle from @nextcloud/vue. */
+#budget-nav-toggle-wrapper {
     display: none;
 }
 
 @media (max-width: 1024px) {
-    #app-navigation-toggle {
+    #budget-nav-toggle-wrapper {
+        display: block;
+        position: fixed;
+        top: calc(var(--header-height, 50px) + 4px);
+        left: 4px;
+        z-index: 1900;
+        transition: left 250ms ease-in-out;
+    }
+
+    #budget-nav-toggle-wrapper.nav-open {
+        left: 300px;
+    }
+
+    #budget-nav-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
-        position: fixed;
-        top: var(--header-height, 50px);
-        left: 4px;
         width: 44px;
         height: 44px;
-        z-index: 1050;
+        background-color: var(--color-main-background);
+        border: none;
+        border-radius: 22px;
         cursor: pointer;
+        color: var(--color-main-text);
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    #budget-nav-toggle:hover,
+    #budget-nav-toggle:focus-visible {
+        opacity: 1;
+        background-color: var(--color-background-hover);
     }
 }
 
@@ -283,33 +305,33 @@
     width: 100%;
 }
 
-/* Mobile Navigation Toggle - Nextcloud standard (1024px breakpoint)
+/* Mobile Navigation - matches NcAppNavigation behavior.
  * Nextcloud's mobile.css hides #app-navigation:not(.vue) with translateX(-300px).
- * No JS is provided for non-Vue apps, so we handle the toggle ourselves.
- * We must match the :not(.vue) specificity to override the framework. */
+ * We override with our own open class and add a backdrop overlay. */
 @media (max-width: 1024px) {
     #app-navigation:not(.vue) {
         transition: transform 250ms ease-in-out;
     }
 
-    #app-navigation:not(.vue).open {
+    /* Override Nextcloud's translateX(-300px) when open */
+    #app-navigation:not(.vue).nav-open {
         transform: translateX(0) !important;
         z-index: 1800;
     }
 
-    /* Backdrop overlay when nav is open */
-    #app-navigation-backdrop {
+    /* Backdrop overlay */
+    .nav-open-backdrop {
         display: none;
         position: fixed;
-        top: var(--header-height, 50px);
+        top: 0;
         left: 0;
         width: 100vw;
-        height: calc(100vh - var(--header-height, 50px));
+        height: 100vh;
         background: rgba(0, 0, 0, 0.5);
         z-index: 1700;
     }
 
-    #app-navigation-backdrop.open {
+    .nav-open-backdrop.active {
         display: block;
     }
 }
@@ -14972,6 +14994,18 @@ tr.scheduled-transaction:hover {
 
     .dashboard-header-hint {
         display: none; /* Hide drag hint on mobile */
+    }
+
+    /* Collapse unlock button to icon-only on mobile to avoid overlapping nav menu */
+    #toggle-dashboard-lock-btn #lock-btn-text {
+        display: none;
+    }
+
+    #toggle-dashboard-lock-btn {
+        padding: 8px;
+        min-width: 36px;
+        min-height: 36px;
+        justify-content: center;
     }
 }
 

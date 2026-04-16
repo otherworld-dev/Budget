@@ -20575,16 +20575,18 @@ var Router = /*#__PURE__*/function () {
     key: "setupMobileNavigationToggle",
     value: function setupMobileNavigationToggle() {
       var _this2 = this;
-      var toggle = document.getElementById('app-navigation-toggle');
+      var toggle = document.getElementById('budget-nav-toggle');
       var nav = document.getElementById('app-navigation');
-      var backdrop = document.getElementById('app-navigation-backdrop');
+      var backdrop = document.getElementById('nav-backdrop');
       if (!toggle || !nav) {
         return;
       }
       toggle.addEventListener('click', function () {
-        var isOpen = nav.classList.toggle('open');
-        if (backdrop) {
-          backdrop.classList.toggle('open', isOpen);
+        var isOpen = nav.classList.contains('nav-open');
+        if (isOpen) {
+          _this2.closeMobileNavigation();
+        } else {
+          _this2.openMobileNavigation();
         }
       });
       if (backdrop) {
@@ -20594,16 +20596,32 @@ var Router = /*#__PURE__*/function () {
       }
     }
   }, {
+    key: "openMobileNavigation",
+    value: function openMobileNavigation() {
+      var nav = document.getElementById('app-navigation');
+      var wrapper = document.getElementById('budget-nav-toggle-wrapper');
+      var backdrop = document.getElementById('nav-backdrop');
+      var iconOpen = document.getElementById('nav-toggle-icon-open');
+      var iconClose = document.getElementById('nav-toggle-icon-close');
+      if (nav) nav.classList.add('nav-open');
+      if (wrapper) wrapper.classList.add('nav-open');
+      if (backdrop) backdrop.classList.add('active');
+      if (iconOpen) iconOpen.style.display = 'none';
+      if (iconClose) iconClose.style.display = '';
+    }
+  }, {
     key: "closeMobileNavigation",
     value: function closeMobileNavigation() {
       var nav = document.getElementById('app-navigation');
-      var backdrop = document.getElementById('app-navigation-backdrop');
-      if (nav) {
-        nav.classList.remove('open');
-      }
-      if (backdrop) {
-        backdrop.classList.remove('open');
-      }
+      var wrapper = document.getElementById('budget-nav-toggle-wrapper');
+      var backdrop = document.getElementById('nav-backdrop');
+      var iconOpen = document.getElementById('nav-toggle-icon-open');
+      var iconClose = document.getElementById('nav-toggle-icon-close');
+      if (nav) nav.classList.remove('nav-open');
+      if (wrapper) wrapper.classList.remove('nav-open');
+      if (backdrop) backdrop.classList.remove('active');
+      if (iconOpen) iconOpen.style.display = '';
+      if (iconClose) iconClose.style.display = 'none';
     }
   }, {
     key: "showView",

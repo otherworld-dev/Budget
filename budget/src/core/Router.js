@@ -28,18 +28,20 @@ export default class Router {
     }
 
     setupMobileNavigationToggle() {
-        const toggle = document.getElementById('app-navigation-toggle');
+        const toggle = document.getElementById('budget-nav-toggle');
         const nav = document.getElementById('app-navigation');
-        const backdrop = document.getElementById('app-navigation-backdrop');
+        const backdrop = document.getElementById('nav-backdrop');
 
         if (!toggle || !nav) {
             return;
         }
 
         toggle.addEventListener('click', () => {
-            const isOpen = nav.classList.toggle('open');
-            if (backdrop) {
-                backdrop.classList.toggle('open', isOpen);
+            const isOpen = nav.classList.contains('nav-open');
+            if (isOpen) {
+                this.closeMobileNavigation();
+            } else {
+                this.openMobileNavigation();
             }
         });
 
@@ -50,15 +52,32 @@ export default class Router {
         }
     }
 
+    openMobileNavigation() {
+        const nav = document.getElementById('app-navigation');
+        const wrapper = document.getElementById('budget-nav-toggle-wrapper');
+        const backdrop = document.getElementById('nav-backdrop');
+        const iconOpen = document.getElementById('nav-toggle-icon-open');
+        const iconClose = document.getElementById('nav-toggle-icon-close');
+
+        if (nav) nav.classList.add('nav-open');
+        if (wrapper) wrapper.classList.add('nav-open');
+        if (backdrop) backdrop.classList.add('active');
+        if (iconOpen) iconOpen.style.display = 'none';
+        if (iconClose) iconClose.style.display = '';
+    }
+
     closeMobileNavigation() {
         const nav = document.getElementById('app-navigation');
-        const backdrop = document.getElementById('app-navigation-backdrop');
-        if (nav) {
-            nav.classList.remove('open');
-        }
-        if (backdrop) {
-            backdrop.classList.remove('open');
-        }
+        const wrapper = document.getElementById('budget-nav-toggle-wrapper');
+        const backdrop = document.getElementById('nav-backdrop');
+        const iconOpen = document.getElementById('nav-toggle-icon-open');
+        const iconClose = document.getElementById('nav-toggle-icon-close');
+
+        if (nav) nav.classList.remove('nav-open');
+        if (wrapper) wrapper.classList.remove('nav-open');
+        if (backdrop) backdrop.classList.remove('active');
+        if (iconOpen) iconOpen.style.display = '';
+        if (iconClose) iconClose.style.display = 'none';
     }
 
     showView(viewName) {
