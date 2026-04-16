@@ -8,12 +8,13 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.10.0
+## What's New in v2.11.0
 
-- **Full i18n Support** - All user-facing strings are now translatable, enabling multilingual translations via Weblate
-- **Multi-Currency Bills** - Bills display amounts in their native currency with base-currency equivalents, split templates support multi-currency accounts (#126, #121)
-- **Tag Filter Fix** - Stale event listeners no longer break tag filters in reports (#128)
-- **Tag Display Fix** - Long tag names are no longer cut off in the transaction list
+- **Budget Sharing** - Share accounts, categories, budgets, and savings goals with other Nextcloud users with granular read/write permissions (#23)
+- **Duplicate Transactions** - Quickly duplicate an existing transaction (#138)
+- **Skip Bill Payments** - Skip a recurring bill payment and advance to the next due date (#132)
+- **New Translations** - Spanish, French, Russian, and Portuguese (Brazil) now available via Weblate
+- **Mobile Fixes** - Navigation toggle, dashboard button text, and color contrast improvements (#130)
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
