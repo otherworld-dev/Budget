@@ -4809,9 +4809,10 @@ style('budget', 'budget-main');
                 </div>
 
                 <div class="form-group conditional" id="interest-enabled-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="account-interest-enabled">
-                        <?php p($l->t('Enable Interest Tracking')); ?>
+                    <label for="account-interest-enabled"><?php p($l->t('Interest Tracking')); ?></label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="account-interest-enabled" style="width: 18px; height: 18px; margin: 0;">
+                        <?php p($l->t('Enable')); ?>
                     </label>
                     <small class="form-text"><?php p($l->t('Track accrued interest over time with variable rate support')); ?></small>
                 </div>
