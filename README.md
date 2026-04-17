@@ -8,13 +8,11 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.11.0
+## What's New in v2.12.0
 
-- **Budget Sharing** - Share accounts, categories, budgets, and savings goals with other Nextcloud users with granular read/write permissions (#23)
-- **Duplicate Transactions** - Quickly duplicate an existing transaction (#138)
-- **Skip Bill Payments** - Skip a recurring bill payment and advance to the next due date (#132)
-- **New Translations** - Spanish, French, Russian, and Portuguese (Brazil) now available via Weblate
-- **Mobile Fixes** - Navigation toggle, dashboard button text, and color contrast improvements (#130)
+- **Unrealised P&L** - Investment and crypto accounts now display unrealised profit/loss based on current market value vs cost basis (#59)
+- **Interest Accrual** - Automatic interest calculation and accrual for loan and credit card accounts (#73)
+- **German Translation** - German now available via Weblate
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 

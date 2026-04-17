@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-04-17
+
+### Added
+- **Unrealised P&L for investment/crypto accounts**: Display unrealised profit and loss based on current market value vs cost basis ([#59](https://github.com/otherworld-dev/budget/issues/59))
+- **Interest accrual for loans and credit cards**: Automatic interest calculation and accrual for loan and credit card accounts ([#73](https://github.com/otherworld-dev/budget/issues/73))
+- **New translation**: German via Weblate
+
+### Fixed
+- **Security and precision fixes for interest accrual**: Improved input validation and decimal precision
+- **Interest tracking checkbox sizing**: Checkbox now matches form UI styling
+
 ## [2.11.2] - 2026-04-16
 
 ### Fixed
