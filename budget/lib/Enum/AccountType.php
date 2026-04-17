@@ -59,6 +59,17 @@ enum AccountType: string {
     }
 
     /**
+     * Check if this account type supports interest tracking (charged or earned).
+     */
+    public function supportsInterest(): bool {
+        return match ($this) {
+            self::SAVINGS, self::INVESTMENT, self::MONEY_MARKET,
+            self::CREDIT_CARD, self::LOAN => true,
+            default => false,
+        };
+    }
+
+    /**
      * Get human-readable label.
      */
     public function label(): string {

@@ -541,6 +541,24 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('NetWorthService', \OCA\Budget\Service\NetWorthService::class);
 
         // ==========================================
+        // Interest Accrual Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Db\InterestRateMapper::class, function($c) {
+            return new \OCA\Budget\Db\InterestRateMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('InterestRateMapper', \OCA\Budget\Db\InterestRateMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\InterestService::class, function($c) {
+            return new \OCA\Budget\Service\InterestService(
+                $c->get(\OCA\Budget\Db\InterestRateMapper::class),
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class)
+            );
+        });
+        $context->registerServiceAlias('InterestService', \OCA\Budget\Service\InterestService::class);
+
+        // ==========================================
         // Recurring Income Services
         // ==========================================
 

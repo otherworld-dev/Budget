@@ -8,6 +8,7 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\InterestService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
@@ -30,6 +31,7 @@ class AccountController extends Controller {
     private AccountService $service;
     private ValidationService $validationService;
     private AuditService $auditService;
+    private InterestService $interestService;
     private IL10N $l;
     private string $userId;
 
@@ -39,6 +41,7 @@ class AccountController extends Controller {
         ValidationService $validationService,
         AuditService $auditService,
         GranularShareService $granularShareService,
+        InterestService $interestService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -47,6 +50,7 @@ class AccountController extends Controller {
         $this->service = $service;
         $this->validationService = $validationService;
         $this->auditService = $auditService;
+        $this->interestService = $interestService;
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
@@ -413,12 +417,39 @@ class AccountController extends Controller {
             if (isset($data['openingBalance']) && $data['openingBalance'] !== '') {
                 $updates['openingBalance'] = (float) $data['openingBalance'];
             }
+            if (isset($data['compoundingFrequency'])) {
+                $validFreqs = ['simple', 'daily', 'monthly', 'yearly'];
+                if (in_array($data['compoundingFrequency'], $validFreqs, true)) {
+                    $updates['compoundingFrequency'] = $data['compoundingFrequency'];
+                }
+            }
+
+            // Handle interest enable/disable transitions
+            $interestToggled = false;
+            if (isset($data['interestEnabled'])) {
+                $newEnabled = (bool) $data['interestEnabled'];
+                $updates['interestEnabled'] = $newEnabled;
+                $interestToggled = true;
+            }
 
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
             $account = $this->service->update($id, $this->getEffectiveUserId(), $updates);
+
+            // Handle interest enable/disable after account update
+            if ($interestToggled) {
+                $newEnabled = $updates['interestEnabled'];
+                if ($newEnabled) {
+                    $compounding = $data['compoundingFrequency'] ?? $account->getCompoundingFrequency() ?? 'daily';
+                    $this->interestService->enableInterest($id, $this->getEffectiveUserId(), $compounding);
+                } else {
+                    $this->interestService->disableInterest($id, $this->getEffectiveUserId());
+                }
+                // Reload account after interest state change
+                $account = $this->service->find($id, $this->getEffectiveUserId());
+            }
 
             // Audit log the update
             $this->auditService->logAccountUpdated($this->getEffectiveUserId(), $id, $updates);
@@ -574,6 +605,79 @@ class AccountController extends Controller {
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to reconcile account'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
+        }
+    }
+
+    // ── Interest Accrual ────────────────────────────────────────
+
+    /**
+     * Get full interest details for an account (live calculation + rate history).
+     * @NoAdminRequired
+     */
+    public function getInterestDetails(int $id): DataResponse {
+        try {
+            $result = $this->interestService->calculateAccruedInterest($id, $this->getEffectiveUserId());
+            $result['rateHistory'] = $this->interestService->getRateHistory($id, $this->getEffectiveUserId());
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
+        }
+    }
+
+    /**
+     * Get interest rate history for an account.
+     * @NoAdminRequired
+     */
+    public function getInterestRates(int $id): DataResponse {
+        try {
+            $rates = $this->interestService->getRateHistory($id, $this->getEffectiveUserId());
+            return new DataResponse($rates);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
+        }
+    }
+
+    /**
+     * Add a new interest rate change for an account.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function addInterestRate(int $id): DataResponse {
+        try {
+            $this->requireWriteAccess('account', $id);
+            $params = $this->request->getParams();
+            $rate = (float) ($params['rate'] ?? 0);
+            $compoundingFrequency = $params['compoundingFrequency'] ?? 'daily';
+            $effectiveDate = $params['effectiveDate'] ?? date('Y-m-d');
+
+            if ($rate < 0 || $rate > 999.9999) {
+                return new DataResponse(['error' => $this->l->t('Interest rate must be between 0 and 999.9999')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $validFreqs = ['simple', 'daily', 'monthly', 'yearly'];
+            if (!in_array($compoundingFrequency, $validFreqs, true)) {
+                return new DataResponse(['error' => $this->l->t('Invalid compounding frequency')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $interestRate = $this->interestService->addRateChange($id, $this->getEffectiveUserId(), $rate, $compoundingFrequency, $effectiveDate);
+            return new DataResponse($interestRate);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to add interest rate'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
+        }
+    }
+
+    /**
+     * Delete an interest rate change.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function deleteInterestRate(int $id, int $rateId): DataResponse {
+        try {
+            $this->requireWriteAccess('account', $id);
+            $this->interestService->deleteRateChange($rateId, $this->getEffectiveUserId());
+            return new DataResponse(['status' => 'ok']);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to delete interest rate'), Http::STATUS_BAD_REQUEST, ['accountId' => $id, 'rateId' => $rateId]);
         }
     }
 }

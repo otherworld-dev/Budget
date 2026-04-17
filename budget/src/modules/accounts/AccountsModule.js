@@ -565,6 +565,18 @@ export default class AccountsModule {
         document.getElementById('account-available-balance').textContent = this.formatCurrency(availableBalance, currency);
         document.getElementById('account-available-balance').className = `balance-amount ${availableBalance >= 0 ? 'positive' : 'negative'}`;
 
+        // Show accrued interest for accounts with interest tracking enabled
+        const accruedInterestInfo = document.getElementById('accrued-interest-info');
+        const totalOwingInfo = document.getElementById('total-owing-info');
+        const rateHistorySection = document.getElementById('interest-rate-history-section');
+        if (account.interestEnabled) {
+            this.loadInterestDetails(account.id, currency);
+        } else {
+            if (accruedInterestInfo) accruedInterestInfo.style.display = 'none';
+            if (totalOwingInfo) totalOwingInfo.style.display = 'none';
+            if (rateHistorySection) rateHistorySection.style.display = 'none';
+        }
+
         // Update account details
         document.getElementById('account-number').textContent = account.accountNumber ? '***' + account.accountNumber.slice(-4) : t('budget', 'Not provided');
         document.getElementById('routing-number').textContent = account.routingNumber || t('budget', 'Not provided');
@@ -574,6 +586,148 @@ export default class AccountsModule {
         document.getElementById('account-display-currency').textContent = currency;
         document.getElementById('account-opened').textContent = account.openedDate ? this.formatDate(account.openedDate) : t('budget', 'Not provided');
         document.getElementById('last-reconciled').textContent = account.lastReconciled ? this.formatDate(account.lastReconciled) : t('budget', 'Never');
+    }
+
+    async loadInterestDetails(accountId, currency) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/interest`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) return;
+
+            const data = await response.json();
+
+            const accruedInterestEl = document.getElementById('account-accrued-interest');
+            const accruedInterestInfo = document.getElementById('accrued-interest-info');
+            const totalOwingEl = document.getElementById('account-total-owing');
+            const totalOwingInfo = document.getElementById('total-owing-info');
+            const rateHistorySection = document.getElementById('interest-rate-history-section');
+
+            if (accruedInterestInfo && accruedInterestEl) {
+                accruedInterestInfo.style.display = 'block';
+                accruedInterestEl.textContent = this.formatCurrency(Math.abs(data.accruedInterest), currency);
+                accruedInterestEl.className = `balance-amount ${data.isLiability ? 'negative' : 'positive'}`;
+            }
+
+            if (totalOwingInfo && totalOwingEl) {
+                totalOwingInfo.style.display = 'block';
+                totalOwingEl.textContent = this.formatCurrency(data.totalOwing, currency);
+                totalOwingEl.className = `balance-amount ${data.totalOwing >= 0 ? 'positive' : 'negative'}`;
+            }
+
+            // Render rate history table
+            if (rateHistorySection && data.rateHistory) {
+                rateHistorySection.style.display = 'block';
+                this.renderRateHistory(data.rateHistory, accountId);
+            }
+        } catch (error) {
+            console.error('Failed to load interest details:', error);
+        }
+    }
+
+    renderRateHistory(rates, accountId) {
+        const tbody = document.getElementById('rate-history-body');
+        if (!tbody) return;
+
+        const compoundingLabels = {
+            'daily': t('budget', 'Daily'),
+            'monthly': t('budget', 'Monthly'),
+            'yearly': t('budget', 'Yearly'),
+            'simple': t('budget', 'Simple'),
+        };
+
+        tbody.innerHTML = rates.map((rate, index) => `
+            <tr>
+                <td>${this.formatDate(rate.effectiveDate)}</td>
+                <td>${rate.rate}%</td>
+                <td>${compoundingLabels[rate.compoundingFrequency] || rate.compoundingFrequency}</td>
+                <td>
+                    ${rates.length > 1 ? `
+                        <button class="action-btn delete-btn delete-rate-btn"
+                                data-rate-id="${rate.id}"
+                                data-account-id="${accountId}"
+                                title="${t('budget', 'Delete')}">
+                            <span class="icon-delete" aria-hidden="true"></span>
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `).join('');
+
+        // Add event listeners for delete buttons
+        tbody.querySelectorAll('.delete-rate-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const rateId = parseInt(btn.dataset.rateId);
+                const acctId = parseInt(btn.dataset.accountId);
+                try {
+                    const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${acctId}/interest-rates/${rateId}`), {
+                        method: 'DELETE',
+                        headers: { 'requesttoken': OC.requestToken }
+                    });
+                    if (response.ok) {
+                        showSuccess(t('budget', 'Rate change deleted'));
+                        this.loadInterestDetails(acctId, this.currentAccount?.currency || 'USD');
+                    } else {
+                        const error = await response.json();
+                        showError(error.error || t('budget', 'Failed to delete rate change'));
+                    }
+                } catch (error) {
+                    showError(t('budget', 'Failed to delete rate change'));
+                }
+            });
+        });
+
+        // Add rate change button handler
+        const addBtn = document.getElementById('add-rate-change-btn');
+        if (addBtn && !addBtn._hasListener) {
+            addBtn._hasListener = true;
+            addBtn.addEventListener('click', () => this.showAddRateChangeModal(accountId));
+        }
+    }
+
+    showAddRateChangeModal(accountId) {
+        const rate = prompt(t('budget', 'Enter new annual interest rate (%)'));
+        if (rate === null) return;
+
+        const rateFloat = parseFloat(rate);
+        if (isNaN(rateFloat) || rateFloat < 0 || rateFloat > 999.9999) {
+            showError(t('budget', 'Invalid rate. Must be between 0 and 999.9999'));
+            return;
+        }
+
+        const effectiveDate = prompt(t('budget', 'Effective date (YYYY-MM-DD)'), new Date().toISOString().split('T')[0]);
+        if (!effectiveDate) return;
+
+        const compounding = prompt(t('budget', 'Compounding frequency (daily, monthly, yearly, simple)'), 'daily');
+        if (!compounding || !['daily', 'monthly', 'yearly', 'simple'].includes(compounding)) {
+            showError(t('budget', 'Invalid compounding frequency'));
+            return;
+        }
+
+        this.addRateChange(accountId, rateFloat, compounding, effectiveDate);
+    }
+
+    async addRateChange(accountId, rate, compoundingFrequency, effectiveDate) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/interest-rates`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ rate, compoundingFrequency, effectiveDate })
+            });
+
+            if (response.ok) {
+                showSuccess(t('budget', 'Rate change added'));
+                this.loadInterestDetails(accountId, this.currentAccount?.currency || 'USD');
+            } else {
+                const error = await response.json();
+                showError(error.error || t('budget', 'Failed to add rate change'));
+            }
+        } catch (error) {
+            showError(t('budget', 'Failed to add rate change'));
+        }
     }
 
     async loadAccountTransactions(accountId) {
@@ -1560,7 +1714,9 @@ export default class AccountsModule {
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true),
-                minimumPayment: getFormValue('account-minimum-payment', null, true)
+                minimumPayment: getFormValue('account-minimum-payment', null, true),
+                interestEnabled: document.getElementById('account-interest-enabled')?.checked || false,
+                compoundingFrequency: getFormValue('account-compounding-frequency', 'daily')
             };
 
             // Only include balance on create — on edit, balance is managed by transactions
@@ -1802,6 +1958,11 @@ export default class AccountsModule {
             document.getElementById('account-credit-limit').value = account.creditLimit || '';
             document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
             document.getElementById('account-minimum-payment').value = account.minimumPayment || '';
+
+            const interestEnabledEl = document.getElementById('account-interest-enabled');
+            if (interestEnabledEl) interestEnabledEl.checked = account.interestEnabled || false;
+            const compoundingEl = document.getElementById('account-compounding-frequency');
+            if (compoundingEl) compoundingEl.value = account.compoundingFrequency || 'daily';
         } catch (error) {
             console.error('Failed to load account data:', error);
             showError(t('budget', 'Failed to load account data'));
@@ -1919,6 +2080,8 @@ export default class AccountsModule {
 
                 if (accountType === 'savings') {
                     document.getElementById('interest-rate-group').style.display = 'block';
+                    document.getElementById('interest-enabled-group').style.display = 'block';
+                    document.getElementById('compounding-frequency-group').style.display = 'block';
                 }
                 break;
 
@@ -1926,6 +2089,8 @@ export default class AccountsModule {
                 // Show credit card specific fields
                 document.getElementById('credit-limit-group').style.display = 'block';
                 document.getElementById('interest-rate-group').style.display = 'block';
+                document.getElementById('interest-enabled-group').style.display = 'block';
+                document.getElementById('compounding-frequency-group').style.display = 'block';
                 document.getElementById('minimum-payment-group').style.display = 'block';
                 break;
 
@@ -1934,12 +2099,18 @@ export default class AccountsModule {
             case 'line_of_credit':
                 // Show loan/liability specific fields
                 document.getElementById('interest-rate-group').style.display = 'block';
+                document.getElementById('interest-enabled-group').style.display = 'block';
+                document.getElementById('compounding-frequency-group').style.display = 'block';
                 document.getElementById('minimum-payment-group').style.display = 'block';
                 break;
 
             case 'investment':
+            case 'money_market':
                 // Show investment account fields
                 document.getElementById('swift-bic-group').style.display = 'block';
+                document.getElementById('interest-rate-group').style.display = 'block';
+                document.getElementById('interest-enabled-group').style.display = 'block';
+                document.getElementById('compounding-frequency-group').style.display = 'block';
                 if (requirements.iban) {
                     document.getElementById('iban-group').style.display = 'block';
                 }

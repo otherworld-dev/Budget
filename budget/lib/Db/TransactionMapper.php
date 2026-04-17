@@ -83,6 +83,24 @@ class TransactionMapper extends QBMapper {
     /**
      * @return Transaction[]
      */
+    /**
+     * Get all cleared transactions for an account in chronological order.
+     * Used by InterestService for accrual calculation.
+     *
+     * @return Transaction[]
+     */
+    public function findAllClearedByAccount(int $accountId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('cleared')))
+            ->orderBy('date', 'ASC')
+            ->addOrderBy('id', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
     public function findByDateRange(int $accountId, string $startDate, string $endDate): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')

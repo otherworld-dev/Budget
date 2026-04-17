@@ -18,6 +18,12 @@ return [
         ['name' => 'account#reconcile', 'url' => '/api/accounts/{id}/reconcile', 'verb' => 'POST'],
         ['name' => 'account#reveal', 'url' => '/api/accounts/{id}/reveal', 'verb' => 'GET'],
 
+        // Interest accrual routes
+        ['name' => 'account#getInterestDetails', 'url' => '/api/accounts/{id}/interest', 'verb' => 'GET'],
+        ['name' => 'account#getInterestRates', 'url' => '/api/accounts/{id}/interest-rates', 'verb' => 'GET'],
+        ['name' => 'account#addInterestRate', 'url' => '/api/accounts/{id}/interest-rates', 'verb' => 'POST'],
+        ['name' => 'account#deleteInterestRate', 'url' => '/api/accounts/{id}/interest-rates/{rateId}', 'verb' => 'DELETE'],
+
         // Account validation routes
         ['name' => 'account#validateIban', 'url' => '/api/accounts/validate/iban', 'verb' => 'POST'],
         ['name' => 'account#validateRoutingNumber', 'url' => '/api/accounts/validate/routing-number', 'verb' => 'POST'],

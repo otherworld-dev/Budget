@@ -21532,6 +21532,18 @@ var AccountsModule = /*#__PURE__*/function () {
       document.getElementById('account-available-balance').textContent = this.formatCurrency(availableBalance, currency);
       document.getElementById('account-available-balance').className = "balance-amount ".concat(availableBalance >= 0 ? 'positive' : 'negative');
 
+      // Show accrued interest for accounts with interest tracking enabled
+      var accruedInterestInfo = document.getElementById('accrued-interest-info');
+      var totalOwingInfo = document.getElementById('total-owing-info');
+      var rateHistorySection = document.getElementById('interest-rate-history-section');
+      if (account.interestEnabled) {
+        this.loadInterestDetails(account.id, currency);
+      } else {
+        if (accruedInterestInfo) accruedInterestInfo.style.display = 'none';
+        if (totalOwingInfo) totalOwingInfo.style.display = 'none';
+        if (rateHistorySection) rateHistorySection.style.display = 'none';
+      }
+
       // Update account details
       document.getElementById('account-number').textContent = account.accountNumber ? '***' + account.accountNumber.slice(-4) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Not provided');
       document.getElementById('routing-number').textContent = account.routingNumber || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Not provided');
@@ -21543,14 +21555,224 @@ var AccountsModule = /*#__PURE__*/function () {
       document.getElementById('last-reconciled').textContent = account.lastReconciled ? this.formatDate(account.lastReconciled) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Never');
     }
   }, {
-    key: "loadAccountTransactions",
+    key: "loadInterestDetails",
     value: function () {
-      var _loadAccountTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(accountId) {
-        var params, filters, response, _result$balanceBefore, result, _t6;
+      var _loadInterestDetails = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(accountId, currency) {
+        var response, data, accruedInterestEl, accruedInterestInfo, totalOwingEl, totalOwingInfo, rateHistorySection, _t6;
         return _regenerator().w(function (_context5) {
           while (1) switch (_context5.p = _context5.n) {
             case 0:
               _context5.p = 0;
+              _context5.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/accounts/".concat(accountId, "/interest")), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              response = _context5.v;
+              if (response.ok) {
+                _context5.n = 2;
+                break;
+              }
+              return _context5.a(2);
+            case 2:
+              _context5.n = 3;
+              return response.json();
+            case 3:
+              data = _context5.v;
+              accruedInterestEl = document.getElementById('account-accrued-interest');
+              accruedInterestInfo = document.getElementById('accrued-interest-info');
+              totalOwingEl = document.getElementById('account-total-owing');
+              totalOwingInfo = document.getElementById('total-owing-info');
+              rateHistorySection = document.getElementById('interest-rate-history-section');
+              if (accruedInterestInfo && accruedInterestEl) {
+                accruedInterestInfo.style.display = 'block';
+                accruedInterestEl.textContent = this.formatCurrency(Math.abs(data.accruedInterest), currency);
+                accruedInterestEl.className = "balance-amount ".concat(data.isLiability ? 'negative' : 'positive');
+              }
+              if (totalOwingInfo && totalOwingEl) {
+                totalOwingInfo.style.display = 'block';
+                totalOwingEl.textContent = this.formatCurrency(data.totalOwing, currency);
+                totalOwingEl.className = "balance-amount ".concat(data.totalOwing >= 0 ? 'positive' : 'negative');
+              }
+
+              // Render rate history table
+              if (rateHistorySection && data.rateHistory) {
+                rateHistorySection.style.display = 'block';
+                this.renderRateHistory(data.rateHistory, accountId);
+              }
+              _context5.n = 5;
+              break;
+            case 4:
+              _context5.p = 4;
+              _t6 = _context5.v;
+              console.error('Failed to load interest details:', _t6);
+            case 5:
+              return _context5.a(2);
+          }
+        }, _callee5, this, [[0, 4]]);
+      }));
+      function loadInterestDetails(_x3, _x4) {
+        return _loadInterestDetails.apply(this, arguments);
+      }
+      return loadInterestDetails;
+    }()
+  }, {
+    key: "renderRateHistory",
+    value: function renderRateHistory(rates, accountId) {
+      var _this4 = this;
+      var tbody = document.getElementById('rate-history-body');
+      if (!tbody) return;
+      var compoundingLabels = {
+        'daily': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Daily'),
+        'monthly': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Monthly'),
+        'yearly': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Yearly'),
+        'simple': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Simple')
+      };
+      tbody.innerHTML = rates.map(function (rate, index) {
+        return "\n            <tr>\n                <td>".concat(_this4.formatDate(rate.effectiveDate), "</td>\n                <td>").concat(rate.rate, "%</td>\n                <td>").concat(compoundingLabels[rate.compoundingFrequency] || rate.compoundingFrequency, "</td>\n                <td>\n                    ").concat(rates.length > 1 ? "\n                        <button class=\"action-btn delete-btn delete-rate-btn\"\n                                data-rate-id=\"".concat(rate.id, "\"\n                                data-account-id=\"").concat(accountId, "\"\n                                title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Delete'), "\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    ") : '', "\n                </td>\n            </tr>\n        ");
+      }).join('');
+
+      // Add event listeners for delete buttons
+      tbody.querySelectorAll('.delete-rate-btn').forEach(function (btn) {
+        btn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+          var rateId, acctId, response, _this4$currentAccount, error, _t7;
+          return _regenerator().w(function (_context6) {
+            while (1) switch (_context6.p = _context6.n) {
+              case 0:
+                rateId = parseInt(btn.dataset.rateId);
+                acctId = parseInt(btn.dataset.accountId);
+                _context6.p = 1;
+                _context6.n = 2;
+                return fetch(OC.generateUrl("/apps/budget/api/accounts/".concat(acctId, "/interest-rates/").concat(rateId)), {
+                  method: 'DELETE',
+                  headers: {
+                    'requesttoken': OC.requestToken
+                  }
+                });
+              case 2:
+                response = _context6.v;
+                if (!response.ok) {
+                  _context6.n = 3;
+                  break;
+                }
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Rate change deleted'));
+                _this4.loadInterestDetails(acctId, ((_this4$currentAccount = _this4.currentAccount) === null || _this4$currentAccount === void 0 ? void 0 : _this4$currentAccount.currency) || 'USD');
+                _context6.n = 5;
+                break;
+              case 3:
+                _context6.n = 4;
+                return response.json();
+              case 4:
+                error = _context6.v;
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(error.error || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to delete rate change'));
+              case 5:
+                _context6.n = 7;
+                break;
+              case 6:
+                _context6.p = 6;
+                _t7 = _context6.v;
+                (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to delete rate change'));
+              case 7:
+                return _context6.a(2);
+            }
+          }, _callee6, null, [[1, 6]]);
+        })));
+      });
+
+      // Add rate change button handler
+      var addBtn = document.getElementById('add-rate-change-btn');
+      if (addBtn && !addBtn._hasListener) {
+        addBtn._hasListener = true;
+        addBtn.addEventListener('click', function () {
+          return _this4.showAddRateChangeModal(accountId);
+        });
+      }
+    }
+  }, {
+    key: "showAddRateChangeModal",
+    value: function showAddRateChangeModal(accountId) {
+      var rate = prompt((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Enter new annual interest rate (%)'));
+      if (rate === null) return;
+      var rateFloat = parseFloat(rate);
+      if (isNaN(rateFloat) || rateFloat < 0 || rateFloat > 999.9999) {
+        (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Invalid rate. Must be between 0 and 999.9999'));
+        return;
+      }
+      var effectiveDate = prompt((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Effective date (YYYY-MM-DD)'), new Date().toISOString().split('T')[0]);
+      if (!effectiveDate) return;
+      var compounding = prompt((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Compounding frequency (daily, monthly, yearly, simple)'), 'daily');
+      if (!compounding || !['daily', 'monthly', 'yearly', 'simple'].includes(compounding)) {
+        (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Invalid compounding frequency'));
+        return;
+      }
+      this.addRateChange(accountId, rateFloat, compounding, effectiveDate);
+    }
+  }, {
+    key: "addRateChange",
+    value: function () {
+      var _addRateChange = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(accountId, rate, compoundingFrequency, effectiveDate) {
+        var response, _this$currentAccount, error, _t8;
+        return _regenerator().w(function (_context7) {
+          while (1) switch (_context7.p = _context7.n) {
+            case 0:
+              _context7.p = 0;
+              _context7.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/accounts/".concat(accountId, "/interest-rates")), {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                  rate: rate,
+                  compoundingFrequency: compoundingFrequency,
+                  effectiveDate: effectiveDate
+                })
+              });
+            case 1:
+              response = _context7.v;
+              if (!response.ok) {
+                _context7.n = 2;
+                break;
+              }
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Rate change added'));
+              this.loadInterestDetails(accountId, ((_this$currentAccount = this.currentAccount) === null || _this$currentAccount === void 0 ? void 0 : _this$currentAccount.currency) || 'USD');
+              _context7.n = 4;
+              break;
+            case 2:
+              _context7.n = 3;
+              return response.json();
+            case 3:
+              error = _context7.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(error.error || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to add rate change'));
+            case 4:
+              _context7.n = 6;
+              break;
+            case 5:
+              _context7.p = 5;
+              _t8 = _context7.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to add rate change'));
+            case 6:
+              return _context7.a(2);
+          }
+        }, _callee7, this, [[0, 5]]);
+      }));
+      function addRateChange(_x5, _x6, _x7, _x8) {
+        return _addRateChange.apply(this, arguments);
+      }
+      return addRateChange;
+    }()
+  }, {
+    key: "loadAccountTransactions",
+    value: function () {
+      var _loadAccountTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(accountId) {
+        var params, filters, response, _result$balanceBefore, result, _t9;
+        return _regenerator().w(function (_context8) {
+          while (1) switch (_context8.p = _context8.n) {
+            case 0:
+              _context8.p = 0;
               // Build query for account-specific transactions
               params = new URLSearchParams({
                 accountId: accountId,
@@ -21573,30 +21795,30 @@ var AccountsModule = /*#__PURE__*/function () {
                   params.append('tagIds[]', tagId);
                 });
               }
-              _context5.n = 1;
+              _context8.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/transactions?' + params.toString()), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context5.v;
+              response = _context8.v;
               if (!response.ok) {
-                _context5.n = 3;
+                _context8.n = 3;
                 break;
               }
-              _context5.n = 2;
+              _context8.n = 2;
               return response.json();
             case 2:
-              result = _context5.v;
+              result = _context8.v;
               this.accountTransactions = result.transactions || result; // Handle both formats
               this.accountTotalPages = result.totalPages || 1;
               this.accountTotal = result.total || this.accountTransactions.length;
               this.accountBalanceBeforePage = (_result$balanceBefore = result.balanceBeforePage) !== null && _result$balanceBefore !== void 0 ? _result$balanceBefore : null;
-              _context5.n = 5;
+              _context8.n = 5;
               break;
             case 3:
-              _context5.n = 4;
+              _context8.n = 4;
               return this.loadTransactions();
             case 4:
               this.accountTransactions = this.transactions.filter(function (tx) {
@@ -21608,21 +21830,21 @@ var AccountsModule = /*#__PURE__*/function () {
               // Render account transactions
               this.renderAccountTransactions();
               this.updateAccountPagination();
-              _context5.n = 7;
+              _context8.n = 7;
               break;
             case 6:
-              _context5.p = 6;
-              _t6 = _context5.v;
-              console.error('Failed to load account transactions:', _t6);
+              _context8.p = 6;
+              _t9 = _context8.v;
+              console.error('Failed to load account transactions:', _t9);
               // Show empty state
               this.accountTransactions = [];
               this.renderAccountTransactions();
             case 7:
-              return _context5.a(2);
+              return _context8.a(2);
           }
-        }, _callee5, this, [[0, 6]]);
+        }, _callee8, this, [[0, 6]]);
       }));
-      function loadAccountTransactions(_x3) {
+      function loadAccountTransactions(_x9) {
         return _loadAccountTransactions.apply(this, arguments);
       }
       return loadAccountTransactions;
@@ -21630,7 +21852,7 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "renderAccountTransactions",
     value: function renderAccountTransactions() {
-      var _this4 = this;
+      var _this5 = this;
       var tbody = document.getElementById('account-transactions-body');
       if (!tbody) return;
       if (!this.accountTransactions || this.accountTransactions.length === 0) {
@@ -21665,10 +21887,10 @@ var AccountsModule = /*#__PURE__*/function () {
       }
       var today = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
       tbody.innerHTML = this.accountTransactions.map(function (transaction) {
-        var _this4$currentAccount, _this4$categories, _this4$app$accounts;
+        var _this5$currentAccount, _this5$categories, _this5$app$accounts;
         var amount = parseFloat(transaction.amount) || 0;
-        var currency = ((_this4$currentAccount = _this4.currentAccount) === null || _this4$currentAccount === void 0 ? void 0 : _this4$currentAccount.currency) || _this4.getPrimaryCurrency();
-        var category = (_this4$categories = _this4.categories) === null || _this4$categories === void 0 ? void 0 : _this4$categories.find(function (c) {
+        var currency = ((_this5$currentAccount = _this5.currentAccount) === null || _this5$currentAccount === void 0 ? void 0 : _this5$currentAccount.currency) || _this5.getPrimaryCurrency();
+        var category = (_this5$categories = _this5.categories) === null || _this5$categories === void 0 ? void 0 : _this5$categories.find(function (c) {
           return c.id === transaction.categoryId;
         });
         var isScheduled = transaction.status === 'scheduled';
@@ -21676,9 +21898,9 @@ var AccountsModule = /*#__PURE__*/function () {
 
         // Transfer badge
         var isLinked = transaction.linkedTransactionId != null;
-        var linkedAccountName = transaction.linkedAccountName || ((_this4$app$accounts = _this4.app.accounts) === null || _this4$app$accounts === void 0 || (_this4$app$accounts = _this4$app$accounts.find(function (a) {
+        var linkedAccountName = transaction.linkedAccountName || ((_this5$app$accounts = _this5.app.accounts) === null || _this5$app$accounts === void 0 || (_this5$app$accounts = _this5$app$accounts.find(function (a) {
           return a.id === transaction.linkedAccountId;
-        })) === null || _this4$app$accounts === void 0 ? void 0 : _this4$app$accounts.name) || '';
+        })) === null || _this5$app$accounts === void 0 ? void 0 : _this5$app$accounts.name) || '';
         var linkedDirection = transaction.type === 'debit' ? '→' : '←';
         var linkedLabel = linkedAccountName ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Transfer {direction} {account}', {
           direction: linkedDirection,
@@ -21688,7 +21910,7 @@ var AccountsModule = /*#__PURE__*/function () {
           account: _utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(linkedAccountName)
         }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Linked transfer');
         var linkedBadge = isLinked ? "<span class=\"linked-indicator\" data-transaction-id=\"".concat(transaction.id, "\" data-linked-id=\"").concat(transaction.linkedTransactionId, "\" data-linked-account-id=\"").concat(transaction.linkedAccountId || '', "\" title=\"").concat(linkedTitle, "\">&#x1F517; ").concat(linkedLabel, "</span>") : '';
-        return "\n                <tr class=\"transaction-row".concat(isScheduled ? ' scheduled-transaction' : '').concat(isLinked ? ' is-linked' : '', "\" data-transaction-id=\"").concat(transaction.id, "\">\n                    <td class=\"date-column\">\n                        <span class=\"transaction-date\">").concat(_this4.formatDate(transaction.date), "</span>").concat(scheduledBadge, "\n                    </td>\n                    <td class=\"description-column\">\n                        <div class=\"transaction-description\">\n                            <span class=\"description-main\">").concat(transaction.description || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'No description'), "</span>\n                            ").concat(transaction.vendor ? "<span class=\"vendor-name\">".concat(transaction.vendor, "</span>") : '', "\n                            ").concat(linkedBadge, "\n                        </div>\n                    </td>\n                    <td class=\"category-column\">\n                        <span class=\"category-name ").concat(category ? '' : 'uncategorized', "\">\n                            ").concat(category ? category.name : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Uncategorized'), "\n                        </span>\n                        <div class=\"transaction-tags-display\" data-transaction-id=\"").concat(transaction.id, "\" style=\"margin-top: 4px;\"></div>\n                    </td>\n                    <td class=\"amount-column\">\n                        <span class=\"transaction-amount ").concat(transaction.type, "\">\n                            ").concat(transaction.type === 'credit' ? '+' : '-').concat(_this4.formatCurrency(Math.abs(amount), currency), "\n                        </span>\n                    </td>\n                    <td class=\"balance-column\">\n                        ").concat(balanceMap !== null && balanceMap[transaction.id] !== undefined ? "<span class=\"transaction-balance ".concat(balanceMap[transaction.id] >= 0 ? 'positive' : 'negative', "\">").concat(_this4.formatCurrency(balanceMap[transaction.id], currency), "</span>") : '', "\n                    </td>\n                    <td class=\"actions-column\">\n                        <div class=\"transaction-actions\">\n                            <button class=\"icon-rename edit-transaction-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Edit transaction'), "\"></button>\n                            <button class=\"icon-delete delete-transaction-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Delete transaction'), "\"></button>\n                        </div>\n                    </td>\n                </tr>\n            ");
+        return "\n                <tr class=\"transaction-row".concat(isScheduled ? ' scheduled-transaction' : '').concat(isLinked ? ' is-linked' : '', "\" data-transaction-id=\"").concat(transaction.id, "\">\n                    <td class=\"date-column\">\n                        <span class=\"transaction-date\">").concat(_this5.formatDate(transaction.date), "</span>").concat(scheduledBadge, "\n                    </td>\n                    <td class=\"description-column\">\n                        <div class=\"transaction-description\">\n                            <span class=\"description-main\">").concat(transaction.description || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'No description'), "</span>\n                            ").concat(transaction.vendor ? "<span class=\"vendor-name\">".concat(transaction.vendor, "</span>") : '', "\n                            ").concat(linkedBadge, "\n                        </div>\n                    </td>\n                    <td class=\"category-column\">\n                        <span class=\"category-name ").concat(category ? '' : 'uncategorized', "\">\n                            ").concat(category ? category.name : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Uncategorized'), "\n                        </span>\n                        <div class=\"transaction-tags-display\" data-transaction-id=\"").concat(transaction.id, "\" style=\"margin-top: 4px;\"></div>\n                    </td>\n                    <td class=\"amount-column\">\n                        <span class=\"transaction-amount ").concat(transaction.type, "\">\n                            ").concat(transaction.type === 'credit' ? '+' : '-').concat(_this5.formatCurrency(Math.abs(amount), currency), "\n                        </span>\n                    </td>\n                    <td class=\"balance-column\">\n                        ").concat(balanceMap !== null && balanceMap[transaction.id] !== undefined ? "<span class=\"transaction-balance ".concat(balanceMap[transaction.id] >= 0 ? 'positive' : 'negative', "\">").concat(_this5.formatCurrency(balanceMap[transaction.id], currency), "</span>") : '', "\n                    </td>\n                    <td class=\"actions-column\">\n                        <div class=\"transaction-actions\">\n                            <button class=\"icon-rename edit-transaction-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Edit transaction'), "\"></button>\n                            <button class=\"icon-delete delete-transaction-btn\"\n                                    data-transaction-id=\"").concat(transaction.id, "\"\n                                    title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Delete transaction'), "\"></button>\n                        </div>\n                    </td>\n                </tr>\n            ");
       }).join('');
 
       // Add event listeners for transaction actions
@@ -21700,13 +21922,13 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "setupAccountTransactionActionListeners",
     value: function setupAccountTransactionActionListeners() {
-      var _this5 = this;
+      var _this6 = this;
       // Edit transaction buttons
       document.querySelectorAll('.edit-transaction-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
           var transactionId = parseInt(e.target.dataset.transactionId);
-          _this5.editTransaction(transactionId);
+          _this6.editTransaction(transactionId);
         });
       });
 
@@ -21715,7 +21937,7 @@ var AccountsModule = /*#__PURE__*/function () {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
           var transactionId = parseInt(e.target.dataset.transactionId);
-          _this5.deleteTransaction(transactionId);
+          _this6.deleteTransaction(transactionId);
         });
       });
 
@@ -21725,17 +21947,17 @@ var AccountsModule = /*#__PURE__*/function () {
           e.stopPropagation();
           var linkedId = parseInt(e.target.getAttribute('data-linked-id'));
           var linkedAccountId = parseInt(e.target.getAttribute('data-linked-account-id'));
-          _this5.app.navigateToLinkedTransaction(linkedId, linkedAccountId);
+          _this6.app.navigateToLinkedTransaction(linkedId, linkedAccountId);
         });
       });
     }
   }, {
     key: "loadAccountMetrics",
     value: function () {
-      var _loadAccountMetrics = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(accountId) {
-        var _this$currentAccount, now, startOfMonth, endOfMonth, thisMonthTransactions, totalTransactions, thisMonthIncome, thisMonthExpenses, avgTransaction, currency;
-        return _regenerator().w(function (_context6) {
-          while (1) switch (_context6.n) {
+      var _loadAccountMetrics = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(accountId) {
+        var _this$currentAccount2, now, startOfMonth, endOfMonth, thisMonthTransactions, totalTransactions, thisMonthIncome, thisMonthExpenses, avgTransaction, currency;
+        return _regenerator().w(function (_context9) {
+          while (1) switch (_context9.n) {
             case 0:
               try {
                 // Calculate metrics from transactions
@@ -21760,7 +21982,7 @@ var AccountsModule = /*#__PURE__*/function () {
                 avgTransaction = totalTransactions > 0 ? this.accountTransactions.reduce(function (sum, tx) {
                   return sum + Math.abs(parseFloat(tx.amount) || 0);
                 }, 0) / totalTransactions : 0;
-                currency = ((_this$currentAccount = this.currentAccount) === null || _this$currentAccount === void 0 ? void 0 : _this$currentAccount.currency) || this.getPrimaryCurrency(); // Update metrics display
+                currency = ((_this$currentAccount2 = this.currentAccount) === null || _this$currentAccount2 === void 0 ? void 0 : _this$currentAccount2.currency) || this.getPrimaryCurrency(); // Update metrics display
                 document.getElementById('total-transactions').textContent = totalTransactions.toLocaleString();
                 document.getElementById('total-income').textContent = this.formatCurrency(thisMonthIncome, currency);
                 document.getElementById('total-expenses').textContent = this.formatCurrency(thisMonthExpenses, currency);
@@ -21774,11 +21996,11 @@ var AccountsModule = /*#__PURE__*/function () {
                 document.getElementById('avg-transaction').textContent = this.formatCurrency(0);
               }
             case 1:
-              return _context6.a(2);
+              return _context9.a(2);
           }
-        }, _callee6, this);
+        }, _callee9, this);
       }));
-      function loadAccountMetrics(_x4) {
+      function loadAccountMetrics(_x0) {
         return _loadAccountMetrics.apply(this, arguments);
       }
       return loadAccountMetrics;
@@ -21799,12 +22021,12 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "setupAccountDetailsEventListeners",
     value: function setupAccountDetailsEventListeners() {
-      var _this6 = this;
+      var _this7 = this;
       // Back to accounts button
       var backBtn = document.getElementById('back-to-accounts-btn');
       if (backBtn) {
         backBtn.addEventListener('click', function () {
-          return _this6.hideAccountDetails();
+          return _this7.hideAccountDetails();
         });
       }
 
@@ -21812,7 +22034,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var editBtn = document.getElementById('edit-account-btn');
       if (editBtn) {
         editBtn.addEventListener('click', function () {
-          return _this6.editAccount(_this6.currentAccount.id);
+          return _this7.editAccount(_this7.currentAccount.id);
         });
       }
 
@@ -21820,7 +22042,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var reconcileBtn = document.getElementById('reconcile-account-btn');
       if (reconcileBtn) {
         reconcileBtn.addEventListener('click', function () {
-          return _this6.reconcileAccount(_this6.currentAccount.id);
+          return _this7.reconcileAccount(_this7.currentAccount.id);
         });
       }
 
@@ -21828,9 +22050,9 @@ var AccountsModule = /*#__PURE__*/function () {
       var importBtn = document.getElementById('account-import-btn');
       if (importBtn) {
         importBtn.addEventListener('click', function () {
-          var _this6$currentAccount;
-          var accountId = (_this6$currentAccount = _this6.currentAccount) === null || _this6$currentAccount === void 0 ? void 0 : _this6$currentAccount.id;
-          _this6.app.router.showView('import');
+          var _this7$currentAccount;
+          var accountId = (_this7$currentAccount = _this7.currentAccount) === null || _this7$currentAccount === void 0 ? void 0 : _this7$currentAccount.id;
+          _this7.app.router.showView('import');
           // Pre-select the current account in the import form
           if (accountId) {
             var importAccountSelect = document.getElementById('import-account');
@@ -21845,7 +22067,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var exportBtn = document.getElementById('account-export-btn');
       if (exportBtn) {
         exportBtn.addEventListener('click', function () {
-          return _this6.exportAccountTransactions();
+          return _this7.exportAccountTransactions();
         });
       }
 
@@ -21857,17 +22079,17 @@ var AccountsModule = /*#__PURE__*/function () {
       var nextBtn = document.getElementById('account-next-page');
       if (prevBtn) {
         prevBtn.addEventListener('click', function () {
-          if (_this6.accountCurrentPage > 1) {
-            _this6.accountCurrentPage--;
-            _this6.loadAccountTransactions(_this6.currentAccount.id);
+          if (_this7.accountCurrentPage > 1) {
+            _this7.accountCurrentPage--;
+            _this7.loadAccountTransactions(_this7.currentAccount.id);
           }
         });
       }
       if (nextBtn) {
         nextBtn.addEventListener('click', function () {
-          if (_this6.accountCurrentPage < _this6.accountTotalPages) {
-            _this6.accountCurrentPage++;
-            _this6.loadAccountTransactions(_this6.currentAccount.id);
+          if (_this7.accountCurrentPage < _this7.accountTotalPages) {
+            _this7.accountCurrentPage++;
+            _this7.loadAccountTransactions(_this7.currentAccount.id);
           }
         });
       }
@@ -21875,12 +22097,12 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "setupAccountFilterEventListeners",
     value: function setupAccountFilterEventListeners() {
-      var _this7 = this;
+      var _this8 = this;
       // Toggle filters button
       var toggleBtn = document.getElementById('account-toggle-filters-btn');
       if (toggleBtn) {
         toggleBtn.addEventListener('click', function () {
-          return _this7.toggleAccountFiltersPanel();
+          return _this8.toggleAccountFiltersPanel();
         });
       }
 
@@ -21888,7 +22110,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var applyBtn = document.getElementById('account-apply-filters-btn');
       if (applyBtn) {
         applyBtn.addEventListener('click', function () {
-          return _this7.applyAccountFilters();
+          return _this8.applyAccountFilters();
         });
       }
 
@@ -21896,7 +22118,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var clearBtn = document.getElementById('account-clear-filters-btn');
       if (clearBtn) {
         clearBtn.addEventListener('click', function () {
-          return _this7.clearAccountFilters();
+          return _this8.clearAccountFilters();
         });
       }
 
@@ -21909,7 +22131,7 @@ var AccountsModule = /*#__PURE__*/function () {
 
       // Load and populate tags filter
       this.loadAccountFilterTags().then(function () {
-        return _this7.populateAccountFilterTagsDropdown();
+        return _this8.populateAccountFilterTagsDropdown();
       });
     }
   }, {
@@ -21928,13 +22150,13 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "loadAccountFilterTags",
     value: function () {
-      var _loadAccountFilterTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-        var _yield$Promise$all3, _yield$Promise$all4, tagSetsResponse, globalTagsResponse, globalTags, _t7;
-        return _regenerator().w(function (_context7) {
-          while (1) switch (_context7.p = _context7.n) {
+      var _loadAccountFilterTags = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
+        var _yield$Promise$all3, _yield$Promise$all4, tagSetsResponse, globalTagsResponse, globalTags, _t0;
+        return _regenerator().w(function (_context0) {
+          while (1) switch (_context0.p = _context0.n) {
             case 0:
-              _context7.p = 0;
-              _context7.n = 1;
+              _context0.p = 0;
+              _context0.n = 1;
               return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
                 headers: {
                   'requesttoken': OC.requestToken
@@ -21945,27 +22167,27 @@ var AccountsModule = /*#__PURE__*/function () {
                 }
               })]);
             case 1:
-              _yield$Promise$all3 = _context7.v;
+              _yield$Promise$all3 = _context0.v;
               _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
               tagSetsResponse = _yield$Promise$all4[0];
               globalTagsResponse = _yield$Promise$all4[1];
               if (!tagSetsResponse.ok) {
-                _context7.n = 3;
+                _context0.n = 3;
                 break;
               }
-              _context7.n = 2;
+              _context0.n = 2;
               return tagSetsResponse.json();
             case 2:
-              this.allAccountFilterTagSets = _context7.v;
+              this.allAccountFilterTagSets = _context0.v;
             case 3:
               if (!globalTagsResponse.ok) {
-                _context7.n = 5;
+                _context0.n = 5;
                 break;
               }
-              _context7.n = 4;
+              _context0.n = 4;
               return globalTagsResponse.json();
             case 4:
-              globalTags = _context7.v;
+              globalTags = _context0.v;
               if (globalTags.length > 0) {
                 this.allAccountFilterTagSets = this.allAccountFilterTagSets || [];
                 this.allAccountFilterTagSets.unshift({
@@ -21975,16 +22197,16 @@ var AccountsModule = /*#__PURE__*/function () {
                 });
               }
             case 5:
-              _context7.n = 7;
+              _context0.n = 7;
               break;
             case 6:
-              _context7.p = 6;
-              _t7 = _context7.v;
-              console.error('Failed to load tags for account filter:', _t7);
+              _context0.p = 6;
+              _t0 = _context0.v;
+              console.error('Failed to load tags for account filter:', _t0);
             case 7:
-              return _context7.a(2);
+              return _context0.a(2);
           }
-        }, _callee7, this, [[0, 6]]);
+        }, _callee0, this, [[0, 6]]);
       }));
       function loadAccountFilterTags() {
         return _loadAccountFilterTags.apply(this, arguments);
@@ -21994,7 +22216,7 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "populateAccountFilterTagsDropdown",
     value: function populateAccountFilterTagsDropdown() {
-      var _this8 = this;
+      var _this9 = this;
       var container = document.getElementById('account-filter-tags');
       if (!container) return;
       container.innerHTML = '';
@@ -22031,12 +22253,12 @@ var AccountsModule = /*#__PURE__*/function () {
       });
       var _renderSelectedChips = function renderSelectedChips() {
         chipsArea.innerHTML = '';
-        if (_this8.selectedAccountFilterTags.size === 0) {
+        if (_this9.selectedAccountFilterTags.size === 0) {
           chipsArea.style.display = 'none';
           return;
         }
         chipsArea.style.display = 'flex';
-        _this8.selectedAccountFilterTags.forEach(function (tagId) {
+        _this9.selectedAccountFilterTags.forEach(function (tagId) {
           var tag = allTags.find(function (tg) {
             return tg.id === tagId;
           });
@@ -22046,7 +22268,7 @@ var AccountsModule = /*#__PURE__*/function () {
           chip.style.cssText = "display: inline-flex; align-items: center; gap: 4px; background-color: ".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.color || '#888'), "; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; cursor: pointer;");
           chip.innerHTML = "".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), " <span style=\"font-weight: bold; margin-left: 2px;\">\xD7</span>");
           chip.addEventListener('click', function () {
-            _this8.selectedAccountFilterTags["delete"](tagId);
+            _this9.selectedAccountFilterTags["delete"](tagId);
             _renderSelectedChips();
             renderDropdown(input.value);
           });
@@ -22072,7 +22294,7 @@ var AccountsModule = /*#__PURE__*/function () {
         Object.values(grouped).forEach(function (group) {
           html += "<div class=\"tags-group-header\">".concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(group.name), "</div>");
           group.tags.forEach(function (tag) {
-            var isSelected = _this8.selectedAccountFilterTags.has(tag.id);
+            var isSelected = _this9.selectedAccountFilterTags.has(tag.id);
             html += "\n                        <div class=\"tags-autocomplete-item ".concat(isSelected ? 'selected' : '', "\"\n                             data-tag-id=\"").concat(tag.id, "\">\n                            <span class=\"tag-chip\"\n                                  style=\"display: inline-flex; align-items: center; background-color: ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.color || '#888'), "; color: white;\n                                         padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;\">\n                                ").concat(_utils_dom_js__WEBPACK_IMPORTED_MODULE_1__.escapeHtml(tag.name), "\n                            </span>\n                            <span class=\"tag-check\">").concat(isSelected ? '✓' : '', "</span>\n                        </div>\n                    ");
           });
         });
@@ -22104,13 +22326,13 @@ var AccountsModule = /*#__PURE__*/function () {
           });
           tagsFromSameSet.forEach(function (tg) {
             if (tg.id !== tagId) {
-              _this8.selectedAccountFilterTags["delete"](tg.id);
+              _this9.selectedAccountFilterTags["delete"](tg.id);
             }
           });
-          if (_this8.selectedAccountFilterTags.has(tagId)) {
-            _this8.selectedAccountFilterTags["delete"](tagId);
+          if (_this9.selectedAccountFilterTags.has(tagId)) {
+            _this9.selectedAccountFilterTags["delete"](tagId);
           } else {
-            _this8.selectedAccountFilterTags.add(tagId);
+            _this9.selectedAccountFilterTags.add(tagId);
           }
           _renderSelectedChips();
           renderDropdown(input.value);
@@ -22181,15 +22403,15 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "reconcileAccount",
     value: function () {
-      var _reconcileAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(accountId) {
+      var _reconcileAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(accountId) {
         var reconcileAccountSelect, reconcilePanel;
-        return _regenerator().w(function (_context8) {
-          while (1) switch (_context8.n) {
+        return _regenerator().w(function (_context1) {
+          while (1) switch (_context1.n) {
             case 0:
               // Navigate to transactions page and open reconciliation panel
               window.location.hash = '#/transactions';
               this.app.showView('transactions');
-              _context8.n = 1;
+              _context1.n = 1;
               return this.app.loadTransactions();
             case 1:
               reconcileAccountSelect = document.getElementById('reconcile-account');
@@ -22208,11 +22430,11 @@ var AccountsModule = /*#__PURE__*/function () {
                 reconcilePanel.style.display = 'block';
               }
             case 2:
-              return _context8.a(2);
+              return _context1.a(2);
           }
-        }, _callee8, this);
+        }, _callee1, this);
       }));
-      function reconcileAccount(_x5) {
+      function reconcileAccount(_x1) {
         return _reconcileAccount.apply(this, arguments);
       }
       return reconcileAccount;
@@ -22239,10 +22461,10 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "loadCategories",
     value: function () {
-      var _loadCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-        var response, categories, _t8;
-        return _regenerator().w(function (_context9) {
-          while (1) switch (_context9.p = _context9.n) {
+      var _loadCategories = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
+        var response, categories, _t1;
+        return _regenerator().w(function (_context10) {
+          while (1) switch (_context10.p = _context10.n) {
             case 0:
               // Initialize category state with defaults
               this.categoryTree = [];
@@ -22250,38 +22472,38 @@ var AccountsModule = /*#__PURE__*/function () {
               this.currentCategoryType = this.currentCategoryType || 'expense';
               this.selectedCategory = null;
               this.expandedCategories = this.expandedCategories || new Set();
-              _context9.p = 1;
-              _context9.n = 2;
+              _context10.p = 1;
+              _context10.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context9.v;
-              _context9.n = 3;
+              response = _context10.v;
+              _context10.n = 3;
               return response.json();
             case 3:
-              categories = _context9.v;
+              categories = _context10.v;
               // Update category state with fetched data
               if (Array.isArray(categories)) {
                 this.categoryTree = categories;
                 this.allCategories = categories;
               }
-              _context9.n = 5;
+              _context10.n = 5;
               break;
             case 4:
-              _context9.p = 4;
-              _t8 = _context9.v;
-              console.error('Failed to load categories:', _t8);
+              _context10.p = 4;
+              _t1 = _context10.v;
+              console.error('Failed to load categories:', _t1);
             case 5:
               // Always setup event listeners and render (even if fetch failed)
               this.setupCategoriesEventListeners();
               this.renderCategoriesTree();
             case 6:
-              return _context9.a(2);
+              return _context10.a(2);
           }
-        }, _callee9, this, [[1, 4]]);
+        }, _callee10, this, [[1, 4]]);
       }));
       function loadCategories() {
         return _loadCategories.apply(this, arguments);
@@ -22291,10 +22513,10 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTransaction",
     value: function () {
-      var _saveTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
-        var getFormValue, accountId, date, type, amount, description, formData, transactionId, url, method, response, result, savedTransactionId, selectedTagIds, errorMessage, errorData, _t9, _t0;
-        return _regenerator().w(function (_context0) {
-          while (1) switch (_context0.p = _context0.n) {
+      var _saveTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
+        var getFormValue, accountId, date, type, amount, description, formData, transactionId, url, method, response, result, savedTransactionId, selectedTagIds, errorMessage, errorData, _t10, _t11;
+        return _regenerator().w(function (_context11) {
+          while (1) switch (_context11.p = _context11.n) {
             case 0:
               // Helper function to safely get and clean form values
               getFormValue = function getFormValue(id) {
@@ -22321,46 +22543,46 @@ var AccountsModule = /*#__PURE__*/function () {
               amount = getFormValue('transaction-amount', null, true);
               description = getFormValue('transaction-description');
               if (accountId) {
-                _context0.n = 2;
+                _context11.n = 2;
                 break;
               }
               if (!(!Array.isArray(this.accounts) || this.accounts.length === 0)) {
-                _context0.n = 1;
+                _context11.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'No accounts available. Please create an account first.'));
-              return _context0.a(2);
+              return _context11.a(2);
             case 1:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please select an account'));
-              return _context0.a(2);
+              return _context11.a(2);
             case 2:
               if (date) {
-                _context0.n = 3;
+                _context11.n = 3;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a date'));
-              return _context0.a(2);
+              return _context11.a(2);
             case 3:
               if (type) {
-                _context0.n = 4;
+                _context11.n = 4;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please select a transaction type'));
-              return _context0.a(2);
+              return _context11.a(2);
             case 4:
               if (!(amount === null || amount <= 0)) {
-                _context0.n = 5;
+                _context11.n = 5;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a valid amount'));
-              return _context0.a(2);
+              return _context11.a(2);
             case 5:
               if (description) {
-                _context0.n = 6;
+                _context11.n = 6;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a description'));
-              return _context0.a(2);
+              return _context11.a(2);
             case 6:
               formData = {
                 accountId: accountId,
@@ -22373,10 +22595,10 @@ var AccountsModule = /*#__PURE__*/function () {
                 notes: getFormValue('transaction-notes')
               };
               transactionId = getFormValue('transaction-id');
-              _context0.p = 7;
+              _context11.p = 7;
               url = transactionId ? "/apps/budget/api/transactions/".concat(transactionId) : '/apps/budget/api/transactions';
               method = transactionId ? 'PUT' : 'POST';
-              _context0.n = 8;
+              _context11.n = 8;
               return fetch(OC.generateUrl(url), {
                 method: method,
                 headers: {
@@ -22386,22 +22608,22 @@ var AccountsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(formData)
               });
             case 8:
-              response = _context0.v;
+              response = _context11.v;
               if (!response.ok) {
-                _context0.n = 11;
+                _context11.n = 11;
                 break;
               }
-              _context0.n = 9;
+              _context11.n = 9;
               return response.json();
             case 9:
-              result = _context0.v;
+              result = _context11.v;
               savedTransactionId = result.id || transactionId; // Save tags if any are selected
               selectedTagIds = this.getSelectedTransactionTags();
               if (!(selectedTagIds.length > 0 && savedTransactionId)) {
-                _context0.n = 10;
+                _context11.n = 10;
                 break;
               }
-              _context0.n = 10;
+              _context11.n = 10;
               return this.saveTransactionTags(savedTransactionId, selectedTagIds);
             case 10:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Transaction saved successfully'));
@@ -22411,38 +22633,38 @@ var AccountsModule = /*#__PURE__*/function () {
               if (this.currentView === 'account-details' && this.currentAccount) {
                 this.loadAccountTransactions(this.currentAccount.id);
               }
-              _context0.n = 16;
+              _context11.n = 16;
               break;
             case 11:
               // Try to get the actual error message from backend
               errorMessage = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to save transaction');
-              _context0.p = 12;
-              _context0.n = 13;
+              _context11.p = 12;
+              _context11.n = 13;
               return response.json();
             case 13:
-              errorData = _context0.v;
+              errorData = _context11.v;
               if (errorData.error) {
                 errorMessage = errorData.error;
               }
-              _context0.n = 15;
+              _context11.n = 15;
               break;
             case 14:
-              _context0.p = 14;
-              _t9 = _context0.v;
+              _context11.p = 14;
+              _t10 = _context11.v;
             case 15:
               throw new Error(errorMessage);
             case 16:
-              _context0.n = 18;
+              _context11.n = 18;
               break;
             case 17:
-              _context0.p = 17;
-              _t0 = _context0.v;
-              console.error('Failed to save transaction:', _t0);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t0.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to save transaction'));
+              _context11.p = 17;
+              _t11 = _context11.v;
+              console.error('Failed to save transaction:', _t11);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t11.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to save transaction'));
             case 18:
-              return _context0.a(2);
+              return _context11.a(2);
           }
-        }, _callee0, this, [[12, 14], [7, 17]]);
+        }, _callee11, this, [[12, 14], [7, 17]]);
       }));
       function saveTransaction() {
         return _saveTransaction.apply(this, arguments);
@@ -22452,10 +22674,10 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "saveQuickAddTransaction",
     value: function () {
-      var _saveQuickAddTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
-        var getFormValue, accountId, date, type, amount, description, messageEl, formData, response, errorMessage, errorData, _t1, _t10;
-        return _regenerator().w(function (_context1) {
-          while (1) switch (_context1.p = _context1.n) {
+      var _saveQuickAddTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12() {
+        var getFormValue, accountId, date, type, amount, description, messageEl, formData, response, errorMessage, errorData, _t12, _t13;
+        return _regenerator().w(function (_context12) {
+          while (1) switch (_context12.p = _context12.n) {
             case 0:
               // Helper function to safely get and clean form values
               getFormValue = function getFormValue(id) {
@@ -22483,46 +22705,46 @@ var AccountsModule = /*#__PURE__*/function () {
               description = getFormValue('quick-add-description');
               messageEl = document.getElementById('quick-add-message');
               if (accountId) {
-                _context1.n = 2;
+                _context12.n = 2;
                 break;
               }
               if (!(!Array.isArray(this.accounts) || this.accounts.length === 0)) {
-                _context1.n = 1;
+                _context12.n = 1;
                 break;
               }
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'No accounts available. Please create an account first.'), 'error');
-              return _context1.a(2);
+              return _context12.a(2);
             case 1:
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please select an account'), 'error');
-              return _context1.a(2);
+              return _context12.a(2);
             case 2:
               if (date) {
-                _context1.n = 3;
+                _context12.n = 3;
                 break;
               }
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a date'), 'error');
-              return _context1.a(2);
+              return _context12.a(2);
             case 3:
               if (type) {
-                _context1.n = 4;
+                _context12.n = 4;
                 break;
               }
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please select a transaction type'), 'error');
-              return _context1.a(2);
+              return _context12.a(2);
             case 4:
               if (!(amount === null || amount <= 0)) {
-                _context1.n = 5;
+                _context12.n = 5;
                 break;
               }
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a valid amount'), 'error');
-              return _context1.a(2);
+              return _context12.a(2);
             case 5:
               if (description) {
-                _context1.n = 6;
+                _context12.n = 6;
                 break;
               }
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a description'), 'error');
-              return _context1.a(2);
+              return _context12.a(2);
             case 6:
               formData = {
                 accountId: accountId,
@@ -22534,8 +22756,8 @@ var AccountsModule = /*#__PURE__*/function () {
                 categoryId: getFormValue('quick-add-category', null, false, true),
                 notes: null
               };
-              _context1.p = 7;
-              _context1.n = 8;
+              _context12.p = 7;
+              _context12.n = 8;
               return fetch(OC.generateUrl('/apps/budget/api/transactions'), {
                 method: 'POST',
                 headers: {
@@ -22545,9 +22767,9 @@ var AccountsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(formData)
               });
             case 8:
-              response = _context1.v;
+              response = _context12.v;
               if (!response.ok) {
-                _context1.n = 9;
+                _context12.n = 9;
                 break;
               }
               this.showQuickAddMessage((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Transaction added successfully!'), 'success');
@@ -22560,37 +22782,37 @@ var AccountsModule = /*#__PURE__*/function () {
               if (this.app.currentView === 'dashboard') {
                 this.app.loadDashboard();
               }
-              _context1.n = 14;
+              _context12.n = 14;
               break;
             case 9:
               errorMessage = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to add transaction');
-              _context1.p = 10;
-              _context1.n = 11;
+              _context12.p = 10;
+              _context12.n = 11;
               return response.json();
             case 11:
-              errorData = _context1.v;
+              errorData = _context12.v;
               if (errorData.error) {
                 errorMessage = errorData.error;
               }
-              _context1.n = 13;
+              _context12.n = 13;
               break;
             case 12:
-              _context1.p = 12;
-              _t1 = _context1.v;
+              _context12.p = 12;
+              _t12 = _context12.v;
             case 13:
               throw new Error(errorMessage);
             case 14:
-              _context1.n = 16;
+              _context12.n = 16;
               break;
             case 15:
-              _context1.p = 15;
-              _t10 = _context1.v;
-              console.error('Failed to save quick add transaction:', _t10);
-              this.showQuickAddMessage(_t10.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to add transaction'), 'error');
+              _context12.p = 15;
+              _t13 = _context12.v;
+              console.error('Failed to save quick add transaction:', _t13);
+              this.showQuickAddMessage(_t13.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to add transaction'), 'error');
             case 16:
-              return _context1.a(2);
+              return _context12.a(2);
           }
-        }, _callee1, this, [[10, 12], [7, 15]]);
+        }, _callee12, this, [[10, 12], [7, 15]]);
       }));
       function saveQuickAddTransaction() {
         return _saveQuickAddTransaction.apply(this, arguments);
@@ -22663,30 +22885,30 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "saveAccount",
     value: function () {
-      var _saveAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
-        var nameElement, typeElement, getFormValue, accountId, isEdit, formData, openingBalance, sensitiveFields, sensitiveFieldIds, url, method, response, result, contentType, text, detailsView, updatedAccount, errorMessage, _contentType, _text, errorData, errorMsg, _t11, _t12;
-        return _regenerator().w(function (_context10) {
-          while (1) switch (_context10.p = _context10.n) {
+      var _saveAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
+        var _document$getElementB9, nameElement, typeElement, getFormValue, accountId, isEdit, formData, openingBalance, sensitiveFields, sensitiveFieldIds, url, method, response, result, contentType, text, detailsView, updatedAccount, errorMessage, _contentType, _text, errorData, errorMsg, _t14, _t15;
+        return _regenerator().w(function (_context13) {
+          while (1) switch (_context13.p = _context13.n) {
             case 0:
-              _context10.p = 0;
+              _context13.p = 0;
               // Get form elements
               nameElement = document.getElementById('account-name');
               typeElement = document.getElementById('account-type');
               if (nameElement) {
-                _context10.n = 1;
+                _context13.n = 1;
                 break;
               }
               console.error('Account name element not found');
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Form error: Account name field not found'));
-              return _context10.a(2);
+              return _context13.a(2);
             case 1:
               if (typeElement) {
-                _context10.n = 2;
+                _context13.n = 2;
                 break;
               }
               console.error('Account type element not found');
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Form error: Account type field not found'));
-              return _context10.a(2);
+              return _context13.a(2);
             case 2:
               // Helper function to safely get and clean form values
               getFormValue = function getFormValue(id) {
@@ -22714,7 +22936,9 @@ var AccountsModule = /*#__PURE__*/function () {
                 interestRate: getFormValue('account-interest-rate', null, true),
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true),
-                minimumPayment: getFormValue('account-minimum-payment', null, true)
+                minimumPayment: getFormValue('account-minimum-payment', null, true),
+                interestEnabled: ((_document$getElementB9 = document.getElementById('account-interest-enabled')) === null || _document$getElementB9 === void 0 ? void 0 : _document$getElementB9.checked) || false,
+                compoundingFrequency: getFormValue('account-compounding-frequency', 'daily')
               }; // Only include balance on create — on edit, balance is managed by transactions
               if (!isEdit) {
                 formData.balance = getFormValue('account-balance', 0, true);
@@ -22750,43 +22974,43 @@ var AccountsModule = /*#__PURE__*/function () {
 
               // Validate required fields on frontend
               if (!(!formData.name || formData.name === '')) {
-                _context10.n = 3;
+                _context13.n = 3;
                 break;
               }
               console.error('Account name is empty');
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter an account name'));
               nameElement.focus();
-              return _context10.a(2);
+              return _context13.a(2);
             case 3:
               if (!(!formData.type || formData.type === '')) {
-                _context10.n = 4;
+                _context13.n = 4;
                 break;
               }
               console.error('Account type is empty');
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please select an account type'));
               typeElement.focus();
-              return _context10.a(2);
+              return _context13.a(2);
             case 4:
               if (!(formData.name.length > 255)) {
-                _context10.n = 5;
+                _context13.n = 5;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Account name is too long (maximum 255 characters)'));
               nameElement.focus();
-              return _context10.a(2);
+              return _context13.a(2);
             case 5:
               if (!(!isEdit && isNaN(formData.balance))) {
-                _context10.n = 6;
+                _context13.n = 6;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Please enter a valid balance amount'));
               document.getElementById('account-balance').focus();
-              return _context10.a(2);
+              return _context13.a(2);
             case 6:
               // Make API request (accountId already defined above for isEdit check)
               url = accountId ? "/apps/budget/api/accounts/".concat(accountId) : '/apps/budget/api/accounts';
               method = accountId ? 'PUT' : 'POST';
-              _context10.n = 7;
+              _context13.n = 7;
               return fetch(OC.generateUrl(url), {
                 method: method,
                 headers: {
@@ -22796,39 +23020,39 @@ var AccountsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(formData)
               });
             case 7:
-              response = _context10.v;
+              response = _context13.v;
               if (!response.ok) {
-                _context10.n = 13;
+                _context13.n = 13;
                 break;
               }
               // Try to parse response as JSON, but handle empty responses
               result = {};
               contentType = response.headers.get('content-type');
               if (!(contentType && contentType.includes('application/json'))) {
-                _context10.n = 9;
+                _context13.n = 9;
                 break;
               }
-              _context10.n = 8;
+              _context13.n = 8;
               return response.text();
             case 8:
-              text = _context10.v;
+              text = _context13.v;
               if (text.trim()) {
                 result = JSON.parse(text);
               }
             case 9:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Account saved successfully'));
               this.hideModals();
-              _context10.n = 10;
+              _context13.n = 10;
               return this.loadAccounts();
             case 10:
-              _context10.n = 11;
+              _context13.n = 11;
               return this.loadInitialData();
             case 11:
               if (!(window.location.hash === '' || window.location.hash === '#/dashboard')) {
-                _context10.n = 12;
+                _context13.n = 12;
                 break;
               }
-              _context10.n = 12;
+              _context13.n = 12;
               return this.app.loadDashboard();
             case 12:
               // Refresh account details view if it's currently visible
@@ -22842,59 +23066,59 @@ var AccountsModule = /*#__PURE__*/function () {
                   this.populateAccountOverview(updatedAccount);
                 }
               }
-              _context10.n = 20;
+              _context13.n = 20;
               break;
             case 13:
               // Handle error responses more safely
               errorMessage = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to save account');
-              _context10.p = 14;
+              _context13.p = 14;
               _contentType = response.headers.get('content-type');
               if (!(_contentType && _contentType.includes('application/json'))) {
-                _context10.n = 16;
+                _context13.n = 16;
                 break;
               }
-              _context10.n = 15;
+              _context13.n = 15;
               return response.text();
             case 15:
-              _text = _context10.v;
+              _text = _context13.v;
               if (_text.trim()) {
                 errorData = JSON.parse(_text);
                 errorMessage = errorData.error || errorMessage;
               }
-              _context10.n = 17;
+              _context13.n = 17;
               break;
             case 16:
               // Non-JSON response, get status text
               errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
             case 17:
-              _context10.n = 19;
+              _context13.n = 19;
               break;
             case 18:
-              _context10.p = 18;
-              _t11 = _context10.v;
-              console.error('Error parsing response:', _t11);
+              _context13.p = 18;
+              _t14 = _context13.v;
+              console.error('Error parsing response:', _t14);
               errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
             case 19:
               throw new Error(errorMessage);
             case 20:
-              _context10.n = 22;
+              _context13.n = 22;
               break;
             case 21:
-              _context10.p = 21;
-              _t12 = _context10.v;
-              console.error('Failed to save account:', _t12);
+              _context13.p = 21;
+              _t15 = _context13.v;
+              console.error('Failed to save account:', _t15);
 
               // Show specific error message if available
-              errorMsg = _t12.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Unknown error occurred');
+              errorMsg = _t15.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Unknown error occurred');
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to save account: {error}', {
                 error: errorMsg
               }));
 
               // Don't hide modal on error so user can fix and retry
             case 22:
-              return _context10.a(2);
+              return _context13.a(2);
           }
-        }, _callee10, this, [[14, 18], [0, 21]]);
+        }, _callee13, this, [[14, 18], [0, 21]]);
       }));
       function saveAccount() {
         return _saveAccount.apply(this, arguments);
@@ -22904,7 +23128,7 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "showAccountModal",
     value: function showAccountModal() {
-      var _this9 = this;
+      var _this0 = this;
       var accountId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
       var modal = document.getElementById('account-modal');
       var title = document.getElementById('account-modal-title');
@@ -22922,8 +23146,8 @@ var AccountsModule = /*#__PURE__*/function () {
 
       // Setup conditional fields and validation
       setTimeout(function () {
-        _this9.setupAccountTypeConditionals();
-        _this9.setupBankingFieldValidation();
+        _this0.setupAccountTypeConditionals();
+        _this0.setupBankingFieldValidation();
       }, 100);
       modal.style.display = 'flex';
       modal.setAttribute('aria-hidden', 'false');
@@ -22937,24 +23161,24 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "loadAccountData",
     value: function () {
-      var _loadAccountData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(accountId) {
-        var response, account, balanceField, balanceLabel, openingBalanceGroup, openingBalanceField, _account$openingBalan, sensitiveFields, _t13;
-        return _regenerator().w(function (_context11) {
-          while (1) switch (_context11.p = _context11.n) {
+      var _loadAccountData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(accountId) {
+        var response, account, balanceField, balanceLabel, openingBalanceGroup, openingBalanceField, _account$openingBalan, sensitiveFields, interestEnabledEl, compoundingEl, _t16;
+        return _regenerator().w(function (_context14) {
+          while (1) switch (_context14.p = _context14.n) {
             case 0:
-              _context11.p = 0;
-              _context11.n = 1;
+              _context14.p = 0;
+              _context14.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/accounts/".concat(accountId)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context11.v;
-              _context11.n = 2;
+              response = _context14.v;
+              _context14.n = 2;
               return response.json();
             case 2:
-              account = _context11.v;
+              account = _context14.v;
               document.getElementById('account-id').value = account.id;
               document.getElementById('account-name').value = account.name;
               document.getElementById('account-type').value = account.type;
@@ -23019,19 +23243,23 @@ var AccountsModule = /*#__PURE__*/function () {
               document.getElementById('account-credit-limit').value = account.creditLimit || '';
               document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
               document.getElementById('account-minimum-payment').value = account.minimumPayment || '';
-              _context11.n = 4;
+              interestEnabledEl = document.getElementById('account-interest-enabled');
+              if (interestEnabledEl) interestEnabledEl.checked = account.interestEnabled || false;
+              compoundingEl = document.getElementById('account-compounding-frequency');
+              if (compoundingEl) compoundingEl.value = account.compoundingFrequency || 'daily';
+              _context14.n = 4;
               break;
             case 3:
-              _context11.p = 3;
-              _t13 = _context11.v;
-              console.error('Failed to load account data:', _t13);
+              _context14.p = 3;
+              _t16 = _context14.v;
+              console.error('Failed to load account data:', _t16);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to load account data'));
             case 4:
-              return _context11.a(2);
+              return _context14.a(2);
           }
-        }, _callee11, null, [[0, 3]]);
+        }, _callee14, null, [[0, 3]]);
       }));
-      function loadAccountData(_x6) {
+      function loadAccountData(_x10) {
         return _loadAccountData.apply(this, arguments);
       }
       return loadAccountData;
@@ -23075,17 +23303,17 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "editAccount",
     value: function () {
-      var _editAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(id) {
-        return _regenerator().w(function (_context12) {
-          while (1) switch (_context12.n) {
+      var _editAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(id) {
+        return _regenerator().w(function (_context15) {
+          while (1) switch (_context15.n) {
             case 0:
               this.showAccountModal(id);
             case 1:
-              return _context12.a(2);
+              return _context15.a(2);
           }
-        }, _callee12, this);
+        }, _callee15, this);
       }));
-      function editAccount(_x7) {
+      function editAccount(_x11) {
         return _editAccount.apply(this, arguments);
       }
       return editAccount;
@@ -23093,19 +23321,19 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "deleteAccount",
     value: function () {
-      var _deleteAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(id) {
-        var response, error, _t14;
-        return _regenerator().w(function (_context13) {
-          while (1) switch (_context13.p = _context13.n) {
+      var _deleteAccount = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(id) {
+        var response, error, _t17;
+        return _regenerator().w(function (_context16) {
+          while (1) switch (_context16.p = _context16.n) {
             case 0:
               if (confirm((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Are you sure you want to delete this account? This action cannot be undone.'))) {
-                _context13.n = 1;
+                _context16.n = 1;
                 break;
               }
-              return _context13.a(2);
+              return _context16.a(2);
             case 1:
-              _context13.p = 1;
-              _context13.n = 2;
+              _context16.p = 1;
+              _context16.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/accounts/".concat(id)), {
                 method: 'DELETE',
                 headers: {
@@ -23113,49 +23341,49 @@ var AccountsModule = /*#__PURE__*/function () {
                 }
               });
             case 2:
-              response = _context13.v;
+              response = _context16.v;
               if (!response.ok) {
-                _context13.n = 6;
+                _context16.n = 6;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Account deleted successfully'));
-              _context13.n = 3;
+              _context16.n = 3;
               return this.loadAccounts();
             case 3:
-              _context13.n = 4;
+              _context16.n = 4;
               return this.loadInitialData();
             case 4:
               if (!(window.location.hash === '' || window.location.hash === '#/dashboard')) {
-                _context13.n = 5;
+                _context16.n = 5;
                 break;
               }
-              _context13.n = 5;
+              _context16.n = 5;
               return this.app.loadDashboard();
             case 5:
-              _context13.n = 8;
+              _context16.n = 8;
               break;
             case 6:
-              _context13.n = 7;
+              _context16.n = 7;
               return response.json();
             case 7:
-              error = _context13.v;
+              error = _context16.v;
               throw new Error(error.error || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to delete account'));
             case 8:
-              _context13.n = 10;
+              _context16.n = 10;
               break;
             case 9:
-              _context13.p = 9;
-              _t14 = _context13.v;
-              console.error('Failed to delete account:', _t14);
+              _context16.p = 9;
+              _t17 = _context16.v;
+              console.error('Failed to delete account:', _t17);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Failed to delete account: {error}', {
-                error: _t14.message
+                error: _t17.message
               }));
             case 10:
-              return _context13.a(2);
+              return _context16.a(2);
           }
-        }, _callee13, this, [[1, 9]]);
+        }, _callee16, this, [[1, 9]]);
       }));
-      function deleteAccount(_x8) {
+      function deleteAccount(_x12) {
         return _deleteAccount.apply(this, arguments);
       }
       return deleteAccount;
@@ -23163,10 +23391,10 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "setupAccountTypeConditionals",
     value: function () {
-      var _setupAccountTypeConditionals = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
-        var accountType, currency, requirements, response, walletGroup, balanceInput, _balanceInput, _t15, _t16;
-        return _regenerator().w(function (_context14) {
-          while (1) switch (_context14.p = _context14.n) {
+      var _setupAccountTypeConditionals = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
+        var accountType, currency, requirements, response, walletGroup, balanceInput, _balanceInput, _t18, _t19;
+        return _regenerator().w(function (_context17) {
+          while (1) switch (_context17.p = _context17.n) {
             case 0:
               accountType = document.getElementById('account-type').value;
               currency = document.getElementById('account-currency').value || 'USD'; // Hide all conditional groups first
@@ -23176,28 +23404,28 @@ var AccountsModule = /*#__PURE__*/function () {
 
               // Get banking field requirements for the selected currency
               requirements = {};
-              _context14.p = 1;
-              _context14.n = 2;
+              _context17.p = 1;
+              _context17.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/accounts/banking-requirements/".concat(currency)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context14.v;
-              _context14.n = 3;
+              response = _context17.v;
+              _context17.n = 3;
               return response.json();
             case 3:
-              requirements = _context14.v;
-              _context14.n = 5;
+              requirements = _context17.v;
+              _context17.n = 5;
               break;
             case 4:
-              _context14.p = 4;
-              _t15 = _context14.v;
-              console.warn('Failed to load banking requirements:', _t15);
+              _context17.p = 4;
+              _t18 = _context17.v;
+              console.warn('Failed to load banking requirements:', _t18);
             case 5:
-              _t16 = accountType;
-              _context14.n = _t16 === 'checking' ? 6 : _t16 === 'savings' ? 6 : _t16 === 'credit_card' ? 7 : _t16 === 'loan' ? 8 : _t16 === 'mortgage' ? 8 : _t16 === 'line_of_credit' ? 8 : _t16 === 'investment' ? 9 : _t16 === 'cash' ? 10 : _t16 === 'cryptocurrency' ? 11 : 12;
+              _t19 = accountType;
+              _context17.n = _t19 === 'checking' ? 6 : _t19 === 'savings' ? 6 : _t19 === 'credit_card' ? 7 : _t19 === 'loan' ? 8 : _t19 === 'mortgage' ? 8 : _t19 === 'line_of_credit' ? 8 : _t19 === 'investment' ? 9 : _t19 === 'money_market' ? 9 : _t19 === 'cash' ? 10 : _t19 === 'cryptocurrency' ? 11 : 12;
               break;
             case 6:
               // Show banking fields based on currency
@@ -23214,28 +23442,37 @@ var AccountsModule = /*#__PURE__*/function () {
               document.getElementById('overdraft-limit-group').style.display = 'block';
               if (accountType === 'savings') {
                 document.getElementById('interest-rate-group').style.display = 'block';
+                document.getElementById('interest-enabled-group').style.display = 'block';
+                document.getElementById('compounding-frequency-group').style.display = 'block';
               }
-              return _context14.a(3, 12);
+              return _context17.a(3, 12);
             case 7:
               // Show credit card specific fields
               document.getElementById('credit-limit-group').style.display = 'block';
               document.getElementById('interest-rate-group').style.display = 'block';
+              document.getElementById('interest-enabled-group').style.display = 'block';
+              document.getElementById('compounding-frequency-group').style.display = 'block';
               document.getElementById('minimum-payment-group').style.display = 'block';
-              return _context14.a(3, 12);
+              return _context17.a(3, 12);
             case 8:
               // Show loan/liability specific fields
               document.getElementById('interest-rate-group').style.display = 'block';
+              document.getElementById('interest-enabled-group').style.display = 'block';
+              document.getElementById('compounding-frequency-group').style.display = 'block';
               document.getElementById('minimum-payment-group').style.display = 'block';
-              return _context14.a(3, 12);
+              return _context17.a(3, 12);
             case 9:
               // Show investment account fields
               document.getElementById('swift-bic-group').style.display = 'block';
+              document.getElementById('interest-rate-group').style.display = 'block';
+              document.getElementById('interest-enabled-group').style.display = 'block';
+              document.getElementById('compounding-frequency-group').style.display = 'block';
               if (requirements.iban) {
                 document.getElementById('iban-group').style.display = 'block';
               }
-              return _context14.a(3, 12);
+              return _context17.a(3, 12);
             case 10:
-              return _context14.a(3, 12);
+              return _context17.a(3, 12);
             case 11:
               // Show wallet address field only
               walletGroup = document.getElementById('wallet-address-group');
@@ -23247,7 +23484,7 @@ var AccountsModule = /*#__PURE__*/function () {
               if (balanceInput) {
                 balanceInput.step = '0.00000001';
               }
-              return _context14.a(3, 12);
+              return _context17.a(3, 12);
             case 12:
               // Reset balance step to fiat default for non-crypto types
               if (accountType !== 'cryptocurrency') {
@@ -23257,9 +23494,9 @@ var AccountsModule = /*#__PURE__*/function () {
                 }
               }
             case 13:
-              return _context14.a(2);
+              return _context17.a(2);
           }
-        }, _callee14, null, [[1, 4]]);
+        }, _callee17, null, [[1, 4]]);
       }));
       function setupAccountTypeConditionals() {
         return _setupAccountTypeConditionals.apply(this, arguments);
@@ -23269,38 +23506,38 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "setupInstitutionAutocomplete",
     value: function () {
-      var _setupInstitutionAutocomplete = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
-        var input, suggestions, query, response, currency, currencyMap, region, banks, filteredBanks, _t17;
-        return _regenerator().w(function (_context15) {
-          while (1) switch (_context15.p = _context15.n) {
+      var _setupInstitutionAutocomplete = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
+        var input, suggestions, query, response, currency, currencyMap, region, banks, filteredBanks, _t20;
+        return _regenerator().w(function (_context18) {
+          while (1) switch (_context18.p = _context18.n) {
             case 0:
               input = document.getElementById('form-institution');
               suggestions = document.getElementById('institution-suggestions');
               query = input.value.toLowerCase();
               if (!(query.length < 2)) {
-                _context15.n = 1;
+                _context18.n = 1;
                 break;
               }
               suggestions.style.display = 'none';
-              return _context15.a(2);
+              return _context18.a(2);
             case 1:
-              _context15.p = 1;
+              _context18.p = 1;
               if (this.bankingInstitutions) {
-                _context15.n = 4;
+                _context18.n = 4;
                 break;
               }
-              _context15.n = 2;
+              _context18.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/accounts/banking-institutions'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context15.v;
-              _context15.n = 3;
+              response = _context18.v;
+              _context18.n = 3;
               return response.json();
             case 3:
-              this.bankingInstitutions = _context15.v;
+              this.bankingInstitutions = _context18.v;
             case 4:
               // Get currency to show relevant banks
               currency = document.getElementById('account-currency').value || 'USD';
@@ -23323,17 +23560,17 @@ var AccountsModule = /*#__PURE__*/function () {
               } else {
                 suggestions.style.display = 'none';
               }
-              _context15.n = 6;
+              _context18.n = 6;
               break;
             case 5:
-              _context15.p = 5;
-              _t17 = _context15.v;
-              console.warn('Failed to load banking institutions:', _t17);
+              _context18.p = 5;
+              _t20 = _context18.v;
+              console.warn('Failed to load banking institutions:', _t20);
               suggestions.style.display = 'none';
             case 6:
-              return _context15.a(2);
+              return _context18.a(2);
           }
-        }, _callee15, this, [[1, 5]]);
+        }, _callee18, this, [[1, 5]]);
       }));
       function setupInstitutionAutocomplete() {
         return _setupInstitutionAutocomplete.apply(this, arguments);
@@ -23351,20 +23588,20 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "validateBankingField",
     value: function () {
-      var _validateBankingField = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(fieldType, value, fieldId) {
-        var response, result, _t18;
-        return _regenerator().w(function (_context16) {
-          while (1) switch (_context16.p = _context16.n) {
+      var _validateBankingField = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(fieldType, value, fieldId) {
+        var response, result, _t21;
+        return _regenerator().w(function (_context19) {
+          while (1) switch (_context19.p = _context19.n) {
             case 0:
               if (!(!value || value.length < 3)) {
-                _context16.n = 1;
+                _context19.n = 1;
                 break;
               }
               this.clearValidationFeedback(fieldId);
-              return _context16.a(2);
+              return _context19.a(2);
             case 1:
-              _context16.p = 1;
-              _context16.n = 2;
+              _context19.p = 1;
+              _context19.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/accounts/validate/".concat(fieldType)), {
                 method: 'POST',
                 headers: {
@@ -23374,29 +23611,29 @@ var AccountsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(_defineProperty({}, fieldType.replace('-', ''), value))
               });
             case 2:
-              response = _context16.v;
-              _context16.n = 3;
+              response = _context19.v;
+              _context19.n = 3;
               return response.json();
             case 3:
-              result = _context16.v;
+              result = _context19.v;
               this.showValidationFeedback(fieldId, result);
 
               // Auto-format if validation succeeded
               if (result.valid && result.formatted && result.formatted !== value) {
                 document.getElementById(fieldId).value = result.formatted;
               }
-              _context16.n = 5;
+              _context19.n = 5;
               break;
             case 4:
-              _context16.p = 4;
-              _t18 = _context16.v;
-              console.warn("Failed to validate ".concat(fieldType, ":"), _t18);
+              _context19.p = 4;
+              _t21 = _context19.v;
+              console.warn("Failed to validate ".concat(fieldType, ":"), _t21);
             case 5:
-              return _context16.a(2);
+              return _context19.a(2);
           }
-        }, _callee16, this, [[1, 4]]);
+        }, _callee19, this, [[1, 4]]);
       }));
-      function validateBankingField(_x9, _x0, _x1) {
+      function validateBankingField(_x13, _x14, _x15) {
         return _validateBankingField.apply(this, arguments);
       }
       return validateBankingField;
@@ -23443,12 +23680,12 @@ var AccountsModule = /*#__PURE__*/function () {
   }, {
     key: "setupBankingFieldValidation",
     value: function setupBankingFieldValidation() {
-      var _this0 = this;
+      var _this1 = this;
       // IBAN validation
       var ibanField = document.getElementById('form-iban');
       if (ibanField) {
         ibanField.addEventListener('blur', function () {
-          _this0.validateBankingField('iban', ibanField.value, 'form-iban');
+          _this1.validateBankingField('iban', ibanField.value, 'form-iban');
         });
       }
 
@@ -23456,7 +23693,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var routingField = document.getElementById('form-routing-number');
       if (routingField) {
         routingField.addEventListener('blur', function () {
-          _this0.validateBankingField('routing-number', routingField.value, 'form-routing-number');
+          _this1.validateBankingField('routing-number', routingField.value, 'form-routing-number');
         });
       }
 
@@ -23464,7 +23701,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var sortCodeField = document.getElementById('form-sort-code');
       if (sortCodeField) {
         sortCodeField.addEventListener('blur', function () {
-          _this0.validateBankingField('sort-code', sortCodeField.value, 'form-sort-code');
+          _this1.validateBankingField('sort-code', sortCodeField.value, 'form-sort-code');
         });
       }
 
@@ -23472,7 +23709,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var swiftField = document.getElementById('form-swift-bic');
       if (swiftField) {
         swiftField.addEventListener('blur', function () {
-          _this0.validateBankingField('swift-bic', swiftField.value, 'form-swift-bic');
+          _this1.validateBankingField('swift-bic', swiftField.value, 'form-swift-bic');
         });
       }
 
@@ -23480,7 +23717,7 @@ var AccountsModule = /*#__PURE__*/function () {
       var currencyField = document.getElementById('account-currency');
       if (currencyField) {
         currencyField.addEventListener('change', function () {
-          _this0.setupAccountTypeConditionals();
+          _this1.setupAccountTypeConditionals();
         });
       }
     }
@@ -23616,8 +23853,8 @@ var AccountsModule = /*#__PURE__*/function () {
         _step3;
       try {
         for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
-          var _t19 = _step3.value;
-          rows.push([_t19.date, "\"".concat((_t19.description || '').replace(/"/g, '""'), "\""), _t19.type, _t19.amount, "\"".concat(getCategoryName(_t19.categoryId), "\"")]);
+          var _t22 = _step3.value;
+          rows.push([_t22.date, "\"".concat((_t22.description || '').replace(/"/g, '""'), "\""), _t22.type, _t22.amount, "\"".concat(getCategoryName(_t22.categoryId), "\"")]);
         }
       } catch (err) {
         _iterator3.e(err);

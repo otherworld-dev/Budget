@@ -49,6 +49,12 @@ use OCP\AppFramework\Db\Entity;
  * @method void setOverdraftLimit(?float $overdraftLimit)
  * @method float|null getMinimumPayment()
  * @method void setMinimumPayment(?float $minimumPayment)
+ * @method bool|null getInterestEnabled()
+ * @method void setInterestEnabled(?bool $interestEnabled)
+ * @method string|null getCompoundingFrequency()
+ * @method void setCompoundingFrequency(?string $compoundingFrequency)
+ * @method float|null getAccruedInterest()
+ * @method void setAccruedInterest(?float $accruedInterest)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  * @method string getUpdatedAt()
@@ -87,6 +93,9 @@ class Account extends Entity implements JsonSerializable {
     protected $creditLimit;
     protected $overdraftLimit;
     protected $minimumPayment;
+    protected $interestEnabled;
+    protected $compoundingFrequency;
+    protected $accruedInterest;
     protected $createdAt;
     protected $updatedAt;
 
@@ -98,6 +107,8 @@ class Account extends Entity implements JsonSerializable {
         $this->addType('creditLimit', 'float');
         $this->addType('overdraftLimit', 'float');
         $this->addType('minimumPayment', 'float');
+        $this->addType('interestEnabled', 'boolean');
+        $this->addType('accruedInterest', 'float');
     }
 
     /**
@@ -152,6 +163,9 @@ class Account extends Entity implements JsonSerializable {
             'creditLimit' => $this->getCreditLimit(),
             'overdraftLimit' => $this->getOverdraftLimit(),
             'minimumPayment' => $this->getMinimumPayment(),
+            'interestEnabled' => $this->getInterestEnabled() ?? false,
+            'compoundingFrequency' => $this->getCompoundingFrequency(),
+            'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
             'hasSensitiveData' => $this->hasSensitiveData(),
@@ -184,6 +198,9 @@ class Account extends Entity implements JsonSerializable {
             'creditLimit' => $this->getCreditLimit(),
             'overdraftLimit' => $this->getOverdraftLimit(),
             'minimumPayment' => $this->getMinimumPayment(),
+            'interestEnabled' => $this->getInterestEnabled() ?? false,
+            'compoundingFrequency' => $this->getCompoundingFrequency(),
+            'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
         ];

@@ -70,6 +70,18 @@ class NetWorthService {
             $balance = (string) ($storedBalance - $futureChange);
             $type = $account->getType();
 
+            // Include accrued interest if interest tracking is enabled
+            if ($account->getInterestEnabled()) {
+                $accruedInterest = (string) ($account->getAccruedInterest() ?? 0);
+                if ($this->isLiabilityType($type)) {
+                    // For liabilities, interest increases the debt (balance is negative, interest makes it more negative)
+                    $balance = MoneyCalculator::subtract($balance, $accruedInterest);
+                } else {
+                    // For assets, interest increases the value
+                    $balance = MoneyCalculator::add($balance, $accruedInterest);
+                }
+            }
+
             // Convert to base currency if needed
             if ($needsConversion) {
                 $accountCurrency = $account->getCurrency() ?: 'USD';

@@ -68,5 +68,6 @@ Track your spending habits, manage savings, and forecast future account balances
         <job>OCA\Budget\BackgroundJob\ExchangeRateUpdateJob</job>
         <job>OCA\Budget\BackgroundJob\ScheduledTransactionJob</job>
         <job>OCA\Budget\BackgroundJob\NetWorthSnapshotJob</job>
+        <job>OCA\Budget\BackgroundJob\InterestAccrualJob</job>
     </background-jobs>
 </info>

@@ -171,6 +171,11 @@ class AccountMapper extends QBMapper {
             ->set('credit_limit', $qb->createNamedParameter($entity->getCreditLimit()))
             ->set('overdraft_limit', $qb->createNamedParameter($entity->getOverdraftLimit()))
             ->set('minimum_payment', $qb->createNamedParameter($entity->getMinimumPayment()))
+            ->set('interest_enabled', $qb->createNamedParameter($entity->getInterestEnabled(), IQueryBuilder::PARAM_BOOL))
+            ->set('compounding_frequency', $qb->createNamedParameter($entity->getCompoundingFrequency()))
+            ->set('accrued_interest', $qb->createNamedParameter(
+                $entity->getAccruedInterest() !== null ? sprintf('%.2f', $entity->getAccruedInterest()) : '0.00'
+            ))
             ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
             ->set('updated_at', $qb->createNamedParameter($entity->getUpdatedAt()))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($entity->getId(), IQueryBuilder::PARAM_INT)));
@@ -179,6 +184,33 @@ class AccountMapper extends QBMapper {
 
         // Reload the entity from database to ensure we return the persisted state (decrypted)
         return $this->find($entity->getId(), $entity->getUserId());
+    }
+
+    /**
+     * Find all accounts with interest tracking enabled for a user.
+     *
+     * @return Account[]
+     */
+    public function findWithInterestEnabled(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('interest_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+
+        return $this->findEntities($qb);
+    }
+
+    /**
+     * Update only the cached accrued_interest value (used by background job).
+     */
+    public function updateAccruedInterest(int $accountId, string $amount): void {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('accrued_interest', $qb->createNamedParameter($amount))
+            ->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        $qb->executeStatement();
     }
 
     /**

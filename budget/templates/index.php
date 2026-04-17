@@ -1062,6 +1062,14 @@ style('budget', 'budget-main');
                                     <label><?php p($l->t('Min Payment')); ?></label>
                                     <div id="account-minimum-payment-display" class="balance-amount"></div>
                                 </div>
+                                <div class="balance-item" id="accrued-interest-info" style="display: none;">
+                                    <label><?php p($l->t('Accrued Interest')); ?></label>
+                                    <div id="account-accrued-interest" class="balance-amount"></div>
+                                </div>
+                                <div class="balance-item" id="total-owing-info" style="display: none;">
+                                    <label><?php p($l->t('Total (incl. Interest)')); ?></label>
+                                    <div id="account-total-owing" class="balance-amount"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1144,6 +1152,29 @@ style('budget', 'budget-main');
                             <span id="last-reconciled"><?php p($l->t('Never')); ?></span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Interest Rate History (shown when interest tracking is enabled) -->
+                <div class="account-details-section" id="interest-rate-history-section" style="display: none;">
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3><?php p($l->t('Interest Rate History')); ?></h3>
+                        <button class="btn btn-secondary btn-sm" id="add-rate-change-btn">
+                            <span class="icon-add" aria-hidden="true"></span>
+                            <?php p($l->t('Add Rate Change')); ?>
+                        </button>
+                    </div>
+                    <table class="rate-history-table">
+                        <thead>
+                            <tr>
+                                <th><?php p($l->t('Effective Date')); ?></th>
+                                <th><?php p($l->t('Rate (APR)')); ?></th>
+                                <th><?php p($l->t('Compounding')); ?></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="rate-history-body">
+                        </tbody>
+                    </table>
                 </div>
 
                 <!-- Transaction History -->
@@ -4775,6 +4806,25 @@ style('budget', 'budget-main');
                     <label for="account-interest-rate"><?php p($l->t('Interest Rate (%%)')); ?></label>
                     <input type="number" id="account-interest-rate" step="0.0001" min="0" max="100" aria-describedby="account-interest-rate-help">
                     <small id="account-interest-rate-help" class="form-text"><?php p($l->t('Annual interest rate percentage')); ?></small>
+                </div>
+
+                <div class="form-group conditional" id="interest-enabled-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="account-interest-enabled">
+                        <?php p($l->t('Enable Interest Tracking')); ?>
+                    </label>
+                    <small class="form-text"><?php p($l->t('Track accrued interest over time with variable rate support')); ?></small>
+                </div>
+
+                <div class="form-group conditional" id="compounding-frequency-group">
+                    <label for="account-compounding-frequency"><?php p($l->t('Compounding Frequency')); ?></label>
+                    <select id="account-compounding-frequency">
+                        <option value="daily"><?php p($l->t('Daily')); ?></option>
+                        <option value="monthly"><?php p($l->t('Monthly')); ?></option>
+                        <option value="yearly"><?php p($l->t('Yearly')); ?></option>
+                        <option value="simple"><?php p($l->t('Simple (no compounding)')); ?></option>
+                    </select>
+                    <small class="form-text"><?php p($l->t('How often interest compounds on this account')); ?></small>
                 </div>
 
                 <div class="form-group conditional" id="credit-limit-group">
