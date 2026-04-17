@@ -35,11 +35,12 @@ class InterestRateMapper extends QBMapper {
     /**
      * Get the rate effective on a given date (latest rate where effective_date <= date).
      */
-    public function findEffectiveRate(int $accountId, string $date): ?InterestRate {
+    public function findEffectiveRate(int $accountId, string $userId, string $date): ?InterestRate {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->lte('effective_date', $qb->createNamedParameter($date)))
             ->orderBy('effective_date', 'DESC')
             ->setMaxResults(1);
@@ -79,21 +80,23 @@ class InterestRateMapper extends QBMapper {
     /**
      * Delete all rate records for an account (used when deleting account or disabling interest).
      */
-    public function deleteByAccount(int $accountId): void {
+    public function deleteByAccount(int $accountId, string $userId): void {
         $qb = $this->db->getQueryBuilder();
         $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
         $qb->executeStatement();
     }
 
     /**
      * Count rate periods for an account.
      */
-    public function countByAccount(int $accountId): int {
+    public function countByAccount(int $accountId, string $userId): int {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->createFunction('COUNT(*)'), 'count')
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
         $result = $qb->executeQuery();
         $count = (int)$result->fetchOne();

@@ -55,9 +55,11 @@ class InterestService {
         $openingDate = $openingDate ?? date('Y-m-d');
         $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
 
+        $isLiability = AccountType::from($account->getType())->isLiability();
+
         // Load rate periods and transactions
         $ratePeriods = $this->rateMapper->findByAccount($accountId, $userId);
-        $transactions = $this->transactionMapper->findAllClearedByAccount($accountId);
+        $transactions = $this->transactionMapper->findAllClearedByAccount($accountId, $userId);
 
         if (empty($ratePeriods)) {
             return [
@@ -135,17 +137,26 @@ class InterestService {
             if ($eventDate > $currentDate) {
                 $days = $this->daysBetween($currentDate, $eventDate);
                 if ($days > 0) {
-                    // Interest accrues on the outstanding balance (principal + previously accrued interest)
-                    $outstandingBalance = bcadd(MoneyCalculator::abs($principal, self::CALC_SCALE), $accruedInterest, self::CALC_SCALE);
-                    $interest = $this->calculateIntervalInterest(
-                        $outstandingBalance,
-                        $currentRate,
-                        $currentCompounding,
-                        $days,
-                        $currentDate,
-                        $eventDate
-                    );
-                    $accruedInterest = bcadd($accruedInterest, $interest, self::CALC_SCALE);
+                    // Skip interest when balance direction doesn't warrant it:
+                    // - Liabilities: only charge interest when principal is negative (debt owed)
+                    // - Assets: only earn interest when principal is positive
+                    $shouldAccrue = $isLiability
+                        ? bccomp($principal, '0', self::CALC_SCALE) < 0
+                        : bccomp($principal, '0', self::CALC_SCALE) > 0;
+
+                    if ($shouldAccrue) {
+                        // Interest accrues on the outstanding balance (principal + previously accrued interest)
+                        $outstandingBalance = bcadd(MoneyCalculator::abs($principal, self::CALC_SCALE), $accruedInterest, self::CALC_SCALE);
+                        $interest = $this->calculateIntervalInterest(
+                            $outstandingBalance,
+                            $currentRate,
+                            $currentCompounding,
+                            $days,
+                            $currentDate,
+                            $eventDate
+                        );
+                        $accruedInterest = bcadd($accruedInterest, $interest, self::CALC_SCALE);
+                    }
                 }
                 $currentDate = $eventDate;
             }
@@ -162,7 +173,11 @@ class InterestService {
         // Calculate interest for remaining period [currentDate, asOfDate]
         if ($currentDate < $asOfDate) {
             $days = $this->daysBetween($currentDate, $asOfDate);
-            if ($days > 0) {
+            $shouldAccrue = $isLiability
+                ? bccomp($principal, '0', self::CALC_SCALE) < 0
+                : bccomp($principal, '0', self::CALC_SCALE) > 0;
+
+            if ($days > 0 && $shouldAccrue) {
                 $outstandingBalance = bcadd(MoneyCalculator::abs($principal, self::CALC_SCALE), $accruedInterest, self::CALC_SCALE);
                 $interest = $this->calculateIntervalInterest(
                     $outstandingBalance,
@@ -238,8 +253,11 @@ class InterestService {
         $dailyRate = bcdiv($rateDecimal, (string) self::DAYS_IN_YEAR, self::CALC_SCALE);
         $onePlusRate = bcadd('1', $dailyRate, self::CALC_SCALE);
 
-        // Use PHP's pow for the exponentiation then convert back to bcmath
-        $compoundFactor = (string) pow((float) $onePlusRate, $days);
+        // Use bcmath loop for full precision (no float conversion)
+        $compoundFactor = '1';
+        for ($i = 0; $i < $days; $i++) {
+            $compoundFactor = bcmul($compoundFactor, $onePlusRate, self::CALC_SCALE);
+        }
         $growth = bcsub($compoundFactor, '1', self::CALC_SCALE);
 
         return bcmul($principal, $growth, self::CALC_SCALE);
@@ -367,9 +385,9 @@ class InterestService {
      * Disable interest tracking for an account. Clears rate history.
      */
     public function disableInterest(int $accountId, string $userId): void {
-        $this->rateMapper->deleteByAccount($accountId);
-
+        // Validate ownership before deleting
         $account = $this->accountMapper->find($accountId, $userId);
+        $this->rateMapper->deleteByAccount($accountId, $userId);
         $account->setInterestEnabled(false);
         $account->setAccruedInterest(0);
         $account->setUpdatedAt(date('Y-m-d H:i:s'));
@@ -396,7 +414,7 @@ class InterestService {
      */
     public function deleteRateChange(int $rateId, string $userId): void {
         $rate = $this->rateMapper->find($rateId, $userId);
-        $count = $this->rateMapper->countByAccount($rate->getAccountId());
+        $count = $this->rateMapper->countByAccount($rate->getAccountId(), $userId);
 
         if ($count <= 1) {
             throw new \Exception('Cannot delete the only rate record. Disable interest tracking instead.');

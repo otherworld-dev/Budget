@@ -41,7 +41,6 @@ class InterestRate extends Entity implements JsonSerializable {
         return [
             'id' => $this->getId(),
             'accountId' => $this->getAccountId(),
-            'userId' => $this->getUserId(),
             'rate' => $this->getRate(),
             'compoundingFrequency' => $this->getCompoundingFrequency(),
             'effectiveDate' => $this->getEffectiveDate(),

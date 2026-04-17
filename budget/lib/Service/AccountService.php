@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
@@ -15,17 +16,20 @@ use OCP\IL10N;
  */
 class AccountService extends AbstractCrudService {
     private TransactionMapper $transactionMapper;
+    private InterestRateMapper $interestRateMapper;
     private CurrencyConversionService $conversionService;
     private IL10N $l;
 
     public function __construct(
         AccountMapper $mapper,
         TransactionMapper $transactionMapper,
+        InterestRateMapper $interestRateMapper,
         CurrencyConversionService $conversionService,
         IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
+        $this->interestRateMapper = $interestRateMapper;
         $this->conversionService = $conversionService;
         $this->l = $l;
     }
@@ -84,6 +88,8 @@ class AccountService extends AbstractCrudService {
         if (!empty($transactions)) {
             throw new \Exception($this->l->t('Cannot delete account with existing transactions. Please delete all transactions first.'));
         }
+        // Clean up interest rate records
+        $this->interestRateMapper->deleteByAccount($entity->getId(), $userId);
     }
 
     /**

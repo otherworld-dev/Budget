@@ -297,6 +297,7 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\AccountService(
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\InterestRateMapper::class),
                 $c->get(\OCA\Budget\Service\CurrencyConversionService::class),
                 $c->get(\OCP\IL10N::class)
             );

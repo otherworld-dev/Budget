@@ -85,18 +85,20 @@ class TransactionMapper extends QBMapper {
      */
     /**
      * Get all cleared transactions for an account in chronological order.
-     * Used by InterestService for accrual calculation.
+     * User-scoped through account ownership join.
      *
      * @return Transaction[]
      */
-    public function findAllClearedByAccount(int $accountId): array {
+    public function findAllClearedByAccount(int $accountId, string $userId): array {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('cleared')))
-            ->orderBy('date', 'ASC')
-            ->addOrderBy('id', 'ASC');
+        $qb->select('t.*')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('t.status', $qb->createNamedParameter('cleared')))
+            ->orderBy('t.date', 'ASC')
+            ->addOrderBy('t.id', 'ASC');
 
         return $this->findEntities($qb);
     }

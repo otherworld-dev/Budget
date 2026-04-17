@@ -614,6 +614,7 @@ class AccountController extends Controller {
      * Get full interest details for an account (live calculation + rate history).
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function getInterestDetails(int $id): DataResponse {
         try {
             $result = $this->interestService->calculateAccruedInterest($id, $this->getEffectiveUserId());
@@ -628,6 +629,7 @@ class AccountController extends Controller {
      * Get interest rate history for an account.
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function getInterestRates(int $id): DataResponse {
         try {
             $rates = $this->interestService->getRateHistory($id, $this->getEffectiveUserId());
@@ -657,6 +659,10 @@ class AccountController extends Controller {
             $validFreqs = ['simple', 'daily', 'monthly', 'yearly'];
             if (!in_array($compoundingFrequency, $validFreqs, true)) {
                 return new DataResponse(['error' => $this->l->t('Invalid compounding frequency')], Http::STATUS_BAD_REQUEST);
+            }
+
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $effectiveDate)) {
+                return new DataResponse(['error' => $this->l->t('Invalid date format. Use YYYY-MM-DD')], Http::STATUS_BAD_REQUEST);
             }
 
             $interestRate = $this->interestService->addRateChange($id, $this->getEffectiveUserId(), $rate, $compoundingFrequency, $effectiveDate);
