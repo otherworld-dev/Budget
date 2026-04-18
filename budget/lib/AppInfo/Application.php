@@ -569,6 +569,68 @@ class Application extends App implements IBootstrap {
         $context->registerServiceAlias('InvestmentService', \OCA\Budget\Service\InvestmentService::class);
 
         // ==========================================
+        // Bank Sync Services
+        // ==========================================
+
+        $context->registerService(\OCA\Budget\Service\AdminSettingService::class, function($c) {
+            return new \OCA\Budget\Service\AdminSettingService(
+                $c->get(\OCP\IConfig::class)
+            );
+        });
+        $context->registerServiceAlias('AdminSettingService', \OCA\Budget\Service\AdminSettingService::class);
+
+        $context->registerService(\OCA\Budget\Db\BankConnectionMapper::class, function($c) {
+            return new \OCA\Budget\Db\BankConnectionMapper(
+                $c->get(\OCP\IDBConnection::class),
+                $c->get(\OCA\Budget\Service\EncryptionService::class)
+            );
+        });
+        $context->registerServiceAlias('BankConnectionMapper', \OCA\Budget\Db\BankConnectionMapper::class);
+
+        $context->registerService(\OCA\Budget\Db\BankAccountMappingMapper::class, function($c) {
+            return new \OCA\Budget\Db\BankAccountMappingMapper(
+                $c->get(\OCP\IDBConnection::class)
+            );
+        });
+        $context->registerServiceAlias('BankAccountMappingMapper', \OCA\Budget\Db\BankAccountMappingMapper::class);
+
+        $context->registerService(\OCA\Budget\Service\BankSync\SimpleFINProvider::class, function($c) {
+            return new \OCA\Budget\Service\BankSync\SimpleFINProvider(
+                $c->get(\OCP\Http\Client\IClientService::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+
+        $context->registerService(\OCA\Budget\Service\BankSync\GoCardlessProvider::class, function($c) {
+            return new \OCA\Budget\Service\BankSync\GoCardlessProvider(
+                $c->get(\OCP\Http\Client\IClientService::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+
+        $context->registerService(\OCA\Budget\Service\BankSync\ProviderFactory::class, function($c) {
+            return new \OCA\Budget\Service\BankSync\ProviderFactory(
+                $c->get(\OCA\Budget\Service\BankSync\SimpleFINProvider::class),
+                $c->get(\OCA\Budget\Service\BankSync\GoCardlessProvider::class)
+            );
+        });
+        $context->registerServiceAlias('ProviderFactory', \OCA\Budget\Service\BankSync\ProviderFactory::class);
+
+        $context->registerService(\OCA\Budget\Service\BankSync\BankSyncService::class, function($c) {
+            return new \OCA\Budget\Service\BankSync\BankSyncService(
+                $c->get(\OCA\Budget\Db\BankConnectionMapper::class),
+                $c->get(\OCA\Budget\Db\BankAccountMappingMapper::class),
+                $c->get(\OCA\Budget\Service\BankSync\ProviderFactory::class),
+                $c->get(\OCA\Budget\Service\TransactionService::class),
+                $c->get(\OCA\Budget\Service\AuditService::class),
+                $c->get(\OCA\Budget\Service\AdminSettingService::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\Psr\Log\LoggerInterface::class)
+            );
+        });
+        $context->registerServiceAlias('BankSyncService', \OCA\Budget\Service\BankSync\BankSyncService::class);
+
+        // ==========================================
         // Recurring Income Services
         // ==========================================
 

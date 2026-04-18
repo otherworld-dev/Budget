@@ -316,5 +316,21 @@ return [
         ['name' => 'exchangeRate#refresh', 'url' => '/api/exchange-rates/refresh', 'verb' => 'POST'],
         ['name' => 'exchangeRate#setManualRate', 'url' => '/api/exchange-rates/manual', 'verb' => 'POST'],
         ['name' => 'exchangeRate#removeManualRate', 'url' => '/api/exchange-rates/manual/{currency}', 'verb' => 'DELETE'],
+
+        // Bank Sync routes
+        ['name' => 'bankSync#status', 'url' => '/api/bank-sync/status', 'verb' => 'GET'],
+        ['name' => 'bankSync#providers', 'url' => '/api/bank-sync/providers', 'verb' => 'GET'],
+        ['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'GET'],
+        ['name' => 'bankSync#connections', 'url' => '/api/bank-sync/connections', 'verb' => 'GET'],
+        ['name' => 'bankSync#connect', 'url' => '/api/bank-sync/connections', 'verb' => 'POST'],
+        ['name' => 'bankSync#disconnect', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'DELETE'],
+        ['name' => 'bankSync#sync', 'url' => '/api/bank-sync/connections/{id}/sync', 'verb' => 'POST'],
+        ['name' => 'bankSync#mappings', 'url' => '/api/bank-sync/connections/{id}/mappings', 'verb' => 'GET'],
+        ['name' => 'bankSync#updateMapping', 'url' => '/api/bank-sync/connections/{id}/mappings/{mappingId}', 'verb' => 'PUT'],
+        ['name' => 'bankSync#refreshAccounts', 'url' => '/api/bank-sync/connections/{id}/refresh', 'verb' => 'POST'],
+
+        // Admin settings routes
+        ['name' => 'adminSetting#index', 'url' => '/api/admin/settings', 'verb' => 'GET'],
+        ['name' => 'adminSetting#update', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
     ],
 ];

@@ -233,6 +233,9 @@ class AuditService {
             'password', 'secret', 'token', 'key',
             'accountNumber', 'routingNumber', 'iban', 'sortCode', 'swiftBic',
             'account_number', 'routing_number', 'sort_code', 'swift_bic',
+            'credentials', 'accessUrl', 'access_url', 'setupToken', 'setup_token',
+            'secretId', 'secretKey', 'secret_id', 'secret_key',
+            'accessToken', 'refreshToken', 'access_token', 'refresh_token',
         ];
 
         $sanitized = [];
