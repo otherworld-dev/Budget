@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-04-18 10:09+0000\n"
-"Last-Translator: T0mFi <tomfinger97@gmail.com>\n"
+"PO-Revision-Date: 2026-04-19 11:09+0000\n"
+"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -153,7 +153,7 @@ msgstr "Budgetzusammenfassung konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:78
 msgid "Failed to retrieve assets"
-msgstr ""
+msgstr "Fehler beim Abrufen der Vermögenswerte"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:90
 msgid "Asset"
@@ -2081,17 +2081,17 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:303
 #: /tmp/budget-v2.11.0/budget/templates/index.php:970
 msgid "Net Worth"
-msgstr ""
+msgstr "Reinvermögen"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:9
 #: /tmp/budget-v2.11.0/budget/templates/index.php:316
 msgid "Income This Month"
-msgstr ""
+msgstr "Einnahmen in diesem Monat"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:10
 #: /tmp/budget-v2.11.0/budget/templates/index.php:329
 msgid "Expenses This Month"
-msgstr ""
+msgstr "Ausgaben in diesem Monat"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:11
 #: /tmp/budget-v2.11.0/budget/templates/index.php:342
@@ -2182,7 +2182,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:34
 #: /tmp/budget-v2.11.0/budget/templates/index.php:525
 msgid "Income vs Expenses"
-msgstr ""
+msgstr "Einnahmen und Ausgaben im Vergleich"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:35
 #: /tmp/budget-v2.11.0/budget/templates/index.php:547
@@ -2190,17 +2190,17 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2782
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2931
 msgid "Spending by Category"
-msgstr ""
+msgstr "Ausgaben nach Kategorien"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:36
 #: /tmp/budget-v2.11.0/budget/templates/index.php:570
 msgid "Net Worth History"
-msgstr ""
+msgstr "Vermögensverlauf"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:37
 #: /tmp/budget-v2.11.0/budget/templates/index.php:598
 msgid "Asset Value History"
-msgstr ""
+msgstr "Historische Entwicklung der Vermögenswerte"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:38
 #: /tmp/budget-v2.11.0/budget/templates/index.php:621
@@ -2228,7 +2228,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:41
 #: /tmp/budget-v2.11.0/budget/templates/index.php:658
 msgid "Upcoming Bills"
-msgstr ""
+msgstr "Fällige Zahlungen"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:42
 #: /tmp/budget-v2.11.0/budget/templates/index.php:669
@@ -2340,7 +2340,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:71
 #: /tmp/budget-v2.11.0/budget/templates/index.php:881
 msgid "Quick Add Transaction"
-msgstr ""
+msgstr "Transaktion schnell erfassen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:352
 msgid "Duplicate transaction"
@@ -2420,7 +2420,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/main.js:1014
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:697
 msgid "No description"
-msgstr ""
+msgstr "Keine Beschreibung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1058
 #: /tmp/budget-v2.11.0/budget/src/main.js:2744
@@ -2749,7 +2749,7 @@ msgstr "Kategorien"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2216
 msgid "accounts"
-msgstr "Konten"
+msgstr "konten"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2217
 msgid "transactions"
@@ -3194,7 +3194,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1279
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1402
 msgid "Please enter a description"
-msgstr ""
+msgstr "Bitte geben Sie eine Beschreibung ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1323
 msgid "Transaction saved successfully"
@@ -3725,7 +3725,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:636
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5558
 msgid "Description (optional)"
-msgstr ""
+msgstr "Beschreibung (optional)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:672
 msgid "Balanced"
@@ -4123,7 +4123,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:786
 #: /tmp/budget-v2.11.0/budget/templates/index.php:662
 msgid "No upcoming bills"
-msgstr ""
+msgstr "Keine fällige Zahlungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:801
 msgid "Overdue by %n day"
@@ -4225,25 +4225,25 @@ msgstr "Darlehen"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1174
 msgid "%n account"
 msgid_plural "%n accounts"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n konto"
+msgstr[1] "%n konten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1186
 #: /tmp/budget-v2.11.0/budget/templates/index.php:764
 msgid "No accounts to reconcile"
-msgstr ""
+msgstr "Keine Konten zum Abgleichen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1199
 msgid "All accounts reconciled"
-msgstr ""
+msgstr "Alle Konten abgeglichen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1207
 msgid "Up to date"
-msgstr ""
+msgstr "Auf dem neuesten Stand"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1297
 msgid "Total Spending"
-msgstr ""
+msgstr "Gesamtausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1351
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:473
@@ -4273,7 +4273,7 @@ msgstr "Verbindlichkeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1538
 msgid "Asset Value"
-msgstr ""
+msgstr "Vermögenswert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1561
 msgid "Portfolio"
@@ -4294,15 +4294,16 @@ msgid "yesterday"
 msgstr "gestern"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1623
+#, fuzzy
 msgid "%n day ago"
 msgid_plural "%n days ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Vor %n Tag"
+msgstr[1] "Vor %n Tagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1626
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1628
 msgid "Snapshots recorded automatically daily"
-msgstr ""
+msgstr "Schnappschüsse werden täglich automatisch aufgenommen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1626
 msgid "Last: {time}"
@@ -4310,7 +4311,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1631
 msgid "Record now"
-msgstr ""
+msgstr "Jetzt aufzeichnen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1902
 msgid "Net worth snapshot recorded"
@@ -4337,6 +4338,8 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:272
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
+"Dashboard ist gesperrt. Klicken Sie auf Entsperren, um die Kacheln neu zu "
+"ordnen."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2347
 msgid "Lock Dashboard"
@@ -4928,7 +4931,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3140
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5145
 msgid "All Accounts"
-msgstr ""
+msgstr "Alle Konten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:389
 msgid "Failed to generate report"
@@ -6309,7 +6312,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:452
 msgid "Enter description (optional):"
-msgstr ""
+msgstr "Geben Sie die Beschreibung ein (optional):"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:457
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:917
@@ -6774,7 +6777,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2669
 msgid "Enter description..."
-msgstr ""
+msgstr "Geben Sie die Beschreibung ein..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2701
 msgid "Type to search..."
@@ -6823,7 +6826,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3328
 msgid "(no description)"
-msgstr ""
+msgstr "(keine Beschreibung)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3339
 msgid "keep"
@@ -7222,7 +7225,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1691
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2792
 msgid "This Month"
-msgstr ""
+msgstr "Diesen Monat"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:555
 msgid "This Year"
@@ -7244,7 +7247,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:612
 msgid "No asset value history yet"
-msgstr ""
+msgstr "Bisher keine historischen Vermögensdaten erfasst"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:613
 msgid "Add snapshots to your assets to track their combined value over time."
@@ -7253,7 +7256,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:626
 #: /tmp/budget-v2.11.0/budget/templates/index.php:659
 msgid "View All"
-msgstr ""
+msgstr "Alle anzeigen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:639
 #: /tmp/budget-v2.11.0/budget/templates/index.php:681
@@ -8829,6 +8832,8 @@ msgid ""
 "Record a new valuation for this asset. This creates a snapshot in the value "
 "history."
 msgstr ""
+"Erfassen Sie eine neue Bewertung für diesen Vermögenswert. Dadurch wird ein "
+"Eintrag im Werteverlauf erstellt."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3859
 msgid "Debt Payoff Planner"
