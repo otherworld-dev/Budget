@@ -434,10 +434,11 @@ export default class DashboardModule {
         }
 
         const spendingAcct = document.getElementById('spending-account-select');
-        if (spendingAcct?.value) {
+        {
             const periodEl = document.getElementById('spending-period-select');
             const period = periodEl ? periodEl.value : 'month';
-            refreshes.push(this.refreshSpendingChart(period, spendingAcct.value));
+            const accountId = spendingAcct?.value || null;
+            refreshes.push(this.refreshSpendingChart(period, accountId));
         }
 
         const netWorthAcct = document.getElementById('net-worth-account-select');

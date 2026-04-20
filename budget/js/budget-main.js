@@ -30011,7 +30011,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "refreshSavedWidgetSelections",
     value: function () {
       var _refreshSavedWidgetSelections = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3() {
-        var refreshes, trendAcct, periodEl, months, spendingAcct, _periodEl, period, netWorthAcct, activeBtn, days, recentTxAcct;
+        var refreshes, trendAcct, periodEl, months, spendingAcct, _periodEl, period, accountId, netWorthAcct, activeBtn, days, recentTxAcct;
         return _regenerator().w(function (_context3) {
           while (1) switch (_context3.n) {
             case 0:
@@ -30023,11 +30023,10 @@ var DashboardModule = /*#__PURE__*/function () {
                 refreshes.push(this.refreshTrendChart(months, trendAcct.value));
               }
               spendingAcct = document.getElementById('spending-account-select');
-              if (spendingAcct !== null && spendingAcct !== void 0 && spendingAcct.value) {
-                _periodEl = document.getElementById('spending-period-select');
-                period = _periodEl ? _periodEl.value : 'month';
-                refreshes.push(this.refreshSpendingChart(period, spendingAcct.value));
-              }
+              _periodEl = document.getElementById('spending-period-select');
+              period = _periodEl ? _periodEl.value : 'month';
+              accountId = (spendingAcct === null || spendingAcct === void 0 ? void 0 : spendingAcct.value) || null;
+              refreshes.push(this.refreshSpendingChart(period, accountId));
               netWorthAcct = document.getElementById('net-worth-account-select');
               if (netWorthAcct !== null && netWorthAcct !== void 0 && netWorthAcct.value) {
                 activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
