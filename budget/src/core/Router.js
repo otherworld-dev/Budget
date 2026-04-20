@@ -24,6 +24,28 @@ export default class Router {
             });
         });
 
+        // Dashboard card links (View All, Manage, Details, etc.)
+        document.addEventListener('click', (e) => {
+            const cardLink = e.target.closest('.card-link');
+            if (cardLink) {
+                e.preventDefault();
+                const href = cardLink.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                    const view = href.substring(1);
+                    this.showView(view);
+
+                    // Update nav active state
+                    document.querySelectorAll('.app-navigation-entry').forEach(entry => {
+                        const navLink = entry.querySelector('a');
+                        if (navLink && navLink.getAttribute('href') === href) {
+                            document.querySelectorAll('.app-navigation-entry').forEach(e => e.classList.remove('active'));
+                            entry.classList.add('active');
+                        }
+                    });
+                }
+            }
+        });
+
         this.setupMobileNavigationToggle();
     }
 

@@ -20569,6 +20569,30 @@ var Router = /*#__PURE__*/function () {
           _this.closeMobileNavigation();
         });
       });
+
+      // Dashboard card links (View All, Manage, Details, etc.)
+      document.addEventListener('click', function (e) {
+        var cardLink = e.target.closest('.card-link');
+        if (cardLink) {
+          e.preventDefault();
+          var href = cardLink.getAttribute('href');
+          if (href && href.startsWith('#')) {
+            var view = href.substring(1);
+            _this.showView(view);
+
+            // Update nav active state
+            document.querySelectorAll('.app-navigation-entry').forEach(function (entry) {
+              var navLink = entry.querySelector('a');
+              if (navLink && navLink.getAttribute('href') === href) {
+                document.querySelectorAll('.app-navigation-entry').forEach(function (e) {
+                  return e.classList.remove('active');
+                });
+                entry.classList.add('active');
+              }
+            });
+          }
+        }
+      });
       this.setupMobileNavigationToggle();
     }
   }, {
