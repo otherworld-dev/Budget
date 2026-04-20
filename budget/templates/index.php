@@ -5705,12 +5705,11 @@ style('budget', 'budget-main');
             <input type="hidden" id="contact-nextcloud-user-id" name="nextcloudUserId">
 
             <div class="form-group">
-                <label for="contact-user-search"><?php p($l->t('Search Nextcloud Users')); ?></label>
-                <div style="position: relative;">
-                    <input type="text" id="contact-user-search" maxlength="255" placeholder="<?php p($l->t('Type to search users...')); ?>" autocomplete="off">
-                    <div id="contact-user-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
-                </div>
-                <small class="form-text"><?php p($l->t('Select a Nextcloud user, or leave empty for a manual contact')); ?></small>
+                <label for="contact-user-select"><?php p($l->t('Nextcloud User')); ?></label>
+                <select id="contact-user-select">
+                    <option value=""><?php p($l->t('— None (enter details manually) —')); ?></option>
+                </select>
+                <small class="form-text"><?php p($l->t('Select a Nextcloud user to link this contact, or choose manual for non-Nextcloud contacts')); ?></small>
             </div>
 
             <div class="form-group">

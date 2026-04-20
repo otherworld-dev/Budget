@@ -200,8 +200,6 @@ export default class SharedExpensesModule {
         form.reset();
         document.getElementById('contact-id').value = contact ? contact.id : '';
         document.getElementById('contact-nextcloud-user-id').value = contact ? (contact.nextcloudUserId || '') : '';
-        document.getElementById('contact-user-search').value = '';
-        document.getElementById('contact-user-suggestions').style.display = 'none';
         title.textContent = contact ? t('budget', 'Edit Contact') : t('budget', 'Add Contact');
 
         if (contact) {
@@ -209,70 +207,52 @@ export default class SharedExpensesModule {
             document.getElementById('contact-email').value = contact.email || '';
         }
 
-        this.setupUserSearch();
+        this.populateUserDropdown(contact?.nextcloudUserId || '');
+        this.setupUserSelectHandler();
         modal.style.display = 'flex';
     }
 
-    setupUserSearch() {
-        const searchInput = document.getElementById('contact-user-search');
-        const suggestions = document.getElementById('contact-user-suggestions');
-        if (!searchInput || !suggestions) return;
+    async populateUserDropdown(selectedUserId = '') {
+        const select = document.getElementById('contact-user-select');
+        if (!select) return;
 
-        // Debounced search
-        let searchTimeout;
-        searchInput.oninput = () => {
-            clearTimeout(searchTimeout);
-            const query = searchInput.value.trim();
-            if (query.length < 2) {
-                suggestions.style.display = 'none';
-                return;
-            }
-            searchTimeout = setTimeout(() => this.searchUsers(query, suggestions), 300);
-        };
+        // Keep the manual option
+        select.innerHTML = `<option value="">${t('budget', '— None (enter details manually) —')}</option>`;
 
-        // Close suggestions on blur (with delay for click to register)
-        searchInput.onblur = () => {
-            setTimeout(() => { suggestions.style.display = 'none'; }, 200);
-        };
-    }
-
-    async searchUsers(query, suggestionsEl) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/users/search?query=${encodeURIComponent(query)}`), {
+            // Fetch all users (empty query with low minimum)
+            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/users/search?query=*'), {
                 headers: { 'requesttoken': OC.requestToken }
             });
             if (!response.ok) return;
 
             const users = await response.json();
-            if (!users.length) {
-                suggestionsEl.style.display = 'none';
-                return;
-            }
-
-            suggestionsEl.innerHTML = users.map(user => `
-                <div class="autocomplete-item" data-uid="${this.escapeHtml(user.uid)}" data-name="${this.escapeHtml(user.displayName)}">
-                    <strong>${this.escapeHtml(user.displayName)}</strong>
-                    <small>${this.escapeHtml(user.uid)}</small>
-                </div>
-            `).join('');
-
-            suggestionsEl.style.display = 'block';
-
-            // Click handler for suggestions
-            suggestionsEl.querySelectorAll('.autocomplete-item').forEach(item => {
-                item.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    const uid = item.dataset.uid;
-                    const name = item.dataset.name;
-                    document.getElementById('contact-nextcloud-user-id').value = uid;
-                    document.getElementById('contact-name').value = name;
-                    document.getElementById('contact-user-search').value = `${name} (${uid})`;
-                    suggestionsEl.style.display = 'none';
-                });
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.uid;
+                option.textContent = `${user.displayName} (${user.uid})`;
+                option.dataset.displayName = user.displayName;
+                if (user.uid === selectedUserId) option.selected = true;
+                select.appendChild(option);
             });
         } catch (error) {
-            console.error('User search failed:', error);
+            console.error('Failed to load users:', error);
         }
+    }
+
+    setupUserSelectHandler() {
+        const select = document.getElementById('contact-user-select');
+        if (!select) return;
+
+        select.onchange = () => {
+            const selectedOption = select.options[select.selectedIndex];
+            const uid = select.value;
+            document.getElementById('contact-nextcloud-user-id').value = uid;
+
+            if (uid && selectedOption.dataset.displayName) {
+                document.getElementById('contact-name').value = selectedOption.dataset.displayName;
+            }
+        };
     }
 
     async saveContact() {

@@ -115,7 +115,9 @@ class SharedExpenseController extends Controller {
      */
     #[UserRateLimit(limit: 30, period: 60)]
     public function searchUsers(string $query = ''): DataResponse {
-        if (strlen($query) < 2) {
+        // Allow wildcard '*' to list all users, or require 2+ chars for search
+        $searchQuery = ($query === '*') ? '' : $query;
+        if ($query !== '*' && strlen($query) < 2) {
             return new DataResponse([]);
         }
 
@@ -123,7 +125,7 @@ class SharedExpenseController extends Controller {
         $seen = [];
 
         // Search by username
-        $users = $this->userManager->search($query, 20);
+        $users = $this->userManager->search($searchQuery, 50);
         foreach ($users as $user) {
             if (!isset($seen[$user->getUID()])) {
                 $results[] = [
@@ -135,7 +137,7 @@ class SharedExpenseController extends Controller {
         }
 
         // Also search by display name
-        $displayUsers = $this->userManager->searchDisplayName($query, 20);
+        $displayUsers = $this->userManager->searchDisplayName($searchQuery, 50);
         foreach ($displayUsers as $user) {
             if (!isset($seen[$user->getUID()])) {
                 $results[] = [
