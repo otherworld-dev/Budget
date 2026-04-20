@@ -16,6 +16,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setName(string $name)
  * @method string|null getEmail()
  * @method void setEmail(?string $email)
+ * @method string|null getNextcloudUserId()
+ * @method void setNextcloudUserId(?string $nextcloudUserId)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  */
@@ -23,6 +25,7 @@ class Contact extends Entity implements JsonSerializable {
     protected $userId;
     protected $name;
     protected $email;
+    protected $nextcloudUserId;
     protected $createdAt;
 
     public function __construct() {
@@ -35,6 +38,7 @@ class Contact extends Entity implements JsonSerializable {
             'userId' => $this->getUserId(),
             'name' => $this->getName(),
             'email' => $this->getEmail(),
+            'nextcloudUserId' => $this->getNextcloudUserId(),
             'createdAt' => $this->getCreatedAt(),
         ];
     }

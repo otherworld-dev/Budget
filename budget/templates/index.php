@@ -5702,6 +5702,16 @@ style('budget', 'budget-main');
         <h3 id="contact-modal-title"><?php p($l->t('Add Contact')); ?></h3>
         <form id="contact-form" aria-label="<?php p($l->t('Contact form')); ?>">
             <input type="hidden" id="contact-id" name="id">
+            <input type="hidden" id="contact-nextcloud-user-id" name="nextcloudUserId">
+
+            <div class="form-group">
+                <label for="contact-user-search"><?php p($l->t('Search Nextcloud Users')); ?></label>
+                <div style="position: relative;">
+                    <input type="text" id="contact-user-search" maxlength="255" placeholder="<?php p($l->t('Type to search users...')); ?>" autocomplete="off">
+                    <div id="contact-user-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                </div>
+                <small class="form-text"><?php p($l->t('Select a Nextcloud user, or leave empty for a manual contact')); ?></small>
+            </div>
 
             <div class="form-group">
                 <label for="contact-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>

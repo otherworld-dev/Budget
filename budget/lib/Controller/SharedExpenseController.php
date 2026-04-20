@@ -14,12 +14,14 @@ use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 
 class SharedExpenseController extends Controller {
     use SharedAccessTrait;
 
     private SharedExpenseService $service;
+    private IUserManager $userManager;
     private IL10N $l;
     private string $userId;
     private LoggerInterface $logger;
@@ -28,12 +30,14 @@ class SharedExpenseController extends Controller {
         IRequest $request,
         SharedExpenseService $service,
         GranularShareService $granularShareService,
+        IUserManager $userManager,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->userManager = $userManager;
         $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
@@ -72,7 +76,25 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function createContact(string $name, ?string $email = null): DataResponse {
         try {
-            $contact = $this->service->createContact($this->getEffectiveUserId(), $name, $email);
+            $params = $this->request->getParams();
+            $nextcloudUserId = $params['nextcloudUserId'] ?? null;
+
+            // If linking to a Nextcloud user, validate they exist and auto-fill name
+            if ($nextcloudUserId) {
+                $ncUser = $this->userManager->get($nextcloudUserId);
+                if ($ncUser === null) {
+                    return new DataResponse(
+                        ['error' => $this->l->t('Nextcloud user not found')],
+                        Http::STATUS_BAD_REQUEST
+                    );
+                }
+                // Use display name if no name provided
+                if (empty($name) || $name === $nextcloudUserId) {
+                    $name = $ncUser->getDisplayName() ?: $nextcloudUserId;
+                }
+            }
+
+            $contact = $this->service->createContact($this->getEffectiveUserId(), $name, $email, $nextcloudUserId);
             return new DataResponse($contact->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\Exception $e) {
             $this->logger->error('Failed to create contact', [
@@ -84,6 +106,51 @@ class SharedExpenseController extends Controller {
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
+    }
+
+    /**
+     * Search Nextcloud users by display name or username.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function searchUsers(string $query = ''): DataResponse {
+        if (strlen($query) < 2) {
+            return new DataResponse([]);
+        }
+
+        $results = [];
+        $seen = [];
+
+        // Search by username
+        $users = $this->userManager->search($query, 20);
+        foreach ($users as $user) {
+            if (!isset($seen[$user->getUID()])) {
+                $results[] = [
+                    'uid' => $user->getUID(),
+                    'displayName' => $user->getDisplayName(),
+                ];
+                $seen[$user->getUID()] = true;
+            }
+        }
+
+        // Also search by display name
+        $displayUsers = $this->userManager->searchDisplayName($query, 20);
+        foreach ($displayUsers as $user) {
+            if (!isset($seen[$user->getUID()])) {
+                $results[] = [
+                    'uid' => $user->getUID(),
+                    'displayName' => $user->getDisplayName(),
+                ];
+                $seen[$user->getUID()] = true;
+            }
+        }
+
+        // Remove current user from results
+        $currentUserId = $this->getEffectiveUserId();
+        $results = array_values(array_filter($results, fn($r) => $r['uid'] !== $currentUserId));
+
+        return new DataResponse($results);
     }
 
     /**

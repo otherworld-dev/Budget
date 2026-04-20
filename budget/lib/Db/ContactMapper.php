@@ -59,6 +59,20 @@ class ContactMapper extends QBMapper {
     }
 
     /**
+     * Find contact linked to a Nextcloud user.
+     */
+    public function findByNextcloudUserId(string $nextcloudUserId, string $userId): ?Contact {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        $entities = $this->findEntities($qb);
+        return $entities[0] ?? null;
+    }
+
+    /**
      * Delete all contacts for a user
      *
      * @param string $userId

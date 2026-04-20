@@ -228,6 +228,8 @@ return [
         ['name' => 'yearOverYear#monthlyTrends', 'url' => '/api/yoy/trends', 'verb' => 'GET'],
         ['name' => 'yearOverYear#export', 'url' => '/api/yoy/export', 'verb' => 'POST'],
 
+        // Shared Expense routes - user search
+        ['name' => 'sharedExpense#searchUsers', 'url' => '/api/shared/users/search', 'verb' => 'GET'],
         // Shared Expense routes - contacts
         ['name' => 'sharedExpense#contacts', 'url' => '/api/shared/contacts', 'verb' => 'GET'],
         ['name' => 'sharedExpense#createContact', 'url' => '/api/shared/contacts', 'verb' => 'POST'],

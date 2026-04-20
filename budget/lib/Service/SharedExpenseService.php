@@ -55,11 +55,20 @@ class SharedExpenseService {
     /**
      * Create a new contact.
      */
-    public function createContact(string $userId, string $name, ?string $email = null): Contact {
+    public function createContact(string $userId, string $name, ?string $email = null, ?string $nextcloudUserId = null): Contact {
+        // Check if a contact already exists for this Nextcloud user
+        if ($nextcloudUserId) {
+            $existing = $this->contactMapper->findByNextcloudUserId($nextcloudUserId, $userId);
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         $contact = new Contact();
         $contact->setUserId($userId);
         $contact->setName($name);
         $contact->setEmail($email);
+        $contact->setNextcloudUserId($nextcloudUserId);
         $contact->setCreatedAt((new DateTime())->format('Y-m-d H:i:s'));
 
         return $this->contactMapper->insert($contact);

@@ -96,8 +96,9 @@ export default class SharingModule {
                 <div class="sharing-section">
                     <h3>${t('budget', 'Share Your Budget')}</h3>
                     <p class="sharing-description">${t('budget', 'Invite a Nextcloud user and then configure which parts of your budget they can access.')}</p>
-                    <div class="sharing-add-form">
-                        <input type="text" id="share-username-input" placeholder="${t('budget', 'Enter Nextcloud username...')}" class="sharing-input" />
+                    <div class="sharing-add-form" style="position: relative;">
+                        <input type="text" id="share-username-input" placeholder="${t('budget', 'Search by name or username...')}" class="sharing-input" autocomplete="off" />
+                        <div id="share-user-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
                         <button id="share-add-btn" class="btn btn-primary">${t('budget', 'Invite')}</button>
                     </div>
 
@@ -178,9 +179,48 @@ export default class SharingModule {
     bindEvents(container) {
         const addBtn = container.querySelector('#share-add-btn');
         const input = container.querySelector('#share-username-input');
+        const suggestions = container.querySelector('#share-user-suggestions');
         if (addBtn && input) {
             addBtn.addEventListener('click', () => this.handleShare(input.value.trim()));
             input.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleShare(input.value.trim()); });
+
+            // Autocomplete for user search
+            let searchTimeout;
+            input.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                const query = input.value.trim();
+                if (query.length < 2 || !suggestions) {
+                    if (suggestions) suggestions.style.display = 'none';
+                    return;
+                }
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/users/search?query=${encodeURIComponent(query)}`), {
+                            headers: { 'requesttoken': OC.requestToken }
+                        });
+                        if (!response.ok) return;
+                        const users = await response.json();
+                        if (!users.length) { suggestions.style.display = 'none'; return; }
+                        suggestions.innerHTML = users.map(u => `
+                            <div class="autocomplete-item" data-uid="${this.esc(u.uid)}">
+                                <strong>${this.esc(u.displayName)}</strong>
+                                <small>${this.esc(u.uid)}</small>
+                            </div>
+                        `).join('');
+                        suggestions.style.display = 'block';
+                        suggestions.querySelectorAll('.autocomplete-item').forEach(item => {
+                            item.addEventListener('mousedown', (e) => {
+                                e.preventDefault();
+                                input.value = item.dataset.uid;
+                                suggestions.style.display = 'none';
+                            });
+                        });
+                    } catch (err) { /* ignore */ }
+                }, 300);
+            });
+            input.addEventListener('blur', () => {
+                setTimeout(() => { if (suggestions) suggestions.style.display = 'none'; }, 200);
+            });
         }
 
         container.querySelectorAll('.btn-accept-share').forEach(btn =>
