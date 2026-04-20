@@ -171,8 +171,15 @@ class CategoryService extends AbstractCrudService {
     public function getCategoryDetails(int $categoryId, string $userId): array {
         $this->find($categoryId, $userId); // Verify ownership
 
-        $summary = $this->transactionMapper->getCategorySummary($userId, $categoryId);
-        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 6);
+        // Collect this category + all child category IDs for aggregation
+        $categoryIds = [$categoryId];
+        $children = $this->getCategoryMapper()->findChildren($userId, $categoryId);
+        foreach ($children as $child) {
+            $categoryIds[] = $child->getId();
+        }
+
+        $summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds);
+        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 6, $categoryIds);
 
         $count = $summary['count'];
         $total = $summary['total'];

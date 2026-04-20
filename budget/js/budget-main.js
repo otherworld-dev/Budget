@@ -28823,6 +28823,9 @@ var CategoriesModule = /*#__PURE__*/function () {
               console.error('Failed to fetch category spending:', _t1);
               this.categorySpending = {};
             case 8:
+              // Aggregate children's spending into parent categories
+              this.aggregateParentSpending(this.categoryTree || []);
+            case 9:
               return _context10.a(2);
           }
         }, _callee1, this, [[2, 7]]);
@@ -28832,6 +28835,46 @@ var CategoriesModule = /*#__PURE__*/function () {
       }
       return calculateCategorySpending;
     }()
+    /**
+     * Recursively sum children's spending into parent categories.
+     */
+  }, {
+    key: "aggregateParentSpending",
+    value: function aggregateParentSpending(categories) {
+      var _iterator4 = _createForOfIteratorHelper(categories),
+        _step4;
+      try {
+        for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+          var category = _step4.value;
+          if (category.children && category.children.length > 0) {
+            // Recurse into children first
+            this.aggregateParentSpending(category.children);
+
+            // Sum all children's spending into this parent
+            var childTotal = 0;
+            var _iterator5 = _createForOfIteratorHelper(category.children),
+              _step5;
+            try {
+              for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
+                var child = _step5.value;
+                childTotal += this.categorySpending[child.id] || 0;
+              }
+
+              // Add children's total to any direct spending on the parent itself
+            } catch (err) {
+              _iterator5.e(err);
+            } finally {
+              _iterator5.f();
+            }
+            this.categorySpending[category.id] = (this.categorySpending[category.id] || 0) + childTotal;
+          }
+        }
+      } catch (err) {
+        _iterator4.e(err);
+      } finally {
+        _iterator4.f();
+      }
+    }
   }, {
     key: "renderBudgetTree",
     value: function renderBudgetTree() {
@@ -29164,11 +29207,11 @@ var CategoriesModule = /*#__PURE__*/function () {
       if (own.length === 0) return shared;
       var merged = [];
       var usedSharedIds = new Set();
-      var _iterator4 = _createForOfIteratorHelper(own),
-        _step4;
+      var _iterator6 = _createForOfIteratorHelper(own),
+        _step6;
       try {
         var _loop2 = function _loop2() {
-          var ownCat = _step4.value;
+          var ownCat = _step6.value;
           // Find matching shared category by name + type
           var match = shared.find(function (s) {
             return s.name === ownCat.name && s.type === ownCat.type && !usedSharedIds.has(s.id);
@@ -29184,29 +29227,29 @@ var CategoriesModule = /*#__PURE__*/function () {
             merged.push(ownCat);
           }
         };
-        for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+        for (_iterator6.s(); !(_step6 = _iterator6.n()).done;) {
           _loop2();
         }
 
         // Append any shared categories that didn't match an own category
       } catch (err) {
-        _iterator4.e(err);
+        _iterator6.e(err);
       } finally {
-        _iterator4.f();
+        _iterator6.f();
       }
-      var _iterator5 = _createForOfIteratorHelper(shared),
-        _step5;
+      var _iterator7 = _createForOfIteratorHelper(shared),
+        _step7;
       try {
-        for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
-          var sharedCat = _step5.value;
+        for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+          var sharedCat = _step7.value;
           if (!usedSharedIds.has(sharedCat.id)) {
             merged.push(sharedCat);
           }
         }
       } catch (err) {
-        _iterator5.e(err);
+        _iterator7.e(err);
       } finally {
-        _iterator5.f();
+        _iterator7.f();
       }
       return merged;
     }
@@ -29223,11 +29266,11 @@ var CategoriesModule = /*#__PURE__*/function () {
       if (ownChildren.length === 0) return sharedChildren;
       var merged = [];
       var usedSharedIds = new Set();
-      var _iterator6 = _createForOfIteratorHelper(ownChildren),
-        _step6;
+      var _iterator8 = _createForOfIteratorHelper(ownChildren),
+        _step8;
       try {
         var _loop3 = function _loop3() {
-          var ownChild = _step6.value;
+          var ownChild = _step8.value;
           var match = sharedChildren.find(function (s) {
             return s.name === ownChild.name && !usedSharedIds.has(s.id);
           });
@@ -29242,29 +29285,29 @@ var CategoriesModule = /*#__PURE__*/function () {
             merged.push(ownChild);
           }
         };
-        for (_iterator6.s(); !(_step6 = _iterator6.n()).done;) {
+        for (_iterator8.s(); !(_step8 = _iterator8.n()).done;) {
           _loop3();
         }
 
         // Append shared children that didn't match any own child
       } catch (err) {
-        _iterator6.e(err);
+        _iterator8.e(err);
       } finally {
-        _iterator6.f();
+        _iterator8.f();
       }
-      var _iterator7 = _createForOfIteratorHelper(sharedChildren),
-        _step7;
+      var _iterator9 = _createForOfIteratorHelper(sharedChildren),
+        _step9;
       try {
-        for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
-          var sharedChild = _step7.value;
+        for (_iterator9.s(); !(_step9 = _iterator9.n()).done;) {
+          var sharedChild = _step9.value;
           if (!usedSharedIds.has(sharedChild.id)) {
             merged.push(sharedChild);
           }
         }
       } catch (err) {
-        _iterator7.e(err);
+        _iterator9.e(err);
       } finally {
-        _iterator7.f();
+        _iterator9.f();
       }
       return merged;
     }

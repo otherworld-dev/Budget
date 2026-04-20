@@ -1223,6 +1223,30 @@ export default class CategoriesModule {
             console.error('Failed to fetch category spending:', error);
             this.categorySpending = {};
         }
+
+        // Aggregate children's spending into parent categories
+        this.aggregateParentSpending(this.categoryTree || []);
+    }
+
+    /**
+     * Recursively sum children's spending into parent categories.
+     */
+    aggregateParentSpending(categories) {
+        for (const category of categories) {
+            if (category.children && category.children.length > 0) {
+                // Recurse into children first
+                this.aggregateParentSpending(category.children);
+
+                // Sum all children's spending into this parent
+                let childTotal = 0;
+                for (const child of category.children) {
+                    childTotal += this.categorySpending[child.id] || 0;
+                }
+
+                // Add children's total to any direct spending on the parent itself
+                this.categorySpending[category.id] = (this.categorySpending[category.id] || 0) + childTotal;
+            }
+        }
     }
 
     renderBudgetTree() {

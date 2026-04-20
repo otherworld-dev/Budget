@@ -176,13 +176,16 @@ class TransactionMapper extends QBMapper {
      * Get aggregate summary (count + total) for a single category
      * @return array{count: int, total: float}
      */
-    public function getCategorySummary(string $userId, int $categoryId): array {
+    public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->func()->count('t.id'), 'count')
             ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
             ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // Use array of IDs (parent + children) if provided, otherwise single ID
+        $ids = $categoryIds ?? [$categoryId];
+        $qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
         $this->excludeScheduledFuture($qb);
@@ -201,9 +204,11 @@ class TransactionMapper extends QBMapper {
      * Get monthly spending breakdown for a single category
      * @return array<array{month: string, total: float, count: int}>
      */
-    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6): array {
+    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null): array {
         $startDate = date('Y-m-01', strtotime("-{$months} months"));
         $endDate = date('Y-m-d');
+
+        $ids = $categoryIds ?? [$categoryId];
 
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month'))
@@ -211,7 +216,7 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
