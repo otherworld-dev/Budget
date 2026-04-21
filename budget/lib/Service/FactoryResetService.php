@@ -8,6 +8,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\AssetMapper;
 use OCA\Budget\Db\AssetSnapshotMapper;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ContactMapper;
 use OCA\Budget\Db\ExpenseShareMapper;
@@ -48,6 +49,7 @@ class FactoryResetService {
         private NetWorthSnapshotMapper $netWorthSnapshotMapper,
         private AssetMapper $assetMapper,
         private AssetSnapshotMapper $assetSnapshotMapper,
+        private BudgetSnapshotMapper $budgetSnapshotMapper,
         private TagMapper $tagMapper,
         private IDBConnection $db
     ) {
@@ -94,6 +96,9 @@ class FactoryResetService {
 
             // Level 5: Tags (global tags won't cascade from category deletion)
             $counts['tags'] = $this->safeDelete($this->tagMapper, $userId);
+
+            // Level 5.5: Budget snapshots (depend on categories)
+            $counts['budgetSnapshots'] = $this->safeDelete($this->budgetSnapshotMapper, $userId);
 
             // Level 6: Categories (self-referential, but deleteAll handles it)
             $counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);

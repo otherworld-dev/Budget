@@ -6,6 +6,8 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\BudgetSnapshot;
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionTagMapper;
@@ -18,6 +20,7 @@ use OCP\IL10N;
  */
 class CategoryService extends AbstractCrudService {
     private TransactionMapper $transactionMapper;
+    private BudgetSnapshotMapper $budgetSnapshotMapper;
     private TagSetMapper $tagSetMapper;
     private TagMapper $tagMapper;
     private TransactionTagMapper $transactionTagMapper;
@@ -26,6 +29,7 @@ class CategoryService extends AbstractCrudService {
     public function __construct(
         CategoryMapper $mapper,
         TransactionMapper $transactionMapper,
+        BudgetSnapshotMapper $budgetSnapshotMapper,
         TagSetMapper $tagSetMapper,
         TagMapper $tagMapper,
         TransactionTagMapper $transactionTagMapper,
@@ -33,6 +37,7 @@ class CategoryService extends AbstractCrudService {
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
+        $this->budgetSnapshotMapper = $budgetSnapshotMapper;
         $this->tagSetMapper = $tagSetMapper;
         $this->tagMapper = $tagMapper;
         $this->transactionTagMapper = $transactionTagMapper;
@@ -122,6 +127,9 @@ class CategoryService extends AbstractCrudService {
         if (!empty($transactions)) {
             throw new \Exception($this->l->t('Cannot delete category with existing transactions'));
         }
+
+        // Cascade delete: Delete budget snapshots for this category
+        $this->budgetSnapshotMapper->deleteByCategory($entity->getId(), $userId);
 
         // Cascade delete: Delete all tag sets for this category
         $tagSets = $this->tagSetMapper->findByCategory($entity->getId(), $userId);
@@ -266,6 +274,141 @@ class CategoryService extends AbstractCrudService {
         ], $summary);
     }
 
+    /**
+     * Create a budget snapshot for the given month.
+     * Copies all current category budgets (or latest effective values) as a new baseline.
+     */
+    public function createBudgetSnapshot(string $userId, string $month): array {
+        // Don't create duplicate snapshots
+        if ($this->budgetSnapshotMapper->hasSnapshot($userId, $month)) {
+            throw new \Exception($this->l->t('A budget adjustment already exists for this month'));
+        }
+
+        $categories = $this->findAll($userId);
+        $now = (new \DateTime())->format('Y-m-d H:i:s');
+
+        // Get the effective budgets for this month (to snapshot from)
+        $effectiveBudgets = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $month);
+
+        $snapshots = [];
+        foreach ($categories as $category) {
+            $catId = $category->getId();
+
+            // Use effective snapshot value if one exists, otherwise use category default
+            if (isset($effectiveBudgets[$catId])) {
+                $amount = $effectiveBudgets[$catId]['amount'];
+                $period = $effectiveBudgets[$catId]['period'];
+            } else {
+                $amount = $category->getBudgetAmount();
+                $period = $category->getBudgetPeriod() ?? 'monthly';
+            }
+
+            $snapshot = new BudgetSnapshot();
+            $snapshot->setUserId($userId);
+            $snapshot->setCategoryId($catId);
+            $snapshot->setEffectiveFrom($month);
+            $snapshot->setAmount($amount);
+            $snapshot->setPeriod($period);
+            $snapshot->setCreatedAt($now);
+
+            $snapshots[] = $this->budgetSnapshotMapper->insert($snapshot);
+        }
+
+        return $snapshots;
+    }
+
+    /**
+     * Delete a budget snapshot for a given month.
+     */
+    public function deleteBudgetSnapshot(string $userId, string $month): void {
+        $this->budgetSnapshotMapper->deleteByMonth($userId, $month);
+    }
+
+    /**
+     * Get all snapshot months for a user.
+     *
+     * @return string[]
+     */
+    public function getSnapshotMonths(string $userId): array {
+        return $this->budgetSnapshotMapper->getSnapshotMonths($userId);
+    }
+
+    /**
+     * Check if a specific month has a snapshot.
+     */
+    public function hasSnapshot(string $userId, string $month): bool {
+        return $this->budgetSnapshotMapper->hasSnapshot($userId, $month);
+    }
+
+    /**
+     * Update a single category's budget within a snapshot month.
+     */
+    public function updateSnapshotBudget(string $userId, int $categoryId, string $month, ?float $amount, ?string $period = null): BudgetSnapshot {
+        $snapshots = $this->budgetSnapshotMapper->findByMonth($userId, $month);
+        foreach ($snapshots as $snapshot) {
+            if ($snapshot->getCategoryId() === $categoryId) {
+                if ($amount !== null) {
+                    $snapshot->setAmount($amount);
+                }
+                if ($period !== null) {
+                    $snapshot->setPeriod($period);
+                }
+                return $this->budgetSnapshotMapper->update($snapshot);
+            }
+        }
+
+        throw new \Exception($this->l->t('No budget snapshot found for this category and month'));
+    }
+
+    /**
+     * Resolve the effective budget for a category at a given month.
+     * Returns snapshot value if one applies, otherwise category default.
+     *
+     * @return array{amount: float|null, period: string}
+     */
+    public function resolveEffectiveBudget(int $categoryId, string $userId, string $month): array {
+        $snapshot = $this->budgetSnapshotMapper->findEffective($categoryId, $userId, $month);
+        if ($snapshot !== null) {
+            return [
+                'amount' => $snapshot->getAmount(),
+                'period' => $snapshot->getPeriod() ?? 'monthly',
+            ];
+        }
+
+        $category = $this->find($categoryId, $userId);
+        return [
+            'amount' => $category->getBudgetAmount(),
+            'period' => $category->getBudgetPeriod() ?? 'monthly',
+        ];
+    }
+
+    /**
+     * Batch-resolve effective budgets for all categories at a given month.
+     * Returns map of categoryId => ['amount' => float|null, 'period' => string].
+     */
+    public function resolveEffectiveBudgets(string $userId, string $month): array {
+        $categories = $this->findAll($userId);
+        $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $month);
+
+        $result = [];
+        foreach ($categories as $category) {
+            $catId = $category->getId();
+            if (isset($snapshotOverrides[$catId])) {
+                $result[$catId] = [
+                    'amount' => $snapshotOverrides[$catId]['amount'],
+                    'period' => $snapshotOverrides[$catId]['period'],
+                ];
+            } else {
+                $result[$catId] = [
+                    'amount' => $category->getBudgetAmount(),
+                    'period' => $category->getBudgetPeriod() ?? 'monthly',
+                ];
+            }
+        }
+
+        return $result;
+    }
+
     public function getBudgetAnalysis(string $userId, string $month = null): array {
         if (!$month) {
             $month = date('Y-m');
@@ -276,11 +419,16 @@ class CategoryService extends AbstractCrudService {
 
         $categories = $this->findAll($userId);
 
+        // Resolve effective budgets for this month (snapshot-aware)
+        $effectiveBudgets = $this->resolveEffectiveBudgets($userId, $month);
+
         // Collect category IDs with budgets for batch query
         $categoryIds = [];
         foreach ($categories as $category) {
-            if ($category->getBudgetAmount() > 0) {
-                $categoryIds[] = $category->getId();
+            $catId = $category->getId();
+            $budget = $effectiveBudgets[$catId]['amount'] ?? 0;
+            if ($budget > 0) {
+                $categoryIds[] = $catId;
             }
         }
 
@@ -291,9 +439,10 @@ class CategoryService extends AbstractCrudService {
 
         $analysis = [];
         foreach ($categories as $category) {
-            if ($category->getBudgetAmount() > 0) {
-                $spent = $spendingMap[$category->getId()] ?? 0.0;
-                $budget = $category->getBudgetAmount();
+            $catId = $category->getId();
+            $budget = (float) ($effectiveBudgets[$catId]['amount'] ?? 0);
+            if ($budget > 0) {
+                $spent = $spendingMap[$catId] ?? 0.0;
                 $remaining = $budget - $spent;
                 $percentage = $budget > 0 ? ($spent / $budget) * 100 : 0;
 

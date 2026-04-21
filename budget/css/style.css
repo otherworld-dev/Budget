@@ -8997,6 +8997,99 @@ button.danger:hover {
     margin-top: 2px;
 }
 
+/* Budget Snapshot Controls */
+.budget-snapshot-controls {
+    display: flex;
+    align-items: center;
+    margin-left: 12px;
+}
+
+.budget-snapshot-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--color-primary-element);
+    border-radius: var(--border-radius-pill);
+    background: transparent;
+    color: var(--color-primary-element);
+    font-size: 0.875rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.budget-snapshot-btn:hover {
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+}
+
+.budget-snapshot-notice {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--color-primary-element-light);
+    border-radius: var(--border-radius-pill);
+    font-size: 0.85rem;
+    color: var(--color-primary-element);
+    white-space: nowrap;
+}
+
+.budget-snapshot-notice .icon-info {
+    opacity: 0.7;
+}
+
+.budget-snapshot-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    display: inline-flex;
+    align-items: center;
+}
+
+.budget-snapshot-remove:hover {
+    opacity: 1;
+}
+
+/* Snapshot Undo Toast */
+.budget-snapshot-undo-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    border-radius: var(--border-radius-large);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10000;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.budget-snapshot-undo-toast.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.budget-snapshot-undo-toast .undo-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--color-primary-element);
+    border-radius: var(--border-radius);
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
 .budget-input {
     width: 100%;
     padding: 6px 8px;

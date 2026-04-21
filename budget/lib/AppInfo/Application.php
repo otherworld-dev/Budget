@@ -114,6 +114,11 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('CategoryMapper', \OCA\Budget\Db\CategoryMapper::class);
 
+        $context->registerService(\OCA\Budget\Db\BudgetSnapshotMapper::class, function($c) {
+            return new \OCA\Budget\Db\BudgetSnapshotMapper($c->get(\OCP\IDBConnection::class));
+        });
+        $context->registerServiceAlias('BudgetSnapshotMapper', \OCA\Budget\Db\BudgetSnapshotMapper::class);
+
         $context->registerService(\OCA\Budget\Db\BillMapper::class, function($c) {
             return new \OCA\Budget\Db\BillMapper($c->get(\OCP\IDBConnection::class));
         });
@@ -219,6 +224,7 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\BudgetSnapshotMapper::class),
                 $c->get(\OCA\Budget\Service\Report\ReportCalculator::class),
                 $c->get(\OCA\Budget\Service\CurrencyConversionService::class)
             );
@@ -326,6 +332,7 @@ class Application extends App implements IBootstrap {
             return new \OCA\Budget\Service\CategoryService(
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\BudgetSnapshotMapper::class),
                 $c->get(\OCA\Budget\Db\TagSetMapper::class),
                 $c->get(\OCA\Budget\Db\TagMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionTagMapper::class),
@@ -594,6 +601,7 @@ class Application extends App implements IBootstrap {
         $context->registerService(\OCA\Budget\Service\BudgetAlertService::class, function($c) {
             return new \OCA\Budget\Service\BudgetAlertService(
                 $c->get(\OCA\Budget\Db\CategoryMapper::class),
+                $c->get(\OCA\Budget\Db\BudgetSnapshotMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),
                 $c->get(\OCA\Budget\Db\TransactionSplitMapper::class),
                 $c->get(\OCA\Budget\Service\SettingService::class)

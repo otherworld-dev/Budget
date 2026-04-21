@@ -28582,6 +28582,8 @@ var CategoriesModule = /*#__PURE__*/function () {
               // Initialize budget state
               this.budgetType = this.budgetType || 'expense';
               this.budgetMonth = this.budgetMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+              this._snapshotMonths = this._snapshotMonths || [];
+              this._effectiveBudgets = null;
 
               // Setup event listeners on first load
               if (!this.budgetEventListenersSetup) {
@@ -28621,14 +28623,20 @@ var CategoriesModule = /*#__PURE__*/function () {
               console.error('Failed to load categories for budget:', _t0);
             case 6:
               _context9.n = 7;
-              return this.calculateCategorySpending();
+              return this.fetchEffectiveBudgets();
             case 7:
+              _context9.n = 8;
+              return this.calculateCategorySpending();
+            case 8:
               // Render the budget tree
               this.renderBudgetTree();
 
               // Update summary
               this.updateBudgetSummary();
-            case 8:
+
+              // Render snapshot controls
+              this.renderSnapshotControls();
+            case 9:
               return _context9.a(2);
           }
         }, _callee9, this, [[1, 5]]);
@@ -28639,9 +28647,307 @@ var CategoriesModule = /*#__PURE__*/function () {
       return loadBudgetView;
     }()
   }, {
+    key: "fetchEffectiveBudgets",
+    value: function () {
+      var _fetchEffectiveBudgets = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
+        var response, data, _response, _t1, _t10;
+        return _regenerator().w(function (_context0) {
+          while (1) switch (_context0.p = _context0.n) {
+            case 0:
+              _context0.p = 0;
+              _context0.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/budget-snapshots/".concat(this.budgetMonth, "/budgets")), {
+                headers: this.app.getAuthHeaders()
+              });
+            case 1:
+              response = _context0.v;
+              if (!response.ok) {
+                _context0.n = 3;
+                break;
+              }
+              _context0.n = 2;
+              return response.json();
+            case 2:
+              data = _context0.v;
+              this._effectiveBudgets = data.budgets || {};
+              this._currentMonthHasSnapshot = data.hasSnapshot || false;
+            case 3:
+              _context0.n = 5;
+              break;
+            case 4:
+              _context0.p = 4;
+              _t1 = _context0.v;
+              console.error('Failed to fetch effective budgets:', _t1);
+              this._effectiveBudgets = null;
+              this._currentMonthHasSnapshot = false;
+            case 5:
+              _context0.p = 5;
+              _context0.n = 6;
+              return fetch(OC.generateUrl('/apps/budget/api/budget-snapshots'), {
+                headers: this.app.getAuthHeaders()
+              });
+            case 6:
+              _response = _context0.v;
+              if (!_response.ok) {
+                _context0.n = 8;
+                break;
+              }
+              _context0.n = 7;
+              return _response.json();
+            case 7:
+              this._snapshotMonths = _context0.v;
+            case 8:
+              _context0.n = 10;
+              break;
+            case 9:
+              _context0.p = 9;
+              _t10 = _context0.v;
+              this._snapshotMonths = [];
+            case 10:
+              return _context0.a(2);
+          }
+        }, _callee0, this, [[5, 9], [0, 4]]);
+      }));
+      function fetchEffectiveBudgets() {
+        return _fetchEffectiveBudgets.apply(this, arguments);
+      }
+      return fetchEffectiveBudgets;
+    }()
+  }, {
+    key: "renderSnapshotControls",
+    value: function renderSnapshotControls() {
+      var _this1 = this;
+      var container = document.getElementById('budget-snapshot-controls');
+      if (!container) return;
+      var monthLabel = new Date(this.budgetMonth + '-01').toLocaleDateString(undefined, {
+        month: 'long',
+        year: 'numeric'
+      });
+      if (this._currentMonthHasSnapshot) {
+        var _container$querySelec;
+        // Show notice that this month has adjusted budgets
+        container.innerHTML = "\n                <div class=\"budget-snapshot-notice\">\n                    <span class=\"icon-info\" aria-hidden=\"true\"></span>\n                    <span>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budgets adjusted from {month}', {
+          month: monthLabel
+        }), "</span>\n                    <button class=\"budget-snapshot-remove\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Remove adjustment'), "\">\n                        <span class=\"icon-close\" aria-hidden=\"true\"></span>\n                    </button>\n                </div>\n            ");
+        (_container$querySelec = container.querySelector('.budget-snapshot-remove')) === null || _container$querySelec === void 0 || _container$querySelec.addEventListener('click', function () {
+          _this1.deleteSnapshot(_this1.budgetMonth);
+        });
+      } else {
+        var _container$querySelec2;
+        // Show button to create snapshot
+        container.innerHTML = "\n                <button class=\"budget-snapshot-btn\" id=\"budget-snapshot-create-btn\">\n                    <span class=\"icon-edit\" aria-hidden=\"true\"></span>\n                    ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Adjust budgets from this month'), "\n                </button>\n            ");
+        (_container$querySelec2 = container.querySelector('#budget-snapshot-create-btn')) === null || _container$querySelec2 === void 0 || _container$querySelec2.addEventListener('click', function () {
+          _this1.confirmCreateSnapshot();
+        });
+      }
+    }
+  }, {
+    key: "confirmCreateSnapshot",
+    value: function confirmCreateSnapshot() {
+      var _this10 = this;
+      var monthLabel = new Date(this.budgetMonth + '-01').toLocaleDateString(undefined, {
+        month: 'long',
+        year: 'numeric'
+      });
+      OC.dialogs.confirmDestructive((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'This will save the current budget values as a new baseline from {month} onwards. Previous months will keep their existing values. You can edit the new values after confirming.', {
+        month: monthLabel
+      }), (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Adjust budgets from {month}?', {
+        month: monthLabel
+      }), {
+        type: OC.dialogs.YES_NO_BUTTONS,
+        confirm: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Confirm'),
+        cancel: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Cancel')
+      }, /*#__PURE__*/function () {
+        var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(confirmed) {
+          return _regenerator().w(function (_context1) {
+            while (1) switch (_context1.n) {
+              case 0:
+                if (confirmed) {
+                  _context1.n = 1;
+                  break;
+                }
+                return _context1.a(2);
+              case 1:
+                _context1.n = 2;
+                return _this10.createSnapshot(_this10.budgetMonth);
+              case 2:
+                return _context1.a(2);
+            }
+          }, _callee1);
+        }));
+        return function (_x6) {
+          return _ref.apply(this, arguments);
+        };
+      }());
+    }
+  }, {
+    key: "createSnapshot",
+    value: function () {
+      var _createSnapshot = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(month) {
+        var response, monthLabel, data, _t11;
+        return _regenerator().w(function (_context10) {
+          while (1) switch (_context10.p = _context10.n) {
+            case 0:
+              _context10.p = 0;
+              _context10.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/budget-snapshots/".concat(month)), {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              response = _context10.v;
+              if (!response.ok) {
+                _context10.n = 3;
+                break;
+              }
+              this._currentMonthHasSnapshot = true;
+              if (!this._snapshotMonths.includes(month)) {
+                this._snapshotMonths.push(month);
+                this._snapshotMonths.sort().reverse();
+              }
+              _context10.n = 2;
+              return this.fetchEffectiveBudgets();
+            case 2:
+              this.renderBudgetTree();
+              this.updateBudgetSummary();
+              this.renderSnapshotControls();
+              monthLabel = new Date(month + '-01').toLocaleDateString(undefined, {
+                month: 'long',
+                year: 'numeric'
+              });
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', {
+                month: monthLabel
+              }));
+
+              // Undo toast
+              this._showSnapshotUndo(month);
+              _context10.n = 5;
+              break;
+            case 3:
+              _context10.n = 4;
+              return response.json()["catch"](function () {
+                return {};
+              });
+            case 4:
+              data = _context10.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(data.error || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to create budget adjustment'));
+            case 5:
+              _context10.n = 7;
+              break;
+            case 6:
+              _context10.p = 6;
+              _t11 = _context10.v;
+              console.error('Failed to create snapshot:', _t11);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to create budget adjustment'));
+            case 7:
+              return _context10.a(2);
+          }
+        }, _callee10, this, [[0, 6]]);
+      }));
+      function createSnapshot(_x7) {
+        return _createSnapshot.apply(this, arguments);
+      }
+      return createSnapshot;
+    }()
+  }, {
+    key: "_showSnapshotUndo",
+    value: function _showSnapshotUndo(month) {
+      var _this11 = this;
+      // Create undo notification
+      var undoEl = document.createElement('div');
+      undoEl.className = 'budget-snapshot-undo-toast';
+      undoEl.innerHTML = "\n            <span>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget adjustment created.'), "</span>\n            <button class=\"undo-btn\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Undo'), "</button>\n        ");
+      document.body.appendChild(undoEl);
+
+      // Show with animation
+      requestAnimationFrame(function () {
+        return undoEl.classList.add('visible');
+      });
+      var cleanup = function cleanup() {
+        undoEl.classList.remove('visible');
+        setTimeout(function () {
+          return undoEl.remove();
+        }, 300);
+      };
+      undoEl.querySelector('.undo-btn').addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
+        return _regenerator().w(function (_context11) {
+          while (1) switch (_context11.n) {
+            case 0:
+              cleanup();
+              _context11.n = 1;
+              return _this11.deleteSnapshot(month);
+            case 1:
+              return _context11.a(2);
+          }
+        }, _callee11);
+      })));
+
+      // Auto-dismiss after 8 seconds
+      setTimeout(cleanup, 8000);
+    }
+  }, {
+    key: "deleteSnapshot",
+    value: function () {
+      var _deleteSnapshot = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(month) {
+        var response, _t12;
+        return _regenerator().w(function (_context12) {
+          while (1) switch (_context12.p = _context12.n) {
+            case 0:
+              _context12.p = 0;
+              _context12.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/budget-snapshots/".concat(month)), {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              response = _context12.v;
+              if (!response.ok) {
+                _context12.n = 3;
+                break;
+              }
+              this._currentMonthHasSnapshot = false;
+              this._snapshotMonths = this._snapshotMonths.filter(function (m) {
+                return m !== month;
+              });
+              _context12.n = 2;
+              return this.fetchEffectiveBudgets();
+            case 2:
+              this.renderBudgetTree();
+              this.updateBudgetSummary();
+              this.renderSnapshotControls();
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget adjustment removed'));
+              _context12.n = 4;
+              break;
+            case 3:
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to remove budget adjustment'));
+            case 4:
+              _context12.n = 6;
+              break;
+            case 5:
+              _context12.p = 5;
+              _t12 = _context12.v;
+              console.error('Failed to delete snapshot:', _t12);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to remove budget adjustment'));
+            case 6:
+              return _context12.a(2);
+          }
+        }, _callee12, this, [[0, 5]]);
+      }));
+      function deleteSnapshot(_x8) {
+        return _deleteSnapshot.apply(this, arguments);
+      }
+      return deleteSnapshot;
+    }()
+  }, {
     key: "setupBudgetEventListeners",
     value: function setupBudgetEventListeners() {
-      var _this1 = this;
+      var _this12 = this;
       // Budget type tabs
       document.querySelectorAll('.budget-tabs .tab-button').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
@@ -28649,9 +28955,9 @@ var CategoriesModule = /*#__PURE__*/function () {
             return b.classList.remove('active');
           });
           e.currentTarget.classList.add('active');
-          _this1.budgetType = e.currentTarget.dataset.budgetType;
-          _this1.renderBudgetTree();
-          _this1.updateBudgetSummary();
+          _this12.budgetType = e.currentTarget.dataset.budgetType;
+          _this12.renderBudgetTree();
+          _this12.updateBudgetSummary();
         });
       });
 
@@ -28659,23 +28965,27 @@ var CategoriesModule = /*#__PURE__*/function () {
       var monthSelect = document.getElementById('budget-month');
       if (monthSelect) {
         monthSelect.addEventListener('change', /*#__PURE__*/function () {
-          var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(e) {
-            return _regenerator().w(function (_context0) {
-              while (1) switch (_context0.n) {
+          var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(e) {
+            return _regenerator().w(function (_context13) {
+              while (1) switch (_context13.n) {
                 case 0:
-                  _this1.budgetMonth = e.target.value;
-                  _context0.n = 1;
-                  return _this1.calculateCategorySpending();
+                  _this12.budgetMonth = e.target.value;
+                  _context13.n = 1;
+                  return _this12.fetchEffectiveBudgets();
                 case 1:
-                  _this1.renderBudgetTree();
-                  _this1.updateBudgetSummary();
+                  _context13.n = 2;
+                  return _this12.calculateCategorySpending();
                 case 2:
-                  return _context0.a(2);
+                  _this12.renderBudgetTree();
+                  _this12.updateBudgetSummary();
+                  _this12.renderSnapshotControls();
+                case 3:
+                  return _context13.a(2);
               }
-            }, _callee0);
+            }, _callee13);
           }));
-          return function (_x6) {
-            return _ref.apply(this, arguments);
+          return function (_x9) {
+            return _ref3.apply(this, arguments);
           };
         }());
       }
@@ -28684,14 +28994,14 @@ var CategoriesModule = /*#__PURE__*/function () {
       var goToCategoriesBtn = document.getElementById('empty-budget-go-categories-btn');
       if (goToCategoriesBtn) {
         goToCategoriesBtn.addEventListener('click', function () {
-          _this1.app.router.showView('categories');
+          _this12.app.router.showView('categories');
         });
       }
     }
   }, {
     key: "populateBudgetMonthSelector",
     value: function populateBudgetMonthSelector() {
-      var _this10 = this;
+      var _this13 = this;
       var monthSelect = document.getElementById('budget-month');
       if (!monthSelect) return;
 
@@ -28711,17 +29021,17 @@ var CategoriesModule = /*#__PURE__*/function () {
         });
       }
       monthSelect.innerHTML = options.map(function (opt) {
-        return "<option value=\"".concat(opt.value, "\" ").concat(opt.value === _this10.budgetMonth ? 'selected' : '', ">").concat(opt.label, "</option>");
+        return "<option value=\"".concat(opt.value, "\" ").concat(opt.value === _this13.budgetMonth ? 'selected' : '', ">").concat(opt.label, "</option>");
       }).join('');
     }
   }, {
     key: "calculateCategorySpending",
     value: function () {
-      var _calculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
-        var _this11 = this;
-        var allCategories, categoriesByPeriod, _loop, _i, _Object$entries, _t1;
-        return _regenerator().w(function (_context10) {
-          while (1) switch (_context10.p = _context10.n) {
+      var _calculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
+        var _this14 = this;
+        var allCategories, categoriesByPeriod, _loop, _i, _Object$entries, _t13;
+        return _regenerator().w(function (_context15) {
+          while (1) switch (_context15.p = _context15.n) {
             case 0:
               // Initialize spending object and reset own-spending baseline
               this.categorySpending = {};
@@ -28730,10 +29040,10 @@ var CategoriesModule = /*#__PURE__*/function () {
               // Get all categories (not just ones with budgets — parents need children's spending)
               allCategories = this.flattenCategories(this.categoryTree || []);
               if (!(allCategories.length === 0)) {
-                _context10.n = 1;
+                _context15.n = 1;
                 break;
               }
-              return _context10.a(2);
+              return _context15.a(2);
             case 1:
               // Group categories by their period to minimize API calls
               categoriesByPeriod = {
@@ -28750,83 +29060,83 @@ var CategoriesModule = /*#__PURE__*/function () {
               });
 
               // Fetch spending for each period
-              _context10.p = 2;
+              _context15.p = 2;
               _loop = /*#__PURE__*/_regenerator().m(function _loop() {
-                var _this11$app$settings;
+                var _this14$app$settings;
                 var _Object$entries$_i, period, categoryIds, startDay, referenceDate, dateRange, response, spendingData;
-                return _regenerator().w(function (_context1) {
-                  while (1) switch (_context1.n) {
+                return _regenerator().w(function (_context14) {
+                  while (1) switch (_context14.n) {
                     case 0:
                       _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2), period = _Object$entries$_i[0], categoryIds = _Object$entries$_i[1];
                       if (!(categoryIds.length === 0)) {
-                        _context1.n = 1;
+                        _context14.n = 1;
                         break;
                       }
-                      return _context1.a(2, 1);
+                      return _context14.a(2, 1);
                     case 1:
                       // Get date range for this period
-                      startDay = period === 'monthly' ? parseInt(((_this11$app$settings = _this11.app.settings) === null || _this11$app$settings === void 0 ? void 0 : _this11$app$settings.budget_start_day) || '1', 10) : 1; // Use selected budget month as reference date (1st of month)
-                      referenceDate = _this11.budgetMonth ? "".concat(_this11.budgetMonth, "-15") : null;
+                      startDay = period === 'monthly' ? parseInt(((_this14$app$settings = _this14.app.settings) === null || _this14$app$settings === void 0 ? void 0 : _this14$app$settings.budget_start_day) || '1', 10) : 1; // Use selected budget month as reference date (1st of month)
+                      referenceDate = _this14.budgetMonth ? "".concat(_this14.budgetMonth, "-15") : null;
                       dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay, referenceDate); // Fetch spending for this period
-                      _context1.n = 2;
+                      _context14.n = 2;
                       return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
                         headers: {
                           'requesttoken': OC.requestToken
                         }
                       });
                     case 2:
-                      response = _context1.v;
+                      response = _context14.v;
                       if (!response.ok) {
-                        _context1.n = 4;
+                        _context14.n = 4;
                         break;
                       }
-                      _context1.n = 3;
+                      _context14.n = 3;
                       return response.json();
                     case 3:
-                      spendingData = _context1.v;
+                      spendingData = _context14.v;
                       // Map spending to categories
                       spendingData.forEach(function (item) {
                         if (categoryIds.includes(item.categoryId)) {
-                          _this11.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
+                          _this14.categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
                         }
                       });
                     case 4:
-                      return _context1.a(2);
+                      return _context14.a(2);
                   }
                 }, _loop);
               });
               _i = 0, _Object$entries = Object.entries(categoriesByPeriod);
             case 3:
               if (!(_i < _Object$entries.length)) {
-                _context10.n = 6;
+                _context15.n = 6;
                 break;
               }
-              return _context10.d(_regeneratorValues(_loop()), 4);
+              return _context15.d(_regeneratorValues(_loop()), 4);
             case 4:
-              if (!_context10.v) {
-                _context10.n = 5;
+              if (!_context15.v) {
+                _context15.n = 5;
                 break;
               }
-              return _context10.a(3, 5);
+              return _context15.a(3, 5);
             case 5:
               _i++;
-              _context10.n = 3;
+              _context15.n = 3;
               break;
             case 6:
-              _context10.n = 8;
+              _context15.n = 8;
               break;
             case 7:
-              _context10.p = 7;
-              _t1 = _context10.v;
-              console.error('Failed to fetch category spending:', _t1);
+              _context15.p = 7;
+              _t13 = _context15.v;
+              console.error('Failed to fetch category spending:', _t13);
               this.categorySpending = {};
             case 8:
               // Aggregate children's spending into parent categories
               this.aggregateParentSpending(this.categoryTree || []);
             case 9:
-              return _context10.a(2);
+              return _context15.a(2);
           }
-        }, _callee1, this, [[2, 7]]);
+        }, _callee14, this, [[2, 7]]);
       }));
       function calculateCategorySpending() {
         return _calculateCategorySpending.apply(this, arguments);
@@ -28866,7 +29176,7 @@ var CategoriesModule = /*#__PURE__*/function () {
               for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
                 var child = _step5.value;
                 childSpentTotal += this.categorySpending[child.id] || 0;
-                childBudgetTotal += parseFloat(child.budgetAmount) || 0;
+                childBudgetTotal += this._getEffectiveBudgetAmount(child.id, child.budgetAmount);
               }
 
               // Own spending + children's spending (idempotent)
@@ -28878,7 +29188,8 @@ var CategoriesModule = /*#__PURE__*/function () {
             this.categorySpending[category.id] = this._ownSpending[category.id] + childSpentTotal;
 
             // Store aggregated budget: parent's own budget + children's budgets
-            category._aggregatedBudget = (parseFloat(category.budgetAmount) || 0) + childBudgetTotal;
+            var ownBudget = this._getEffectiveBudgetAmount(category.id, category.budgetAmount);
+            category._aggregatedBudget = ownBudget + childBudgetTotal;
           }
         }
       } catch (err) {
@@ -28887,10 +29198,34 @@ var CategoriesModule = /*#__PURE__*/function () {
         _iterator4.f();
       }
     }
+
+    /**
+     * Get the effective budget amount for a category, considering snapshots.
+     */
+  }, {
+    key: "_getEffectiveBudgetAmount",
+    value: function _getEffectiveBudgetAmount(categoryId, fallback) {
+      if (this._effectiveBudgets && this._effectiveBudgets[categoryId]) {
+        return parseFloat(this._effectiveBudgets[categoryId].amount) || 0;
+      }
+      return parseFloat(fallback) || 0;
+    }
+
+    /**
+     * Get the effective budget period for a category, considering snapshots.
+     */
+  }, {
+    key: "_getEffectiveBudgetPeriod",
+    value: function _getEffectiveBudgetPeriod(categoryId, fallback) {
+      if (this._effectiveBudgets && this._effectiveBudgets[categoryId]) {
+        return this._effectiveBudgets[categoryId].period || 'monthly';
+      }
+      return fallback || 'monthly';
+    }
   }, {
     key: "renderBudgetTree",
     value: function renderBudgetTree() {
-      var _this12 = this;
+      var _this15 = this;
       var treeContainer = document.getElementById('budget-tree');
       var emptyState = document.getElementById('empty-budget');
       var headerEl = document.querySelector('.budget-tree-header');
@@ -28898,7 +29233,7 @@ var CategoriesModule = /*#__PURE__*/function () {
 
       // Filter categories by type
       var filteredCategories = (this.categoryTree || []).filter(function (cat) {
-        return cat.type === _this12.budgetType;
+        return cat.type === _this15.budgetType;
       });
       if (filteredCategories.length === 0) {
         treeContainer.innerHTML = '';
@@ -28916,41 +29251,39 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "renderBudgetCategoryNodes",
     value: function renderBudgetCategoryNodes(categories) {
-      var _this13 = this;
+      var _this16 = this;
       var level = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
       return categories.map(function (category) {
         var hasChildren = category.children && category.children.length > 0;
 
-        // Get category's budget period (defaults to monthly if not set)
-        var categoryPeriod = category.budgetPeriod || 'monthly';
+        // Get effective budget (snapshot-aware)
+        var effectiveBudgetAmount = _this16._getEffectiveBudgetAmount(category.id, category.budgetAmount);
+        var effectivePeriod = _this16._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
 
         // Get spending for this category (already calculated for the period)
-        var spent = _this13.categorySpending[category.id] || 0;
+        var spent = _this16.categorySpending[category.id] || 0;
 
-        // Get the stored budget amount
-        var storedBudget = parseFloat(category.budgetAmount) || 0;
-
-        // For parents, use aggregated budget (own + children's); for leaves, use stored budget
-        var budget = hasChildren && category._aggregatedBudget != null ? category._aggregatedBudget : storedBudget;
+        // For parents, use aggregated budget (own + children's); for leaves, use effective budget
+        var budget = hasChildren && category._aggregatedBudget != null ? category._aggregatedBudget : effectiveBudgetAmount;
         var remaining = budget - spent;
         var percentage = budget > 0 ? Math.min(spent / budget * 100, 100) : 0;
         var progressStatus = 'good';
         if (percentage >= 100) progressStatus = 'over';else if (percentage >= 80) progressStatus = 'danger';else if (percentage >= 60) progressStatus = 'warning';
         var remainingClass = remaining > 0 ? 'positive' : remaining < 0 ? 'negative' : 'zero';
-        return "\n                <div class=\"budget-category-row ".concat(hasChildren ? 'parent-row' : '', "\" data-category-id=\"").concat(category.id, "\">\n                    <div class=\"budget-category-name level-").concat(level, "\" data-label=\"\">\n                        <span class=\"category-color\" style=\"background-color: ").concat(category.color || '#3b82f6', "\"></span>\n                        <span class=\"category-label\">").concat(category.name, "</span>\n                    </div>\n                    <div class=\"budget-input-wrapper\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget'), "\">\n                        <input type=\"number\"\n                               class=\"budget-input\"\n                               data-category-id=\"").concat(category.id, "\"\n                               value=\"").concat(storedBudget ? Math.round(storedBudget * 100) / 100 : '', "\"\n                               placeholder=\"0.00\"\n                               step=\"0.01\"\n                               min=\"0\">\n                        ").concat(hasChildren && budget > storedBudget ? "<span class=\"budget-aggregate-hint\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Total'), ": ").concat(_this13.formatCurrency(budget), "</span>") : '', "\n                    </div>\n                    <div data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Period'), "\">\n                        <select class=\"budget-period-select\" data-category-id=\"").concat(category.id, "\">\n                            <option value=\"monthly\" ").concat(category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Monthly'), "</option>\n                            <option value=\"weekly\" ").concat(category.budgetPeriod === 'weekly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Weekly'), "</option>\n                            <option value=\"quarterly\" ").concat(category.budgetPeriod === 'quarterly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Quarterly'), "</option>\n                            <option value=\"yearly\" ").concat(category.budgetPeriod === 'yearly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Yearly'), "</option>\n                        </select>\n                    </div>\n                    <div class=\"budget-spent\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Spent'), "\">\n                        ").concat(_this13.formatCurrency(spent), "\n                    </div>\n                    <div class=\"budget-remaining ").concat(remainingClass, "\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Remaining'), "\">\n                        ").concat(budget > 0 ? _this13.formatCurrency(remaining) : '<span class="no-budget">—</span>', "\n                    </div>\n                    <div class=\"budget-progress-wrapper\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Progress'), "\">\n                        ").concat(budget > 0 ? "\n                            <div class=\"budget-progress-bar\">\n                                <div class=\"budget-progress-fill ".concat(progressStatus, "\" style=\"width: ").concat(percentage, "%\"></div>\n                            </div>\n                            <span class=\"budget-progress-text\">").concat(Math.round(percentage), "%</span>\n                        ") : "<span class=\"no-budget\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'No budget set'), "</span>"), "\n                    </div>\n                </div>\n                ").concat(hasChildren ? _this13.renderBudgetCategoryNodes(category.children, level + 1) : '', "\n            ");
+        return "\n                <div class=\"budget-category-row ".concat(hasChildren ? 'parent-row' : '', "\" data-category-id=\"").concat(category.id, "\">\n                    <div class=\"budget-category-name level-").concat(level, "\" data-label=\"\">\n                        <span class=\"category-color\" style=\"background-color: ").concat(category.color || '#3b82f6', "\"></span>\n                        <span class=\"category-label\">").concat(category.name, "</span>\n                    </div>\n                    <div class=\"budget-input-wrapper\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget'), "\">\n                        <input type=\"number\"\n                               class=\"budget-input\"\n                               data-category-id=\"").concat(category.id, "\"\n                               value=\"").concat(effectiveBudgetAmount ? Math.round(effectiveBudgetAmount * 100) / 100 : '', "\"\n                               placeholder=\"0.00\"\n                               step=\"0.01\"\n                               min=\"0\">\n                        ").concat(hasChildren && budget > effectiveBudgetAmount ? "<span class=\"budget-aggregate-hint\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Total'), ": ").concat(_this16.formatCurrency(budget), "</span>") : '', "\n                    </div>\n                    <div data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Period'), "\">\n                        <select class=\"budget-period-select\" data-category-id=\"").concat(category.id, "\">\n                            <option value=\"monthly\" ").concat(effectivePeriod === 'monthly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Monthly'), "</option>\n                            <option value=\"weekly\" ").concat(effectivePeriod === 'weekly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Weekly'), "</option>\n                            <option value=\"quarterly\" ").concat(effectivePeriod === 'quarterly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Quarterly'), "</option>\n                            <option value=\"yearly\" ").concat(effectivePeriod === 'yearly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Yearly'), "</option>\n                        </select>\n                    </div>\n                    <div class=\"budget-spent\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Spent'), "\">\n                        ").concat(_this16.formatCurrency(spent), "\n                    </div>\n                    <div class=\"budget-remaining ").concat(remainingClass, "\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Remaining'), "\">\n                        ").concat(budget > 0 ? _this16.formatCurrency(remaining) : '<span class="no-budget">—</span>', "\n                    </div>\n                    <div class=\"budget-progress-wrapper\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Progress'), "\">\n                        ").concat(budget > 0 ? "\n                            <div class=\"budget-progress-bar\">\n                                <div class=\"budget-progress-fill ".concat(progressStatus, "\" style=\"width: ").concat(percentage, "%\"></div>\n                            </div>\n                            <span class=\"budget-progress-text\">").concat(Math.round(percentage), "%</span>\n                        ") : "<span class=\"no-budget\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'No budget set'), "</span>"), "\n                    </div>\n                </div>\n                ").concat(hasChildren ? _this16.renderBudgetCategoryNodes(category.children, level + 1) : '', "\n            ");
       }).join('');
     }
   }, {
     key: "setupBudgetInlineEditing",
     value: function setupBudgetInlineEditing() {
-      var _this14 = this;
+      var _this17 = this;
       // Budget amount inputs
       document.querySelectorAll('.budget-input').forEach(function (input) {
         var debounceTimer;
         input.addEventListener('change', function (e) {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(function () {
-            _this14.saveCategoryBudget(e.target.dataset.categoryId, {
+            _this17.saveCategoryBudget(e.target.dataset.categoryId, {
               budgetAmount: e.target.value || null
             });
           }, 300);
@@ -28960,43 +29293,43 @@ var CategoriesModule = /*#__PURE__*/function () {
       // Period selects
       document.querySelectorAll('.budget-period-select').forEach(function (select) {
         select.addEventListener('change', /*#__PURE__*/function () {
-          var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(e) {
+          var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(e) {
             var _e$target$querySelect;
             var categoryId, newPeriod, oldPeriod, category, currentBudget, currentPeriod, proratedBudget;
-            return _regenerator().w(function (_context11) {
-              while (1) switch (_context11.n) {
+            return _regenerator().w(function (_context16) {
+              while (1) switch (_context16.n) {
                 case 0:
                   categoryId = parseInt(e.target.dataset.categoryId);
                   newPeriod = e.target.value;
                   oldPeriod = e.target.dataset.oldPeriod || ((_e$target$querySelect = e.target.querySelector('option[selected]')) === null || _e$target$querySelect === void 0 ? void 0 : _e$target$querySelect.value) || 'monthly'; // Find the category to get current budget amount
-                  category = _this14.findCategoryById(categoryId);
+                  category = _this17.findCategoryById(categoryId);
                   if (category) {
-                    _context11.n = 1;
+                    _context16.n = 1;
                     break;
                   }
-                  return _context11.a(2);
+                  return _context16.a(2);
                 case 1:
-                  currentBudget = parseFloat(category.budgetAmount) || 0;
-                  currentPeriod = category.budgetPeriod || 'monthly'; // Pro-rate budget from current period to new period
+                  currentBudget = _this17._getEffectiveBudgetAmount(categoryId, category.budgetAmount);
+                  currentPeriod = _this17._getEffectiveBudgetPeriod(categoryId, category.budgetPeriod); // Pro-rate budget from current period to new period
                   proratedBudget = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.prorateBudget(currentBudget, currentPeriod, newPeriod); // Save both the new period and pro-rated amount
-                  _context11.n = 2;
-                  return _this14.saveCategoryBudget(categoryId, {
+                  _context16.n = 2;
+                  return _this17.saveCategoryBudget(categoryId, {
                     budgetPeriod: newPeriod,
                     budgetAmount: proratedBudget
                   });
                 case 2:
-                  _context11.n = 3;
-                  return _this14.recalculateCategorySpending(categoryId, newPeriod);
+                  _context16.n = 3;
+                  return _this17.recalculateCategorySpending(categoryId, newPeriod);
                 case 3:
                   // Update old period data attribute for next change
                   e.target.dataset.oldPeriod = newPeriod;
                 case 4:
-                  return _context11.a(2);
+                  return _context16.a(2);
               }
-            }, _callee10);
+            }, _callee15);
           }));
-          return function (_x7) {
-            return _ref2.apply(this, arguments);
+          return function (_x0) {
+            return _ref4.apply(this, arguments);
           };
         }());
       });
@@ -29004,31 +29337,31 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "recalculateCategorySpending",
     value: function () {
-      var _recalculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(categoryId, period) {
-        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t10;
-        return _regenerator().w(function (_context12) {
-          while (1) switch (_context12.p = _context12.n) {
+      var _recalculateCategorySpending = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(categoryId, period) {
+        var _this$app$settings, startDay, dateRange, response, spendingData, categorySpending, spent, _t14;
+        return _regenerator().w(function (_context17) {
+          while (1) switch (_context17.p = _context17.n) {
             case 0:
-              _context12.p = 0;
+              _context17.p = 0;
               // Get date range for the period
               startDay = period === 'monthly' ? parseInt(((_this$app$settings = this.app.settings) === null || _this$app$settings === void 0 ? void 0 : _this$app$settings.budget_start_day) || '1', 10) : 1;
               dateRange = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getPeriodDateRange(period, startDay); // Fetch spending for this category in the period
-              _context12.n = 1;
+              _context17.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(dateRange.start, "&endDate=").concat(dateRange.end)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context12.v;
+              response = _context17.v;
               if (!response.ok) {
-                _context12.n = 3;
+                _context17.n = 3;
                 break;
               }
-              _context12.n = 2;
+              _context17.n = 2;
               return response.json();
             case 2:
-              spendingData = _context12.v;
+              spendingData = _context17.v;
               // Find this category's spending in the response
               categorySpending = spendingData.find(function (item) {
                 return item.categoryId === categoryId;
@@ -29040,18 +29373,18 @@ var CategoriesModule = /*#__PURE__*/function () {
               this.renderBudgetTree();
               this.updateBudgetSummary();
             case 3:
-              _context12.n = 5;
+              _context17.n = 5;
               break;
             case 4:
-              _context12.p = 4;
-              _t10 = _context12.v;
-              console.error('Failed to recalculate spending:', _t10);
+              _context17.p = 4;
+              _t14 = _context17.v;
+              console.error('Failed to recalculate spending:', _t14);
             case 5:
-              return _context12.a(2);
+              return _context17.a(2);
           }
-        }, _callee11, this, [[0, 4]]);
+        }, _callee16, this, [[0, 4]]);
       }));
-      function recalculateCategorySpending(_x8, _x9) {
+      function recalculateCategorySpending(_x1, _x10) {
         return _recalculateCategorySpending.apply(this, arguments);
       }
       return recalculateCategorySpending;
@@ -29059,19 +29392,41 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "saveCategoryBudget",
     value: function () {
-      var _saveCategoryBudget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(categoryId, updates) {
-        var response, category, errorMessage, errorData, _t11, _t12;
-        return _regenerator().w(function (_context13) {
-          while (1) switch (_context13.p = _context13.n) {
+      var _saveCategoryBudget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(categoryId, updates) {
+        var response, snapshotPayload, category, errorMessage, errorData, _t15, _t16;
+        return _regenerator().w(function (_context18) {
+          while (1) switch (_context18.p = _context18.n) {
             case 0:
-              _context13.p = 0;
+              _context18.p = 0;
               // Convert empty string or null to 0 for budgetAmount
               if ('budgetAmount' in updates && (updates.budgetAmount === null || updates.budgetAmount === '')) {
                 updates.budgetAmount = 0;
               } else if ('budgetAmount' in updates) {
                 updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
               }
-              _context13.n = 1;
+              if (!this._currentMonthHasSnapshot) {
+                _context18.n = 2;
+                break;
+              }
+              // Save to snapshot API
+              snapshotPayload = {};
+              if ('budgetAmount' in updates) snapshotPayload.amount = updates.budgetAmount;
+              if ('budgetPeriod' in updates) snapshotPayload.period = updates.budgetPeriod;
+              _context18.n = 1;
+              return fetch(OC.generateUrl("/apps/budget/api/budget-snapshots/".concat(this.budgetMonth, "/categories/").concat(categoryId)), {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify(snapshotPayload)
+              });
+            case 1:
+              response = _context18.v;
+              _context18.n = 4;
+              break;
+            case 2:
+              _context18.n = 3;
               return fetch(OC.generateUrl("/apps/budget/api/categories/".concat(categoryId)), {
                 method: 'PUT',
                 headers: {
@@ -29080,16 +29435,35 @@ var CategoriesModule = /*#__PURE__*/function () {
                 },
                 body: JSON.stringify(updates)
               });
-            case 1:
-              response = _context13.v;
+            case 3:
+              response = _context18.v;
+            case 4:
               if (!response.ok) {
-                _context13.n = 3;
+                _context18.n = 6;
                 break;
               }
               // Update local data
               category = this.findCategoryById(parseInt(categoryId));
               if (category) {
-                Object.assign(category, updates);
+                if (!this._currentMonthHasSnapshot) {
+                  Object.assign(category, updates);
+                }
+              }
+
+              // Update effective budgets cache locally
+              if (this._effectiveBudgets) {
+                if (!this._effectiveBudgets[categoryId]) {
+                  this._effectiveBudgets[categoryId] = {
+                    amount: 0,
+                    period: 'monthly'
+                  };
+                }
+                if ('budgetAmount' in updates) {
+                  this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
+                }
+                if ('budgetPeriod' in updates) {
+                  this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
+                }
               }
 
               // Re-aggregate parent budgets and re-render
@@ -29099,50 +29473,50 @@ var CategoriesModule = /*#__PURE__*/function () {
 
               // Refresh dashboard if currently viewing it
               if (!(window.location.hash === '' || window.location.hash === '#/dashboard')) {
-                _context13.n = 2;
+                _context18.n = 5;
                 break;
               }
-              _context13.n = 2;
+              _context18.n = 5;
               return this.app.loadDashboard();
-            case 2:
+            case 5:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget updated'));
-              _context13.n = 8;
+              _context18.n = 11;
               break;
-            case 3:
+            case 6:
               // Try to get detailed error message
               errorMessage = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to update budget');
-              _context13.p = 4;
-              _context13.n = 5;
+              _context18.p = 7;
+              _context18.n = 8;
               return response.json();
-            case 5:
-              errorData = _context13.v;
+            case 8:
+              errorData = _context18.v;
               if (errorData.error) {
                 errorMessage = errorData.error;
               }
-              _context13.n = 7;
-              break;
-            case 6:
-              _context13.p = 6;
-              _t11 = _context13.v;
-              errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
-            case 7:
-              throw new Error(errorMessage);
-            case 8:
-              _context13.n = 10;
+              _context18.n = 10;
               break;
             case 9:
-              _context13.p = 9;
-              _t12 = _context13.v;
-              console.error('Failed to save budget:', _t12);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to update budget: {message}', {
-                message: _t12.message
-              }));
+              _context18.p = 9;
+              _t15 = _context18.v;
+              errorMessage = "HTTP ".concat(response.status, ": ").concat(response.statusText);
             case 10:
-              return _context13.a(2);
+              throw new Error(errorMessage);
+            case 11:
+              _context18.n = 13;
+              break;
+            case 12:
+              _context18.p = 12;
+              _t16 = _context18.v;
+              console.error('Failed to save budget:', _t16);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Failed to update budget: {message}', {
+                message: _t16.message
+              }));
+            case 13:
+              return _context18.a(2);
           }
-        }, _callee12, this, [[4, 6], [0, 9]]);
+        }, _callee17, this, [[7, 9], [0, 12]]);
       }));
-      function saveCategoryBudget(_x0, _x1) {
+      function saveCategoryBudget(_x11, _x12) {
         return _saveCategoryBudget.apply(this, arguments);
       }
       return saveCategoryBudget;
@@ -29150,19 +29524,19 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "updateBudgetSummary",
     value: function updateBudgetSummary() {
-      var _this15 = this;
+      var _this18 = this;
       var categories = this.flattenCategories(this.categoryTree || []).filter(function (cat) {
-        return cat.type === _this15.budgetType;
+        return cat.type === _this18.budgetType;
       });
       var totalBudgeted = 0;
       var totalSpent = 0;
       var categoriesWithBudget = 0;
       categories.forEach(function (cat) {
-        var budget = parseFloat(cat.budgetAmount) || 0;
-        var period = cat.budgetPeriod || 'monthly';
+        var budget = _this18._getEffectiveBudgetAmount(cat.id, cat.budgetAmount);
+        var period = _this18._getEffectiveBudgetPeriod(cat.id, cat.budgetPeriod);
         // Normalize to monthly so the summary cards stay consistent
         var monthlyBudget = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.prorateBudget(budget, period, 'monthly');
-        var spent = _this15.categorySpending[cat.id] || 0;
+        var spent = _this18.categorySpending[cat.id] || 0;
         if (budget > 0) {
           totalBudgeted += monthlyBudget;
           categoriesWithBudget++;
@@ -29184,12 +29558,12 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "flattenCategories",
     value: function flattenCategories(categories) {
-      var _this16 = this;
+      var _this19 = this;
       var result = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
       categories.forEach(function (cat) {
         result.push(cat);
         if (cat.children && cat.children.length > 0) {
-          _this16.flattenCategories(cat.children, result);
+          _this19.flattenCategories(cat.children, result);
         }
       });
       return result;
@@ -29208,7 +29582,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "mergeCategoryTree",
     value: function mergeCategoryTree(tree) {
-      var _this17 = this;
+      var _this20 = this;
       var own = tree.filter(function (cat) {
         return !cat._shared;
       });
@@ -29232,7 +29606,7 @@ var CategoriesModule = /*#__PURE__*/function () {
             usedSharedIds.add(match.id);
             // Use the shared version (has budget amounts etc) but merge children
             var mergedCat = _objectSpread({}, match);
-            mergedCat.children = _this17.mergeChildren(ownCat.children || [], match.children || []);
+            mergedCat.children = _this20.mergeChildren(ownCat.children || [], match.children || []);
             merged.push(mergedCat);
           } else {
             // No shared match — keep own category as-is
@@ -29273,7 +29647,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "mergeChildren",
     value: function mergeChildren(ownChildren, sharedChildren) {
-      var _this18 = this;
+      var _this21 = this;
       if (sharedChildren.length === 0) return ownChildren;
       if (ownChildren.length === 0) return sharedChildren;
       var merged = [];
@@ -29290,7 +29664,7 @@ var CategoriesModule = /*#__PURE__*/function () {
             usedSharedIds.add(match.id);
             // Use shared version, recursively merge grandchildren
             var mergedChild = _objectSpread({}, match);
-            mergedChild.children = _this18.mergeChildren(ownChild.children || [], match.children || []);
+            mergedChild.children = _this21.mergeChildren(ownChild.children || [], match.children || []);
             merged.push(mergedChild);
           } else {
             // Own child not shared — keep it
