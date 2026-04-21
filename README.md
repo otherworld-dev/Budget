@@ -8,11 +8,11 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.12.0
+## What's New in v2.13
 
-- **Unrealised P&L** - Investment and crypto accounts now display unrealised profit/loss based on current market value vs cost basis (#59)
-- **Interest Accrual** - Automatic interest calculation and accrual for loan and credit card accounts (#73)
-- **German Translation** - German now available via Weblate
+- **Per-Month Budget Adjustments** - Budget values can now differ between months. Click "Adjust budgets from this month" to create a new baseline while preserving previous months' values
+- **Parent Category Budget Aggregation** - Parent categories show combined totals of their own budget plus all children's budgets
+- **Income Budget Tracking** - Budget tab now correctly tracks income categories alongside expenses
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
@@ -51,8 +51,10 @@ See the [full changelog](budget/CHANGELOG.md) for details.
 
 ### Budgeting & Planning
 - **Budget Tracking** - Set spending limits by category with alerts when approaching or exceeding budgets
+  - Per-month budget adjustments — change budgets from any month forward without affecting historical data
   - Dynamic period switching (weekly, monthly, quarterly, yearly)
   - Automatic pro-rating when changing budget periods
+  - Parent category aggregation — parent budgets show combined totals with children
   - Real-time progress tracking with visual indicators
 - **Balance Forecasting** - Predict future balances using trend analysis and scenario modeling
 - **Recurring Bills** - Detect and track recurring payments
@@ -276,6 +278,7 @@ The app provides a REST API for all functionality:
 | `/api/accounts` | Account management |
 | `/api/transactions` | Transaction CRUD and search |
 | `/api/categories` | Category hierarchy |
+| `/api/budget-snapshots` | Per-month budget adjustments |
 | `/api/tag-sets` | Tag set management |
 | `/api/import` | Bank statement import |
 | `/api/import-rules` | Advanced auto-categorization rules |
