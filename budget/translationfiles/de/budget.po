@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-04-19 11:09+0000\n"
-"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
+"PO-Revision-Date: 2026-04-21 21:09+0000\n"
+"Last-Translator: Jakob <git@jakob-info.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -79,13 +79,13 @@ msgstr "Kontoinhaber"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:327
 #, php-format
 msgid "Invalid routing number: %1$s"
-msgstr ""
+msgstr "Falsche USA-Bankleitzahl: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:206
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:340
 #, php-format
 msgid "Invalid sort code: %1$s"
-msgstr ""
+msgstr "Ungültige Bankleitzahl: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:214
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:353
@@ -287,19 +287,19 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:378
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Die Vermögensprognose konnte nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:390
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Die aggregierte Anlagensprognose konnte nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:410
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Der Verlauf des Anlagenwertes konnte nicht geladen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AuthController.php:71
 msgid "Failed to get auth status"
-msgstr ""
+msgstr "Der Authentifizierungsstatus konnte nicht ermittelt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AuthController.php:85
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AuthController.php:214
@@ -399,7 +399,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:229
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:394
 msgid "Reminder days must be between 0 and 30"
-msgstr ""
+msgstr "Der Erinnerungszeitraum muss zwischen 0 und 30 liegen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:242
 msgid "Transaction date"
@@ -431,7 +431,7 @@ msgstr "Rechnung konnte nicht als bezahlt markiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:581
 msgid "Missing previous state"
-msgstr ""
+msgstr "Vorheriger Zustand fehlt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:595
 msgid "Failed to undo mark as paid"
@@ -440,57 +440,58 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:612
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:935
 msgid "Failed to skip bill payment"
-msgstr ""
+msgstr "Rechnungszahlung konnte nicht übersprungen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:628
 msgid "Missing previous due date"
-msgstr ""
+msgstr "Vorheriger Stichtag fehlt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:634
 msgid "Failed to undo skip"
-msgstr ""
+msgstr "Überspringen könnte nicht rückgängig gemacht werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:648
 msgid "Failed to retrieve upcoming bills"
-msgstr ""
+msgstr "Anstehende Rechnungen konnten nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:662
 msgid "Failed to retrieve bills due this month"
 msgstr ""
+"Rechnungen, die diesen Monat fällig sind, konnten nicht ermittelt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:676
 msgid "Failed to retrieve overdue bills"
-msgstr ""
+msgstr "Überfällige Rechnungen konnten nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:689
 msgid "Failed to retrieve bill summary"
-msgstr ""
+msgstr "Rechnungszusammenfassung konnte nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:702
 msgid "Failed to retrieve bill status"
-msgstr ""
+msgstr "Status der Rechnung konnte nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:715
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:1056
 msgid "Failed to detect recurring bills"
-msgstr ""
+msgstr "Wiederkehrende Rechnungen konnten nicht ermittelt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:737
 msgid "Failed to create bills from detected patterns"
-msgstr ""
+msgstr "Erstellen von Rechnungen aus erkannten Mustern schlug fehl"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:752
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:785
 msgid "Invalid year"
-msgstr ""
+msgstr "Ungültiges Jahr"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:767
 msgid "Failed to generate annual overview"
-msgstr ""
+msgstr "Jahresüberblick konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:808
 msgid "Failed to export bills calendar"
-msgstr ""
+msgstr "Export des Rechnungskalender schlug fehl"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:950
 msgid "Split template must have at least 2 splits"
@@ -507,58 +508,64 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:974
 msgid "Invalid JSON in custom recurrence pattern"
 msgstr ""
+"Ungültiges JSON in benutzerdefiniertem Muster zur Erkennung von "
+"wiederkehrenden Ereignissen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:981
 msgid "Custom recurrence pattern must be a JSON object"
 msgstr ""
+"Muster zur Erkennung von wiederkehrenden Ereignissen muss ein JSON-Objekt "
+"sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:990
 msgid "Months must be an array"
-msgstr ""
+msgstr "„Monate“ muss eine Liste bzw. ein Array sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:997
 msgid "At least one month must be specified"
-msgstr ""
+msgstr "Es muss mindestens ein Monat angegeben werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1005
 msgid "Each month must be a number between 1 and 12"
-msgstr ""
+msgstr "Jeder Monat muss eine Zahl zwischen 1 und 12 sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1018
 msgid "Dates must be an array"
-msgstr ""
+msgstr "„Daten“ muss eine Liste bzw. ein Array sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1025
 msgid "At least one date must be specified"
-msgstr ""
+msgstr "Es muss mindestens ein Datum angegeben werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1033
 msgid "Each date must have \"month\" and \"day\" fields"
-msgstr ""
+msgstr "Jedes Datum braucht einen Tag und einen Monat"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1040
 msgid "Month must be a number between 1 and 12"
-msgstr ""
+msgstr "„Monat“ muss eine Zahl zwischen 1 und 12 sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1047
 msgid "Day must be a number between 1 and 31"
-msgstr ""
+msgstr "„Tag“ muss eine Zahl zwischen 1 und 31 sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:1057
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
+"Das benutzerdefinierte Muster muss entweder ein „Monate“-Feld oder „Daten“-"
+"Feld enthalten"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:76
 msgid "Failed to retrieve categories"
-msgstr ""
+msgstr "Kategorien konnten nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:113
 msgid "Failed to retrieve category tree"
-msgstr ""
+msgstr "Der Kategorien-Baum konnte nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:125
 msgid "Failed to retrieve transaction counts"
-msgstr ""
+msgstr "Die Anzahl an Transaktionen konnte nicht ermittelt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:137
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:336
@@ -604,29 +611,31 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:847
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:851
 msgid "Failed to delete category"
-msgstr ""
+msgstr "Das Löschen der Kategorie schlug fehl"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:312
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:324
 msgid "Failed to retrieve category spending"
-msgstr ""
+msgstr "Die Ausgabenkategorie konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:58
 msgid "Failed to retrieve debts"
-msgstr ""
+msgstr "Die Schulden konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:79
 msgid "Failed to retrieve debt summary"
-msgstr ""
+msgstr "Die Schuldenzusammenfassung konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:96
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
 msgstr ""
+"Ungültige Schuldenabbaustrategie. Nur Lawinen- oder Schneball-Methode stehen "
+"zur Verfügung"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:104
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:135
 msgid "Extra payment cannot be negative"
-msgstr ""
+msgstr "Zusatzzahlungen können nicht negativ sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:118
 #: /tmp/budget-v2.11.0/budget/src/main.js:2507
