@@ -1075,6 +1075,8 @@ export default class CategoriesModule {
         // Initialize budget state
         this.budgetType = this.budgetType || 'expense';
         this.budgetMonth = this.budgetMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+        this._snapshotMonths = this._snapshotMonths || [];
+        this._effectiveBudgets = null;
 
         // Setup event listeners on first load
         if (!this.budgetEventListenersSetup) {
@@ -1101,6 +1103,9 @@ export default class CategoriesModule {
             console.error('Failed to load categories for budget:', error);
         }
 
+        // Fetch effective budgets for this month (snapshot-aware)
+        await this.fetchEffectiveBudgets();
+
         // Calculate spending for each category
         await this.calculateCategorySpending();
 
@@ -1109,6 +1114,182 @@ export default class CategoriesModule {
 
         // Update summary
         this.updateBudgetSummary();
+
+        // Render snapshot controls
+        this.renderSnapshotControls();
+    }
+
+    async fetchEffectiveBudgets() {
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/budget-snapshots/${this.budgetMonth}/budgets`),
+                { headers: this.app.getAuthHeaders() }
+            );
+            if (response.ok) {
+                const data = await response.json();
+                this._effectiveBudgets = data.budgets || {};
+                this._currentMonthHasSnapshot = data.hasSnapshot || false;
+            }
+        } catch (error) {
+            console.error('Failed to fetch effective budgets:', error);
+            this._effectiveBudgets = null;
+            this._currentMonthHasSnapshot = false;
+        }
+
+        // Also fetch snapshot months list
+        try {
+            const response = await fetch(
+                OC.generateUrl('/apps/budget/api/budget-snapshots'),
+                { headers: this.app.getAuthHeaders() }
+            );
+            if (response.ok) {
+                this._snapshotMonths = await response.json();
+            }
+        } catch (error) {
+            this._snapshotMonths = [];
+        }
+    }
+
+    renderSnapshotControls() {
+        const container = document.getElementById('budget-snapshot-controls');
+        if (!container) return;
+
+        const monthLabel = new Date(this.budgetMonth + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+        if (this._currentMonthHasSnapshot) {
+            // Show notice that this month has adjusted budgets
+            container.innerHTML = `
+                <div class="budget-snapshot-notice">
+                    <span class="icon-info" aria-hidden="true"></span>
+                    <span>${t('budget', 'Budgets adjusted from {month}', { month: monthLabel })}</span>
+                    <button class="budget-snapshot-remove" title="${t('budget', 'Remove adjustment')}">
+                        <span class="icon-close" aria-hidden="true"></span>
+                    </button>
+                </div>
+            `;
+            container.querySelector('.budget-snapshot-remove')?.addEventListener('click', () => {
+                this.deleteSnapshot(this.budgetMonth);
+            });
+        } else {
+            // Show button to create snapshot
+            container.innerHTML = `
+                <button class="budget-snapshot-btn" id="budget-snapshot-create-btn">
+                    <span class="icon-edit" aria-hidden="true"></span>
+                    ${t('budget', 'Adjust budgets from this month')}
+                </button>
+            `;
+            container.querySelector('#budget-snapshot-create-btn')?.addEventListener('click', () => {
+                this.confirmCreateSnapshot();
+            });
+        }
+    }
+
+    confirmCreateSnapshot() {
+        const monthLabel = new Date(this.budgetMonth + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+        OC.dialogs.confirmDestructive(
+            t('budget', 'This will save the current budget values as a new baseline from {month} onwards. Previous months will keep their existing values. You can edit the new values after confirming.', { month: monthLabel }),
+            t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
+            {
+                type: OC.dialogs.YES_NO_BUTTONS,
+                confirm: t('budget', 'Confirm'),
+                cancel: t('budget', 'Cancel'),
+            },
+            async (confirmed) => {
+                if (!confirmed) return;
+                await this.createSnapshot(this.budgetMonth);
+            }
+        );
+    }
+
+    async createSnapshot(month) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (response.ok) {
+                this._currentMonthHasSnapshot = true;
+                if (!this._snapshotMonths.includes(month)) {
+                    this._snapshotMonths.push(month);
+                    this._snapshotMonths.sort().reverse();
+                }
+                await this.fetchEffectiveBudgets();
+                this.renderBudgetTree();
+                this.updateBudgetSummary();
+                this.renderSnapshotControls();
+
+                const monthLabel = new Date(month + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+                showSuccess(t('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', { month: monthLabel }));
+
+                // Undo toast
+                this._showSnapshotUndo(month);
+            } else {
+                const data = await response.json().catch(() => ({}));
+                showError(data.error || t('budget', 'Failed to create budget adjustment'));
+            }
+        } catch (error) {
+            console.error('Failed to create snapshot:', error);
+            showError(t('budget', 'Failed to create budget adjustment'));
+        }
+    }
+
+    _showSnapshotUndo(month) {
+        // Create undo notification
+        const undoEl = document.createElement('div');
+        undoEl.className = 'budget-snapshot-undo-toast';
+        undoEl.innerHTML = `
+            <span>${t('budget', 'Budget adjustment created.')}</span>
+            <button class="undo-btn">${t('budget', 'Undo')}</button>
+        `;
+        document.body.appendChild(undoEl);
+
+        // Show with animation
+        requestAnimationFrame(() => undoEl.classList.add('visible'));
+
+        const cleanup = () => {
+            undoEl.classList.remove('visible');
+            setTimeout(() => undoEl.remove(), 300);
+        };
+
+        undoEl.querySelector('.undo-btn').addEventListener('click', async () => {
+            cleanup();
+            await this.deleteSnapshot(month);
+        });
+
+        // Auto-dismiss after 8 seconds
+        setTimeout(cleanup, 8000);
+    }
+
+    async deleteSnapshot(month) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}`), {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (response.ok) {
+                this._currentMonthHasSnapshot = false;
+                this._snapshotMonths = this._snapshotMonths.filter(m => m !== month);
+                await this.fetchEffectiveBudgets();
+                this.renderBudgetTree();
+                this.updateBudgetSummary();
+                this.renderSnapshotControls();
+                showSuccess(t('budget', 'Budget adjustment removed'));
+            } else {
+                showError(t('budget', 'Failed to remove budget adjustment'));
+            }
+        } catch (error) {
+            console.error('Failed to delete snapshot:', error);
+            showError(t('budget', 'Failed to remove budget adjustment'));
+        }
     }
 
     setupBudgetEventListeners() {
@@ -1128,9 +1309,11 @@ export default class CategoriesModule {
         if (monthSelect) {
             monthSelect.addEventListener('change', async (e) => {
                 this.budgetMonth = e.target.value;
+                await this.fetchEffectiveBudgets();
                 await this.calculateCategorySpending();
                 this.renderBudgetTree();
                 this.updateBudgetSummary();
+                this.renderSnapshotControls();
             });
         }
 
@@ -1175,24 +1358,23 @@ export default class CategoriesModule {
             return;
         }
 
-        // Group categories by their period to minimize API calls
-        const categoriesByPeriod = {
-            weekly: [],
-            monthly: [],
-            quarterly: [],
-            yearly: []
-        };
+        // Group categories by period and type to minimize API calls
+        // Income categories need credit transactions, expense categories need debit
+        const groups = {};
 
         allCategories.forEach(cat => {
             const period = cat.budgetPeriod || 'monthly';
-            if (categoriesByPeriod[period]) {
-                categoriesByPeriod[period].push(cat.id);
+            const txType = cat.type === 'income' ? 'credit' : 'debit';
+            const key = `${period}:${txType}`;
+            if (!groups[key]) {
+                groups[key] = { period, txType, categoryIds: [] };
             }
+            groups[key].categoryIds.push(cat.id);
         });
 
-        // Fetch spending for each period
+        // Fetch spending for each period+type group
         try {
-            for (const [period, categoryIds] of Object.entries(categoriesByPeriod)) {
+            for (const { period, txType, categoryIds } of Object.values(groups)) {
                 if (categoryIds.length === 0) continue;
 
                 // Get date range for this period
@@ -1201,9 +1383,9 @@ export default class CategoriesModule {
                 const referenceDate = this.budgetMonth ? `${this.budgetMonth}-15` : null;
                 const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
 
-                // Fetch spending for this period
+                // Fetch spending for this period and transaction type
                 const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}`),
+                    OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`),
                     {
                         headers: { 'requesttoken': OC.requestToken }
                     }
@@ -1251,16 +1433,37 @@ export default class CategoriesModule {
                 let childBudgetTotal = 0;
                 for (const child of category.children) {
                     childSpentTotal += this.categorySpending[child.id] || 0;
-                    childBudgetTotal += parseFloat(child.budgetAmount) || 0;
+                    childBudgetTotal += this._getEffectiveBudgetAmount(child.id, child.budgetAmount);
                 }
 
                 // Own spending + children's spending (idempotent)
                 this.categorySpending[category.id] = this._ownSpending[category.id] + childSpentTotal;
 
                 // Store aggregated budget: parent's own budget + children's budgets
-                category._aggregatedBudget = (parseFloat(category.budgetAmount) || 0) + childBudgetTotal;
+                const ownBudget = this._getEffectiveBudgetAmount(category.id, category.budgetAmount);
+                category._aggregatedBudget = ownBudget + childBudgetTotal;
             }
         }
+    }
+
+    /**
+     * Get the effective budget amount for a category, considering snapshots.
+     */
+    _getEffectiveBudgetAmount(categoryId, fallback) {
+        if (this._effectiveBudgets && this._effectiveBudgets[categoryId]) {
+            return parseFloat(this._effectiveBudgets[categoryId].amount) || 0;
+        }
+        return parseFloat(fallback) || 0;
+    }
+
+    /**
+     * Get the effective budget period for a category, considering snapshots.
+     */
+    _getEffectiveBudgetPeriod(categoryId, fallback) {
+        if (this._effectiveBudgets && this._effectiveBudgets[categoryId]) {
+            return this._effectiveBudgets[categoryId].period || 'monthly';
+        }
+        return fallback || 'monthly';
     }
 
     renderBudgetTree() {
@@ -1293,19 +1496,17 @@ export default class CategoriesModule {
         return categories.map(category => {
             const hasChildren = category.children && category.children.length > 0;
 
-            // Get category's budget period (defaults to monthly if not set)
-            const categoryPeriod = category.budgetPeriod || 'monthly';
+            // Get effective budget (snapshot-aware)
+            const effectiveBudgetAmount = this._getEffectiveBudgetAmount(category.id, category.budgetAmount);
+            const effectivePeriod = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
 
             // Get spending for this category (already calculated for the period)
             const spent = this.categorySpending[category.id] || 0;
 
-            // Get the stored budget amount
-            const storedBudget = parseFloat(category.budgetAmount) || 0;
-
-            // For parents, use aggregated budget (own + children's); for leaves, use stored budget
+            // For parents, use aggregated budget (own + children's); for leaves, use effective budget
             const budget = (hasChildren && category._aggregatedBudget != null)
                 ? category._aggregatedBudget
-                : storedBudget;
+                : effectiveBudgetAmount;
 
             const remaining = budget - spent;
             const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
@@ -1327,18 +1528,18 @@ export default class CategoriesModule {
                         <input type="number"
                                class="budget-input"
                                data-category-id="${category.id}"
-                               value="${storedBudget ? Math.round(storedBudget * 100) / 100 : ''}"
+                               value="${effectiveBudgetAmount ? Math.round(effectiveBudgetAmount * 100) / 100 : ''}"
                                placeholder="0.00"
                                step="0.01"
                                min="0">
-                        ${hasChildren && budget > storedBudget ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
+                        ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
                         <select class="budget-period-select" data-category-id="${category.id}">
-                            <option value="monthly" ${category.budgetPeriod === 'monthly' || !category.budgetPeriod ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
-                            <option value="weekly" ${category.budgetPeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
-                            <option value="quarterly" ${category.budgetPeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
-                            <option value="yearly" ${category.budgetPeriod === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
+                            <option value="monthly" ${effectivePeriod === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
+                            <option value="weekly" ${effectivePeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
+                            <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
+                            <option value="yearly" ${effectivePeriod === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                         </select>
                     </div>
                     <div class="budget-spent" data-label="${t('budget', 'Spent')}">
@@ -1386,8 +1587,8 @@ export default class CategoriesModule {
                 const category = this.findCategoryById(categoryId);
                 if (!category) return;
 
-                const currentBudget = parseFloat(category.budgetAmount) || 0;
-                const currentPeriod = category.budgetPeriod || 'monthly';
+                const currentBudget = this._getEffectiveBudgetAmount(categoryId, category.budgetAmount);
+                const currentPeriod = this._getEffectiveBudgetPeriod(categoryId, category.budgetPeriod);
 
                 // Pro-rate budget from current period to new period
                 const proratedBudget = formatters.prorateBudget(currentBudget, currentPeriod, newPeriod);
@@ -1449,20 +1650,57 @@ export default class CategoriesModule {
                 updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
             }
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(updates)
-            });
+            let response;
+
+            if (this._currentMonthHasSnapshot) {
+                // Save to snapshot API
+                const snapshotPayload = {};
+                if ('budgetAmount' in updates) snapshotPayload.amount = updates.budgetAmount;
+                if ('budgetPeriod' in updates) snapshotPayload.period = updates.budgetPeriod;
+
+                response = await fetch(
+                    OC.generateUrl(`/apps/budget/api/budget-snapshots/${this.budgetMonth}/categories/${categoryId}`),
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'requesttoken': OC.requestToken
+                        },
+                        body: JSON.stringify(snapshotPayload)
+                    }
+                );
+            } else {
+                // Save to category directly (default behaviour)
+                response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify(updates)
+                });
+            }
 
             if (response.ok) {
                 // Update local data
                 const category = this.findCategoryById(parseInt(categoryId));
                 if (category) {
-                    Object.assign(category, updates);
+                    if (!this._currentMonthHasSnapshot) {
+                        Object.assign(category, updates);
+                    }
+                }
+
+                // Update effective budgets cache locally
+                if (this._effectiveBudgets) {
+                    if (!this._effectiveBudgets[categoryId]) {
+                        this._effectiveBudgets[categoryId] = { amount: 0, period: 'monthly' };
+                    }
+                    if ('budgetAmount' in updates) {
+                        this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
+                    }
+                    if ('budgetPeriod' in updates) {
+                        this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
+                    }
                 }
 
                 // Re-aggregate parent budgets and re-render
@@ -1504,8 +1742,8 @@ export default class CategoriesModule {
         let categoriesWithBudget = 0;
 
         categories.forEach(cat => {
-            const budget = parseFloat(cat.budgetAmount) || 0;
-            const period = cat.budgetPeriod || 'monthly';
+            const budget = this._getEffectiveBudgetAmount(cat.id, cat.budgetAmount);
+            const period = this._getEffectiveBudgetPeriod(cat.id, cat.budgetPeriod);
             // Normalize to monthly so the summary cards stay consistent
             const monthlyBudget = formatters.prorateBudget(budget, period, 'monthly');
             const spent = this.categorySpending[cat.id] || 0;

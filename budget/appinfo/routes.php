@@ -77,6 +77,13 @@ return [
         ['name' => 'category#update', 'url' => '/api/categories/{id}', 'verb' => 'PUT'],
         ['name' => 'category#destroy', 'url' => '/api/categories/{id}', 'verb' => 'DELETE'],
 
+        // Budget snapshot routes
+        ['name' => 'category#snapshotMonths', 'url' => '/api/budget-snapshots', 'verb' => 'GET'],
+        ['name' => 'category#effectiveBudgets', 'url' => '/api/budget-snapshots/{month}/budgets', 'verb' => 'GET'],
+        ['name' => 'category#createSnapshot', 'url' => '/api/budget-snapshots/{month}', 'verb' => 'POST'],
+        ['name' => 'category#deleteSnapshot', 'url' => '/api/budget-snapshots/{month}', 'verb' => 'DELETE'],
+        ['name' => 'category#updateSnapshotBudget', 'url' => '/api/budget-snapshots/{month}/categories/{categoryId}', 'verb' => 'PUT'],
+
         // Tag Set routes
         ['name' => 'tagSet#index', 'url' => '/api/tag-sets', 'verb' => 'GET'],
         ['name' => 'tagSet#create', 'url' => '/api/tag-sets', 'verb' => 'POST'],

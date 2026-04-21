@@ -1894,6 +1894,9 @@ style('budget', 'budget-main');
                             <!-- Populated dynamically -->
                         </select>
                     </div>
+                    <div id="budget-snapshot-controls" class="budget-snapshot-controls">
+                        <!-- Populated dynamically: button or notice -->
+                    </div>
                 </div>
             </div>
 

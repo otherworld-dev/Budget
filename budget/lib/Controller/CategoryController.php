@@ -303,10 +303,14 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function allSpending(string $startDate, string $endDate): DataResponse {
+    public function allSpending(string $startDate, string $endDate, string $transactionType = 'debit'): DataResponse {
         try {
+            // Validate transaction type
+            if (!in_array($transactionType, ['debit', 'credit'], true)) {
+                $transactionType = 'debit';
+            }
             $visibleAccountIds = $this->getVisibleAccountIds();
-            $spending = $this->service->getAllCategorySpending($this->userId, $startDate, $endDate, $visibleAccountIds);
+            $spending = $this->service->getAllCategorySpending($this->userId, $startDate, $endDate, $visibleAccountIds, $transactionType);
             return new DataResponse($spending);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve category spending'));
@@ -346,6 +350,106 @@ class CategoryController extends Controller {
             return new DataResponse($transactions);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
+        }
+    }
+
+    /**
+     * Create a budget snapshot for a given month.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function createSnapshot(string $month): DataResponse {
+        try {
+            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $snapshots = $this->service->createBudgetSnapshot($this->userId, $month);
+            return new DataResponse([
+                'status' => 'success',
+                'month' => $month,
+                'count' => count($snapshots),
+            ], Http::STATUS_CREATED);
+        } catch (\Exception $e) {
+            return $this->handleValidationError($e);
+        }
+    }
+
+    /**
+     * Delete a budget snapshot for a given month.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function deleteSnapshot(string $month): DataResponse {
+        try {
+            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $this->service->deleteBudgetSnapshot($this->userId, $month);
+            return new DataResponse(['status' => 'success']);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to delete budget snapshot'));
+        }
+    }
+
+    /**
+     * Get all snapshot months for the user.
+     * @NoAdminRequired
+     */
+    public function snapshotMonths(): DataResponse {
+        try {
+            $months = $this->service->getSnapshotMonths($this->userId);
+            return new DataResponse($months);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to retrieve snapshot months'));
+        }
+    }
+
+    /**
+     * Get resolved effective budgets for a given month.
+     * @NoAdminRequired
+     */
+    public function effectiveBudgets(string $month): DataResponse {
+        try {
+            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $hasSnapshot = $this->service->hasSnapshot($this->userId, $month);
+            $budgets = $this->service->resolveEffectiveBudgets($this->userId, $month);
+            return new DataResponse([
+                'month' => $month,
+                'hasSnapshot' => $hasSnapshot,
+                'budgets' => $budgets,
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to retrieve effective budgets'));
+        }
+    }
+
+    /**
+     * Update a single category budget within a snapshot.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function updateSnapshotBudget(string $month, int $categoryId, ?float $amount = null, ?string $period = null): DataResponse {
+        try {
+            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+            }
+
+            if ($period !== null) {
+                $validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
+                if (!in_array($period, $validPeriods, true)) {
+                    return new DataResponse(['error' => $this->l->t('Invalid budget period')], Http::STATUS_BAD_REQUEST);
+                }
+            }
+
+            $snapshot = $this->service->updateSnapshotBudget($this->userId, $categoryId, $month, $amount, $period);
+            return new DataResponse($snapshot);
+        } catch (\Exception $e) {
+            return $this->handleValidationError($e);
         }
     }
 }

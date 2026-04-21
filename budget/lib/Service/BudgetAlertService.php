@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 
 class BudgetAlertService {
     private CategoryMapper $categoryMapper;
+    private BudgetSnapshotMapper $budgetSnapshotMapper;
     private TransactionMapper $transactionMapper;
     private TransactionSplitMapper $splitMapper;
     private SettingService $settingService;
@@ -20,11 +22,13 @@ class BudgetAlertService {
 
     public function __construct(
         CategoryMapper $categoryMapper,
+        BudgetSnapshotMapper $budgetSnapshotMapper,
         TransactionMapper $transactionMapper,
         TransactionSplitMapper $splitMapper,
         SettingService $settingService
     ) {
         $this->categoryMapper = $categoryMapper;
+        $this->budgetSnapshotMapper = $budgetSnapshotMapper;
         $this->transactionMapper = $transactionMapper;
         $this->splitMapper = $splitMapper;
         $this->settingService = $settingService;
@@ -38,9 +42,22 @@ class BudgetAlertService {
     public function getAlerts(string $userId): array {
         $alerts = [];
 
-        // Get all categories with budgets
+        // Get all categories and resolve effective budgets for current month
         $categories = $this->categoryMapper->findAll($userId);
-        $categoriesWithBudgets = array_filter($categories, fn($c) => $c->getBudgetAmount() > 0);
+        $currentMonth = date('Y-m');
+        $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
+
+        // Filter to categories with effective budgets > 0
+        $categoriesWithBudgets = [];
+        foreach ($categories as $category) {
+            $catId = $category->getId();
+            $amount = isset($snapshotOverrides[$catId])
+                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
+                : (float) ($category->getBudgetAmount() ?? 0);
+            if ($amount > 0) {
+                $categoriesWithBudgets[] = $category;
+            }
+        }
 
         if (empty($categoriesWithBudgets)) {
             return [];
@@ -51,8 +68,13 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
-            $period = $category->getBudgetPeriod() ?? 'monthly';
-            $budget = (float) $category->getBudgetAmount();
+            $catId = $category->getId();
+            $period = isset($snapshotOverrides[$catId])
+                ? ($snapshotOverrides[$catId]['period'] ?? 'monthly')
+                : ($category->getBudgetPeriod() ?? 'monthly');
+            $budget = isset($snapshotOverrides[$catId])
+                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
+                : (float) ($category->getBudgetAmount() ?? 0);
 
             if (!isset($periodRanges[$period])) {
                 continue;
@@ -112,7 +134,20 @@ class BudgetAlertService {
         $statuses = [];
 
         $categories = $this->categoryMapper->findAll($userId);
-        $categoriesWithBudgets = array_filter($categories, fn($c) => $c->getBudgetAmount() > 0);
+        $currentMonth = date('Y-m');
+        $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
+
+        // Filter to categories with effective budgets > 0
+        $categoriesWithBudgets = [];
+        foreach ($categories as $category) {
+            $catId = $category->getId();
+            $amount = isset($snapshotOverrides[$catId])
+                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
+                : (float) ($category->getBudgetAmount() ?? 0);
+            if ($amount > 0) {
+                $categoriesWithBudgets[] = $category;
+            }
+        }
 
         if (empty($categoriesWithBudgets)) {
             return [];
@@ -122,8 +157,13 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
-            $period = $category->getBudgetPeriod() ?? 'monthly';
-            $budget = (float) $category->getBudgetAmount();
+            $catId = $category->getId();
+            $period = isset($snapshotOverrides[$catId])
+                ? ($snapshotOverrides[$catId]['period'] ?? 'monthly')
+                : ($category->getBudgetPeriod() ?? 'monthly');
+            $budget = isset($snapshotOverrides[$catId])
+                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
+                : (float) ($category->getBudgetAmount() ?? 0);
 
             if (!isset($periodRanges[$period])) {
                 continue;

@@ -7,6 +7,7 @@ namespace OCA\Budget\Service\Report;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Service\CurrencyConversionService;
 
 /**
@@ -17,6 +18,7 @@ class ReportAggregator {
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
+    private BudgetSnapshotMapper $budgetSnapshotMapper;
     private ReportCalculator $calculator;
     private CurrencyConversionService $conversionService;
 
@@ -24,12 +26,14 @@ class ReportAggregator {
         AccountMapper $accountMapper,
         TransactionMapper $transactionMapper,
         CategoryMapper $categoryMapper,
+        BudgetSnapshotMapper $budgetSnapshotMapper,
         ReportCalculator $calculator,
         CurrencyConversionService $conversionService
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
         $this->categoryMapper = $categoryMapper;
+        $this->budgetSnapshotMapper = $budgetSnapshotMapper;
         $this->calculator = $calculator;
         $this->conversionService = $conversionService;
     }
@@ -294,11 +298,21 @@ class ReportAggregator {
             'remaining' => 0
         ];
 
-        // Collect category IDs that have budgets
+        // Resolve effective budgets for the report month (snapshot-aware)
+        $reportMonth = substr($startDate, 0, 7); // YYYY-MM from startDate
+        $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $reportMonth);
+
+        // Collect category IDs that have budgets (considering snapshots)
         $categoryIds = [];
+        $resolvedBudgets = [];
         foreach ($categories as $category) {
-            if ($category->getBudgetAmount() > 0) {
-                $categoryIds[] = $category->getId();
+            $catId = $category->getId();
+            $budgeted = isset($snapshotOverrides[$catId])
+                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
+                : (float) ($category->getBudgetAmount() ?? 0);
+            if ($budgeted > 0) {
+                $categoryIds[] = $catId;
+                $resolvedBudgets[$catId] = $budgeted;
             }
         }
 
@@ -306,11 +320,11 @@ class ReportAggregator {
         $categorySpending = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $startDate, $endDate);
 
         foreach ($categories as $category) {
-            if ($category->getBudgetAmount() > 0) {
-                $categoryId = $category->getId();
+            $categoryId = $category->getId();
+            if (isset($resolvedBudgets[$categoryId])) {
                 $spent = $categorySpending[$categoryId] ?? 0;
 
-                $budgeted = $category->getBudgetAmount();
+                $budgeted = $resolvedBudgets[$categoryId];
                 $remaining = $budgeted - $spent;
                 $percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : 0;
 

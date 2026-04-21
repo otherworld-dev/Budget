@@ -427,7 +427,8 @@ class TransactionMapper extends QBMapper {
         array $tagIds = [],
         bool $includeUntagged = true,
         bool $excludeTransfers = false,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        string $transactionType = 'debit'
     ): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('c.id', 'c.name', 'c.color', 'c.icon')
@@ -441,7 +442,7 @@ class TransactionMapper extends QBMapper {
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')));
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
 
         $this->excludeScheduledFuture($qb);
 
@@ -823,7 +824,7 @@ class TransactionMapper extends QBMapper {
      * @param int[] $categoryIds
      * @return array<int, float> categoryId => total spending
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate): array {
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit'): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -836,7 +837,7 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')));
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
 
         $this->excludeScheduledFuture($qb);
 
