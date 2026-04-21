@@ -13,7 +13,7 @@ use OCP\IDBConnection;
  */
 class BudgetSnapshotMapper extends QBMapper {
     public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_budget_snapshots', BudgetSnapshot::class);
+        parent::__construct($db, 'budget_bgt_snapshots', BudgetSnapshot::class);
     }
 
     /**
