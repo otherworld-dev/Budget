@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2026-04-21
+
+### Added
+- **Per-month budget adjustments**: Budget values can now differ between months. Click "Adjust budgets from this month" to create a new baseline that applies from that month onwards while preserving previous months' values
+- **Budget snapshot system**: New `budget_budget_snapshots` table stores per-month budget overrides with automatic resolution chain
+- **Parent category budget aggregation**: Parent categories now show the sum of their own budget plus all children's budgets, with a "Total" hint below the input
+
+### Fixed
+- **Parent category spending not showing** ([#144](https://github.com/otherworld-dev/budget/issues/144)): Parent categories now aggregate children's spending and budgets correctly
+- **Spending by Category shows wrong data on first dashboard load** ([#147](https://github.com/otherworld-dev/budget/issues/147))
+- **Dashboard tile header links not navigating** ([#146](https://github.com/otherworld-dev/budget/issues/146))
+- **Budget page month selector not filtering spending** ([#148](https://github.com/otherworld-dev/budget/issues/148))
+- **Bill transaction creation fails with null description** ([#145](https://github.com/otherworld-dev/budget/issues/145))
+
+### Changed
+- Reports, alerts, and dashboard now use snapshot-resolved budgets for accurate per-month reporting
+- Budget aggregate hint updates immediately when editing budget inputs (no reload needed)
+- Improved translation documentation in README
+
 ## [2.12.1] - 2026-04-20
 
 ### Added
