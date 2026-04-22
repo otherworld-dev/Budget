@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-04-23 00:09+0000\n"
-"Last-Translator: T0mFi <tomfinger97@gmail.com>\n"
+"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -643,22 +643,22 @@ msgstr "Zusatzzahlungen können nicht negativ sein"
 #: /tmp/budget-v2.11.0/budget/src/main.js:2507
 #: /tmp/budget-v2.11.0/budget/src/main.js:2518
 msgid "Failed to calculate payoff plan"
-msgstr ""
+msgstr "Fehler bei der Berechnung des Tilgungsplans"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:148
 #: /tmp/budget-v2.11.0/budget/src/main.js:2586
 #: /tmp/budget-v2.11.0/budget/src/main.js:2597
 msgid "Failed to compare strategies"
-msgstr ""
+msgstr "Fehler beim Vergleich der Strategien"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:111
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:37
 msgid "Failed to load exchange rates"
-msgstr ""
+msgstr "Fehler beim Laden der Wechselkurse"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:127
 msgid "Failed to get base currency"
-msgstr ""
+msgstr "Fehler beim Abrufen der Basiswährung"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:141
 msgid "Exchange rates refreshed successfully"
@@ -1673,7 +1673,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:60
 #, php-format
 msgid "due in %s days"
-msgstr ""
+msgstr "Fällig in %s Tagen"
 
 #. Do NOT translate {bill}, {amount}, or {dueText} — they are placeholders replaced at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:65
@@ -2144,7 +2144,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:19
 #: /tmp/budget-v2.11.0/budget/templates/index.php:424
 msgid "Budget Health"
-msgstr ""
+msgstr "Budget Status"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:22
 #: /tmp/budget-v2.11.0/budget/templates/index.php:439
@@ -2188,7 +2188,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:31
 #: /tmp/budget-v2.11.0/budget/templates/index.php:511
 msgid "Days Until Debt Free"
-msgstr ""
+msgstr "Tage bis zur Schuldenfreiheit"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:34
 #: /tmp/budget-v2.11.0/budget/templates/index.php:525
@@ -2217,7 +2217,7 @@ msgstr "Historische Entwicklung der Vermögenswerte"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:621
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1707
 msgid "Recent Transactions"
-msgstr ""
+msgstr "Letzte Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:39
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:239
@@ -2252,7 +2252,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:680
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2478
 msgid "Savings Goals"
-msgstr ""
+msgstr "Sparziele"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:44
 #: /tmp/budget-v2.11.0/budget/templates/index.php:133
@@ -2277,7 +2277,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:50
 msgid "Savings Goals Summary"
-msgstr ""
+msgstr "Zusammenfassung der Sparziele"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:51
 #: /tmp/budget-v2.11.0/budget/templates/index.php:752
@@ -3230,7 +3230,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1493
 #: /tmp/budget-v2.11.0/budget/templates/index.php:892
 msgid "Select account"
-msgstr ""
+msgstr "Konto auswählen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1505
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:566
@@ -3243,7 +3243,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4883
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5266
 msgid "No category"
-msgstr ""
+msgstr "Keine Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1524
 msgid "Form error: Account name field not found"
@@ -4116,7 +4116,7 @@ msgstr "Ersparnisse"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:660
 msgid "No recent transactions"
-msgstr ""
+msgstr "Keine letzten Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:723
 #, javascript-format
@@ -4139,8 +4139,8 @@ msgstr "Keine fällige Zahlungen"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:801
 msgid "Overdue by %n day"
 msgid_plural "Overdue by %n days"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Überfällig seit %n Tag"
+msgstr[1] "Überfällig seit %n Tagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:804
 msgid "Due today"
@@ -4149,8 +4149,8 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:807
 msgid "Due in %n day"
 msgid_plural "Due in %n days"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Fällig in %n Tag"
+msgstr[1] "Fällig in %n Tagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:809
 msgid "Due {date}"
@@ -4318,7 +4318,7 @@ msgstr "Schnappschüsse werden täglich automatisch aufgenommen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1626
 msgid "Last: {time}"
-msgstr ""
+msgstr "Zuletzt: {time}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1631
 msgid "Record now"
@@ -4343,7 +4343,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2335
 #: /tmp/budget-v2.11.0/budget/templates/index.php:289
 msgid "Unlock Dashboard"
-msgstr ""
+msgstr "Entsperre Dashboard"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2336
 #: /tmp/budget-v2.11.0/budget/templates/index.php:272
@@ -5760,6 +5760,8 @@ msgstr ""
 msgid ""
 "Cannot remove the last condition from a group. Remove the group instead."
 msgstr ""
+"Die letzte Bedingung einer Gruppe kann nicht entfernt werden. Entfernen Sie "
+"die gesamte Gruppe."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:385
 msgid "root"
@@ -5973,7 +5975,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:337
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5775
 msgid "No shared expenses"
-msgstr ""
+msgstr "Keine geteilte Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:353
 msgid "Open"
@@ -7164,7 +7166,7 @@ msgstr "Renten"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4005
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5769
 msgid "Shared Expenses"
-msgstr ""
+msgstr "Geteilte Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:173
 msgid "Forecast"
@@ -7176,7 +7178,7 @@ msgstr "Berichte"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:195
 msgid "Tools & Settings"
-msgstr ""
+msgstr "Optionen & Einstellungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:216
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2307
@@ -7220,17 +7222,17 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:532
 msgid "Last 6 Months"
-msgstr ""
+msgstr "Letzte 6 Monate"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:533
 msgid "Last 12 Months"
-msgstr ""
+msgstr "Letzte 12 Monate"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:534
 #: /tmp/budget-v2.11.0/budget/templates/index.php:554
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2793
 msgid "Last 3 Months"
-msgstr ""
+msgstr "Letzte 3 Monate"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:553
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1691
@@ -7263,6 +7265,8 @@ msgstr "Bisher keine historischen Vermögensdaten erfasst"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:613
 msgid "Add snapshots to your assets to track their combined value over time."
 msgstr ""
+"Fügen Sie Ihren Vermögenswerten Momentaufnahmen hinzu, um deren kombinierten "
+"Wert im Laufe der Zeit zu verfolgen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:626
 #: /tmp/budget-v2.11.0/budget/templates/index.php:659
@@ -8329,7 +8333,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2795
 msgid "Last Year"
-msgstr ""
+msgstr "Letztes Jahr"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2796
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2801
