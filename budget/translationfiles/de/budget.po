@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-04-21 21:09+0000\n"
-"Last-Translator: Jakob <git@jakob-info.de>\n"
+"PO-Revision-Date: 2026-04-23 00:09+0000\n"
+"Last-Translator: T0mFi <tomfinger97@gmail.com>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -4864,7 +4864,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:155
 msgid "{amount}/yr"
-msgstr ""
+msgstr "{amount}/Jahr"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:319
 msgid "Edit Pension"
