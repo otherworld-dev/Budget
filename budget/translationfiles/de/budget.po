@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-04-23 00:09+0000\n"
+"PO-Revision-Date: 2026-04-25 08:09+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -52,13 +52,13 @@ msgstr "Ungültige JSON-Daten oder leere Anfrage"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:122
 msgid "Account type is required and cannot be empty"
-msgstr "Der Kontotyp ist erforderlich und darf nicht leer sein"
+msgstr "Die Kontoart ist erforderlich und darf nicht leer sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:128
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:289
 #, php-format
 msgid "Invalid account type: %1$s"
-msgstr "Ungültiger Kontotyp: %1$s"
+msgstr "Ungültiger Kontoart: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:135
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:298
@@ -667,20 +667,20 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:144
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:364
 msgid "Failed to refresh exchange rates"
-msgstr ""
+msgstr "Wechselkurse konnten nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:160
 msgid "Currency and rate are required"
-msgstr ""
+msgstr "Währung und Kurs sind erforderlich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:173
 msgid "Failed to set manual rate"
-msgstr ""
+msgstr "Fehler beim Setzen des manuellen Wechselkurses"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:187
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:343
 msgid "Failed to remove manual rate"
-msgstr ""
+msgstr "Fehler beim Löschen des manuellen Wechselkurses"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ForecastController.php:60
 msgid "Failed to generate forecast"
@@ -2013,7 +2013,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:354
 msgid "Invalid account type"
-msgstr ""
+msgstr "Ungültige Kontoart"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:367
 #, php-format
@@ -2178,12 +2178,12 @@ msgstr "Unkategorisiert"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:27
 #: /tmp/budget-v2.11.0/budget/templates/index.php:484
 msgid "Low Balance Alert"
-msgstr ""
+msgstr "Geringer Kontostand Alarm"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:30
 #: /tmp/budget-v2.11.0/budget/templates/index.php:498
 msgid "Burn Rate"
-msgstr ""
+msgstr "Geldabflussrate"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:31
 #: /tmp/budget-v2.11.0/budget/templates/index.php:511
@@ -2258,7 +2258,7 @@ msgstr "Sparziele"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:133
 #: /tmp/budget-v2.11.0/budget/templates/index.php:691
 msgid "Debt Payoff"
-msgstr ""
+msgstr "Schuldentilgung"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:47
 #: /tmp/budget-v2.11.0/budget/templates/index.php:716
@@ -3066,7 +3066,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:307
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1717
 msgid "Edit Account"
-msgstr ""
+msgstr "Konto bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:310
 msgid "Delete Account"
@@ -3251,7 +3251,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1530
 msgid "Form error: Account type field not found"
-msgstr ""
+msgstr "Formularfehler: Feld für die Kontoart wurde nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1603
 msgid "Please enter an account name"
@@ -3259,7 +3259,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1610
 msgid "Please select an account type"
-msgstr ""
+msgstr "Bitte wählen Sie eine Kontoart aus"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1617
 msgid "Account name is too long (maximum 255 characters)"
@@ -3301,7 +3301,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3426
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3490
 msgid "Current Balance"
-msgstr ""
+msgstr "Aktueller Kontostand"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1792
 msgid "••••••••  (leave blank to keep current)"
@@ -4060,7 +4060,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:331
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:394
 msgid "{percent}% vs last month"
-msgstr ""
+msgstr "{percent}% im Vergleich zum Vormonat"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:348
 #, javascript-format
@@ -5922,7 +5922,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:97
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4040
 msgid "Add contacts to start splitting expenses"
-msgstr ""
+msgstr "Fügen Sie Kontakte hinzu, um Ausgaben aufteilen zu können"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:107
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:295
@@ -5944,7 +5944,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4009
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5633
 msgid "Add Contact"
-msgstr ""
+msgstr "Kontakt hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:239
 msgid "Contact updated"
@@ -5952,7 +5952,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:239
 msgid "Contact added"
-msgstr ""
+msgstr "Kontakt hinzugefügt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:244
 msgid "Failed to save contact"
@@ -6006,6 +6006,8 @@ msgstr ""
 msgid ""
 "This will mark all shared expenses with this contact as settled. Continue?"
 msgstr ""
+"Damit werden alle geteilten Ausgaben mit diesem Kontakt als beglichen "
+"markiert. Fortfahren?"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:522
 msgid "All expenses settled"
@@ -6013,7 +6015,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:544
 msgid "Please add contacts first in Shared Expenses"
-msgstr ""
+msgstr "Bitte fügen Sie zunächst Kontakte in den ‚Gemeinsamen Ausgaben‘ hinzu"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:555
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5671
@@ -6533,7 +6535,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1043
 msgid "Current Balance:"
-msgstr ""
+msgstr "Aktueller Kontostand:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1047
 msgid "Statement Balance:"
@@ -7352,12 +7354,12 @@ msgstr "Abgleichen"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1030
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4658
 msgid "Account Name"
-msgstr ""
+msgstr "Kontoname"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1032
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4664
 msgid "Account Type"
-msgstr ""
+msgstr "Kontoart"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1048
 msgid "Available Balance"
@@ -8852,7 +8854,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3859
 msgid "Debt Payoff Planner"
-msgstr ""
+msgstr "Schuldentilgungsplaner"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3882
 msgid "Highest Rate"
@@ -9061,6 +9063,9 @@ msgid ""
 "Day of the month when your budget cycle resets (1 = first of month, 31 = "
 "last day). Useful for aligning budgets with payday."
 msgstr ""
+"Tag des Monats, an dem Ihr Budgetzyklus zurückgesetzt wird (1 = "
+"Monatsanfang, 31 = Monatsende). Nützlich, um das Budget mit dem Zahltag "
+"abzustimmen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4220
 msgid "Display Settings"
@@ -9340,6 +9345,9 @@ msgid ""
 "Recalculates all account balances from their opening balance and transaction "
 "history. Use this if account balances appear incorrect."
 msgstr ""
+"Berechnet alle Kontostände neu, basierend auf dem Anfangskontostand und dem "
+"Transaktionsverlauf. Verwenden Sie diese Funktion, wenn die Kontostände "
+"falsch erscheinen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4528
 msgid "Recalculate"
@@ -9434,7 +9442,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4649
 msgid "Add/Edit Account"
-msgstr ""
+msgstr "Konto erstellen oder ändern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4660
 msgid "Enter a descriptive name for this account"
@@ -9442,7 +9450,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4666
 msgid "Choose account type"
-msgstr ""
+msgstr "Kontoart auswählen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4670
 msgid "Investment Account"
@@ -9454,11 +9462,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4675
 msgid "Select the type of account"
-msgstr ""
+msgstr "Wählen Sie die Kontoart aus"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4679
 msgid "Opening Balance"
-msgstr ""
+msgstr "Anfangskontostand"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4681
 msgid "The starting balance when this account was created"
@@ -9563,7 +9571,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4789
 msgid "Minimum monthly payment for debt payoff calculations"
-msgstr ""
+msgstr "Mindestzahlung pro Monat zur Schuldentilgung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4794
 msgid "Save account"
@@ -10078,6 +10086,9 @@ msgid ""
 "Matches require: same amount, same currency, opposite type (income/expense), "
 "different accounts, within your configured date window."
 msgstr ""
+"Übereinstimmungen erfordern: denselben Betrag, dieselbe Währung, "
+"entgegengesetzten Typ (Einnahme/Ausgabe), verschiedene Konten und müssen "
+"innerhalb Ihres konfigurierten Zeitraums liegen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5526
 msgid "Scan for Matches"
@@ -10270,7 +10281,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5809
 msgid "All shared expenses and contacts"
-msgstr ""
+msgstr "Alle geteilten Ausgaben und Kontakte"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5811
 msgid "Only audit logs will be preserved for compliance purposes."
