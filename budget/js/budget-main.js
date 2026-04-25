@@ -31132,12 +31132,208 @@ var DashboardModule = /*#__PURE__*/function () {
     }
 
     // ===========================
+    // Phase 2/3 Widget Updates
+    // ===========================
+  }, {
+    key: "updateMonthlyComparisonWidget",
+    value: function updateMonthlyComparisonWidget() {
+      var _data$previous, _data$previous2;
+      var container = document.getElementById('monthly-comparison-content');
+      if (!container) return;
+      var data = this.widgetData.monthlyComparison;
+      if (!data || !data.current) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No data available'), "</div>");
+        return;
+      }
+      var currentIncome = parseFloat(data.current.totalIncome || 0);
+      var currentExpenses = parseFloat(data.current.totalExpenses || 0);
+      var prevIncome = parseFloat(((_data$previous = data.previous) === null || _data$previous === void 0 ? void 0 : _data$previous.totalIncome) || 0);
+      var prevExpenses = parseFloat(((_data$previous2 = data.previous) === null || _data$previous2 === void 0 ? void 0 : _data$previous2.totalExpenses) || 0);
+      var incomeChange = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100).toFixed(1) : 0;
+      var expenseChange = prevExpenses > 0 ? ((currentExpenses - prevExpenses) / prevExpenses * 100).toFixed(1) : 0;
+      var incomeArrow = incomeChange >= 0 ? '↑' : '↓';
+      var expenseArrow = expenseChange >= 0 ? '↑' : '↓';
+      container.innerHTML = "\n            <div class=\"comparison-row\">\n                <span class=\"comparison-label\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Income'), "</span>\n                <span class=\"comparison-value\">").concat(this.formatCurrency(currentIncome), "</span>\n                <span class=\"comparison-change ").concat(incomeChange >= 0 ? 'positive' : 'negative', "\">").concat(incomeArrow, " ").concat(Math.abs(incomeChange), "%</span>\n            </div>\n            <div class=\"comparison-row\">\n                <span class=\"comparison-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Expenses'), "</span>\n                <span class=\"comparison-value\">").concat(this.formatCurrency(currentExpenses), "</span>\n                <span class=\"comparison-change ").concat(expenseChange <= 0 ? 'positive' : 'negative', "\">").concat(expenseArrow, " ").concat(Math.abs(expenseChange), "%</span>\n            </div>\n        ");
+    }
+  }, {
+    key: "updateLargeTransactionsWidget",
+    value: function updateLargeTransactionsWidget() {
+      var _this12 = this;
+      var container = document.getElementById('large-transactions-list');
+      if (!container) return;
+      var transactions = this.widgetData.largeTransactions;
+      if (!Array.isArray(transactions) || transactions.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No large transactions'), "</div>");
+        return;
+      }
+
+      // Sort by absolute amount descending
+      var sorted = _toConsumableArray(transactions).sort(function (a, b) {
+        return Math.abs(b.amount) - Math.abs(a.amount);
+      });
+      container.innerHTML = sorted.slice(0, 5).map(function (tx) {
+        return "\n            <div class=\"widget-list-item\">\n                <div class=\"widget-item-info\">\n                    <div class=\"widget-item-name\">".concat(_this12.escapeHtml(tx.vendor || tx.description || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Unknown')), "</div>\n                    <div class=\"widget-item-meta\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(tx.date, _this12.settings), "</div>\n                </div>\n                <div class=\"widget-item-amount ").concat(tx.type === 'credit' ? 'positive' : 'negative', "\">").concat(_this12.formatCurrency(tx.amount), "</div>\n            </div>\n        ");
+      }).join('');
+    }
+  }, {
+    key: "updateWeeklyTrendWidget",
+    value: function updateWeeklyTrendWidget() {
+      var container = document.getElementById('weekly-trend-content');
+      if (!container) return;
+      var data = this.widgetData.weeklyTrend;
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No spending data this week'), "</div>");
+        return;
+      }
+      var total = data.reduce(function (sum, d) {
+        return sum + Math.abs(parseFloat(d.total || 0));
+      }, 0);
+      var avgDaily = total / 7;
+      container.innerHTML = "\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">".concat(this.formatCurrency(total), "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'This week'), "</div>\n            </div>\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">").concat(this.formatCurrency(avgDaily), "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Daily average'), "</div>\n            </div>\n        ");
+    }
+  }, {
+    key: "updateUnmatchedTransfersWidget",
+    value: function updateUnmatchedTransfersWidget() {
+      var _this13 = this;
+      var container = document.getElementById('unmatched-transfers-list');
+      if (!container) return;
+      var transactions = this.widgetData.unmatchedTransfers;
+      if (!Array.isArray(transactions) || transactions.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No unmatched transfers'), "</div>");
+        return;
+      }
+      container.innerHTML = transactions.slice(0, 5).map(function (tx) {
+        return "\n            <div class=\"widget-list-item\">\n                <div class=\"widget-item-info\">\n                    <div class=\"widget-item-name\">".concat(_this13.escapeHtml(tx.vendor || tx.description || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Unknown')), "</div>\n                    <div class=\"widget-item-meta\">").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(tx.date, _this13.settings), " \xB7 ").concat(_this13.formatCurrency(tx.amount), "</div>\n                </div>\n            </div>\n        ");
+      }).join('');
+    }
+  }, {
+    key: "updateCategoryTrendsWidget",
+    value: function updateCategoryTrendsWidget() {
+      var _this14 = this;
+      var container = document.getElementById('category-trends-content');
+      if (!container) return;
+      var data = this.widgetData.categoryTrends;
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No category trends available'), "</div>");
+        return;
+      }
+      container.innerHTML = data.slice(0, 5).map(function (cat) {
+        var changePercent = cat.previousTotal > 0 ? ((cat.currentTotal - cat.previousTotal) / cat.previousTotal * 100).toFixed(1) : 0;
+        var arrow = changePercent >= 0 ? '↑' : '↓';
+        return "\n                <div class=\"widget-list-item\">\n                    <div class=\"widget-item-info\">\n                        <span class=\"category-color\" style=\"background-color: ".concat(cat.color || '#3b82f6', "; width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px;\"></span>\n                        <div class=\"widget-item-name\">").concat(_this14.escapeHtml(cat.name), "</div>\n                    </div>\n                    <div class=\"widget-item-amount\">\n                        ").concat(_this14.formatCurrency(cat.currentTotal), "\n                        <span class=\"comparison-change ").concat(changePercent <= 0 ? 'positive' : 'negative', "\" style=\"font-size: 0.8em; margin-left: 4px;\">").concat(arrow, " ").concat(Math.abs(changePercent), "%</span>\n                    </div>\n                </div>\n            ");
+      }).join('');
+    }
+  }, {
+    key: "updateBillsDueSoonWidget",
+    value: function updateBillsDueSoonWidget() {
+      var _this15 = this;
+      var container = document.getElementById('bills-due-soon-list');
+      if (!container) return;
+      var bills = this.widgetData.billsDueSoon;
+      if (!Array.isArray(bills) || bills.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No bills due soon'), "</div>");
+        return;
+      }
+      var todayStr = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
+      container.innerHTML = bills.slice(0, 5).map(function (bill) {
+        var dueDateStr = bill.nextDueDate || bill.next_due_date;
+        var daysUntilDue = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.daysBetweenDates(todayStr, dueDateStr);
+        var statusClass = '';
+        var dueText = '';
+        if (daysUntilDue < 0) {
+          statusClass = 'overdue';
+          dueText = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translatePlural)('budget', 'Overdue by %n day', 'Overdue by %n days', Math.abs(daysUntilDue));
+        } else if (daysUntilDue === 0) {
+          statusClass = 'due-soon';
+          dueText = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Due today');
+        } else {
+          statusClass = daysUntilDue <= 7 ? 'due-soon' : '';
+          dueText = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translatePlural)('budget', 'Due in %n day', 'Due in %n days', daysUntilDue);
+        }
+        return "\n                <div class=\"bill-widget-item ".concat(statusClass, "\">\n                    <div class=\"bill-widget-info\">\n                        <div class=\"bill-widget-name\">").concat(_this15.escapeHtml(bill.name), "</div>\n                        <div class=\"bill-widget-due ").concat(statusClass, "\">").concat(dueText, "</div>\n                    </div>\n                    <div class=\"bill-widget-amount\">").concat(_this15.formatCurrency(bill.amount), "</div>\n                </div>\n            ");
+      }).join('');
+    }
+  }, {
+    key: "updateIncomeTrackingWidget",
+    value: function updateIncomeTrackingWidget() {
+      var _this16 = this;
+      var container = document.getElementById('income-tracking-content');
+      if (!container) return;
+      var data = this.widgetData.incomeTracking;
+      if (!data || !Array.isArray(data) && !data.incomes) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No recurring income set up'), "</div>");
+        return;
+      }
+      var incomes = Array.isArray(data) ? data : data.incomes || [];
+      if (incomes.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No recurring income set up'), "</div>");
+        return;
+      }
+      container.innerHTML = incomes.slice(0, 5).map(function (income) {
+        return "\n            <div class=\"widget-list-item\">\n                <div class=\"widget-item-info\">\n                    <div class=\"widget-item-name\">".concat(_this16.escapeHtml(income.name), "</div>\n                    <div class=\"widget-item-meta\">").concat(income.frequency || 'monthly', "</div>\n                </div>\n                <div class=\"widget-item-amount positive\">").concat(_this16.formatCurrency(income.amount), "</div>\n            </div>\n        ");
+      }).join('');
+    }
+  }, {
+    key: "updateRecentImportsWidget",
+    value: function updateRecentImportsWidget() {
+      var _this17 = this;
+      var container = document.getElementById('recent-imports-content');
+      if (!container) return;
+      var data = this.widgetData.recentImports;
+      if (!Array.isArray(data) || data.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No recent imports'), "</div>");
+        return;
+      }
+      container.innerHTML = data.slice(0, 5).map(function (imp) {
+        return "\n            <div class=\"widget-list-item\">\n                <div class=\"widget-item-info\">\n                    <div class=\"widget-item-name\">".concat(_this17.escapeHtml(imp.filename || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Import')), "</div>\n                    <div class=\"widget-item-meta\">").concat(imp.count || 0, " ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'transactions'), "</div>\n                </div>\n            </div>\n        ");
+      }).join('');
+    }
+  }, {
+    key: "updateRuleEffectivenessWidget",
+    value: function updateRuleEffectivenessWidget() {
+      var container = document.getElementById('rule-effectiveness-content');
+      if (!container) return;
+      var rules = this.widgetData.ruleEffectiveness;
+      if (!Array.isArray(rules) || rules.length === 0) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No import rules configured'), "</div>");
+        return;
+      }
+      var activeRules = rules.filter(function (r) {
+        return r.isActive !== false;
+      });
+      container.innerHTML = "\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">".concat(activeRules.length, "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Active rules'), "</div>\n            </div>\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">").concat(rules.length, "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Total rules'), "</div>\n            </div>\n        ");
+    }
+  }, {
+    key: "updateSpendingVelocityWidget",
+    value: function updateSpendingVelocityWidget() {
+      var container = document.getElementById('spending-velocity-content');
+      if (!container) return;
+      var data = this.widgetData.spendingVelocity;
+      if (!data) {
+        container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No spending data available'), "</div>");
+        return;
+      }
+      var dailyRate = parseFloat(data.dailyRate || 0);
+      var projectedMonthly = dailyRate * 30;
+      container.innerHTML = "\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">".concat(this.formatCurrency(dailyRate), "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Per day'), "</div>\n            </div>\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">").concat(this.formatCurrency(projectedMonthly), "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Projected monthly'), "</div>\n            </div>\n        ");
+    }
+  }, {
+    key: "updateUncategorizedCountWidget",
+    value: function updateUncategorizedCountWidget() {
+      var container = document.getElementById('uncategorized-count-content');
+      if (!container) return;
+      var transactions = this.widgetData.uncategorizedCount;
+      var count = Array.isArray(transactions) ? transactions.length : 0;
+      container.innerHTML = "\n            <div class=\"widget-stat\">\n                <div class=\"widget-stat-value\">".concat(count, "</div>\n                <div class=\"widget-stat-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Uncategorized transactions'), "</div>\n            </div>\n        ");
+    }
+
+    // ===========================
     // Chart Updates
     // ===========================
   }, {
     key: "updateSpendingChart",
     value: function updateSpendingChart(spending) {
-      var _this12 = this;
+      var _this18 = this;
       var canvas = document.getElementById('spending-chart');
       if (!canvas) return;
 
@@ -31206,7 +31402,7 @@ var DashboardModule = /*#__PURE__*/function () {
             tooltip: {
               callbacks: {
                 label: function label(context) {
-                  return "".concat(context.label, ": ").concat(_this12.formatCurrency(context.raw));
+                  return "".concat(context.label, ": ").concat(_this18.formatCurrency(context.raw));
                 }
               }
             }
@@ -31226,14 +31422,14 @@ var DashboardModule = /*#__PURE__*/function () {
         legendContainer.innerHTML = "\n                <div class=\"spending-breakdown\">\n                    <div class=\"spending-breakdown-header\">\n                        <strong>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Total Spending'), "</strong>\n                        <strong>").concat(this.formatCurrency(totalSpending), "</strong>\n                    </div>\n                    ").concat(sortedData.map(function (item, index) {
           var amount = data[index];
           var percentage = totalSpending > 0 ? (amount / totalSpending * 100).toFixed(1) : 0;
-          return "\n                            <div class=\"spending-breakdown-item\">\n                                <div class=\"spending-breakdown-label\">\n                                    <span class=\"spending-dot\" style=\"background: ".concat(colors[index], "\"></span>\n                                    <span class=\"spending-category-name\">").concat(_this12.escapeHtml(labels[index]), "</span>\n                                </div>\n                                <div class=\"spending-breakdown-values\">\n                                    <span class=\"spending-percentage\">").concat(percentage, "%</span>\n                                    <span class=\"spending-amount\">").concat(_this12.formatCurrency(amount), "</span>\n                                </div>\n                            </div>\n                        ");
+          return "\n                            <div class=\"spending-breakdown-item\">\n                                <div class=\"spending-breakdown-label\">\n                                    <span class=\"spending-dot\" style=\"background: ".concat(colors[index], "\"></span>\n                                    <span class=\"spending-category-name\">").concat(_this18.escapeHtml(labels[index]), "</span>\n                                </div>\n                                <div class=\"spending-breakdown-values\">\n                                    <span class=\"spending-percentage\">").concat(percentage, "%</span>\n                                    <span class=\"spending-amount\">").concat(_this18.formatCurrency(amount), "</span>\n                                </div>\n                            </div>\n                        ");
         }).join(''), "\n                </div>\n            ");
       }
     }
   }, {
     key: "updateTrendChart",
     value: function updateTrendChart(trends) {
-      var _this13 = this;
+      var _this19 = this;
       var canvas = document.getElementById('trend-chart');
       if (!canvas) {
         return;
@@ -31282,7 +31478,7 @@ var DashboardModule = /*#__PURE__*/function () {
             tooltip: {
               callbacks: {
                 label: function label(context) {
-                  return "".concat(context.dataset.label, ": ").concat(_this13.formatCurrency(context.raw));
+                  return "".concat(context.dataset.label, ": ").concat(_this19.formatCurrency(context.raw));
                 }
               }
             }
@@ -31291,7 +31487,7 @@ var DashboardModule = /*#__PURE__*/function () {
             y: {
               ticks: {
                 callback: function callback(value) {
-                  return _this13.formatCurrency(value);
+                  return _this19.formatCurrency(value);
                 }
               }
             }
@@ -31302,7 +31498,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateNetWorthHistoryChart",
     value: function updateNetWorthHistoryChart(data) {
-      var _this14 = this;
+      var _this20 = this;
       var accountId = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
       var canvas = document.getElementById('net-worth-chart');
       var emptyState = document.getElementById('net-worth-chart-empty');
@@ -31404,7 +31600,7 @@ var DashboardModule = /*#__PURE__*/function () {
             tooltip: {
               callbacks: {
                 label: function label(context) {
-                  return "".concat(context.dataset.label, ": ").concat(_this14.formatCurrency(context.raw, currency));
+                  return "".concat(context.dataset.label, ": ").concat(_this20.formatCurrency(context.raw, currency));
                 }
               }
             }
@@ -31413,7 +31609,7 @@ var DashboardModule = /*#__PURE__*/function () {
             y: {
               ticks: {
                 callback: function callback(value) {
-                  return _this14.formatCurrency(value, currency);
+                  return _this20.formatCurrency(value, currency);
                 }
               }
             },
@@ -31429,7 +31625,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateAssetValueHistoryChart",
     value: function updateAssetValueHistoryChart(data) {
-      var _this15 = this;
+      var _this21 = this;
       var canvas = document.getElementById('asset-value-history-chart');
       var emptyState = document.getElementById('asset-value-chart-empty');
       if (!canvas) return;
@@ -31483,7 +31679,7 @@ var DashboardModule = /*#__PURE__*/function () {
             tooltip: {
               callbacks: {
                 label: function label(context) {
-                  return "".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Portfolio'), ": ").concat(_this15.formatCurrency(context.raw, currency));
+                  return "".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Portfolio'), ": ").concat(_this21.formatCurrency(context.raw, currency));
                 }
               }
             }
@@ -31492,7 +31688,7 @@ var DashboardModule = /*#__PURE__*/function () {
             y: {
               ticks: {
                 callback: function callback(value) {
-                  return _this15.formatCurrency(value, currency);
+                  return _this21.formatCurrency(value, currency);
                 }
               }
             },
@@ -31552,7 +31748,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateNetWorthStatus",
     value: function updateNetWorthStatus(snapshots, statusEl) {
-      var _this16 = this;
+      var _this22 = this;
       if (!statusEl) return;
 
       // Find the most recent automatic snapshot
@@ -31601,7 +31797,7 @@ var DashboardModule = /*#__PURE__*/function () {
             while (1) switch (_context7.n) {
               case 0:
                 _context7.n = 1;
-                return _this16.recordNetWorthSnapshot();
+                return _this22.recordNetWorthSnapshot();
               case 1:
                 return _context7.a(2);
             }
@@ -31616,7 +31812,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "setupDashboardControls",
     value: function setupDashboardControls() {
-      var _this17 = this;
+      var _this23 = this;
       // Trend account selector
       var trendAccountSelect = document.getElementById('trend-account-select');
       if (trendAccountSelect && !trendAccountSelect.hasAttribute('data-initialized')) {
@@ -31630,10 +31826,10 @@ var DashboardModule = /*#__PURE__*/function () {
                 months = periodSelect ? parseInt(periodSelect.value) : 6;
                 accountId = trendAccountSelect.value || null;
                 _context8.n = 1;
-                return _this17.refreshTrendChart(months, accountId);
+                return _this23.refreshTrendChart(months, accountId);
               case 1:
                 _context8.n = 2;
-                return _this17.saveWidgetAccountSelection('trend-account-select', trendAccountSelect.value);
+                return _this23.saveWidgetAccountSelection('trend-account-select', trendAccountSelect.value);
               case 2:
                 return _context8.a(2);
             }
@@ -31655,7 +31851,7 @@ var DashboardModule = /*#__PURE__*/function () {
                   accountSelect = document.getElementById('trend-account-select');
                   accountId = accountSelect ? accountSelect.value || null : null;
                   _context9.n = 1;
-                  return _this17.refreshTrendChart(months, accountId);
+                  return _this23.refreshTrendChart(months, accountId);
                 case 1:
                   return _context9.a(2);
               }
@@ -31680,10 +31876,10 @@ var DashboardModule = /*#__PURE__*/function () {
                 period = periodSelect ? periodSelect.value : 'month';
                 accountId = spendingAccountSelect.value || null;
                 _context0.n = 1;
-                return _this17.refreshSpendingChart(period, accountId);
+                return _this23.refreshSpendingChart(period, accountId);
               case 1:
                 _context0.n = 2;
-                return _this17.saveWidgetAccountSelection('spending-account-select', spendingAccountSelect.value);
+                return _this23.saveWidgetAccountSelection('spending-account-select', spendingAccountSelect.value);
               case 2:
                 return _context0.a(2);
             }
@@ -31705,7 +31901,7 @@ var DashboardModule = /*#__PURE__*/function () {
                   accountSelect = document.getElementById('spending-account-select');
                   accountId = accountSelect ? accountSelect.value || null : null;
                   _context1.n = 1;
-                  return _this17.refreshSpendingChart(period, accountId);
+                  return _this23.refreshSpendingChart(period, accountId);
                 case 1:
                   return _context1.a(2);
               }
@@ -31730,10 +31926,10 @@ var DashboardModule = /*#__PURE__*/function () {
                 days = activeBtn ? parseInt(activeBtn.dataset.days) : 30;
                 accountId = netWorthAccountSelect.value || null;
                 _context10.n = 1;
-                return _this17.refreshNetWorthChart(days, accountId);
+                return _this23.refreshNetWorthChart(days, accountId);
               case 1:
                 _context10.n = 2;
-                return _this17.saveWidgetAccountSelection('net-worth-account-select', netWorthAccountSelect.value);
+                return _this23.saveWidgetAccountSelection('net-worth-account-select', netWorthAccountSelect.value);
               case 2:
                 return _context10.a(2);
             }
@@ -31765,7 +31961,7 @@ var DashboardModule = /*#__PURE__*/function () {
                   accountSelect = document.getElementById('net-worth-account-select');
                   accountId = accountSelect ? accountSelect.value || null : null;
                   _context11.n = 1;
-                  return _this17.refreshNetWorthChart(days, accountId);
+                  return _this23.refreshNetWorthChart(days, accountId);
                 case 1:
                   return _context11.a(2);
               }
@@ -31797,7 +31993,7 @@ var DashboardModule = /*#__PURE__*/function () {
                   e.target.classList.add('active');
                   days = parseInt(e.target.dataset.days);
                   _context12.n = 1;
-                  return _this17.refreshAssetValueChart(days);
+                  return _this23.refreshAssetValueChart(days);
                 case 1:
                   return _context12.a(2);
               }
@@ -31818,7 +32014,7 @@ var DashboardModule = /*#__PURE__*/function () {
             while (1) switch (_context13.n) {
               case 0:
                 _context13.n = 1;
-                return _this17.recordNetWorthSnapshot();
+                return _this23.recordNetWorthSnapshot();
               case 1:
                 return _context13.a(2);
             }
@@ -31837,10 +32033,10 @@ var DashboardModule = /*#__PURE__*/function () {
               case 0:
                 accountId = recentTxAccountSelect.value || null;
                 _context14.n = 1;
-                return _this17.refreshRecentTransactions(accountId);
+                return _this23.refreshRecentTransactions(accountId);
               case 1:
                 _context14.n = 2;
-                return _this17.saveWidgetAccountSelection('recent-transactions-account-select', recentTxAccountSelect.value);
+                return _this23.saveWidgetAccountSelection('recent-transactions-account-select', recentTxAccountSelect.value);
               case 2:
                 return _context14.a(2);
             }
@@ -31855,11 +32051,11 @@ var DashboardModule = /*#__PURE__*/function () {
           select.setAttribute('data-initialized', 'true');
           select.addEventListener('change', function () {
             if (selectId.includes('income')) {
-              _this17.updateAccountIncomeHero();
+              _this23.updateAccountIncomeHero();
             } else {
-              _this17.updateAccountExpensesHero();
+              _this23.updateAccountExpensesHero();
             }
-            _this17.saveHeroAccountSelection(selectId, select.value);
+            _this23.saveHeroAccountSelection(selectId, select.value);
           });
         }
       });
@@ -32427,7 +32623,7 @@ var DashboardModule = /*#__PURE__*/function () {
     // ===========================
 
     function setupDashboardDragAndDrop() {
-      var _this18 = this;
+      var _this24 = this;
       // Check if touch device - disable drag on mobile
       var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       if (isTouchDevice) {
@@ -32450,7 +32646,7 @@ var DashboardModule = /*#__PURE__*/function () {
         });
         card.addEventListener('dragend', function (e) {
           card.classList.remove('dragging');
-          _this18.clearDashboardDropIndicators();
+          _this24.clearDashboardDropIndicators();
         });
       });
 
@@ -32467,7 +32663,7 @@ var DashboardModule = /*#__PURE__*/function () {
         });
         card.addEventListener('dragend', function (e) {
           card.classList.remove('dragging');
-          _this18.clearDashboardDropIndicators();
+          _this24.clearDashboardDropIndicators();
         });
       });
 
@@ -32479,7 +32675,7 @@ var DashboardModule = /*#__PURE__*/function () {
         if (!container) return;
         container.addEventListener('dragover', function (e) {
           e.preventDefault();
-          _this18.showDashboardDropIndicator(e, container);
+          _this24.showDashboardDropIndicator(e, container);
         });
         container.addEventListener('drop', /*#__PURE__*/function () {
           var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(e) {
@@ -32488,16 +32684,16 @@ var DashboardModule = /*#__PURE__*/function () {
               while (1) switch (_context24.p = _context24.n) {
                 case 0:
                   e.preventDefault();
-                  _this18.clearDashboardDropIndicators();
+                  _this24.clearDashboardDropIndicators();
                   _context24.p = 1;
                   data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                  dropInfo = _this18.getDashboardDropTarget(e, container);
+                  dropInfo = _this24.getDashboardDropTarget(e, container);
                   if (!dropInfo) {
                     _context24.n = 2;
                     break;
                   }
                   _context24.n = 2;
-                  return _this18.reorderDashboardWidget(data.id, dropInfo.targetId, dropInfo.position, data.category);
+                  return _this24.reorderDashboardWidget(data.id, dropInfo.targetId, dropInfo.position, data.category);
                 case 2:
                   _context24.n = 4;
                   break;
@@ -32516,7 +32712,7 @@ var DashboardModule = /*#__PURE__*/function () {
         }());
         container.addEventListener('dragleave', function (e) {
           if (!container.contains(e.relatedTarget)) {
-            _this18.clearDashboardDropIndicators();
+            _this24.clearDashboardDropIndicators();
           }
         });
       });
@@ -32524,7 +32720,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardOrder",
     value: function applyDashboardOrder() {
-      var _this19 = this;
+      var _this25 = this;
       // Reorder hero cards
       var heroContainer = document.querySelector('.dashboard-hero');
       if (heroContainer) {
@@ -32552,8 +32748,8 @@ var DashboardModule = /*#__PURE__*/function () {
 
       // Sort by configured order
       allCards.sort(function (a, b) {
-        var aIndex = _this19.dashboardConfig.widgets.order.indexOf(a.dataset.widgetId);
-        var bIndex = _this19.dashboardConfig.widgets.order.indexOf(b.dataset.widgetId);
+        var aIndex = _this25.dashboardConfig.widgets.order.indexOf(a.dataset.widgetId);
+        var bIndex = _this25.dashboardConfig.widgets.order.indexOf(b.dataset.widgetId);
         return aIndex - bIndex;
       });
 
@@ -32578,7 +32774,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardLayout",
     value: function applyDashboardLayout() {
-      var _this20 = this;
+      var _this26 = this;
       var isMobile = window.innerWidth < 1200;
       if (isMobile) {
         // On mobile, apply CSS order property for single-column layout
@@ -32587,7 +32783,7 @@ var DashboardModule = /*#__PURE__*/function () {
         // Hero cards first
         this.dashboardConfig.hero.order.forEach(function (widgetId) {
           var card = document.querySelector("[data-widget-id=\"".concat(widgetId, "\"][data-widget-category=\"hero\"]"));
-          if (card && _this20.dashboardConfig.hero.visibility[widgetId]) {
+          if (card && _this26.dashboardConfig.hero.visibility[widgetId]) {
             card.style.order = orderIndex++;
           }
         });
@@ -32595,7 +32791,7 @@ var DashboardModule = /*#__PURE__*/function () {
         // Then widget cards
         this.dashboardConfig.widgets.order.forEach(function (widgetId) {
           var card = document.querySelector("[data-widget-id=\"".concat(widgetId, "\"][data-widget-category=\"widget\"]"));
-          if (card && _this20.dashboardConfig.widgets.visibility[widgetId]) {
+          if (card && _this26.dashboardConfig.widgets.visibility[widgetId]) {
             card.style.order = orderIndex++;
           }
         });
@@ -32619,7 +32815,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "loadWidgetData",
     value: function () {
       var _loadWidgetData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(widgetKey) {
-        var uncatResp, now, thisMonth, lastMonthDate, lastMonth, _yield$Promise$all3, _yield$Promise$all4, currentResp, previousResp, largeResp, forecastResp, yoyResp, incomeResp, debtResp, rulesResp, _t19, _t20, _t21, _t22;
+        var uncatResp, now, thisMonth, lastMonthDate, lastMonth, _yield$Promise$all3, _yield$Promise$all4, currentResp, previousResp, largeResp, forecastResp, yoyResp, incomeResp, debtResp, rulesResp, weekEnd, weekStart, weekResp, weekData, unmatchedResp, unmatchedData, billsResp, allBills, todayStr, ctNow, ctThisMonth, ctLastDate, ctLastMonth, _yield$Promise$all5, _yield$Promise$all6, ctCurrentResp, ctPrevResp, ctCurrent, ctPrev, prevMap, svNow, svMonthStart, svToday, svDayOfMonth, svResp, svData, totalSpent, _t19, _t20, _t21, _t22;
         return _regenerator().w(function (_context25) {
           while (1) switch (_context25.p = _context25.n) {
             case 0:
@@ -32631,7 +32827,7 @@ var DashboardModule = /*#__PURE__*/function () {
             case 1:
               _context25.p = 1;
               _t19 = widgetKey;
-              _context25.n = _t19 === 'uncategorizedCount' ? 2 : _t19 === 'monthlyComparison' ? 5 : _t19 === 'largeTransactions' ? 9 : _t19 === 'cashFlowForecast' ? 12 : _t19 === 'yoyComparison' ? 15 : _t19 === 'incomeTracking' ? 18 : _t19 === 'daysUntilDebtFree' ? 21 : _t19 === 'recentImports' ? 24 : _t19 === 'ruleEffectiveness' ? 25 : 28;
+              _context25.n = _t19 === 'uncategorizedCount' ? 2 : _t19 === 'monthlyComparison' ? 5 : _t19 === 'largeTransactions' ? 9 : _t19 === 'cashFlowForecast' ? 12 : _t19 === 'yoyComparison' ? 15 : _t19 === 'incomeTracking' ? 18 : _t19 === 'daysUntilDebtFree' ? 21 : _t19 === 'recentImports' ? 24 : _t19 === 'ruleEffectiveness' ? 25 : _t19 === 'weeklyTrend' ? 28 : _t19 === 'unmatchedTransfers' ? 31 : _t19 === 'billsDueSoon' ? 34 : _t19 === 'categoryTrends' ? 37 : _t19 === 'spendingVelocity' ? 41 : 44;
               break;
             case 2:
               _context25.n = 3;
@@ -32646,7 +32842,7 @@ var DashboardModule = /*#__PURE__*/function () {
               return uncatResp.json();
             case 4:
               this.widgetData.uncategorizedCount = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 5:
               now = new Date();
               thisMonth = {
@@ -32685,7 +32881,7 @@ var DashboardModule = /*#__PURE__*/function () {
                 current: _t20,
                 previous: _t21
               };
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 9:
               _context25.n = 10;
               return fetch(OC.generateUrl('/apps/budget/api/transactions?limit=10&sort=amount'), {
@@ -32699,7 +32895,7 @@ var DashboardModule = /*#__PURE__*/function () {
               return largeResp.json();
             case 11:
               this.widgetData.largeTransactions = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 12:
               _context25.n = 13;
               return fetch(OC.generateUrl('/apps/budget/api/forecast/live?days=90'), {
@@ -32713,7 +32909,7 @@ var DashboardModule = /*#__PURE__*/function () {
               return forecastResp.json();
             case 14:
               this.widgetData.cashFlowForecast = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 15:
               _context25.n = 16;
               return fetch(OC.generateUrl('/apps/budget/api/yoy/years?years=2'), {
@@ -32727,7 +32923,7 @@ var DashboardModule = /*#__PURE__*/function () {
               return yoyResp.json();
             case 17:
               this.widgetData.yoyComparison = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 18:
               _context25.n = 19;
               return fetch(OC.generateUrl('/apps/budget/api/recurring-income/summary'), {
@@ -32741,7 +32937,7 @@ var DashboardModule = /*#__PURE__*/function () {
               return incomeResp.json();
             case 20:
               this.widgetData.incomeTracking = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 21:
               _context25.n = 22;
               return fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
@@ -32755,11 +32951,11 @@ var DashboardModule = /*#__PURE__*/function () {
               return debtResp.json();
             case 23:
               this.widgetData.daysUntilDebtFree = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 24:
               // Placeholder - would use /api/import/history if it exists
               this.widgetData.recentImports = [];
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 25:
               _context25.n = 26;
               return fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
@@ -32773,19 +32969,154 @@ var DashboardModule = /*#__PURE__*/function () {
               return rulesResp.json();
             case 27:
               this.widgetData.ruleEffectiveness = _context25.v;
-              return _context25.a(3, 28);
+              return _context25.a(3, 44);
             case 28:
-              this.widgetDataLoaded[widgetKey] = true;
-              _context25.n = 30;
-              break;
+              weekEnd = new Date();
+              weekStart = new Date();
+              weekStart.setDate(weekEnd.getDate() - 7);
+              _context25.n = 29;
+              return fetch(OC.generateUrl("/apps/budget/api/reports/summary?startDate=".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(weekStart), "&endDate=").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(weekEnd))), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
             case 29:
-              _context25.p = 29;
+              weekResp = _context25.v;
+              _context25.n = 30;
+              return weekResp.json();
+            case 30:
+              weekData = _context25.v;
+              this.widgetData.weeklyTrend = [{
+                total: weekData.totalExpenses || 0
+              }];
+              return _context25.a(3, 44);
+            case 31:
+              _context25.n = 32;
+              return fetch(OC.generateUrl('/apps/budget/api/transactions?limit=10&unmatched=true'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 32:
+              unmatchedResp = _context25.v;
+              _context25.n = 33;
+              return unmatchedResp.json();
+            case 33:
+              unmatchedData = _context25.v;
+              this.widgetData.unmatchedTransfers = Array.isArray(unmatchedData) ? unmatchedData : [];
+              return _context25.a(3, 44);
+            case 34:
+              _context25.n = 35;
+              return fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 35:
+              billsResp = _context25.v;
+              _context25.n = 36;
+              return billsResp.json();
+            case 36:
+              allBills = _context25.v;
+              // Filter to upcoming bills (due within 14 days)
+              todayStr = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
+              this.widgetData.billsDueSoon = (Array.isArray(allBills) ? allBills : []).filter(function (b) {
+                var due = b.nextDueDate || b.next_due_date;
+                if (!due) return false;
+                var days = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.daysBetweenDates(todayStr, due);
+                return days >= -7 && days <= 14;
+              }).sort(function (a, b) {
+                return (a.nextDueDate || a.next_due_date || '').localeCompare(b.nextDueDate || b.next_due_date || '');
+              });
+              return _context25.a(3, 44);
+            case 37:
+              ctNow = new Date();
+              ctThisMonth = {
+                start: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(ctNow.getFullYear(), ctNow.getMonth() + 1),
+                end: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthEnd(ctNow.getFullYear(), ctNow.getMonth() + 1)
+              };
+              ctLastDate = new Date(ctNow.getFullYear(), ctNow.getMonth() - 1, 1);
+              ctLastMonth = {
+                start: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1),
+                end: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthEnd(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1)
+              };
+              _context25.n = 38;
+              return Promise.all([fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(ctThisMonth.start, "&endDate=").concat(ctThisMonth.end)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }), fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(ctLastMonth.start, "&endDate=").concat(ctLastMonth.end)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
+            case 38:
+              _yield$Promise$all5 = _context25.v;
+              _yield$Promise$all6 = _slicedToArray(_yield$Promise$all5, 2);
+              ctCurrentResp = _yield$Promise$all6[0];
+              ctPrevResp = _yield$Promise$all6[1];
+              _context25.n = 39;
+              return ctCurrentResp.json();
+            case 39:
+              ctCurrent = _context25.v;
+              _context25.n = 40;
+              return ctPrevResp.json();
+            case 40:
+              ctPrev = _context25.v;
+              // Build lookup for previous month
+              prevMap = {};
+              if (Array.isArray(ctPrev)) {
+                ctPrev.forEach(function (c) {
+                  prevMap[c.categoryId] = parseFloat(c.spent || 0);
+                });
+              }
+              this.widgetData.categoryTrends = (Array.isArray(ctCurrent) ? ctCurrent : []).map(function (c) {
+                return {
+                  name: c.name,
+                  color: c.color,
+                  currentTotal: parseFloat(c.spent || 0),
+                  previousTotal: prevMap[c.categoryId] || 0
+                };
+              }).filter(function (c) {
+                return c.currentTotal > 0 || c.previousTotal > 0;
+              }).sort(function (a, b) {
+                return b.currentTotal - a.currentTotal;
+              });
+              return _context25.a(3, 44);
+            case 41:
+              svNow = new Date();
+              svMonthStart = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(svNow.getFullYear(), svNow.getMonth() + 1);
+              svToday = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(svNow);
+              svDayOfMonth = svNow.getDate();
+              _context25.n = 42;
+              return fetch(OC.generateUrl("/apps/budget/api/reports/summary?startDate=".concat(svMonthStart, "&endDate=").concat(svToday)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 42:
+              svResp = _context25.v;
+              _context25.n = 43;
+              return svResp.json();
+            case 43:
+              svData = _context25.v;
+              totalSpent = parseFloat(svData.totalExpenses || 0);
+              this.widgetData.spendingVelocity = {
+                dailyRate: svDayOfMonth > 0 ? totalSpent / svDayOfMonth : 0
+              };
+              return _context25.a(3, 44);
+            case 44:
+              this.widgetDataLoaded[widgetKey] = true;
+              _context25.n = 46;
+              break;
+            case 45:
+              _context25.p = 45;
               _t22 = _context25.v;
               console.error("Failed to load data for ".concat(widgetKey, ":"), _t22);
-            case 30:
+            case 46:
               return _context25.a(2);
           }
-        }, _callee25, this, [[1, 29]]);
+        }, _callee25, this, [[1, 45]]);
       }));
       function loadWidgetData(_x16) {
         return _loadWidgetData.apply(this, arguments);
@@ -32797,7 +33128,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "setupDashboardCustomization",
     value: function setupDashboardCustomization() {
-      var _this21 = this;
+      var _this27 = this;
       var toggleBtn = document.getElementById('toggle-dashboard-lock-btn');
       if (!toggleBtn) return;
 
@@ -32806,7 +33137,7 @@ var DashboardModule = /*#__PURE__*/function () {
       this.app.dashboardLocked = savedLockState;
       this.updateDashboardLockUI();
       toggleBtn.addEventListener('click', function () {
-        return _this21.toggleDashboardLock();
+        return _this27.toggleDashboardLock();
       });
 
       // Add Tiles dropdown
@@ -32910,7 +33241,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "addRemoveButtons",
     value: function addRemoveButtons() {
-      var _this22 = this;
+      var _this28 = this;
       // Add remove button to hero cards
       document.querySelectorAll('.hero-card').forEach(function (card) {
         if (card.querySelector('.widget-remove-btn')) return; // Already has button
@@ -32921,7 +33252,7 @@ var DashboardModule = /*#__PURE__*/function () {
         removeBtn.innerHTML = '&times;';
         removeBtn.addEventListener('click', function (e) {
           e.stopPropagation();
-          _this22.hideWidget(card.dataset.widgetId, 'hero');
+          _this28.hideWidget(card.dataset.widgetId, 'hero');
         });
         card.appendChild(removeBtn);
       });
@@ -32936,7 +33267,7 @@ var DashboardModule = /*#__PURE__*/function () {
         removeBtn.innerHTML = '&times;';
         removeBtn.addEventListener('click', function (e) {
           e.stopPropagation();
-          _this22.hideWidget(card.dataset.widgetId, 'widget');
+          _this28.hideWidget(card.dataset.widgetId, 'widget');
         });
         card.appendChild(removeBtn);
       });
@@ -32944,7 +33275,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateAddTilesMenu",
     value: function updateAddTilesMenu() {
-      var _this23 = this;
+      var _this29 = this;
       var menuList = document.getElementById('add-tiles-menu-list');
       if (!menuList) return;
       menuList.innerHTML = '';
@@ -32957,7 +33288,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref18 = _slicedToArray(_ref17, 2),
           key = _ref18[0],
           widget = _ref18[1];
-        if (!_this23.dashboardConfig.hero.visibility[key]) {
+        if (!_this29.dashboardConfig.hero.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -32976,7 +33307,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref20 = _slicedToArray(_ref19, 2),
           key = _ref20[0],
           widget = _ref20[1];
-        if (!_this23.dashboardConfig.widgets.visibility[key]) {
+        if (!_this29.dashboardConfig.widgets.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -33066,7 +33397,7 @@ var DashboardModule = /*#__PURE__*/function () {
           e.stopPropagation();
           var widgetId = btn.dataset.widgetId;
           var category = btn.dataset.category;
-          _this23.showWidget(widgetId, category);
+          _this29.showWidget(widgetId, category);
         });
       });
     }

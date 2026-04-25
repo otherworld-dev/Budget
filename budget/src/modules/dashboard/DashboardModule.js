@@ -1212,6 +1212,296 @@ export default class DashboardModule {
     }
 
     // ===========================
+    // Phase 2/3 Widget Updates
+    // ===========================
+
+    updateMonthlyComparisonWidget() {
+        const container = document.getElementById('monthly-comparison-content');
+        if (!container) return;
+
+        const data = this.widgetData.monthlyComparison;
+        if (!data || !data.current) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No data available')}</div>`;
+            return;
+        }
+
+        const currentIncome = parseFloat(data.current.totalIncome || 0);
+        const currentExpenses = parseFloat(data.current.totalExpenses || 0);
+        const prevIncome = parseFloat(data.previous?.totalIncome || 0);
+        const prevExpenses = parseFloat(data.previous?.totalExpenses || 0);
+
+        const incomeChange = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100).toFixed(1) : 0;
+        const expenseChange = prevExpenses > 0 ? ((currentExpenses - prevExpenses) / prevExpenses * 100).toFixed(1) : 0;
+
+        const incomeArrow = incomeChange >= 0 ? '↑' : '↓';
+        const expenseArrow = expenseChange >= 0 ? '↑' : '↓';
+
+        container.innerHTML = `
+            <div class="comparison-row">
+                <span class="comparison-label">${t('budget', 'Income')}</span>
+                <span class="comparison-value">${this.formatCurrency(currentIncome)}</span>
+                <span class="comparison-change ${incomeChange >= 0 ? 'positive' : 'negative'}">${incomeArrow} ${Math.abs(incomeChange)}%</span>
+            </div>
+            <div class="comparison-row">
+                <span class="comparison-label">${t('budget', 'Expenses')}</span>
+                <span class="comparison-value">${this.formatCurrency(currentExpenses)}</span>
+                <span class="comparison-change ${expenseChange <= 0 ? 'positive' : 'negative'}">${expenseArrow} ${Math.abs(expenseChange)}%</span>
+            </div>
+        `;
+    }
+
+    updateLargeTransactionsWidget() {
+        const container = document.getElementById('large-transactions-list');
+        if (!container) return;
+
+        const transactions = this.widgetData.largeTransactions;
+        if (!Array.isArray(transactions) || transactions.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No large transactions')}</div>`;
+            return;
+        }
+
+        // Sort by absolute amount descending
+        const sorted = [...transactions].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
+        container.innerHTML = sorted.slice(0, 5).map(tx => `
+            <div class="widget-list-item">
+                <div class="widget-item-info">
+                    <div class="widget-item-name">${this.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
+                    <div class="widget-item-meta">${formatters.formatDate(tx.date, this.settings)}</div>
+                </div>
+                <div class="widget-item-amount ${tx.type === 'credit' ? 'positive' : 'negative'}">${this.formatCurrency(tx.amount)}</div>
+            </div>
+        `).join('');
+    }
+
+    updateWeeklyTrendWidget() {
+        const container = document.getElementById('weekly-trend-content');
+        if (!container) return;
+
+        const data = this.widgetData.weeklyTrend;
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data this week')}</div>`;
+            return;
+        }
+
+        const total = data.reduce((sum, d) => sum + Math.abs(parseFloat(d.total || 0)), 0);
+        const avgDaily = total / 7;
+
+        container.innerHTML = `
+            <div class="widget-stat">
+                <div class="widget-stat-value">${this.formatCurrency(total)}</div>
+                <div class="widget-stat-label">${t('budget', 'This week')}</div>
+            </div>
+            <div class="widget-stat">
+                <div class="widget-stat-value">${this.formatCurrency(avgDaily)}</div>
+                <div class="widget-stat-label">${t('budget', 'Daily average')}</div>
+            </div>
+        `;
+    }
+
+    updateUnmatchedTransfersWidget() {
+        const container = document.getElementById('unmatched-transfers-list');
+        if (!container) return;
+
+        const transactions = this.widgetData.unmatchedTransfers;
+        if (!Array.isArray(transactions) || transactions.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No unmatched transfers')}</div>`;
+            return;
+        }
+
+        container.innerHTML = transactions.slice(0, 5).map(tx => `
+            <div class="widget-list-item">
+                <div class="widget-item-info">
+                    <div class="widget-item-name">${this.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
+                    <div class="widget-item-meta">${formatters.formatDate(tx.date, this.settings)} · ${this.formatCurrency(tx.amount)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    updateCategoryTrendsWidget() {
+        const container = document.getElementById('category-trends-content');
+        if (!container) return;
+
+        const data = this.widgetData.categoryTrends;
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No category trends available')}</div>`;
+            return;
+        }
+
+        container.innerHTML = data.slice(0, 5).map(cat => {
+            const changePercent = cat.previousTotal > 0
+                ? ((cat.currentTotal - cat.previousTotal) / cat.previousTotal * 100).toFixed(1)
+                : 0;
+            const arrow = changePercent >= 0 ? '↑' : '↓';
+
+            return `
+                <div class="widget-list-item">
+                    <div class="widget-item-info">
+                        <span class="category-color" style="background-color: ${cat.color || '#3b82f6'}; width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px;"></span>
+                        <div class="widget-item-name">${this.escapeHtml(cat.name)}</div>
+                    </div>
+                    <div class="widget-item-amount">
+                        ${this.formatCurrency(cat.currentTotal)}
+                        <span class="comparison-change ${changePercent <= 0 ? 'positive' : 'negative'}" style="font-size: 0.8em; margin-left: 4px;">${arrow} ${Math.abs(changePercent)}%</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateBillsDueSoonWidget() {
+        const container = document.getElementById('bills-due-soon-list');
+        if (!container) return;
+
+        const bills = this.widgetData.billsDueSoon;
+        if (!Array.isArray(bills) || bills.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No bills due soon')}</div>`;
+            return;
+        }
+
+        const todayStr = formatters.getTodayDateString();
+
+        container.innerHTML = bills.slice(0, 5).map(bill => {
+            const dueDateStr = bill.nextDueDate || bill.next_due_date;
+            const daysUntilDue = formatters.daysBetweenDates(todayStr, dueDateStr);
+
+            let statusClass = '';
+            let dueText = '';
+            if (daysUntilDue < 0) {
+                statusClass = 'overdue';
+                dueText = n('budget', 'Overdue by %n day', 'Overdue by %n days', Math.abs(daysUntilDue));
+            } else if (daysUntilDue === 0) {
+                statusClass = 'due-soon';
+                dueText = t('budget', 'Due today');
+            } else {
+                statusClass = daysUntilDue <= 7 ? 'due-soon' : '';
+                dueText = n('budget', 'Due in %n day', 'Due in %n days', daysUntilDue);
+            }
+
+            return `
+                <div class="bill-widget-item ${statusClass}">
+                    <div class="bill-widget-info">
+                        <div class="bill-widget-name">${this.escapeHtml(bill.name)}</div>
+                        <div class="bill-widget-due ${statusClass}">${dueText}</div>
+                    </div>
+                    <div class="bill-widget-amount">${this.formatCurrency(bill.amount)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateIncomeTrackingWidget() {
+        const container = document.getElementById('income-tracking-content');
+        if (!container) return;
+
+        const data = this.widgetData.incomeTracking;
+        if (!data || (!Array.isArray(data) && !data.incomes)) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recurring income set up')}</div>`;
+            return;
+        }
+
+        const incomes = Array.isArray(data) ? data : (data.incomes || []);
+        if (incomes.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recurring income set up')}</div>`;
+            return;
+        }
+
+        container.innerHTML = incomes.slice(0, 5).map(income => `
+            <div class="widget-list-item">
+                <div class="widget-item-info">
+                    <div class="widget-item-name">${this.escapeHtml(income.name)}</div>
+                    <div class="widget-item-meta">${income.frequency || 'monthly'}</div>
+                </div>
+                <div class="widget-item-amount positive">${this.formatCurrency(income.amount)}</div>
+            </div>
+        `).join('');
+    }
+
+    updateRecentImportsWidget() {
+        const container = document.getElementById('recent-imports-content');
+        if (!container) return;
+
+        const data = this.widgetData.recentImports;
+        if (!Array.isArray(data) || data.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recent imports')}</div>`;
+            return;
+        }
+
+        container.innerHTML = data.slice(0, 5).map(imp => `
+            <div class="widget-list-item">
+                <div class="widget-item-info">
+                    <div class="widget-item-name">${this.escapeHtml(imp.filename || t('budget', 'Import'))}</div>
+                    <div class="widget-item-meta">${imp.count || 0} ${t('budget', 'transactions')}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    updateRuleEffectivenessWidget() {
+        const container = document.getElementById('rule-effectiveness-content');
+        if (!container) return;
+
+        const rules = this.widgetData.ruleEffectiveness;
+        if (!Array.isArray(rules) || rules.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No import rules configured')}</div>`;
+            return;
+        }
+
+        const activeRules = rules.filter(r => r.isActive !== false);
+        container.innerHTML = `
+            <div class="widget-stat">
+                <div class="widget-stat-value">${activeRules.length}</div>
+                <div class="widget-stat-label">${t('budget', 'Active rules')}</div>
+            </div>
+            <div class="widget-stat">
+                <div class="widget-stat-value">${rules.length}</div>
+                <div class="widget-stat-label">${t('budget', 'Total rules')}</div>
+            </div>
+        `;
+    }
+
+    updateSpendingVelocityWidget() {
+        const container = document.getElementById('spending-velocity-content');
+        if (!container) return;
+
+        const data = this.widgetData.spendingVelocity;
+        if (!data) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data available')}</div>`;
+            return;
+        }
+
+        const dailyRate = parseFloat(data.dailyRate || 0);
+        const projectedMonthly = dailyRate * 30;
+
+        container.innerHTML = `
+            <div class="widget-stat">
+                <div class="widget-stat-value">${this.formatCurrency(dailyRate)}</div>
+                <div class="widget-stat-label">${t('budget', 'Per day')}</div>
+            </div>
+            <div class="widget-stat">
+                <div class="widget-stat-value">${this.formatCurrency(projectedMonthly)}</div>
+                <div class="widget-stat-label">${t('budget', 'Projected monthly')}</div>
+            </div>
+        `;
+    }
+
+    updateUncategorizedCountWidget() {
+        const container = document.getElementById('uncategorized-count-content');
+        if (!container) return;
+
+        const transactions = this.widgetData.uncategorizedCount;
+        const count = Array.isArray(transactions) ? transactions.length : 0;
+
+        container.innerHTML = `
+            <div class="widget-stat">
+                <div class="widget-stat-value">${count}</div>
+                <div class="widget-stat-label">${t('budget', 'Uncategorized transactions')}</div>
+            </div>
+        `;
+    }
+
+    // ===========================
     // Chart Updates
     // ===========================
 
@@ -2259,6 +2549,104 @@ export default class DashboardModule {
                     );
                     this.widgetData.ruleEffectiveness = await rulesResp.json();
                     break;
+
+                case 'weeklyTrend': {
+                    const weekEnd = new Date();
+                    const weekStart = new Date();
+                    weekStart.setDate(weekEnd.getDate() - 7);
+                    const weekResp = await fetch(
+                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(weekStart)}&endDate=${formatters.formatDateForAPI(weekEnd)}`),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    const weekData = await weekResp.json();
+                    this.widgetData.weeklyTrend = [{ total: weekData.totalExpenses || 0 }];
+                    break;
+                }
+
+                case 'unmatchedTransfers': {
+                    const unmatchedResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/transactions?limit=10&unmatched=true'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    const unmatchedData = await unmatchedResp.json();
+                    this.widgetData.unmatchedTransfers = Array.isArray(unmatchedData) ? unmatchedData : [];
+                    break;
+                }
+
+                case 'billsDueSoon': {
+                    const billsResp = await fetch(
+                        OC.generateUrl('/apps/budget/api/bills?isTransfer=false'),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    const allBills = await billsResp.json();
+                    // Filter to upcoming bills (due within 14 days)
+                    const todayStr = formatters.getTodayDateString();
+                    this.widgetData.billsDueSoon = (Array.isArray(allBills) ? allBills : [])
+                        .filter(b => {
+                            const due = b.nextDueDate || b.next_due_date;
+                            if (!due) return false;
+                            const days = formatters.daysBetweenDates(todayStr, due);
+                            return days >= -7 && days <= 14;
+                        })
+                        .sort((a, b) => (a.nextDueDate || a.next_due_date || '').localeCompare(b.nextDueDate || b.next_due_date || ''));
+                    break;
+                }
+
+                case 'categoryTrends': {
+                    const ctNow = new Date();
+                    const ctThisMonth = {
+                        start: formatters.getMonthStart(ctNow.getFullYear(), ctNow.getMonth() + 1),
+                        end: formatters.getMonthEnd(ctNow.getFullYear(), ctNow.getMonth() + 1)
+                    };
+                    const ctLastDate = new Date(ctNow.getFullYear(), ctNow.getMonth() - 1, 1);
+                    const ctLastMonth = {
+                        start: formatters.getMonthStart(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1),
+                        end: formatters.getMonthEnd(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1)
+                    };
+
+                    const [ctCurrentResp, ctPrevResp] = await Promise.all([
+                        fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${ctThisMonth.start}&endDate=${ctThisMonth.end}`), { headers: { 'requesttoken': OC.requestToken } }),
+                        fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${ctLastMonth.start}&endDate=${ctLastMonth.end}`), { headers: { 'requesttoken': OC.requestToken } })
+                    ]);
+
+                    const ctCurrent = await ctCurrentResp.json();
+                    const ctPrev = await ctPrevResp.json();
+
+                    // Build lookup for previous month
+                    const prevMap = {};
+                    if (Array.isArray(ctPrev)) {
+                        ctPrev.forEach(c => { prevMap[c.categoryId] = parseFloat(c.spent || 0); });
+                    }
+
+                    this.widgetData.categoryTrends = (Array.isArray(ctCurrent) ? ctCurrent : [])
+                        .map(c => ({
+                            name: c.name,
+                            color: c.color,
+                            currentTotal: parseFloat(c.spent || 0),
+                            previousTotal: prevMap[c.categoryId] || 0,
+                        }))
+                        .filter(c => c.currentTotal > 0 || c.previousTotal > 0)
+                        .sort((a, b) => b.currentTotal - a.currentTotal);
+                    break;
+                }
+
+                case 'spendingVelocity': {
+                    const svNow = new Date();
+                    const svMonthStart = formatters.getMonthStart(svNow.getFullYear(), svNow.getMonth() + 1);
+                    const svToday = formatters.formatDateForAPI(svNow);
+                    const svDayOfMonth = svNow.getDate();
+
+                    const svResp = await fetch(
+                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${svMonthStart}&endDate=${svToday}`),
+                        { headers: { 'requesttoken': OC.requestToken } }
+                    );
+                    const svData = await svResp.json();
+                    const totalSpent = parseFloat(svData.totalExpenses || 0);
+                    this.widgetData.spendingVelocity = {
+                        dailyRate: svDayOfMonth > 0 ? totalSpent / svDayOfMonth : 0,
+                    };
+                    break;
+                }
             }
 
             this.widgetDataLoaded[widgetKey] = true;
