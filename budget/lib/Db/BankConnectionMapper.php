@@ -18,7 +18,7 @@ class BankConnectionMapper extends QBMapper {
     use EncryptedFieldsTrait;
 
     public function __construct(IDBConnection $db, EncryptionService $encryptionService) {
-        parent::__construct($db, 'budget_bank_connections', BankConnection::class);
+        parent::__construct($db, 'budget_bc', BankConnection::class);
         $this->initializeEncryption($encryptionService, BankConnection::class);
     }
 
