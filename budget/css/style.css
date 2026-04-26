@@ -4851,6 +4851,16 @@ button.danger:hover {
     color: var(--budget-color-negative);
 }
 
+.transaction-balance.projected {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+.balance-amount.projected {
+    opacity: 0.7;
+    font-style: italic;
+}
+
 /* Make account cards clickable */
 .account-card {
     cursor: pointer;

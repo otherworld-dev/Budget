@@ -129,6 +129,7 @@ class AccountService extends AbstractCrudService {
         // Convert account to array and override balance with adjusted value
         $accountData = $account->toArrayMasked();
         $accountData['balance'] = MoneyCalculator::toFloat($balance);
+        $accountData['storedBalance'] = MoneyCalculator::toFloat($storedBalance);
 
         // Add fiat equivalent for non-base-currency accounts
         $baseCurrency = $this->conversionService->getBaseCurrency($userId);

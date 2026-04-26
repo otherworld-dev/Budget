@@ -1079,6 +1079,10 @@ style('budget', 'budget-main');
                                     <label><?php p($l->t('Available Balance')); ?></label>
                                     <div id="account-available-balance" class="balance-amount"></div>
                                 </div>
+                                <div class="balance-item" id="projected-balance-info" style="display: none;">
+                                    <label><?php p($l->t('Projected Balance')); ?></label>
+                                    <div id="account-projected-balance" class="balance-amount projected"></div>
+                                </div>
                                 <div class="balance-item" id="credit-info" style="display: none;">
                                     <label><?php p($l->t('Credit Limit')); ?></label>
                                     <div id="account-credit-limit" class="balance-amount"></div>

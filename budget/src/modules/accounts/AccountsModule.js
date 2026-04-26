@@ -579,6 +579,20 @@ export default class AccountsModule {
         document.getElementById('account-available-balance').textContent = this.formatCurrency(availableBalance, currency);
         document.getElementById('account-available-balance').className = `balance-amount ${availableBalance >= 0 ? 'positive' : 'negative'}`;
 
+        // Show projected balance (including scheduled future transactions) if different from current
+        const projectedInfo = document.getElementById('projected-balance-info');
+        const projectedEl = document.getElementById('account-projected-balance');
+        if (projectedInfo && projectedEl) {
+            const storedBalance = parseFloat(account.storedBalance ?? account.balance) || 0;
+            if (Math.abs(storedBalance - currentBalance) > 0.01) {
+                projectedInfo.style.display = 'block';
+                projectedEl.textContent = this.formatCurrency(storedBalance, currency);
+                projectedEl.className = `balance-amount projected ${storedBalance >= 0 ? 'positive' : 'negative'}`;
+            } else {
+                projectedInfo.style.display = 'none';
+            }
+        }
+
         // Show accrued interest for accounts with interest tracking enabled
         const accruedInterestInfo = document.getElementById('accrued-interest-info');
         const totalOwingInfo = document.getElementById('total-owing-info');
@@ -950,7 +964,7 @@ export default class AccountsModule {
                     </td>
                     <td class="balance-column">
                         ${balanceMap !== null && balanceMap[transaction.id] !== undefined
-                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
+                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}${isScheduled ? ' projected' : ''}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
                             : ''}
                     </td>
                     <td class="actions-column">
