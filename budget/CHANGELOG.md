@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.1] - 2026-04-26
+
+### Fixed
+- **Installation fails: table name too long** ([#162](https://github.com/otherworld-dev/budget/issues/162)): Renamed `budget_bank_account_mappings` to `budget_bam` to stay within Nextcloud's name limit
+- **Recent Imports dashboard tile stuck on Loading** ([#157](https://github.com/otherworld-dev/budget/issues/157)): Implemented actual import history query and fixed container ID mismatch
+
 ## [2.14.0] - 2026-04-26
 
 ### Added
