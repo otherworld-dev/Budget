@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-04-25 08:09+0000\n"
+"PO-Revision-Date: 2026-04-27 06:09+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -85,7 +85,7 @@ msgstr "Ungültige Routingnummer: %1$s"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:340
 #, php-format
 msgid "Invalid sort code: %1$s"
-msgstr "Ungültige sechsstellige (UK) Bankleitzahl (NN-NN-NN): %1$s"
+msgstr "Ungültige Bankleitzahl: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:214
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:353
@@ -128,8 +128,7 @@ msgstr "Konto konnte nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:477
 msgid "This account has no sensitive banking data to reveal"
-msgstr ""
-"Dieses Konto enthält keine sensiblen Bankdaten, die angezeigt werden könnten"
+msgstr "Dieses Konto hat keine sensiblen Bankdaten, die angezeigt werden können"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:503
 msgid "Failed to retrieve account summary"
@@ -141,7 +140,7 @@ msgstr "Kontenabgleich fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
-msgstr "Budget Benachrichtigungen konnten nicht abgerufen werden"
+msgstr "Budgetwarnungen wurden nicht abgerufen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AlertController.php:64
 msgid "Failed to retrieve budget status"
@@ -347,7 +346,7 @@ msgstr "Passwortschutz konnte nicht deaktiviert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AuthController.php:224
 msgid "Incorrect current password"
-msgstr "Das aktuelle Passwort ist falsch"
+msgstr "Falsches aktuelles Passwort"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AuthController.php:232
 #: /tmp/budget-v2.11.0/budget/src/main.js:1714
@@ -497,15 +496,15 @@ msgstr "Export des Rechnungskalender schlug fehl"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:950
 msgid "Split template must have at least 2 splits"
-msgstr ""
+msgstr "Die Aufteilungsvorlage muss mindestens 2 Aufteilungen enthalten"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:956
 msgid "Each split must have a positive amount"
-msgstr ""
+msgstr "Jede Aufteilung muss einen positiven Betrag haben"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:962
 msgid "Split amounts must equal the bill amount"
-msgstr ""
+msgstr "Die Summe der Aufteilungen muss dem Rechnungsbetrag entsprechen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:974
 msgid "Invalid JSON in custom recurrence pattern"
@@ -662,7 +661,7 @@ msgstr "Fehler beim Abrufen der Basiswährung"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:141
 msgid "Exchange rates refreshed successfully"
-msgstr ""
+msgstr "Wechselkurse erfolgreich aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ExchangeRateController.php:144
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:364
@@ -684,15 +683,15 @@ msgstr "Fehler beim Löschen des manuellen Wechselkurses"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ForecastController.php:60
 msgid "Failed to generate forecast"
-msgstr ""
+msgstr "Prognose konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ForecastController.php:88
 msgid "Failed to generate cash flow forecast"
-msgstr ""
+msgstr "Cashflow-Prognose konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ForecastController.php:107
 msgid "Failed to retrieve spending trends"
-msgstr ""
+msgstr "Ausgabe-Trends konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ForecastController.php:126
 msgid "Failed to run forecast scenarios"
@@ -722,7 +721,7 @@ msgstr "Ziel"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:118
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:199
 msgid "Target date"
-msgstr ""
+msgstr "Fälligkeitsdatum"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:128
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:207
@@ -959,7 +958,7 @@ msgstr "Das Jahreseinkommen darf nicht negativ sein"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:169
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:263
 msgid "Transfer value cannot be negative"
-msgstr ""
+msgstr "Umbuchungwert kann nicht negativ sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:187
 msgid "Failed to create pension"
@@ -2107,7 +2106,7 @@ msgstr "Ausgaben in diesem Monat"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:11
 #: /tmp/budget-v2.11.0/budget/templates/index.php:342
 msgid "Net Savings"
-msgstr ""
+msgstr "Nettoersparnis"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:12
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:931
@@ -2128,7 +2127,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2729
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2888
 msgid "Savings Rate"
-msgstr ""
+msgstr "Sparquote"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:17
 #: /tmp/budget-v2.11.0/budget/templates/index.php:398
@@ -2263,7 +2262,7 @@ msgstr "Schuldentilgung"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:47
 #: /tmp/budget-v2.11.0/budget/templates/index.php:716
 msgid "Top Spending Categories"
-msgstr ""
+msgstr "Häufigste Ausgabekategorien"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:48
 #: /tmp/budget-v2.11.0/budget/templates/index.php:725
@@ -2287,7 +2286,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:52
 #: /tmp/budget-v2.11.0/budget/templates/index.php:761
 msgid "Reconciliation Status"
-msgstr ""
+msgstr "Abstimmungsstatus"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:55
 #: /tmp/budget-v2.11.0/budget/templates/index.php:771
@@ -3169,11 +3168,12 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1190
 msgid "Cannot finish reconciliation - balances do not match"
 msgstr ""
+"Abstimmung kann nicht abgeschlossen werden – die Salden stimmen nicht überein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1196
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1117
 msgid "Reconciliation completed successfully"
-msgstr ""
+msgstr "Abstimmung erfolgreich abgeschlossen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1260
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1383
@@ -3288,7 +3288,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1720
 #: /tmp/budget-v2.11.0/budget/templates/index.php:935
 msgid "Add Account"
-msgstr ""
+msgstr "Konto hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1758
 msgid "Balance is calculated from transactions"
@@ -4065,7 +4065,7 @@ msgstr "{percent}% im Vergleich zum Vormonat"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:348
 #, javascript-format
 msgid "{percent}% savings rate"
-msgstr ""
+msgstr "{percent}% Sparquote"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:368
 msgid "Great"
@@ -4082,8 +4082,8 @@ msgstr "Niedrig"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:538
 msgid "%n category under budget"
 msgid_plural "%n categories under budget"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Kategorie unter dem Budget"
+msgstr[1] "Kategorien unter dem Budget"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:564
 msgid "{onTrack}/{total} on track"
@@ -4410,7 +4410,7 @@ msgstr "Rechnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2453
 msgid "Alerts"
-msgstr "Benachrichtigungen"
+msgstr "Warnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2454
 msgid "Interactive"
@@ -4599,7 +4599,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:654
 msgid "Select account…"
-msgstr ""
+msgstr "Konto auswählen…"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:686
 msgid "Balance: {balance}"
@@ -4864,7 +4864,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:155
 msgid "{amount}/yr"
-msgstr "{amount}/Jahr"
+msgstr "{amount}/J."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:319
 msgid "Edit Pension"
@@ -5535,7 +5535,7 @@ msgstr "Kategorie:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:175
 msgid "-- Select Category --"
-msgstr ""
+msgstr "-- Kategorie auswählen --"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:180
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:197
@@ -5611,7 +5611,7 @@ msgstr "Konto:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:269
 msgid "-- Select Account --"
-msgstr ""
+msgstr "-- Konto auswählen --"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:276
 msgid "This will reassign the transaction to a different account"
@@ -5689,7 +5689,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5025
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5605
 msgid "Vendor"
-msgstr "Anbieter"
+msgstr "Empfänger"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:120
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:464
@@ -6020,7 +6020,7 @@ msgstr "Bitte fügen Sie zunächst Kontakte in den ‚Gemeinsamen Ausgaben‘ hi
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:555
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5671
 msgid "Select a contact..."
-msgstr ""
+msgstr "Kontakt auswählen..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:573
 msgid "Please select a contact"
@@ -6162,7 +6162,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:303
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1596
 msgid "Select All"
-msgstr ""
+msgstr "Alle auswählen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:261
 msgid "Read only"
@@ -6593,7 +6593,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:426
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2111
 msgid "Select account..."
-msgstr ""
+msgstr "Konto auswählen..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1346
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1369
@@ -7308,13 +7308,13 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:898
 msgid "Select type"
-msgstr ""
+msgstr "Typ auswählen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:918
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1150
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1306
 msgid "Add Transaction"
-msgstr ""
+msgstr "Buchung hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:919
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1599
@@ -7598,7 +7598,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1432
 msgid "Start Reconciliation"
-msgstr ""
+msgstr "Abstimmung starten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1447
 msgid "Configure columns"
@@ -10265,11 +10265,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5805
 msgid "All bills and recurring income"
-msgstr ""
+msgstr "Alle Rechnungen und wiederkehrenden Einnahmen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5806
 msgid "All categories and budget settings"
-msgstr ""
+msgstr "Alle Kategorien und Budgeteinstellungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5807
 msgid "All savings goals and pension accounts"
@@ -10286,14 +10286,15 @@ msgstr "Alle geteilten Ausgaben und Kontakte"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5811
 msgid "Only audit logs will be preserved for compliance purposes."
 msgstr ""
+"Nur Prüfprotokolle (Audit-Logs) werden aus Compliance-Gründen aufbewahrt."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5812
 msgid "You will need to set up everything from scratch after this operation."
-msgstr ""
+msgstr "Nach diesem Vorgang müssen Sie alles von Grund auf neu einrichten."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5817
 msgid "Type DELETE to confirm:"
-msgstr ""
+msgstr "Geben Sie „ DELETE“ zur Bestätigung ein:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5822
 msgid "Type DELETE to confirm"
@@ -10301,4 +10302,4 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5825
 msgid "You must type DELETE (all caps) exactly to proceed"
-msgstr ""
+msgstr "Geben Sie „DELETE“ (in Großbuchstaben) genau so ein, um fortzufahren"
