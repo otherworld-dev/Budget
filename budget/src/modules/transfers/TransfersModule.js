@@ -247,6 +247,7 @@ export default class TransfersModule {
 
             const frequency = transfer.frequency || 'monthly';
             const frequencyLabels = {
+                'one-time': t('budget', 'One-Time'),
                 'weekly': t('budget', 'Weekly'),
                 'biweekly': t('budget', 'Bi-Weekly'),
                 'monthly': t('budget', 'Monthly'),
@@ -399,6 +400,7 @@ export default class TransfersModule {
                             <div class="form-group">
                                 <label for="transfer-frequency">${t('budget', 'Frequency')} *</label>
                                 <select id="transfer-frequency" class="form-control" required>
+                                    <option value="one-time" ${isEdit && transfer.frequency === 'one-time' ? 'selected' : ''}>${t('budget', 'One-Time')}</option>
                                     <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                                     <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
                                     <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>

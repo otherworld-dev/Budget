@@ -59,6 +59,7 @@ enum Currency: string {
     case SGD = 'SGD';  // Singapore Dollar
     case HKD = 'HKD';  // Hong Kong Dollar
     case PKR = 'PKR';  // Pakistani Rupee
+    case KZT = 'KZT';  // Kazakhstani Tenge
     case BDT = 'BDT';  // Bangladeshi Taka
     case AUD = 'AUD';  // Australian Dollar
     case NZD = 'NZD';  // New Zealand Dollar
@@ -153,6 +154,7 @@ enum Currency: string {
             self::SGD => 'S$',
             self::HKD => 'HK$',
             self::PKR => 'Rs',
+            self::KZT => '₸',
             self::BDT => '৳',
             self::AUD => 'A$',
             self::NZD => 'NZ$',
@@ -262,6 +264,7 @@ enum Currency: string {
             self::SGD => 'Singapore Dollar',
             self::HKD => 'Hong Kong Dollar',
             self::PKR => 'Pakistani Rupee',
+            self::KZT => 'Kazakhstani Tenge',
             self::BDT => 'Bangladeshi Taka',
             self::AUD => 'Australian Dollar',
             self::NZD => 'New Zealand Dollar',

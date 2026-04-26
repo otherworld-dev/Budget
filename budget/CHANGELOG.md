@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.1] - 2026-04-21
+
+### Fixed
+- **Migration fails: "Primary index name too long"** ([#152](https://github.com/otherworld-dev/budget/issues/152)): Renamed `budget_budget_snapshots` table to `budget_bgt_snapshots` to stay within Nextcloud's 30-character index name limit
+- **Budget tab does not show income transactions** ([#149](https://github.com/otherworld-dev/budget/issues/149)): Spending queries were hardcoded to debit transactions; income categories now correctly query credit transactions
+- **Mark bill as paid fails** ([#151](https://github.com/otherworld-dev/budget/issues/151)): Regular bills and recurring income were still passing null description to transaction creation
+- **German translation not loading** ([#150](https://github.com/otherworld-dev/budget/issues/150)): Compiled translation files were missing from the release; added compiled German and Portuguese translations
+
+### Changed
+- Updated German translations from Weblate
+
 ## [2.13.0] - 2026-04-21
 
 ### Added

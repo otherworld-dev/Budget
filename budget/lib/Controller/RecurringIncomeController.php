@@ -178,11 +178,14 @@ class RecurringIncomeController extends Controller {
         try {
             $this->requireWriteAccess('recurring_income', $id);
 
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            // Use request params (php://input is consumed by the framework)
+            $data = $this->request->getParams();
 
-            if (!$data) {
-                return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
+            // Remove framework-injected params that aren't part of the update
+            unset($data['id'], $data['_route']);
+
+            if (empty($data)) {
+                return new DataResponse(['error' => $this->l->t('No data provided')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate name if provided
@@ -315,7 +318,8 @@ class RecurringIncomeController extends Controller {
     #[UserRateLimit(limit: 10, period: 60)]
     public function createFromDetected(): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
+            unset($data['_route']);
             if (!is_array($data) || !isset($data['incomes'])) {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }

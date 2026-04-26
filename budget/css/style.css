@@ -1037,6 +1037,111 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Phase 2/3 Widget Styles */
+.widget-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--color-background-dark);
+}
+
+.widget-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.widget-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-main-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.widget-item-meta {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.widget-item-amount {
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+.widget-item-amount.positive {
+    color: var(--budget-color-positive);
+}
+
+.widget-item-amount.negative {
+    color: var(--budget-color-negative);
+}
+
+.widget-stat {
+    text-align: center;
+    padding: 8px;
+}
+
+.widget-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-main-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.widget-stat-label {
+    font-size: 0.8rem;
+    color: var(--color-text-maxcontrast);
+    margin-top: 2px;
+}
+
+.widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.comparison-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--color-background-dark);
+    border-radius: 6px;
+}
+
+.comparison-label {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+
+.comparison-value {
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.comparison-change {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.comparison-change.positive {
+    color: var(--budget-color-positive);
+}
+
+.comparison-change.negative {
+    color: var(--budget-color-negative);
+}
+
 /* Budget Progress Widget */
 .budget-widget {
     display: flex;
@@ -2281,11 +2386,16 @@ button.danger:hover {
     font-variant-numeric: tabular-nums;
 }
 
-#accounts-assets-section .section-subtotal {
+#accounts-assets-section .section-subtotal,
+#accounts-liabilities-section .section-subtotal {
+    /* Color set dynamically via .positive/.negative classes */
+}
+
+.section-subtotal.positive {
     color: var(--budget-color-positive);
 }
 
-#accounts-liabilities-section .section-subtotal {
+.section-subtotal.negative {
     color: var(--budget-color-negative);
 }
 
