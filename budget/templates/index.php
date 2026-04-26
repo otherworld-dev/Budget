@@ -4637,6 +4637,14 @@ style('budget', 'budget-main');
                 <div class="settings-section" id="admin-settings-section" style="display: none;">
                     <h3><?php p($l->t('Admin Settings')); ?></h3>
                     <div class="settings-group">
+                        <div class="bank-sync-warning">
+                            <span class="icon-error" aria-hidden="true"></span>
+                            <div>
+                                <strong><?php p($l->t('Experimental Feature')); ?></strong>
+                                <p><?php p($l->t('Bank Sync is a new feature that is still being tested and may be unreliable. If you encounter any issues, please submit a report on GitHub so we can resolve them.')); ?></p>
+                                <a href="https://github.com/otherworld-dev/budget/issues" target="_blank" rel="noopener"><?php p($l->t('Report an issue on GitHub')); ?> &rarr;</a>
+                            </div>
+                        </div>
                         <div class="setting-item checkbox-setting">
                             <label>
                                 <input type="checkbox" id="setting-bank-sync-enabled">

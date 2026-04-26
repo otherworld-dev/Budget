@@ -7459,6 +7459,46 @@ button.danger:hover {
     flex: 1;
 }
 
+/* Bank Sync Warning */
+.bank-sync-warning {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: rgba(245, 124, 0, 0.1);
+    border: 1px solid rgba(245, 124, 0, 0.4);
+    border-radius: var(--border-radius-large);
+    color: var(--color-main-text);
+}
+
+.bank-sync-warning .icon-error {
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.8;
+}
+
+.bank-sync-warning strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #f57c00;
+}
+
+.bank-sync-warning p {
+    margin: 0 0 8px 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.bank-sync-warning a {
+    color: var(--color-primary-element);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.bank-sync-warning a:hover {
+    text-decoration: underline;
+}
+
 /* Number format preview */
 .setting-preview {
     margin-top: 16px;
