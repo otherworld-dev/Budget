@@ -600,6 +600,19 @@ export default class DashboardModule {
     // Widget Updates
     // ===========================
 
+    getAccountsTileConfig() {
+        const config = this.dashboardConfig.widgets?.settings?.accountsTile;
+        return config || { order: [], hidden: [] };
+    }
+
+    async saveAccountsTileConfig(config) {
+        if (!this.dashboardConfig.widgets.settings) {
+            this.dashboardConfig.widgets.settings = {};
+        }
+        this.dashboardConfig.widgets.settings.accountsTile = config;
+        await this.saveDashboardVisibility();
+    }
+
     updateAccountsWidget(accounts) {
         const container = document.getElementById('accounts-summary');
         if (!container || !Array.isArray(accounts)) return;
@@ -608,6 +621,9 @@ export default class DashboardModule {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No accounts yet')}</div>`;
             return;
         }
+
+        // Store full accounts list for config panel
+        this._allDashboardAccounts = accounts;
 
         const accountTypeIcons = {
             checking: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>',
@@ -627,7 +643,33 @@ export default class DashboardModule {
             loan: t('budget', 'Loan')
         };
 
-        container.innerHTML = accounts.slice(0, 5).map(account => {
+        // Apply tile config: order and visibility
+        const tileConfig = this.getAccountsTileConfig();
+        const hiddenIds = new Set(tileConfig.hidden || []);
+
+        // Sort: use saved order, append any new accounts at the end
+        let sortedAccounts;
+        if (tileConfig.order && tileConfig.order.length > 0) {
+            const orderMap = {};
+            tileConfig.order.forEach((id, idx) => { orderMap[id] = idx; });
+            sortedAccounts = [...accounts].sort((a, b) => {
+                const aIdx = orderMap[a.id] ?? 999;
+                const bIdx = orderMap[b.id] ?? 999;
+                return aIdx - bIdx;
+            });
+        } else {
+            sortedAccounts = accounts;
+        }
+
+        // Filter hidden accounts
+        const visibleAccounts = sortedAccounts.filter(a => !hiddenIds.has(a.id));
+
+        if (visibleAccounts.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'All accounts hidden')}</div>`;
+            return;
+        }
+
+        container.innerHTML = visibleAccounts.map(account => {
             const type = account.type || 'checking';
             const balance = parseFloat(account.balance) || 0;
             const currency = account.currency || this.getPrimaryCurrency();
@@ -651,6 +693,114 @@ export default class DashboardModule {
                 </div>
             `;
         }).join('');
+    }
+
+    setupAccountsTileConfig() {
+        const settingsBtn = document.getElementById('accounts-tile-settings-btn');
+        const configPanel = document.getElementById('accounts-tile-config');
+        const closeBtn = configPanel?.querySelector('.tile-config-close');
+
+        if (!settingsBtn || !configPanel) return;
+
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = configPanel.style.display !== 'none';
+            configPanel.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) this.renderAccountsTileConfigList();
+        });
+
+        closeBtn?.addEventListener('click', () => {
+            configPanel.style.display = 'none';
+        });
+    }
+
+    renderAccountsTileConfigList() {
+        const listEl = document.getElementById('accounts-tile-list');
+        if (!listEl) return;
+
+        const accounts = this._allDashboardAccounts || [];
+        if (accounts.length === 0) {
+            listEl.innerHTML = `<div class="empty-state-small">${t('budget', 'No accounts')}</div>`;
+            return;
+        }
+
+        const tileConfig = this.getAccountsTileConfig();
+        const hiddenIds = new Set(tileConfig.hidden || []);
+
+        // Sort accounts by saved order
+        let sortedAccounts;
+        if (tileConfig.order && tileConfig.order.length > 0) {
+            const orderMap = {};
+            tileConfig.order.forEach((id, idx) => { orderMap[id] = idx; });
+            sortedAccounts = [...accounts].sort((a, b) => {
+                const aIdx = orderMap[a.id] ?? 999;
+                const bIdx = orderMap[b.id] ?? 999;
+                return aIdx - bIdx;
+            });
+        } else {
+            sortedAccounts = accounts;
+        }
+
+        listEl.innerHTML = sortedAccounts.map(account => `
+            <div class="tile-config-item" draggable="true" data-account-id="${account.id}">
+                <span class="tile-config-drag-handle">&#x2630;</span>
+                <span class="tile-config-name">${this.escapeHtml(account.name)}</span>
+                <label class="tile-config-toggle">
+                    <input type="checkbox" ${!hiddenIds.has(account.id) ? 'checked' : ''} data-account-id="${account.id}">
+                </label>
+            </div>
+        `).join('');
+
+        // Visibility toggles
+        listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', async () => {
+                const config = this.getAccountsTileConfig();
+                const accountId = parseInt(cb.dataset.accountId);
+                if (cb.checked) {
+                    config.hidden = (config.hidden || []).filter(id => id !== accountId);
+                } else {
+                    if (!config.hidden) config.hidden = [];
+                    if (!config.hidden.includes(accountId)) config.hidden.push(accountId);
+                }
+                await this.saveAccountsTileConfig(config);
+                this.updateAccountsWidget(this._allDashboardAccounts);
+            });
+        });
+
+        // Drag and drop reordering
+        let dragItem = null;
+        listEl.querySelectorAll('.tile-config-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                dragItem = item;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                dragItem = null;
+            });
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (!dragItem || dragItem === item) return;
+                const rect = item.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (e.clientY < midY) {
+                    listEl.insertBefore(dragItem, item);
+                } else {
+                    listEl.insertBefore(dragItem, item.nextSibling);
+                }
+            });
+        });
+
+        listEl.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            // Save new order from DOM
+            const config = this.getAccountsTileConfig();
+            config.order = Array.from(listEl.querySelectorAll('.tile-config-item'))
+                .map(el => parseInt(el.dataset.accountId));
+            await this.saveAccountsTileConfig(config);
+            this.updateAccountsWidget(this._allDashboardAccounts);
+        });
     }
 
     updateRecentTransactions(transactions) {
@@ -2698,6 +2848,9 @@ export default class DashboardModule {
                 }
             });
         }
+
+        // Setup tile-level config panels
+        this.setupAccountsTileConfig();
     }
 
     async toggleDashboardLock() {
@@ -2737,8 +2890,10 @@ export default class DashboardModule {
                 icon.classList.remove('icon-unlock');
                 icon.classList.add('icon-lock');
             }
-            // Hide Add Tiles button
+            // Hide Add Tiles button and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'none';
+            document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = 'none');
+            document.querySelectorAll('.tile-config-panel').forEach(p => p.style.display = 'none');
             // Remove all X buttons
             document.querySelectorAll('.widget-remove-btn').forEach(btn => btn.remove());
         } else {
@@ -2749,8 +2904,9 @@ export default class DashboardModule {
                 icon.classList.remove('icon-lock');
                 icon.classList.add('icon-unlock');
             }
-            // Show Add Tiles button
+            // Show Add Tiles button and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
+            document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = '');
             // Add X buttons to all visible widgets
             this.addRemoveButtons();
         }

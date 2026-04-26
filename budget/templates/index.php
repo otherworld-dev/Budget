@@ -652,9 +652,24 @@ style('budget', 'budget-main');
                     <div id="accounts-card" class="dashboard-card" data-widget-id="accounts" data-widget-category="widget">
                         <div class="card-header">
                             <h3><?php p($l->t('Accounts')); ?></h3>
-                            <a href="#accounts" class="card-link"><?php p($l->t('Manage')); ?></a>
+                            <div class="card-header-actions">
+                                <button id="accounts-tile-settings-btn" class="tile-settings-btn" style="display: none;" title="<?php p($l->t('Configure accounts tile')); ?>">
+                                    <span class="icon-settings" aria-hidden="true"></span>
+                                </button>
+                                <a href="#accounts" class="card-link"><?php p($l->t('Manage')); ?></a>
+                            </div>
                         </div>
                         <div id="accounts-summary" class="accounts-widget"></div>
+                        <div id="accounts-tile-config" class="tile-config-panel" style="display: none;">
+                            <div class="tile-config-header">
+                                <h4><?php p($l->t('Configure Accounts')); ?></h4>
+                                <button class="tile-config-close" title="<?php p($l->t('Close')); ?>">&times;</button>
+                            </div>
+                            <p class="tile-config-hint"><?php p($l->t('Drag to reorder. Toggle visibility for each account.')); ?></p>
+                            <div id="accounts-tile-list" class="tile-config-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Budget Alerts -->
