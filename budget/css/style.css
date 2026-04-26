@@ -2386,11 +2386,16 @@ button.danger:hover {
     font-variant-numeric: tabular-nums;
 }
 
-#accounts-assets-section .section-subtotal {
+#accounts-assets-section .section-subtotal,
+#accounts-liabilities-section .section-subtotal {
+    /* Color set dynamically via .positive/.negative classes */
+}
+
+.section-subtotal.positive {
     color: var(--budget-color-positive);
 }
 
-#accounts-liabilities-section .section-subtotal {
+.section-subtotal.negative {
     color: var(--budget-color-negative);
 }
 

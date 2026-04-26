@@ -200,14 +200,26 @@ export default class AccountsModule {
             totalAssetsEl.classList.toggle('positive', totalAssets >= 0);
             totalAssetsEl.classList.toggle('negative', totalAssets < 0);
         }
-        if (totalLiabilitiesEl) totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+        if (totalLiabilitiesEl) {
+            totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+            totalLiabilitiesEl.classList.toggle('positive', totalLiabilities <= 0);
+            totalLiabilitiesEl.classList.toggle('negative', totalLiabilities > 0);
+        }
         if (netWorthEl) {
             netWorthEl.textContent = this.formatCurrency(netWorth, primaryCurrency);
             netWorthEl.classList.toggle('positive', netWorth >= 0);
             netWorthEl.classList.toggle('negative', netWorth < 0);
         }
-        if (assetsSubtotalEl) assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
-        if (liabilitiesSubtotalEl) liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+        if (assetsSubtotalEl) {
+            assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+            assetsSubtotalEl.classList.toggle('positive', totalAssets >= 0);
+            assetsSubtotalEl.classList.toggle('negative', totalAssets < 0);
+        }
+        if (liabilitiesSubtotalEl) {
+            liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+            liabilitiesSubtotalEl.classList.toggle('positive', totalLiabilities <= 0);
+            liabilitiesSubtotalEl.classList.toggle('negative', totalLiabilities > 0);
+        }
 
         // Show warning for accounts with unconvertible currencies
         const warningEl = document.getElementById('accounts-conversion-warning');
@@ -260,10 +272,12 @@ export default class AccountsModule {
         const typeInfo = this.getAccountTypeInfo(accountType);
         const healthStatus = this.getAccountHealthStatus(account);
 
-        // For liabilities: negative = you owe, positive = overpayment/credit, zero = paid off
+        // For liabilities: negative = you owe (red), positive = overpayment/credit (green), zero = paid off
         const isLiability = ['credit_card', 'loan'].includes(accountType);
         const displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
-        const balanceClass = accountBalance >= 0 ? 'positive' : 'negative';
+        const balanceClass = isLiability
+            ? (accountBalance <= 0 ? 'negative' : 'positive')
+            : (accountBalance >= 0 ? 'positive' : 'negative');
         const balanceLabel = isLiability
             ? (accountBalance < 0 ? t('budget', 'Owed') : accountBalance > 0 ? t('budget', 'Credit') : t('budget', 'Balance'))
             : t('budget', 'Balance');

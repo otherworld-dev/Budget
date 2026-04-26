@@ -1510,13 +1510,26 @@ export default class CategoriesModule {
 
             const remaining = budget - spent;
             const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+            const isIncome = category.type === 'income';
 
             let progressStatus = 'good';
-            if (percentage >= 100) progressStatus = 'over';
-            else if (percentage >= 80) progressStatus = 'danger';
-            else if (percentage >= 60) progressStatus = 'warning';
+            if (isIncome) {
+                // For income: exceeding target is good, under target is concerning
+                if (percentage >= 100) progressStatus = 'good';
+                else if (percentage >= 80) progressStatus = 'good';
+                else if (percentage >= 60) progressStatus = 'warning';
+                else progressStatus = 'danger';
+            } else {
+                // For expenses: under budget is good, over is bad
+                if (percentage >= 100) progressStatus = 'over';
+                else if (percentage >= 80) progressStatus = 'danger';
+                else if (percentage >= 60) progressStatus = 'warning';
+            }
 
-            const remainingClass = remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero');
+            // For income, negative remaining = exceeded target (good), positive = not yet reached (neutral)
+            const remainingClass = isIncome
+                ? (remaining <= 0 ? 'positive' : 'zero')
+                : (remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero'));
 
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">

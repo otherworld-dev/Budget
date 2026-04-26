@@ -21132,14 +21132,26 @@ var AccountsModule = /*#__PURE__*/function () {
         totalAssetsEl.classList.toggle('positive', totalAssets >= 0);
         totalAssetsEl.classList.toggle('negative', totalAssets < 0);
       }
-      if (totalLiabilitiesEl) totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+      if (totalLiabilitiesEl) {
+        totalLiabilitiesEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+        totalLiabilitiesEl.classList.toggle('positive', totalLiabilities <= 0);
+        totalLiabilitiesEl.classList.toggle('negative', totalLiabilities > 0);
+      }
       if (netWorthEl) {
         netWorthEl.textContent = this.formatCurrency(netWorth, primaryCurrency);
         netWorthEl.classList.toggle('positive', netWorth >= 0);
         netWorthEl.classList.toggle('negative', netWorth < 0);
       }
-      if (assetsSubtotalEl) assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
-      if (liabilitiesSubtotalEl) liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+      if (assetsSubtotalEl) {
+        assetsSubtotalEl.textContent = this.formatCurrency(totalAssets, primaryCurrency);
+        assetsSubtotalEl.classList.toggle('positive', totalAssets >= 0);
+        assetsSubtotalEl.classList.toggle('negative', totalAssets < 0);
+      }
+      if (liabilitiesSubtotalEl) {
+        liabilitiesSubtotalEl.textContent = this.formatCurrency(totalLiabilities, primaryCurrency);
+        liabilitiesSubtotalEl.classList.toggle('positive', totalLiabilities <= 0);
+        liabilitiesSubtotalEl.classList.toggle('negative', totalLiabilities > 0);
+      }
 
       // Show warning for accounts with unconvertible currencies
       var warningEl = document.getElementById('accounts-conversion-warning');
@@ -21196,10 +21208,10 @@ var AccountsModule = /*#__PURE__*/function () {
       var typeInfo = this.getAccountTypeInfo(accountType);
       var healthStatus = this.getAccountHealthStatus(account);
 
-      // For liabilities: negative = you owe, positive = overpayment/credit, zero = paid off
+      // For liabilities: negative = you owe (red), positive = overpayment/credit (green), zero = paid off
       var isLiability = ['credit_card', 'loan'].includes(accountType);
       var displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
-      var balanceClass = accountBalance >= 0 ? 'positive' : 'negative';
+      var balanceClass = isLiability ? accountBalance <= 0 ? 'negative' : 'positive' : accountBalance >= 0 ? 'positive' : 'negative';
       var balanceLabel = isLiability ? accountBalance < 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Owed') : accountBalance > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Credit') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Balance') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Balance');
       return "\n            <div class=\"account-card\" data-type=\"".concat(accountType, "\" data-account-id=\"").concat(accountId, "\">\n                <div class=\"account-card-header\">\n                    <div class=\"account-icon\" style=\"background-color: ").concat(typeInfo.color, ";\">\n                        <span class=\"").concat(typeInfo.icon, "\" aria-hidden=\"true\"></span>\n                    </div>\n                    <div class=\"account-details\">\n                        <h3 class=\"account-name\">").concat(accountName, "</h3>\n                        <div class=\"account-meta\">\n                            <span class=\"account-type-badge\">").concat(typeInfo.label, "</span>\n                            ").concat(institution ? "<span class=\"account-institution\">".concat(institution, "</span>") : '', "\n                        </div>\n                    </div>\n                </div>\n\n                <div class=\"account-card-balance\">\n                    <div class=\"balance-info\">\n                        <span class=\"balance-label\">").concat(balanceLabel, "</span>\n                        <span class=\"balance-amount ").concat(balanceClass, "\">\n                            ").concat(this.formatCurrency(displayBalance, accountCurrency), "\n                        </span>\n                        ").concat(account.convertedBalance != null ? "<span class=\"balance-converted\">\u2248 ".concat(this.formatCurrency(isLiability ? Math.abs(account.convertedBalance) : account.convertedBalance, account.baseCurrency), "</span>") : '', "\n                    </div>\n                    <div class=\"account-sparkline\" data-account-id=\"").concat(accountId, "\">\n                        <svg viewBox=\"0 0 80 32\" preserveAspectRatio=\"none\">\n                            <path class=\"sparkline-path neutral\" d=\"M0,16 L80,16\"></path>\n                        </svg>\n                    </div>\n                </div>\n\n                <div class=\"account-card-footer\">\n                    <div class=\"account-status\">\n                        <span class=\"account-status-dot ").concat(healthStatus["class"], "\"></span>\n                        <span>").concat(healthStatus.tooltip, "</span>\n                    </div>\n                    <div class=\"account-actions\">\n                        <button class=\"account-action-btn edit-btn edit-account-btn\" data-account-id=\"").concat(accountId, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Edit Account'), "\">\n                            <span class=\"icon-rename\" aria-hidden=\"true\"></span>\n                        </button>\n                        <button class=\"account-action-btn delete-btn delete-account-btn\" data-account-id=\"").concat(accountId, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_4__.translate)('budget', 'Delete Account'), "\">\n                            <span class=\"icon-delete\" aria-hidden=\"true\"></span>\n                        </button>\n                    </div>\n                </div>\n            </div>\n        ");
     }
@@ -29270,9 +29282,18 @@ var CategoriesModule = /*#__PURE__*/function () {
         var budget = hasChildren && category._aggregatedBudget != null ? category._aggregatedBudget : effectiveBudgetAmount;
         var remaining = budget - spent;
         var percentage = budget > 0 ? Math.min(spent / budget * 100, 100) : 0;
+        var isIncome = category.type === 'income';
         var progressStatus = 'good';
-        if (percentage >= 100) progressStatus = 'over';else if (percentage >= 80) progressStatus = 'danger';else if (percentage >= 60) progressStatus = 'warning';
-        var remainingClass = remaining > 0 ? 'positive' : remaining < 0 ? 'negative' : 'zero';
+        if (isIncome) {
+          // For income: exceeding target is good, under target is concerning
+          if (percentage >= 100) progressStatus = 'good';else if (percentage >= 80) progressStatus = 'good';else if (percentage >= 60) progressStatus = 'warning';else progressStatus = 'danger';
+        } else {
+          // For expenses: under budget is good, over is bad
+          if (percentage >= 100) progressStatus = 'over';else if (percentage >= 80) progressStatus = 'danger';else if (percentage >= 60) progressStatus = 'warning';
+        }
+
+        // For income, negative remaining = exceeded target (good), positive = not yet reached (neutral)
+        var remainingClass = isIncome ? remaining <= 0 ? 'positive' : 'zero' : remaining > 0 ? 'positive' : remaining < 0 ? 'negative' : 'zero';
         return "\n                <div class=\"budget-category-row ".concat(hasChildren ? 'parent-row' : '', "\" data-category-id=\"").concat(category.id, "\">\n                    <div class=\"budget-category-name level-").concat(level, "\" data-label=\"\">\n                        <span class=\"category-color\" style=\"background-color: ").concat(category.color || '#3b82f6', "\"></span>\n                        <span class=\"category-label\">").concat(category.name, "</span>\n                    </div>\n                    <div class=\"budget-input-wrapper\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Budget'), "\">\n                        <input type=\"number\"\n                               class=\"budget-input\"\n                               data-category-id=\"").concat(category.id, "\"\n                               value=\"").concat(effectiveBudgetAmount ? Math.round(effectiveBudgetAmount * 100) / 100 : '', "\"\n                               placeholder=\"0.00\"\n                               step=\"0.01\"\n                               min=\"0\">\n                        ").concat(hasChildren && budget > effectiveBudgetAmount ? "<span class=\"budget-aggregate-hint\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Total'), ": ").concat(_this16.formatCurrency(budget), "</span>") : '', "\n                    </div>\n                    <div data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Period'), "\">\n                        <select class=\"budget-period-select\" data-category-id=\"").concat(category.id, "\">\n                            <option value=\"monthly\" ").concat(effectivePeriod === 'monthly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Monthly'), "</option>\n                            <option value=\"weekly\" ").concat(effectivePeriod === 'weekly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Weekly'), "</option>\n                            <option value=\"quarterly\" ").concat(effectivePeriod === 'quarterly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Quarterly'), "</option>\n                            <option value=\"yearly\" ").concat(effectivePeriod === 'yearly' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Yearly'), "</option>\n                        </select>\n                    </div>\n                    <div class=\"budget-spent\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Spent'), "\">\n                        ").concat(_this16.formatCurrency(spent), "\n                    </div>\n                    <div class=\"budget-remaining ").concat(remainingClass, "\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Remaining'), "\">\n                        ").concat(budget > 0 ? _this16.formatCurrency(remaining) : '<span class="no-budget">—</span>', "\n                    </div>\n                    <div class=\"budget-progress-wrapper\" data-label=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'Progress'), "\">\n                        ").concat(budget > 0 ? "\n                            <div class=\"budget-progress-bar\">\n                                <div class=\"budget-progress-fill ".concat(progressStatus, "\" style=\"width: ").concat(percentage, "%\"></div>\n                            </div>\n                            <span class=\"budget-progress-text\">").concat(Math.round(percentage), "%</span>\n                        ") : "<span class=\"no-budget\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_3__.translate)('budget', 'No budget set'), "</span>"), "\n                    </div>\n                </div>\n                ").concat(hasChildren ? _this16.renderBudgetCategoryNodes(category.children, level + 1) : '', "\n            ");
       }).join('');
     }
