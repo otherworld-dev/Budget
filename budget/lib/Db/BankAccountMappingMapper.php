@@ -13,7 +13,7 @@ use OCP\IDBConnection;
  */
 class BankAccountMappingMapper extends QBMapper {
     public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_bank_account_mappings', BankAccountMapping::class);
+        parent::__construct($db, 'budget_bam', BankAccountMapping::class);
     }
 
     public function find(int $id): BankAccountMapping {
