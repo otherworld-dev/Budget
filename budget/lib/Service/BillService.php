@@ -253,9 +253,12 @@ class BillService {
         }
 
         foreach ($updates as $key => $value) {
-            // Track if we need to recalculate next due date
-            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'lastPaidDate', 'customRecurrencePattern'])) {
-                $needsRecalculation = true;
+            // Track if schedule-related fields actually changed (not just present)
+            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern'])) {
+                $getter = 'get' . ucfirst($key);
+                if (method_exists($bill, $getter) && $bill->$getter() != $value) {
+                    $needsRecalculation = true;
+                }
             }
 
             // Convert camelCase to snake_case for database column names
@@ -263,8 +266,8 @@ class BillService {
             $dbUpdates[$columnName] = $value;
         }
 
-        // Recalculate next due date if frequency or due day or custom pattern changed
-        if ($needsRecalculation && (array_key_exists('frequency', $updates) || array_key_exists('dueDay', $updates) || array_key_exists('dueMonth', $updates) || array_key_exists('customRecurrencePattern', $updates))) {
+        // Recalculate next due date only if schedule-related fields actually changed
+        if ($needsRecalculation) {
             // Apply updates to get current state for calculation
             foreach ($updates as $key => $value) {
                 if (property_exists($bill, $key)) {
@@ -885,6 +888,8 @@ class BillService {
                 'isActive' => $bill->getIsActive(),
                 'isTransfer' => $bill->getIsTransfer() ?? false,
                 'destinationAccountId' => $bill->getDestinationAccountId(),
+                'lastPaidDate' => $bill->getLastPaidDate(),
+                'nextDueDate' => $bill->getNextDueDate(),
                 'occurrences' => $occurrences, // Array with month numbers as keys
             ];
 
@@ -998,6 +1003,7 @@ class BillService {
         }
 
         // Apply remaining payments constraint: cap number of future occurrences
+        // But keep past months visible for historical calendar view
         $remaining = $bill->getRemainingPayments();
         if ($remaining !== null && $remaining >= 0) {
             $nextDueDate = $bill->getNextDueDate();
@@ -1010,9 +1016,8 @@ class BillService {
                     continue;
                 }
 
-                // Skip months before the next due date
+                // Keep past months visible (they were already paid)
                 if ($year < $nextDueYear || ($year === $nextDueYear && $month < $nextDueMonth)) {
-                    $occurrences[$month] = false;
                     continue;
                 }
 

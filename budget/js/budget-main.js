@@ -40479,19 +40479,31 @@ var ReportsModule = /*#__PURE__*/function () {
   }, {
     key: "renderBillsCalendarTable",
     value: function renderBillsCalendarTable(bills, monthlyTotals) {
-      var _this15 = this;
+      var _document$getElementB29,
+        _this15 = this;
       var tbody = document.getElementById('bills-calendar-table-body');
       var tfoot = document.getElementById('bills-calendar-table-footer');
       if (!tbody || !tfoot) return;
       var currency = this.getPrimaryCurrency();
+      var calendarYear = parseInt((_document$getElementB29 = document.getElementById('bills-calendar-year')) === null || _document$getElementB29 === void 0 ? void 0 : _document$getElementB29.value) || new Date().getFullYear();
+      var currentYear = new Date().getFullYear();
+      var currentMonth = new Date().getMonth() + 1;
 
       // Render bills rows
       tbody.innerHTML = bills.map(function (bill) {
+        // Determine which months are "paid" (before nextDueDate)
+        var nextDue = bill.nextDueDate;
+        var nextDueYear = nextDue ? parseInt(nextDue.substring(0, 4)) : null;
+        var nextDueMonth = nextDue ? parseInt(nextDue.substring(5, 7)) : null;
         var months = [];
         for (var month = 1; month <= 12; month++) {
           var occurs = bill.occurrences[month];
           var amount = occurs ? _this15.formatCurrency(bill.amount, bill.currency || currency) : '';
-          months.push("<td class=\"month-cell ".concat(occurs ? 'has-bill' : 'no-bill', "\">").concat(amount, "</td>"));
+
+          // A month is "paid" if it occurs and is before the next due date
+          var isPaid = occurs && nextDueYear !== null && (calendarYear < nextDueYear || calendarYear === nextDueYear && month < nextDueMonth);
+          var cellClass = occurs ? isPaid ? 'has-bill paid' : 'has-bill' : 'no-bill';
+          months.push("<td class=\"month-cell ".concat(cellClass, "\">").concat(amount, "</td>"));
         }
         var transferBadge = bill.isTransfer ? " <span class=\"transfer-badge\" style=\"background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transfer'), "</span>") : '';
         return "\n                <tr>\n                    <td class=\"bill-name-col\">".concat(_this15.escapeHtml(bill.name)).concat(transferBadge, "</td>\n                    ").concat(months.join(''), "\n                </tr>\n            ");

@@ -1335,13 +1335,29 @@ export default class ReportsModule {
 
         const currency = this.getPrimaryCurrency();
 
+        const calendarYear = parseInt(document.getElementById('bills-calendar-year')?.value) || new Date().getFullYear();
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+
         // Render bills rows
         tbody.innerHTML = bills.map(bill => {
+            // Determine which months are "paid" (before nextDueDate)
+            const nextDue = bill.nextDueDate;
+            const nextDueYear = nextDue ? parseInt(nextDue.substring(0, 4)) : null;
+            const nextDueMonth = nextDue ? parseInt(nextDue.substring(5, 7)) : null;
+
             const months = [];
             for (let month = 1; month <= 12; month++) {
                 const occurs = bill.occurrences[month];
                 const amount = occurs ? this.formatCurrency(bill.amount, bill.currency || currency) : '';
-                months.push(`<td class="month-cell ${occurs ? 'has-bill' : 'no-bill'}">${amount}</td>`);
+
+                // A month is "paid" if it occurs and is before the next due date
+                const isPaid = occurs && nextDueYear !== null && (
+                    calendarYear < nextDueYear ||
+                    (calendarYear === nextDueYear && month < nextDueMonth)
+                );
+                const cellClass = occurs ? (isPaid ? 'has-bill paid' : 'has-bill') : 'no-bill';
+                months.push(`<td class="month-cell ${cellClass}">${amount}</td>`);
             }
 
             const transferBadge = bill.isTransfer ? ` <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${t('budget', 'Transfer')}</span>` : '';

@@ -16339,6 +16339,13 @@ tr.scheduled-transaction:hover {
     font-weight: 500;
 }
 
+.bills-calendar-table .month-cell.has-bill.paid {
+    background-color: rgba(0, 0, 0, 0.04);
+    color: var(--color-text-maxcontrast);
+    font-weight: 400;
+    text-decoration: line-through;
+}
+
 .bills-calendar-table .total-cell {
     text-align: right;
     padding-right: 8px;
