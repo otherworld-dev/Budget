@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] - 2026-04-27
+
+### Added
+- **Accounts tile customisation**: Unlock dashboard to access a gear icon on the Accounts tile — reorder accounts with drag-and-drop and toggle visibility per account
+- **Projected Balance**: Account detail now shows both "Current Balance" and "Projected Balance" when scheduled transactions exist, with dimmed/italic styling on projected running balances
+
+### Fixed
+- **Migration fails on MariaDB** ([#164](https://github.com/otherworld-dev/budget/issues/164)): Renamed `budget_bank_connections` table to `budget_bc` — auto-generated PK name exceeded MariaDB's index name limit
+- **Bill amount edit causes date jump** ([#163](https://github.com/otherworld-dev/budget/issues/163)): Editing a bill's amount no longer recalculates the due date; only actual changes to frequency/dueDay/dueMonth trigger recalculation
+- **Paid bills disappear from calendar** ([#163](https://github.com/otherworld-dev/budget/issues/163)): Past months now remain visible in the bills calendar with strikethrough styling to indicate they've been paid
+
 ## [2.14.1] - 2026-04-26
 
 ### Fixed
