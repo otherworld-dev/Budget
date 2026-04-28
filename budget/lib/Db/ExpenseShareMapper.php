@@ -120,23 +120,28 @@ class ExpenseShareMapper extends QBMapper {
     }
 
     /**
-     * Get balance summary per contact.
+     * Get balance summary per contact, grouped by currency.
      *
-     * @return array<int, float> Contact ID => balance (positive = they owe you)
+     * @return array<int, array<string, float>> Contact ID => [currency => balance]
      */
     public function getBalancesByContact(string $userId): array {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('contact_id')
+        $qb->select('contact_id', 'currency')
             ->selectAlias($qb->func()->sum('amount'), 'balance')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->eq('is_settled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
-            ->groupBy('contact_id');
+            ->groupBy('contact_id', 'currency');
 
         $result = $qb->executeQuery();
         $balances = [];
         while ($row = $result->fetch()) {
-            $balances[(int) $row['contact_id']] = (float) $row['balance'];
+            $contactId = (int) $row['contact_id'];
+            $currency = $row['currency'] ?? 'USD';
+            if (!isset($balances[$contactId])) {
+                $balances[$contactId] = [];
+            }
+            $balances[$contactId][$currency] = (float) $row['balance'];
         }
         $result->closeCursor();
 

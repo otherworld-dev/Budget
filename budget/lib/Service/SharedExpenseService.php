@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use DateTime;
+use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Contact;
 use OCA\Budget\Db\ContactMapper;
 use OCA\Budget\Db\ExpenseShare;
@@ -19,17 +20,33 @@ class SharedExpenseService {
     private ExpenseShareMapper $expenseShareMapper;
     private SettlementMapper $settlementMapper;
     private TransactionMapper $transactionMapper;
+    private AccountMapper $accountMapper;
 
     public function __construct(
         ContactMapper $contactMapper,
         ExpenseShareMapper $expenseShareMapper,
         SettlementMapper $settlementMapper,
-        TransactionMapper $transactionMapper
+        TransactionMapper $transactionMapper,
+        AccountMapper $accountMapper
     ) {
         $this->contactMapper = $contactMapper;
         $this->expenseShareMapper = $expenseShareMapper;
         $this->settlementMapper = $settlementMapper;
         $this->transactionMapper = $transactionMapper;
+        $this->accountMapper = $accountMapper;
+    }
+
+    /**
+     * Get the currency for a transaction by looking up its account.
+     */
+    private function getTransactionCurrency(int $transactionId, string $userId): ?string {
+        try {
+            $transaction = $this->transactionMapper->find($transactionId, $userId);
+            $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
+            return $account->getCurrency() ?: null;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     // ==================== Contact Methods ====================
@@ -127,11 +144,14 @@ class SharedExpenseService {
             }
         }
 
+        $currency = $this->getTransactionCurrency($transactionId, $userId);
+
         $share = new ExpenseShare();
         $share->setUserId($userId);
         $share->setTransactionId($transactionId);
         $share->setContactId($contactId);
         $share->setAmount($amount);
+        $share->setCurrency($currency);
         $share->setIsSettled(false);
         $share->setNotes($notes);
         $share->setCreatedAt((new DateTime())->format('Y-m-d H:i:s'));
@@ -246,7 +266,8 @@ class SharedExpenseService {
         int $contactId,
         float $amount,
         string $date,
-        ?string $notes = null
+        ?string $notes = null,
+        ?string $currency = null
     ): Settlement {
         // Verify contact exists
         $this->contactMapper->find($contactId, $userId);
@@ -255,6 +276,7 @@ class SharedExpenseService {
         $settlement->setUserId($userId);
         $settlement->setContactId($contactId);
         $settlement->setAmount($amount);
+        $settlement->setCurrency($currency);
         $settlement->setDate($date);
         $settlement->setNotes($notes);
         $settlement->setCreatedAt((new DateTime())->format('Y-m-d H:i:s'));
@@ -263,52 +285,66 @@ class SharedExpenseService {
     }
 
     /**
-     * Settle selected shares by ID.
+     * Settle selected shares by ID, creating per-currency settlements.
      *
      * @param int[] $shareIds
+     * @return Settlement[] One settlement per currency
      */
     public function settleSelectedShares(
         string $userId,
         array $shareIds,
         string $date,
         ?string $notes = null
-    ): Settlement {
-        $totalAmount = 0.0;
+    ): array {
         $contactId = null;
+        $byCurrency = [];
 
         foreach ($shareIds as $shareId) {
             $share = $this->expenseShareMapper->find($shareId, $userId);
             if ($contactId === null) {
                 $contactId = $share->getContactId();
             }
-            $totalAmount += $share->getAmount();
+            $currency = $share->getCurrency() ?? 'USD';
+            $byCurrency[$currency] = ($byCurrency[$currency] ?? 0.0) + $share->getAmount();
             $share->setIsSettled(true);
             $this->expenseShareMapper->update($share);
         }
 
-        return $this->recordSettlement($userId, $contactId, $totalAmount, $date, $notes);
+        $settlements = [];
+        foreach ($byCurrency as $currency => $total) {
+            $settlements[] = $this->recordSettlement($userId, $contactId, $total, $date, $notes, $currency);
+        }
+
+        return $settlements;
     }
 
     /**
-     * Settle all unsettled shares with a contact.
+     * Settle all unsettled shares with a contact, creating per-currency settlements.
+     *
+     * @return Settlement[] One settlement per currency
      */
     public function settleWithContact(
         string $userId,
         int $contactId,
         string $date,
         ?string $notes = null
-    ): Settlement {
+    ): array {
         $shares = $this->expenseShareMapper->findUnsettledByContact($contactId, $userId);
 
-        $totalAmount = 0.0;
+        $byCurrency = [];
         foreach ($shares as $share) {
-            $totalAmount += $share->getAmount();
+            $currency = $share->getCurrency() ?? 'USD';
+            $byCurrency[$currency] = ($byCurrency[$currency] ?? 0.0) + $share->getAmount();
             $share->setIsSettled(true);
             $this->expenseShareMapper->update($share);
         }
 
-        // Record the settlement (they paid you the total they owed)
-        return $this->recordSettlement($userId, $contactId, $totalAmount, $date, $notes);
+        $settlements = [];
+        foreach ($byCurrency as $currency => $total) {
+            $settlements[] = $this->recordSettlement($userId, $contactId, $total, $date, $notes, $currency);
+        }
+
+        return $settlements;
     }
 
     /**
@@ -351,38 +387,58 @@ class SharedExpenseService {
     // ==================== Balance Methods ====================
 
     /**
-     * Get balance summary for all contacts.
-     *
-     * @return array{contacts: array, totalOwed: float, totalOwing: float, netBalance: float}
+     * Get balance summary for all contacts, grouped by currency.
      */
     public function getBalanceSummary(string $userId): array {
         $contacts = $this->contactMapper->findAll($userId);
         $balances = $this->expenseShareMapper->getBalancesByContact($userId);
 
         $contactBalances = [];
-        $totalOwed = 0.0; // Total others owe you
-        $totalOwing = 0.0; // Total you owe others
+        $totalsByCurrency = []; // currency => {owed, owing}
 
         foreach ($contacts as $contact) {
-            $balance = $balances[$contact->getId()] ?? 0.0;
+            $currencyBalances = $balances[$contact->getId()] ?? [];
+
+            // Build per-currency balance lines
+            $balanceLines = [];
+            $hasBalance = false;
+            foreach ($currencyBalances as $currency => $amount) {
+                if (abs($amount) < 0.005) {
+                    continue;
+                }
+                $hasBalance = true;
+                $balanceLines[] = [
+                    'currency' => $currency,
+                    'amount' => $amount,
+                    'direction' => $amount > 0 ? 'owed' : 'owing',
+                ];
+
+                if (!isset($totalsByCurrency[$currency])) {
+                    $totalsByCurrency[$currency] = ['owed' => 0.0, 'owing' => 0.0];
+                }
+                if ($amount > 0) {
+                    $totalsByCurrency[$currency]['owed'] += $amount;
+                } else {
+                    $totalsByCurrency[$currency]['owing'] += abs($amount);
+                }
+            }
+
             $contactBalances[] = [
                 'contact' => $contact->jsonSerialize(),
-                'balance' => $balance,
-                'direction' => $balance > 0 ? 'owed' : ($balance < 0 ? 'owing' : 'settled'),
+                'balances' => $balanceLines,
+                // Legacy single-currency field for backward compat (sum of all currencies)
+                'balance' => array_sum($currencyBalances),
+                'direction' => !$hasBalance ? 'settled' : (array_sum($currencyBalances) > 0 ? 'owed' : 'owing'),
             ];
-
-            if ($balance > 0) {
-                $totalOwed += $balance;
-            } else {
-                $totalOwing += abs($balance);
-            }
         }
 
         return [
             'contacts' => $contactBalances,
-            'totalOwed' => $totalOwed,
-            'totalOwing' => $totalOwing,
-            'netBalance' => $totalOwed - $totalOwing,
+            'totalsByCurrency' => $totalsByCurrency,
+            // Legacy single-currency totals for backward compat
+            'totalOwed' => array_sum(array_column($totalsByCurrency, 'owed')),
+            'totalOwing' => array_sum(array_column($totalsByCurrency, 'owing')),
+            'netBalance' => array_sum(array_column($totalsByCurrency, 'owed')) - array_sum(array_column($totalsByCurrency, 'owing')),
         ];
     }
 
@@ -414,19 +470,25 @@ class SharedExpenseService {
             }
         }
 
-        $balance = 0.0;
+        // Calculate per-currency balances from unsettled shares
+        $balancesByCurrency = [];
         foreach ($shares as $share) {
             if (!$share->getIsSettled()) {
-                $balance += $share->getAmount();
+                $currency = $share->getCurrency() ?? 'USD';
+                $balancesByCurrency[$currency] = ($balancesByCurrency[$currency] ?? 0.0) + $share->getAmount();
             }
         }
+
+        $totalBalance = array_sum($balancesByCurrency);
 
         return [
             'contact' => $contact->jsonSerialize(),
             'shares' => $enrichedShares,
             'settlements' => array_map(fn($s) => $s->jsonSerialize(), $settlements),
-            'balance' => $balance,
-            'direction' => $balance > 0 ? 'owed' : ($balance < 0 ? 'owing' : 'settled'),
+            'balances' => $balancesByCurrency,
+            // Legacy
+            'balance' => $totalBalance,
+            'direction' => abs($totalBalance) < 0.005 ? 'settled' : ($totalBalance > 0 ? 'owed' : 'owing'),
         ];
     }
 }

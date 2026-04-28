@@ -44901,6 +44901,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 /* harmony import */ var _utils_datepicker_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/datepicker.js */ "./src/utils/datepicker.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -44987,7 +44993,8 @@ var SharedExpensesModule = /*#__PURE__*/function () {
     key: "loadBalanceSummary",
     value: function () {
       var _loadBalanceSummary = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-        var response, data, owedEl, owingEl, netBalance, netEl, _t;
+        var _this = this;
+        var response, data, owedEl, totals, owedParts, owingEl, _totals, owingParts, netEl, _totals2, netParts, allPositive, allNegative, _t;
         return _regenerator().w(function (_context2) {
           while (1) switch (_context2.p = _context2.n) {
             case 0:
@@ -45011,21 +45018,64 @@ var SharedExpensesModule = /*#__PURE__*/function () {
             case 3:
               data = _context2.v;
               owedEl = document.getElementById('split-total-owed');
-              if (owedEl) owedEl.textContent = this.formatCurrency(data.totalOwed);
+              if (owedEl) {
+                totals = data.totalsByCurrency || {};
+                owedParts = Object.entries(totals).filter(function (_ref) {
+                  var _ref2 = _slicedToArray(_ref, 2),
+                    v = _ref2[1];
+                  return v.owed > 0;
+                }).map(function (_ref3) {
+                  var _ref4 = _slicedToArray(_ref3, 2),
+                    cur = _ref4[0],
+                    v = _ref4[1];
+                  return _this.formatCurrency(v.owed, cur);
+                });
+                owedEl.textContent = owedParts.length > 0 ? owedParts.join(', ') : this.formatCurrency(0);
+              }
               owingEl = document.getElementById('split-total-owing');
-              if (owingEl) owingEl.textContent = this.formatCurrency(data.totalOwing);
-              netBalance = data.netBalance;
+              if (owingEl) {
+                _totals = data.totalsByCurrency || {};
+                owingParts = Object.entries(_totals).filter(function (_ref5) {
+                  var _ref6 = _slicedToArray(_ref5, 2),
+                    v = _ref6[1];
+                  return v.owing > 0;
+                }).map(function (_ref7) {
+                  var _ref8 = _slicedToArray(_ref7, 2),
+                    cur = _ref8[0],
+                    v = _ref8[1];
+                  return _this.formatCurrency(v.owing, cur);
+                });
+                owingEl.textContent = owingParts.length > 0 ? owingParts.join(', ') : this.formatCurrency(0);
+              }
               netEl = document.getElementById('split-net-balance');
               if (netEl) {
-                if (netBalance > 0) {
-                  netEl.textContent = '+' + this.formatCurrency(netBalance);
-                  netEl.className = 'split-balance-value positive';
-                } else if (netBalance < 0) {
-                  netEl.textContent = '-' + this.formatCurrency(Math.abs(netBalance));
-                  netEl.className = 'split-balance-value negative';
-                } else {
+                _totals2 = data.totalsByCurrency || {};
+                netParts = Object.entries(_totals2).map(function (_ref9) {
+                  var _ref0 = _slicedToArray(_ref9, 2),
+                    cur = _ref0[0],
+                    v = _ref0[1];
+                  return {
+                    cur: cur,
+                    net: v.owed - v.owing
+                  };
+                }).filter(function (_ref1) {
+                  var net = _ref1.net;
+                  return Math.abs(net) > 0.005;
+                });
+                if (netParts.length === 0) {
                   netEl.textContent = this.formatCurrency(0);
                   netEl.className = 'split-balance-value';
+                } else {
+                  allPositive = netParts.every(function (p) {
+                    return p.net > 0;
+                  });
+                  allNegative = netParts.every(function (p) {
+                    return p.net < 0;
+                  });
+                  netEl.innerHTML = netParts.map(function (p) {
+                    return (p.net > 0 ? '+' : '-') + _this.formatCurrency(Math.abs(p.net), p.cur);
+                  }).join('<br>');
+                  netEl.className = 'split-balance-value ' + (allPositive ? 'positive' : allNegative ? 'negative' : '');
                 }
               }
               this.splitContacts = data.contacts;
@@ -45093,7 +45143,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
   }, {
     key: "renderContactsList",
     value: function renderContactsList(contacts) {
-      var _this = this;
+      var _this2 = this;
       var container = document.getElementById('contacts-list');
       if (!container) return;
       if (!contacts || contacts.length === 0) {
@@ -45101,42 +45151,45 @@ var SharedExpensesModule = /*#__PURE__*/function () {
         return;
       }
       container.innerHTML = contacts.map(function (item) {
-        var balance = item.balance;
-        var balanceClass = balance > 0 ? 'owed' : balance < 0 ? 'owing' : 'settled';
-        var balanceText = balance === 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : balance > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
-          amount: _this.formatCurrency(balance)
-        }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
-          amount: _this.formatCurrency(Math.abs(balance))
-        });
-        return "\n                <div class=\"contact-card\" data-contact-id=\"".concat(item.contact.id, "\">\n                    <div class=\"contact-card-main\">\n                        <div class=\"contact-avatar\">\n                            ").concat(item.contact.name.charAt(0).toUpperCase(), "\n                        </div>\n                        <div class=\"contact-info\">\n                            <span class=\"contact-name\">").concat(_this.escapeHtml(item.contact.name), "</span>\n                            ").concat(item.contact.email ? "<span class=\"contact-email\">".concat(_this.escapeHtml(item.contact.email), "</span>") : '', "\n                        </div>\n                        <div class=\"contact-balance ").concat(balanceClass, "\">\n                            ").concat(balanceText, "\n                        </div>\n                    </div>\n                    <div class=\"contact-actions-hover\">\n                        <button class=\"action-btn edit-contact-btn\" data-id=\"").concat(item.contact.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Edit'), "\">\n                            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z\"/></svg>\n                        </button>\n                        <button class=\"action-btn delete-contact-btn\" data-id=\"").concat(item.contact.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Delete'), "\">\n                            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z\"/></svg>\n                        </button>\n                    </div>\n                </div>\n            ");
+        var balanceLines = item.balances || [];
+        var hasBalance = balanceLines.length > 0;
+        var balanceClass = !hasBalance ? 'settled' : item.direction;
+        var balanceText = !hasBalance ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : balanceLines.map(function (b) {
+          return b.amount > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
+            amount: _this2.formatCurrency(b.amount, b.currency)
+          }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
+            amount: _this2.formatCurrency(Math.abs(b.amount), b.currency)
+          });
+        }).join('<br>');
+        return "\n                <div class=\"contact-card\" data-contact-id=\"".concat(item.contact.id, "\">\n                    <div class=\"contact-card-main\">\n                        <div class=\"contact-avatar\">\n                            ").concat(item.contact.name.charAt(0).toUpperCase(), "\n                        </div>\n                        <div class=\"contact-info\">\n                            <span class=\"contact-name\">").concat(_this2.escapeHtml(item.contact.name), "</span>\n                            ").concat(item.contact.email ? "<span class=\"contact-email\">".concat(_this2.escapeHtml(item.contact.email), "</span>") : '', "\n                        </div>\n                        <div class=\"contact-balance ").concat(balanceClass, "\">\n                            ").concat(balanceText, "\n                        </div>\n                    </div>\n                    <div class=\"contact-actions-hover\">\n                        <button class=\"action-btn edit-contact-btn\" data-id=\"").concat(item.contact.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Edit'), "\">\n                            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z\"/></svg>\n                        </button>\n                        <button class=\"action-btn delete-contact-btn\" data-id=\"").concat(item.contact.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Delete'), "\">\n                            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z\"/></svg>\n                        </button>\n                    </div>\n                </div>\n            ");
       }).join('');
       container.querySelectorAll('.edit-contact-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
-          _this.editContact(parseInt(btn.dataset.id));
+          _this2.editContact(parseInt(btn.dataset.id));
         });
       });
       container.querySelectorAll('.delete-contact-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
-          _this.deleteContact(parseInt(btn.dataset.id));
+          _this2.deleteContact(parseInt(btn.dataset.id));
         });
       });
       container.querySelectorAll('.contact-card').forEach(function (card) {
         card.addEventListener('click', function () {
-          _this.showContactDetails(parseInt(card.dataset.contactId));
+          _this2.showContactDetails(parseInt(card.dataset.contactId));
         });
       });
     }
   }, {
     key: "setupSharedExpenseEventListeners",
     value: function setupSharedExpenseEventListeners() {
-      var _this2 = this;
+      var _this3 = this;
       // Add contact button
       var addContactBtn = document.getElementById('add-contact-btn');
       if (addContactBtn) {
         addContactBtn.addEventListener('click', function () {
-          return _this2.showContactModal();
+          return _this3.showContactModal();
         });
       }
 
@@ -45145,7 +45198,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
       if (contactForm) {
         contactForm.addEventListener('submit', function (e) {
           e.preventDefault();
-          _this2.saveContact();
+          _this3.saveContact();
         });
       }
 
@@ -45157,7 +45210,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
       if (settlementForm) {
         settlementForm.addEventListener('submit', function (e) {
           e.preventDefault();
-          _this2.saveSettlement();
+          _this3.saveSettlement();
         });
       }
 
@@ -45167,7 +45220,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
         if (modal) {
           modal.querySelectorAll('.cancel-btn, .close-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-              return _this2.closeModal(modal);
+              return _this3.closeModal(modal);
             });
           });
         }
@@ -45422,8 +45475,8 @@ var SharedExpensesModule = /*#__PURE__*/function () {
     key: "showContactDetails",
     value: function () {
       var _showContactDetails = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(contactId) {
-        var _this3 = this;
-        var response, data, balanceEl, balance, settleAllBtn, recordSettlementBtn, tabs, _t6;
+        var _this4 = this;
+        var response, data, balanceEl, currencyBalances, balanceEntries, overallDirection, settleAllBtn, recordSettlementBtn, tabs, _t6;
         return _regenerator().w(function (_context8) {
           while (1) switch (_context8.p = _context8.n) {
             case 0:
@@ -45452,13 +45505,29 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               document.getElementById('contact-details-name').textContent = data.contact.name;
               document.getElementById('contact-details-email').textContent = data.contact.email || '';
               balanceEl = document.getElementById('contact-details-balance');
-              balance = data.balance;
-              balanceEl.textContent = balance === 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : balance > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
-                amount: this.formatCurrency(balance)
-              }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
-                amount: this.formatCurrency(Math.abs(balance))
+              currencyBalances = data.balances || {};
+              balanceEntries = Object.entries(currencyBalances).filter(function (_ref10) {
+                var _ref11 = _slicedToArray(_ref10, 2),
+                  amt = _ref11[1];
+                return Math.abs(amt) > 0.005;
               });
-              balanceEl.className = 'balance-value ' + (balance > 0 ? 'owed' : balance < 0 ? 'owing' : 'settled');
+              if (balanceEntries.length === 0) {
+                balanceEl.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled');
+                balanceEl.className = 'balance-value settled';
+              } else {
+                balanceEl.innerHTML = balanceEntries.map(function (_ref12) {
+                  var _ref13 = _slicedToArray(_ref12, 2),
+                    cur = _ref13[0],
+                    amt = _ref13[1];
+                  return amt > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
+                    amount: _this4.formatCurrency(amt, cur)
+                  }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
+                    amount: _this4.formatCurrency(Math.abs(amt), cur)
+                  });
+                }).join('<br>');
+                overallDirection = data.direction || 'settled';
+                balanceEl.className = 'balance-value ' + overallDirection;
+              }
 
               // Render shares
               this.renderContactShares(data.shares);
@@ -45468,13 +45537,13 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               settleAllBtn = document.getElementById('settle-all-btn');
               if (settleAllBtn) {
                 settleAllBtn.onclick = function () {
-                  return _this3.settleAllWithContact(contactId);
+                  return _this4.settleAllWithContact(contactId);
                 };
               }
               recordSettlementBtn = document.getElementById('record-settlement-btn');
               if (recordSettlementBtn) {
                 recordSettlementBtn.onclick = function () {
-                  return _this3.showSettlementModal(contactId, data.contact.name, data.balance);
+                  return _this4.showSettlementModal(contactId, data.contact.name, data.balance);
                 };
               }
 
@@ -45511,7 +45580,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
   }, {
     key: "renderContactShares",
     value: function renderContactShares(shares) {
-      var _this4 = this;
+      var _this5 = this;
       var container = document.getElementById('contact-shares-list');
       if (!shares || shares.length === 0) {
         container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'No shared expenses'), "</div>");
@@ -45521,28 +45590,29 @@ var SharedExpensesModule = /*#__PURE__*/function () {
         var share = item.share;
         var txn = item.transaction;
         var statusClass = share.isSettled ? 'settled' : share.amount > 0 ? 'owed' : 'owing';
-        return "\n                <div class=\"share-item ".concat(statusClass, "\">\n                    <div class=\"share-date\">").concat(txn.date, "</div>\n                    <div class=\"share-desc\">").concat(_this4.escapeHtml(txn.description), "</div>\n                    <div class=\"share-amount ").concat(share.amount >= 0 ? 'positive' : 'negative', "\">\n                        ").concat(share.amount >= 0 ? '+' : '').concat(_this4.formatCurrency(share.amount), "\n                    </div>\n                    <div class=\"share-status\">").concat(share.isSettled ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Open'), "</div>\n                </div>\n            ");
+        return "\n                <div class=\"share-item ".concat(statusClass, "\">\n                    <div class=\"share-date\">").concat(txn.date, "</div>\n                    <div class=\"share-desc\">").concat(_this5.escapeHtml(txn.description), "</div>\n                    <div class=\"share-amount ").concat(share.amount >= 0 ? 'positive' : 'negative', "\">\n                        ").concat(share.amount >= 0 ? '+' : '').concat(_this5.formatCurrency(share.amount, share.currency), "\n                    </div>\n                    <div class=\"share-status\">").concat(share.isSettled ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Open'), "</div>\n                </div>\n            ");
       }).join('');
     }
   }, {
     key: "renderContactSettlements",
     value: function renderContactSettlements(settlements) {
-      var _this5 = this;
+      var _this6 = this;
       var container = document.getElementById('contact-settlements-list');
       if (!settlements || settlements.length === 0) {
         container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'No settlements yet'), "</div>");
         return;
       }
       container.innerHTML = settlements.map(function (settlement) {
-        return "\n            <div class=\"settlement-item\">\n                <div class=\"settlement-date\">".concat(settlement.date, "</div>\n                <div class=\"settlement-amount ").concat(settlement.amount >= 0 ? 'received' : 'paid', "\">\n                    ").concat(settlement.amount >= 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Received') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Paid'), " ").concat(_this5.formatCurrency(Math.abs(settlement.amount)), "\n                </div>\n                ").concat(settlement.notes ? "<div class=\"settlement-notes\">".concat(_this5.escapeHtml(settlement.notes), "</div>") : '', "\n            </div>\n        ");
+        return "\n            <div class=\"settlement-item\">\n                <div class=\"settlement-date\">".concat(settlement.date, "</div>\n                <div class=\"settlement-amount ").concat(settlement.amount >= 0 ? 'received' : 'paid', "\">\n                    ").concat(settlement.amount >= 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Received') : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Paid'), " ").concat(_this6.formatCurrency(Math.abs(settlement.amount), settlement.currency), "\n                </div>\n                ").concat(settlement.notes ? "<div class=\"settlement-notes\">".concat(_this6.escapeHtml(settlement.notes), "</div>") : '', "\n            </div>\n        ");
       }).join('');
     }
   }, {
     key: "showSettlementModal",
     value: function () {
       var _showSettlementModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(contactId, contactName, balance) {
-        var _this6 = this;
-        var modal, sharesList, response, data, unsettledShares, selectAll, _t7;
+        var _this$currentContactD,
+          _this7 = this;
+        var modal, balanceData, balEntries, settlementBalanceEl, sharesList, response, data, unsettledShares, selectAll, _t7;
         return _regenerator().w(function (_context9) {
           while (1) switch (_context9.p = _context9.n) {
             case 0:
@@ -45550,11 +45620,28 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               modal = document.getElementById('settlement-modal');
               document.getElementById('settlement-contact-id').value = contactId;
               document.getElementById('settlement-contact-name').textContent = contactName;
-              document.getElementById('settlement-balance').textContent = balance === 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled') : balance > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
-                amount: this.formatCurrency(balance)
-              }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
-                amount: this.formatCurrency(Math.abs(balance))
+              // Show per-currency balance in settlement modal
+              balanceData = ((_this$currentContactD = this.currentContactDetails) === null || _this$currentContactD === void 0 ? void 0 : _this$currentContactD.balances) || {};
+              balEntries = Object.entries(balanceData).filter(function (_ref14) {
+                var _ref15 = _slicedToArray(_ref14, 2),
+                  amt = _ref15[1];
+                return Math.abs(amt) > 0.005;
               });
+              settlementBalanceEl = document.getElementById('settlement-balance');
+              if (balEntries.length === 0) {
+                settlementBalanceEl.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Settled');
+              } else {
+                settlementBalanceEl.innerHTML = balEntries.map(function (_ref16) {
+                  var _ref17 = _slicedToArray(_ref16, 2),
+                    cur = _ref17[0],
+                    amt = _ref17[1];
+                  return amt > 0 ? (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Owes you {amount}', {
+                    amount: _this7.formatCurrency(amt, cur)
+                  }) : (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'You owe {amount}', {
+                    amount: _this7.formatCurrency(Math.abs(amt), cur)
+                  });
+                }).join('<br>');
+              }
               (0,_utils_datepicker_js__WEBPACK_IMPORTED_MODULE_4__.setDateValue)('settlement-date', _utils_formatters_js__WEBPACK_IMPORTED_MODULE_1__.getTodayDateString());
               document.getElementById('settlement-notes').value = '';
 
@@ -45594,7 +45681,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               sharesList.innerHTML = unsettledShares.map(function (item) {
                 var share = item.share;
                 var txn = item.transaction;
-                return "\n                    <label class=\"settlement-share-item\">\n                        <input type=\"checkbox\" class=\"settlement-share-checkbox\"\n                               data-share-id=\"".concat(share.id, "\"\n                               data-amount=\"").concat(share.amount, "\"\n                               checked>\n                        <span class=\"settlement-share-date\">").concat(txn.date, "</span>\n                        <span class=\"settlement-share-desc\">").concat(_this6.escapeHtml(txn.description), "</span>\n                        <span class=\"settlement-share-amount ").concat(share.amount >= 0 ? 'positive' : 'negative', "\">\n                            ").concat(share.amount >= 0 ? '+' : '').concat(_this6.formatCurrency(share.amount), "\n                        </span>\n                    </label>\n                ");
+                return "\n                    <label class=\"settlement-share-item\">\n                        <input type=\"checkbox\" class=\"settlement-share-checkbox\"\n                               data-share-id=\"".concat(share.id, "\"\n                               data-amount=\"").concat(share.amount, "\"\n                               checked>\n                        <span class=\"settlement-share-date\">").concat(txn.date, "</span>\n                        <span class=\"settlement-share-desc\">").concat(_this7.escapeHtml(txn.description), "</span>\n                        <span class=\"settlement-share-amount ").concat(share.amount >= 0 ? 'positive' : 'negative', "\">\n                            ").concat(share.amount >= 0 ? '+' : '').concat(_this7.formatCurrency(share.amount, share.currency), "\n                        </span>\n                    </label>\n                ");
               }).join('');
 
               // Select all checkbox
@@ -45604,13 +45691,13 @@ var SharedExpensesModule = /*#__PURE__*/function () {
                 sharesList.querySelectorAll('.settlement-share-checkbox').forEach(function (cb) {
                   cb.checked = selectAll.checked;
                 });
-                _this6._updateSettlementTotal();
+                _this7._updateSettlementTotal();
               };
 
               // Individual checkbox changes
               sharesList.querySelectorAll('.settlement-share-checkbox').forEach(function (cb) {
                 cb.addEventListener('change', function () {
-                  return _this6._updateSettlementTotal();
+                  return _this7._updateSettlementTotal();
                 });
               });
               this._updateSettlementTotal();
@@ -45787,8 +45874,8 @@ var SharedExpensesModule = /*#__PURE__*/function () {
     key: "showShareExpenseModal",
     value: function () {
       var _showShareExpenseModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(transaction) {
-        var _this7 = this;
-        var modal, contactSelect;
+        var _this8 = this;
+        var modal, account, txCurrency, contactSelect;
         return _regenerator().w(function (_context10) {
           while (1) switch (_context10.n) {
             case 0:
@@ -45813,12 +45900,18 @@ var SharedExpensesModule = /*#__PURE__*/function () {
               document.getElementById('share-transaction-id').value = transaction.id;
               document.getElementById('share-transaction-date').textContent = transaction.date;
               document.getElementById('share-transaction-desc').textContent = transaction.description;
-              document.getElementById('share-transaction-amount').textContent = this.formatCurrency(Math.abs(transaction.amount));
+              // Get transaction's account currency
+              account = (this.app.accounts || []).find(function (a) {
+                return a.id === transaction.accountId;
+              });
+              txCurrency = (account === null || account === void 0 ? void 0 : account.currency) || null;
+              this._shareTransactionCurrency = txCurrency;
+              document.getElementById('share-transaction-amount').textContent = this.formatCurrency(Math.abs(transaction.amount), txCurrency);
 
               // Populate contacts dropdown
               contactSelect = document.getElementById('share-contact');
               contactSelect.innerHTML = "<option value=\"\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Select a contact...'), "</option>") + (this.contacts || []).map(function (c) {
-                return "<option value=\"".concat(c.id, "\">").concat(_this7.escapeHtml(c.name), "</option>");
+                return "<option value=\"".concat(c.id, "\">").concat(_this8.escapeHtml(c.name), "</option>");
               }).join('');
               document.getElementById('share-split-type').value = '50-50';
               document.getElementById('share-custom-amount-group').style.display = 'none';
@@ -45939,13 +46032,13 @@ var SharedExpensesModule = /*#__PURE__*/function () {
   }, {
     key: "_ensureShareFormListeners",
     value: function _ensureShareFormListeners() {
-      var _this8 = this;
+      var _this9 = this;
       if (this._shareFormListenersAttached) return;
       var shareForm = document.getElementById('share-expense-form');
       if (!shareForm) return;
       shareForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        _this8.saveShareExpense();
+        _this9.saveShareExpense();
       });
       var splitType = document.getElementById('share-split-type');
       if (splitType) {
@@ -45962,7 +46055,7 @@ var SharedExpensesModule = /*#__PURE__*/function () {
       if (modal) {
         modal.querySelectorAll('.cancel-btn, .close-btn').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            return _this8.closeModal(modal);
+            return _this9.closeModal(modal);
           });
         });
       }

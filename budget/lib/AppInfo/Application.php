@@ -730,7 +730,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Db\ContactMapper::class),
                 $c->get(\OCA\Budget\Db\ExpenseShareMapper::class),
                 $c->get(\OCA\Budget\Db\SettlementMapper::class),
-                $c->get(\OCA\Budget\Db\TransactionMapper::class)
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class)
             );
         });
         $context->registerServiceAlias('SharedExpenseService', \OCA\Budget\Service\SharedExpenseService::class);

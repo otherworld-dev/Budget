@@ -22,6 +22,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setNotes(?string $notes)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
+ * @method string|null getCurrency()
+ * @method void setCurrency(?string $currency)
  */
 class Settlement extends Entity implements JsonSerializable {
     protected $userId;
@@ -30,6 +32,7 @@ class Settlement extends Entity implements JsonSerializable {
     protected $date;
     protected $notes;
     protected $createdAt;
+    protected $currency;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -46,6 +49,7 @@ class Settlement extends Entity implements JsonSerializable {
             'date' => $this->getDate(),
             'notes' => $this->getNotes(),
             'createdAt' => $this->getCreatedAt(),
+            'currency' => $this->getCurrency(),
         ];
     }
 }

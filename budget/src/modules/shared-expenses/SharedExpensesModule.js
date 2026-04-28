@@ -42,23 +42,40 @@ export default class SharedExpensesModule {
             const data = await response.json();
 
             const owedEl = document.getElementById('split-total-owed');
-            if (owedEl) owedEl.textContent = this.formatCurrency(data.totalOwed);
+            if (owedEl) {
+                const totals = data.totalsByCurrency || {};
+                const owedParts = Object.entries(totals)
+                    .filter(([, v]) => v.owed > 0)
+                    .map(([cur, v]) => this.formatCurrency(v.owed, cur));
+                owedEl.textContent = owedParts.length > 0 ? owedParts.join(', ') : this.formatCurrency(0);
+            }
 
             const owingEl = document.getElementById('split-total-owing');
-            if (owingEl) owingEl.textContent = this.formatCurrency(data.totalOwing);
+            if (owingEl) {
+                const totals = data.totalsByCurrency || {};
+                const owingParts = Object.entries(totals)
+                    .filter(([, v]) => v.owing > 0)
+                    .map(([cur, v]) => this.formatCurrency(v.owing, cur));
+                owingEl.textContent = owingParts.length > 0 ? owingParts.join(', ') : this.formatCurrency(0);
+            }
 
-            const netBalance = data.netBalance;
             const netEl = document.getElementById('split-net-balance');
             if (netEl) {
-                if (netBalance > 0) {
-                    netEl.textContent = '+' + this.formatCurrency(netBalance);
-                    netEl.className = 'split-balance-value positive';
-                } else if (netBalance < 0) {
-                    netEl.textContent = '-' + this.formatCurrency(Math.abs(netBalance));
-                    netEl.className = 'split-balance-value negative';
-                } else {
+                const totals = data.totalsByCurrency || {};
+                const netParts = Object.entries(totals)
+                    .map(([cur, v]) => ({ cur, net: v.owed - v.owing }))
+                    .filter(({ net }) => Math.abs(net) > 0.005);
+
+                if (netParts.length === 0) {
                     netEl.textContent = this.formatCurrency(0);
                     netEl.className = 'split-balance-value';
+                } else {
+                    const allPositive = netParts.every(p => p.net > 0);
+                    const allNegative = netParts.every(p => p.net < 0);
+                    netEl.innerHTML = netParts
+                        .map(p => (p.net > 0 ? '+' : '-') + this.formatCurrency(Math.abs(p.net), p.cur))
+                        .join('<br>');
+                    netEl.className = 'split-balance-value ' + (allPositive ? 'positive' : allNegative ? 'negative' : '');
                 }
             }
 
@@ -101,10 +118,15 @@ export default class SharedExpensesModule {
         }
 
         container.innerHTML = contacts.map(item => {
-            const balance = item.balance;
-            const balanceClass = balance > 0 ? 'owed' : balance < 0 ? 'owing' : 'settled';
-            const balanceText = balance === 0 ? t('budget', 'Settled') :
-                (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
+            const balanceLines = item.balances || [];
+            const hasBalance = balanceLines.length > 0;
+            const balanceClass = !hasBalance ? 'settled' : item.direction;
+            const balanceText = !hasBalance ? t('budget', 'Settled') :
+                balanceLines.map(b =>
+                    b.amount > 0
+                        ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(b.amount, b.currency) })
+                        : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(b.amount), b.currency) })
+                ).join('<br>');
 
             return `
                 <div class="contact-card" data-contact-id="${item.contact.id}">
@@ -337,10 +359,21 @@ export default class SharedExpensesModule {
             document.getElementById('contact-details-email').textContent = data.contact.email || '';
 
             const balanceEl = document.getElementById('contact-details-balance');
-            const balance = data.balance;
-            balanceEl.textContent = balance === 0 ? t('budget', 'Settled') :
-                (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
-            balanceEl.className = 'balance-value ' + (balance > 0 ? 'owed' : balance < 0 ? 'owing' : 'settled');
+            const currencyBalances = data.balances || {};
+            const balanceEntries = Object.entries(currencyBalances).filter(([, amt]) => Math.abs(amt) > 0.005);
+
+            if (balanceEntries.length === 0) {
+                balanceEl.textContent = t('budget', 'Settled');
+                balanceEl.className = 'balance-value settled';
+            } else {
+                balanceEl.innerHTML = balanceEntries.map(([cur, amt]) =>
+                    amt > 0
+                        ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(amt, cur) })
+                        : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(amt), cur) })
+                ).join('<br>');
+                const overallDirection = data.direction || 'settled';
+                balanceEl.className = 'balance-value ' + overallDirection;
+            }
 
             // Render shares
             this.renderContactShares(data.shares);
@@ -395,7 +428,7 @@ export default class SharedExpensesModule {
                     <div class="share-date">${txn.date}</div>
                     <div class="share-desc">${this.escapeHtml(txn.description)}</div>
                     <div class="share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
-                        ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount)}
+                        ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                     </div>
                     <div class="share-status">${share.isSettled ? t('budget', 'Settled') : t('budget', 'Open')}</div>
                 </div>
@@ -414,7 +447,7 @@ export default class SharedExpensesModule {
             <div class="settlement-item">
                 <div class="settlement-date">${settlement.date}</div>
                 <div class="settlement-amount ${settlement.amount >= 0 ? 'received' : 'paid'}">
-                    ${settlement.amount >= 0 ? t('budget', 'Received') : t('budget', 'Paid')} ${this.formatCurrency(Math.abs(settlement.amount))}
+                    ${settlement.amount >= 0 ? t('budget', 'Received') : t('budget', 'Paid')} ${this.formatCurrency(Math.abs(settlement.amount), settlement.currency)}
                 </div>
                 ${settlement.notes ? `<div class="settlement-notes">${this.escapeHtml(settlement.notes)}</div>` : ''}
             </div>
@@ -427,8 +460,19 @@ export default class SharedExpensesModule {
         const modal = document.getElementById('settlement-modal');
         document.getElementById('settlement-contact-id').value = contactId;
         document.getElementById('settlement-contact-name').textContent = contactName;
-        document.getElementById('settlement-balance').textContent = balance === 0 ? t('budget', 'Settled') :
-            (balance > 0 ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(balance) }) : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(balance)) }));
+        // Show per-currency balance in settlement modal
+        const balanceData = this.currentContactDetails?.balances || {};
+        const balEntries = Object.entries(balanceData).filter(([, amt]) => Math.abs(amt) > 0.005);
+        const settlementBalanceEl = document.getElementById('settlement-balance');
+        if (balEntries.length === 0) {
+            settlementBalanceEl.textContent = t('budget', 'Settled');
+        } else {
+            settlementBalanceEl.innerHTML = balEntries.map(([cur, amt]) =>
+                amt > 0
+                    ? t('budget', 'Owes you {amount}', { amount: this.formatCurrency(amt, cur) })
+                    : t('budget', 'You owe {amount}', { amount: this.formatCurrency(Math.abs(amt), cur) })
+            ).join('<br>');
+        }
 
         setDateValue('settlement-date', formatters.getTodayDateString());
         document.getElementById('settlement-notes').value = '';
@@ -464,7 +508,7 @@ export default class SharedExpensesModule {
                         <span class="settlement-share-date">${txn.date}</span>
                         <span class="settlement-share-desc">${this.escapeHtml(txn.description)}</span>
                         <span class="settlement-share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
-                            ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount)}
+                            ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                         </span>
                     </label>
                 `;
@@ -595,7 +639,11 @@ export default class SharedExpensesModule {
         document.getElementById('share-transaction-id').value = transaction.id;
         document.getElementById('share-transaction-date').textContent = transaction.date;
         document.getElementById('share-transaction-desc').textContent = transaction.description;
-        document.getElementById('share-transaction-amount').textContent = this.formatCurrency(Math.abs(transaction.amount));
+        // Get transaction's account currency
+        const account = (this.app.accounts || []).find(a => a.id === transaction.accountId);
+        const txCurrency = account?.currency || null;
+        this._shareTransactionCurrency = txCurrency;
+        document.getElementById('share-transaction-amount').textContent = this.formatCurrency(Math.abs(transaction.amount), txCurrency);
 
         // Populate contacts dropdown
         const contactSelect = document.getElementById('share-contact');

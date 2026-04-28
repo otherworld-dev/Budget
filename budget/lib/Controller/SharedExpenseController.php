@@ -438,8 +438,11 @@ class SharedExpenseController extends Controller {
                     Http::STATUS_BAD_REQUEST
                 );
             }
-            $settlement = $this->service->settleSelectedShares($this->getEffectiveUserId(), $shareIds, $date, $notes);
-            return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
+            $settlements = $this->service->settleSelectedShares($this->getEffectiveUserId(), $shareIds, $date, $notes);
+            return new DataResponse(
+                array_map(fn($s) => $s->jsonSerialize(), $settlements),
+                Http::STATUS_CREATED
+            );
         } catch (\Exception $e) {
             $this->logger->error('Failed to settle selected shares', [
                 'exception' => $e,
@@ -462,7 +465,8 @@ class SharedExpenseController extends Controller {
         int $contactId,
         float $amount,
         string $date,
-        ?string $notes = null
+        ?string $notes = null,
+        ?string $currency = null
     ): DataResponse {
         try {
             $settlement = $this->service->recordSettlement(
@@ -470,7 +474,8 @@ class SharedExpenseController extends Controller {
                 $contactId,
                 $amount,
                 $date,
-                $notes
+                $notes,
+                $currency
             );
             return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -493,8 +498,11 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function settleWithContact(int $contactId, string $date, ?string $notes = null): DataResponse {
         try {
-            $settlement = $this->service->settleWithContact($this->getEffectiveUserId(), $contactId, $date, $notes);
-            return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
+            $settlements = $this->service->settleWithContact($this->getEffectiveUserId(), $contactId, $date, $notes);
+            return new DataResponse(
+                array_map(fn($s) => $s->jsonSerialize(), $settlements),
+                Http::STATUS_CREATED
+            );
         } catch (\Exception $e) {
             $this->logger->error('Failed to settle with contact', [
                 'exception' => $e,
