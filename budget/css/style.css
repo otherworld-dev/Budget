@@ -296,6 +296,31 @@
         opacity: 1;
         background-color: var(--color-background-hover);
     }
+
+    /* Prevent page headings from being covered by the hamburger menu button */
+    .view-header h2,
+    .view > h2:first-of-type,
+    .dashboard-header .dashboard-header-hint,
+    .forecast-header h2 {
+        padding-left: 48px;
+    }
+
+    /* Stack heading and controls vertically on mobile */
+    .view-header {
+        flex-wrap: wrap;
+    }
+
+    .view-header h2 {
+        flex: 1 1 100%;
+        margin: 0;
+    }
+
+    .view-header .view-controls {
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        width: 100%;
+    }
 }
 
 #app-content-wrapper {
@@ -2071,9 +2096,8 @@ button.danger:hover {
 
 @media (max-width: 640px) {
     .view-controls {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
+        flex-wrap: wrap;
+        gap: 6px;
     }
 
     .modal-buttons {
@@ -4300,13 +4324,7 @@ button.danger:hover {
     }
 
     .view-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .view-controls button {
-        width: 100%;
-        justify-content: center;
+        flex-wrap: wrap;
     }
 
     .bulk-panel {
@@ -4922,8 +4940,7 @@ button.danger:hover {
     }
 
     .view-header .view-controls {
-        flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
 
     .breadcrumb {
@@ -5745,9 +5762,8 @@ button.danger:hover {
     }
 
     #categories-view .view-controls {
-        flex-direction: column;
-        gap: 12px;
-        align-items: stretch;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .categories-tabs {
