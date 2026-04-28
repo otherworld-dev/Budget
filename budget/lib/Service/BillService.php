@@ -64,6 +64,29 @@ class BillService {
     }
 
     /**
+     * Find existing transactions that might match a bill payment.
+     * Used to avoid creating duplicate transactions when marking a bill paid.
+     *
+     * @return array Scored candidates [{transaction, score, matchReasons}]
+     */
+    public function findMatchingTransactions(int $billId, string $userId): array {
+        $bill = $this->find($billId, $userId);
+
+        if (!$bill->getAccountId()) {
+            return [];
+        }
+
+        $dueDate = $bill->getNextDueDate() ?? date('Y-m-d');
+
+        return $this->transactionService->findBillPaymentCandidates(
+            $bill->getAccountId(),
+            $bill->getName(),
+            (float) $bill->getAmount(),
+            $dueDate
+        );
+    }
+
+    /**
      * Build a map of accountId => currency for the user's accounts.
      */
     private function buildCurrencyMap(string $userId): array {
@@ -309,9 +332,10 @@ class BillService {
      * @param string $userId User ID
      * @param string|null $paidDate Date bill was paid (defaults to the bill's current due date)
      * @param bool $createNextTransaction Whether to create transaction for next occurrence
-     * @return Bill Updated bill
+     * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
+     * @return array Updated bill with undo data
      */
-    public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $createNextTransaction = true): array {
+    public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $createNextTransaction = true, ?int $existingTransactionId = null): array {
         $bill = $this->find($id, $userId);
 
         // Capture previous state for undo support
@@ -324,6 +348,7 @@ class BillService {
         ];
         $createdTransactionIds = [];
         $hadScheduledTransaction = false;
+        $linkedExistingTransaction = false;
 
         // Reset auto-pay failed flag on successful manual payment
         if ($bill->getAutoPayFailed()) {
@@ -335,8 +360,22 @@ class BillService {
         $paidDate = $paidDate ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
 
-        // Create a cleared transaction for the current payment
-        if ($createNextTransaction && $bill->getAccountId() !== null) {
+        // Handle transaction: either link existing or create new
+        if ($existingTransactionId !== null && $bill->getAccountId() !== null) {
+            // User chose to link an existing transaction instead of creating a new one
+            try {
+                // Clear any pre-existing scheduled transactions for this bill
+                $this->transactionService->deleteScheduledBillTransactions($bill->getId());
+
+                // Link the existing transaction to this bill
+                $this->transactionService->update($existingTransactionId, $userId, [
+                    'billId' => $bill->getId(),
+                ]);
+                $linkedExistingTransaction = true;
+            } catch (\Exception $e) {
+                error_log("Failed to link existing transaction {$existingTransactionId} to bill {$id}: {$e->getMessage()}");
+            }
+        } elseif ($createNextTransaction && $bill->getAccountId() !== null) {
             try {
                 // Clear pre-existing scheduled transaction(s), or create new cleared one
                 $transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate);
@@ -368,7 +407,8 @@ class BillService {
                 $bill->getDueDay(),
                 $bill->getDueMonth(),
                 $bill->getNextDueDate(),
-                $bill->getCustomRecurrencePattern()
+                $bill->getCustomRecurrencePattern(),
+                true // Always force advance — the bill was just paid
             );
             $bill->setNextDueDate($nextDue);
 
@@ -414,6 +454,7 @@ class BillService {
             'previousState' => $previousState,
             'createdTransactionIds' => $createdTransactionIds,
             'hadScheduledTransaction' => $hadScheduledTransaction,
+            'linkedExistingTransaction' => $linkedExistingTransaction,
         ];
     }
 

@@ -4664,6 +4664,16 @@ style('budget', 'budget-main');
                                 <?php p($l->t('Recalculate')); ?>
                             </button>
                         </div>
+                        <div class="danger-zone-item">
+                            <div class="danger-zone-info">
+                                <h4><?php p($l->t('Repair Data')); ?></h4>
+                                <p><?php p($l->t('Scans for data integrity issues: duplicate auto-generated transactions, bills with stuck due dates, and balance inconsistencies. Shows findings for your review before making any changes.')); ?></p>
+                            </div>
+                            <button id="repair-data-btn" class="secondary" type="button">
+                                <span class="icon-search" aria-hidden="true"></span>
+                                <?php p($l->t('Scan for Issues')); ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

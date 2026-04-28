@@ -310,6 +310,16 @@ class Application extends App implements IBootstrap {
         });
         $context->registerServiceAlias('AccountService', \OCA\Budget\Service\AccountService::class);
 
+        $context->registerService(\OCA\Budget\Service\RepairService::class, function($c) {
+            return new \OCA\Budget\Service\RepairService(
+                $c->get(\OCA\Budget\Db\TransactionMapper::class),
+                $c->get(\OCA\Budget\Db\BillMapper::class),
+                $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\OCA\Budget\Service\Bill\FrequencyCalculator::class),
+                $c->get(\OCA\Budget\Service\AccountService::class)
+            );
+        });
+
         $context->registerService(\OCA\Budget\Service\TransactionService::class, function($c) {
             return new \OCA\Budget\Service\TransactionService(
                 $c->get(\OCA\Budget\Db\TransactionMapper::class),

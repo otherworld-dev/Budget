@@ -149,6 +149,7 @@ return [
         ['name' => 'bill#show', 'url' => '/api/bills/{id}', 'verb' => 'GET'],
         ['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
         ['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
+        ['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
         ['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
         ['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
         ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
@@ -283,6 +284,8 @@ return [
         ['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
         ['name' => 'setup#factoryReset', 'url' => '/api/setup/factory-reset', 'verb' => 'POST'],
         ['name' => 'setup#recalculateBalances', 'url' => '/api/setup/recalculate-balances', 'verb' => 'POST'],
+        ['name' => 'setup#diagnoseData', 'url' => '/api/setup/diagnose', 'verb' => 'GET'],
+        ['name' => 'setup#repairData', 'url' => '/api/setup/repair', 'verb' => 'POST'],
 
         // Settings routes - specific paths before {key} wildcard
         ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],

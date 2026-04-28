@@ -10,6 +10,7 @@ use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\ImportRuleService;
+use OCA\Budget\Service\RepairService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
@@ -31,6 +32,7 @@ class SetupController extends Controller {
         private FactoryResetService $factoryResetService,
         private AuditService $auditService,
         private AccountService $accountService,
+        private RepairService $repairService,
         IL10N $l,
         string $userId
     ) {
@@ -180,6 +182,67 @@ class SetupController extends Controller {
         } catch (\Exception $e) {
             return new DataResponse([
                 'error' => $this->l->t('Balance recalculation failed: %1$s', [$e->getMessage()])
+            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Diagnose data integrity issues (dry run).
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 5, period: 60)]
+    public function diagnoseData(): DataResponse {
+        try {
+            $findings = $this->repairService->diagnose($this->userId);
+            return new DataResponse($findings);
+        } catch (\Exception $e) {
+            return new DataResponse([
+                'error' => $this->l->t('Diagnosis failed: %1$s', [$e->getMessage()])
+            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Repair data integrity issues.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 3, period: 300)]
+    public function repairData(): DataResponse {
+        try {
+            $params = $this->request->getParams();
+            $categories = $params['categories'] ?? [];
+
+            if (empty($categories)) {
+                return new DataResponse([
+                    'error' => $this->l->t('No repair categories specified')
+                ], Http::STATUS_BAD_REQUEST);
+            }
+
+            $validCategories = ['duplicateTransactions', 'stuckBills', 'balanceDrift'];
+            $categories = array_intersect($categories, $validCategories);
+
+            if (empty($categories)) {
+                return new DataResponse([
+                    'error' => $this->l->t('No valid repair categories specified')
+                ], Http::STATUS_BAD_REQUEST);
+            }
+
+            $results = $this->repairService->repair($this->userId, $categories);
+
+            $this->auditService->log(
+                $this->userId,
+                'repair_data',
+                'setup',
+                0,
+                ['categories' => $categories, 'results' => $results]
+            );
+
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return new DataResponse([
+                'error' => $this->l->t('Repair failed: %1$s', [$e->getMessage()])
             ], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }

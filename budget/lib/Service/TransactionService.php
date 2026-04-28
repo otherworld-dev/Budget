@@ -269,6 +269,103 @@ class TransactionService {
     }
 
     /**
+     * Find candidate transactions that might match a bill payment.
+     * Scores each candidate based on amount, vendor, description, and date proximity.
+     *
+     * @param int $accountId Account to search in
+     * @param string $billName Bill name to match against vendor/description
+     * @param float $billAmount Bill amount to compare
+     * @param string $dueDate Bill's due date (center of search window)
+     * @return array Scored candidates sorted by relevance [{transaction, score, matchReasons}]
+     */
+    public function findBillPaymentCandidates(
+        int $accountId,
+        string $billName,
+        float $billAmount,
+        string $dueDate
+    ): array {
+        $candidates = $this->mapper->findBillPaymentCandidates($accountId, $dueDate, 7);
+        $scored = [];
+        $billNameLower = mb_strtolower(trim($billName));
+
+        foreach ($candidates as $tx) {
+            $score = 0;
+            $reasons = [];
+
+            // Amount match (exact = 40pts, within 5% = 20pts, within 20% = 10pts)
+            $txAmount = (float) $tx->getAmount();
+            if (abs($txAmount - $billAmount) < 0.01) {
+                $score += 40;
+                $reasons[] = 'exact_amount';
+            } elseif ($billAmount > 0 && abs($txAmount - $billAmount) / $billAmount <= 0.05) {
+                $score += 20;
+                $reasons[] = 'similar_amount';
+            } elseif ($billAmount > 0 && abs($txAmount - $billAmount) / $billAmount <= 0.20) {
+                $score += 10;
+                $reasons[] = 'approximate_amount';
+            }
+
+            // Vendor match (exact = 30pts, contains = 20pts)
+            $vendor = mb_strtolower(trim($tx->getVendor() ?? ''));
+            if ($vendor !== '' && $vendor === $billNameLower) {
+                $score += 30;
+                $reasons[] = 'exact_vendor';
+            } elseif ($vendor !== '' && (str_contains($vendor, $billNameLower) || str_contains($billNameLower, $vendor))) {
+                $score += 20;
+                $reasons[] = 'partial_vendor';
+            }
+
+            // Description match (exact = 20pts, contains = 10pts)
+            $desc = mb_strtolower(trim($tx->getDescription() ?? ''));
+            if ($desc !== '' && $desc === $billNameLower) {
+                $score += 20;
+                $reasons[] = 'exact_description';
+            } elseif ($desc !== '' && (str_contains($desc, $billNameLower) || str_contains($billNameLower, $desc))) {
+                $score += 10;
+                $reasons[] = 'partial_description';
+            }
+
+            // Date proximity (same day = 10pts, ±1 day = 8pts, ±3 days = 5pts, ±7 days = 2pts)
+            $daysDiff = abs((strtotime($tx->getDate()) - strtotime($dueDate)) / 86400);
+            if ($daysDiff < 1) {
+                $score += 10;
+                $reasons[] = 'same_day';
+            } elseif ($daysDiff <= 1) {
+                $score += 8;
+                $reasons[] = 'next_day';
+            } elseif ($daysDiff <= 3) {
+                $score += 5;
+                $reasons[] = 'within_3_days';
+            } else {
+                $score += 2;
+                $reasons[] = 'within_7_days';
+            }
+
+            // Skip if no meaningful match (must match on at least amount or name)
+            if ($score < 10) {
+                continue;
+            }
+
+            // Skip auto-generated transactions (these are FROM bills, not manual entries)
+            $notes = $tx->getNotes() ?? '';
+            if (str_starts_with($notes, 'Auto-generated from bill:') || str_starts_with($notes, 'Auto-generated transfer:')) {
+                continue;
+            }
+
+            $scored[] = [
+                'transaction' => $tx->jsonSerialize(),
+                'score' => $score,
+                'matchReasons' => $reasons,
+            ];
+        }
+
+        // Sort by score descending
+        usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
+
+        return $scored;
+    }
+
+    /**
      * Find a scheduled transaction for a bill and mark it as cleared.
      *
      * @return Transaction|null The cleared transaction, or null if none found

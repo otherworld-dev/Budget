@@ -548,6 +548,19 @@ class BillController extends Controller {
     }
 
     /**
+     * Find existing transactions that might match a bill payment.
+     * @NoAdminRequired
+     */
+    public function findMatchingTransactions(int $id): DataResponse {
+        try {
+            $candidates = $this->service->findMatchingTransactions($id, $this->getEffectiveUserId());
+            return new DataResponse($candidates);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to find matching transactions'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+        }
+    }
+
+    /**
      * Mark a bill as paid
      * @NoAdminRequired
      */
@@ -557,8 +570,9 @@ class BillController extends Controller {
             $this->requireWriteAccess('bill', $id);
             $params = $this->request->getParams();
             $createNextTransaction = (bool) ($params['createNextTransaction'] ?? false);
+            $existingTransactionId = isset($params['existingTransactionId']) ? (int) $params['existingTransactionId'] : null;
 
-            $result = $this->service->markPaid($id, $this->getEffectiveUserId(), $paidDate, $createNextTransaction);
+            $result = $this->service->markPaid($id, $this->getEffectiveUserId(), $paidDate, $createNextTransaction, $existingTransactionId);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);

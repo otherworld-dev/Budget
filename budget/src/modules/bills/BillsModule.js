@@ -820,44 +820,216 @@ export default class BillsModule {
                 throw new Error('Bill not found');
             }
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/paid`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    createNextTransaction: true
-                })
-            });
+            // Check for existing matching transactions before creating a new one
+            if (bill.accountId || bill.account_id) {
+                const matchResponse = await fetch(
+                    OC.generateUrl(`/apps/budget/api/bills/${billId}/matching-transactions`),
+                    { headers: { 'requesttoken': OC.requestToken } }
+                );
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (matchResponse.ok) {
+                    const candidates = await matchResponse.json();
+                    if (candidates.length > 0) {
+                        // Show dialog and let user choose
+                        const choice = await this._showMatchingTransactionDialog(bill, candidates);
+                        if (choice === null) {
+                            return; // User cancelled
+                        }
+                        await this._executeMarkPaid(billId, bill, choice);
+                        return;
+                    }
+                }
+            }
 
-            const result = await response.json();
-
-            // Store undo data from server response BEFORE reloading
-            this._undoData = {
-                billId: billId,
-                previousState: result.previousState,
-                createdTransactionIds: result.createdTransactionIds || [],
-                hadScheduledTransaction: result.hadScheduledTransaction || false,
-                action: 'markPaid'
-            };
-
-            await this.loadBillsView();
-
-            const isOneTime = (bill.frequency === 'one-time');
-            const message = isOneTime
-                ? t('budget', 'Bill marked as paid. Transaction created.')
-                : t('budget', 'Bill marked as paid. Future transaction created.');
-            this.showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
-                this._undoData = null;
-            });
+            // No matches found — proceed with normal flow (create new transaction)
+            await this._executeMarkPaid(billId, bill, { action: 'create' });
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
             showError(t('budget', 'Failed to mark bill as paid'));
         }
+    }
+
+    /**
+     * Execute the mark paid API call with the user's choice.
+     * @param {number} billId
+     * @param {object} bill
+     * @param {object} choice - {action: 'create'|'link'|'skip', transactionId?: number}
+     */
+    async _executeMarkPaid(billId, bill, choice) {
+        const body = {};
+
+        if (choice.action === 'link') {
+            body.existingTransactionId = choice.transactionId;
+            body.createNextTransaction = false;
+        } else if (choice.action === 'skip') {
+            body.createNextTransaction = false;
+        } else {
+            body.createNextTransaction = true;
+        }
+
+        const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/paid`), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'requesttoken': OC.requestToken
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const result = await response.json();
+
+        // Store undo data from server response BEFORE reloading
+        this._undoData = {
+            billId: billId,
+            previousState: result.previousState,
+            createdTransactionIds: result.createdTransactionIds || [],
+            hadScheduledTransaction: result.hadScheduledTransaction || false,
+            action: 'markPaid'
+        };
+
+        await this.loadBillsView();
+
+        let message;
+        if (choice.action === 'link') {
+            message = t('budget', 'Bill marked as paid. Linked to existing transaction.');
+        } else if (choice.action === 'skip') {
+            message = t('budget', 'Bill marked as paid. No transaction created.');
+        } else {
+            const isOneTime = (bill.frequency === 'one-time');
+            message = isOneTime
+                ? t('budget', 'Bill marked as paid. Transaction created.')
+                : t('budget', 'Bill marked as paid. Future transaction created.');
+        }
+        this.showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
+            this._undoData = null;
+        });
+    }
+
+    /**
+     * Show a dialog presenting matching transaction candidates.
+     * Returns a Promise that resolves with the user's choice or null if cancelled.
+     */
+    _showMatchingTransactionDialog(bill, candidates) {
+        return new Promise((resolve) => {
+            const existing = document.getElementById('matching-tx-modal');
+            if (existing) existing.remove();
+
+            const currency = bill.currency || this.app.settings?.default_currency || '';
+            const formatAmount = (amount) => formatters.formatCurrency(amount, currency);
+
+            const candidateRows = candidates.map((c, i) => {
+                const tx = c.transaction;
+                const reasons = c.matchReasons.map(r => {
+                    const labels = {
+                        'exact_amount': t('budget', 'Exact amount'),
+                        'similar_amount': t('budget', 'Similar amount (±5%)'),
+                        'approximate_amount': t('budget', 'Approximate amount (±20%)'),
+                        'exact_vendor': t('budget', 'Vendor matches'),
+                        'partial_vendor': t('budget', 'Vendor partially matches'),
+                        'exact_description': t('budget', 'Description matches'),
+                        'partial_description': t('budget', 'Description partially matches'),
+                        'same_day': t('budget', 'Same day'),
+                        'next_day': t('budget', '±1 day'),
+                        'within_3_days': t('budget', '±3 days'),
+                        'within_7_days': t('budget', '±7 days'),
+                    };
+                    return labels[r] || r;
+                }).join(', ');
+
+                const desc = tx.description || tx.vendor || t('budget', '(no description)');
+                const checked = i === 0 ? 'checked' : '';
+
+                return `
+                    <label class="matching-tx-option ${i === 0 ? 'recommended' : ''}">
+                        <input type="radio" name="matching-tx-choice" value="${tx.id}" ${checked}>
+                        <div class="matching-tx-details">
+                            <div class="matching-tx-primary">
+                                <span class="matching-tx-date">${formatters.formatDate(tx.date)}</span>
+                                <span class="matching-tx-desc">${dom.escapeHtml(desc)}</span>
+                                <span class="matching-tx-amount">${formatAmount(tx.amount)}</span>
+                            </div>
+                            <div class="matching-tx-reasons">${dom.escapeHtml(reasons)}</div>
+                            ${c.score >= 50 ? `<span class="matching-tx-badge">${t('budget', 'Strong match')}</span>` : ''}
+                        </div>
+                    </label>
+                `;
+            }).join('');
+
+            const modal = document.createElement('div');
+            modal.id = 'matching-tx-modal';
+            modal.className = 'budget-modal-overlay';
+            modal.innerHTML = `
+                <div class="budget-modal" style="max-width: 600px;">
+                    <div class="budget-modal-header">
+                        <h2>${t('budget', 'Existing Transaction Found')}</h2>
+                        <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    </div>
+                    <div class="budget-modal-body">
+                        <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: formatAmount(bill.amount) })}</p>
+                        <div class="matching-tx-list">
+                            ${candidateRows}
+                        </div>
+                        <label class="matching-tx-option matching-tx-create-new">
+                            <input type="radio" name="matching-tx-choice" value="create">
+                            <div class="matching-tx-details">
+                                <span class="matching-tx-desc">${t('budget', 'Create a new transaction instead')}</span>
+                            </div>
+                        </label>
+                        <label class="matching-tx-option matching-tx-skip">
+                            <input type="radio" name="matching-tx-choice" value="skip">
+                            <div class="matching-tx-details">
+                                <span class="matching-tx-desc">${t('budget', 'Don\'t create any transaction (just mark as paid)')}</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="budget-modal-footer">
+                        <button class="cancel-btn">${t('budget', 'Cancel')}</button>
+                        <button class="confirm-btn primary">${t('budget', 'Confirm')}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const cleanup = () => modal.remove();
+
+            modal.querySelector('.close-btn').addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+            modal.querySelector('.cancel-btn').addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    cleanup();
+                    resolve(null);
+                }
+            });
+
+            modal.querySelector('.confirm-btn').addEventListener('click', () => {
+                const selected = modal.querySelector('input[name="matching-tx-choice"]:checked');
+                if (!selected) {
+                    cleanup();
+                    resolve(null);
+                    return;
+                }
+
+                const value = selected.value;
+                cleanup();
+
+                if (value === 'create') {
+                    resolve({ action: 'create' });
+                } else if (value === 'skip') {
+                    resolve({ action: 'skip' });
+                } else {
+                    resolve({ action: 'link', transactionId: parseInt(value, 10) });
+                }
+            });
+        });
     }
 
     async undoMarkBillPaid() {

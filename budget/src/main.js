@@ -1572,6 +1572,9 @@ class BudgetApp {
         // Recalculate balances event listener
         this.setupRecalculateBalancesListener();
 
+        // Repair data event listener
+        this.setupRepairDataListener();
+
         // Factory reset event listeners
         this.setupFactoryResetEventListeners();
     }
@@ -1937,6 +1940,225 @@ class BudgetApp {
                 btn.innerHTML = originalText;
             }
         });
+    }
+
+    setupRepairDataListener() {
+        const btn = document.getElementById('repair-data-btn');
+        if (!btn) return;
+
+        btn.addEventListener('click', async () => {
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Scanning...');
+
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/setup/diagnose'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || t('budget', 'Diagnosis failed'));
+                }
+
+                this._showRepairDataModal(data);
+            } catch (error) {
+                console.error('Failed to diagnose data:', error);
+                showError(t('budget', 'Failed to scan for issues: {error}', { error: error.message }));
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+    }
+
+    _showRepairDataModal(findings) {
+        const existing = document.getElementById('repair-data-modal');
+        if (existing) existing.remove();
+
+        const dupCount = findings.duplicateTransactions?.length || 0;
+        const stuckCount = findings.stuckBills?.length || 0;
+        const driftCount = findings.balanceDrift?.length || 0;
+        const totalIssues = dupCount + stuckCount + driftCount;
+
+        const modal = document.createElement('div');
+        modal.id = 'repair-data-modal';
+        modal.className = 'budget-modal-overlay';
+
+        const formatCurrency = (amount) => {
+            const currency = this.settings?.default_currency || '';
+            return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', minimumFractionDigits: 2 }).format(amount);
+        };
+
+        // Build findings HTML
+        let findingsHtml = '';
+
+        if (totalIssues === 0) {
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
+        } else {
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) })}</p></div>`;
+
+            // Duplicate transactions
+            if (dupCount > 0) {
+                const dupItems = findings.duplicateTransactions.slice(0, 20).map(d =>
+                    `<div class="repair-item">
+                        <span>${d.vendor || t('budget', '(unnamed)')}</span>
+                        <span>${formatCurrency(d.amount)}</span>
+                        <span>${d.date}</span>
+                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${d.originalDate}</span>
+                    </div>`
+                ).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="duplicateTransactions">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Duplicate Auto-Generated Transactions')}</h4>
+                            <span class="repair-category-count">${dupCount}</span>
+                        </div>
+                        <div class="repair-category-details">${dupItems}${dupCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: dupCount - 20 })}</p>` : ''}</div>
+                    </div>`;
+            }
+
+            // Stuck bills
+            if (stuckCount > 0) {
+                const stuckItems = findings.stuckBills.map(b =>
+                    `<div class="repair-item">
+                        <span>${b.name}</span>
+                        <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
+                        <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                    </div>`
+                ).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="stuckBills">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Bills with Stuck Due Dates')}</h4>
+                            <span class="repair-category-count">${stuckCount}</span>
+                        </div>
+                        <div class="repair-category-details">${stuckItems}</div>
+                    </div>`;
+            }
+
+            // Balance drift
+            if (driftCount > 0) {
+                const driftItems = findings.balanceDrift.map(a =>
+                    `<div class="repair-item">
+                        <span>${a.accountName}</span>
+                        <span>${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
+                        <span>${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
+                        <span class="repair-item-note">${t('budget', 'Diff: {amount}', { amount: formatCurrency(a.difference) })}</span>
+                    </div>`
+                ).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="balanceDrift">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Account Balance Inconsistencies')}</h4>
+                            <span class="repair-category-count">${driftCount}</span>
+                        </div>
+                        <div class="repair-category-details">${driftItems}</div>
+                    </div>`;
+            }
+        }
+
+        modal.innerHTML = `
+            <div class="budget-modal" style="max-width: 700px;">
+                <div class="budget-modal-header">
+                    <h2>${t('budget', 'Data Integrity Report')}</h2>
+                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                </div>
+                <div class="budget-modal-body">
+                    ${findingsHtml}
+                </div>
+                ${totalIssues > 0 ? `
+                <div class="budget-modal-footer">
+                    <button class="cancel-btn">${t('budget', 'Close')}</button>
+                    <button class="repair-btn primary">${t('budget', 'Fix Selected Issues')}</button>
+                </div>` : `
+                <div class="budget-modal-footer">
+                    <button class="cancel-btn primary">${t('budget', 'Close')}</button>
+                </div>`}
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Toggle details visibility
+        modal.querySelectorAll('.repair-category-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                if (e.target.type === 'checkbox') return; // Don't toggle on checkbox click
+                const details = header.nextElementSibling;
+                details.style.display = details.style.display === 'none' ? 'block' : 'none';
+            });
+        });
+
+        // Close handlers
+        const cleanup = () => modal.remove();
+        modal.querySelector('.close-btn').addEventListener('click', cleanup);
+        modal.querySelector('.cancel-btn').addEventListener('click', cleanup);
+        modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(); });
+
+        // Repair handler
+        const repairBtn = modal.querySelector('.repair-btn');
+        if (repairBtn) {
+            repairBtn.addEventListener('click', async () => {
+                const selectedCategories = [];
+                modal.querySelectorAll('.repair-category').forEach(cat => {
+                    const checkbox = cat.querySelector('.repair-checkbox');
+                    if (checkbox && checkbox.checked) {
+                        selectedCategories.push(cat.dataset.category);
+                    }
+                });
+
+                if (selectedCategories.length === 0) {
+                    showWarning(t('budget', 'No categories selected'));
+                    return;
+                }
+
+                repairBtn.disabled = true;
+                repairBtn.innerHTML = '<span class="icon-loading-small"></span> ' + t('budget', 'Repairing...');
+
+                try {
+                    const response = await fetch(OC.generateUrl('/apps/budget/api/setup/repair'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'requesttoken': OC.requestToken
+                        },
+                        body: JSON.stringify({ categories: selectedCategories })
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.error || t('budget', 'Repair failed'));
+                    }
+
+                    cleanup();
+
+                    // Build result summary
+                    const parts = [];
+                    if (result.duplicateTransactions) {
+                        parts.push(t('budget', '{count} duplicate transactions removed', { count: result.duplicateTransactions.deleted }));
+                    }
+                    if (result.stuckBills) {
+                        parts.push(t('budget', '{count} bill due dates fixed', { count: result.stuckBills.fixed }));
+                    }
+                    if (result.balanceDrift) {
+                        parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));
+                    }
+
+                    showSuccess(t('budget', 'Repair complete: {details}', { details: parts.join(', ') }));
+
+                    // Reload app data
+                    this.loadAccounts();
+                    this.loadTransactions();
+                } catch (error) {
+                    console.error('Repair failed:', error);
+                    showError(t('budget', 'Repair failed: {error}', { error: error.message }));
+                    repairBtn.disabled = false;
+                    repairBtn.innerHTML = t('budget', 'Fix Selected Issues');
+                }
+            });
+        }
     }
 
     setupFactoryResetEventListeners() {
