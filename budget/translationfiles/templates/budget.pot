@@ -10263,3 +10263,117 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5825
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr ""
+
+#. Help panel - topic summaries
+#: budget/src/main.js:793
+msgid "Your financial overview with customizable tiles. Unlock the dashboard to rearrange, add, or remove tiles. Click the gear icon on the Accounts tile to reorder or hide accounts."
+msgstr ""
+
+#: budget/src/main.js:794
+msgid "Manage bank accounts, credit cards, cash, and crypto across 45+ currencies. Click an account to see its transaction history and balance details."
+msgstr ""
+
+#: budget/src/main.js:795
+msgid "Add, edit, filter, and bulk-manage transactions. Use the Filters button for advanced search. Split transactions across categories."
+msgstr ""
+
+#: budget/src/main.js:796
+msgid "Organise transactions with a hierarchical category tree. Drag to reorder. Click a category to see spending analytics."
+msgstr ""
+
+#: budget/src/main.js:797
+msgid "Create tag sets per category for multi-dimensional tracking (e.g. store, project, payment method)."
+msgstr ""
+
+#: budget/src/main.js:798
+msgid "Set spending limits per category. Switch between weekly, monthly, quarterly, and yearly periods. Use \"Adjust budgets from this month\" to set different values for future months."
+msgstr ""
+
+#: budget/src/main.js:799
+msgid "Track recurring income sources. Use \"Detect Income\" to auto-find patterns. Mark income as received to create transactions."
+msgstr ""
+
+#: budget/src/main.js:800
+msgid "Track recurring payments with auto-pay, custom frequencies, and notifications. View the bills calendar in Reports."
+msgstr ""
+
+#: budget/src/main.js:801
+msgid "Set up recurring or one-time transfers between your accounts with auto-pay support."
+msgstr ""
+
+#: budget/src/main.js:802
+msgid "Set financial targets and track progress. Link goals to tags for automatic amount calculation."
+msgstr ""
+
+#: budget/src/main.js:803
+msgid "Plan debt repayment using avalanche (highest interest first) or snowball (smallest balance first) strategies."
+msgstr ""
+
+#: budget/src/main.js:804
+msgid "Track retirement accounts with contributions and growth projections."
+msgstr ""
+
+#: budget/src/main.js:805
+msgid "Track non-liquid assets like property, vehicles, and collectibles with value snapshots over time."
+msgstr ""
+
+#: budget/src/main.js:806
+msgid "Split expenses with contacts and track who owes whom. Record settlements to clear debts."
+msgstr ""
+
+#: budget/src/main.js:807
+msgid "Predict future account balances using historical spending patterns and scenario modeling."
+msgstr ""
+
+#: budget/src/main.js:808
+msgid "Six report types: budget analysis, spending by category, income vs expenses, year-over-year, bills calendar, and net worth history."
+msgstr ""
+
+#: budget/src/main.js:809
+msgid "Import bank statements from CSV, OFX, or QIF files. Auto-detects delimiters and supports European number formats."
+msgstr ""
+
+#: budget/src/main.js:810
+msgid "Auto-categorise transactions with pattern-based rules. Build complex criteria with AND/OR/NOT logic and preview matches."
+msgstr ""
+
+#: budget/src/main.js:811
+msgid "View and manage currency exchange rates. ECB rates for fiat, CoinGecko for crypto. Add manual overrides."
+msgstr ""
+
+#: budget/src/main.js:812
+msgid "Share your budget data with other Nextcloud users for household or team financial management."
+msgstr ""
+
+#: budget/src/main.js:813
+msgid "Connect external bank accounts for automatic transaction imports via GoCardless (UK/EU) or SimpleFIN (US). Beta feature."
+msgstr ""
+
+#: budget/src/main.js:814
+msgid "Configure currency, date format, number format, notifications, import preferences, security, and data migration."
+msgstr ""
+
+#. Help panel - links
+#: budget/src/main.js:825
+msgid "Read full guide"
+msgstr ""
+
+#: budget/src/main.js:829
+msgid "Quick Links"
+msgstr ""
+
+#: budget/src/main.js:831
+msgid "Getting Started Guide"
+msgstr ""
+
+#: budget/src/main.js:832
+msgid "Importing Bank Statements"
+msgstr ""
+
+#: budget/src/main.js:833
+msgid "Budget Tracking"
+msgstr ""
+
+#: budget/src/main.js:834
+msgid "Auto-Categorisation Rules"
+msgstr ""
