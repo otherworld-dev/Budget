@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.16.1] - 2026-04-29
 
 ### Fixed
+- **Transactions with future date not marked as scheduled** ([#170](https://github.com/otherworld-dev/budget/issues/170)): Manually creating a transaction with a future date now auto-sets status to "scheduled". Previously only bill-generated transactions had this logic.
 - **Factory reset fails** with JSON parse error — `BudgetSnapshotMapper.deleteAll()` returned void instead of int, causing a TypeError in the factory reset flow
+- **Data Repair tool**: Added detection and repair of existing future-dated transactions incorrectly marked as cleared
 
 ## [2.16.0] - 2026-04-28
 
