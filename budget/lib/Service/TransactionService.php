@@ -114,7 +114,9 @@ class TransactionService {
         $transaction->setNotes($notes);
         $transaction->setImportId($importId);
         $transaction->setBillId($billId);
-        $transaction->setStatus($status ?? 'cleared');
+        // Auto-set status based on date: future transactions are scheduled
+        $effectiveStatus = $status ?? (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
+        $transaction->setStatus($effectiveStatus);
         $transaction->setReconciled(false);
         $transaction->setCreatedAt(date('Y-m-d H:i:s'));
         $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
@@ -122,7 +124,7 @@ class TransactionService {
         $transaction = $this->mapper->insert($transaction);
 
         // Update account balance (scheduled transactions don't affect balance until cleared)
-        if (($status ?? 'cleared') !== 'scheduled') {
+        if ($effectiveStatus !== 'scheduled') {
             $this->updateAccountBalance($account, $amount, $type, $userId);
         }
 

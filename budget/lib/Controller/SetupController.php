@@ -220,7 +220,7 @@ class SetupController extends Controller {
                 ], Http::STATUS_BAD_REQUEST);
             }
 
-            $validCategories = ['duplicateTransactions', 'stuckBills', 'balanceDrift'];
+            $validCategories = ['duplicateTransactions', 'stuckBills', 'futureClearedTransactions', 'balanceDrift'];
             $categories = array_intersect($categories, $validCategories);
 
             if (empty($categories)) {

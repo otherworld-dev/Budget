@@ -58477,14 +58477,16 @@ var BudgetApp = /*#__PURE__*/function () {
     value: function _showRepairDataModal(findings) {
       var _findings$duplicateTr,
         _findings$stuckBills,
+        _findings$futureClear,
         _findings$balanceDrif,
         _this15 = this;
       var existing = document.getElementById('repair-data-modal');
       if (existing) existing.remove();
       var dupCount = ((_findings$duplicateTr = findings.duplicateTransactions) === null || _findings$duplicateTr === void 0 ? void 0 : _findings$duplicateTr.length) || 0;
       var stuckCount = ((_findings$stuckBills = findings.stuckBills) === null || _findings$stuckBills === void 0 ? void 0 : _findings$stuckBills.length) || 0;
+      var futureCount = ((_findings$futureClear = findings.futureClearedTransactions) === null || _findings$futureClear === void 0 ? void 0 : _findings$futureClear.length) || 0;
       var driftCount = ((_findings$balanceDrif = findings.balanceDrift) === null || _findings$balanceDrif === void 0 ? void 0 : _findings$balanceDrif.length) || 0;
-      var totalIssues = dupCount + stuckCount + driftCount;
+      var totalIssues = dupCount + stuckCount + futureCount + driftCount;
       var modal = document.createElement('div');
       modal.id = 'repair-data-modal';
       modal.className = 'budget-modal-overlay';
@@ -58505,7 +58507,7 @@ var BudgetApp = /*#__PURE__*/function () {
       } else {
         findingsHtml = "<div class=\"repair-summary\"><p>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Found {count} issue(s) across {categories} categories.', {
           count: totalIssues,
-          categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0)
+          categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0)
         }), "</p></div>");
 
         // Duplicate transactions
@@ -58528,6 +58530,16 @@ var BudgetApp = /*#__PURE__*/function () {
             }), "</span>\n                    </div>");
           }).join('');
           findingsHtml += "\n                    <div class=\"repair-category\" data-category=\"stuckBills\">\n                        <div class=\"repair-category-header\">\n                            <h4><input type=\"checkbox\" class=\"repair-checkbox\" checked> ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Bills with Stuck Due Dates'), "</h4>\n                            <span class=\"repair-category-count\">").concat(stuckCount, "</span>\n                        </div>\n                        <div class=\"repair-category-details\">").concat(stuckItems, "</div>\n                    </div>");
+        }
+
+        // Future cleared transactions
+        if (futureCount > 0) {
+          var futureItems = findings.futureClearedTransactions.slice(0, 20).map(function (f) {
+            return "<div class=\"repair-item\">\n                        <span>".concat(f.description || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', '(unnamed)'), "</span>\n                        <span>").concat(formatCurrency(f.amount), "</span>\n                        <span>").concat(f.date, "</span>\n                        <span class=\"repair-item-note\">").concat(f.accountName, "</span>\n                    </div>");
+          }).join('');
+          findingsHtml += "\n                    <div class=\"repair-category\" data-category=\"futureClearedTransactions\">\n                        <div class=\"repair-category-header\">\n                            <h4><input type=\"checkbox\" class=\"repair-checkbox\" checked> ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Future Transactions Not Marked as Scheduled'), "</h4>\n                            <span class=\"repair-category-count\">").concat(futureCount, "</span>\n                        </div>\n                        <div class=\"repair-category-details\">").concat(futureItems).concat(futureCount > 20 ? "<p>... ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'and {more} more', {
+            more: futureCount - 20
+          }), "</p>") : '', "</div>\n                    </div>");
         }
 
         // Balance drift
@@ -58626,6 +58638,11 @@ var BudgetApp = /*#__PURE__*/function () {
                 if (result.stuckBills) {
                   parts.push((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', '{count} bill due dates fixed', {
                     count: result.stuckBills.fixed
+                  }));
+                }
+                if (result.futureClearedTransactions) {
+                  parts.push((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', '{count} future transactions set to scheduled', {
+                    count: result.futureClearedTransactions.fixed
                   }));
                 }
                 if (result.balanceDrift) {
