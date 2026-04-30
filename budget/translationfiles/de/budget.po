@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-04-29 19:45+0000\n"
+"PO-Revision-Date: 2026-05-01 07:09+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.17.1-dev\n"
+"X-Generator: Weblate 5.17.1\n"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:73
 msgid "Failed to retrieve accounts"
@@ -566,7 +566,7 @@ msgstr "Der Kategorien-Baum konnte nicht abgefragt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:125
 msgid "Failed to retrieve transaction counts"
-msgstr "Die Anzahl an Transaktionen konnte nicht ermittelt werden"
+msgstr "Die Anzahl an Buchungen konnte nicht ermittelt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:137
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:336
@@ -1506,7 +1506,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:686
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:682
 msgid "Transaction"
-msgstr "Transaktion"
+msgstr "Buchung"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:169
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:268
@@ -2267,12 +2267,12 @@ msgstr "Häufigste Ausgabekategorien"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:48
 #: /tmp/budget-v2.11.0/budget/templates/index.php:725
 msgid "Account Performance"
-msgstr ""
+msgstr "Kontoentwicklung"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:49
 #: /tmp/budget-v2.11.0/budget/templates/index.php:734
 msgid "Budget Breakdown"
-msgstr ""
+msgstr "Budgetaufschlüsselung"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:50
 msgid "Savings Goals Summary"
@@ -2296,12 +2296,12 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:56
 #: /tmp/budget-v2.11.0/budget/templates/index.php:780
 msgid "Large Transactions"
-msgstr ""
+msgstr "Große Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:57
 #: /tmp/budget-v2.11.0/budget/templates/index.php:789
 msgid "Weekly Spending"
-msgstr ""
+msgstr "Wöchentliche Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:58
 #: /tmp/budget-v2.11.0/budget/templates/index.php:798
@@ -2311,17 +2311,17 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:59
 #: /tmp/budget-v2.11.0/budget/templates/index.php:807
 msgid "Category Trends"
-msgstr ""
+msgstr "Trends nach Kategorien"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:60
 #: /tmp/budget-v2.11.0/budget/templates/index.php:816
 msgid "Bills Due Soon"
-msgstr ""
+msgstr "Bald fällige Rechnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:63
 #: /tmp/budget-v2.11.0/budget/templates/index.php:826
 msgid "Cash Flow Forecast"
-msgstr ""
+msgstr "Geldflussprognose"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:64
 msgid "Year-over-Year"
@@ -2330,27 +2330,27 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:65
 #: /tmp/budget-v2.11.0/budget/templates/index.php:844
 msgid "Income Tracking"
-msgstr ""
+msgstr "Einnahmenverfolgung"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:66
 #: /tmp/budget-v2.11.0/budget/templates/index.php:853
 msgid "Recent Imports"
-msgstr ""
+msgstr "Zuletzt importierte Daten"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:67
 #: /tmp/budget-v2.11.0/budget/templates/index.php:862
 msgid "Rule Effectiveness"
-msgstr ""
+msgstr "Regel-Effektivität"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:68
 #: /tmp/budget-v2.11.0/budget/templates/index.php:871
 msgid "Spending Velocity"
-msgstr ""
+msgstr "Ausgabenfrequenz"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:71
 #: /tmp/budget-v2.11.0/budget/templates/index.php:881
 msgid "Quick Add Transaction"
-msgstr "Transaktion schnell erfassen"
+msgstr "Buchung schnell erfassen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:352
 msgid "Duplicate transaction"
@@ -3314,7 +3314,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1833
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4685
 msgid "Starting Balance"
-msgstr ""
+msgstr "Anfangssaldo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1852
 msgid ""
@@ -3988,11 +3988,11 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:971
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5324
 msgid "None (Top Level)"
-msgstr ""
+msgstr "Keine (oberste Ebene)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:990
 msgid "Category name is required"
-msgstr ""
+msgstr "Name der Kategorie ist erforderlich"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:1019
 msgid "Category updated successfully"
@@ -4326,7 +4326,7 @@ msgstr "Jetzt aufzeichnen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1902
 msgid "Net worth snapshot recorded"
-msgstr ""
+msgstr "Vermögensstand-Momentaufnahme aufgezeichnet"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1910
 msgid "Failed to record snapshot"
@@ -6044,6 +6044,10 @@ msgid ""
 "which accounts, categories, bills, income, and savings goals to share, and "
 "whether the other person can view or also edit them."
 msgstr ""
+"Teilen Sie Teile Ihres Budgets mit anderen Nextcloud-Nutzern. Sie legen "
+"genau fest, welche Konten, Kategorien, Rechnungen, Einnahmen und Sparziele "
+"Sie teilen möchten – und ob die andere Person diese nur einsehen oder auch "
+"bearbeiten darf."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:73
 msgid ""
@@ -6052,6 +6056,10 @@ msgid ""
 "totals. Transactions in shared accounts count toward shared category budgets "
 "for both users."
 msgstr ""
+"Geteilte Kategorien werden mit den eigenen Kategorien des anderen Nutzers "
+"zusammengeführt – übereinstimmende Namen werden kombiniert, sodass beide mit "
+"denselben Budgets und Ausgabengesamtsummen arbeiten. Buchungen in geteilten "
+"Konten zählen für beide Nutzer zu den Budgets der geteilten Kategorien."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:78
 msgid "Pending Invitations"
@@ -6283,7 +6291,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:376
 msgid "Save category first to manage tag sets"
-msgstr ""
+msgstr "Speichern Sie zuerst die Kategorie, um Tag-Gruppen zu verwalten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:385
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1721
@@ -6324,6 +6332,8 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:986
 msgid "A tag set named \"{name}\" already exists in this category"
 msgstr ""
+"Eine Tag-Gruppe mit dem Namen \"{name}\" existiert bereits in dieser "
+"Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:452
 msgid "Enter description (optional):"
@@ -6569,7 +6579,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1143
 msgid "Reconciliation Adjustment"
-msgstr ""
+msgstr "Abstimmungsanpassung"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1144
 msgid "Adjustment to match statement balance of {amount}"
@@ -7143,7 +7153,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:14
 msgid "Search here ..."
-msgstr ""
+msgstr "Suche ..."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:15
 msgid "Search navigation"
@@ -7250,13 +7260,15 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:588
 msgid "No net worth history yet"
-msgstr ""
+msgstr "Noch keine Vermögenshistorie vorhanden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:589
 msgid ""
 "Snapshots are recorded automatically every day. Your first snapshot will "
 "appear within 24 hours."
 msgstr ""
+"Momentaufnahmen werden automatisch täglich aufgezeichnet. Ihre erste "
+"Momentaufnahme erscheint innerhalb von 24 Stunden."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:590
 msgid "Record snapshot now"
@@ -7306,7 +7318,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:835
 msgid "Year-over-Year Comparison"
-msgstr ""
+msgstr "Jahresvergleich"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:898
 msgid "Select type"
@@ -7754,7 +7766,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1810
 msgid "e.g., Business, Vacation, Groceries"
-msgstr ""
+msgstr "z. B. Geschäftlich, Urlaub, Lebensmittel"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1813
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2594
@@ -8082,7 +8094,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2379
 msgid "Auto-detect recurring income from transactions"
-msgstr "Wiederkehrende Einnahmen automatisch aus Transaktionen erkennen"
+msgstr "Wiederkehrende Einnahmen automatisch aus Buchungen erkennen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2383
 msgid "Add recurring income"
@@ -8129,7 +8141,7 @@ msgstr "Erkannte wiederkehrende Einnahmen"
 msgid ""
 "We found these potential recurring income sources in your transaction history"
 msgstr ""
-"Wir haben in deiner Transaktionshistorie mögliche Quellen für wiederkehrende "
+"Wir haben in deiner Buchungshistorie mögliche Quellen für wiederkehrende "
 "Einnahmen gefunden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2469
@@ -8531,6 +8543,11 @@ msgid ""
 "on market performance, contribution changes, and other factors. Please "
 "consult with a financial advisor for accurate retirement planning."
 msgstr ""
+"Rentenprognosen und -berechnungen basieren auf den angegebenen Informationen "
+"und angenommenen Wachstumsraten. Die tatsächlichen Rentenwerte können je "
+"nach Marktentwicklung, Beitragsänderungen und anderen Faktoren abweichen. "
+"Bitte konsultieren Sie für eine präzise Altersvorsorgeplanung einen "
+"Finanzberater."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3238
 msgid "Total Pension Worth"
@@ -8611,7 +8628,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3387
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4655
 msgid "Basic Information"
-msgstr ""
+msgstr "Grundlegende Informationen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3390
 msgid "Pension Name"
@@ -9352,8 +9369,8 @@ msgid ""
 "history. Use this if account balances appear incorrect."
 msgstr ""
 "Berechnet alle Kontostände neu, basierend auf dem Anfangskontostand und dem "
-"Transaktionsverlauf. Verwenden Sie diese Funktion, wenn die Kontostände "
-"falsch erscheinen."
+"Buchungsverlauf. Verwenden Sie diese Funktion, wenn die Kontostände falsch "
+"erscheinen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4528
 msgid "Recalculate"
@@ -9452,7 +9469,7 @@ msgstr "Konto erstellen oder ändern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4660
 msgid "Enter a descriptive name for this account"
-msgstr ""
+msgstr "Gib diesem Konto einen aussagekräftigen Namen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4666
 msgid "Choose account type"
@@ -9480,11 +9497,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4687
 msgid "The balance this account starts with"
-msgstr ""
+msgstr "Der Anfangssaldo dieses Kontos"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4695
 msgid "Select the account currency"
-msgstr ""
+msgstr "Kontowährung auswählen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4701
 msgid "Bank Information"
@@ -9667,7 +9684,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4918
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5282
 msgid "Pattern to match in transaction descriptions for auto-linking"
-msgstr "Suchmuster in Transaktionsbeschreibungen zur automatischen Zuordnung"
+msgstr "Suchmuster in Buchungen zur automatischen Zuordnung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4923
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5287
@@ -9747,7 +9764,7 @@ msgstr "Erstelle zukünftige Buchung für diese Rechnung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4959
 msgid "Automatically creates a transaction on the bill's due date"
-msgstr "Erstellt automatisch eine Transaktion am Fälligkeitstag der Rechnung"
+msgstr "Erstellt automatisch eine Buchung am Fälligkeitstag der Rechnung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4971
 msgid "Auto-pay when due"
@@ -9989,27 +10006,27 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5307
 msgid "Category Name"
-msgstr ""
+msgstr "Name der Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5309
 msgid "Name for this category"
-msgstr ""
+msgstr "Name für diese Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5318
 msgid "Whether this is for income or expenses"
-msgstr ""
+msgstr "Gibt an, ob es Einnahmen oder Ausgaben sind"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5322
 msgid "Parent Category"
-msgstr ""
+msgstr "Übergeordnete Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5326
 msgid "Make this a subcategory (optional)"
-msgstr ""
+msgstr "Als Unterkategorie anlegen (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5332
 msgid "Color for charts and display"
-msgstr ""
+msgstr "Farbe für Diagramme und Anzeige"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5339
 msgid "Save category"
