@@ -218,14 +218,24 @@ class TransactionMapper extends QBMapper {
     public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->func()->count('t.id'), 'count')
-            ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
+            ->selectAlias(
+                $qb->createFunction(
+                    'SUM(CASE ' .
+                    'WHEN t.type = \'debit\' THEN t.amount ' .
+                    'WHEN t.type = \'credit\' THEN -t.amount ' .
+                    'ELSE 0 END)'
+                ),
+                'total'
+            )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-
         // Use array of IDs (parent + children) if provided, otherwise single ID
         $ids = $categoryIds ?? [$categoryId];
         $qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere(
+                'NOT (t.type = \'credit\' AND IFNULL(a.type, "") IN (\'credit_card\', \'loan\'))'
+            );
 
         $this->excludeScheduledFuture($qb);
 
@@ -235,7 +245,7 @@ class TransactionMapper extends QBMapper {
 
         return [
             'count' => (int)($row['count'] ?? 0),
-            'total' => (float)($row['total'] ?? 0),
+            'total' => (float)(($row['total'] ?? 0) > 0 ? $row['total'] : 0),
         ];
     }
 
@@ -251,14 +261,24 @@ class TransactionMapper extends QBMapper {
 
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month'))
-            ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
+            ->selectAlias(
+                $qb->createFunction(
+                    'SUM(CASE WHEN t.type = \'debit\' THEN t.amount ' .
+                    'WHEN t.type = \'credit\' THEN -t.amount ' .
+                    'ELSE 0 END)'
+                ),
+                'total'
+            )
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere(
+                'NOT (t.type = \'credit\' AND IFNULL(a.type, "") IN (\'credit_card\', \'loan\'))'
+            );
 
         $this->excludeScheduledFuture($qb);
 
@@ -271,7 +291,7 @@ class TransactionMapper extends QBMapper {
 
         return array_map(fn($row) => [
             'month' => $row['month'],
-            'total' => (float)($row['total'] ?? 0),
+            'total' => (float)(($row['total'] ?? 0) > 0 ? $row['total'] : 0),
             'count' => (int)($row['count'] ?? 0),
         ], $data);
     }
