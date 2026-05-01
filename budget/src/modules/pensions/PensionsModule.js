@@ -181,6 +181,17 @@ export default class PensionsModule {
         if (projectedIncomeEl) {
             projectedIncomeEl.textContent = formatters.formatCurrency(projection.totalProjectedAnnualIncome || 0, currency, this.settings);
         }
+
+        // Show hint if DOB is not set in Nextcloud profile
+        const hintEl = document.getElementById('pensions-age-hint');
+        if (hintEl) {
+            if (projection.currentAge === null || projection.currentAge === undefined) {
+                hintEl.textContent = t('budget', 'Set your date of birth in your Nextcloud profile for accurate retirement projections.');
+                hintEl.style.display = '';
+            } else {
+                hintEl.style.display = 'none';
+            }
+        }
     }
 
     setupPensionEventListeners() {

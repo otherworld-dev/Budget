@@ -3364,6 +3364,8 @@ style('budget', 'budget-main');
                 </div>
             </div>
 
+            <p id="pensions-age-hint" class="pensions-age-hint" style="display: none;"></p>
+
             <!-- Pensions List -->
             <div class="pensions-container">
                 <div id="pensions-list" class="pensions-list">

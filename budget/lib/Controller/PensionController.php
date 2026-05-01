@@ -13,12 +13,14 @@ use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
+use OCP\Accounts\IAccountManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 
 class PensionController extends Controller {
@@ -29,6 +31,8 @@ class PensionController extends Controller {
     private PensionService $service;
     private PensionProjector $projector;
     private ValidationService $validationService;
+    private IAccountManager $accountManager;
+    private IUserManager $userManager;
     private IL10N $l;
     private ?string $userId;
 
@@ -38,6 +42,8 @@ class PensionController extends Controller {
         PensionProjector $projector,
         ValidationService $validationService,
         GranularShareService $granularShareService,
+        IAccountManager $accountManager,
+        IUserManager $userManager,
         IL10N $l,
         ?string $userId,
         LoggerInterface $logger
@@ -46,6 +52,8 @@ class PensionController extends Controller {
         $this->service = $service;
         $this->projector = $projector;
         $this->validationService = $validationService;
+        $this->accountManager = $accountManager;
+        $this->userManager = $userManager;
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
@@ -463,7 +471,8 @@ class PensionController extends Controller {
      */
     public function projection(int $id, ?int $currentAge = null): DataResponse {
         try {
-            $projection = $this->projector->getProjection($id, $this->getEffectiveUserId(), $currentAge);
+            $age = $currentAge ?? $this->getAgeFromProfile();
+            $projection = $this->projector->getProjection($id, $this->getEffectiveUserId(), $age);
             return new DataResponse($projection);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve pension projection'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
@@ -475,10 +484,33 @@ class PensionController extends Controller {
      */
     public function combinedProjection(?int $currentAge = null): DataResponse {
         try {
-            $projection = $this->projector->getCombinedProjection($this->getEffectiveUserId(), $currentAge);
+            $age = $currentAge ?? $this->getAgeFromProfile();
+            $projection = $this->projector->getCombinedProjection($this->getEffectiveUserId(), $age);
             return new DataResponse($projection);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve combined pension projection'));
+        }
+    }
+
+    /**
+     * Calculate current age from the user's Nextcloud profile birthdate.
+     */
+    private function getAgeFromProfile(): ?int {
+        try {
+            $user = $this->userManager->get($this->getEffectiveUserId());
+            if ($user === null) {
+                return null;
+            }
+            $account = $this->accountManager->getAccount($user);
+            $birthdate = $account->getProperty(IAccountManager::PROPERTY_BIRTHDATE)->getValue();
+            if (empty($birthdate)) {
+                return null;
+            }
+            $dob = new \DateTime($birthdate);
+            $now = new \DateTime();
+            return (int) $dob->diff($now)->y;
+        } catch (\Exception $e) {
+            return null;
         }
     }
 }

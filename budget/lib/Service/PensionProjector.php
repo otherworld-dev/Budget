@@ -84,6 +84,7 @@ class PensionProjector {
             'pensionCount' => count($pensions),
             'projections' => $projections,
             'baseCurrency' => $baseCurrency,
+            'currentAge' => $currentAge,
         ];
     }
 
