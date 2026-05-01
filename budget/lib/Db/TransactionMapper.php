@@ -218,7 +218,9 @@ class TransactionMapper extends QBMapper {
     public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->func()->count('t.id'), 'count')
-            ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE -t.amount END)"
+            ), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
@@ -251,7 +253,9 @@ class TransactionMapper extends QBMapper {
 
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month'))
-            ->selectAlias($qb->createFunction('SUM(ABS(t.amount))'), 'total')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE -t.amount END)"
+            ), 'total')
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
