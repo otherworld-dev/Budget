@@ -939,6 +939,12 @@ export default class AccountsModule {
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
                 : '';
 
+            // Split badge
+            const isSplit = transaction.isSplit || transaction.is_split;
+            const splitBadge = isSplit
+                ? `<span class="split-indicator" title="${t('budget', 'Split transaction')}">${t('budget', 'Split')}</span>`
+                : '';
+
             return `
                 <tr class="transaction-row${isScheduled ? ' scheduled-transaction' : ''}${isLinked ? ' is-linked' : ''}" data-transaction-id="${transaction.id}">
                     <td class="date-column">
@@ -948,7 +954,7 @@ export default class AccountsModule {
                         <div class="transaction-description">
                             <span class="description-main">${transaction.description || t('budget', 'No description')}</span>
                             ${transaction.vendor ? `<span class="vendor-name">${transaction.vendor}</span>` : ''}
-                            ${linkedBadge}
+                            ${(linkedBadge || splitBadge) ? `<div class="transaction-badges">${linkedBadge}${splitBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="category-column">
