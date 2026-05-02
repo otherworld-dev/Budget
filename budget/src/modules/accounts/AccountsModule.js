@@ -952,14 +952,14 @@ export default class AccountsModule {
                     </td>
                     <td class="description-column">
                         <div class="transaction-description">
-                            <span class="description-main">${transaction.description || t('budget', 'No description')}</span>
-                            ${transaction.vendor ? `<span class="vendor-name">${transaction.vendor}</span>` : ''}
+                            <span class="description-main">${dom.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
+                            ${transaction.vendor ? `<span class="vendor-name">${dom.escapeHtml(transaction.vendor)}</span>` : ''}
                             ${(linkedBadge || splitBadge) ? `<div class="transaction-badges">${linkedBadge}${splitBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="category-column">
                         <span class="category-name ${category ? '' : 'uncategorized'}">
-                            ${category ? category.name : t('budget', 'Uncategorized')}
+                            ${category ? dom.escapeHtml(category.name) : t('budget', 'Uncategorized')}
                         </span>
                         <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
                     </td>

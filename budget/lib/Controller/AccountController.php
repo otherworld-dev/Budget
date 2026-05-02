@@ -622,6 +622,9 @@ class AccountController extends Controller {
             $this->requireWriteAccess('account', $id);
             $data = $this->request->getParams();
             $transactionIds = $data['transactionIds'] ?? [];
+            if (count($transactionIds) > 500) {
+                return new DataResponse(['error' => $this->l->t('Too many transactions (max 500)')], Http::STATUS_BAD_REQUEST);
+            }
             $transactionIds = array_map('intval', $transactionIds);
 
             $result = $this->service->completeReconciliation($id, $this->getEffectiveUserId(), $transactionIds);

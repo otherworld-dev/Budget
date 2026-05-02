@@ -191,7 +191,7 @@ export default class ImportModule {
         const fileDetails = document.querySelector('.file-details');
         if (fileDetails) {
             fileDetails.innerHTML = `
-                <span class="file-name">${uploadResult.filename}</span>
+                <span class="file-name">${dom.escapeHtml(uploadResult.filename)}</span>
                 <span class="file-size">${this.formatFileSize(uploadResult.size)}</span>
                 <span class="record-count">${n('budget', '%n record', '%n records', uploadResult.recordCount)}</span>
             `;
