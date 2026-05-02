@@ -1141,7 +1141,7 @@ export default class TransactionsModule {
             const result = await response.json();
             this.cancelReconciliation();
             this.app.loadAccounts();
-            this.loadTransactions();
+            this.app.loadTransactions();
             showSuccess(t('budget', 'Reconciliation completed — {count} transactions marked as reconciled', { count: result.reconciledCount }));
         } catch (error) {
             showError(t('budget', 'Failed to complete reconciliation: {error}', { error: error.message }));
