@@ -100,6 +100,15 @@ class ReportAggregator {
             $includeUntagged
         );
 
+        // Build excluded category ID set (used for totals and spending breakdown)
+        $allCategories = $this->categoryMapper->findAll($userId);
+        $excludedCategoryIds = [];
+        foreach ($allCategories as $cat) {
+            if ($cat->getExcludedFromReports()) {
+                $excludedCategoryIds[$cat->getId()] = true;
+            }
+        }
+
         // Get future transaction adjustments to calculate balance as of today
         $today = date('Y-m-d');
         $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
@@ -192,6 +201,15 @@ class ReportAggregator {
             }
         }
 
+        // Exclude transactions in excluded-from-reports categories from totals
+        if (!empty($excludedCategoryIds)) {
+            $excludedIds = array_keys($excludedCategoryIds);
+            $excludedExpenses = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'debit');
+            $excludedIncome = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'credit');
+            $totalExpenses -= array_sum($excludedExpenses);
+            $totalIncome -= array_sum($excludedIncome);
+        }
+
         $summary['totals']['totalIncome'] = $totalIncome;
         $summary['totals']['totalExpenses'] = $totalExpenses;
         $summary['totals']['netIncome'] = $totalIncome - $totalExpenses;
@@ -218,13 +236,6 @@ class ReportAggregator {
             $excludeTransfers
         );
 
-        $allCategories = $this->categoryMapper->findAll($userId);
-        $excludedCategoryIds = [];
-        foreach ($allCategories as $cat) {
-            if ($cat->getExcludedFromReports()) {
-                $excludedCategoryIds[$cat->getId()] = true;
-            }
-        }
         if (!empty($excludedCategoryIds)) {
             $spending = array_values(array_filter($spending, function ($item) use ($excludedCategoryIds) {
                 return !isset($excludedCategoryIds[$item['categoryId'] ?? 0]);
