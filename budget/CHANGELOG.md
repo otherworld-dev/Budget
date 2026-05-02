@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.17.0] - 2026-05-02
+
+### Added
+- **Exclude from reports** flag for categories: Categories can be marked as excluded from budget calculations, spending reports, and dashboard totals. Useful for investment adjustments, internal bookkeeping, or reimbursement categories.
+- **Auto-match transfers after import** ([#178](https://github.com/otherworld-dev/budget/issues/178)): After importing bank statements, the app automatically scans for and links matching transfer pairs across accounts.
+- **Pension DOB from Nextcloud profile** ([#173](https://github.com/otherworld-dev/budget/issues/173)): Pension projections now read your date of birth from your Nextcloud profile for accurate retirement age calculations. No separate setting needed.
+- **Reconciliation completion** ([#175](https://github.com/otherworld-dev/budget/issues/175)): Finishing a reconciliation now persists the "Last Reconciled" date and marks checked transactions as reconciled.
+
+### Fixed
+- **Category totals now net credits against debits** ([#172](https://github.com/otherworld-dev/budget/issues/172)): Refunds/credits in a category now reduce the total instead of inflating it.
+- **Transfer credits no longer carry category** ([#172](https://github.com/otherworld-dev/budget/issues/172)): The credit side of transfers no longer gets a category, preventing double-counting in category totals. Data Repair tool can clean existing data.
+- **Debt payments count as expenses** ([#172](https://github.com/otherworld-dev/budget/issues/172)): Transfers to liability accounts (credit cards, loans, mortgages) now correctly count as expenses in dashboard totals instead of being excluded as internal transfers.
+- **Stale bill duplicate detection** ([#163](https://github.com/otherworld-dev/budget/issues/163)): Data Repair tool now detects duplicate auto-generated transactions from previous billing cycles with different created_at timestamps.
+- **Split badge missing in account detail** ([#176](https://github.com/otherworld-dev/budget/issues/176)): Split transaction indicator now shows in the account detail transaction list.
+- **Transaction table header alignment** ([#177](https://github.com/otherworld-dev/budget/issues/177)): Table headers now match column alignment with data rows.
+- **XSS in account detail view**: Transaction description, vendor, and category name now properly escaped in account detail rendering.
+- **XSS in import filename**: Uploaded filename now escaped in import file details.
+
+### Security
+- Added array size limit (500) on reconciliation transaction IDs to prevent oversized queries
+- Fixed output encoding in account detail transaction list and import file display
+
 ## [2.16.1] - 2026-04-29
 
 ### Fixed
