@@ -10377,3 +10377,36 @@ msgstr ""
 #: budget/src/main.js:834
 msgid "Auto-Categorisation Rules"
 msgstr ""
+
+#. Reconciliation
+#: budget/src/modules/transactions/TransactionsModule.js
+msgid "Reconciliation completed — {count} transactions marked as reconciled"
+msgstr ""
+
+#. Transfer auto-matching
+#: budget/src/modules/import/ImportModule.js
+msgid "Auto-linked {count} transfer pairs"
+msgstr ""
+
+#. Repair tool - transfer credit categories
+#: budget/src/main.js
+msgid "Transfer Credits with Category Assigned"
+msgstr ""
+
+#: budget/src/main.js
+msgid "{count} transfer categories cleared"
+msgstr ""
+
+#. Pensions - DOB hint
+#: budget/src/modules/pensions/PensionsModule.js
+msgid "Set your date of birth in your Nextcloud profile for accurate retirement projections."
+msgstr ""
+
+#. Category - exclude from reports
+#: budget/templates/index.php
+msgid "Exclude from reports"
+msgstr ""
+
+#: budget/templates/index.php
+msgid "Transactions in this category will not count toward budgets, spending reports, or dashboard totals."
+msgstr ""

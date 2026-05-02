@@ -798,7 +798,7 @@ class TransactionService {
                     // Auto-match: exactly one available match
                     $matchId = $availableMatches[0]['id'];
                     try {
-                        $this->mapper->linkTransactions($txId, $matchId);
+                        $this->linkTransactions($txId, $matchId, $userId);
 
                         // Mark both as processed
                         $processedIds[$txId] = true;

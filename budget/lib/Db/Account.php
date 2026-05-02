@@ -59,6 +59,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  * @method string getUpdatedAt()
  * @method void setUpdatedAt(string $updatedAt)
+ * @method string|null getLastReconciled()
+ * @method void setLastReconciled(?string $lastReconciled)
  */
 class Account extends Entity implements JsonSerializable {
     protected $userId;
