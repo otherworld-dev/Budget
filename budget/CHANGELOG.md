@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.17.1] - 2026-05-02
+
+### Fixed
+- **Reconciliation ignores statement date** ([#175](https://github.com/otherworld-dev/budget/issues/175)): The statement date field was collected but never sent to the backend. Reconciliation now calculates the account balance as of the statement date, excluding transactions after it.
+
 ## [2.17.0] - 2026-05-02
 
 ### Added
