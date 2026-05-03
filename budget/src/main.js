@@ -1978,10 +1978,11 @@ class BudgetApp {
 
         const dupCount = findings.duplicateTransactions?.length || 0;
         const stuckCount = findings.stuckBills?.length || 0;
+        const paidOneTimeCount = findings.paidOneTimeBills?.length || 0;
         const futureCount = findings.futureClearedTransactions?.length || 0;
         const transferCatCount = findings.transferCreditCategories?.length || 0;
         const driftCount = findings.balanceDrift?.length || 0;
-        const totalIssues = dupCount + stuckCount + futureCount + transferCatCount + driftCount;
+        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + transferCatCount + driftCount;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1998,7 +1999,7 @@ class BudgetApp {
         if (totalIssues === 0) {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
         } else {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (transferCatCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) })}</p></div>`;
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (transferCatCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) })}</p></div>`;
 
             // Duplicate transactions
             if (dupCount > 0) {
@@ -2038,6 +2039,26 @@ class BudgetApp {
                             <span class="repair-category-count">${stuckCount}</span>
                         </div>
                         <div class="repair-category-details">${stuckItems}</div>
+                    </div>`;
+            }
+
+            // Paid one-time bills still active
+            if (paidOneTimeCount > 0) {
+                const paidOneTimeItems = findings.paidOneTimeBills.map(b =>
+                    `<div class="repair-item">
+                        <span>${b.name}</span>
+                        <span>${formatCurrency(b.amount)}</span>
+                        <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                    </div>`
+                ).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="paidOneTimeBills">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Paid One-Time Bills Still Active')}</h4>
+                            <span class="repair-category-count">${paidOneTimeCount}</span>
+                        </div>
+                        <div class="repair-category-details">${paidOneTimeItems}</div>
                     </div>`;
             }
 
@@ -2185,6 +2206,9 @@ class BudgetApp {
                     }
                     if (result.stuckBills) {
                         parts.push(t('budget', '{count} bill due dates fixed', { count: result.stuckBills.fixed }));
+                    }
+                    if (result.paidOneTimeBills) {
+                        parts.push(t('budget', '{count} one-time bills deactivated', { count: result.paidOneTimeBills.fixed }));
                     }
                     if (result.futureClearedTransactions) {
                         parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
