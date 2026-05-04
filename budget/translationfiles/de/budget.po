@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-03 06:09+0000\n"
+"PO-Revision-Date: 2026-05-04 21:09+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -804,24 +804,24 @@ msgstr "Fehler beim Laden der Import-Historie"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportController.php:187
 msgid "Failed to validate file"
-msgstr ""
+msgstr "Fehler bei der Dateiprüfung"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportController.php:209
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Fehler beim Ausführen des Imports"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportController.php:222
 msgid "Failed to rollback import"
-msgstr ""
+msgstr "Import konnte nicht rückgängig gemacht werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:57
 msgid "Failed to retrieve import rules"
-msgstr ""
+msgstr "Fehler beim Abrufen der Importregeln"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:69
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:307
 msgid "Import rule"
-msgstr ""
+msgstr "Importregel"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:103
 msgid "Criteria required for v2 rules"
@@ -835,13 +835,13 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:220
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
-msgstr ""
+msgstr "Ungültiges Feld. Muss eines der folgenden sein: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:126
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:228
 #, php-format
 msgid "Invalid match type. Must be one of: %1$s"
-msgstr ""
+msgstr "Ungültiger Vergleichstyp. Muss einer der folgenden sein: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:132
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:236
@@ -1365,32 +1365,32 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:604
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:619
 msgid "Failed to share expense"
-msgstr ""
+msgstr "Fehler beim Teilen der Ausgabe"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:262
 msgid "Failed to split expense"
-msgstr ""
+msgstr "Fehler beim Aufteilen der Ausgabe"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:284
 msgid "Failed to get shares"
-msgstr ""
+msgstr "Fehler beim Abrufen der Anteile"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:306
 msgid "Failed to update share"
-msgstr ""
+msgstr "Fehler beim Aktualisieren des Anteils"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:328
 msgid "Failed to mark settled"
-msgstr ""
+msgstr "Fehler beim Markieren als beglichen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:350
 msgid "Failed to delete share"
-msgstr ""
+msgstr "Fehler beim Löschen des Anteils"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:368
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:471
 msgid "Please select at least one expense to settle"
-msgstr ""
+msgstr "Bitte mindestens eine Ausgabe zum Begleichen auswählen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:380
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:499
@@ -1424,7 +1424,7 @@ msgstr "Schlagwort Gruppe"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TagSetController.php:90
 msgid "Category ID and name are required"
-msgstr ""
+msgstr "Kategorie-ID und Name sind erforderlich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TagSetController.php:114
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:460
