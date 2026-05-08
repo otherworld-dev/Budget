@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-04 21:09+0000\n"
+"PO-Revision-Date: 2026-05-09 15:11+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.17.1\n"
+"X-Generator: Weblate 2026.5-dev\n"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:73
 msgid "Failed to retrieve accounts"
@@ -874,49 +874,51 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:414
 msgid "Failed to migrate import rule"
-msgstr ""
+msgstr "Importregel konnte nicht migriert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:431
 msgid "Failed to migrate import rules"
-msgstr ""
+msgstr "Fehler bei der Migration der Importregeln"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/MigrationController.php:67
 msgid "Failed to export data"
-msgstr ""
+msgstr "Daten konnten nicht exportiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/MigrationController.php:137
 msgid ""
 "Import not confirmed. This operation will replace ALL existing data. Pass "
 "confirmed=true to proceed."
 msgstr ""
+"Import nicht bestätigt. Dieser Vorgang ersetzt ALLE vorhandenen Daten. "
+"Übergebe confirmed=true, um fortzufahren."
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/MigrationController.php:185
 msgid "Failed to import data"
-msgstr ""
+msgstr "Fehler beim Importieren der Daten"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/NetWorthController.php:64
 msgid "Failed to calculate net worth"
-msgstr ""
+msgstr "Fehler bei der Berechnung des Nettovermögens"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/NetWorthController.php:79
 msgid "Failed to retrieve net worth snapshots"
-msgstr ""
+msgstr "Fehler beim Abrufen der Nettovermögens-Momentaufnahme"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/NetWorthController.php:97
 msgid "Failed to create net worth snapshot"
-msgstr ""
+msgstr "Fehler beim Erstellen des Nettovermögens-Momentaufnahme"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/NetWorthController.php:110
 msgid "Snapshot deleted"
-msgstr ""
+msgstr "Momentaufnahme gelöscht"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/NetWorthController.php:112
 msgid "Snapshot"
-msgstr ""
+msgstr "Momentaufnahme"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:78
 msgid "Failed to retrieve pensions"
-msgstr ""
+msgstr "Fehler beim Abrufen der Renten"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:90
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:198
@@ -927,28 +929,28 @@ msgstr "Rente"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:228
 #, php-format
 msgid "Invalid pension type. Must be one of: %1$s"
-msgstr ""
+msgstr "Ungültiger Rententyp. Muss einer der folgenden sein: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:154
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:248
 msgid "Current balance cannot be negative"
-msgstr ""
+msgstr "Aktueller Kontostand kann nicht negativ sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:157
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:251
 msgid "Monthly contribution cannot be negative"
-msgstr ""
+msgstr "Monatliche Einzahlung darf nicht negativ sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:160
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:254
 #, php-format
 msgid "Expected return rate must be between 0%% and 100%%"
-msgstr ""
+msgstr "Die erwartete Rendite muss zwischen 0 %% und 100 %% liegen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:163
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:257
 msgid "Retirement age must be between 18 and 100"
-msgstr ""
+msgstr "Das Renteneintrittsalter muss zwischen 18 und 100 liegen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:166
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:260
