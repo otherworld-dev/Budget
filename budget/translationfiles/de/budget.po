@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-11 05:11+0000\n"
+"PO-Revision-Date: 2026-05-12 18:11+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -870,7 +870,7 @@ msgstr "Regel konnte nicht mit Transaktionen getestet werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:400
 msgid "Failed to apply rules to transactions"
-msgstr ""
+msgstr "Fehler beim Anwenden der Regeln auf Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:414
 msgid "Failed to migrate import rule"
@@ -964,40 +964,40 @@ msgstr "Umbuchungwert kann nicht negativ sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:187
 msgid "Failed to create pension"
-msgstr ""
+msgstr "Rente konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:282
 msgid "Failed to update pension"
-msgstr ""
+msgstr "Rente konnte nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:293
 msgid "Pension deleted successfully"
-msgstr ""
+msgstr "Rente erfolgreich gelöscht"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:295
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:421
 msgid "Failed to delete pension"
-msgstr ""
+msgstr "Rente konnte nicht gelöscht werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:333
 msgid "Balance and date are required"
-msgstr ""
+msgstr "Kontostand und Datum sind erforderlich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:338
 msgid "Balance cannot be negative"
-msgstr ""
+msgstr "Der Kontostand darf nicht negativ sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:379
 msgid "Failed to retrieve contributions"
-msgstr ""
+msgstr "Beiträge konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:402
 msgid "Amount and date are required"
-msgstr ""
+msgstr "Betrag und Datum sind erforderlich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:407
 msgid "Amount must be greater than zero"
-msgstr ""
+msgstr "Der Betrag muss größer als null sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:428
 msgid "Failed to create contribution"
