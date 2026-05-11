@@ -312,6 +312,7 @@ export default class IncomeModule {
             title.textContent = t('budget', 'Edit Recurring Income');
             document.getElementById('income-id').value = income.id;
             document.getElementById('income-name').value = income.name || '';
+            document.getElementById('income-description').value = income.description || '';
             document.getElementById('income-amount').value = income.amount || '';
             document.getElementById('income-source').value = income.source || '';
             document.getElementById('income-frequency').value = income.frequency || 'monthly';
@@ -402,6 +403,7 @@ export default class IncomeModule {
 
             const data = {
                 name: document.getElementById('income-name').value.trim(),
+                description: document.getElementById('income-description')?.value.trim() || null,
                 amount: parseFloat(document.getElementById('income-amount').value) || 0,
                 source: document.getElementById('income-source').value.trim() || null,
                 frequency: document.getElementById('income-frequency').value,

@@ -404,6 +404,7 @@ export default class BillsModule {
             title.textContent = t('budget', 'Edit Bill');
             document.getElementById('bill-id').value = bill.id;
             document.getElementById('bill-name').value = bill.name || '';
+            document.getElementById('bill-description').value = bill.description || '';
             document.getElementById('bill-amount').value = bill.amount || '';
             document.getElementById('bill-frequency').value = bill.frequency || 'monthly';
             document.getElementById('bill-due-day').value = bill.dueDay || bill.due_day || '';
@@ -712,6 +713,7 @@ export default class BillsModule {
 
         const billData = {
             name: document.getElementById('bill-name').value,
+            description: document.getElementById('bill-description').value || null,
             amount: parseFloat(document.getElementById('bill-amount').value),
             frequency: frequency,
             dueDay: document.getElementById('bill-due-day').value ? parseInt(document.getElementById('bill-due-day').value) : null,

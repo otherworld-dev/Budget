@@ -14,6 +14,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUserId(string $userId)
  * @method string getName()
  * @method void setName(string $name)
+ * @method string|null getDescription()
+ * @method void setDescription(?string $description)
  * @method float getAmount()
  * @method void setAmount(float $amount)
  * @method string getFrequency()
@@ -66,6 +68,7 @@ use OCP\AppFramework\Db\Entity;
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
     protected $name;
+    protected $description;
     protected $amount;
     protected $frequency;       // monthly, weekly, yearly, quarterly, custom
     protected $dueDay;          // Day of month (1-31) or day of week (1-7) for weekly
@@ -165,6 +168,7 @@ class Bill extends Entity implements JsonSerializable {
             'id' => $this->getId(),
             'userId' => $this->getUserId(),
             'name' => $this->getName(),
+            'description' => $this->getDescription(),
             'amount' => $this->getAmount(),
             'frequency' => $this->getFrequency(),
             'dueDay' => $this->getDueDay(),
