@@ -114,23 +114,29 @@ class RepairService {
             }
 
             // Pairs where same amount+created_at have different dates = duplicate from markPaid
+            // Only flag if dates are close together (<= 14 days). Entries that are a full
+            // billing cycle apart (e.g., 30 days for monthly) are legitimate payment +
+            // next occurrence pairs, not duplicates.
             foreach ($groups as $group) {
                 if (count($group) < 2) {
                     continue;
                 }
 
-                // The one with the later date is the "next occurrence" duplicate
                 usort($group, fn($a, $b) => strcmp($a->getDate(), $b->getDate()));
                 $original = $group[0];
                 for ($i = 1; $i < count($group); $i++) {
-                    $duplicate = $group[$i];
+                    $candidate = $group[$i];
+                    $daysBetween = abs((strtotime($candidate->getDate()) - strtotime($original->getDate())) / 86400);
+                    if ($daysBetween > 14) {
+                        continue; // Different billing cycles, not a duplicate
+                    }
                     $duplicates[] = [
-                        'duplicateId' => $duplicate->getId(),
+                        'duplicateId' => $candidate->getId(),
                         'originalId' => $original->getId(),
-                        'amount' => (float) $duplicate->getAmount(),
-                        'date' => $duplicate->getDate(),
+                        'amount' => (float) $candidate->getAmount(),
+                        'date' => $candidate->getDate(),
                         'originalDate' => $original->getDate(),
-                        'vendor' => $duplicate->getVendor(),
+                        'vendor' => $candidate->getVendor(),
                         'accountId' => $accountId,
                         'accountName' => $account->getName(),
                     ];
