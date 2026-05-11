@@ -5004,6 +5004,12 @@ style('budget', 'budget-main');
             </div>
 
             <div class="form-group">
+                <label for="bill-description"><?php p($l->t('Description')); ?></label>
+                <input type="text" id="bill-description" aria-describedby="bill-description-help" maxlength="255" placeholder="<?php p($l->t('Transaction description (optional)')); ?>">
+                <small id="bill-description-help" class="form-text"><?php p($l->t('Used as the description when transactions are auto-generated')); ?></small>
+            </div>
+
+            <div class="form-group">
                 <label for="bill-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
                 <input type="number" id="bill-amount" step="0.01" required min="0" aria-describedby="bill-amount-help" placeholder="0.00">
                 <small id="bill-amount-help" class="form-text"><?php p($l->t('Expected bill amount')); ?></small>
@@ -5398,6 +5404,12 @@ style('budget', 'budget-main');
                 <label for="income-name"><?php p($l->t('Income Name')); ?> <span class="required">*</span></label>
                 <input type="text" id="income-name" required aria-describedby="income-name-help" maxlength="255" placeholder="<?php p($l->t('e.g., Salary, Dividends, Rental Income')); ?>">
                 <small id="income-name-help" class="form-text"><?php p($l->t('Name of the recurring income')); ?></small>
+            </div>
+
+            <div class="form-group">
+                <label for="income-description"><?php p($l->t('Description')); ?></label>
+                <input type="text" id="income-description" aria-describedby="income-description-help" maxlength="255" placeholder="<?php p($l->t('Transaction description (optional)')); ?>">
+                <small id="income-description-help" class="form-text"><?php p($l->t('Used as the description when transactions are auto-generated')); ?></small>
             </div>
 
             <div class="form-group">
