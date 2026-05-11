@@ -1109,6 +1109,60 @@ class TransactionMapper extends QBMapper {
         return $netChange;
     }
 
+    /**
+     * Get net change for the first N transactions in display order.
+     * Used to compute balanceBeforePage: total_net - topN_net = net of older pages.
+     *
+     * @param int $accountId Account to query
+     * @param int $n Number of transactions from the top (display order)
+     * @param string $direction Sort direction (DESC = newest first, ASC = oldest first)
+     * @return float Net change of the top N transactions
+     */
+    public function getNetChangeTopN(int $accountId, int $n, string $direction = 'DESC'): float {
+        $direction = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
+
+        // Subquery approach: get IDs of the top N transactions, then sum their net
+        // This avoids issues with SUM + LIMIT on some databases
+        $subQb = $this->db->getQueryBuilder();
+        $subQb->select('t.id')
+            ->from($this->getTableName(), 't')
+            ->where($subQb->expr()->eq('t.account_id', $subQb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere(
+                $subQb->expr()->orX(
+                    $subQb->expr()->neq('t.status', $subQb->createNamedParameter('scheduled')),
+                    $subQb->expr()->isNull('t.status')
+                )
+            )
+            ->orderBy('t.date', $direction)
+            ->addOrderBy('t.id', 'DESC')
+            ->setMaxResults($n);
+
+        $result = $subQb->executeQuery();
+        $ids = [];
+        while ($row = $result->fetch()) {
+            $ids[] = (int)$row['id'];
+        }
+        $result->closeCursor();
+
+        if (empty($ids)) {
+            return 0.0;
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias(
+                $qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
+                'net_change'
+            )
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->in('t.id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+
+        $result = $qb->executeQuery();
+        $netChange = (float)$result->fetchOne();
+        $result->closeCursor();
+
+        return $netChange;
+    }
+
     public function getNetChangeAfterDate(int $accountId, string $afterDate): float {
         $qb = $this->db->getQueryBuilder();
 
@@ -1135,10 +1189,9 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Calculate the net change of all transactions chronologically before a given (date, id) boundary.
-     * Used for computing running balance: balanceBeforePage = openingBalance + getNetChangeBefore().
+     * Used for computing running balance: balanceBeforePage = openingBalance + getNetChangeBeforePage().
      *
-     * Chronological order: date ASC, id ASC.
-     * "Before" means: date < boundaryDate, OR (date = boundaryDate AND id < boundaryId).
+     * @deprecated Use getNetChangeBeforePage instead — handles same-date pagination splits correctly.
      *
      * @param int $accountId Account to compute balance for
      * @param string $boundaryDate The date of the boundary transaction
@@ -1176,6 +1229,7 @@ class TransactionMapper extends QBMapper {
 
         return (string)($netChange ?: '0');
     }
+
 
     /**
      * Calculate the net effect of future transactions for multiple accounts (batch version).
