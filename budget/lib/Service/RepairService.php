@@ -298,6 +298,10 @@ class RepairService {
             } elseif ($nextDue <= $today && $lastPaid >= date('Y-m-d', strtotime('-30 days'))) {
                 $isStuck = true;
                 $reason = 'overdue_despite_recent_payment';
+            } elseif ($nextDue > date('Y-m-d', strtotime('+10 years'))) {
+                // Far-future date from broken forceAdvance calculation
+                $isStuck = true;
+                $reason = 'far_future_due_date';
             }
 
             if ($isStuck) {
@@ -508,13 +512,17 @@ class RepairService {
         foreach ($stuck as $item) {
             try {
                 $bill = $this->billMapper->find($item['billId'], $userId);
+
+                // For far-future dates, recalculate from scratch (today) rather
+                // than force-advancing from the broken date
+                $isFarFuture = $item['reason'] === 'far_future_due_date';
                 $nextDue = $this->frequencyCalculator->calculateNextDueDate(
                     $bill->getFrequency(),
                     $bill->getDueDay(),
                     $bill->getDueMonth(),
-                    $bill->getNextDueDate(),
+                    $isFarFuture ? null : $bill->getNextDueDate(),
                     $bill->getCustomRecurrencePattern(),
-                    true // forceAdvance
+                    !$isFarFuture // forceAdvance only for non-far-future
                 );
 
                 // Only update if it actually advanced
