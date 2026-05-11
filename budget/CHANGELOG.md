@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.1] - 2026-05-11
+
+### Fixed
+- **Duplicate detection false positives** ([#163](https://github.com/otherworld-dev/budget/issues/163)): Payment + next occurrence pairs (same `created_at`, ~30 days apart) were incorrectly flagged as duplicates. Now only flags entries within 14 days of each other.
+- **Bill date edit not updating nextDueDate** ([#163](https://github.com/otherworld-dev/budget/issues/163)): Editing a bill on an older version left a stale nextDueDate. Now verifies consistency on every save and recalculates if needed.
+
 ## [2.18.0] - 2026-05-11
 
 ### Added
