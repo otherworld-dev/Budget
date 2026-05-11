@@ -19,6 +19,7 @@ class FrequencyCalculator {
      * @param int|null $dueMonth Month for quarterly/yearly bills
      * @param string|null $fromDate Base date to calculate from
      * @param string|null $customPattern JSON pattern for custom frequency
+     * @param bool $forceAdvance Always advance past fromDate (used after payment)
      * @return string Next due date in Y-m-d format
      */
     public function calculateNextDueDate(
@@ -29,14 +30,33 @@ class FrequencyCalculator {
         ?string $customPattern = null,
         bool $forceAdvance = false
     ): string {
-        $baseDate = $fromDate ? new \DateTime($fromDate) : new \DateTime();
-        // When forceAdvance is true, move the base date one day past the current
-        // due date so the calculator naturally finds the next cycle.
         $today = new \DateTime();
+
+        // For fixed-interval frequencies with forceAdvance, simply add one interval
+        // to the original date. The baseDate/today manipulation only works for
+        // calendar-anchored frequencies that use setDate().
+        if ($forceAdvance && $fromDate) {
+            $origin = new \DateTime($fromDate);
+            switch ($frequency) {
+                case 'daily':
+                    $origin->modify('+1 day');
+                    return $origin->format('Y-m-d');
+                case 'weekly':
+                    $origin->modify('+7 days');
+                    return $origin->format('Y-m-d');
+                case 'biweekly':
+                    $origin->modify('+14 days');
+                    return $origin->format('Y-m-d');
+            }
+        }
+
+        $baseDate = $fromDate ? new \DateTime($fromDate) : new \DateTime();
+
+        // For calendar-anchored frequencies with forceAdvance, move base date
+        // one day past current due so comparisons naturally advance.
         if ($forceAdvance && $fromDate) {
             $baseDate->modify('+1 day');
-            // Ensure today is at least past the base date so comparisons advance
-            if ($today <= $baseDate) {
+            if ($today < $baseDate) {
                 $today = clone $baseDate;
             }
         }
@@ -52,13 +72,14 @@ class FrequencyCalculator {
             case 'weekly':
             case 'biweekly':
                 $dayOfWeek = $dueDay ?? 1; // Default to Monday
+                $interval = $frequency === 'biweekly' ? 14 : 7;
                 $next = clone $baseDate;
                 $currentDayOfWeek = (int)$next->format('N');
                 $daysToAdd = ($dayOfWeek - $currentDayOfWeek + 7) % 7;
-                if ($daysToAdd === 0 && $next <= $today) {
-                    $daysToAdd = $frequency === 'biweekly' ? 14 : 7;
-                }
                 $next->modify("+{$daysToAdd} days");
+                while ($next <= $today) {
+                    $next->modify("+{$interval} days");
+                }
                 return $next->format('Y-m-d');
 
             case 'monthly':
@@ -70,7 +91,7 @@ class FrequencyCalculator {
                     (int)$next->format('m'),
                     min($day, $maxDay)
                 );
-                if ($next <= $today) {
+                while ($next <= $today) {
                     $next->modify('+1 month');
                     $maxDay = (int)$next->format('t');
                     $next->setDate(
@@ -84,14 +105,34 @@ class FrequencyCalculator {
             case 'quarterly':
                 $day = $dueDay ?? 1;
                 $next = clone $baseDate;
-                $currentMonth = (int)$next->format('n');
-                $quarterMonth = ((int)ceil($currentMonth / 3)) * 3 - 2;
-                if ($dueMonth) {
-                    $quarterMonth = $dueMonth;
-                }
-                $next->setDate((int)$next->format('Y'), $quarterMonth, min($day, 28));
-                if ($next <= $today) {
+                $quarterMonth = $dueMonth ?? (((int)ceil((int)$next->format('n') / 3)) * 3 - 2);
+                $maxDay = (int)date('t', mktime(0, 0, 0, $quarterMonth, 1, (int)$next->format('Y')));
+                $next->setDate((int)$next->format('Y'), $quarterMonth, min($day, $maxDay));
+                while ($next <= $today) {
                     $next->modify('+3 months');
+                    $maxDay = (int)$next->format('t');
+                    $next->setDate(
+                        (int)$next->format('Y'),
+                        (int)$next->format('m'),
+                        min($day, $maxDay)
+                    );
+                }
+                return $next->format('Y-m-d');
+
+            case 'semi-annually':
+                $day = $dueDay ?? 1;
+                $month = $dueMonth ?? 1;
+                $next = clone $baseDate;
+                $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
+                $next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
+                while ($next <= $today) {
+                    $next->modify('+6 months');
+                    $maxDay = (int)$next->format('t');
+                    $next->setDate(
+                        (int)$next->format('Y'),
+                        (int)$next->format('m'),
+                        min($day, $maxDay)
+                    );
                 }
                 return $next->format('Y-m-d');
 
@@ -99,19 +140,28 @@ class FrequencyCalculator {
                 $day = $dueDay ?? 1;
                 $month = $dueMonth ?? 1;
                 $next = clone $baseDate;
-                $next->setDate((int)$next->format('Y'), $month, min($day, 28));
-                if ($next <= $today) {
+                $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
+                $next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
+                while ($next <= $today) {
                     $next->modify('+1 year');
+                    $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
+                    $next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
                 }
                 return $next->format('Y-m-d');
 
             case 'one-time':
+                // One-time bills have a specific target date — don't advance past it
                 $day = $dueDay ?? 1;
                 $month = $dueMonth ?? 1;
                 $next = clone $baseDate;
-                $next->setDate((int)$next->format('Y'), $month, min($day, 28));
-                if ($next <= $today) {
+                $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
+                $next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
+                // Only advance to next year if the date is in the past AND no fromDate
+                // was explicitly provided (i.e., this is a fresh creation, not a recalculation)
+                if ($next <= $today && $fromDate === null) {
                     $next->modify('+1 year');
+                    $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
+                    $next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
                 }
                 return $next->format('Y-m-d');
 
@@ -158,6 +208,7 @@ class FrequencyCalculator {
             'biweekly' => $amount * 26 / 12,
             'monthly' => $amount,
             'quarterly' => $amount / 3,
+            'semi-annually' => $amount / 6,
             'yearly' => $amount / 12,
             'one-time' => $amount / 12,
             default => $amount,
@@ -187,6 +238,9 @@ class FrequencyCalculator {
         if ($avgIntervalDays >= 85 && $avgIntervalDays <= 100) {
             return 'quarterly';
         }
+        if ($avgIntervalDays >= 170 && $avgIntervalDays <= 200) {
+            return 'semi-annually';
+        }
         if ($avgIntervalDays >= 350 && $avgIntervalDays <= 380) {
             return 'yearly';
         }
@@ -206,6 +260,7 @@ class FrequencyCalculator {
             'biweekly' => 26,
             'monthly' => 12,
             'quarterly' => 4,
+            'semi-annually' => 2,
             'yearly' => 1,
             'one-time' => 1,
             default => 12,
@@ -229,6 +284,7 @@ class FrequencyCalculator {
      * @param string|null $customPattern JSON pattern (e.g., {"months": [1, 6, 7]})
      * @param int|null $dueDay Day of the month for occurrences
      * @param string|null $fromDate Base date to calculate from
+     * @param bool $forceAdvance Whether to force advance past fromDate
      * @return string Next due date in Y-m-d format
      */
     private function calculateCustomNextDueDate(?string $customPattern, ?int $dueDay, ?string $fromDate = null, bool $forceAdvance = false): string {
@@ -236,7 +292,7 @@ class FrequencyCalculator {
         $baseDate = $fromDate ? new \DateTime($fromDate) : clone $today;
         if ($forceAdvance && $fromDate) {
             $baseDate->modify('+1 day');
-            if ($today <= $baseDate) {
+            if ($today < $baseDate) {
                 $today = clone $baseDate;
             }
         }

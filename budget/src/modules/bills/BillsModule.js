@@ -177,9 +177,10 @@ export default class BillsModule {
         const lastPaid = bill.lastPaidDate || bill.last_paid_date;
         if (!lastPaid) return false;
 
-        const paidDate = new Date(lastPaid);
+        // Parse as date components to avoid timezone issues with Date constructor
+        const [year, month] = lastPaid.split('-').map(Number);
         const now = new Date();
-        return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear();
+        return month === now.getMonth() + 1 && year === now.getFullYear();
     }
 
     isDueSoon(dateStr) {

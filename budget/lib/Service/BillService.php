@@ -117,10 +117,7 @@ class BillService {
     }
 
     public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
-        error_log("BillService::findByType - userId: $userId, isTransfer: " . var_export($isTransfer, true) . ", isActive: " . var_export($isActive, true));
-        $result = $this->mapper->findByType($userId, $isTransfer, $isActive);
-        error_log("BillService::findByType - Mapper returned " . count($result) . " results");
-        return $result;
+        return $this->mapper->findByType($userId, $isTransfer, $isActive);
     }
 
     public function findOverdue(string $userId): array {

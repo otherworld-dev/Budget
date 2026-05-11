@@ -291,8 +291,8 @@ class RepairService {
             if ($nextDue <= $lastPaid) {
                 $isStuck = true;
                 $reason = 'next_due_before_paid';
-            } elseif ($frequency !== 'one-time' && $daysBetween <= 7 && $lastPaid >= date('Y-m-d', strtotime('-60 days'))) {
-                // For non-one-time bills, nextDue should be further out than 7 days from payment
+            } elseif (!in_array($frequency, ['one-time', 'daily', 'weekly', 'biweekly']) && $daysBetween <= 7 && $lastPaid >= date('Y-m-d', strtotime('-60 days'))) {
+                // For monthly+ bills, nextDue should be further out than 7 days from payment
                 $isStuck = true;
                 $reason = 'next_due_not_advanced';
             } elseif ($nextDue <= $today && $lastPaid >= date('Y-m-d', strtotime('-30 days'))) {
