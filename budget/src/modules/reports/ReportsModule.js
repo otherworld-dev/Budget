@@ -1341,20 +1341,20 @@ export default class ReportsModule {
 
         // Render bills rows
         tbody.innerHTML = bills.map(bill => {
-            // Determine which months are "paid" (before nextDueDate)
-            const nextDue = bill.nextDueDate;
-            const nextDueYear = nextDue ? parseInt(nextDue.substring(0, 4)) : null;
-            const nextDueMonth = nextDue ? parseInt(nextDue.substring(5, 7)) : null;
+            // Determine which months are "paid" based on lastPaidDate
+            const lastPaid = bill.lastPaidDate;
+            const lastPaidYear = lastPaid ? parseInt(lastPaid.substring(0, 4)) : null;
+            const lastPaidMonth = lastPaid ? parseInt(lastPaid.substring(5, 7)) : null;
 
             const months = [];
             for (let month = 1; month <= 12; month++) {
                 const occurs = bill.occurrences[month];
                 const amount = occurs ? this.formatCurrency(bill.amount, bill.currency || currency) : '';
 
-                // A month is "paid" if it occurs and is before the next due date
-                const isPaid = occurs && nextDueYear !== null && (
-                    calendarYear < nextDueYear ||
-                    (calendarYear === nextDueYear && month < nextDueMonth)
+                // A month is "paid" if it occurs and lastPaidDate is in or after that month
+                const isPaid = occurs && lastPaidYear !== null && (
+                    calendarYear < lastPaidYear ||
+                    (calendarYear === lastPaidYear && month <= lastPaidMonth)
                 );
                 const cellClass = occurs ? (isPaid ? 'has-bill paid' : 'has-bill') : 'no-bill';
                 months.push(`<td class="month-cell ${cellClass}">${amount}</td>`);

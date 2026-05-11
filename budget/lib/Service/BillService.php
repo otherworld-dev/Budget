@@ -299,11 +299,13 @@ class BillService {
                 }
             }
 
+            // Recalculate from today (not from the old nextDueDate) since
+            // the schedule parameters changed
             $nextDue = $this->frequencyCalculator->calculateNextDueDate(
                 $bill->getFrequency(),
                 $bill->getDueDay(),
                 $bill->getDueMonth(),
-                $bill->getNextDueDate(),
+                null, // recalculate from today
                 $bill->getCustomRecurrencePattern()
             );
             $dbUpdates['next_due_date'] = $nextDue;

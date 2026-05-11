@@ -30,9 +30,16 @@ class FrequencyCalculator {
         bool $forceAdvance = false
     ): string {
         $baseDate = $fromDate ? new \DateTime($fromDate) : new \DateTime();
-        // When forceAdvance is true, treat the current due date as if it's already
-        // in the past so the calculator always advances to the next cycle.
-        $today = $forceAdvance ? new \DateTime('2099-12-31') : new \DateTime();
+        // When forceAdvance is true, move the base date one day past the current
+        // due date so the calculator naturally finds the next cycle.
+        $today = new \DateTime();
+        if ($forceAdvance && $fromDate) {
+            $baseDate->modify('+1 day');
+            // Ensure today is at least past the base date so comparisons advance
+            if ($today <= $baseDate) {
+                $today = clone $baseDate;
+            }
+        }
 
         switch ($frequency) {
             case 'daily':
@@ -225,8 +232,14 @@ class FrequencyCalculator {
      * @return string Next due date in Y-m-d format
      */
     private function calculateCustomNextDueDate(?string $customPattern, ?int $dueDay, ?string $fromDate = null, bool $forceAdvance = false): string {
-        $today = $forceAdvance ? new \DateTime('2099-12-31') : new \DateTime();
+        $today = new \DateTime();
         $baseDate = $fromDate ? new \DateTime($fromDate) : clone $today;
+        if ($forceAdvance && $fromDate) {
+            $baseDate->modify('+1 day');
+            if ($today <= $baseDate) {
+                $today = clone $baseDate;
+            }
+        }
 
         if (empty($customPattern)) {
             // No pattern defined, default to monthly
