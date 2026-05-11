@@ -542,22 +542,24 @@ class TransactionService {
             $account = $this->accountMapper->find($accountId, $userId);
             $openingBalance = (string)($account->getOpeningBalance() ?? 0);
 
-            // Find the chronologically earliest transaction on this page (date ASC, id ASC)
-            $earliest = $result['transactions'][0];
-            foreach ($result['transactions'] as $tx) {
-                if ($tx['date'] < $earliest['date']
-                    || ($tx['date'] === $earliest['date'] && $tx['id'] < $earliest['id'])) {
-                    $earliest = $tx;
-                }
-            }
-
-            $netBefore = $this->mapper->getNetChangeBefore(
+            // Compute balance before this page by summing ALL transactions for
+            // the account, then subtracting the net of the current page and all
+            // pages before it (which contain more recent transactions).
+            //
+            // This avoids the boundary issue where same-date transactions split
+            // across pages cause incorrect running balances (the old approach
+            // used date+id boundaries which broke when pagination split same-date
+            // transactions).
+            $totalNet = $this->mapper->getNetChangeAll($accountId);
+            $netCurrentAndBefore = $this->mapper->getNetChangeTopN(
                 $accountId,
-                $earliest['date'],
-                $earliest['id']
+                $offset + count($result['transactions']),
+                $filters['direction'] ?? 'DESC'
             );
 
-            $result['balanceBeforePage'] = MoneyCalculator::add($openingBalance, $netBefore);
+            // balanceBeforePage = openingBalance + (totalNet - netCurrentAndBefore)
+            $netAfter = MoneyCalculator::subtract((string)$totalNet, (string)$netCurrentAndBefore);
+            $result['balanceBeforePage'] = MoneyCalculator::add($openingBalance, $netAfter);
         }
 
         return $result;
