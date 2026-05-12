@@ -8,15 +8,17 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.17
+## What's New in v2.18
 
-- **Exclude from Reports** - Flag categories to hide from budgets, spending reports, and dashboard totals (ideal for investment adjustments or internal bookkeeping)
-- **Auto-Match Transfers After Import** - Automatically links transfer pairs across accounts after importing bank statements
-- **Pension Projections from Profile** - Reads your date of birth from your Nextcloud profile for accurate retirement calculations
-- **Reconciliation Completion** - Finishing reconciliation now persists the "Last Reconciled" date and marks transactions
-- **Category Net Spending** - Refunds/credits now reduce category totals instead of inflating them
-- **Debt Payments as Expenses** - Transfers to credit cards, loans, and mortgages correctly count as expenses in dashboard totals
-- **Security Fixes** - XSS output encoding improvements in account detail and import views
+- **Bill Description Field** - Bills, income, and transfers now have an optional description used when auto-generating transactions
+- **Semi-Annual Frequency** - Bills can now use semi-annual (every 6 months) frequency
+- **FrequencyCalculator Rewrite** - Fixed 6 bugs affecting bill date calculations across all frequency types
+- **Exclude from Reports** - Flag categories to hide from budgets, spending reports, and dashboard totals
+- **Auto-Match Transfers After Import** - Automatically links transfer pairs across accounts after importing
+- **Pension Projections from Profile** - Reads date of birth from your Nextcloud profile for retirement calculations
+- **Reconciliation** - Full reconciliation flow with statement date support, transaction marking, and visual indicators
+- **Category Net Spending** - Refunds/credits reduce category totals; debt payments count as real expenses
+- **Pagination Fix** - Running balance correct when same-date transactions span multiple pages
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
