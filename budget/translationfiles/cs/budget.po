@@ -8,23 +8,25 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-05-12 18:11+0000\n"
+"Last-Translator: Pavel Borecki <pavel.borecki@gmail.com>\n"
+"Language-Team: Czech <https://hosted.weblate.org/projects/nextcloud-budget/"
+"budget/cs/>\n"
 "Language: cs\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=((n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2);\n"
+"X-Generator: Weblate 2026.5-dev\n"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:73
 msgid "Failed to retrieve accounts"
-msgstr ""
+msgstr "Nepodařilo se získat účty"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:83
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:470
 msgid "Account not found"
-msgstr ""
+msgstr "Účet nenalezen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:94
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:451
@@ -42,7 +44,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4584
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5143
 msgid "Account"
-msgstr ""
+msgstr "Účet"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:110
 msgid "Invalid JSON data or empty request"
@@ -50,24 +52,24 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:122
 msgid "Account type is required and cannot be empty"
-msgstr ""
+msgstr "Typ účtu je třeba vyplnit a nemůže zůstat prázdný"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:128
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:289
 #, php-format
 msgid "Invalid account type: %1$s"
-msgstr ""
+msgstr "Neplatný typ účtu: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:135
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:298
 #, php-format
 msgid "Invalid currency: %1$s"
-msgstr ""
+msgstr "Neplatná měna: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:141
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4704
 msgid "Institution"
-msgstr ""
+msgstr "Instituce"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:150
 msgid "Account holder name"
@@ -154,7 +156,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:90
 msgid "Asset"
-msgstr ""
+msgstr "Majetek"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:104
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:195
@@ -261,7 +263,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5093
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5731
 msgid "Date"
-msgstr ""
+msgstr "Datum"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AssetController.php:337
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:350
@@ -358,7 +360,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:546
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3172
 msgid "Bill"
-msgstr ""
+msgstr "Faktura"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:128
 msgid "Name and amount are required"
@@ -582,7 +584,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5556
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5597
 msgid "Category"
-msgstr ""
+msgstr "Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:165
 #: /tmp/budget-v2.11.0/budget/lib/Controller/CategoryController.php:234
@@ -701,7 +703,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:82
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2620
 msgid "Goal"
-msgstr ""
+msgstr "Cíl"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:118
 #: /tmp/budget-v2.11.0/budget/lib/Controller/GoalsController.php:199
@@ -897,7 +899,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/NetWorthController.php:112
 msgid "Snapshot"
-msgstr ""
+msgstr "Zachycený stav"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:78
 msgid "Failed to retrieve pensions"
@@ -906,7 +908,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:90
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:198
 msgid "Pension"
-msgstr ""
+msgstr "Penze"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:134
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:228
@@ -1159,12 +1161,12 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:284
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4243
 msgid "Sunday"
-msgstr ""
+msgstr "Neděle"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:285
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4244
 msgid "Monday"
-msgstr ""
+msgstr "Pondělí"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:288
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:112
@@ -1177,7 +1179,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4823
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5226
 msgid "Weekly"
-msgstr ""
+msgstr "Týdně"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:289
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:114
@@ -1190,7 +1192,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4825
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5228
 msgid "Monthly"
-msgstr ""
+msgstr "Měsíčně"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:290
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:115
@@ -1203,7 +1205,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4826
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5229
 msgid "Quarterly"
-msgstr ""
+msgstr "Čtvrtletně"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:291
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:117
@@ -1216,7 +1218,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4828
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5231
 msgid "Yearly"
-msgstr ""
+msgstr "Ročně"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:59
 msgid "Budget app initialized successfully"
@@ -1274,7 +1276,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:194
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:228
 msgid "Share"
-msgstr ""
+msgstr "Akcie"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:117
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:364
@@ -1491,7 +1493,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:686
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:682
 msgid "Transaction"
-msgstr ""
+msgstr "Transakce"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:169
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:268
@@ -1635,7 +1637,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1830
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1897
 msgid "Budget"
-msgstr ""
+msgstr "Rozpočet"
 
 #. Do NOT translate {bill} — it is a placeholder replaced with the bill name at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:45
@@ -2153,7 +2155,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1176
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1327
 msgid "Uncategorized"
-msgstr ""
+msgstr "Nezařazeno"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:27
 #: /tmp/budget-v2.11.0/budget/templates/index.php:484
@@ -2208,7 +2210,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1004
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4472
 msgid "Accounts"
-msgstr ""
+msgstr "Účty"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:40
 #: /tmp/budget-v2.11.0/budget/templates/index.php:647
@@ -2368,7 +2370,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1262
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4596
 msgid "Transfer"
-msgstr ""
+msgstr "Převod"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:978
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:685
@@ -2386,7 +2388,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:988
 msgid "Shared"
-msgstr ""
+msgstr "Sdíleno"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:990
 msgid "Shared expense - settled"
@@ -2398,7 +2400,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:353
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:383
 msgid "Settled"
-msgstr ""
+msgstr "Vypořádáno"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:993
 msgid "Match Transfer"
@@ -2531,7 +2533,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5742
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5829
 msgid "Cancel"
-msgstr ""
+msgstr "Zrušit"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1568
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:255
@@ -2621,7 +2623,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1826
 msgid "Recalculating..."
-msgstr ""
+msgstr "Přepočítávání…"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1840
 msgid "Recalculation failed"
@@ -2643,7 +2645,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:585
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3411
 msgid "Deleting..."
-msgstr ""
+msgstr "Mazání…"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1954
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:602
@@ -2663,7 +2665,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2051
 msgid "Exporting..."
-msgstr ""
+msgstr "Exportování…"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2060
 msgid "Export failed"
@@ -2697,7 +2699,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:173
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1732
 msgid "Unknown"
-msgstr ""
+msgstr "Neznámé"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2157
 msgid "Failed to preview file: {error}"
@@ -2736,19 +2738,19 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2215
 msgid "categories"
-msgstr ""
+msgstr "kategorie"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2216
 msgid "accounts"
-msgstr ""
+msgstr "účty"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2217
 msgid "transactions"
-msgstr ""
+msgstr "transakce"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2218
 msgid "bills"
-msgstr ""
+msgstr "faktury"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2219
 msgid "import rules"
@@ -2756,7 +2758,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2220
 msgid "settings"
-msgstr ""
+msgstr "nastavení"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2228
 msgid "Import completed successfully"
@@ -2793,7 +2795,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1527
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2917
 msgid "Balance"
-msgstr ""
+msgstr "Zůstatek"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2472
 msgid "Interest Rate"
@@ -2832,7 +2834,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3969
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3983
 msgid "Interest"
-msgstr ""
+msgstr "Úrok"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2630
 msgid "Avalanche Recommended"
@@ -2930,7 +2932,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5359
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5435
 msgid "Description"
-msgstr ""
+msgstr "Popis"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2922
 msgid "Total Amount"
@@ -2959,7 +2961,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5095
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5557
 msgid "Amount"
-msgstr ""
+msgstr "Množství"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2997
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1882
@@ -3037,7 +3039,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:268
 msgid "Owed"
-msgstr ""
+msgstr "Dluženo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:268
 msgid "Credit"
@@ -3074,7 +3076,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:576
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1138
 msgid "Never"
-msgstr ""
+msgstr "Nikdy"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:646
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:553
@@ -3089,7 +3091,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1195
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1346
 msgid "Scheduled"
-msgstr ""
+msgstr "Naplánováno"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:684
 msgid "Transfer {direction} {account}"
@@ -3117,7 +3119,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1521
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1749
 msgid "Tags"
-msgstr ""
+msgstr "Štítky"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:968
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:201
@@ -3315,7 +3317,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2073
 msgid "Valid"
-msgstr ""
+msgstr "Platné"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2139
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4667
@@ -3338,26 +3340,26 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:624
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:194
 msgid "Investment"
-msgstr ""
+msgstr "Investice"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2159
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:626
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:196
 msgid "Loan"
-msgstr ""
+msgstr "Půjčka"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2164
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:625
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:195
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4672
 msgid "Cash"
-msgstr ""
+msgstr "Hotovost"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2169
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:199
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4673
 msgid "Cryptocurrency"
-msgstr ""
+msgstr "Kryptoměna"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2191
 msgid "Credit utilization very high"
@@ -3391,7 +3393,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4591
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5313
 msgid "Type"
-msgstr ""
+msgstr "Typ"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:31
 msgid "Failed to load assets"
@@ -3405,24 +3407,24 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:92
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3760
 msgid "Vehicle"
-msgstr ""
+msgstr "Vozidlo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:97
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3761
 msgid "Jewelry"
-msgstr ""
+msgstr "Šperky"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:102
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3762
 msgid "Collectibles"
-msgstr ""
+msgstr "Sběratelské"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:107
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1167
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2455
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3763
 msgid "Other"
-msgstr ""
+msgstr "Ostatní"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:138
 msgid "Purchased at {price}"
@@ -3437,7 +3439,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1638
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3633
 msgid "Edit"
-msgstr ""
+msgstr "Upravit"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:167
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:120
@@ -3447,7 +3449,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1408
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1642
 msgid "Delete"
-msgstr ""
+msgstr "Smazat"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:174
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3654
@@ -3506,7 +3508,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:566
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3843
 msgid "Value"
-msgstr ""
+msgstr "Hodnota"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:639
 msgid "Projected Appreciation"
@@ -3536,11 +3538,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/auth/AuthModule.js:127
 msgid "Password"
-msgstr ""
+msgstr "Heslo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/auth/AuthModule.js:132
 msgid "Unlock"
-msgstr ""
+msgstr "Odemknout"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/auth/AuthModule.js:186
 msgid "Failed to verify password. Please try again."
@@ -3563,7 +3565,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2230
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2257
 msgid "Overdue"
-msgstr ""
+msgstr "Po termínu"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:104
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:110
@@ -3576,7 +3578,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:108
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:240
 msgid "Upcoming"
-msgstr ""
+msgstr "Nadcházející"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:113
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:114
@@ -3603,7 +3605,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4829
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5232
 msgid "One-Time"
-msgstr ""
+msgstr "Jednorázově"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:140
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:274
@@ -3663,7 +3665,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:161
 msgid "Skip"
-msgstr ""
+msgstr "Přeskočit"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:164
 msgid "Edit bill"
@@ -3795,12 +3797,12 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2302
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2458
 msgid "Undo"
-msgstr ""
+msgstr "Zpět"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:1036
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:621
 msgid "Detecting..."
-msgstr ""
+msgstr "Zjišťování…"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:1048
 msgid "No recurring transactions detected"
@@ -3862,7 +3864,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4594
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5315
 msgid "Expense"
-msgstr ""
+msgstr "Výdaj"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:523
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1343
@@ -3884,19 +3886,19 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4595
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5316
 msgid "Income"
-msgstr ""
+msgstr "Příjem"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:544
 msgid "Increasing"
-msgstr ""
+msgstr "Zvyšující se"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:545
 msgid "Decreasing"
-msgstr ""
+msgstr "Klesající"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:546
 msgid "Stable"
-msgstr ""
+msgstr "Stabilní"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:563
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1710
@@ -3905,7 +3907,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:713
 msgid "Root"
-msgstr ""
+msgstr "Kořen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:737
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1564
@@ -4000,20 +4002,20 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1898
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2790
 msgid "Period"
-msgstr ""
+msgstr "Období"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:1302
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1083
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1899
 msgid "Spent"
-msgstr ""
+msgstr "Utraceno"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:1305
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1084
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1867
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1900
 msgid "Remaining"
-msgstr ""
+msgstr "Zbývá"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:1308
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1901
@@ -4049,15 +4051,15 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:368
 msgid "Great"
-msgstr ""
+msgstr "Skvělé"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:368
 msgid "Good"
-msgstr ""
+msgstr "Dobré"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:368
 msgid "Low"
-msgstr ""
+msgstr "Nízké"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:538
 msgid "%n category under budget"
@@ -4085,14 +4087,14 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1162
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:191
 msgid "Checking"
-msgstr ""
+msgstr "Kontroluje se"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:622
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1163
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:917
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:192
 msgid "Savings"
-msgstr ""
+msgstr "Úspory"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:660
 msgid "No recent transactions"
@@ -4207,11 +4209,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1165
 msgid "Investments"
-msgstr ""
+msgstr "Investice"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1166
 msgid "Loans"
-msgstr ""
+msgstr "Půjčky"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1174
 msgid "%n account"
@@ -4255,7 +4257,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3538
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3621
 msgid "Assets"
-msgstr ""
+msgstr "Majetky"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1453
 #: /tmp/budget-v2.11.0/budget/templates/index.php:991
@@ -4268,7 +4270,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1561
 msgid "Portfolio"
-msgstr ""
+msgstr "Portfolio"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1616
 msgid "just now"
@@ -4282,7 +4284,7 @@ msgstr[1] ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1621
 msgid "yesterday"
-msgstr ""
+msgstr "včera"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1623
 msgid "%n day ago"
@@ -4367,15 +4369,15 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2972
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4476
 msgid "Transactions"
-msgstr ""
+msgstr "Transakce"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2450
 msgid "Debts"
-msgstr ""
+msgstr "Dluhy"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2451
 msgid "Goals"
-msgstr ""
+msgstr "Cíle"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2452
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:241
@@ -4387,15 +4389,15 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2453
 msgid "Alerts"
-msgstr ""
+msgstr "Výstrahy"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2454
 msgid "Interactive"
-msgstr ""
+msgstr "Interaktivní"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2476
 msgid "Hero"
-msgstr ""
+msgstr "Hrdina"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2727
 msgid "Failed to save widget order"
