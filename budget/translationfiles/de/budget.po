@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-05-12 18:11+0000\n"
-"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
+"Last-Translator: Marcus <spintike@protonmail.com>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -825,11 +825,11 @@ msgstr "Importregel"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:103
 msgid "Criteria required for v2 rules"
-msgstr ""
+msgstr "Notwendige Kriterien für v2-Regeln"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:109
 msgid "Pattern, field, and matchType required for v1 rules"
-msgstr ""
+msgstr "Muster, Feld und „matchType“ benötigt für v1-Regeln"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:121
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:220
@@ -846,7 +846,7 @@ msgstr "Ungültiger Vergleichstyp. Muss einer der folgenden sein: %1$s"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:132
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:236
 msgid "Invalid regex pattern"
-msgstr ""
+msgstr "Ungültiger Regex-Ausdruck"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:172
 msgid "Failed to create import rule"
@@ -1001,106 +1001,109 @@ msgstr "Der Betrag muss größer als null sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:428
 msgid "Failed to create contribution"
-msgstr ""
+msgstr "Beitrag konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:439
 msgid "Contribution deleted successfully"
-msgstr ""
+msgstr "Beitrag erfolgreich gelöscht"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:441
 msgid "Failed to delete contribution"
-msgstr ""
+msgstr "Beitrag konnte nicht gelöscht werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:457
 msgid "Failed to retrieve pension summary"
-msgstr ""
+msgstr "Rentenzusammenfassung konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:469
 msgid "Failed to retrieve pension projection"
-msgstr ""
+msgstr "Rentenprognose konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/PensionController.php:481
 msgid "Failed to retrieve combined pension projection"
-msgstr ""
+msgstr "Kombinierte Rentenprognose konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:75
 msgid "Failed to retrieve recurring income"
-msgstr ""
+msgstr "Laufende Einnahmen konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:88
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:223
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:238
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:294
 msgid "Recurring income"
-msgstr ""
+msgstr "Laufende Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:126
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:209
+#, fuzzy
 msgid "Expected day must be between 1 and 31"
-msgstr ""
+msgstr "Erwartender Tag muss zwischen 1 und 31 sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:131
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:216
+#, fuzzy
 msgid "Expected month must be between 1 and 12"
-msgstr ""
+msgstr "Erwartender Monat muss zwischen 1 und 12 sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:168
 msgid "Failed to create recurring income"
-msgstr ""
+msgstr "Laufende Einnahme konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:236
 msgid "Recurring income deleted"
-msgstr ""
+msgstr "Laufende Einnahme entfernt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:251
 msgid "Failed to retrieve upcoming income"
-msgstr ""
+msgstr "Bevorstehende Einnahme konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:264
 msgid "Failed to retrieve expected income"
-msgstr ""
+msgstr "Erwartete Einnahme konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:277
 msgid "Failed to retrieve income summary"
-msgstr ""
+msgstr "Einnahmenübersicht konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:307
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:642
 msgid "Failed to detect recurring income"
-msgstr ""
+msgstr "Laufende Einnahme konnte nicht gefunden werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/RecurringIncomeController.php:329
 msgid "Failed to create recurring income from detected patterns"
-msgstr ""
+msgstr "Laufende Einnahme konnte nicht aus erkanntem Muster erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:72
 msgid "Failed to generate summary report"
-msgstr ""
+msgstr "Zusammengefasster Bericht konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:106
 msgid "Failed to generate spending report"
-msgstr ""
+msgstr "Ausgabenbericht konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:140
 msgid "Failed to generate income report"
-msgstr ""
+msgstr "Einnahmenbericht konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:177
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1057
 msgid "Failed to export report"
-msgstr ""
+msgstr "Bericht konnte nicht exportiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:203
+#, fuzzy
 msgid "Failed to generate budget report"
-msgstr ""
+msgstr "Budgetbericht konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:235
 msgid "Failed to generate comparison report"
-msgstr ""
+msgstr "Vergleichsbericht konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:267
 msgid "Failed to generate cash flow report"
-msgstr ""
+msgstr "Kapitalflussbericht konnte nicht generiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:298
 msgid "Failed to generate tag dimensions"
@@ -1112,7 +1115,7 @@ msgstr "Fehler beim Erstellen des Schlagwort Kombinationsberichts"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:368
 msgid "Failed to generate cross-tabulation"
-msgstr ""
+msgstr "Erstellen der Kreuztabelle fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ReportController.php:399
 msgid "Failed to generate tag trend report"
@@ -1124,54 +1127,54 @@ msgstr "Fehler beim Erstellen der Aufschlüsselung der Schlagwort Gruppe"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:87
 msgid "Failed to retrieve settings"
-msgstr ""
+msgstr "Einstellungen konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:112
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:224
 msgid "Setting not found"
-msgstr ""
+msgstr "Einstellungen nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:116
 msgid "Failed to retrieve setting"
-msgstr ""
+msgstr "Einstellung konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:158
 msgid "Settings updated successfully"
-msgstr ""
+msgstr "Einstellungen erfolgreich aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:162
 msgid "Failed to update settings"
-msgstr ""
+msgstr "Einstellungen konnten nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:178
 msgid "Value parameter is required"
-msgstr ""
+msgstr "Ein Wertparameter ist erforderlich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:203
 msgid "Setting updated successfully"
-msgstr ""
+msgstr "Einstellung erfolgreich aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:208
 msgid "Failed to update setting"
-msgstr ""
+msgstr "Einstellung konnte nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:230
 msgid "Setting reset to default"
-msgstr ""
+msgstr "Einstellung auf Standard zurückgesetzt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:235
 msgid "Failed to reset setting"
-msgstr ""
+msgstr "Zurücksetzen der Einstellung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:250
 msgid "All settings reset to defaults"
-msgstr ""
+msgstr "Alle Einstellungen auf Standard zurückgesetzt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:255
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:169
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:178
 msgid "Failed to reset settings"
-msgstr ""
+msgstr "Zurücksetzen der Einstellungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SettingController.php:284
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4243
@@ -1237,7 +1240,7 @@ msgstr "Jährlich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:59
 msgid "Budget app initialized successfully"
-msgstr ""
+msgstr "Initialisierung der Budget App erfolgreich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:95
 #, php-format
@@ -1254,35 +1257,40 @@ msgid ""
 "Factory reset requires confirmed=true parameter. This will permanently "
 "delete ALL your data."
 msgstr ""
+"Das Zurücksetzen auf Werkseinstellungen bedingt, dass das Parameter „"
+"confirmed“ aktiviert ist. Diese Aktion wird ALLE Deine Daten permanent "
+"löschen."
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:151
 #: /tmp/budget-v2.11.0/budget/src/main.js:1961
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:609
 msgid "Factory reset completed successfully. All data has been deleted."
 msgstr ""
+"Zurücksetzen auf Werkseinstellungen erfolgreich durchgeführt. Alle Daten "
+"wurden gelöscht."
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:156
 #, php-format
 msgid "Factory reset failed: %1$s"
-msgstr ""
+msgstr "Zurücksetzen auf Werkseinstellungen fehlgeschlagen: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:182
 #, php-format
 msgid "Balance recalculation failed: %1$s"
-msgstr ""
+msgstr "Neuberechnung Saldo fehlgeschlagen: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:54
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:68
 msgid "Failed to retrieve shares"
-msgstr ""
+msgstr "Abruf der Aktien fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:82
 msgid "Failed to retrieve pending shares"
-msgstr ""
+msgstr "Abruf wartender Aktien fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:99
 msgid "Failed to create share"
-msgstr ""
+msgstr "Erstellung Aktie fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:115
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:133
@@ -1296,72 +1304,72 @@ msgstr "Aktie"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:117
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:364
 msgid "Failed to accept share"
-msgstr ""
+msgstr "Annehmen Aktie fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:135
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:372
 msgid "Failed to decline share"
-msgstr ""
+msgstr "Ablehnen Aktie fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:153
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:382
 msgid "Failed to revoke share"
-msgstr ""
+msgstr "Widerruf Aktie fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:171
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:392
 msgid "Failed to leave share"
-msgstr ""
+msgstr "Aktie verlassen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:188
 msgid "Share not found"
-msgstr ""
+msgstr "Aktie nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:196
 msgid "Failed to retrieve share configuration"
-msgstr ""
+msgstr "Konfiguration Aktie konnte nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:212
 msgid "Invalid entity IDs"
-msgstr ""
+msgstr "Entitäts-ID ungültig"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ShareController.php:230
 msgid "Failed to update share configuration"
-msgstr ""
+msgstr "Aktualisieren Aktieneinstellung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:61
 msgid "Failed to get contacts"
-msgstr ""
+msgstr "Kontakte konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:83
 msgid "Failed to create contact"
-msgstr ""
+msgstr "Kontakt konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:105
 msgid "Failed to update contact"
-msgstr ""
+msgstr "Kontakt konnte nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:127
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:273
 msgid "Failed to delete contact"
-msgstr ""
+msgstr "Kontakt konnte nicht gelöscht werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:149
 msgid "Failed to get contact details"
-msgstr ""
+msgstr "Kontaktdetails konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:173
 msgid "Failed to get balances"
-msgstr ""
+msgstr "Salden konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:195
 msgid "Failed to get shared transactions"
-msgstr ""
+msgstr "Gemeinsame Transaktionen konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:226
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:253
 msgid "This transaction is already shared with this contact"
-msgstr ""
+msgstr "Diese Transaktion wird bereits mit diesem Kontakt geteilt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:235
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:604
@@ -1406,7 +1414,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:435
 msgid "Failed to settle"
-msgstr ""
+msgstr "Abrechnung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:457
 msgid "Failed to get settlements"
@@ -1414,7 +1422,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:479
 msgid "Failed to delete settlement"
-msgstr ""
+msgstr "Abrechnung konnte nicht entfernt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TagSetController.php:64
 msgid "Failed to retrieve tag sets"
@@ -1456,7 +1464,7 @@ msgstr "Fehler beim Abrufen der Schlagwörter"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TagSetController.php:309
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:218
 msgid "Name is required"
-msgstr ""
+msgstr "Ein Name ist notwendig"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TagSetController.php:223
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:509
@@ -1497,7 +1505,7 @@ msgstr "Fehler beim löschen des globalen Schlagwortes"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:116
 msgid "Failed to retrieve transactions"
-msgstr ""
+msgstr "Abruf der Transaktionen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:133
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:341
@@ -1513,46 +1521,46 @@ msgstr "Buchung"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:169
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:268
 msgid "Invalid transaction type. Must be credit or debit"
-msgstr ""
+msgstr "Ungültiger Transaktionstyp. Dieser muss Kredit oder Debit sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:220
 msgid "Failed to create transaction"
-msgstr ""
+msgstr "Erstellen der Transaktion fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:316
 msgid "Invalid status. Must be cleared or scheduled"
-msgstr ""
+msgstr "Ungültiger Status. Dieser Muss geklärt oder geplant sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:328
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3194
 msgid "Failed to update transaction"
-msgstr ""
+msgstr "Aktualisierung der Transaktion fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:353
 msgid "Failed to search transactions"
-msgstr ""
+msgstr "Suchen von Transaktionen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:365
 msgid "Failed to retrieve uncategorized transactions"
-msgstr ""
+msgstr "Abruf unkategorisierter Transaktionen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:378
 msgid "Failed to categorize transactions"
-msgstr ""
+msgstr "Transaktionen kategorisieren fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:426
 #: /tmp/budget-v2.11.0/budget/src/main.js:2878
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1770
 msgid "Failed to unlink transaction"
-msgstr ""
+msgstr "Aufheben der Transaktionsvernüpfung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:443
 msgid "Failed to bulk match transactions"
-msgstr ""
+msgstr "Massenabgleich von Transaktionen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:458
 msgid "Failed to scan for matches"
-msgstr ""
+msgstr "Suche nach Übereinstimmungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:474
 msgid "No valid pairs provided"
@@ -1566,43 +1574,43 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:512
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:531
 msgid "No transaction IDs provided"
-msgstr ""
+msgstr "Keine Transaktions-ID bereitgestellt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:499
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:762
 msgid "Failed to delete transactions"
-msgstr ""
+msgstr "Transaktionen löschen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:518
 msgid "Failed to update reconcile status"
-msgstr ""
+msgstr "Aktualisierung des Statusabgleich fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:535
 msgid "No update fields provided"
-msgstr ""
+msgstr "Keine Aktualisierungsfelder bereitgestellt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:543
 #, php-format
 msgid "Invalid fields: %1$s"
-msgstr ""
+msgstr "Ungültige Felder: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:575
 msgid "Failed to bulk edit transactions"
-msgstr ""
+msgstr "Massenbearbeitung der Transaktionen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:605
 msgid "Invalid splits data"
-msgstr ""
+msgstr "Aufteilungsdaten ungültig"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:611
 #, php-format
 msgid "Split %1$s: amount is required"
-msgstr ""
+msgstr "Aufteilung %1$s: Betrag ist notwendig"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:614
 #, php-format
 msgid "Split %1$s: amount must be positive"
-msgstr ""
+msgstr "Aufteilung %1$s: Betrag muss positiv sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:664
 #: /tmp/budget-v2.11.0/budget/src/main.js:984
@@ -1618,35 +1626,35 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:713
 msgid "Failed to set transaction tags"
-msgstr ""
+msgstr "Einstellungen Transaktionsmarkierung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:728
 msgid "Failed to clear transaction tags"
-msgstr ""
+msgstr "Löschen Transaktionsmarkierung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:746
 msgid "Failed to find duplicates"
-msgstr ""
+msgstr "Duplikate finden fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/YearOverYearController.php:68
 msgid "Failed to compare month data"
-msgstr ""
+msgstr "Vergleich Monatsdaten fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/YearOverYearController.php:93
 msgid "Failed to compare year data"
-msgstr ""
+msgstr "Vergleich Jahresdaten fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/YearOverYearController.php:118
 msgid "Failed to compare category data"
-msgstr ""
+msgstr "Vergleich Kategoriedaten fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/YearOverYearController.php:143
 msgid "Failed to get monthly trends"
-msgstr ""
+msgstr "Abruf Monatsentwicklung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/YearOverYearController.php:192
 msgid "Failed to export YoY data"
-msgstr ""
+msgstr "Export Vorjahresvergleich fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:30
 #: /tmp/budget-v2.11.0/budget/specialAppInfoFakeDummyForL10nScript.php:2
@@ -1665,11 +1673,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:56
 msgid "due today"
-msgstr ""
+msgstr "Heute fällig"
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:59
 msgid "due tomorrow"
-msgstr ""
+msgstr "Morgen fällig"
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:60
 #, php-format
@@ -1688,12 +1696,12 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:110
 msgid "1 day overdue"
-msgstr ""
+msgstr "Überfällig 1 Tag"
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:111
 #, php-format
 msgid "%s days overdue"
-msgstr ""
+msgstr "Überfällig %s Tage"
 
 #. Do NOT translate {bill}, {amount}, or {overdueText} — they are placeholders replaced at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:115
@@ -1733,256 +1741,278 @@ msgid ""
 "{user} has invited you to view their budget. Open Budget to accept or "
 "decline."
 msgstr ""
+"Der Benutzer {user} hat Dich eingeladen, sein Budget anzuschauen. Öffne das "
+"Budget um zu akzeptieren oder lehne ab."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/AccountService.php:85
 msgid ""
 "Cannot delete account with existing transactions. Please delete all "
 "transactions first."
 msgstr ""
+"Konto mit existierenden Transaktionen kann nicht gelöscht werden. Bitte "
+"lösche zuerst alle Transaktionen."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/AuthService.php:105
 msgid "Password protection not set up"
-msgstr ""
+msgstr "Passwortschutz ist nicht eingerichtet"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/AuthService.php:115
 #, php-format
 msgid "Account locked. Try again in %1$s minute(s)."
-msgstr ""
+msgstr "Konto ist gesperrt. Bitte erneut versuchen in %1$s Minute(n)."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/AuthService.php:127
 #, php-format
 msgid "Too many failed attempts. Account locked for %1$s minutes."
 msgstr ""
+"Zu viele fehlgeschlagene Anmeldeversuche. Konto ist für %1$s Minuten "
+"gesperrt."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/AuthService.php:133
 #, php-format
 msgid "Incorrect password. %1$s attempt(s) remaining."
-msgstr ""
+msgstr "Falsches Passwort. %1$s Versuch(e) verbleibend."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/BillService.php:477
 msgid "Cannot skip a one-time bill"
-msgstr ""
+msgstr "Einmalige Rechnung kann nicht übersprungen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/BillService.php:481
+#, fuzzy
 msgid "Cannot skip an inactive bill"
-msgstr ""
+msgstr "Ruhende Rechnung kann nicht übersprungen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/BillService.php:771
 msgid "Auto-pay is not enabled for this bill"
-msgstr ""
+msgstr "Automatische Zahlung ist für diese Rechnung nicht eingeschaltet"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/BillService.php:784
 msgid "Bill has no account associated"
-msgstr ""
+msgstr "Rechnung ist keinem Konto zugewiesen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/BillService.php:794
 msgid "Bill auto-paid successfully"
-msgstr ""
+msgstr "Rechnung wurde automatisch bezahlt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/CategoryService.php:71
 #: /tmp/budget-v2.11.0/budget/lib/Service/CategoryService.php:105
 msgid "A category with this name already exists at this level"
-msgstr ""
+msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/CategoryService.php:95
 msgid "Category cannot be its own parent"
-msgstr ""
+msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/CategoryService.php:123
 msgid "Cannot delete category with existing transactions"
-msgstr ""
+msgstr "Kategorie mit existierenden Transaktionen kann nicht gelöscht werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/GranularShareService.php:205
 #, php-format
 msgid "Invalid entity type: %1$s"
-msgstr ""
+msgstr "Ungültiger Einheitentyp: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/GranularShareService.php:210
 #, php-format
 msgid "Invalid permission: %1$s"
-msgstr ""
+msgstr "Ungültige Berechtigung: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/GranularShareService.php:216
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:167
 msgid "You are not the owner of this share"
-msgstr ""
+msgstr "Du bist nicht Besitzer dieser Aktie"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/GranularShareService.php:223
 msgid "Some entities do not belong to you"
-msgstr ""
+msgstr "Einige Einheiten gehören nicht Dir"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:69
 msgid "File too large. Maximum size is 10MB."
-msgstr ""
+msgstr "Datei zu groß. Die maximale Größe beträgt 10MB."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:83
 #, php-format
 msgid "Unsupported file format. Supported formats: %1$s"
-msgstr ""
+msgstr "Nicht unterstützter Dateityp. Unterstützt werden die Formate: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:101
 #, php-format
 msgid "Invalid file type. Expected %1$s for .%2$s file, got: %3$s"
 msgstr ""
+"Ungültiger Dateityp. Erwartet wurde %1$s für die Datei %2$s, erhalten wurde "
+"%3$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:113
 msgid "File is empty or unreadable."
-msgstr ""
+msgstr "Datei ist leer oder nicht lesbar."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:117
 msgid ""
 "File appears to be binary. Only text-based financial files are supported."
 msgstr ""
+"Datei scheint binär zu sein. Nur textbasierte Finanzdateien werden "
+"unterstützt."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:152
 msgid "CSV file must contain at least a header row and one data row."
 msgstr ""
+"CSV-Datei muss mindestens eine Überschriften- und eine Datenzeile enthalten."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:161
 msgid ""
 "CSV file does not appear to have valid delimiters (comma, semicolon, or tab)."
 msgstr ""
+"CSV-Datei scheint keine gültigen Trennzeichen zu enthalten (Komma, Semikolon "
+"oder Tabulator)."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:174
 msgid ""
 "File does not appear to be a valid OFX file. Missing OFX header or tags."
 msgstr ""
+"Datei scheint keine gültige OFX-Datei zu sein. OFX Header oder Markierungen "
+"fehlen."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:187
 msgid ""
 "File does not appear to be a valid QIF file. Missing !Type: or !Account "
 "header."
 msgstr ""
+"Datei scheint keine gültige QIF-Datei zu sein. Fehlende „!Type“ oder "
+"„!Account“ Header."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/Import/FileValidator.php:191
 msgid ""
 "File does not appear to be a valid QIF file. Missing transaction end markers "
 "(^)."
 msgstr ""
+"Datei scheint keine gültige QIF-Datei zu sein. Fehlende Markierung "
+"Transaktionsende (^)."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ImportService.php:91
 #, php-format
 msgid "Failed to process upload: %1$s"
-msgstr ""
+msgstr "Verarbeitung des Uploads %1$s fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ImportService.php:251
 msgid "Import file not found"
-msgstr ""
+msgstr "Importdatei nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ImportService.php:427
 #: /tmp/budget-v2.11.0/budget/lib/Service/ImportService.php:560
 msgid "Account ID is required for single-account imports"
-msgstr ""
+msgstr "Eine Konto-ID wird für Einzelkontenimporte benötigt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ManualExchangeRateService.php:62
 #, php-format
 msgid "Invalid currency code: %1$s"
-msgstr ""
+msgstr "Ungültiger Währungscode: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ManualExchangeRateService.php:67
 msgid "Cannot set a manual rate for EUR"
-msgstr ""
+msgstr "Manuelle Rate für EUR kann nicht konfiguriert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ManualExchangeRateService.php:73
 msgid "Cannot set a manual rate for your base currency"
-msgstr ""
+msgstr "Manuelle Rate kann für Deine Basiswährung nicht konfiguriert werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ManualExchangeRateService.php:78
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:300
 msgid "Rate must be a positive number"
-msgstr ""
+msgstr "Rate muss eine positive Nummer sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ManualExchangeRateService.php:127
 #, php-format
 msgid "Cannot convert rate: no exchange rate available for base currency %1$s"
 msgstr ""
+"Konvertieren der Rate fehlgeschlagen: kein Wechselkurs für Basiswährung %1$s "
+"verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
-msgstr ""
+msgstr "Du kannst Dein Budget nicht mit Dir selbst teilen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:62
 msgid "Unable to share with this user"
-msgstr ""
+msgstr "Teilen mit diesem Benutzer nicht möglich"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:69
 msgid "Budget is already shared with this user"
-msgstr ""
+msgstr "Budget wird bereits mit diesem Benutzer geteilt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:72
 msgid "A pending share already exists for this user"
-msgstr ""
+msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:109
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:138
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:199
 msgid "You are not the recipient of this share"
-msgstr ""
+msgstr "Du bist nicht der Empfänger dieser Aktie"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:113
 #: /tmp/budget-v2.11.0/budget/lib/Service/ShareService.php:142
 msgid "This share is not pending"
-msgstr ""
+msgstr "Diese Aktie ist nicht ausstehend"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:71
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:184
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:203
 #, php-format
 msgid "%1$s is required"
-msgstr ""
+msgstr "%1$s wird benötigt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:82
 #, php-format
 msgid "%1$s must be at least %2$s characters"
-msgstr ""
+msgstr "%1$s muss mindestens %2$s Zeichen lang sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:90
 #, php-format
 msgid "%1$s must not exceed %2$s characters"
-msgstr ""
+msgstr "%1$s darf %2$s Zeichen nicht überschreiten"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:146
 msgid "Invalid regular expression pattern"
-msgstr ""
+msgstr "Ungültiger Regex-Ausdruck"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:172
 msgid "Color must be a valid hex code (e.g., #FFF or #FFFFFF)"
-msgstr ""
+msgstr "Farbe muss einem gültigen Hex-Code entsprechen (z.B. #FFF oder #FFFFFF)"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:191
 #, php-format
 msgid "%1$s must be in YYYY-MM-DD format"
-msgstr ""
+msgstr "%1$s muss im Format JJJJ-MM-TT sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:209
 #, php-format
 msgid "%1$s must be a number"
-msgstr ""
+msgstr "%1$s muss eine Zahl sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:216
 #, php-format
 msgid "%1$s exceeds maximum allowed value"
-msgstr ""
+msgstr "%1$s überschreitet den maximal erlaubten Wert"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:229
 msgid "IBAN must be 15-34 characters long"
-msgstr ""
+msgstr "Die IBAN muss 15-34 Zeichen lang sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:233
 msgid "Invalid IBAN format"
-msgstr ""
+msgstr "Ungültiges IBAN-Format"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:252
 msgid "Invalid IBAN checksum"
-msgstr ""
+msgstr "Ungültige IBAN-Prüfsumme"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:265
 msgid "Routing number must be 9 digits"
-msgstr ""
+msgstr "Bankleitzahl muss neunstellig sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:277
 msgid "Invalid routing number checksum"
-msgstr ""
+msgstr "Ungültige Prüfsumme der Bankleitzahl"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:290
 msgid "Sort code must be 6 digits"
@@ -1990,27 +2020,27 @@ msgstr "Die Bankleitzahl muss 6-stellig sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:305
 msgid "Invalid SWIFT/BIC format"
-msgstr ""
+msgstr "Ungültiges SWIFT/BIC-Format"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:309
 msgid "SWIFT/BIC must be 8 or 11 characters"
-msgstr ""
+msgstr "SWIFT/BIC muss acht- oder elfstellig sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:322
 msgid "Account number cannot be empty"
-msgstr ""
+msgstr "Kontonummer darf nicht leer sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:326
 msgid "Account number too short"
-msgstr ""
+msgstr "Kontonummer zu kurz"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:330
 msgid "Account number too long"
-msgstr ""
+msgstr "Kontonummer zu lang"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:343
 msgid "Invalid currency code"
-msgstr ""
+msgstr "Ungültige Währungskennziffer"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:354
 msgid "Invalid account type"
@@ -2019,28 +2049,28 @@ msgstr "Ungültige Kontoart"
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:367
 #, php-format
 msgid "Invalid frequency. Must be one of: %1$s"
-msgstr ""
+msgstr "Ungültige Wiederholung. Muss einem der folgenden entsprechen: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:379
 msgid "Invalid transaction type"
-msgstr ""
+msgstr "Ungültiger Transaktionstyp"
 
 #: /tmp/budget-v2.11.0/budget/lib/Traits/ApiErrorHandlerTrait.php:55
 msgid "This shared item is read-only"
-msgstr ""
+msgstr "Dieses geteilte Element ist nur lesbar"
 
 #: /tmp/budget-v2.11.0/budget/lib/Traits/ApiErrorHandlerTrait.php:80
 #, php-format
 msgid "%1$s not found"
-msgstr ""
+msgstr "%1$s nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Traits/InputValidationTrait.php:108
 msgid "Validation failed"
-msgstr ""
+msgstr "Validierung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/specialAppInfoFakeDummyForL10nScript.php:3
 msgid "Simple budget tracker and forecaster"
-msgstr ""
+msgstr "Einfache Budgetüberwachung und -prognose"
 
 #: /tmp/budget-v2.11.0/budget/specialAppInfoFakeDummyForL10nScript.php:4
 msgid ""
@@ -2087,6 +2117,57 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
+"**⚠️ Beta: Diese App befindet sich momentan in der Testphase. Ein "
+"Datenverlust ist möglich. Bitte sichere Deine Daten regelmäßig und berichte "
+"etwaige Fehler.**\n"
+"\n"
+"# Budget - Finanzüberwachung für die NextCloud\n"
+"\n"
+"Verfolge Deine Ausgabegewohnheiten, verwalte Ersparnisse und sage zukünftige "
+"Kontostände mithilfe einer intelligenten Analyse Deiner Finanzhistorie "
+"heraus.\n"
+"\n"
+"## Leistungsmerkmale\n"
+"\n"
+"* **Kontoauszüge importieren**: Unterstützung für CSV-, OFX- und QIF-"
+"Formate\n"
+"* **intelligente Kategorisierung**: automatische Zuordnung der Bank und "
+"Kategorisierung von Transaktionen\n"
+"* **Transaktionen per Regel kategorisieren**: Jederzeit Regeln auf "
+"existierende Transaktionen mit Vorschau anwenden\n"
+"* **Transaktionen aufteilen**: Einzelne Transaktionen können mehreren "
+"Kategorien zugeordnet werden\n"
+"* **Überweisungserkennung**: Automatischer Abgleich von Überweisungen "
+"zwischen Konten\n"
+"* **Ausgabegewohnheiten überwachen**: Ausgabelimits mit Alarm erstellen, "
+"wenn ein Budget erreicht oder überschritten wird\n"
+"* **Kontostandvorhersage**: zukünftige Kontostände auf Basis historischer "
+"Daten vorhersagen\n"
+"* **wiederkehrende Rechnungen**: Rechnungen mit Zieldatum überwachen und "
+"NextCloud-Hinweis erstellen\n"
+"* **wiederkehrendes Einkommen**: Erwartete Einkommensquellen mit "
+"Rechnungsüberwachung nachverfolgen\n"
+"* **Ausgaben aufteilen**: Ausgaben mit Kontakten teilen und nachvollziehen, "
+"wer wem was schuldet\n"
+"* **Schuldentilgung planen**: Rückzahlung mithilfe von Lawinen- oder "
+"Schneeball-Strategien\n"
+"* **Sparziele**: Ziele einstellen und mit Fortschrittsüberwachung und "
+"Leistungsprognosen nachverfolgen\n"
+"* **Rentenrechner**: Altersvorsorgekonten mit Wachstumsprognosen überwachen\n"
+"* **Entwicklung des Nettovermögens**: Vermögenswerte und Verbindlichkeiten "
+"im Zeitverlauf verfolgen\n"
+"* **Jahresvergleiche**: Ausgaben über mehrere Jahre hinweg vergleichen\n"
+"* **Unterstützung mehrerer Konten**: Verschiedene Bankkonten und Währungen "
+"verwalten\n"
+"* **eigene Kategorien**: Erstelle Deine eigene Kategorien-Hierarchie\n"
+"* **Reporte und Diagramme**: Visualisiere Deine Finanzdaten mit interaktiven "
+"Diagrammen\n"
+"\n"
+"## Voraussetzungen\n"
+"\n"
+"* Nextcloud 30 oder neuer\n"
+"* PHP 8.1 oder neuer\n"
+"* PHP BCMath-Erweiterung (`php-bcmath`)"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:8
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1435
@@ -2117,12 +2198,12 @@ msgstr "Nettoersparnis"
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:159
 #: /tmp/budget-v2.11.0/budget/templates/index.php:355
 msgid "Pension Worth"
-msgstr ""
+msgstr "Rentenwert"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:13
 #: /tmp/budget-v2.11.0/budget/templates/index.php:368
 msgid "Assets Worth"
-msgstr ""
+msgstr "Vermögenswert"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:16
 #: /tmp/budget-v2.11.0/budget/templates/index.php:385
@@ -2135,12 +2216,12 @@ msgstr "Sparquote"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:398
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2783
 msgid "Cash Flow"
-msgstr ""
+msgstr "Geldfluss"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:18
 #: /tmp/budget-v2.11.0/budget/templates/index.php:411
 msgid "Budget Remaining"
-msgstr ""
+msgstr "verbleibendes Budget"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:19
 #: /tmp/budget-v2.11.0/budget/templates/index.php:424
@@ -2150,12 +2231,12 @@ msgstr "Budget Status"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:22
 #: /tmp/budget-v2.11.0/budget/templates/index.php:439
 msgid "Account Income"
-msgstr ""
+msgstr "Kontoeingang"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:23
 #: /tmp/budget-v2.11.0/budget/templates/index.php:455
 msgid "Account Expenses"
-msgstr ""
+msgstr "Kontoausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:26
 #: /tmp/budget-v2.11.0/budget/src/main.js:1030
@@ -2179,7 +2260,7 @@ msgstr "Unkategorisiert"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:27
 #: /tmp/budget-v2.11.0/budget/templates/index.php:484
 msgid "Low Balance Alert"
-msgstr "Geringer Kontostand Alarm"
+msgstr "Alarm Geringer Kontostand"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:30
 #: /tmp/budget-v2.11.0/budget/templates/index.php:498
@@ -2235,7 +2316,7 @@ msgstr "Konten"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:647
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4308
 msgid "Budget Alerts"
-msgstr ""
+msgstr "Budgetalarme"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:41
 #: /tmp/budget-v2.11.0/budget/templates/index.php:658
@@ -2283,7 +2364,7 @@ msgstr "Zusammenfassung der Sparziele"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:51
 #: /tmp/budget-v2.11.0/budget/templates/index.php:752
 msgid "Payment Methods"
-msgstr ""
+msgstr "Zahlungsmethoden"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:52
 #: /tmp/budget-v2.11.0/budget/templates/index.php:761
@@ -2293,7 +2374,7 @@ msgstr "Abstimmungsstatus"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:55
 #: /tmp/budget-v2.11.0/budget/templates/index.php:771
 msgid "Monthly Comparison"
-msgstr ""
+msgstr "monatlicher Vergleich"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:56
 #: /tmp/budget-v2.11.0/budget/templates/index.php:780
@@ -2308,7 +2389,7 @@ msgstr "Wöchentliche Ausgaben"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:58
 #: /tmp/budget-v2.11.0/budget/templates/index.php:798
 msgid "Unmatched Transfers"
-msgstr ""
+msgstr "nicht getroffene Transfers"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:59
 #: /tmp/budget-v2.11.0/budget/templates/index.php:807
@@ -2356,20 +2437,20 @@ msgstr "Buchung schnell erfassen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:352
 msgid "Duplicate transaction"
-msgstr ""
+msgstr "Doppelte Transaktion"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:355
 #: /tmp/budget-v2.11.0/budget/src/main.js:984
 msgid "Split transaction"
-msgstr ""
+msgstr "geteilte Transaktion"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:358
 msgid "Share expense"
-msgstr ""
+msgstr "Kostenteilung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:362
 msgid "Unlink transfer"
-msgstr ""
+msgstr "Transfer aufheben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:365
 msgid "Match transfer"
@@ -2377,11 +2458,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:705
 msgid "Failed to load accounts: {status} {statusText}"
-msgstr ""
+msgstr "Kontos laden fehlgeschlagen: {status} {statusText}"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:727
 msgid "Failed to load data"
-msgstr ""
+msgstr "Daten laden fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:977
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:684
@@ -2440,40 +2521,40 @@ msgstr "Keine Beschreibung"
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:245
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:246
 msgid "Unknown Account"
-msgstr ""
+msgstr "Unbekanntes Konto"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1064
 msgid "More actions"
-msgstr ""
+msgstr "Mehr Aktionen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1069
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:722
 msgid "Edit transaction"
-msgstr ""
+msgstr "Transaktion editieren"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1074
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:725
 msgid "Delete transaction"
-msgstr ""
+msgstr "Transaktion löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1282
 msgid "Failed to load transactions"
-msgstr ""
+msgstr "Transaktionen laden fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1328
 msgid "{displayed} of {total} transactions"
-msgstr "{displayed} von {total} buchungen"
+msgstr "{displayed} von {total} Transaktionen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1329
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:684
 msgid "%n transaction"
 msgid_plural "%n transactions"
-msgstr[0] "%n buchung"
-msgstr[1] "%n buchungen"
+msgstr[0] "%n Transaktion"
+msgstr[1] "%n Transaktionen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1346
 msgid "Total: {amount}"
-msgstr ""
+msgstr "Summe: {amount}"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1365
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:821
@@ -2483,7 +2564,7 @@ msgstr "Seite {current} von {total}"
 #: /tmp/budget-v2.11.0/budget/src/main.js:1550
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:237
 msgid "Set Up Password Protection"
-msgstr ""
+msgstr "Passwortschutz einrichten"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1554
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:241
@@ -2491,25 +2572,27 @@ msgid ""
 "Enter a password to protect your budget app. You will need to enter this "
 "password when accessing the app."
 msgstr ""
+"Gib ein Passwort ein, um Deine Budget App zu schützen. Du musst dieses "
+"Passwort eingeben wenn die App aufgerufen wird."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1557
 #: /tmp/budget-v2.11.0/budget/src/main.js:1656
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:244
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:343
 msgid "New Password"
-msgstr ""
+msgstr "Neues Passwort"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1559
 #: /tmp/budget-v2.11.0/budget/src/main.js:1658
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:246
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:345
 msgid "Minimum 6 characters"
-msgstr ""
+msgstr "Mindestens 6 Zeichen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1562
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:249
 msgid "Confirm Password"
-msgstr ""
+msgstr "Passwort bestätigen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1567
 #: /tmp/budget-v2.11.0/budget/src/main.js:1666
@@ -2558,27 +2641,27 @@ msgstr "Abbrechen"
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:255
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4396
 msgid "Set Password"
-msgstr ""
+msgstr "Passwort eingeben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1589
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:276
 msgid "Passwords do not match"
-msgstr ""
+msgstr "Passwörter stimmen nicht überein"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1611
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:298
 msgid "Password protection enabled"
-msgstr ""
+msgstr "Passwortschutz aktiviert"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1617
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:304
 msgid "Failed to set password"
-msgstr ""
+msgstr "Passwort setzen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1622
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:309
 msgid "Failed to set password. Please try again."
-msgstr ""
+msgstr "Passwort setzen fehlgeschlagen. Bitte erneut versuchen."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1646
 #: /tmp/budget-v2.11.0/budget/src/main.js:1667
@@ -2586,59 +2669,59 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:354
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4400
 msgid "Change Password"
-msgstr ""
+msgstr "Passwort ändern"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1652
 #: /tmp/budget-v2.11.0/budget/src/main.js:1750
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:339
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:437
 msgid "Current Password"
-msgstr ""
+msgstr "Aktuelles Passwort"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1661
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:348
 msgid "Confirm New Password"
-msgstr ""
+msgstr "Neues Passwort bestätigen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1690
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:377
 msgid "New passwords do not match"
-msgstr ""
+msgstr "Neue Passwörter stimmen nicht überein"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1711
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:398
 msgid "Password changed successfully"
-msgstr ""
+msgstr "Passwort erfolgreich geändert"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1719
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:406
 msgid "Failed to change password. Please try again."
-msgstr ""
+msgstr "Passwortänderung fehlgeschlagen. Bitte erneut versuchen."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1743
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:430
 msgid "Disable Password Protection"
-msgstr ""
+msgstr "Passwortschutz deaktivieren"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1747
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:434
 msgid "Enter your current password to disable password protection."
-msgstr ""
+msgstr "Gib Dein aktuelles Passwort ein, um den Passwortschutz zu deaktivieren."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1756
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:443
 msgid "Disable Protection"
-msgstr ""
+msgstr "Schutz deaktivieren"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1794
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:481
 msgid "Password protection disabled"
-msgstr ""
+msgstr "Passwortschutz deaktiviert"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1802
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:489
 msgid "Failed to disable password protection. Please try again."
-msgstr ""
+msgstr "Deaktivierung Passwortschutz fehlgeschlagen. Bitte erneut versuchen."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1826
 msgid "Recalculating..."
@@ -2646,19 +2729,19 @@ msgstr "Wird neu berechnet..."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1840
 msgid "Recalculation failed"
-msgstr ""
+msgstr "Neuberechnung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1844
 msgid "Recalculated {updated} of {total} account balances"
-msgstr ""
+msgstr "Neuberechnung {updated} von {total} Kontoständen durchgeführt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1847
 msgid "All account balances are correct"
-msgstr ""
+msgstr "Alle Kontostände sind korrekt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1851
 msgid "Failed to recalculate balances: {error}"
-msgstr ""
+msgstr "Neuberechnung Kontostände fehlgeschlagen: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1937
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:585
@@ -2669,18 +2752,18 @@ msgstr "Wird gelöscht..."
 #: /tmp/budget-v2.11.0/budget/src/main.js:1954
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:602
 msgid "Factory reset failed"
-msgstr ""
+msgstr "Zurücksetzen auf Werkseinstellung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1975
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:623
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5832
 msgid "Delete Everything"
-msgstr ""
+msgstr "Alles löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1978
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:626
 msgid "Failed to perform factory reset"
-msgstr ""
+msgstr "Rücksetzung auf Werkseinstellungen konnte nicht durchgeführt werden"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2051
 msgid "Exporting..."
@@ -2688,27 +2771,27 @@ msgstr "Wird exportiert..."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2060
 msgid "Export failed"
-msgstr ""
+msgstr "Export fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2084
 msgid "Export completed successfully"
-msgstr ""
+msgstr "Export erfolgreich durchgeführt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2087
 msgid "Failed to export data: {error}"
-msgstr ""
+msgstr "Export der Daten fehlgeschlagen: {error}{error}"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2096
 msgid "Please select a ZIP file"
-msgstr ""
+msgstr "Bitte wähle eine ZIP-Datei aus"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2109
 msgid "Validating file..."
-msgstr ""
+msgstr "Datei wird validiert..."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2126
 msgid "Invalid export file"
-msgstr ""
+msgstr "Ungültige Exportdatei"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2130
 #: /tmp/budget-v2.11.0/budget/src/main.js:2133
@@ -2722,38 +2805,40 @@ msgstr "Unbekannt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2157
 msgid "Failed to preview file: {error}"
-msgstr ""
+msgstr "Vorschau der Datei fehlgeschlagen: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2169
 msgid "No file selected"
-msgstr ""
+msgstr "Keine Datei ausgewählt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2174
 msgid ""
 "This will PERMANENTLY DELETE all your existing data and replace it with the "
 "imported data."
 msgstr ""
+"Dies wird alle Deine existierenden Daten DAUERHAFT LÖSCHEN und mit den "
+"importierten Daten ersetzen."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2174
 msgid "Are you absolutely sure you want to continue?"
-msgstr ""
+msgstr "Bist Du Dir absolut sicher, dass Du fortfahren möchtest?"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2184
 msgid "Importing data... This may take a moment."
-msgstr ""
+msgstr "Daten werden importiert... Das kann einen Moment dauern."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2204
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:807
 msgid "Import failed"
-msgstr ""
+msgstr "Import fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2212
 msgid "Import Successful!"
-msgstr ""
+msgstr "Import erfolgreich!"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2213
 msgid "Your data has been imported successfully."
-msgstr ""
+msgstr "Deine Daten wurden erfolgreich importiert."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2215
 msgid "categories"
@@ -2773,7 +2858,7 @@ msgstr "Rechnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2219
 msgid "import rules"
-msgstr ""
+msgstr "Importregeln"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2220
 msgid "settings"
@@ -2781,27 +2866,29 @@ msgstr "Einstellungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2228
 msgid "Import completed successfully"
-msgstr ""
+msgstr "Import erfolgreich durchgeführt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2236
 msgid "Import Failed"
-msgstr ""
+msgstr "Import fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2238
 msgid "Your existing data has not been modified."
-msgstr ""
+msgstr "Deine existierenden Daten wurden nicht verändert."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2429
 #: /tmp/budget-v2.11.0/budget/src/main.js:2473
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1013
 msgid "N/A"
-msgstr ""
+msgstr "Nicht verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2450
 msgid ""
 "No debt accounts found. Debts are pulled from liability accounts (credit "
 "cards, loans, mortgages)."
 msgstr ""
+"Keine Forderungskonten gefunden. Forderungen werden von Passivkonten "
+"(Kreditkarten, Kredite und Hypotheken) gezogen."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2468
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:268
@@ -2818,36 +2905,36 @@ msgstr "Saldo"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2472
 msgid "Interest Rate"
-msgstr ""
+msgstr "Zinssatz"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2476
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1056
 msgid "Min Payment"
-msgstr ""
+msgstr "Mindestzahlung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2477
 msgid "Not set"
-msgstr ""
+msgstr "Nicht konfiguriert"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2539
 msgid "{years}y {months}m"
-msgstr ""
+msgstr "{years}J {months}M"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2541
 #: /tmp/budget-v2.11.0/budget/src/main.js:2611
 #: /tmp/budget-v2.11.0/budget/src/main.js:2617
 msgid "%n month"
 msgid_plural "%n months"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Monat"
+msgstr[1] "%n Monate"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2564
 msgid "APR"
-msgstr ""
+msgstr "effektiver Jahreszins"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2566
 msgid "Paid off month {month}"
-msgstr ""
+msgstr "Tilgungsmonat {month}"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2570
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3969
@@ -2865,22 +2952,22 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2631
 msgid "Either Works"
-msgstr ""
+msgstr "Beides funktioniert"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2634
 msgid "Avalanche saves {amount} in interest"
-msgstr ""
+msgstr "Das Lawinenmodell spart {amount} an Zinsen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2635
 msgid "Snowball saves {amount} in interest"
-msgstr ""
+msgstr "Das Schneeballmodell spart {amount} an Zinsen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2725
 #: /tmp/budget-v2.11.0/budget/src/main.js:2890
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1685
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1778
 msgid "Transaction not found"
-msgstr ""
+msgstr "Transaktion nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2774
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1734
@@ -2890,7 +2977,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/main.js:2783
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1743
 msgid "Failed to search for matches. Please try again."
-msgstr ""
+msgstr "Keine Treffer gefunden. Bitte erneut versuchen."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2793
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1750
@@ -2902,7 +2989,7 @@ msgstr "Buchung als Transfer verknüpft"
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2474
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2546
 msgid "Failed to link transactions"
-msgstr ""
+msgstr "Transaktionen verknüpfen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2818
 msgid "Could not navigate to linked transaction"
@@ -2913,22 +3000,24 @@ msgstr ""
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr ""
+"Bist Du sicher, dass Du diese Transaktion von seinem Transferpaar ablösen "
+"willst?"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2875
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1767
 msgid "Transaction unlinked"
-msgstr ""
+msgstr "Transaktion abgelöst"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2906
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1794
 msgid "Edit Transaction Splits"
-msgstr ""
+msgstr "Transaktionsteilungen editieren"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2906
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1794
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5536
 msgid "Split Transaction"
-msgstr ""
+msgstr "Transaktion teilen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2918
 #: /tmp/budget-v2.11.0/budget/src/main.js:2995
@@ -2985,29 +3074,32 @@ msgstr "Betrag"
 #: /tmp/budget-v2.11.0/budget/src/main.js:2997
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1882
 msgid "Optional note"
-msgstr ""
+msgstr "optionaler Kommentar"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3001
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:646
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1886
 msgid "Remove split"
-msgstr ""
+msgstr "Teilung entfernen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3125
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1958
 msgid "A split transaction must have at least 2 parts"
-msgstr ""
+msgstr "Eine geteilte Transaktion muss mindestens 2 Teile haben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3131
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1964
 msgid ""
 "Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})"
 msgstr ""
+"Die geteilten Beträge {splitTotal} müssen dem Transaktionsbetrag "
+"{totalAmount} entsprechen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3151
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1984
+#, fuzzy
 msgid "Transaction split successfully"
-msgstr ""
+msgstr "Transaktion teilen erfolgreich"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3155
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1988
