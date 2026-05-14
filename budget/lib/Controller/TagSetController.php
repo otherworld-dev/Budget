@@ -84,7 +84,7 @@ class TagSetController extends Controller {
     public function create(): DataResponse {
         try {
             // Read JSON body
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
 
             if (!isset($data['categoryId']) || !isset($data['name'])) {
                 return new DataResponse(['error' => $this->l->t('Category ID and name are required')], Http::STATUS_BAD_REQUEST);
@@ -122,7 +122,7 @@ class TagSetController extends Controller {
     public function update(int $id): DataResponse {
         try {
             // Read JSON body
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
             $updates = [];
 
             // Validate name if provided
@@ -185,7 +185,7 @@ class TagSetController extends Controller {
     public function createTag(int $tagSetId): DataResponse {
         try {
             // Read JSON body
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
 
             if (!isset($data['name'])) {
                 return new DataResponse(['error' => $this->l->t('Name is required')], Http::STATUS_BAD_REQUEST);
@@ -231,7 +231,7 @@ class TagSetController extends Controller {
     public function updateTag(int $tagSetId, int $tagId): DataResponse {
         try {
             // Read JSON body
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
             $updates = [];
 
             // Validate name if provided
@@ -303,7 +303,7 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function createGlobalTag(): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
 
             if (!isset($data['name'])) {
                 return new DataResponse(['error' => $this->l->t('Name is required')], Http::STATUS_BAD_REQUEST);
@@ -336,7 +336,7 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function updateGlobalTag(int $tagId): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
             $updates = [];
 
             if (isset($data['name'])) {

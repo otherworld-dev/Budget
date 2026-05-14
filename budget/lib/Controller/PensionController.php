@@ -106,10 +106,9 @@ class PensionController extends Controller {
     public function create(): DataResponse {
         try {
             // Get JSON data from request body
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-            if (!$data) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -203,10 +202,9 @@ class PensionController extends Controller {
     public function update(int $id): DataResponse {
         try {
             // Get JSON data from request body
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-            if (!$data) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -327,10 +325,9 @@ class PensionController extends Controller {
     public function createSnapshot(int $id): DataResponse {
         try {
             // Get JSON data from request body
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-            if (!$data) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -395,10 +392,9 @@ class PensionController extends Controller {
     public function createContribution(int $id): DataResponse {
         try {
             // Get JSON data from request body
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-            if (!$data) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 

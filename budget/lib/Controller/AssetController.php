@@ -97,10 +97,9 @@ class AssetController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function create(): DataResponse {
 		try {
-			$rawInput = file_get_contents('php://input');
-			$data = json_decode($rawInput, true);
+			$data = $this->request->getParams();
 
-			if (!$data) {
+			if (empty($data)) {
 				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
@@ -188,10 +187,9 @@ class AssetController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function update(int $id): DataResponse {
 		try {
-			$rawInput = file_get_contents('php://input');
-			$data = json_decode($rawInput, true);
+			$data = $this->request->getParams();
 
-			if (!$data) {
+			if (empty($data)) {
 				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
@@ -306,10 +304,9 @@ class AssetController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function createSnapshot(int $id): DataResponse {
 		try {
-			$rawInput = file_get_contents('php://input');
-			$data = json_decode($rawInput, true);
+			$data = $this->request->getParams();
 
-			if (!$data) {
+			if (empty($data)) {
 				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
