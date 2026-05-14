@@ -1770,7 +1770,9 @@ export default class CategoriesModule {
             const period = this._getEffectiveBudgetPeriod(cat.id, cat.budgetPeriod);
             // Normalize to monthly so the summary cards stay consistent
             const monthlyBudget = formatters.prorateBudget(budget, period, 'monthly');
-            const spent = this.categorySpending[cat.id] || 0;
+            // Use own spending (not aggregated) to avoid double-counting
+            // children's spending that's already rolled into parent totals
+            const spent = this._ownSpending?.[cat.id] ?? this.categorySpending[cat.id] ?? 0;
 
             if (budget > 0) {
                 totalBudgeted += monthlyBudget;
