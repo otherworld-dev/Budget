@@ -1771,12 +1771,13 @@ export default class CategoriesModule {
             // Normalize to monthly so the summary cards stay consistent
             const monthlyBudget = formatters.prorateBudget(budget, period, 'monthly');
             const spent = this.categorySpending[cat.id] || 0;
-
             if (budget > 0) {
                 totalBudgeted += monthlyBudget;
                 categoriesWithBudget++;
             }
-            totalSpent += spent;
+            // Parent already has children spendings added up
+            if(cat.parentId===null) 
+                totalSpent += spent;
         });
 
         const totalRemaining = totalBudgeted - totalSpent;
