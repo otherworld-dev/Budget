@@ -359,7 +359,9 @@ Nextcloud Budget is fully translatable with 2,177+ strings. We'd love your help 
 
 [![Translation status](https://hosted.weblate.org/widget/nextcloud-budget/budget/svg-badge.svg)](https://hosted.weblate.org/engage/nextcloud-budget/)
 
-Currently available in: English, German, Spanish, French, Russian, and Portuguese (Brazil).
+Currently available in: English, German, Spanish, French, Russian, Portuguese (Brazil), and Czech.
+
+Special thanks to our translators: **[@SGiersch](https://github.com/SGiersch)** (German), **[@T0mFi](https://github.com/T0mFi)** and Pavel Borecki (Czech).
 
 > **Note:** Strings containing `{placeholders}` (e.g. `{amount}`, `{bill}`) must keep the placeholder names exactly as-is — only translate the surrounding text.
 
@@ -384,6 +386,18 @@ Contributions are welcome! Please:
 3. Make your changes
 4. Run tests (`make test`) and linting (`make lint`)
 5. Submit a pull request
+
+## Acknowledgements
+
+This app is shaped by its community. Thanks to everyone who reports bugs, suggests features, and contributes translations:
+
+- **[@SGiersch](https://github.com/SGiersch)** — Top contributor: dozens of bug reports, feature discussions, and German translation
+- **[@TerjeTM](https://github.com/TerjeTM)** — Thorough testing and detailed bug reports that led to major improvements in the bills system and data repair tools
+- **[@JaviAZ](https://github.com/JaviAZ)** — Code contributions and bug reports around category spending and transfers
+- **[@H2Oufoe](https://github.com/H2Oufoe)** — Extensive bug reporting and testing across multiple releases
+- **[@st33vil](https://github.com/st33vil)** — Identified the pagination balance calculation bug
+- **[@T0mFi](https://github.com/T0mFi)**, **Pavel Borecki** — Czech translation
+- **[@raduberbece](https://github.com/raduberbece)**, **[@MrTCAJ](https://github.com/MrTCAJ)**, **[@mschur](https://github.com/mschur)** — Bug reports and feedback
 
 ## License
 
