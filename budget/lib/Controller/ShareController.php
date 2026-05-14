@@ -94,7 +94,7 @@ class ShareController extends Controller {
             $share = $this->shareService->shareWith($this->userId, $sharedWithUserId);
             return new DataResponse($share, Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create share'));
         }
@@ -110,7 +110,7 @@ class ShareController extends Controller {
             $share = $this->shareService->accept($id, $this->userId);
             return new DataResponse($share);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Share'));
         } catch (\Exception $e) {
@@ -128,7 +128,7 @@ class ShareController extends Controller {
             $share = $this->shareService->decline($id, $this->userId);
             return new DataResponse($share);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Share'));
         } catch (\Exception $e) {
@@ -146,7 +146,7 @@ class ShareController extends Controller {
             $this->shareService->revoke($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Share'));
         } catch (\Exception $e) {
@@ -164,7 +164,7 @@ class ShareController extends Controller {
             $this->shareService->leave($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Share'));
         } catch (\Exception $e) {
@@ -223,7 +223,7 @@ class ShareController extends Controller {
 
             return new DataResponse(['status' => 'success']);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Share'));
         } catch (\Exception $e) {

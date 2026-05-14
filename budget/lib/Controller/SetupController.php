@@ -11,6 +11,7 @@ use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\RepairService;
+use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
@@ -18,8 +19,11 @@ use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class SetupController extends Controller {
+    use ApiErrorHandlerTrait;
+
     private CategoryService $categoryService;
     private ImportRuleService $importRuleService;
     private IL10N $l;
@@ -34,13 +38,15 @@ class SetupController extends Controller {
         private AccountService $accountService,
         private RepairService $repairService,
         IL10N $l,
-        string $userId
+        string $userId,
+        LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->categoryService = $categoryService;
         $this->importRuleService = $importRuleService;
         $this->l = $l;
         $this->userId = $userId;
+        $this->setLogger($logger);
     }
 
     /**
@@ -62,7 +68,7 @@ class SetupController extends Controller {
             
             return new DataResponse($results, Http::STATUS_CREATED);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, $this->l->t('Failed to initialize budget app'));
         }
     }
 
@@ -80,7 +86,7 @@ class SetupController extends Controller {
                 'rulesCount' => count($rules)
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, $this->l->t('Failed to get setup status'));
         }
     }
 
@@ -97,7 +103,7 @@ class SetupController extends Controller {
                 'message' => $this->l->t('%1$s duplicate categories removed', [count($deleted)])
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, $this->l->t('Failed to remove duplicate categories'));
         }
     }
 
@@ -115,7 +121,7 @@ class SetupController extends Controller {
                 'message' => $this->l->t('Reset complete: deleted %1$s, created %2$s', [$deletedCount, count($categories)])
             ]);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleError($e, $this->l->t('Failed to reset categories'));
         }
     }
 
@@ -154,9 +160,7 @@ class SetupController extends Controller {
                 'deletedCounts' => $counts
             ]);
         } catch (\Exception $e) {
-            return new DataResponse([
-                'error' => $this->l->t('Factory reset failed: %1$s', [$e->getMessage()])
-            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Factory reset failed'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -180,9 +184,7 @@ class SetupController extends Controller {
 
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return new DataResponse([
-                'error' => $this->l->t('Balance recalculation failed: %1$s', [$e->getMessage()])
-            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Balance recalculation failed'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -197,9 +199,7 @@ class SetupController extends Controller {
             $findings = $this->repairService->diagnose($this->userId);
             return new DataResponse($findings);
         } catch (\Exception $e) {
-            return new DataResponse([
-                'error' => $this->l->t('Diagnosis failed: %1$s', [$e->getMessage()])
-            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Diagnosis failed'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -241,9 +241,7 @@ class SetupController extends Controller {
 
             return new DataResponse($results);
         } catch (\Exception $e) {
-            return new DataResponse([
-                'error' => $this->l->t('Repair failed: %1$s', [$e->getMessage()])
-            ], Http::STATUS_INTERNAL_SERVER_ERROR);
+            return $this->handleError($e, $this->l->t('Repair failed'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 }

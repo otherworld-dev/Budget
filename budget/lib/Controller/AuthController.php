@@ -100,9 +100,7 @@ class AuthController extends Controller {
                 'sessionToken' => $result['sessionToken'] ?? null
             ]);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse([
-                'error' => $e->getMessage()
-            ], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to set up password protection'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
@@ -225,9 +223,7 @@ class AuthController extends Controller {
                 ], Http::STATUS_UNAUTHORIZED);
             }
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse([
-                'error' => $e->getMessage()
-            ], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to change password'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }

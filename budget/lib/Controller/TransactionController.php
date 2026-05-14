@@ -617,7 +617,7 @@ class TransactionController extends Controller {
             $splits = $this->splitService->splitTransaction($id, $this->getEffectiveUserId(), $data['splits']);
             return new DataResponse($splits, Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
         }
@@ -634,7 +634,7 @@ class TransactionController extends Controller {
             $transaction = $this->splitService->unsplitTransaction($id, $this->getEffectiveUserId(), $categoryId);
             return new DataResponse($transaction);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
         }
@@ -657,7 +657,7 @@ class TransactionController extends Controller {
             $split = $this->splitService->updateSplit($splitId, $this->getEffectiveUserId(), $data);
             return new DataResponse($split);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Split'), ['splitId' => $splitId]);
         }
