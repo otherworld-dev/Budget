@@ -483,7 +483,7 @@ class AccountController extends Controller {
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
         } catch (\Exception $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
+            return $this->handleError($e, $this->l->t('Failed to delete account'), Http::STATUS_CONFLICT, ['accountId' => $id]);
         }
     }
 

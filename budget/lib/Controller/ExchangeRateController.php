@@ -165,10 +165,7 @@ class ExchangeRateController extends Controller {
             $entity = $this->manualRateService->setRate($this->userId, $currency, $rate);
             return new DataResponse($entity);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage()],
-                Http::STATUS_BAD_REQUEST
-            );
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to set manual rate'));
         }

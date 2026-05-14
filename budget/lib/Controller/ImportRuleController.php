@@ -441,8 +441,10 @@ class ImportRuleController extends Controller {
             // Get CriteriaEvaluator via service (it's injected there)
             // For now, return success - validation happens in service layer during create/update
             return new DataResponse(['valid' => true]);
-        } catch (\Exception $e) {
+        } catch (\InvalidArgumentException $e) {
             return new DataResponse(['valid' => false, 'error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (\Exception $e) {
+            return new DataResponse(['valid' => false, 'error' => $this->l->t('Validation failed')], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 }

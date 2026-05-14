@@ -97,10 +97,7 @@ class MigrationController extends Controller {
 
             return new DataResponse($preview);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(
-                ['error' => $e->getMessage(), 'valid' => false],
-                Http::STATUS_BAD_REQUEST
-            );
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to preview import'));
         }
@@ -170,10 +167,7 @@ class MigrationController extends Controller {
                 0,
                 ['error' => $e->getMessage()]
             );
-            return new DataResponse(
-                ['error' => $e->getMessage(), 'success' => false],
-                Http::STATUS_BAD_REQUEST
-            );
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             $this->auditService->log(
                 $this->userId,
