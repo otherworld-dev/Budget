@@ -118,10 +118,7 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function create(): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            if (!is_array($data)) {
-                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
-            }
+            $data = $this->request->getParams();
 
             // Extract and validate required fields
             if (!isset($data['name']) || !isset($data['amount'])) {
@@ -300,10 +297,7 @@ class BillController extends Controller {
         try {
             $this->requireWriteAccess('bill', $id);
 
-            $data = json_decode(file_get_contents('php://input'), true);
-            if (!is_array($data)) {
-                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
-            }
+            $data = $this->request->getParams();
 
             $updates = [];
 
@@ -737,8 +731,8 @@ class BillController extends Controller {
     #[UserRateLimit(limit: 10, period: 60)]
     public function createFromDetected(): DataResponse {
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            if (!is_array($data) || !isset($data['bills'])) {
+            $data = $this->request->getParams();
+            if (!isset($data['bills'])) {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 

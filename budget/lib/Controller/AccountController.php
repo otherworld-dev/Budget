@@ -110,11 +110,9 @@ class AccountController extends Controller {
     public function create(): DataResponse {
         try {
             // Get JSON data from request body
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-
-            if (!$data || !is_array($data)) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data or empty request')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -273,9 +271,9 @@ class AccountController extends Controller {
             $this->requireWriteAccess('account', $id);
 
             // Get JSON data from request body
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = $this->request->getParams();
 
-            if (!$data || !is_array($data)) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 

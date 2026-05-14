@@ -598,10 +598,9 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function split(int $id): DataResponse {
         try {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-            if (!$data || !isset($data['splits']) || !is_array($data['splits'])) {
+            if (!isset($data['splits']) || !is_array($data['splits'])) {
                 return new DataResponse(['error' => $this->l->t('Invalid splits data')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -649,10 +648,9 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function updateSplit(int $id, int $splitId): DataResponse {
         try {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
-            if (!$data) {
+            if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -695,8 +693,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 60, period: 60)]
     public function setTags(int $id): DataResponse {
         try {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = $this->request->getParams();
 
             if (!isset($data['tagIds']) || !is_array($data['tagIds'])) {
                 return new DataResponse(['error' => 'tagIds array is required'], Http::STATUS_BAD_REQUEST);
