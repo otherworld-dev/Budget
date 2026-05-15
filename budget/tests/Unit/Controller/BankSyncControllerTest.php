@@ -9,7 +9,9 @@ use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Db\BankConnection;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
+use OCA\Budget\Service\BankSync\SimpleFINProvider;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -367,5 +369,55 @@ class BankSyncControllerTest extends TestCase {
 
 		$response = $this->controller->reauthorize(1);
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	// ── institutions ──────────────────────────────────────────────
+
+	public function testInstitutionsReturnsListForGoCardless(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'country' => 'GB',
+			'secretId' => 'sid',
+			'secretKey' => 'skey',
+		]);
+
+		$gcProvider = $this->createMock(GoCardlessProvider::class);
+		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($gcProvider);
+		$gcProvider->method('getToken')->willReturn('token123');
+		$gcProvider->method('getInstitutions')->willReturn([
+			['id' => 'BANK_1', 'name' => 'Test Bank', 'logo' => null],
+		]);
+
+		$response = $this->controller->institutions('gocardless');
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertCount(1, $response->getData());
+		$this->assertEquals('BANK_1', $response->getData()[0]['id']);
+	}
+
+	public function testInstitutionsDisabledReturns403(): void {
+		$this->disableBankSync();
+		$response = $this->controller->institutions('gocardless');
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testInstitutionsMissingCredentialsReturns400(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['country' => 'GB']);
+
+		$gcProvider = $this->createMock(GoCardlessProvider::class);
+		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($gcProvider);
+
+		$response = $this->controller->institutions('gocardless');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testInstitutionsRejectsNonGoCardlessProvider(): void {
+		$this->enableBankSync();
+
+		$sfProvider = $this->createMock(SimpleFINProvider::class);
+		$this->providerFactory->method('getProvider')->with('simplefin')->willReturn($sfProvider);
+
+		$response = $this->controller->institutions('simplefin');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 }

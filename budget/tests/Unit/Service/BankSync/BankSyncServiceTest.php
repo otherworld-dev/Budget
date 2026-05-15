@@ -635,6 +635,114 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
 	}
 
+	// ===== connect edge cases =====
+
+	public function testConnectWithAuthorizationUrlSetsPendingAuthStatus(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('initializeConnection')->willReturn([
+			'credentials' => '{"secretId":"sid"}',
+			'accounts' => [],
+			'authorizationUrl' => 'https://bank.example.com/auth',
+		]);
+
+		$this->connectionMapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (BankConnection $c) {
+				$this->assertEquals('pending_auth', $c->getStatus());
+				$c->setId(1);
+				return $c;
+			});
+
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+
+		$result = $this->service->connect(self::USER_ID, 'gocardless', ['secretId' => 'sid', 'secretKey' => 'skey', 'institutionId' => 'BANK_1'], 'My Bank');
+
+		$this->assertEquals('https://bank.example.com/auth', $result['authorizationUrl']);
+	}
+
+	public function testConnectWithoutAuthUrlSetsActiveStatus(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('initializeConnection')->willReturn([
+			'credentials' => '{"token":"abc"}',
+			'accounts' => [['id' => 'a1', 'name' => 'Checking', 'balance' => '100', 'currency' => 'USD']],
+		]);
+
+		$this->connectionMapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (BankConnection $c) {
+				$this->assertEquals('active', $c->getStatus());
+				$c->setId(1);
+				return $c;
+			});
+
+		$this->mappingMapper->method('insert')->willReturnArgument(0);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+
+		$result = $this->service->connect(self::USER_ID, 'simplefin', ['setupToken' => 'tok'], 'My Bank');
+
+		$this->assertNull($result['authorizationUrl']);
+	}
+
+	// ===== updateMapping edge cases =====
+
+	public function testUpdateMappingClearsBudgetAccountId(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->willReturn($connection);
+
+		$mapping = $this->createMapping(10, 1, 'ext-1', 200, true);
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+
+		$this->mappingMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertNull($m->getBudgetAccountId());
+				return $m;
+			});
+
+		$this->service->updateMapping(self::USER_ID, 1, 10, null, true, null);
+	}
+
+	// ===== disconnect edge cases =====
+
+	public function testDisconnectCallsProviderRevoke(): void {
+		$connection = $this->createConnection(1, 'gocardless', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($this->provider);
+
+		$this->provider->expects($this->once())->method('revokeConnection');
+		$this->mappingMapper->expects($this->once())->method('deleteByConnection')->with(1);
+		$this->connectionMapper->expects($this->once())->method('delete')->with($connection);
+
+		$this->service->disconnect(self::USER_ID, 1);
+	}
+
+	// ===== refreshAccounts edge cases =====
+
+	public function testRefreshAccountsPromotesPendingAuthToActive(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'gocardless', 'My Bank', 'pending_auth');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+
+		$this->provider->method('fetchAccountList')->willReturn([
+			'accounts' => [['id' => 'ext-1', 'name' => 'Checking', 'balance' => '500', 'currency' => 'GBP']],
+		]);
+
+		$this->mappingMapper->method('findByExternalId')->willReturn(null);
+		$this->mappingMapper->method('insert')->willReturnArgument(0);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+
+		$this->connectionMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankConnection $c) {
+				$this->assertEquals('active', $c->getStatus());
+				return $c;
+			});
+
+		$this->service->refreshAccounts(self::USER_ID, 1);
+	}
+
 	// ===== Helpers =====
 
 	private function createConnection(int $id, string $provider, string $name, string $status): BankConnection {
