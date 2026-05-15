@@ -7656,7 +7656,6 @@ button.danger:hover {
 }
 
 /* Bank Sync Wizard Steps */
-.bank-sync-step { }
 .bank-sync-error {
     color: var(--color-error, #e9322d);
     background: var(--color-error-hover, #fdd);

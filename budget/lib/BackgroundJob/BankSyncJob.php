@@ -9,7 +9,6 @@ use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
-use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -18,7 +17,13 @@ use Psr\Log\LoggerInterface;
  * in error/expired state.
  */
 class BankSyncJob extends TimedJob {
-    public function __construct(ITimeFactory $time) {
+    public function __construct(
+        ITimeFactory $time,
+        private AdminSettingService $adminSettings,
+        private BankSyncService $syncService,
+        private BankConnectionMapper $connectionMapper,
+        private LoggerInterface $logger
+    ) {
         parent::__construct($time);
 
         // Run once per day
@@ -27,43 +32,37 @@ class BankSyncJob extends TimedJob {
     }
 
     protected function run($argument): void {
-        $adminSettings = Server::get(AdminSettingService::class);
-        $logger = Server::get(LoggerInterface::class);
-
-        if (!$adminSettings->isBankSyncEnabled()) {
+        if (!$this->adminSettings->isBankSyncEnabled()) {
             return;
         }
 
-        $syncService = Server::get(BankSyncService::class);
-        $connectionMapper = Server::get(BankConnectionMapper::class);
-
         try {
             // Fetch only IDs to avoid decrypting all credentials into memory at once
-            $connectionRefs = $connectionMapper->findActiveIdsForSync();
+            $connectionRefs = $this->connectionMapper->findActiveIdsForSync();
 
             $syncCount = 0;
             $errorCount = 0;
 
             foreach ($connectionRefs as $ref) {
                 try {
-                    $syncService->sync($ref['userId'], $ref['id']);
+                    $this->syncService->sync($ref['userId'], $ref['id']);
                     $syncCount++;
                 } catch (\Exception $e) {
                     $errorCount++;
-                    $logger->warning(
+                    $this->logger->warning(
                         "Bank sync failed for connection {$ref['id']}: " . $e->getMessage(),
                         ['app' => 'budget', 'userId' => $ref['userId'], 'connectionId' => $ref['id']]
                     );
                 }
             }
 
-            $logger->info(
+            $this->logger->info(
                 "Bank sync job completed: {$syncCount} connections synced" .
                     ($errorCount > 0 ? ", {$errorCount} errors" : ""),
                 ['app' => 'budget']
             );
         } catch (\Exception $e) {
-            $logger->error(
+            $this->logger->error(
                 'Bank sync job failed: ' . $e->getMessage(),
                 ['app' => 'budget', 'exception' => $e]
             );

@@ -82,7 +82,10 @@ class BankSyncController extends Controller {
             }
 
             $params = $this->request->getParams();
-            $country = $params['country'] ?? 'GB';
+            $country = strtoupper(trim($params['country'] ?? 'GB'));
+            if (!preg_match('/^[A-Z]{2}$/', $country)) {
+                return new DataResponse(['error' => $this->l->t('Invalid country code')], Http::STATUS_BAD_REQUEST);
+            }
             $secretId = $params['secretId'] ?? null;
             $secretKey = $params['secretKey'] ?? null;
 
@@ -126,6 +129,11 @@ class BankSyncController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Provider and name are required')], Http::STATUS_BAD_REQUEST);
             }
 
+            $name = trim($name);
+            if (strlen($name) === 0 || strlen($name) > 255) {
+                return new DataResponse(['error' => $this->l->t('Connection name must be between 1 and 255 characters')], Http::STATUS_BAD_REQUEST);
+            }
+
             $validProviders = ['simplefin', 'gocardless'];
             if (!in_array($provider, $validProviders, true)) {
                 return new DataResponse(['error' => $this->l->t('Invalid provider')], Http::STATUS_BAD_REQUEST);
@@ -140,6 +148,13 @@ class BankSyncController extends Controller {
                 $providerParams['secretKey'] = $params['secretKey'] ?? null;
                 $providerParams['institutionId'] = $params['institutionId'] ?? null;
                 $providerParams['redirectUrl'] = $params['redirectUrl'] ?? null;
+            }
+
+            if (!empty($providerParams['redirectUrl'])) {
+                $baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
+                if (!str_starts_with($providerParams['redirectUrl'], $baseUrl)) {
+                    $providerParams['redirectUrl'] = '';
+                }
             }
 
             $result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
@@ -264,6 +279,13 @@ class BankSyncController extends Controller {
 
             if (!$institutionId) {
                 return new DataResponse(['error' => $this->l->t('Institution ID is required')], Http::STATUS_BAD_REQUEST);
+            }
+
+            if ($redirectUrl) {
+                $baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
+                if (!str_starts_with($redirectUrl, $baseUrl)) {
+                    $redirectUrl = '';
+                }
             }
 
             $result = $this->syncService->reauthorize($this->userId, $id, $institutionId, $redirectUrl ?? '');

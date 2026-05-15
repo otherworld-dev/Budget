@@ -23,23 +23,11 @@ export default class BankSyncModule {
         this._institutions = [];
         this._reauthorizeConnectionId = null;
 
-        // GoCardless supported countries
-        this._countries = [
-            { code: 'AT', name: 'Austria' }, { code: 'BE', name: 'Belgium' },
-            { code: 'BG', name: 'Bulgaria' }, { code: 'HR', name: 'Croatia' },
-            { code: 'CY', name: 'Cyprus' }, { code: 'CZ', name: 'Czech Republic' },
-            { code: 'DK', name: 'Denmark' }, { code: 'EE', name: 'Estonia' },
-            { code: 'FI', name: 'Finland' }, { code: 'FR', name: 'France' },
-            { code: 'DE', name: 'Germany' }, { code: 'GR', name: 'Greece' },
-            { code: 'HU', name: 'Hungary' }, { code: 'IS', name: 'Iceland' },
-            { code: 'IE', name: 'Ireland' }, { code: 'IT', name: 'Italy' },
-            { code: 'LV', name: 'Latvia' }, { code: 'LT', name: 'Lithuania' },
-            { code: 'LU', name: 'Luxembourg' }, { code: 'MT', name: 'Malta' },
-            { code: 'NL', name: 'Netherlands' }, { code: 'NO', name: 'Norway' },
-            { code: 'PL', name: 'Poland' }, { code: 'PT', name: 'Portugal' },
-            { code: 'RO', name: 'Romania' }, { code: 'SK', name: 'Slovakia' },
-            { code: 'SI', name: 'Slovenia' }, { code: 'ES', name: 'Spain' },
-            { code: 'SE', name: 'Sweden' }, { code: 'GB', name: 'United Kingdom' },
+        // GoCardless supported country codes
+        this._countryCodes = [
+            'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+            'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT',
+            'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB',
         ];
     }
 
@@ -374,11 +362,22 @@ export default class BankSyncModule {
         if (!select || select.options.length > 1) return;
 
         select.innerHTML = '';
-        const lang = OC.getLanguage ? OC.getLanguage() : 'en-gb';
+        const lang = OC.getLanguage ? OC.getLanguage() : 'en';
         const localeParts = lang.split(/[-_]/);
         const detectedCountry = (localeParts[1] || 'gb').toUpperCase();
 
-        this._countries.forEach(c => {
+        let displayNames;
+        try {
+            displayNames = new Intl.DisplayNames([lang], { type: 'region' });
+        } catch (e) {
+            displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+        }
+
+        const countries = this._countryCodes
+            .map(code => ({ code, name: displayNames.of(code) || code }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        countries.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.code;
             opt.textContent = c.name;

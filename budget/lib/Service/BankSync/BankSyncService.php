@@ -12,6 +12,7 @@ use OCA\Budget\Db\BankConnectionMapper;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\TransactionService;
+use OCP\IL10N;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -27,6 +28,7 @@ class BankSyncService {
         private AuditService $auditService,
         private AdminSettingService $adminSettings,
         private AccountMapper $accountMapper,
+        private IL10N $l,
         private LoggerInterface $logger
     ) {
     }
@@ -164,7 +166,7 @@ class BankSyncService {
             // Update connection sync timestamp
             $connection->setLastSyncAt(date('Y-m-d H:i:s'));
             $connection->setLastError($discoveredCount > 0
-                ? 'No accounts are enabled for sync. Open Account Mappings to enable and map your accounts.'
+                ? $this->l->t('No accounts are enabled for sync. Open Account Mappings to enable and map your accounts.')
                 : null);
             $connection->setUpdatedAt(date('Y-m-d H:i:s'));
             $this->connectionMapper->update($connection);
@@ -176,7 +178,7 @@ class BankSyncService {
                 'accounts' => [],
                 'discovered' => $discoveredCount,
                 'message' => $discoveredCount > 0
-                    ? "Found {$discoveredCount} account(s). Please open Account Mappings to enable and map them, then sync again."
+                    ? $this->l->t('Found %1$s account(s). Please open Account Mappings to enable and map them, then sync again.', [$discoveredCount])
                     : null,
             ];
         }
@@ -267,7 +269,7 @@ class BankSyncService {
 
         // Update connection sync status
         $connection->setLastSyncAt(date('Y-m-d H:i:s'));
-        $connection->setLastError($totalErrors > 0 ? "Sync completed with {$totalErrors} error(s)" : null);
+        $connection->setLastError($totalErrors > 0 ? $this->l->t('Sync completed with %1$s error(s)', [$totalErrors]) : null);
         $connection->setStatus('active');
         $connection->setUpdatedAt(date('Y-m-d H:i:s'));
         $this->connectionMapper->update($connection);
