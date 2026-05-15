@@ -15,6 +15,7 @@ use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
 use OCA\Budget\Service\BankSync\BankSyncService;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\TransactionService;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -27,6 +28,7 @@ class BankSyncServiceTest extends TestCase {
 	private AuditService $auditService;
 	private AdminSettingService $adminSettings;
 	private AccountMapper $accountMapper;
+	private IL10N $l;
 	private LoggerInterface $logger;
 	private BankSyncProviderInterface $provider;
 
@@ -40,6 +42,10 @@ class BankSyncServiceTest extends TestCase {
 		$this->auditService = $this->createMock(AuditService::class);
 		$this->adminSettings = $this->createMock(AdminSettingService::class);
 		$this->accountMapper = $this->createMock(AccountMapper::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
+			return vsprintf($text, $parameters);
+		});
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$this->provider = $this->createMock(BankSyncProviderInterface::class);
 
@@ -51,6 +57,7 @@ class BankSyncServiceTest extends TestCase {
 			$this->auditService,
 			$this->adminSettings,
 			$this->accountMapper,
+			$this->l,
 			$this->logger
 		);
 	}

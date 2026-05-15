@@ -12,7 +12,6 @@ use OCA\Budget\Service\BankSync\BankSyncService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use PHPUnit\Framework\TestCase;
-use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 class BankSyncJobTest extends TestCase {
@@ -30,20 +29,13 @@ class BankSyncJobTest extends TestCase {
         $this->connectionMapper = $this->createMock(BankConnectionMapper::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
-        $container = $this->createMock(ContainerInterface::class);
-        $container->method('get')->willReturnMap([
-            [AdminSettingService::class, $this->adminSettings],
-            [BankSyncService::class, $this->syncService],
-            [BankConnectionMapper::class, $this->connectionMapper],
-            [LoggerInterface::class, $this->logger],
-        ]);
-        \OC::$server = $container;
-
-        $this->job = new BankSyncJob($this->timeFactory);
-    }
-
-    protected function tearDown(): void {
-        \OC::$server = null;
+        $this->job = new BankSyncJob(
+            $this->timeFactory,
+            $this->adminSettings,
+            $this->syncService,
+            $this->connectionMapper,
+            $this->logger
+        );
     }
 
     // ===== Constructor Config =====

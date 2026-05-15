@@ -154,7 +154,7 @@ class GoCardlessProvider implements BankSyncProviderInterface {
                         ?? 'Account',
                     'currency' => $details['account']['currency']
                         ?? $balances['balances'][0]['balanceAmount']['currency']
-                        ?? 'GBP',
+                        ?? 'EUR',
                     'balance' => $balance,
                     'transactions' => $normalizedTx,
                 ];

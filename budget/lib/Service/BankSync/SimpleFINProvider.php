@@ -48,7 +48,7 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         // Claim the token to get the access URL
         $client = $this->clientService->newClient();
         try {
-            $response = $client->post($claimUrl);
+            $response = $client->post($claimUrl, ['timeout' => 30]);
             $accessUrl = $response->getBody();
 
             if (empty($accessUrl) || !filter_var($accessUrl, FILTER_VALIDATE_URL)) {
