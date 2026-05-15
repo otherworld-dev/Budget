@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-05-16 08:12+0000\n"
-"Last-Translator: Marcus <spintike@protonmail.com>\n"
+"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -846,7 +846,7 @@ msgstr "Ungültiger Vergleichstyp. Muss einer der folgenden sein: %1$s"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:132
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:236
 msgid "Invalid regex pattern"
-msgstr "Ungültiger Regex-Ausdruck"
+msgstr "Ungültiger regex Ausdruck"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:172
 msgid "Failed to create import rule"
@@ -1403,7 +1403,7 @@ msgstr "Bitte mindestens eine Ausgabe zum Begleichen auswählen"
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:499
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:527
 msgid "Failed to settle expenses"
-msgstr ""
+msgstr "Ausgaben konnten nicht beglichen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:413
 msgid "Failed to record settlement"
@@ -1561,11 +1561,11 @@ msgstr "Suche nach Übereinstimmungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:474
 msgid "No valid pairs provided"
-msgstr ""
+msgstr "Keine gültigen Wertepaare angegeben"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:480
 msgid "Failed to bulk link transactions"
-msgstr ""
+msgstr "Fehler beim Verknüpfen mehrerer Transaktionen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:493
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:512
@@ -2199,7 +2199,7 @@ msgstr "Rentenwert"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:13
 #: /tmp/budget-v2.11.0/budget/templates/index.php:368
 msgid "Assets Worth"
-msgstr "Vermögenswert"
+msgstr "Wert des Vermögens"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:16
 #: /tmp/budget-v2.11.0/budget/templates/index.php:385
@@ -2838,7 +2838,7 @@ msgstr "Deine Daten wurden erfolgreich importiert."
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2215
 msgid "categories"
-msgstr "Kategorien"
+msgstr "categorien"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2216
 msgid "accounts"
@@ -2850,7 +2850,7 @@ msgstr "buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2218
 msgid "bills"
-msgstr "Rechnungen"
+msgstr "rechnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2219
 msgid "import rules"
@@ -2858,7 +2858,7 @@ msgstr "Importregeln"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2220
 msgid "settings"
-msgstr "Einstellungen"
+msgstr "einstellungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2228
 msgid "Import completed successfully"
@@ -2866,7 +2866,7 @@ msgstr "Import erfolgreich durchgeführt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2236
 msgid "Import Failed"
-msgstr "Import fehlgeschlagen"
+msgstr "Import Fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2238
 msgid "Your existing data has not been modified."
@@ -4155,7 +4155,7 @@ msgstr "{percent}% im Vergleich zum Vormonat"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:348
 #, javascript-format
 msgid "{percent}% savings rate"
-msgstr "{percent}% Sparquote"
+msgstr "{percent}% sparquote"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:368
 msgid "Great"
@@ -4321,7 +4321,7 @@ msgstr "Investitionen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1166
 msgid "Loans"
-msgstr "Darlehen"
+msgstr "Kredite"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1174
 msgid "%n account"
@@ -4395,7 +4395,6 @@ msgid "yesterday"
 msgstr "gestern"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1623
-#, fuzzy
 msgid "%n day ago"
 msgid_plural "%n days ago"
 msgstr[0] "Vor %n Tag"
@@ -4954,7 +4953,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:155
 msgid "{amount}/yr"
-msgstr "{amount}/J."
+msgstr "{amount}/Jr"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:319
 msgid "Edit Pension"
@@ -6949,7 +6948,7 @@ msgstr "behalten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3340
 msgid "bill"
-msgstr "Rechnung"
+msgstr "rechnung"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3341
 msgid "scheduled"
@@ -7800,7 +7799,7 @@ msgstr "Durchschnitt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1685
 msgid "Trend"
-msgstr "Trend"
+msgstr "Verlauf"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1699
 msgid "Monthly Spending"
@@ -10362,7 +10361,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5770
 msgid "Settlement History"
-msgstr ""
+msgstr "Abrechnungshistorie"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5796
 msgid "Confirm Factory Reset"
