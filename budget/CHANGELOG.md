@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.1] - 2026-05-15
+
+### Fixed
+- **DI registration mismatches**: Fixed missing `IL10N` in `BankSyncService`, missing `LoggerInterface` in `BillService` and `RecurringIncomeService` DI registrations causing 500 errors on income and bills pages.
+- **API credentials exposure**: Institutions endpoint changed from GET to POST so GoCardless secrets are no longer in URL query parameters.
+- **Premature active status**: New GoCardless connections and re-authorizations now use `pending_auth` status until bank authorization is completed, preventing failed background sync attempts.
+- **False-positive expiration**: Transient API errors during reauth checks no longer incorrectly mark connections as expired; only definitive statuses (EX/RJ/SA) trigger expiration.
+- **Double-click protection**: All wizard buttons now have busy guards preventing duplicate submissions.
+- **Auth check conflict**: Fixed onclick/addEventListener collision in the authorization check step.
+- **Budget account unmapping**: Users can now clear a mapped budget account back to unmapped.
+- **Transaction ID collisions**: Fallback hash for transactions without IDs now includes account ID and index to prevent silent deduplication of identical purchases.
+- **Provider revocation**: Disconnecting a GoCardless connection now revokes the requisition at the provider.
+- **API efficiency**: `refreshAccounts` no longer fetches transaction data unnecessarily, saving GoCardless API quota.
+- **Background job memory**: Credentials are no longer bulk-decrypted; connections processed one at a time.
+- **Null safety**: Fixed potential TypeError when disconnecting with mappings section not rendered.
+
+### Changed
+- Country names in bank selection now use `Intl.DisplayNames` for automatic locale-appropriate translation.
+- Connection name validated (1-255 chars), country code validated (2-letter ISO), redirect URLs validated against Nextcloud base URL.
+- SimpleFIN claim POST now has a 30-second timeout.
+- Default currency fallback changed from GBP to EUR for GoCardless.
+- Service-layer messages wrapped in IL10N for translation support.
+- Background job converted from service locator to constructor injection.
+
 ## [2.19.0] - 2026-05-15
 
 ### Added
