@@ -159,9 +159,10 @@ export default class BankSyncModule {
         }
 
         container.innerHTML = this.connections.map(({ connection, mappings }) => {
-            const statusClass = connection.status === 'active' ? 'positive' : (connection.status === 'error' ? 'negative' : '');
+            const statusClass = connection.status === 'active' ? 'positive' : (connection.status === 'error' ? 'negative' : (connection.status === 'pending_auth' ? 'warning' : ''));
             const statusLabel = {
                 active: t('budget', 'Active'),
+                pending_auth: t('budget', 'Awaiting Authorization'),
                 error: t('budget', 'Error'),
                 expired: t('budget', 'Expired'),
             }[connection.status] || connection.status;
@@ -386,9 +387,15 @@ export default class BankSyncModule {
         const creds = this._wizardCredentials || {};
 
         try {
-            const url = OC.generateUrl(`/apps/budget/api/bank-sync/providers/gocardless/institutions?country=${encodeURIComponent(country)}&secretId=${encodeURIComponent(creds.secretId || '')}&secretKey=${encodeURIComponent(creds.secretKey || '')}`);
+            const url = OC.generateUrl('/apps/budget/api/bank-sync/providers/gocardless/institutions');
             const response = await fetch(url, {
-                headers: { 'requesttoken': OC.requestToken }
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({
+                    country,
+                    secretId: creds.secretId || '',
+                    secretKey: creds.secretKey || '',
+                })
             });
 
             if (!response.ok) {

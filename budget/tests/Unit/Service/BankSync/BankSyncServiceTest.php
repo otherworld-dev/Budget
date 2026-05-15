@@ -597,7 +597,7 @@ class BankSyncServiceTest extends TestCase {
 
 		$this->connectionMapper->expects($this->once())->method('update')
 			->willReturnCallback(function (BankConnection $c) {
-				$this->assertEquals('active', $c->getStatus());
+				$this->assertEquals('pending_auth', $c->getStatus());
 				$this->assertNull($c->getLastError());
 				$creds = json_decode($c->getCredentials(), true);
 				$this->assertEquals('new-req', $creds['requisitionId']);

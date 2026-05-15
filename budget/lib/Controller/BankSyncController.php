@@ -72,7 +72,7 @@ class BankSyncController extends Controller {
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 10, period: 60)]
-    public function institutions(string $provider, string $country = 'GB'): DataResponse {
+    public function institutions(string $provider): DataResponse {
         if ($r = $this->requireBankSync()) return $r;
 
         try {
@@ -81,9 +81,8 @@ class BankSyncController extends Controller {
                 return new DataResponse(['error' => $this->l->t('This provider does not support institution listing')], Http::STATUS_BAD_REQUEST);
             }
 
-            // Need to get an access token first using user's stored credentials
-            // For initial setup, credentials come from the request
             $params = $this->request->getParams();
+            $country = $params['country'] ?? 'GB';
             $secretId = $params['secretId'] ?? null;
             $secretKey = $params['secretKey'] ?? null;
 

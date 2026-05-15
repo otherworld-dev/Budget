@@ -47,7 +47,8 @@ class BankSyncService {
         $connection->setProvider($providerName);
         $connection->setName($name);
         $connection->setCredentials($result['credentials']);
-        $connection->setStatus('active');
+        $hasAuthUrl = !empty($result['authorizationUrl']);
+        $connection->setStatus($hasAuthUrl ? 'pending_auth' : 'active');
         $connection->setCreatedAt($now);
         $connection->setUpdatedAt($now);
         $connection = $this->connectionMapper->insert($connection);
@@ -103,8 +104,8 @@ class BankSyncService {
         $this->requireEnabled();
 
         $connection = $this->connectionMapper->find($connectionId, $userId);
-        if ($connection->getStatus() !== 'active') {
-            throw new \Exception('Connection is not active (status: ' . $connection->getStatus() . ')');
+        if (!in_array($connection->getStatus(), ['active', 'pending_auth'], true)) {
+            throw new \Exception('Connection is not active');
         }
 
         $provider = $this->providerFactory->getProvider($connection->getProvider());
@@ -331,6 +332,21 @@ class BankSyncService {
         $data = $provider->fetchAccounts($connection->getCredentials());
         $now = date('Y-m-d H:i:s');
 
+        // If accounts were fetched successfully and connection was pending auth,
+        // promote to active — the user has completed bank authorization
+        if (!empty($data['accounts']) && $connection->getStatus() === 'pending_auth') {
+            $connection->setStatus('active');
+            $connection->setUpdatedAt($now);
+            $this->connectionMapper->update($connection);
+        }
+
+        // Persist refreshed credentials if the provider returned them
+        if (isset($data['updatedCredentials'])) {
+            $connection->setCredentials($data['updatedCredentials']);
+            $connection->setUpdatedAt($now);
+            $this->connectionMapper->update($connection);
+        }
+
         // Add any new accounts that don't exist yet
         $newMappings = [];
         foreach ($data['accounts'] as $account) {
@@ -388,8 +404,9 @@ class BankSyncService {
         ]);
 
         // Update connection with new credentials (new requisitionId, fresh token)
+        // Status stays pending until user completes bank authorization
         $connection->setCredentials($result['credentials']);
-        $connection->setStatus('active');
+        $connection->setStatus('pending_auth');
         $connection->setLastError(null);
         $connection->setUpdatedAt(date('Y-m-d H:i:s'));
         $this->connectionMapper->update($connection);

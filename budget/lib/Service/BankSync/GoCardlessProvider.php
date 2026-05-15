@@ -176,19 +176,28 @@ class GoCardlessProvider implements BankSyncProviderInterface {
         }
 
         try {
-            $accessToken = $creds['accessToken'];
-            if (isset($creds['tokenExpires']) && time() > $creds['tokenExpires']) {
-                $newToken = $this->getAccessToken($creds['secretId'], $creds['secretKey']);
-                $accessToken = $newToken['access'];
+            // Use the token from fetchAccounts' refresh cycle — don't refresh here
+            // to avoid duplicate API calls. If token is expired, getRequisition will
+            // fail and we fall through to the catch which returns false (unknown),
+            // letting fetchAccounts handle the refresh.
+            $accessToken = $creds['accessToken'] ?? null;
+            if (!$accessToken) {
+                return true;
             }
 
             $requisition = $this->getRequisition($accessToken, $creds['requisitionId']);
             $status = $requisition['status'] ?? '';
 
             // GoCardless statuses: CR (created), LN (linked), EX (expired), RJ (rejected), SA (suspended)
-            return !in_array($status, ['LN'], true);
+            // Only definitively expired/rejected/suspended statuses require reauth.
+            // CR (created) means auth in progress — not expired.
+            return in_array($status, ['EX', 'RJ', 'SA'], true);
         } catch (\Exception $e) {
-            return true;
+            // Transient API errors (network, expired token) should NOT mark
+            // the connection as expired. Let fetchAccounts handle its own
+            // token refresh and fail with a proper error if needed.
+            $this->logger->warning('GoCardless: reauth check failed, assuming OK: ' . $e->getMessage(), ['app' => 'budget']);
+            return false;
         }
     }
 

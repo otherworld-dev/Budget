@@ -333,7 +333,7 @@ return [
         // Bank Sync routes
         ['name' => 'bankSync#status', 'url' => '/api/bank-sync/status', 'verb' => 'GET'],
         ['name' => 'bankSync#providers', 'url' => '/api/bank-sync/providers', 'verb' => 'GET'],
-        ['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'GET'],
+        ['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'POST'],
         ['name' => 'bankSync#connections', 'url' => '/api/bank-sync/connections', 'verb' => 'GET'],
         ['name' => 'bankSync#connect', 'url' => '/api/bank-sync/connections', 'verb' => 'POST'],
         ['name' => 'bankSync#disconnect', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'DELETE'],
