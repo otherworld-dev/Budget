@@ -335,4 +335,37 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame($mappings, $response->getData());
 	}
+
+	// ── reauthorize ────────────────────────────────────────────────
+
+	public function testReauthorizeSuccess(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'institutionId' => 'BANK_ID',
+			'redirectUrl' => 'https://app/callback',
+		]);
+
+		$this->syncService->method('reauthorize')->willReturn([
+			'authorizationUrl' => 'https://bank.example.com/auth',
+		]);
+
+		$response = $this->controller->reauthorize(1);
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertEquals('https://bank.example.com/auth', $response->getData()['authorizationUrl']);
+	}
+
+	public function testReauthorizeMissingInstitutionId(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([]);
+
+		$response = $this->controller->reauthorize(1);
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testReauthorizeDisabledReturns403(): void {
+		$this->disableBankSync();
+
+		$response = $this->controller->reauthorize(1);
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
 }

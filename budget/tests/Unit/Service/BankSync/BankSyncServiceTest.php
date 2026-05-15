@@ -569,6 +569,72 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertCount(1, $result);
 	}
 
+	// ===== reauthorize =====
+
+	public function testReauthorizeCreatesNewRequisitionAndUpdatesConnection(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = new BankConnection();
+		$connection->setId(1);
+		$connection->setUserId(self::USER_ID);
+		$connection->setProvider('gocardless');
+		$connection->setCredentials(json_encode([
+			'secretId' => 'sid',
+			'secretKey' => 'skey',
+			'accessToken' => 'old-token',
+			'requisitionId' => 'old-req',
+		]));
+		$connection->setStatus('expired');
+
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($this->provider);
+
+		$this->provider->method('initializeConnection')->willReturn([
+			'credentials' => json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'new-req']),
+			'accounts' => [],
+			'authorizationUrl' => 'https://bank.example.com/auth',
+		]);
+
+		$this->connectionMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankConnection $c) {
+				$this->assertEquals('active', $c->getStatus());
+				$this->assertNull($c->getLastError());
+				$creds = json_decode($c->getCredentials(), true);
+				$this->assertEquals('new-req', $creds['requisitionId']);
+				return $c;
+			});
+
+		$result = $this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', 'https://app/callback');
+
+		$this->assertEquals('https://bank.example.com/auth', $result['authorizationUrl']);
+	}
+
+	public function testReauthorizeRejectsNonGoCardlessProvider(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = new BankConnection();
+		$connection->setId(1);
+		$connection->setUserId(self::USER_ID);
+		$connection->setProvider('simplefin');
+		$connection->setCredentials('{}');
+
+		$this->connectionMapper->method('find')->willReturn($connection);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('only supported for GoCardless');
+
+		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
+	}
+
+	public function testReauthorizeThrowsWhenDisabled(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(false);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('disabled');
+
+		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
+	}
+
 	// ===== Helpers =====
 
 	private function createConnection(int $id, string $provider, string $name, string $status): BankConnection {
