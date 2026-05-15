@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ForecastController;
 use OCA\Budget\Service\ForecastService;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -25,9 +26,13 @@ class ForecastControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new ForecastController(
 			$request,
 			$this->service,
+			$granularShareService,
 			$l,
 			'user1',
 			$logger

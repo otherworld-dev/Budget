@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\GoalsController;
 use OCA\Budget\Db\SavingsGoal;
 use OCA\Budget\Service\GoalsService;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -32,10 +33,14 @@ class GoalsControllerTest extends TestCase {
 		$validationService = new ValidationService($l);
 		$logger = $this->createMock(LoggerInterface::class);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new GoalsController(
 			$this->request,
 			$this->service,
 			$validationService,
+			$granularShareService,
 			$l,
 			'user1',
 			$logger

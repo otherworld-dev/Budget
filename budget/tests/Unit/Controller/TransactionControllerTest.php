@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\TransactionController;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\TransactionTagService;
@@ -50,12 +51,17 @@ class TransactionControllerTest extends TestCase {
 		$this->validationService->method('validateNotes')
 			->willReturn(['valid' => true, 'sanitized' => 'Some notes']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+
 		$this->controller = new TransactionController(
 			$this->request,
 			$this->service,
 			$this->splitService,
 			$this->tagService,
 			$this->validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
@@ -108,6 +114,7 @@ class TransactionControllerTest extends TestCase {
 
 	public function testShowReturnsNotFound(): void {
 		$this->service->method('find')->willThrowException(new \RuntimeException('not found'));
+		$this->service->method('findForAccounts')->willThrowException(new \RuntimeException('not found'));
 
 		$response = $this->controller->show(999);
 
@@ -145,9 +152,12 @@ class TransactionControllerTest extends TestCase {
 		$this->validationService->method('validateNotes')
 			->willReturn(['valid' => true, 'sanitized' => '']);
 
+		$granularShareService2 = $this->createMock(GranularShareService::class);
+		$granularShareService2->method('canAccess')->willReturn(true);
+		$granularShareService2->method('getOwnAccountIds')->willReturn([1, 2, 3]);
 		$this->controller = new TransactionController(
 			$this->request, $this->service, $this->splitService,
-			$this->tagService, $this->validationService, $this->l, 'user1', $this->logger
+			$this->tagService, $this->validationService, $granularShareService2, $this->l, 'user1', $this->logger
 		);
 
 		$response = $this->controller->create(1, '2026-03-01', str_repeat('x', 1000), 100.00, 'debit');

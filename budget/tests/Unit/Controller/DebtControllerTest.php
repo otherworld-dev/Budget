@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\DebtController;
 use OCA\Budget\Service\DebtPayoffService;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -25,9 +26,13 @@ class DebtControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new DebtController(
 			$request,
 			$this->service,
+			$granularShareService,
 			$l,
 			'user1',
 			$logger

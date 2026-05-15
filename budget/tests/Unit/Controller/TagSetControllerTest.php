@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\TagSetController;
 use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\TagSet;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TagSetService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
@@ -43,34 +44,38 @@ class TagSetControllerTest extends TestCase {
 				return ['valid' => true, 'sanitized' => $color];
 			});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new TagSetController(
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
 		);
 
-		// Register mock stream wrapper for php://input
-		MockPhpInputStream::$data = '';
-		stream_wrapper_unregister('php');
-		stream_wrapper_register('php', MockPhpInputStream::class);
-	}
-
-	protected function tearDown(): void {
-		stream_wrapper_restore('php');
 	}
 
 	private function mockInput(string $json): void {
-		MockPhpInputStream::$data = $json;
+		$data = json_decode($json, true);
+		if ($data === null && $json !== 'null') {
+			$this->request->method('getParams')->willReturn([]);
+		} else {
+			$this->request->method('getParams')->willReturn(is_array($data) ? $data : []);
+		}
 	}
 
 	private function controllerWithValidation(ValidationService $vs): TagSetController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
 		return new TagSetController(
 			$this->request,
 			$this->service,
 			$vs,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger

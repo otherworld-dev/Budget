@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\YearOverYearController;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\YearOverYearService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
@@ -28,9 +29,13 @@ class YearOverYearControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new YearOverYearController(
 			$this->request,
 			$this->service,
+			$granularShareService,
 			$l,
 			'user1',
 			$this->logger

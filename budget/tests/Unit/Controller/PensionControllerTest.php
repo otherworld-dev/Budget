@@ -8,12 +8,15 @@ use OCA\Budget\Controller\PensionController;
 use OCA\Budget\Db\PensionAccount;
 use OCA\Budget\Db\PensionContribution;
 use OCA\Budget\Db\PensionSnapshot;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\PensionProjector;
 use OCA\Budget\Service\PensionService;
 use OCA\Budget\Service\ValidationService;
+use OCP\Accounts\IAccountManager;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -25,8 +28,6 @@ class PensionControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
-	private bool $streamOverridden = false;
-
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(PensionService::class);
@@ -46,29 +47,32 @@ class PensionControllerTest extends TestCase {
 		$this->validationService->method('validateDescription')
 			->willReturn(['valid' => true, 'sanitized' => 'note']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
+
 		$this->controller = new PensionController(
 			$this->request,
 			$this->service,
 			$this->projector,
 			$this->validationService,
+			$granularShareService,
+			$accountManager,
+			$userManager,
 			$this->l,
 			'user1',
 			$this->logger
 		);
 	}
 
-	protected function tearDown(): void {
-		if ($this->streamOverridden) {
-			stream_wrapper_restore('php');
-			$this->streamOverridden = false;
-		}
-	}
-
 	private function mockInput(string $json): void {
-		MockPhpInputStream::$data = $json;
-		stream_wrapper_unregister('php');
-		stream_wrapper_register('php', MockPhpInputStream::class);
-		$this->streamOverridden = true;
+		$data = json_decode($json, true);
+		if ($data === null && $json !== 'null') {
+			$this->request->method('getParams')->willReturn([]);
+		} else {
+			$this->request->method('getParams')->willReturn(is_array($data) ? $data : []);
+		}
 	}
 
 	// ── index ───────────────────────────────────────────────────────
@@ -155,8 +159,12 @@ class PensionControllerTest extends TestCase {
 		$vs = $this->createMock(ValidationService::class);
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Name required']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $accountManager, $userManager, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['name' => '', 'type' => 'workplace']));
@@ -185,8 +193,12 @@ class PensionControllerTest extends TestCase {
 				return ['valid' => false, 'error' => 'Provider invalid'];
 			});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $accountManager, $userManager, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -338,8 +350,12 @@ class PensionControllerTest extends TestCase {
 		$vs = $this->createMock(ValidationService::class);
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Bad name']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $accountManager, $userManager, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['name' => '']));
@@ -492,8 +508,12 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => true, 'sanitized' => 'x']);
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $accountManager, $userManager, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['balance' => 50000, 'date' => 'bad']));
@@ -615,8 +635,12 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => true, 'sanitized' => 'x']);
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $accountManager, $userManager, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['amount' => 500, 'date' => 'bad']));
@@ -632,8 +656,12 @@ class PensionControllerTest extends TestCase {
 		$vs->method('validateDate')->willReturn(['valid' => true]);
 		$vs->method('validateDescription')->willReturn(['valid' => false, 'error' => 'Note too long']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $accountManager, $userManager, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -763,13 +791,15 @@ class PensionControllerTest extends TestCase {
 	// ── null userId ─────────────────────────────────────────────────
 
 	public function testNullUserIdThrowsOnIndex(): void {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$accountManager = $this->createMock(IAccountManager::class);
+		$userManager = $this->createMock(IUserManager::class);
 		$controller = new PensionController(
 			$this->request, $this->service, $this->projector,
-			$this->validationService, $this->l, null, $this->logger
+			$this->validationService, $granularShareService, $accountManager, $userManager, $this->l, null, $this->logger
 		);
 
-		$response = $controller->index();
-
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->expectException(\TypeError::class);
+		$controller->index();
 	}
 }

@@ -8,6 +8,9 @@ use OCA\Budget\Controller\AccountController;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AuditService;
+use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\InterestService;
+use OCA\Budget\Service\InvestmentService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -23,8 +26,6 @@ class AccountControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
-	private bool $streamOverridden = false;
-
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(AccountService::class);
@@ -54,29 +55,34 @@ class AccountControllerTest extends TestCase {
 		$this->validationService->method('validateSwiftBic')
 			->willReturn(['valid' => true, 'formatted' => 'DEUTDEFF']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$granularShareService->method('getSharedAccounts')->willReturn([]);
+		$interestService = $this->createMock(InterestService::class);
+		$investmentService = $this->createMock(InvestmentService::class);
+
 		$this->controller = new AccountController(
 			$this->request,
 			$this->service,
 			$this->validationService,
 			$this->auditService,
+			$granularShareService,
+			$interestService,
+			$investmentService,
 			$this->l,
 			'user1',
 			$this->logger
 		);
 	}
 
-	protected function tearDown(): void {
-		if ($this->streamOverridden) {
-			stream_wrapper_restore('php');
-			$this->streamOverridden = false;
-		}
-	}
-
 	private function mockInput(string $json): void {
-		MockPhpInputStream::$data = $json;
-		stream_wrapper_unregister('php');
-		stream_wrapper_register('php', MockPhpInputStream::class);
-		$this->streamOverridden = true;
+		$data = json_decode($json, true);
+		if ($data === null && $json !== 'null') {
+			$this->request->method('getParams')->willReturn([]);
+		} else {
+			$this->request->method('getParams')->willReturn(is_array($data) ? $data : []);
+		}
 	}
 
 	private function makeAccount(array $overrides = []): Account {
@@ -91,11 +97,20 @@ class AccountControllerTest extends TestCase {
 	}
 
 	private function controllerWithValidation(ValidationService $vs): AccountController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$granularShareService->method('getSharedAccounts')->willReturn([]);
+		$interestService = $this->createMock(InterestService::class);
+		$investmentService = $this->createMock(InvestmentService::class);
 		return new AccountController(
 			$this->request,
 			$this->service,
 			$vs,
 			$this->auditService,
+			$granularShareService,
+			$interestService,
+			$investmentService,
 			$this->l,
 			'user1',
 			$this->logger

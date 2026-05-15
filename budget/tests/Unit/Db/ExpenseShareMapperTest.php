@@ -198,8 +198,8 @@ class ExpenseShareMapperTest extends TestCase {
     public function testGetBalancesByContactReturnsBalances(): void {
         $this->result->method('fetch')
             ->willReturnOnConsecutiveCalls(
-                ['contact_id' => '5', 'balance' => '75.50'],
-                ['contact_id' => '8', 'balance' => '-30.00'],
+                ['contact_id' => '5', 'currency' => 'USD', 'balance' => '75.50'],
+                ['contact_id' => '8', 'currency' => 'USD', 'balance' => '-30.00'],
                 false
             );
         $this->result->method('closeCursor');
@@ -209,8 +209,8 @@ class ExpenseShareMapperTest extends TestCase {
 
         $this->assertArrayHasKey(5, $balances);
         $this->assertArrayHasKey(8, $balances);
-        $this->assertEquals(75.50, $balances[5]);
-        $this->assertEquals(-30.00, $balances[8]);
+        $this->assertEquals(75.50, $balances[5]['USD']);
+        $this->assertEquals(-30.00, $balances[8]['USD']);
     }
 
     public function testGetBalancesByContactReturnsEmptyWhenNone(): void {

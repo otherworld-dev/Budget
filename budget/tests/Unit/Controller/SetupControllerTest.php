@@ -10,10 +10,12 @@ use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\ImportRuleService;
+use OCA\Budget\Service\RepairService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class SetupControllerTest extends TestCase {
 	private SetupController $controller;
@@ -36,6 +38,9 @@ class SetupControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$repairService = $this->createMock(RepairService::class);
+		$logger = $this->createMock(LoggerInterface::class);
+
 		$this->controller = new SetupController(
 			$this->request,
 			$this->categoryService,
@@ -43,8 +48,10 @@ class SetupControllerTest extends TestCase {
 			$this->factoryResetService,
 			$this->auditService,
 			$this->accountService,
+			$repairService,
 			$l,
-			'user1'
+			'user1',
+			$logger
 		);
 	}
 

@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\RecurringIncomeController;
 use OCA\Budget\Db\RecurringIncome;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
@@ -39,10 +40,14 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->validationService->method('validatePattern')
 			->willReturn(['valid' => true, 'sanitized' => 'SALARY']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new RecurringIncomeController(
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
@@ -158,10 +163,12 @@ class RecurringIncomeControllerTest extends TestCase {
 		$validationService->method('validateFrequency')
 			->willReturn(['valid' => true, 'formatted' => 'monthly']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
 		$controller = new RecurringIncomeController(
 			$this->request,
 			$this->service,
 			$validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
@@ -179,10 +186,12 @@ class RecurringIncomeControllerTest extends TestCase {
 		$validationService->method('validateFrequency')
 			->willReturn(['valid' => false, 'error' => 'Invalid frequency']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
 		$controller = new RecurringIncomeController(
 			$this->request,
 			$this->service,
 			$validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger

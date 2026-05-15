@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\NetWorthController;
 use OCA\Budget\Db\NetWorthSnapshot;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\NetWorthService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -15,6 +16,7 @@ use Psr\Log\LoggerInterface;
 
 class NetWorthControllerTest extends TestCase {
 	private NetWorthService $service;
+	private GranularShareService $granularShareService;
 	private LoggerInterface $logger;
 	private IRequest $request;
 	private IL10N $l;
@@ -23,6 +25,7 @@ class NetWorthControllerTest extends TestCase {
 		return new NetWorthController(
 			$this->request,
 			$this->service,
+			$this->granularShareService,
 			$this->l,
 			$userId,
 			$this->logger
@@ -32,6 +35,8 @@ class NetWorthControllerTest extends TestCase {
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(NetWorthService::class);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		$this->granularShareService->method('canAccess')->willReturn(true);
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$this->l = $this->createMock(IL10N::class);
 		$this->l->method('t')->willReturnCallback(function ($text, $parameters = []) {
@@ -64,10 +69,9 @@ class NetWorthControllerTest extends TestCase {
 
 	public function testCurrentWithNullUserThrowsError(): void {
 		$controller = $this->makeController(null);
-		$response = $controller->current();
 
-		// getUserId() throws RuntimeException, caught by handleError
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->expectException(\TypeError::class);
+		$controller->current();
 	}
 
 	// ── snapshots ───────────────────────────────────────────────────

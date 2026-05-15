@@ -8,10 +8,12 @@ use OCA\Budget\Controller\SharedExpenseController;
 use OCA\Budget\Db\Contact;
 use OCA\Budget\Db\ExpenseShare;
 use OCA\Budget\Db\Settlement;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -30,9 +32,15 @@ class SharedExpenseControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$userManager = $this->createMock(IUserManager::class);
+
 		$this->controller = new SharedExpenseController(
 			$this->request,
 			$this->service,
+			$granularShareService,
+			$userManager,
 			$l,
 			'user1',
 			$this->logger
@@ -508,7 +516,7 @@ class SharedExpenseControllerTest extends TestCase {
 	// ── settleWithContact ───────────────────────────────────────────
 
 	public function testSettleWithContactReturnsCreated(): void {
-		$this->service->method('settleWithContact')->willReturn($this->makeSettlement());
+		$this->service->method('settleWithContact')->willReturn([$this->makeSettlement()]);
 
 		$response = $this->controller->settleWithContact(1, '2026-03-01');
 
@@ -519,7 +527,7 @@ class SharedExpenseControllerTest extends TestCase {
 		$this->service->expects($this->once())
 			->method('settleWithContact')
 			->with('user1', 1, '2026-03-01', null)
-			->willReturn($this->makeSettlement());
+			->willReturn([$this->makeSettlement()]);
 
 		$this->controller->settleWithContact(1, '2026-03-01');
 	}
@@ -528,7 +536,7 @@ class SharedExpenseControllerTest extends TestCase {
 		$this->service->expects($this->once())
 			->method('settleWithContact')
 			->with('user1', 1, '2026-03-01', 'full settlement')
-			->willReturn($this->makeSettlement());
+			->willReturn([$this->makeSettlement()]);
 
 		$response = $this->controller->settleWithContact(1, '2026-03-01', 'full settlement');
 

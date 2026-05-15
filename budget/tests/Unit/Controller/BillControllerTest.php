@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\BillController;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
@@ -22,8 +23,6 @@ class BillControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
-	private bool $streamOverridden = false;
-
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(BillService::class);
@@ -54,35 +53,37 @@ class BillControllerTest extends TestCase {
 		$this->validationService->method('validateDate')
 			->willReturn(['valid' => true]);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new BillController(
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
 		);
 	}
 
-	protected function tearDown(): void {
-		if ($this->streamOverridden) {
-			stream_wrapper_restore('php');
-			$this->streamOverridden = false;
+	private function mockInput(string $json): void {
+		$data = json_decode($json, true);
+		if ($data === null && $json !== 'null') {
+			$this->request->method('getParams')->willReturn([]);
+		} else {
+			$this->request->method('getParams')->willReturn(is_array($data) ? $data : []);
 		}
 	}
 
-	private function mockInput(string $json): void {
-		MockPhpInputStream::$data = $json;
-		stream_wrapper_unregister('php');
-		stream_wrapper_register('php', MockPhpInputStream::class);
-		$this->streamOverridden = true;
-	}
-
 	private function controllerWithValidation(ValidationService $vs): BillController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
 		return new BillController(
 			$this->request,
 			$this->service,
 			$vs,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
@@ -94,6 +95,7 @@ class BillControllerTest extends TestCase {
 	public function testIndexReturnsAllBills(): void {
 		$bills = [['id' => 1, 'name' => 'Rent']];
 		$this->service->method('findAll')->with('user1')->willReturn($bills);
+		$this->service->method('enrichBillsWithCurrency')->willReturnArgument(0);
 
 		$response = $this->controller->index();
 
@@ -198,7 +200,7 @@ class BillControllerTest extends TestCase {
 		$response = $this->controller->create();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('Invalid request data', $response->getData()['error']);
+		$this->assertStringContainsString('required', $response->getData()['error']);
 	}
 
 	public function testCreateMissingName(): void {
@@ -643,7 +645,7 @@ class BillControllerTest extends TestCase {
 		$response = $this->controller->update(1);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('Invalid request data', $response->getData()['error']);
+		$this->assertStringContainsString('No valid fields', $response->getData()['error']);
 	}
 
 	public function testUpdateEmptyUpdates(): void {

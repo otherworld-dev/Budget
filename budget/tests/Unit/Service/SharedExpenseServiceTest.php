@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Contact;
 use OCA\Budget\Db\ContactMapper;
 use OCA\Budget\Db\ExpenseShare;
@@ -28,12 +29,23 @@ class SharedExpenseServiceTest extends TestCase {
         $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
         $this->settlementMapper = $this->createMock(SettlementMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
+        $accountMapper = $this->createMock(AccountMapper::class);
+
+        // Default: accountMapper->find returns an account with USD currency
+        $account = new \OCA\Budget\Db\Account();
+        $account->setId(1);
+        $account->setCurrency('USD');
+        $accountMapper->method('find')->willReturn($account);
+
+        // Default: no existing shares on a transaction
+        $this->expenseShareMapper->method('findByTransaction')->willReturn([]);
 
         $this->service = new SharedExpenseService(
             $this->contactMapper,
             $this->expenseShareMapper,
             $this->settlementMapper,
-            $this->transactionMapper
+            $this->transactionMapper,
+            $accountMapper
         );
     }
 
@@ -60,8 +72,10 @@ class SharedExpenseServiceTest extends TestCase {
         $tx = new Transaction();
         $tx->setId($id);
         $tx->setAmount($amount);
+        $tx->setAccountId(1);
         $tx->setDate('2026-03-01');
         $tx->setDescription('Test transaction');
+        $tx->setType($amount < 0 ? 'debit' : 'credit');
         return $tx;
     }
 
@@ -213,7 +227,7 @@ class SharedExpenseServiceTest extends TestCase {
 
         $this->contactMapper->method('findAll')->willReturn([$alice, $bob]);
         $this->expenseShareMapper->method('getBalancesByContact')
-            ->willReturn([1 => 50.0, 2 => -30.0]);
+            ->willReturn([1 => ['USD' => 50.0], 2 => ['USD' => -30.0]]);
 
         $result = $this->service->getBalanceSummary('user1');
 

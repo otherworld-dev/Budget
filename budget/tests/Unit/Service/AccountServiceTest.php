@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\CurrencyConversionService;
@@ -31,9 +32,12 @@ class AccountServiceTest extends TestCase {
             }
             return $text;
         });
+        $interestRateMapper = $this->createMock(InterestRateMapper::class);
+
         $this->service = new AccountService(
             $this->accountMapper,
             $this->transactionMapper,
+            $interestRateMapper,
             $this->conversionService,
             $l
         );

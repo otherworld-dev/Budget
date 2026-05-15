@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\Tag;
@@ -39,9 +40,12 @@ class CategoryServiceTest extends TestCase {
             }
             return $text;
         });
+        $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
+
         $this->service = new CategoryService(
             $this->categoryMapper,
             $this->transactionMapper,
+            $budgetSnapshotMapper,
             $this->tagSetMapper,
             $this->tagMapper,
             $this->transactionTagMapper,
