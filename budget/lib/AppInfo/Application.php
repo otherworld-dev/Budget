@@ -643,6 +643,7 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Service\AuditService::class),
                 $c->get(\OCA\Budget\Service\AdminSettingService::class),
                 $c->get(\OCA\Budget\Db\AccountMapper::class),
+                $c->get(\OCP\IL10N::class),
                 $c->get(\Psr\Log\LoggerInterface::class)
             );
         });
