@@ -62,10 +62,28 @@ interface BankSyncProviderInterface {
     public function fetchAccounts(string $credentials): array;
 
     /**
+     * Fetch account metadata only (no transactions). Used by refreshAccounts
+     * to avoid wasting API quota fetching transactions that will be discarded.
+     * Default implementation calls fetchAccounts — providers can override for efficiency.
+     *
+     * @param string $credentials Provider-specific stored credentials
+     * @return array Same format as fetchAccounts but transactions arrays may be empty
+     */
+    public function fetchAccountList(string $credentials): array;
+
+    /**
      * Check if the connection needs re-authorization (e.g. GoCardless 90-day consent).
      *
      * @param string $credentials Provider-specific stored credentials
      * @return bool True if re-auth is needed
      */
     public function requiresReauthorization(string $credentials): bool;
+
+    /**
+     * Revoke the connection at the provider side (best-effort).
+     * Called during disconnect. Implementations should not throw on failure.
+     *
+     * @param string $credentials Provider-specific stored credentials
+     */
+    public function revokeConnection(string $credentials): void;
 }

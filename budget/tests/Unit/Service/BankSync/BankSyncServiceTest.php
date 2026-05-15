@@ -475,7 +475,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('Mapping does not belong to this connection');
 
-		$this->service->updateMapping(self::USER_ID, 1, 10, 100, true);
+		$this->service->updateMapping(self::USER_ID, 1, 10, 100, false, true);
 	}
 
 	public function testUpdateMappingUpdatesBudgetAccountIdAndEnabled(): void {
@@ -497,7 +497,7 @@ class BankSyncServiceTest extends TestCase {
 				return $m;
 			});
 
-		$result = $this->service->updateMapping(self::USER_ID, 1, 10, 200, true);
+		$result = $this->service->updateMapping(self::USER_ID, 1, 10, 200, false, true);
 
 		$this->assertInstanceOf(BankAccountMapping::class, $result);
 	}
@@ -511,7 +511,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
 
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
-		$this->provider->method('fetchAccounts')->willReturn([
+		$this->provider->method('fetchAccountList')->willReturn([
 			'accounts' => [
 				['id' => 'ext-new', 'name' => 'New Account', 'balance' => '3000', 'currency' => 'EUR'],
 			],
@@ -545,7 +545,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
 
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
-		$this->provider->method('fetchAccounts')->willReturn([
+		$this->provider->method('fetchAccountList')->willReturn([
 			'accounts' => [
 				['id' => 'ext-1', 'name' => 'Checking', 'balance' => '9999.99', 'currency' => 'USD'],
 			],

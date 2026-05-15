@@ -63,7 +63,7 @@ class BankSyncJobTest extends TestCase {
     public function testRunReturnsEarlyWhenBankSyncDisabled(): void {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(false);
 
-        $this->connectionMapper->expects($this->never())->method('findActiveForSync');
+        $this->connectionMapper->expects($this->never())->method('findActiveIdsForSync');
         $this->syncService->expects($this->never())->method('sync');
 
         $this->invokeRun();
@@ -71,7 +71,7 @@ class BankSyncJobTest extends TestCase {
 
     public function testRunCompletesWithNoConnections(): void {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
-        $this->connectionMapper->method('findActiveForSync')->willReturn([]);
+        $this->connectionMapper->method('findActiveIdsForSync')->willReturn([]);
 
         $this->logger->expects($this->once())
             ->method('info')
@@ -86,10 +86,10 @@ class BankSyncJobTest extends TestCase {
     public function testRunSyncsEachActiveConnection(): void {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
-        $conn1 = $this->makeConnection(1, 'user1');
-        $conn2 = $this->makeConnection(2, 'user2');
-
-        $this->connectionMapper->method('findActiveForSync')->willReturn([$conn1, $conn2]);
+        $this->connectionMapper->method('findActiveIdsForSync')->willReturn([
+            ['id' => 1, 'userId' => 'user1'],
+            ['id' => 2, 'userId' => 'user2'],
+        ]);
 
         $this->syncService->expects($this->exactly(2))
             ->method('sync')
@@ -112,10 +112,10 @@ class BankSyncJobTest extends TestCase {
     public function testRunContinuesOnIndividualSyncFailure(): void {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
-        $conn1 = $this->makeConnection(1, 'user1');
-        $conn2 = $this->makeConnection(2, 'user2');
-
-        $this->connectionMapper->method('findActiveForSync')->willReturn([$conn1, $conn2]);
+        $this->connectionMapper->method('findActiveIdsForSync')->willReturn([
+            ['id' => 1, 'userId' => 'user1'],
+            ['id' => 2, 'userId' => 'user2'],
+        ]);
 
         $callCount = 0;
         $this->syncService->method('sync')

@@ -104,11 +104,12 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         // Normalize to common format
         $accounts = [];
         foreach ($data['accounts'] as $account) {
+            $accountId = $account['id'] ?? '';
             $transactions = [];
-            foreach ($account['transactions'] ?? [] as $tx) {
+            foreach ($account['transactions'] ?? [] as $idx => $tx) {
                 $amount = (string) ($tx['amount'] ?? '0');
                 $transactions[] = [
-                    'id' => $tx['id'] ?? hash('sha256', ($tx['posted'] ?? '') . ($tx['amount'] ?? '') . ($tx['description'] ?? '')),
+                    'id' => $tx['id'] ?? hash('sha256', $accountId . ':' . $idx . ':' . ($tx['posted'] ?? '') . ':' . $amount . ':' . ($tx['description'] ?? '')),
                     'date' => isset($tx['posted']) ? date('Y-m-d', (int) $tx['posted']) : date('Y-m-d'),
                     'amount' => $amount,
                     'description' => $tx['description'] ?? '',
@@ -128,8 +129,17 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         return ['accounts' => $accounts];
     }
 
+    public function fetchAccountList(string $credentials): array {
+        // SimpleFIN doesn't have a separate metadata endpoint
+        return $this->fetchAccounts($credentials);
+    }
+
     public function requiresReauthorization(string $credentials): bool {
         // SimpleFIN access URLs are long-lived until revoked by the user
         return false;
+    }
+
+    public function revokeConnection(string $credentials): void {
+        // SimpleFIN has no revocation API — user revokes at simplefin.org
     }
 }

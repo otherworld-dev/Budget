@@ -69,6 +69,27 @@ class BankConnectionMapper extends QBMapper {
         return $entities;
     }
 
+    /**
+     * Find active connection IDs and user IDs for background sync.
+     * Returns lightweight data to avoid decrypting all credentials into memory at once.
+     *
+     * @return array<array{id: int, userId: string}>
+     */
+    public function findActiveIdsForSync(): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id', 'user_id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('status', $qb->createNamedParameter('active')));
+
+        $result = $qb->executeQuery();
+        $rows = [];
+        while ($row = $result->fetch()) {
+            $rows[] = ['id' => (int) $row['id'], 'userId' => $row['user_id']];
+        }
+        $result->closeCursor();
+        return $rows;
+    }
+
     public function insert(Entity $entity): Entity {
         $this->encryptEntity($entity);
         $result = parent::insert($entity);

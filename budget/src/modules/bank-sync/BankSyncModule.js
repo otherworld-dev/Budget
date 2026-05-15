@@ -265,6 +265,11 @@ export default class BankSyncModule {
         this._wizardAuthUrl = null;
         this._selectedInstitutionId = null;
         this._institutions = [];
+        this._reauthorizeConnectionId = null;
+        this._authComplete = false;
+        this._busy = false;
+        const fallback = document.getElementById('bank-sync-auth-link-fallback');
+        if (fallback) fallback.style.display = 'none';
     }
 
     _showStepError(step, message) {
@@ -278,6 +283,8 @@ export default class BankSyncModule {
     // ── Wizard Step 1: Credentials ──────────────────────────────
 
     async handleStep1Next() {
+        if (this._busy) return;
+
         const provider = document.getElementById('bank-sync-provider').value;
         const name = document.getElementById('bank-sync-name').value.trim();
 
@@ -306,6 +313,7 @@ export default class BankSyncModule {
         this._wizardCredentials = { secretId, secretKey, name, provider };
 
         const btn = document.getElementById('bank-sync-step1-next');
+        this._busy = true;
         btn.disabled = true;
         btn.textContent = t('budget', 'Validating...');
 
@@ -317,6 +325,7 @@ export default class BankSyncModule {
         } catch (error) {
             this._showStepError(1, t('budget', 'Invalid credentials: {error}', { error: error.message }));
         } finally {
+            this._busy = false;
             btn.disabled = false;
             btn.textContent = t('budget', 'Next');
         }
@@ -328,6 +337,11 @@ export default class BankSyncModule {
             this._showStepError(1, t('budget', 'Please enter a setup token'));
             return;
         }
+
+        const btn = document.getElementById('bank-sync-step1-next');
+        this._busy = true;
+        btn.disabled = true;
+        btn.textContent = t('budget', 'Connecting...');
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
@@ -346,6 +360,10 @@ export default class BankSyncModule {
             await this.loadConnections();
         } catch (error) {
             this._showStepError(1, t('budget', 'Failed to connect: {error}', { error: error.message }));
+        } finally {
+            this._busy = false;
+            btn.disabled = false;
+            btn.textContent = t('budget', 'Next');
         }
     }
 
@@ -464,9 +482,10 @@ export default class BankSyncModule {
     // ── Wizard Step 2 → 3: Connect & Open Auth ──────────────────
 
     async handleStep2Connect() {
-        if (!this._selectedInstitutionId) return;
+        if (!this._selectedInstitutionId || this._busy) return;
 
         const btn = document.getElementById('bank-sync-step2-connect');
+        this._busy = true;
         btn.disabled = true;
         btn.textContent = t('budget', 'Connecting...');
 
@@ -531,6 +550,7 @@ export default class BankSyncModule {
         } catch (error) {
             this._showStepError(2, t('budget', 'Failed to connect: {error}', { error: error.message }));
         } finally {
+            this._busy = false;
             btn.disabled = false;
             btn.textContent = t('budget', 'Connect');
         }
@@ -541,7 +561,17 @@ export default class BankSyncModule {
     async handleCheckAuth() {
         if (!this._wizardConnectionId) return;
 
+        // If auth already completed, close and reload
+        if (this._authComplete) {
+            document.getElementById('bank-sync-modal').style.display = 'none';
+            this.loadConnections();
+            return;
+        }
+
+        if (this._busy) return;
+
         const btn = document.getElementById('bank-sync-check-auth');
+        this._busy = true;
         btn.disabled = true;
         btn.textContent = t('budget', 'Checking...');
 
@@ -559,17 +589,13 @@ export default class BankSyncModule {
             const mappings = await response.json();
 
             if (Array.isArray(mappings) && mappings.length > 0) {
+                this._authComplete = true;
                 const successEl = document.getElementById('bank-sync-step3-success');
                 if (successEl) {
                     successEl.textContent = t('budget', 'Authorization successful! {count} account(s) found. You can now close this dialog and set up your account mappings.', { count: mappings.length });
                     successEl.style.display = 'block';
                 }
                 btn.textContent = t('budget', 'Done');
-                btn.onclick = () => {
-                    document.getElementById('bank-sync-modal').style.display = 'none';
-                    this.loadConnections();
-                    btn.onclick = null;
-                };
                 btn.disabled = false;
             } else {
                 this._showStepError(3, t('budget', 'Authorization not yet complete. Please finish the authorization in the bank window and try again.'));
@@ -577,7 +603,8 @@ export default class BankSyncModule {
         } catch (error) {
             this._showStepError(3, t('budget', 'Authorization check failed: {error}', { error: error.message }));
         } finally {
-            if (btn.textContent !== t('budget', 'Done')) {
+            this._busy = false;
+            if (!this._authComplete) {
                 btn.disabled = false;
                 btn.textContent = t('budget', "I've Completed Authorization");
             }
@@ -590,8 +617,8 @@ export default class BankSyncModule {
         const conn = this.connections.find(c => c.connection.id === connectionId);
         if (!conn) return;
 
-        this._reauthorizeConnectionId = connectionId;
         this._resetWizardState();
+        this._reauthorizeConnectionId = connectionId;
 
         const modal = document.getElementById('bank-sync-modal');
         if (!modal) return;
@@ -708,7 +735,8 @@ export default class BankSyncModule {
             if (!response.ok) throw new Error('Failed to disconnect');
 
             showSuccess(t('budget', 'Bank disconnected'));
-            document.getElementById('bank-mappings-section').style.display = 'none';
+            const mappingsSection = document.getElementById('bank-mappings-section');
+            if (mappingsSection) mappingsSection.style.display = 'none';
             await this.loadConnections();
         } catch (error) {
             showError(t('budget', 'Failed to disconnect bank'));

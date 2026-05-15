@@ -221,10 +221,12 @@ class BankSyncController extends Controller {
 
         try {
             $params = $this->request->getParams();
-            $budgetAccountId = array_key_exists('budgetAccountId', $params) ? ($params['budgetAccountId'] !== null ? (int) $params['budgetAccountId'] : null) : null;
+            $hasBudgetAccountId = array_key_exists('budgetAccountId', $params);
+            $budgetAccountId = $hasBudgetAccountId ? ($params['budgetAccountId'] !== null ? (int) $params['budgetAccountId'] : null) : null;
+            $clearBudgetAccount = $hasBudgetAccountId && $params['budgetAccountId'] === null;
             $enabled = isset($params['enabled']) ? (bool) $params['enabled'] : null;
 
-            $mapping = $this->syncService->updateMapping($this->userId, $id, $mappingId, $budgetAccountId, $enabled);
+            $mapping = $this->syncService->updateMapping($this->userId, $id, $mappingId, $budgetAccountId, $clearBudgetAccount, $enabled);
             return new DataResponse($mapping);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update mapping'), Http::STATUS_BAD_REQUEST);

@@ -86,6 +86,14 @@ class BankSyncService {
     public function disconnect(string $userId, int $connectionId): void {
         $connection = $this->connectionMapper->find($connectionId, $userId);
 
+        // Revoke access at the provider (best-effort, won't throw)
+        try {
+            $provider = $this->providerFactory->getProvider($connection->getProvider());
+            $provider->revokeConnection($connection->getCredentials());
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to revoke provider connection: ' . $e->getMessage(), ['app' => 'budget']);
+        }
+
         $this->mappingMapper->deleteByConnection($connectionId);
         $this->connectionMapper->delete($connection);
 
@@ -298,7 +306,7 @@ class BankSyncService {
     /**
      * Update an account mapping (map external → Budget account, enable/disable).
      */
-    public function updateMapping(string $userId, int $connectionId, int $mappingId, ?int $budgetAccountId, ?bool $enabled): BankAccountMapping {
+    public function updateMapping(string $userId, int $connectionId, int $mappingId, ?int $budgetAccountId, bool $clearBudgetAccount, ?bool $enabled): BankAccountMapping {
         // Verify connection ownership
         $this->connectionMapper->find($connectionId, $userId);
 
@@ -307,7 +315,9 @@ class BankSyncService {
             throw new \Exception('Mapping does not belong to this connection');
         }
 
-        if ($budgetAccountId !== null) {
+        if ($clearBudgetAccount) {
+            $mapping->setBudgetAccountId(null);
+        } elseif ($budgetAccountId !== null) {
             // Verify the budget account belongs to this user
             $this->accountMapper->find($budgetAccountId, $userId);
             $mapping->setBudgetAccountId($budgetAccountId);
@@ -329,7 +339,7 @@ class BankSyncService {
 
         $connection = $this->connectionMapper->find($connectionId, $userId);
         $provider = $this->providerFactory->getProvider($connection->getProvider());
-        $data = $provider->fetchAccounts($connection->getCredentials());
+        $data = $provider->fetchAccountList($connection->getCredentials());
         $now = date('Y-m-d H:i:s');
 
         // If accounts were fetched successfully and connection was pending auth,

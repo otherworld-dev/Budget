@@ -38,20 +38,21 @@ class BankSyncJob extends TimedJob {
         $connectionMapper = Server::get(BankConnectionMapper::class);
 
         try {
-            $connections = $connectionMapper->findActiveForSync();
+            // Fetch only IDs to avoid decrypting all credentials into memory at once
+            $connectionRefs = $connectionMapper->findActiveIdsForSync();
 
             $syncCount = 0;
             $errorCount = 0;
 
-            foreach ($connections as $connection) {
+            foreach ($connectionRefs as $ref) {
                 try {
-                    $syncService->sync($connection->getUserId(), $connection->getId());
+                    $syncService->sync($ref['userId'], $ref['id']);
                     $syncCount++;
                 } catch (\Exception $e) {
                     $errorCount++;
                     $logger->warning(
-                        "Bank sync failed for connection {$connection->getId()}: " . $e->getMessage(),
-                        ['app' => 'budget', 'userId' => $connection->getUserId(), 'connectionId' => $connection->getId()]
+                        "Bank sync failed for connection {$ref['id']}: " . $e->getMessage(),
+                        ['app' => 'budget', 'userId' => $ref['userId'], 'connectionId' => $ref['id']]
                     );
                 }
             }

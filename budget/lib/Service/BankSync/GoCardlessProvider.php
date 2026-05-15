@@ -131,16 +131,17 @@ class GoCardlessProvider implements BankSyncProviderInterface {
 
                 $normalizedTx = [];
                 $bookedTx = $transactions['transactions']['booked'] ?? [];
-                foreach ($bookedTx as $tx) {
+                foreach ($bookedTx as $idx => $tx) {
                     $amount = $tx['transactionAmount']['amount'] ?? '0';
+                    $description = $tx['remittanceInformationUnstructured']
+                        ?? (!empty($tx['remittanceInformationUnstructuredArray']) ? $tx['remittanceInformationUnstructuredArray'][0] : null)
+                        ?? $tx['additionalInformation']
+                        ?? '';
                     $normalizedTx[] = [
-                        'id' => $tx['transactionId'] ?? $tx['internalTransactionId'] ?? hash('sha256', ($tx['bookingDate'] ?? '') . ($tx['transactionAmount']['amount'] ?? '') . ($tx['remittanceInformationUnstructured'] ?? '')),
+                        'id' => $tx['transactionId'] ?? $tx['internalTransactionId'] ?? hash('sha256', $accountId . ':' . $idx . ':' . ($tx['bookingDate'] ?? '') . ':' . $amount . ':' . $description),
                         'date' => $tx['bookingDate'] ?? $tx['valueDate'] ?? date('Y-m-d'),
                         'amount' => $amount,
-                        'description' => $tx['remittanceInformationUnstructured']
-                            ?? $tx['remittanceInformationUnstructuredArray'][0]
-                            ?? $tx['additionalInformation']
-                            ?? '',
+                        'description' => $description,
                         'vendor' => $tx['creditorName'] ?? $tx['debtorName'] ?? null,
                     ];
                 }
@@ -156,6 +157,73 @@ class GoCardlessProvider implements BankSyncProviderInterface {
                         ?? 'GBP',
                     'balance' => $balance,
                     'transactions' => $normalizedTx,
+                ];
+            } catch (\Exception $e) {
+                $this->logger->warning("GoCardless: failed to fetch account {$accountId}: " . $e->getMessage(), ['app' => 'budget']);
+            }
+        }
+
+        $result = ['accounts' => $accounts];
+        if ($updatedCredentials !== null) {
+            $result['updatedCredentials'] = $updatedCredentials;
+        }
+        return $result;
+    }
+
+    public function fetchAccountList(string $credentials): array {
+        $creds = json_decode($credentials, true);
+        if (!$creds) {
+            throw new \Exception('Invalid credentials format');
+        }
+
+        $accessToken = $creds['accessToken'];
+        $updatedCredentials = null;
+        if (isset($creds['tokenExpires']) && time() > $creds['tokenExpires']) {
+            $newToken = $this->getAccessToken($creds['secretId'], $creds['secretKey']);
+            $accessToken = $newToken['access'];
+            $creds['accessToken'] = $accessToken;
+            $creds['tokenExpires'] = time() + ($newToken['access_expires'] ?? 86400);
+            if (isset($newToken['refresh'])) {
+                $creds['refreshToken'] = $newToken['refresh'];
+            }
+            $updatedCredentials = json_encode($creds);
+        }
+
+        $requisitionId = $creds['requisitionId'] ?? null;
+        if (!$requisitionId) {
+            return ['accounts' => []];
+        }
+
+        $requisition = $this->getRequisition($accessToken, $requisitionId);
+        $accountIds = $requisition['accounts'] ?? [];
+
+        $accounts = [];
+        foreach ($accountIds as $accountId) {
+            try {
+                $details = $this->getAccountDetails($accessToken, $accountId);
+                $balances = $this->getAccountBalances($accessToken, $accountId);
+
+                $balance = '0';
+                if (!empty($balances['balances'])) {
+                    foreach ($balances['balances'] as $bal) {
+                        $balance = $bal['balanceAmount']['amount'] ?? '0';
+                        if (($bal['balanceType'] ?? '') === 'expected') {
+                            break;
+                        }
+                    }
+                }
+
+                $accounts[] = [
+                    'id' => $accountId,
+                    'name' => $details['account']['name']
+                        ?? $details['account']['product']
+                        ?? $details['account']['iban']
+                        ?? 'Account',
+                    'currency' => $details['account']['currency']
+                        ?? $balances['balances'][0]['balanceAmount']['currency']
+                        ?? 'EUR',
+                    'balance' => $balance,
+                    'transactions' => [],
                 ];
             } catch (\Exception $e) {
                 $this->logger->warning("GoCardless: failed to fetch account {$accountId}: " . $e->getMessage(), ['app' => 'budget']);
@@ -198,6 +266,24 @@ class GoCardlessProvider implements BankSyncProviderInterface {
             // token refresh and fail with a proper error if needed.
             $this->logger->warning('GoCardless: reauth check failed, assuming OK: ' . $e->getMessage(), ['app' => 'budget']);
             return false;
+        }
+    }
+
+    public function revokeConnection(string $credentials): void {
+        try {
+            $creds = json_decode($credentials, true);
+            if (!$creds || !isset($creds['requisitionId'], $creds['secretId'], $creds['secretKey'])) {
+                return;
+            }
+
+            $accessToken = $this->getAccessToken($creds['secretId'], $creds['secretKey'])['access'];
+            $client = $this->clientService->newClient();
+            $client->delete(self::BASE_URL . '/requisitions/' . urlencode($creds['requisitionId']) . '/', [
+                'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+                'timeout' => 15,
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->warning('GoCardless: failed to revoke requisition: ' . $e->getMessage(), ['app' => 'budget']);
         }
     }
 

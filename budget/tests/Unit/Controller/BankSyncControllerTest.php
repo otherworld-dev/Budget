@@ -303,7 +303,7 @@ class BankSyncControllerTest extends TestCase {
 		$mapping = $this->createMock(BankAccountMapping::class);
 		$this->syncService->expects($this->once())
 			->method('updateMapping')
-			->with('user1', 1, 10, 5, true)
+			->with('user1', 1, 10, 5, false, true)
 			->willReturn($mapping);
 
 		$response = $this->controller->updateMapping(1, 10);
