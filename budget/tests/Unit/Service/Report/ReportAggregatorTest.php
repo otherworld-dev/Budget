@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Report;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\CurrencyConversionService;
@@ -28,10 +29,13 @@ class ReportAggregatorTest extends TestCase {
 		$this->calculator = $this->createMock(ReportCalculator::class);
 		$this->conversionService = $this->createMock(CurrencyConversionService::class);
 
+		$budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
+
 		$this->aggregator = new ReportAggregator(
 			$this->accountMapper,
 			$this->transactionMapper,
 			$this->categoryMapper,
+			$budgetSnapshotMapper,
 			$this->calculator,
 			$this->conversionService
 		);

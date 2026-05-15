@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\TransactionSplitService;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class BillServiceTest extends TestCase {
 	private BillService $service;
@@ -33,12 +37,20 @@ class BillServiceTest extends TestCase {
 			}
 			return $text;
 		});
+		$accountMapper = $this->createMock(AccountMapper::class);
+		$currencyConversion = $this->createMock(CurrencyConversionService::class);
+		$splitService = $this->createMock(TransactionSplitService::class);
+		$logger = $this->createMock(LoggerInterface::class);
 		$this->service = new BillService(
 			$this->mapper,
 			$this->frequencyCalculator,
 			$this->recurringDetector,
 			$this->transactionService,
-			$l
+			$l,
+			$accountMapper,
+			$currencyConversion,
+			$splitService,
+			$logger
 		);
 	}
 

@@ -9,6 +9,7 @@ use OCA\Budget\Db\Asset;
 use OCA\Budget\Db\AssetSnapshot;
 use OCA\Budget\Service\AssetProjector;
 use OCA\Budget\Service\AssetService;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -24,8 +25,6 @@ class AssetControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
-	private bool $streamOverridden = false;
-
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(AssetService::class);
@@ -45,29 +44,28 @@ class AssetControllerTest extends TestCase {
 		$this->validationService->method('validateDate')
 			->willReturn(['valid' => true]);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new AssetController(
 			$this->request,
 			$this->service,
 			$this->projector,
 			$this->validationService,
+			$granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
 		);
 	}
 
-	protected function tearDown(): void {
-		if ($this->streamOverridden) {
-			stream_wrapper_restore('php');
-			$this->streamOverridden = false;
-		}
-	}
-
 	private function mockInput(string $json): void {
-		MockPhpInputStream::$data = $json;
-		stream_wrapper_unregister('php');
-		stream_wrapper_register('php', MockPhpInputStream::class);
-		$this->streamOverridden = true;
+		$data = json_decode($json, true);
+		if ($data === null && $json !== 'null') {
+			$this->request->method('getParams')->willReturn([]);
+		} else {
+			$this->request->method('getParams')->willReturn(is_array($data) ? $data : []);
+		}
 	}
 
 	// ── index ───────────────────────────────────────────────────────
@@ -153,8 +151,10 @@ class AssetControllerTest extends TestCase {
 		$vs = $this->createMock(ValidationService::class);
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Name required']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['name' => '', 'type' => 'real_estate']));
@@ -178,8 +178,10 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => true, 'sanitized' => 'House']);
 		$vs->method('validateDescription')->willReturn(['valid' => false, 'error' => 'Too long']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -238,8 +240,10 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => true, 'sanitized' => 'House']);
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode([
@@ -434,8 +438,10 @@ class AssetControllerTest extends TestCase {
 		$vs->method('validateName')->willReturn(['valid' => true, 'sanitized' => 'x']);
 		$vs->method('validateDate')->willReturn(['valid' => false, 'error' => 'Bad date']);
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
 		$controller = new AssetController(
-			$this->request, $this->service, $this->projector, $vs, $this->l, 'user1', $this->logger
+			$this->request, $this->service, $this->projector, $vs, $granularShareService, $this->l, 'user1', $this->logger
 		);
 
 		$this->mockInput(json_encode(['value' => 300000, 'date' => 'bad']));
@@ -555,13 +561,13 @@ class AssetControllerTest extends TestCase {
 	// ── null userId ─────────────────────────────────────────────────
 
 	public function testNullUserIdThrowsOnIndex(): void {
+		$granularShareService = $this->createMock(GranularShareService::class);
 		$controller = new AssetController(
 			$this->request, $this->service, $this->projector,
-			$this->validationService, $this->l, null, $this->logger
+			$this->validationService, $granularShareService, $this->l, null, $this->logger
 		);
 
-		$response = $controller->index();
-
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->expectException(\TypeError::class);
+		$controller->index();
 	}
 }

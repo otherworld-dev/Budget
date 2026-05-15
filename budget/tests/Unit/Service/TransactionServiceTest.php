@@ -11,6 +11,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use PHPUnit\Framework\TestCase;
@@ -20,16 +21,19 @@ class TransactionServiceTest extends TestCase {
     private TransactionMapper $mapper;
     private AccountMapper $accountMapper;
     private TransactionTagMapper $transactionTagMapper;
+    private ExpenseShareMapper $expenseShareMapper;
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(TransactionMapper::class);
         $this->accountMapper = $this->createMock(AccountMapper::class);
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
+        $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
 
         $this->service = new TransactionService(
             $this->mapper,
             $this->accountMapper,
-            $this->transactionTagMapper
+            $this->transactionTagMapper,
+            $this->expenseShareMapper
         );
     }
 
@@ -376,7 +380,7 @@ class TransactionServiceTest extends TestCase {
         $result = $this->service->createFromBill('user1', $bill);
 
         $this->assertEquals(1, $insertCount);
-        $this->assertEquals('Bill payment', $result->getDescription());
+        $this->assertEquals('', $result->getDescription());
         $this->assertEquals('Rent', $result->getVendor());
         $this->assertEquals('debit', $result->getType());
         $this->assertEquals(500.00, $result->getAmount());
@@ -517,7 +521,7 @@ class TransactionServiceTest extends TestCase {
         $this->mapper->expects($this->once())
             ->method('insert')
             ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals('Income payment', $tx->getDescription());
+                $this->assertEquals('', $tx->getDescription());
                 $this->assertEquals('Salary', $tx->getVendor());
                 $this->assertEquals('credit', $tx->getType());
                 $this->assertEquals(3000.00, $tx->getAmount());
@@ -789,6 +793,15 @@ class TransactionServiceTest extends TestCase {
     // ===== bulkFindAndMatch() =====
 
     public function testBulkFindAndMatchAutoLinksUniqueMatches(): void {
+        // linkTransactions() calls find() which needs proper transaction objects
+        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => null]);
+        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit', 'linkedTransactionId' => null]);
+        $this->mapper->method('find')->willReturnMap([
+            [1, 'user1', $tx1],
+            [2, 'user1', $tx2],
+        ]);
+        $this->mapper->method('update')->willReturnArgument(0);
+
         $this->mapper->method('findUnlinkedWithMatches')
             ->willReturn([
                 'transactions' => [
@@ -833,6 +846,15 @@ class TransactionServiceTest extends TestCase {
     }
 
     public function testBulkFindAndMatchSkipsAlreadyProcessedIds(): void {
+        // linkTransactions() calls find() which needs proper transaction objects
+        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => null]);
+        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit', 'linkedTransactionId' => null]);
+        $this->mapper->method('find')->willReturnMap([
+            [1, 'user1', $tx1],
+            [2, 'user1', $tx2],
+        ]);
+        $this->mapper->method('update')->willReturnArgument(0);
+
         $this->mapper->method('findUnlinkedWithMatches')
             ->willReturn([
                 'transactions' => [

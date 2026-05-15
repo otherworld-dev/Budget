@@ -12,6 +12,7 @@ use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\TransactionService;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class RecurringIncomeServiceTest extends TestCase {
     private RecurringIncomeService $service;
@@ -25,12 +26,14 @@ class RecurringIncomeServiceTest extends TestCase {
         $this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
         $this->recurringDetector = $this->createMock(RecurringIncomeDetector::class);
         $this->transactionService = $this->createMock(TransactionService::class);
+        $logger = $this->createMock(LoggerInterface::class);
 
         $this->service = new RecurringIncomeService(
             $this->mapper,
             $this->frequencyCalculator,
             $this->recurringDetector,
-            $this->transactionService
+            $this->transactionService,
+            $logger
         );
     }
 

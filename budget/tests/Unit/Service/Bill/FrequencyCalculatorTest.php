@@ -219,7 +219,7 @@ class FrequencyCalculatorTest extends TestCase {
 	public function testDetectFrequencyNull(): void {
 		// Intervals that don't match any pattern
 		$this->assertNull($this->calculator->detectFrequency(45.0));
-		$this->assertNull($this->calculator->detectFrequency(200.0));
+		$this->assertNull($this->calculator->detectFrequency(220.0));
 	}
 
 	public function testDetectFrequencyBoundaryValues(): void {

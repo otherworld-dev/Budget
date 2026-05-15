@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\SettingController;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -29,9 +30,13 @@ class SettingControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new SettingController(
 			$this->request,
 			$this->mapper,
+			$granularShareService,
 			$l,
 			'user1',
 			$this->logger

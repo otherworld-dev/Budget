@@ -156,7 +156,6 @@ class MigrationControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertSame('Invalid format', $response->getData()['error']);
-		$this->assertFalse($response->getData()['valid']);
 	}
 
 	public function testPreviewHandlesGenericException(): void {

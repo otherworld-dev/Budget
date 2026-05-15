@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ReportController;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ReportService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -27,9 +28,13 @@ class ReportControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
 		$this->controller = new ReportController(
 			$this->request,
 			$this->service,
+			$granularShareService,
 			$l,
 			'user1',
 			$this->logger
