@@ -22,7 +22,7 @@ use OCP\IDBConnection;
  * Service for exporting and importing all user data for migration between instances.
  */
 class MigrationService {
-    private const EXPORT_VERSION = '1.0.0';
+    private const EXPORT_VERSION = '1.1.0';
     private const APP_ID = 'budget';
 
     public function __construct(
@@ -472,6 +472,15 @@ class MigrationService {
             $account->setName($accData['name']);
             $account->setType($accData['type']);
             $account->setBalance($accData['balance'] ?? 0.0);
+
+            // Legacy exports (pre-1.1.0) stored liability balances as positive
+            if (in_array($accData['type'] ?? '', ['credit_card', 'loan', 'mortgage', 'line_of_credit'], true)) {
+                $bal = (float) ($accData['balance'] ?? 0);
+                if ($bal > 0) {
+                    $account->setBalance(-$bal);
+                }
+            }
+
             $account->setCurrency($accData['currency'] ?? 'USD');
             $account->setInstitution($accData['institution'] ?? null);
             $account->setAccountNumber($accData['accountNumber'] ?? null);
