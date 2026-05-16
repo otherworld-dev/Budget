@@ -22,11 +22,12 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Return a SQL expression that extracts YYYY-MM from a date column.
-     * The date column stores dates as YYYY-MM-DD strings, so a simple SUBSTR suffices
-     * and avoids the MySQL-specific CAST(... AS CHAR(10)) which fails on SQLite.
+     * Uses CAST to VARCHAR for PostgreSQL compatibility (SUBSTR on a native
+     * date type fails without an explicit cast). VARCHAR works on all three
+     * supported databases (MySQL, PostgreSQL, SQLite).
      */
     private function monthExpr(string $alias = 't'): string {
-        return "SUBSTR({$alias}.date, 1, 7)";
+        return "SUBSTR(CAST({$alias}.date AS VARCHAR), 1, 7)";
     }
 
     /**
@@ -383,7 +384,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->isNotNull('t.import_id'))
             ->andWhere($qb->expr()->neq('t.import_id', $qb->createNamedParameter('')))
             ->groupBy('a.id', 'a.name',
-                $qb->createFunction('SUBSTR(t.created_at, 1, 10)'))
+                $qb->createFunction('SUBSTR(CAST(t.created_at AS VARCHAR), 1, 10)'))
             ->orderBy($qb->createFunction('MAX(t.created_at)'), 'DESC')
             ->setMaxResults($limit);
 
