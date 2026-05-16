@@ -4852,6 +4852,8 @@ style('budget', 'budget-main');
                         <option value="credit_card"><?php p($l->t('Credit Card')); ?></option>
                         <option value="investment"><?php p($l->t('Investment Account')); ?></option>
                         <option value="loan"><?php p($l->t('Loan Account')); ?></option>
+                        <option value="mortgage"><?php p($l->t('Mortgage')); ?></option>
+                        <option value="line_of_credit"><?php p($l->t('Line of Credit')); ?></option>
                         <option value="cash"><?php p($l->t('Cash')); ?></option>
                         <option value="cryptocurrency"><?php p($l->t('Cryptocurrency')); ?></option>
                     </select>
