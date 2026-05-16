@@ -163,7 +163,7 @@ export default class AccountsModule {
 
         // Categorize accounts into assets and liabilities
         const assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency', 'money_market'];
-        const liabilityTypes = ['credit_card', 'loan'];
+        const liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 
         const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
         const liabilities = accounts.filter(acc => liabilityTypes.includes(getField(acc, 'type')));
@@ -273,7 +273,7 @@ export default class AccountsModule {
         const healthStatus = this.getAccountHealthStatus(account);
 
         // For liabilities: negative = you owe (red), positive = overpayment/credit (green), zero = paid off
-        const isLiability = ['credit_card', 'loan'].includes(accountType);
+        const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(accountType);
         const displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
         const balanceClass = isLiability
             ? (accountBalance <= 0 ? 'negative' : 'positive')
@@ -2469,7 +2469,7 @@ export default class AccountsModule {
         }
 
         // For regular accounts, check for negative balances
-        if (balance < 0 && type !== 'credit_card' && type !== 'loan') {
+        if (balance < 0 && !['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(type)) {
             return {
                 class: 'warning',
                 icon: 'icon-triangle-s',
