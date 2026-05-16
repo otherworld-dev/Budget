@@ -432,6 +432,13 @@ class TransactionService {
             $this->accountMapper->find($updates['accountId'], $userId);
         }
 
+        // Auto-clear scheduled transactions when date is moved to today or past
+        if (isset($updates['date']) && $oldStatus === 'scheduled' && !isset($updates['status'])) {
+            if ($updates['date'] <= date('Y-m-d')) {
+                $updates['status'] = 'cleared';
+            }
+        }
+
         // Apply updates
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);
