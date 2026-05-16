@@ -11,6 +11,7 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\InterestService;
 use OCA\Budget\Service\InvestmentService;
 use OCA\Budget\Service\ValidationService;
+use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
@@ -164,6 +165,11 @@ class AccountController extends Controller {
             $balance = 0.0;
             if (isset($data['balance']) && $data['balance'] !== '' && $data['balance'] !== null) {
                 $balance = (float) $data['balance'];
+            }
+
+            // Liability accounts store balance as negative (amount owed)
+            if ($balance > 0 && AccountType::from($typeValidation['formatted'])->isLiability()) {
+                $balance = -$balance;
             }
 
             $interestRate = null;
@@ -418,6 +424,13 @@ class AccountController extends Controller {
             }
             if (isset($data['openingBalance']) && $data['openingBalance'] !== '') {
                 $updates['openingBalance'] = (float) $data['openingBalance'];
+
+                // Liability accounts store opening balance as negative
+                $accountData = $this->service->findWithCurrentBalance($id, $this->getEffectiveUserId());
+                $accountType = $accountData['type'] ?? '';
+                if ($updates['openingBalance'] > 0 && AccountType::from($accountType)->isLiability()) {
+                    $updates['openingBalance'] = -$updates['openingBalance'];
+                }
             }
             if (isset($data['compoundingFrequency'])) {
                 $validFreqs = ['simple', 'daily', 'monthly', 'yearly'];
