@@ -236,4 +236,18 @@ class MoneyCalculatorTest extends TestCase {
 	public function testFormatStringInput(): void {
 		$this->assertSame('£25.50', MoneyCalculator::format('25.50', 'GBP'));
 	}
+
+	// ── negate ──────────────────────────────────────────────────────
+
+	public function testNegatePositive(): void {
+		$this->assertEquals('-100.00', MoneyCalculator::negate('100.00'));
+	}
+
+	public function testNegateNegative(): void {
+		$this->assertEquals('100.00', MoneyCalculator::negate('-100.00'));
+	}
+
+	public function testNegateZero(): void {
+		$this->assertEquals('0.00', MoneyCalculator::negate('0'));
+	}
 }

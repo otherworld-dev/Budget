@@ -110,6 +110,17 @@ class MoneyCalculator {
     }
 
     /**
+     * Negate an amount (flip sign).
+     *
+     * @param float|string $amount
+     * @param int $scale Decimal places (default 2)
+     * @return string Negated value
+     */
+    public static function negate(float|string $amount, int $scale = self::DEFAULT_SCALE): string {
+        return bcmul(self::normalize($amount), '-1', $scale);
+    }
+
+    /**
      * Sum an array of amounts.
      *
      * @param array $amounts Array of float|string amounts
