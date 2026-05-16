@@ -13,6 +13,8 @@ class AccountTypeTest extends TestCase {
         return [
             'credit card is liability' => [AccountType::CREDIT_CARD, true],
             'loan is liability' => [AccountType::LOAN, true],
+            'mortgage is liability' => [AccountType::MORTGAGE, true],
+            'line of credit is liability' => [AccountType::LINE_OF_CREDIT, true],
             'checking is not liability' => [AccountType::CHECKING, false],
             'savings is not liability' => [AccountType::SAVINGS, false],
             'investment is not liability' => [AccountType::INVESTMENT, false],
@@ -77,6 +79,8 @@ class AccountTypeTest extends TestCase {
             'money market' => [AccountType::MONEY_MARKET, true],
             'credit card' => [AccountType::CREDIT_CARD, true],
             'loan' => [AccountType::LOAN, true],
+            'mortgage' => [AccountType::MORTGAGE, true],
+            'line of credit' => [AccountType::LINE_OF_CREDIT, true],
             'checking' => [AccountType::CHECKING, false],
             'cash' => [AccountType::CASH, false],
             'crypto' => [AccountType::CRYPTOCURRENCY, false],
@@ -105,7 +109,7 @@ class AccountTypeTest extends TestCase {
     public function testValuesReturnsAllStringValues(): void {
         $values = AccountType::values();
 
-        $this->assertCount(8, $values);
+        $this->assertCount(10, $values);
         $this->assertContains('checking', $values);
         $this->assertContains('savings', $values);
         $this->assertContains('credit_card', $values);
@@ -114,6 +118,8 @@ class AccountTypeTest extends TestCase {
         $this->assertContains('cash', $values);
         $this->assertContains('money_market', $values);
         $this->assertContains('cryptocurrency', $values);
+        $this->assertContains('mortgage', $values);
+        $this->assertContains('line_of_credit', $values);
     }
 
     public function testIsValidAcceptsValidValues(): void {

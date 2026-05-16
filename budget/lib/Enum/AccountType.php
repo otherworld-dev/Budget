@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Enum;
 
-/**
- * Account type enum for different financial account categories.
- */
 enum AccountType: string {
     case CHECKING = 'checking';
     case SAVINGS = 'savings';
@@ -16,27 +13,20 @@ enum AccountType: string {
     case CASH = 'cash';
     case MONEY_MARKET = 'money_market';
     case CRYPTOCURRENCY = 'cryptocurrency';
+    case MORTGAGE = 'mortgage';
+    case LINE_OF_CREDIT = 'line_of_credit';
 
-    /**
-     * Check if this account type typically has a negative balance (liability).
-     */
     public function isLiability(): bool {
         return match ($this) {
-            self::CREDIT_CARD, self::LOAN => true,
+            self::CREDIT_CARD, self::LOAN, self::MORTGAGE, self::LINE_OF_CREDIT => true,
             default => false,
         };
     }
 
-    /**
-     * Check if this account type is an asset.
-     */
     public function isAsset(): bool {
         return !$this->isLiability();
     }
 
-    /**
-     * Check if this account type earns interest.
-     */
     public function canEarnInterest(): bool {
         return match ($this) {
             self::SAVINGS, self::INVESTMENT, self::MONEY_MARKET => true,
@@ -44,34 +34,22 @@ enum AccountType: string {
         };
     }
 
-    /**
-     * Check if this account type has a credit limit.
-     */
     public function hasCreditLimit(): bool {
         return $this === self::CREDIT_CARD;
     }
 
-    /**
-     * Check if this account type can have an overdraft limit.
-     */
     public function hasOverdraftLimit(): bool {
         return $this === self::CHECKING;
     }
 
-    /**
-     * Check if this account type supports interest tracking (charged or earned).
-     */
     public function supportsInterest(): bool {
         return match ($this) {
             self::SAVINGS, self::INVESTMENT, self::MONEY_MARKET,
-            self::CREDIT_CARD, self::LOAN => true,
+            self::CREDIT_CARD, self::LOAN, self::MORTGAGE, self::LINE_OF_CREDIT => true,
             default => false,
         };
     }
 
-    /**
-     * Get human-readable label.
-     */
     public function label(): string {
         return match ($this) {
             self::CHECKING => 'Checking',
@@ -82,19 +60,15 @@ enum AccountType: string {
             self::CASH => 'Cash',
             self::MONEY_MARKET => 'Money Market',
             self::CRYPTOCURRENCY => 'Cryptocurrency',
+            self::MORTGAGE => 'Mortgage',
+            self::LINE_OF_CREDIT => 'Line of Credit',
         };
     }
 
-    /**
-     * Get all valid account type values as strings.
-     */
     public static function values(): array {
         return array_map(fn(self $t) => $t->value, self::cases());
     }
 
-    /**
-     * Check if a string is a valid account type.
-     */
     public static function isValid(string $value): bool {
         return in_array($value, self::values(), true);
     }
