@@ -548,9 +548,11 @@ export default class AccountsModule {
         // Update balance information
         const currentBalance = account.balance || 0;
         const currency = account.currency || this.getPrimaryCurrency();
+        const isLiabilityAccount = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(account.type);
+        const displayBalance = isLiabilityAccount ? Math.abs(currentBalance) : currentBalance;
 
-        document.getElementById('account-current-balance').textContent = this.formatCurrency(currentBalance, currency);
-        document.getElementById('account-current-balance').className = `balance-amount ${currentBalance >= 0 ? 'positive' : 'negative'}`;
+        document.getElementById('account-current-balance').textContent = this.formatCurrency(displayBalance, currency);
+        document.getElementById('account-current-balance').className = `balance-amount ${isLiabilityAccount ? (currentBalance < 0 ? 'negative' : 'positive') : (currentBalance >= 0 ? 'positive' : 'negative')}`;
 
         // Calculate available balance
         let availableBalance = currentBalance;
@@ -576,8 +578,9 @@ export default class AccountsModule {
             }
         }
 
-        document.getElementById('account-available-balance').textContent = this.formatCurrency(availableBalance, currency);
-        document.getElementById('account-available-balance').className = `balance-amount ${availableBalance >= 0 ? 'positive' : 'negative'}`;
+        const displayAvailable = isLiabilityAccount ? Math.abs(availableBalance) : availableBalance;
+        document.getElementById('account-available-balance').textContent = this.formatCurrency(displayAvailable, currency);
+        document.getElementById('account-available-balance').className = `balance-amount ${isLiabilityAccount ? (availableBalance < 0 ? 'negative' : 'positive') : (availableBalance >= 0 ? 'positive' : 'negative')}`;
 
         // Show projected balance (including scheduled future transactions) if different from current
         const projectedInfo = document.getElementById('projected-balance-info');
