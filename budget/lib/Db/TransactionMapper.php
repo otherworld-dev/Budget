@@ -27,7 +27,7 @@ class TransactionMapper extends QBMapper {
      * supported databases (MySQL, PostgreSQL, SQLite).
      */
     private function monthExpr(string $alias = 't'): string {
-        return "SUBSTR(CAST({$alias}.date AS VARCHAR), 1, 7)";
+        return "SUBSTR(CAST({$alias}.date AS CHAR(10)), 1, 7)";
     }
 
     /**
@@ -384,7 +384,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->isNotNull('t.import_id'))
             ->andWhere($qb->expr()->neq('t.import_id', $qb->createNamedParameter('')))
             ->groupBy('a.id', 'a.name',
-                $qb->createFunction('SUBSTR(CAST(t.created_at AS VARCHAR), 1, 10)'))
+                $qb->createFunction('SUBSTR(CAST(t.created_at AS CHAR(20)), 1, 10)'))
             ->orderBy($qb->createFunction('MAX(t.created_at)'), 'DESC')
             ->setMaxResults($limit);
 
