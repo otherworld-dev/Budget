@@ -775,6 +775,9 @@ class BillService {
         $created = [];
 
         foreach ($detected as $item) {
+            $isTransfer = !empty($item['isTransfer']);
+            $destinationAccountId = isset($item['destinationAccountId']) ? (int) $item['destinationAccountId'] : null;
+
             $bill = $this->create(
                 $userId,
                 $item['suggestedName'] ?? $item['description'],
@@ -782,9 +785,12 @@ class BillService {
                 $item['frequency'],
                 $item['dueDay'] ?? null,
                 null,
-                $item['categoryId'] ?? null,
+                $isTransfer ? null : ($item['categoryId'] ?? null),
                 $item['accountId'] ?? null,
-                $item['autoDetectPattern'] ?? null
+                $item['autoDetectPattern'] ?? null,
+                null, null, null, false, null, false,
+                $isTransfer,
+                $destinationAccountId
             );
             $created[] = $bill;
         }
