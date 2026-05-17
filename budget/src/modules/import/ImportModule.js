@@ -20,6 +20,10 @@ export default class ImportModule {
         this.importHistory = [];
         this.availableAccounts = [];
         this.handleDelimiterChange = null;
+
+        // Preset state
+        this.presets = [];
+        this.selectedPreset = null;
     }
 
     // ============================================
@@ -92,6 +96,75 @@ export default class ImportModule {
             console.error('Failed to upload file:', error);
             showError(t('budget', 'Failed to upload file'));
         }
+    }
+
+    async loadPresets() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import/templates'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                this.presets = Object.values(data).filter(t => t.isPreset);
+            }
+        } catch (error) {
+            console.error('Failed to load presets:', error);
+        }
+    }
+
+    showPresetSelector() {
+        const container = document.getElementById('import-preset-group');
+        if (container) {
+            // Already rendered
+            return;
+        }
+
+        // Insert preset selector after file details in step 1 area or before step 2 mapping
+        const step2 = document.getElementById('import-step-2');
+        if (!step2) return;
+
+        const presetGroup = document.createElement('div');
+        presetGroup.className = 'form-group';
+        presetGroup.id = 'import-preset-group';
+        presetGroup.innerHTML = `
+            <label for="import-preset">${t('budget', 'Import Format')}</label>
+            <select id="import-preset">
+                <option value="">${t('budget', 'Custom CSV (manual mapping)')}</option>
+                ${this.presets.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            </select>
+            <p class="preset-description" id="preset-description" style="display:none;"></p>
+        `;
+
+        // Insert at the top of step 2
+        step2.insertBefore(presetGroup, step2.firstChild);
+
+        // Add change listener
+        const select = document.getElementById('import-preset');
+        select.addEventListener('change', () => {
+            this.selectedPreset = select.value || null;
+            const desc = document.getElementById('preset-description');
+            const mappingSection = document.getElementById('column-mapping-section');
+
+            if (this.selectedPreset) {
+                const preset = this.presets.find(p => p.id === this.selectedPreset);
+                if (preset && desc) {
+                    desc.textContent = preset.description;
+                    desc.style.display = 'block';
+                }
+                // Hide manual mapping when preset is selected
+                if (mappingSection) mappingSection.style.display = 'none';
+            } else {
+                if (desc) desc.style.display = 'none';
+                // Show manual mapping
+                if (mappingSection) mappingSection.style.display = '';
+            }
+
+            // Update next button state
+            const nextBtn = document.getElementById('next-step-btn');
+            if (nextBtn) {
+                nextBtn.disabled = !this.canProceedToNextStep();
+            }
+        });
     }
 
     // ============================================
@@ -178,7 +251,7 @@ export default class ImportModule {
         }
     }
 
-    showImportMapping(uploadResult) {
+    async showImportMapping(uploadResult) {
         // Switch to wizard tab if not already active
         this.switchImportTab('wizard');
 
@@ -220,6 +293,14 @@ export default class ImportModule {
 
         // Show preview data
         this.showMappingPreview(uploadResult.preview);
+
+        // Load and show preset selector for CSV files
+        if (uploadResult.format === 'csv' && this.presets.length === 0) {
+            await this.loadPresets();
+        }
+        if (uploadResult.format === 'csv' && this.presets.length > 0) {
+            this.showPresetSelector();
+        }
 
         // Move to step 2
         this.setImportStep(2);
@@ -451,6 +532,13 @@ export default class ImportModule {
     }
 
     validateMappingStep() {
+        // If a preset is selected, mapping is pre-configured — always valid
+        if (this.selectedPreset) {
+            const nextBtn = document.getElementById('next-step-btn');
+            if (nextBtn) nextBtn.disabled = false;
+            return true;
+        }
+
         const mapping = this.getCurrentMapping();
 
         // Check required fields: date and description
@@ -488,6 +576,11 @@ export default class ImportModule {
             skipDuplicates: !(document.getElementById('show-duplicates')?.checked ?? true),
             delimiter: document.getElementById('csv-delimiter')?.value || ','
         };
+
+        // Include preset ID if selected
+        if (this.selectedPreset) {
+            requestBody.presetId = this.selectedPreset;
+        }
 
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
@@ -536,8 +629,32 @@ export default class ImportModule {
         document.getElementById('new-transactions').textContent = result.validTransactions || 0;
         document.getElementById('duplicate-transactions').textContent = result.duplicates || 0;
         // Count transactions with categoryId set
-        const categorized = (result.transactions || []).filter(tx => tx.categoryId).length;
+        const categorized = (result.transactions || []).filter(tx => tx.categoryId || tx._categoryName).length;
         document.getElementById('categorized-transactions').textContent = categorized;
+
+        // Show categories to create for preset imports
+        const categoriesContainer = document.getElementById('categories-to-create');
+        if (result.categoriesToCreate && result.categoriesToCreate.length > 0) {
+            if (!categoriesContainer) {
+                const summarySection = document.querySelector('.import-summary');
+                if (summarySection) {
+                    const div = document.createElement('div');
+                    div.id = 'categories-to-create';
+                    div.className = 'preset-categories-info';
+                    summarySection.appendChild(div);
+                }
+            }
+            const container = document.getElementById('categories-to-create');
+            if (container) {
+                const names = result.categoriesToCreate.map(c => c.name);
+                container.innerHTML = `<p><strong>${t('budget', 'Categories to create:')}</strong> ${dom.escapeHtml(names.join(', '))}</p>`;
+                if (result.skippedByPreset > 0) {
+                    container.innerHTML += `<p>${t('budget', '{count} transfer rows will be skipped', { count: result.skippedByPreset })}</p>`;
+                }
+            }
+        } else if (categoriesContainer) {
+            categoriesContainer.innerHTML = '';
+        }
     }
 
     showTransactionPreview(transactions) {
@@ -757,6 +874,11 @@ export default class ImportModule {
             delimiter: document.getElementById('csv-delimiter')?.value || ','
         };
 
+        // Include preset ID if selected
+        if (this.selectedPreset) {
+            requestBody.presetId = this.selectedPreset;
+        }
+
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
             if (Object.keys(accountMapping).length === 0) {
@@ -855,8 +977,17 @@ export default class ImportModule {
         this.processedTransactions = null;
         this.sourceAccounts = [];
         this.importFormat = null;
+        this.selectedPreset = null;
 
         this.setImportStep(1);
+
+        // Reset preset selector
+        const presetSelect = document.getElementById('import-preset');
+        if (presetSelect) presetSelect.value = '';
+        const presetDesc = document.getElementById('preset-description');
+        if (presetDesc) presetDesc.style.display = 'none';
+        const categoriesContainer = document.getElementById('categories-to-create');
+        if (categoriesContainer) categoriesContainer.innerHTML = '';
 
         // Clear form fields
         document.getElementById('import-file-input').value = '';
