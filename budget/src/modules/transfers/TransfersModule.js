@@ -57,6 +57,10 @@ export default class TransfersModule {
             <div class="view-header">
                 <h2>${t('budget', 'Recurring Transfers')}</h2>
                 <div class="view-controls">
+                    <button id="detect-transfers-btn" class="secondary" aria-label="${t('budget', 'Detect recurring transfers')}">
+                        <span class="icon-search" aria-hidden="true"></span>
+                        ${t('budget', 'Find Transfers')}
+                    </button>
                     <button id="add-transfer-btn" class="primary" aria-label="${t('budget', 'Add new transfer')}">
                         <span class="icon-add" aria-hidden="true"></span>
                         ${t('budget', 'Add Transfer')}
@@ -129,6 +133,20 @@ export default class TransfersModule {
                         </button>
                     </div>
                 </div>
+
+                <!-- Detected Transfers Panel -->
+                <div class="detected-bills-panel" id="detected-transfers-panel" style="display: none;">
+                    <div class="detected-bills-header">
+                        <h3>${t('budget', 'Detected Recurring Transfers')}</h3>
+                        <button class="icon-close" id="close-detected-transfers-panel" title="${t('budget', 'Close')}"></button>
+                    </div>
+                    <p class="detected-bills-description">${t('budget', 'These recurring transactions may be transfers between your accounts. Select the ones to add and choose the destination account.')}</p>
+                    <div id="detected-transfers-list" class="detected-bills-list"></div>
+                    <div class="detected-bills-actions">
+                        <button class="primary" id="add-detected-transfers-btn">${t('budget', 'Add Selected as Transfers')}</button>
+                        <button class="secondary" id="cancel-detected-transfers-btn">${t('budget', 'Cancel')}</button>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -150,6 +168,22 @@ export default class TransfersModule {
                 e.target.closest('#add-transfer-btn') || e.target.closest('#empty-transfers-add-btn')) {
                 e.preventDefault();
                 this.showTransferModal();
+            }
+            // Detect transfers button
+            if (e.target.closest('#detect-transfers-btn')) {
+                e.preventDefault();
+                this.detectTransfers();
+            }
+            // Close detected panel
+            if (e.target.closest('#close-detected-transfers-panel') || e.target.closest('#cancel-detected-transfers-btn')) {
+                e.preventDefault();
+                const panel = document.getElementById('detected-transfers-panel');
+                if (panel) panel.style.display = 'none';
+            }
+            // Add selected detected transfers
+            if (e.target.closest('#add-detected-transfers-btn')) {
+                e.preventDefault();
+                this.addSelectedDetectedTransfers();
             }
         });
 
@@ -873,6 +907,135 @@ export default class TransfersModule {
                 return amount / 12;
             default:
                 return amount;
+        }
+    }
+
+    // ── Detect Transfers ────────────────────────────────────
+
+    async detectTransfers() {
+        const detectBtn = document.getElementById('detect-transfers-btn');
+        if (!detectBtn) return;
+        detectBtn.disabled = true;
+        detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/detect?months=6'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const detected = await response.json();
+
+            if (!detected || detected.length === 0) {
+                showWarning(t('budget', 'No recurring transactions detected'));
+                return;
+            }
+
+            this.renderDetectedTransfers(detected);
+            document.getElementById('detected-transfers-panel').style.display = 'flex';
+        } catch (error) {
+            showError(t('budget', 'Failed to detect recurring transfers'));
+        } finally {
+            detectBtn.disabled = false;
+            detectBtn.innerHTML = `<span class="icon-search" aria-hidden="true"></span> ${t('budget', 'Find Transfers')}`;
+        }
+    }
+
+    renderDetectedTransfers(detected) {
+        const list = document.getElementById('detected-transfers-list');
+        if (!list) return;
+
+        const accounts = this.accounts || [];
+        const accountOptions = accounts.map(a =>
+            `<option value="${a.id}">${dom.escapeHtml(a.name)} (${a.currency || 'USD'})</option>`
+        ).join('');
+
+        list.innerHTML = detected.map((item, index) => {
+            const confidenceClass = item.confidence >= 0.8 ? 'high' : item.confidence >= 0.5 ? 'medium' : 'low';
+            const confidencePercent = Math.round(item.confidence * 100);
+            const sourceAccount = accounts.find(a => a.id === item.accountId);
+            const sourceName = sourceAccount ? sourceAccount.name : t('budget', 'Unknown');
+
+            return `
+                <div class="detected-bill-item" data-index="${index}">
+                    <div class="detected-bill-select">
+                        <input type="checkbox" id="detected-transfer-${index}" ${item.confidence >= 0.7 ? 'checked' : ''}>
+                    </div>
+                    <div class="detected-bill-info">
+                        <label for="detected-transfer-${index}" class="detected-bill-name">${dom.escapeHtml(item.description || item.suggestedName)}</label>
+                        <div class="detected-bill-meta">
+                            <span class="detected-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
+                            <span class="detected-frequency">${item.frequency}</span>
+                            <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
+                            <span>${t('budget', 'From: {account}', { account: sourceName })}</span>
+                        </div>
+                        <div class="detected-transfer-dest" style="margin-top: 4px;">
+                            <label style="font-size: 12px; margin-right: 4px;">${t('budget', 'To:')}</label>
+                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;">
+                                <option value="">${t('budget', '— Select destination —')}</option>
+                                ${accountOptions}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        this._detectedTransfers = detected;
+    }
+
+    async addSelectedDetectedTransfers() {
+        const checkboxes = document.querySelectorAll('#detected-transfers-list input[type="checkbox"]:checked');
+        const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-transfer-', '')));
+
+        if (selectedIndices.length === 0) {
+            showWarning(t('budget', 'Please select at least one transfer to add'));
+            return;
+        }
+
+        // Validate destination accounts
+        const transfersToAdd = [];
+        for (const i of selectedIndices) {
+            const destSelect = document.querySelector(`.detected-dest-account[data-index="${i}"]`);
+            const destAccountId = destSelect ? parseInt(destSelect.value) : null;
+
+            if (!destAccountId) {
+                showWarning(t('budget', 'Please select a destination account for all selected transfers'));
+                return;
+            }
+
+            const item = this._detectedTransfers[i];
+            if (destAccountId === item.accountId) {
+                showWarning(t('budget', 'Source and destination accounts must be different'));
+                return;
+            }
+
+            transfersToAdd.push({
+                ...item,
+                isTransfer: true,
+                destinationAccountId: destAccountId,
+            });
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ bills: transfersToAdd })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const result = await response.json();
+            document.getElementById('detected-transfers-panel').style.display = 'none';
+            showSuccess(n('budget', '%n transfer added successfully', '%n transfers added successfully', result.created));
+            await this.loadTransfersView();
+        } catch (error) {
+            showError(t('budget', 'Failed to add selected transfers'));
         }
     }
 }
