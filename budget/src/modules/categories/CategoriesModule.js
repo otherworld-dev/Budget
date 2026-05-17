@@ -812,7 +812,6 @@ export default class CategoriesModule {
                 throw new Error(error.error || t('budget', 'Failed to delete category'));
             }
         } catch (error) {
-            console.error('Failed to delete category:', error);
             showError(error.message || t('budget', 'Failed to delete category'));
         }
     }
@@ -847,7 +846,6 @@ export default class CategoriesModule {
                 throw new Error(error.error || t('budget', 'Failed to delete category'));
             }
         } catch (error) {
-            console.error('Failed to delete category:', error);
             showError(error.message || t('budget', 'Failed to delete category'));
         }
     }
