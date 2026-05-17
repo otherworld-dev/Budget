@@ -472,6 +472,12 @@ class ImportService {
 
         $data = $this->parserFactory->parse($content, $format, null, $delimiter);
 
+        // Remap CSV headers by position when preset provides canonical headers
+        // (makes import language-independent — e.g., Toshl exports in German)
+        if ($preset) {
+            $data = $this->remapHeaders($data, $preset);
+        }
+
         // Resolve accounts for multi-account imports (preset or manual account column mapping)
         $accountsToCreate = [];
         if ($hasAccountColumn) {
@@ -699,6 +705,11 @@ class ImportService {
         }
 
         $data = $this->parserFactory->parse($content, $format, null, $delimiter);
+
+        // Remap CSV headers by position when preset provides canonical headers
+        if ($preset) {
+            $data = $this->remapHeaders($data, $preset);
+        }
 
         // Resolve accounts for multi-account imports (preset or manual account column mapping)
         $resolvedAccounts = [];
@@ -1001,6 +1012,16 @@ class ImportService {
             return $categoryCache[$cacheKey];
         }
 
+        // Also check the opposite type — Toshl uses the same category name for both
+        // income and expense, and we want to reuse existing categories rather than
+        // creating duplicates with different types
+        $oppositeType = ($type === 'income') ? 'expense' : 'income';
+        $oppositeCacheKey = $oppositeType . '::' . $categoryName;
+        if (isset($categoryCache[$oppositeCacheKey])) {
+            $categoryCache[$cacheKey] = $categoryCache[$oppositeCacheKey];
+            return $categoryCache[$oppositeCacheKey];
+        }
+
         $category = $this->categoryService->findOrCreate($userId, $categoryName, $type);
         $categoryCache[$cacheKey] = $category->getId();
         $categoriesCreated++;
@@ -1035,6 +1056,13 @@ class ImportService {
                 $tagSet = $this->tagSetService->create($userId, $categoryId, 'Tags');
             }
             $tagCache[$tagSetCacheKey] = $tagSet->getId();
+
+            // Pre-warm tag cache with all existing tags in this tag set
+            // This avoids repeated DB queries when processing thousands of rows
+            $existingTags = $this->tagSetService->getTagSetWithTags($tagSet->getId(), $userId)->getTags();
+            foreach ($existingTags as $existingTag) {
+                $tagCache[$tagSet->getId() . '::' . $existingTag->getName()] = $existingTag->getId();
+            }
         }
         $tagSetId = $tagCache[$tagSetCacheKey];
 
@@ -1046,20 +1074,10 @@ class ImportService {
                 continue;
             }
 
-            // Check if tag exists in this tag set
-            $existingTags = $this->tagSetService->getTagSetWithTags($tagSetId, $userId)->getTags();
-            $found = null;
-            foreach ($existingTags as $existingTag) {
-                if ($existingTag->getName() === $tagName) {
-                    $found = $existingTag;
-                    break;
-                }
-            }
-
-            if ($found === null) {
-                $found = $this->tagSetService->createTag($tagSetId, $userId, $tagName);
-                $tagsCreated++;
-            }
+            // Tag not in cache — create it (it doesn't exist in DB either,
+            // since we pre-warmed from all existing tags)
+            $found = $this->tagSetService->createTag($tagSetId, $userId, $tagName);
+            $tagsCreated++;
 
             $tagCache[$tagCacheKey] = $found->getId();
             $tagIds[] = $found->getId();
@@ -1125,6 +1143,31 @@ class ImportService {
         }
 
         return $matches;
+    }
+
+    /**
+     * Remap CSV row keys from file headers to canonical preset headers (by position).
+     * This makes preset imports language-independent — e.g., a German Toshl export
+     * with "Datum,Konto,Kategorie,..." is remapped to "Date,Account,Category,...".
+     *
+     * @param array $data Parsed CSV rows (header-keyed associative arrays)
+     * @param ImportPresetInterface $preset The active preset
+     * @return array Rows re-keyed with canonical headers
+     */
+    private function remapHeaders(array $data, ImportPresetInterface $preset): array {
+        $expectedHeaders = $preset->getExpectedHeaders();
+        if ($expectedHeaders === null || empty($data)) {
+            return $data;
+        }
+
+        return array_map(function ($row) use ($expectedHeaders) {
+            $values = array_values($row);
+            $remapped = [];
+            foreach ($expectedHeaders as $i => $header) {
+                $remapped[$header] = $values[$i] ?? '';
+            }
+            return $remapped;
+        }, $data);
     }
 
     /**
