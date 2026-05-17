@@ -200,6 +200,32 @@ class CategoryMapper extends QBMapper {
     }
 
     /**
+     * Find a category by name, type, and optional parent.
+     *
+     * @return Category|null
+     */
+    public function findByName(string $userId, string $name, string $type, ?int $parentId = null): ?Category {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('name', $qb->createNamedParameter($name)))
+            ->andWhere($qb->expr()->eq('type', $qb->createNamedParameter($type)));
+
+        if ($parentId === null) {
+            $qb->andWhere($qb->expr()->isNull('parent_id'));
+        } else {
+            $qb->andWhere($qb->expr()->eq('parent_id', $qb->createNamedParameter($parentId, IQueryBuilder::PARAM_INT)));
+        }
+
+        try {
+            return $this->findEntity($qb);
+        } catch (DoesNotExistException $e) {
+            return null;
+        }
+    }
+
+    /**
      * Delete all categories for a user
      *
      * @param string $userId

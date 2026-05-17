@@ -215,6 +215,26 @@ class AccountMapper extends QBMapper {
     }
 
     /**
+     * Find an account by name for a user.
+     *
+     * @return Account|null
+     */
+    public function findByName(string $userId, string $name): ?Account {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('name', $qb->createNamedParameter($name)));
+
+        try {
+            $entity = $this->findEntity($qb);
+            return $this->decryptEntity($entity);
+        } catch (DoesNotExistException $e) {
+            return null;
+        }
+    }
+
+    /**
      * Delete all accounts for a user
      *
      * @param string $userId
