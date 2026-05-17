@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.21.0] - 2026-05-17
+
+### Added
+- **Find Transfers** — New "Find Transfers" button on the Transfers page that detects recurring transfer patterns from transaction history. Shows source account, lets you pick the destination, and creates them as proper linked transfers.
+- **Account Column in CSV Import** — Manual CSV import now supports mapping a column to "Account" and "Currency". Accounts are auto-created with inferred types, same as the Toshl preset.
+
+### Fixed
+- **Rules UI Dark Mode** — The criteria builder and action builder in the Rules page now render correctly in dark mode. Replaced all hardcoded light-mode colors with Nextcloud CSS variables.
+
 ## [2.20.1] - 2026-05-17
 
 ### Fixed
