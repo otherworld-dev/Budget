@@ -24,6 +24,7 @@ export default class ImportModule {
         // Preset state
         this.presets = [];
         this.selectedPreset = null;
+        this.previewTotalValid = 0;
     }
 
     // ============================================
@@ -153,10 +154,18 @@ export default class ImportModule {
                 }
                 // Hide manual mapping when preset is selected
                 if (mappingSection) mappingSection.style.display = 'none';
+                const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
+                if (mappingContainer) mappingContainer.style.display = 'none';
+                const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
+                if (mappingOptions) mappingOptions.style.display = 'none';
             } else {
                 if (desc) desc.style.display = 'none';
                 // Show manual mapping
                 if (mappingSection) mappingSection.style.display = '';
+                const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
+                if (mappingContainer) mappingContainer.style.display = '';
+                const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
+                if (mappingOptions) mappingOptions.style.display = '';
             }
 
             // Update next button state
@@ -621,6 +630,7 @@ export default class ImportModule {
             if (response.ok) {
                 const result = await response.json();
                 this.processedTransactions = result.transactions;
+                this.previewTotalValid = result.validTransactions || result.transactions.length;
                 this.updateImportSummary(result);
                 this.showTransactionPreview(result.transactions);
                 this.filterPreviewTransactions();
@@ -738,8 +748,9 @@ export default class ImportModule {
             tbody.appendChild(row);
         });
 
+        const totalValid = this.previewTotalValid || transactions.length;
         document.getElementById('preview-info').textContent =
-            t('budget', 'Showing {shown} of {total}', { shown: Math.min(50, transactions.length), total: transactions.length });
+            t('budget', 'Showing {shown} of {total}', { shown: Math.min(50, transactions.length), total: totalValid });
     }
 
     filterPreviewTransactions() {
@@ -977,6 +988,9 @@ export default class ImportModule {
 
             if (response.ok) {
                 showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
+                if (result.categoriesCreated && result.categoriesCreated > 0) {
+                    showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
+                }
                 this.resetImportWizard();
                 this.loadTransactions();
                 this.app.loadAccounts();
@@ -1033,6 +1047,7 @@ export default class ImportModule {
         this.sourceAccounts = [];
         this.importFormat = null;
         this.selectedPreset = null;
+        this.previewTotalValid = 0;
 
         this.setImportStep(1);
 
