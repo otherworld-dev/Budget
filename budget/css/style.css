@@ -1631,15 +1631,19 @@
 }
 
 /* Transactions Table */
+.transactions-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
 .transactions-table {
     width: 100%;
+    table-layout: fixed;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
     border-radius: 3px;
     border-collapse: separate;
     border-spacing: 0;
 }
-
 .transactions-table th {
     background: var(--color-background-dark);
     padding: 10px;
@@ -1654,6 +1658,10 @@
     border-top: 1px solid var(--color-border);
     min-height: 44px;
     box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
 }
 
 .transactions-table tr:hover {
