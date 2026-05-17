@@ -301,7 +301,8 @@ class CategoryController extends Controller {
             $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to delete category'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+            // Surface validation messages (e.g., "has transactions assigned") to the user
+            return $this->handleValidationError($e);
         }
     }
 
