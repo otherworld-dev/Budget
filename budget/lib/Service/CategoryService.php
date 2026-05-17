@@ -56,6 +56,46 @@ class CategoryService extends AbstractCrudService {
         return $this->getCategoryMapper()->findByType($userId, $type);
     }
 
+    /**
+     * Find an existing category by name/type or create it.
+     */
+    public function findOrCreate(string $userId, string $name, string $type): Category {
+        $existing = $this->getCategoryMapper()->findByName($userId, $name, $type, null);
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $category = new Category();
+        $category->setUserId($userId);
+        $category->setName($name);
+        $category->setType($type);
+        $category->setColor($this->generateRandomColor());
+        $category->setSortOrder(0);
+        $this->setTimestamps($category, true);
+
+        return $this->mapper->insert($category);
+    }
+
+    /**
+     * Find an existing subcategory by name/type/parent or create it.
+     */
+    public function findOrCreateSubcategory(string $userId, string $name, string $type, int $parentId): Category {
+        $existing = $this->getCategoryMapper()->findByName($userId, $name, $type, $parentId);
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $category = new Category();
+        $category->setUserId($userId);
+        $category->setName($name);
+        $category->setType($type);
+        $category->setParentId($parentId);
+        $category->setSortOrder(0);
+        $this->setTimestamps($category, true);
+
+        return $this->mapper->insert($category);
+    }
+
     public function create(
         string $userId,
         string $name,
