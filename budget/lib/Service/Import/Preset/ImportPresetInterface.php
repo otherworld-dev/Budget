@@ -28,4 +28,13 @@ interface ImportPresetInterface {
      * Infer account type from account name. Returns a valid AccountType value.
      */
     public function inferAccountType(string $accountName): string;
+
+    /**
+     * Return canonical column headers for positional remapping.
+     * When non-null, the importer will replace the file's actual headers
+     * with these values (by position), making the preset language-independent.
+     *
+     * @return string[]|null Canonical headers indexed by position, or null to use file headers
+     */
+    public function getExpectedHeaders(): ?array;
 }

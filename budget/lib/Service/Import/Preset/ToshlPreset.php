@@ -57,6 +57,21 @@ class ToshlPreset implements ImportPresetInterface {
         ];
     }
 
+    public function getExpectedHeaders(): ?array {
+        return [
+            'Date',
+            'Account',
+            'Category',
+            'Tags',
+            'Expense',
+            'Income',
+            'Currency',
+            'In Main Currency',
+            'Main Currency',
+            'Description',
+        ];
+    }
+
     public function postProcessRow(array $normalizedRow, array $rawCsvRow): ?array {
         $category = trim($rawCsvRow['Category'] ?? '');
 
@@ -82,10 +97,27 @@ class ToshlPreset implements ImportPresetInterface {
             $normalizedRow['_accountName'] = $account;
         }
 
-        // Attach currency for account creation
-        $currency = trim($rawCsvRow['Currency'] ?? '');
-        if ($currency !== '') {
-            $normalizedRow['_currency'] = strtoupper($currency);
+        // Currency conversion: use main currency amount when currencies differ
+        $txCurrency = strtoupper(trim($rawCsvRow['Currency'] ?? ''));
+        $mainCurrency = strtoupper(trim($rawCsvRow['Main Currency'] ?? ''));
+
+        if ($txCurrency !== '' && $mainCurrency !== '' && $txCurrency !== $mainCurrency) {
+            $mainAmount = trim($rawCsvRow['In Main Currency'] ?? '');
+            if ($mainAmount !== '' && $mainAmount !== '0') {
+                // Parse amount: remove thousands separators, normalize decimal separator
+                $mainAmount = str_replace('.', '', $mainAmount);
+                $mainAmount = str_replace(',', '.', $mainAmount);
+                $normalizedRow['amount'] = abs((float) $mainAmount);
+                $normalizedRow['_currency'] = $mainCurrency;
+            } else {
+                $normalizedRow['_currency'] = $txCurrency;
+            }
+        } else {
+            // Same currency or single-currency export
+            $currency = $mainCurrency ?: $txCurrency;
+            if ($currency !== '') {
+                $normalizedRow['_currency'] = $currency;
+            }
         }
 
         return $normalizedRow;
