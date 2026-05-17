@@ -323,7 +323,9 @@ export default class ImportModule {
             'map-description': document.getElementById('map-description'),
             'map-type': document.getElementById('map-type'),
             'map-vendor': document.getElementById('map-vendor'),
-            'map-reference': document.getElementById('map-reference')
+            'map-reference': document.getElementById('map-reference'),
+            'map-account': document.getElementById('map-account'),
+            'map-currency': document.getElementById('map-currency')
         };
 
         // Clear existing options and add columns
@@ -354,7 +356,9 @@ export default class ImportModule {
             'map-description': ['description', 'memo', 'details', 'transaction details'],
             'map-type': ['type', 'transaction type', 'debit/credit', 'dr/cr'],
             'map-vendor': ['vendor', 'payee', 'merchant', 'counterparty'],
-            'map-reference': ['reference', 'ref', 'check number', 'transaction id']
+            'map-reference': ['reference', 'ref', 'check number', 'transaction id'],
+            'map-account': ['account', 'account name', 'konto'],
+            'map-currency': ['currency', 'währung', 'devise']
         };
 
         Object.entries(patterns).forEach(([fieldId, patternList]) => {
@@ -430,6 +434,8 @@ export default class ImportModule {
             type: document.getElementById('map-type')?.value || null,
             vendor: document.getElementById('map-vendor')?.value || null,
             reference: document.getElementById('map-reference')?.value || null,
+            account: document.getElementById('map-account')?.value || null,
+            currency: document.getElementById('map-currency')?.value || null,
             skipFirstRow: document.getElementById('skip-first-row')?.checked || false,
             applyRules: document.getElementById('apply-rules')?.checked || false
         };
@@ -582,8 +588,9 @@ export default class ImportModule {
             requestBody.presetId = this.selectedPreset;
         }
 
-        // Check if preset has accountColumn (multi-account auto-creation)
+        // Check if preset has accountColumn or manual mapping has account column
         const presetHasAccountColumn = this.selectedPreset && this.presets.find(p => p.id === this.selectedPreset)?.options?.accountColumn;
+        const mappingHasAccountColumn = !!(mapping.account);
 
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
@@ -592,7 +599,7 @@ export default class ImportModule {
                 return;
             }
             requestBody.accountMapping = accountMapping;
-        } else if (!presetHasAccountColumn) {
+        } else if (!presetHasAccountColumn && !mappingHasAccountColumn) {
             const accountId = document.getElementById('import-account')?.value;
             if (!accountId) {
                 showWarning(t('budget', 'Please select an account first'));
@@ -788,10 +795,12 @@ export default class ImportModule {
             const singleAccountSection = document.getElementById('single-account-selection');
             const multiAccountSection = document.getElementById('multi-account-mapping');
 
-            // Check if preset has accountColumn (multi-account auto-creation from CSV)
+            // Check if preset has accountColumn or manual mapping has account column
             const presetHasAccountColumn = this.selectedPreset && this.presets.find(p => p.id === this.selectedPreset)?.options?.accountColumn;
+            const mapping = this.getCurrentMapping();
+            const mappingHasAccountColumn = !!(mapping.account);
 
-            if (presetHasAccountColumn) {
+            if (presetHasAccountColumn || mappingHasAccountColumn) {
                 // Hide account selection — accounts come from CSV
                 if (singleAccountSection) singleAccountSection.style.display = 'none';
                 if (multiAccountSection) multiAccountSection.style.display = 'none';
@@ -921,8 +930,9 @@ export default class ImportModule {
             requestBody.presetId = this.selectedPreset;
         }
 
-        // Check if preset has accountColumn (multi-account auto-creation)
+        // Check if preset has accountColumn or manual mapping has account column
         const presetHasAccountColumn = this.selectedPreset && this.presets.find(p => p.id === this.selectedPreset)?.options?.accountColumn;
+        const mappingHasAccountColumn = !!(mapping.account);
 
         if (isMultiAccount) {
             const accountMapping = this.getAccountMapping();
@@ -931,7 +941,7 @@ export default class ImportModule {
                 return;
             }
             requestBody.accountMapping = accountMapping;
-        } else if (!presetHasAccountColumn) {
+        } else if (!presetHasAccountColumn && !mappingHasAccountColumn) {
             const accountId = document.getElementById('import-account').value;
             if (!accountId) {
                 showWarning(t('budget', 'Please select an account'));

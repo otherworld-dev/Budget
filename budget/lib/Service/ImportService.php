@@ -456,7 +456,7 @@ class ImportService {
     private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ',', ?string $presetId = null): array {
         // Load preset if specified
         $preset = $presetId ? $this->presetRegistry->get($presetId) : null;
-        $hasAccountColumn = $preset && !empty($preset->getOptions()['accountColumn']);
+        $hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || !empty($mapping['account']);
 
         if (!$accountId && !$hasAccountColumn) {
             throw new \Exception($this->l->t('Account ID is required for single-account imports'));
@@ -472,10 +472,10 @@ class ImportService {
 
         $data = $this->parserFactory->parse($content, $format, null, $delimiter);
 
-        // Resolve accounts for multi-account preset imports
+        // Resolve accounts for multi-account imports (preset or manual account column mapping)
         $accountsToCreate = [];
         if ($hasAccountColumn) {
-            $accountResolution = $this->resolvePresetAccounts($userId, $data, $preset, true);
+            $accountResolution = $this->resolvePresetAccounts($userId, $data, $preset, true, $mapping);
             $accountsToCreate = $accountResolution['created'];
         }
 
@@ -684,7 +684,7 @@ class ImportService {
     private function executeSingleAccountImport(string $userId, string $fileId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, bool $applyRules, string $delimiter = ',', ?string $presetId = null): array {
         // Load preset if specified
         $preset = $presetId ? $this->presetRegistry->get($presetId) : null;
-        $hasAccountColumn = $preset && !empty($preset->getOptions()['accountColumn']);
+        $hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || !empty($mapping['account']);
 
         if (!$accountId && !$hasAccountColumn) {
             throw new \Exception($this->l->t('Account ID is required for single-account imports'));
@@ -700,11 +700,11 @@ class ImportService {
 
         $data = $this->parserFactory->parse($content, $format, null, $delimiter);
 
-        // Resolve accounts for multi-account preset imports
+        // Resolve accounts for multi-account imports (preset or manual account column mapping)
         $resolvedAccounts = [];
         $accountsCreated = 0;
         if ($hasAccountColumn) {
-            $accountResolution = $this->resolvePresetAccounts($userId, $data, $preset, false);
+            $accountResolution = $this->resolvePresetAccounts($userId, $data, $preset, false, $mapping);
             $resolvedAccounts = $accountResolution['resolved'];
             $accountsCreated = count(array_filter($accountResolution['created'], fn($a) => !$a['exists']));
         }
@@ -867,24 +867,31 @@ class ImportService {
     }
 
     /**
-     * Resolve accounts from preset metadata. Creates missing accounts on execute (dryRun=false).
+     * Resolve accounts from preset metadata or manual account column mapping.
+     * Creates missing accounts on execute (dryRun=false).
      *
      * @param string $userId
      * @param array $data Parsed CSV data rows
-     * @param ImportPresetInterface $preset The active preset
+     * @param ImportPresetInterface|null $preset The active preset (null for manual mapping)
      * @param bool $dryRun If true, don't create accounts (preview mode)
+     * @param array $mapping Column mapping (used when preset is null)
      * @return array{resolved: array<string, int>, created: array}
      */
     private function resolvePresetAccounts(
         string $userId,
         array $data,
-        ImportPresetInterface $preset,
-        bool $dryRun = false
+        ?ImportPresetInterface $preset,
+        bool $dryRun = false,
+        array $mapping = []
     ): array {
-        $accountColumn = $preset->getOptions()['accountColumn'] ?? null;
+        $accountColumn = $preset
+            ? ($preset->getOptions()['accountColumn'] ?? null)
+            : ($mapping['account'] ?? null);
         if (!$accountColumn) {
             return ['resolved' => [], 'created' => []];
         }
+
+        $currencyColumn = $mapping['currency'] ?? ($preset ? 'Currency' : null);
 
         // Collect unique accounts with their currencies
         $accountInfo = [];
@@ -894,18 +901,24 @@ class ImportService {
                 continue;
             }
 
-            // Skip transfer rows
-            $processed = $preset->postProcessRow([], $row);
-            if ($processed === null) {
-                continue;
+            // Skip transfer rows (preset only)
+            if ($preset) {
+                $processed = $preset->postProcessRow([], $row);
+                if ($processed === null) {
+                    continue;
+                }
             }
 
             if (!isset($accountInfo[$name])) {
-                $currency = strtoupper(trim($row['Currency'] ?? 'USD'));
+                $currency = $currencyColumn && !empty($row[$currencyColumn])
+                    ? strtoupper(trim($row[$currencyColumn]))
+                    : 'USD';
                 $accountInfo[$name] = [
                     'name' => $name,
                     'currency' => $currency,
-                    'type' => $preset->inferAccountType($name),
+                    'type' => $preset
+                        ? $preset->inferAccountType($name)
+                        : $this->inferAccountType($name),
                 ];
             }
         }
@@ -937,6 +950,36 @@ class ImportService {
         }
 
         return ['resolved' => $resolved, 'created' => $created];
+    }
+
+    /**
+     * Infer account type from account name using keyword matching.
+     * Used for manual CSV imports without a preset.
+     */
+    private function inferAccountType(string $accountName): string {
+        $map = [
+            'cash' => 'cash',
+            'checking' => 'checking',
+            'savings' => 'savings',
+            'investment' => 'investment',
+            'credit card' => 'credit_card',
+            'credit' => 'credit_card',
+            'loan' => 'loan',
+            'mortgage' => 'mortgage',
+            'crypto' => 'cryptocurrency',
+            'bitcoin' => 'cryptocurrency',
+            'line of credit' => 'line_of_credit',
+        ];
+        $lower = strtolower(trim($accountName));
+        if (isset($map[$lower])) {
+            return $map[$lower];
+        }
+        foreach ($map as $keyword => $type) {
+            if (str_contains($lower, $keyword)) {
+                return $type;
+            }
+        }
+        return 'checking';
     }
 
     /**

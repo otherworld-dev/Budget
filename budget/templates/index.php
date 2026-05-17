@@ -2143,6 +2143,18 @@ style('budget', 'budget-main');
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
+                                <div class="mapping-field">
+                                    <label><?php p($l->t('Account')); ?></label>
+                                    <select id="map-account">
+                                        <option value=""><?php p($l->t('Select column...')); ?></option>
+                                    </select>
+                                </div>
+                                <div class="mapping-field">
+                                    <label><?php p($l->t('Currency')); ?></label>
+                                    <select id="map-currency">
+                                        <option value=""><?php p($l->t('Select column...')); ?></option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="preview-data">

@@ -102,6 +102,16 @@ class TransactionNormalizer {
         $transaction['amount'] = abs($amount);
         $transaction['type'] = $type;
 
+        // Attach account name metadata if mapped
+        if (!empty($mapping['account']) && !empty($row[$mapping['account']])) {
+            $transaction['_accountName'] = trim($row[$mapping['account']]);
+        }
+
+        // Attach currency metadata if mapped
+        if (!empty($mapping['currency']) && !empty($row[$mapping['currency']])) {
+            $transaction['_currency'] = strtoupper(trim($row[$mapping['currency']]));
+        }
+
         // Clean description
         $transaction['description'] = trim($transaction['description'] ?? '');
 
