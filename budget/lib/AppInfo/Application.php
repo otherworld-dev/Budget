@@ -458,6 +458,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Service\Import\ImportRuleApplicator::class),
                 $c->get(\OCA\Budget\Service\Import\Preset\PresetRegistry::class),
                 $c->get(\OCA\Budget\Service\CategoryService::class),
+                $c->get(\OCA\Budget\Service\TagSetService::class),
+                $c->get(\OCA\Budget\Service\TransactionTagService::class),
                 $c->get(\OCP\IL10N::class)
             );
         });

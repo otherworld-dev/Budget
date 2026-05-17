@@ -57,11 +57,10 @@ class ToshlPreset implements ImportPresetInterface {
             $normalizedRow['_categoryName'] = $category;
         }
 
-        // Attach first tag name for subcategory creation
+        // Attach tag names for tag set creation (all tags, not just first)
         $tags = trim($rawCsvRow['Tags'] ?? '');
         if ($tags !== '') {
-            $tagList = array_map('trim', explode(',', $tags));
-            $normalizedRow['_tagName'] = $tagList[0];
+            $normalizedRow['_tagNames'] = array_filter(array_map('trim', explode(',', $tags)));
         }
 
         // Attach account name for multi-account resolution

@@ -31,6 +31,8 @@ class ImportService {
     private ImportRuleApplicator $ruleApplicator;
     private PresetRegistry $presetRegistry;
     private CategoryService $categoryService;
+    private TagSetService $tagSetService;
+    private TransactionTagService $transactionTagService;
     private IL10N $l;
 
     public function __construct(
@@ -45,6 +47,8 @@ class ImportService {
         ImportRuleApplicator $ruleApplicator,
         PresetRegistry $presetRegistry,
         CategoryService $categoryService,
+        TagSetService $tagSetService,
+        TransactionTagService $transactionTagService,
         IL10N $l
     ) {
         $this->appData = $appData;
@@ -58,6 +62,8 @@ class ImportService {
         $this->ruleApplicator = $ruleApplicator;
         $this->presetRegistry = $presetRegistry;
         $this->categoryService = $categoryService;
+        $this->tagSetService = $tagSetService;
+        $this->transactionTagService = $transactionTagService;
         $this->l = $l;
     }
 
@@ -490,14 +496,14 @@ class ImportService {
                         continue;
                     }
 
-                    // Collect categories that will be created
+                    // Collect categories and tags that will be created
                     if (!empty($transaction['_categoryName'])) {
                         $catKey = $transaction['_categoryName'];
                         if (!isset($categoriesToCreate[$catKey])) {
-                            $categoriesToCreate[$catKey] = ['name' => $catKey, 'subcategories' => []];
+                            $categoriesToCreate[$catKey] = ['name' => $catKey, 'tags' => []];
                         }
-                        if (!empty($transaction['_tagName'])) {
-                            $categoriesToCreate[$catKey]['subcategories'][$transaction['_tagName']] = true;
+                        foreach ($transaction['_tagNames'] ?? [] as $tagName) {
+                            $categoriesToCreate[$catKey]['tags'][$tagName] = true;
                         }
                     }
                 }
@@ -530,7 +536,7 @@ class ImportService {
         $categoriesPreview = [];
         if ($preset && !empty($categoriesToCreate)) {
             foreach ($categoriesToCreate as $catData) {
-                $entry = ['name' => $catData['name'], 'subcategories' => array_keys($catData['subcategories'])];
+                $entry = ['name' => $catData['name'], 'tags' => array_keys($catData['tags'])];
                 $categoriesPreview[] = $entry;
             }
         }
@@ -661,8 +667,10 @@ class ImportService {
             }
         }
 
-        // Cache for resolved categories during this import
+        // Cache for resolved categories and tags during this import
         $categoryCache = [];
+        $tagCache = [];
+        $tagsCreated = 0;
 
         foreach ($data as $index => $row) {
             try {
@@ -701,7 +709,7 @@ class ImportService {
                     }
                 }
 
-                $this->transactionService->create(
+                $createdTx = $this->transactionService->create(
                     $userId,
                     $accountId,
                     $transaction['date'],
@@ -714,6 +722,20 @@ class ImportService {
                     $transaction['notes'] ?? null,
                     $importId
                 );
+
+                // Apply tags from preset (e.g., Toshl Tags)
+                if ($preset && !empty($transaction['_tagNames']) && !empty($transaction['categoryId'])) {
+                    $tagIds = $this->resolvePresetTags(
+                        $userId,
+                        (int) $transaction['categoryId'],
+                        $transaction['_tagNames'],
+                        $tagCache,
+                        $tagsCreated
+                    );
+                    if (!empty($tagIds)) {
+                        $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $tagIds);
+                    }
+                }
 
                 $imported++;
             } catch (\Exception $e) {
@@ -739,6 +761,9 @@ class ImportService {
         if ($categoriesCreated > 0) {
             $result['categoriesCreated'] = $categoriesCreated;
         }
+        if ($tagsCreated > 0) {
+            $result['tagsCreated'] = $tagsCreated;
+        }
 
         return $result;
     }
@@ -755,39 +780,78 @@ class ImportService {
      */
     private function resolvePresetCategory(string $userId, array $transaction, array &$categoryCache, int &$categoriesCreated): ?int {
         $categoryName = $transaction['_categoryName'];
-        $tagName = $transaction['_tagName'] ?? null;
         $type = ($transaction['type'] === 'credit') ? 'income' : 'expense';
 
-        // Build cache key
-        $cacheKey = $type . '::' . $categoryName . '::' . ($tagName ?? '');
+        $cacheKey = $type . '::' . $categoryName;
         if (isset($categoryCache[$cacheKey])) {
             return $categoryCache[$cacheKey];
         }
 
-        // Find or create parent category
-        $parentCacheKey = $type . '::' . $categoryName . '::';
-        if (isset($categoryCache[$parentCacheKey])) {
-            $parentId = $categoryCache[$parentCacheKey];
-        } else {
-            $parent = $this->categoryService->findOrCreate($userId, $categoryName, $type);
-            $parentId = $parent->getId();
-            $categoryCache[$parentCacheKey] = $parentId;
-            // Count as created if it was just inserted (no updated_at yet or very recent)
-            $categoriesCreated++;
-        }
-
-        // If no tag/subcategory, use parent directly
-        if ($tagName === null || $tagName === '') {
-            $categoryCache[$cacheKey] = $parentId;
-            return $parentId;
-        }
-
-        // Find or create subcategory
-        $subcategory = $this->categoryService->findOrCreateSubcategory($userId, $tagName, $type, $parentId);
-        $categoryCache[$cacheKey] = $subcategory->getId();
+        $category = $this->categoryService->findOrCreate($userId, $categoryName, $type);
+        $categoryCache[$cacheKey] = $category->getId();
         $categoriesCreated++;
 
-        return $subcategory->getId();
+        return $category->getId();
+    }
+
+    /**
+     * Resolve tags from preset metadata (_tagNames) into tag IDs.
+     * Creates a "Tags" tag set per category on first use, then creates tags within it.
+     *
+     * @param string $userId
+     * @param int $categoryId The category to create the tag set under
+     * @param string[] $tagNames Tag names to resolve
+     * @param array &$tagCache Cache of tagSetId and tag name → tag ID
+     * @param int &$tagsCreated Counter for newly created tags
+     * @return int[] Resolved tag IDs
+     */
+    private function resolvePresetTags(string $userId, int $categoryId, array $tagNames, array &$tagCache, int &$tagsCreated): array {
+        // Find or create the "Tags" tag set for this category
+        $tagSetCacheKey = 'tagset::' . $categoryId;
+        if (!isset($tagCache[$tagSetCacheKey])) {
+            $existingTagSets = $this->tagSetService->findByCategory($categoryId, $userId);
+            $tagSet = null;
+            foreach ($existingTagSets as $ts) {
+                if ($ts->getName() === 'Tags') {
+                    $tagSet = $ts;
+                    break;
+                }
+            }
+            if ($tagSet === null) {
+                $tagSet = $this->tagSetService->create($userId, $categoryId, 'Tags');
+            }
+            $tagCache[$tagSetCacheKey] = $tagSet->getId();
+        }
+        $tagSetId = $tagCache[$tagSetCacheKey];
+
+        $tagIds = [];
+        foreach ($tagNames as $tagName) {
+            $tagCacheKey = $tagSetId . '::' . $tagName;
+            if (isset($tagCache[$tagCacheKey])) {
+                $tagIds[] = $tagCache[$tagCacheKey];
+                continue;
+            }
+
+            // Check if tag exists in this tag set
+            $existingTags = $this->tagSetService->getTagSetWithTags($tagSetId, $userId)->getTags();
+            $found = null;
+            foreach ($existingTags as $existingTag) {
+                if ($existingTag->getName() === $tagName) {
+                    $found = $existingTag;
+                    break;
+                }
+            }
+
+            if ($found === null) {
+                $found = $this->tagSetService->createTag($tagSetId, $userId, $tagName);
+                $tagsCreated++;
+            }
+
+            $tagCache[$tagCacheKey] = $found->getId();
+            $tagIds[] = $found->getId();
+        }
+
+        return $tagIds;
     }
 
     /**

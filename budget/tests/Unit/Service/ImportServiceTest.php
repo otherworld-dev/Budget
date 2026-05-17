@@ -15,7 +15,9 @@ use OCA\Budget\Service\Import\ParserFactory;
 use OCA\Budget\Service\Import\Preset\PresetRegistry;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\Service\ImportService;
+use OCA\Budget\Service\TagSetService;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\TransactionTagService;
 use OCP\Files\IAppData;
 use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
@@ -54,6 +56,8 @@ class ImportServiceTest extends TestCase {
 
         $presetRegistry = new PresetRegistry();
         $categoryService = $this->createMock(CategoryService::class);
+        $tagSetService = $this->createMock(TagSetService::class);
+        $transactionTagService = $this->createMock(TransactionTagService::class);
 
         $this->service = new ImportService(
             $this->appData,
@@ -67,6 +71,8 @@ class ImportServiceTest extends TestCase {
             $this->ruleApplicator,
             $presetRegistry,
             $categoryService,
+            $tagSetService,
+            $transactionTagService,
             $l
         );
     }
