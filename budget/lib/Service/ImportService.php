@@ -1024,7 +1024,13 @@ class ImportService {
 
         $category = $this->categoryService->findOrCreate($userId, $categoryName, $type);
         $categoryCache[$cacheKey] = $category->getId();
-        $categoriesCreated++;
+
+        // Only count as "created" if this category was created within the last few seconds
+        // (findOrCreate sets timestamps on new categories)
+        $createdAt = $category->getCreatedAt();
+        if ($createdAt && (time() - strtotime($createdAt)) < 10) {
+            $categoriesCreated++;
+        }
 
         return $category->getId();
     }

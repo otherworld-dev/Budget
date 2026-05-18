@@ -581,6 +581,16 @@ export default class ImportModule {
     }
 
     async processImportData() {
+        // Show loading indicator while preview is being generated
+        const previewSection = document.getElementById('import-preview-section');
+        if (previewSection) {
+            previewSection.style.display = 'block';
+            const previewTable = document.getElementById('preview-table');
+            if (previewTable) previewTable.style.display = 'none';
+            const previewInfo = document.getElementById('preview-info');
+            if (previewInfo) previewInfo.textContent = t('budget', 'Processing file, please wait...');
+        }
+
         const mapping = this.getCurrentMapping();
         const isMultiAccount = this.sourceAccounts && this.sourceAccounts.length > 0;
 
@@ -632,6 +642,8 @@ export default class ImportModule {
                 this.processedTransactions = result.transactions;
                 this.previewTotalValid = result.validTransactions || result.transactions.length;
                 this.updateImportSummary(result);
+                const previewTable = document.getElementById('preview-table');
+                if (previewTable) previewTable.style.display = '';
                 this.showTransactionPreview(result.transactions);
                 this.filterPreviewTransactions();
             } else {
@@ -648,8 +660,14 @@ export default class ImportModule {
         document.getElementById('total-transactions').textContent = result.totalRows || 0;
         document.getElementById('new-transactions').textContent = result.validTransactions || 0;
         document.getElementById('duplicate-transactions').textContent = result.duplicates || 0;
-        // Count transactions with categoryId set
-        const categorized = (result.transactions || []).filter(tx => tx.categoryId || tx._categoryName).length;
+        // Count auto-categorized transactions (from preview sample)
+        const previewCategorized = (result.transactions || []).filter(tx => tx.categoryId || tx._categoryName).length;
+        const totalValid = result.validTransactions || result.transactions?.length || 0;
+        const previewSize = (result.transactions || []).length;
+        // If all preview items are categorized and there are more beyond the preview, extrapolate
+        const categorized = (previewCategorized === previewSize && totalValid > previewSize)
+            ? totalValid  // All sampled rows categorized → likely all are
+            : previewCategorized;
         document.getElementById('categorized-transactions').textContent = categorized;
 
         // Show accounts to create for multi-account preset imports
