@@ -3609,7 +3609,8 @@ class BudgetApp {
             'manual-rate-modal',
             'global-tag-modal',
             'duplicates-modal',
-            'bank-sync-modal'
+            'bank-sync-modal',
+            'tile-settings-modal'
         ];
 
         modalIds.forEach(modalId => {
