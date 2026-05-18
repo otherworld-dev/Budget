@@ -12028,6 +12028,7 @@ tr.scheduled-transaction:hover {
     }
 
     #asset-modal .form-section .form-group {
+        margin-top: 15px;
         margin-bottom: 15px;
     }
 }
