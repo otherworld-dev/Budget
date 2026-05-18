@@ -11999,6 +11999,10 @@ tr.scheduled-transaction:hover {
     border-bottom: 1px solid var(--color-border-dark);
 }
 
+#asset-modal .form-section .form-group {
+    margin-top: 15px;
+}
+
 #asset-modal .form-section:last-of-type {
     border-bottom: none;
     margin-bottom: 0;
