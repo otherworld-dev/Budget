@@ -2019,12 +2019,22 @@ export default class AccountsModule {
                 balanceLabel.textContent = t('budget', 'Current Balance');
             }
 
-            // Show opening balance field on edit
+            // Show opening balance field on edit with live current balance update
             const openingBalanceGroup = document.getElementById('opening-balance-group');
             const openingBalanceField = document.getElementById('account-opening-balance');
             if (openingBalanceGroup && openingBalanceField) {
                 openingBalanceGroup.style.display = '';
-                openingBalanceField.value = account.openingBalance ?? 0;
+                const originalOpening = parseFloat(account.openingBalance) || 0;
+                const originalBalance = parseFloat(account.balance) || 0;
+                const netChange = originalBalance - originalOpening;
+                openingBalanceField.value = originalOpening;
+
+                openingBalanceField.addEventListener('input', () => {
+                    const newOpening = parseFloat(openingBalanceField.value) || 0;
+                    if (balanceField) {
+                        balanceField.value = (newOpening + netChange).toFixed(2);
+                    }
+                });
             }
 
             document.getElementById('account-currency').value = account.currency;
