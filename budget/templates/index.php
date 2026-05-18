@@ -962,10 +962,20 @@ style('budget', 'budget-main');
         <div id="accounts-view" class="view">
             <div class="view-header">
                 <h2><?php p($l->t('Accounts')); ?></h2>
-                <button id="add-account-btn" class="primary" aria-label="<?php p($l->t('Add new account')); ?>">
-                    <span class="icon-add" aria-hidden="true"></span>
-                    <?php p($l->t('Add Account')); ?>
-                </button>
+                <div class="view-controls" style="display: flex; gap: 8px; align-items: center;">
+                    <div class="view-toggle" id="accounts-view-toggle">
+                        <button class="view-toggle-btn active" data-view="grid" title="<?php p($l->t('Tile view')); ?>">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3,3H11V11H3V3M3,13H11V21H3V13M13,3H21V11H13V3M13,13H21V21H13V13Z"/></svg>
+                        </button>
+                        <button class="view-toggle-btn" data-view="list" title="<?php p($l->t('List view')); ?>">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3,4H21V8H3V4M3,10H21V14H3V10M3,16H21V20H3V16Z"/></svg>
+                        </button>
+                    </div>
+                    <button id="add-account-btn" class="primary" aria-label="<?php p($l->t('Add new account')); ?>">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        <?php p($l->t('Add Account')); ?>
+                    </button>
+                </div>
             </div>
 
             <!-- Account Summary Cards -->

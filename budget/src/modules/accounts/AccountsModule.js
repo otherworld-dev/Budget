@@ -233,15 +233,28 @@ export default class AccountsModule {
             }
         }
 
-        // Render account cards for each section
+        // Render account cards/rows for each section
+        const viewMode = this.getAccountsViewMode();
+        const renderFn = viewMode === 'list'
+            ? (account) => this.renderAccountRow(account, getField)
+            : (account) => this.renderAccountCard(account, getField);
+
         const assetsGrid = document.getElementById('accounts-assets-grid');
         const liabilitiesGrid = document.getElementById('accounts-liabilities-grid');
         const assetsSection = document.getElementById('accounts-assets-section');
         const liabilitiesSection = document.getElementById('accounts-liabilities-section');
 
+        // Toggle grid/list CSS class
+        [assetsGrid, liabilitiesGrid].forEach(el => {
+            if (el) {
+                el.classList.toggle('accounts-grid', viewMode === 'grid');
+                el.classList.toggle('accounts-list', viewMode === 'list');
+            }
+        });
+
         if (assetsGrid) {
             if (assets.length > 0) {
-                assetsGrid.innerHTML = assets.map(account => this.renderAccountCard(account, getField)).join('');
+                assetsGrid.innerHTML = assets.map(renderFn).join('');
                 assetsSection.style.display = 'block';
             } else {
                 assetsGrid.innerHTML = '<div class="accounts-empty-state">' + t('budget', 'No asset accounts yet') + '</div>';
@@ -250,7 +263,7 @@ export default class AccountsModule {
 
         if (liabilitiesGrid) {
             if (liabilities.length > 0) {
-                liabilitiesGrid.innerHTML = liabilities.map(account => this.renderAccountCard(account, getField)).join('');
+                liabilitiesGrid.innerHTML = liabilities.map(renderFn).join('');
                 liabilitiesSection.style.display = 'block';
             } else {
                 liabilitiesSection.style.display = 'none';
@@ -328,6 +341,50 @@ export default class AccountsModule {
                 </div>
             </div>
         `;
+    }
+
+    renderAccountRow(account, getField) {
+        const accountType = getField(account, 'type') || 'unknown';
+        const accountName = getField(account, 'name') || t('budget', 'Unnamed Account');
+        const accountBalance = parseFloat(getField(account, 'balance')) || 0;
+        const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
+        const accountId = getField(account, 'id') || 0;
+        const institution = getField(account, 'institution') || '';
+
+        const typeInfo = this.getAccountTypeInfo(accountType);
+        const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(accountType);
+        const displayBalance = isLiability ? Math.abs(accountBalance) : accountBalance;
+        const balanceClass = isLiability
+            ? (accountBalance <= 0 ? 'negative' : 'positive')
+            : (accountBalance >= 0 ? 'positive' : 'negative');
+
+        return `
+            <div class="account-row" data-type="${accountType}" data-account-id="${accountId}">
+                <div class="account-row-icon" style="background-color: ${typeInfo.color};">
+                    <span class="${typeInfo.icon}" aria-hidden="true"></span>
+                </div>
+                <div class="account-row-name">${accountName}</div>
+                <div class="account-row-type">${typeInfo.label}</div>
+                <div class="account-row-institution">${institution || '—'}</div>
+                <div class="account-row-balance ${balanceClass}">${this.formatCurrency(displayBalance, accountCurrency)}</div>
+                <div class="account-row-actions">
+                    <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}">
+                        <span class="icon-rename" aria-hidden="true"></span>
+                    </button>
+                    <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}">
+                        <span class="icon-delete" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    getAccountsViewMode() {
+        return localStorage.getItem('budget-accounts-view') || 'grid';
+    }
+
+    setAccountsViewMode(mode) {
+        localStorage.setItem('budget-accounts-view', mode);
     }
 
     async loadAccountSparklines(accounts) {

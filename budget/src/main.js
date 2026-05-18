@@ -250,6 +250,25 @@ class BudgetApp {
             });
         }
 
+        // Accounts view toggle (grid/list)
+        document.getElementById('accounts-view-toggle')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.view-toggle-btn');
+            if (!btn) return;
+            const mode = btn.dataset.view;
+            document.querySelectorAll('#accounts-view-toggle .view-toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.accountsModule?.setAccountsViewMode(mode);
+            this.accountsModule?.loadAccountsView();
+        });
+
+        // Set initial toggle state from saved preference
+        const savedView = localStorage.getItem('budget-accounts-view') || 'grid';
+        const activeToggle = document.querySelector(`#accounts-view-toggle .view-toggle-btn[data-view="${savedView}"]`);
+        if (activeToggle) {
+            document.querySelectorAll('#accounts-view-toggle .view-toggle-btn').forEach(b => b.classList.remove('active'));
+            activeToggle.classList.add('active');
+        }
+
         // Account type change for conditional fields
         const accountType = document.getElementById('account-type');
         if (accountType) {

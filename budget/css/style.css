@@ -2544,6 +2544,117 @@ button.danger:hover {
     gap: 16px;
 }
 
+/* View Toggle */
+.view-toggle {
+    display: flex;
+    border: 1px solid var(--color-border-dark, #ccc);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.view-toggle-btn {
+    background: var(--color-main-background, #fff);
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: var(--color-text-maxcontrast, #666);
+    transition: all 0.15s;
+}
+.view-toggle-btn:not(:last-child) {
+    border-right: 1px solid var(--color-border-dark, #ccc);
+}
+.view-toggle-btn.active {
+    background: var(--color-primary-element, #0082c9);
+    color: #fff;
+}
+.view-toggle-btn:hover:not(.active) {
+    background: var(--color-background-hover, #f0f0f0);
+}
+.view-toggle-btn svg {
+    fill: currentColor;
+}
+
+/* Account List View */
+.accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.account-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 120px 120px 140px 70px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border, #ededed);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.account-row:hover {
+    background: var(--color-background-hover, #f5f5f5);
+}
+.account-row:first-child {
+    border-top: 1px solid var(--color-border, #ededed);
+}
+.account-row-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+.account-row-icon span {
+    font-size: 14px;
+}
+.account-row-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-main-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.account-row-type {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast, #888);
+}
+.account-row-institution {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast, #888);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.account-row-balance {
+    font-weight: 600;
+    font-size: 14px;
+    text-align: right;
+}
+.account-row-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.account-row:hover .account-row-actions {
+    opacity: 1;
+}
+
+@media (max-width: 900px) {
+    .account-row {
+        grid-template-columns: 36px 1fr 100px 70px;
+    }
+    .account-row-type,
+    .account-row-institution {
+        display: none;
+    }
+}
+
 /* Enhanced Account Cards for Grid */
 .account-card {
     background: var(--color-main-background);
