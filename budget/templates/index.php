@@ -670,16 +670,7 @@ style('budget', 'budget-main');
                             </div>
                         </div>
                         <div id="accounts-summary" class="accounts-widget"></div>
-                        <div id="accounts-tile-config" class="tile-config-panel" style="display: none;">
-                            <div class="tile-config-header">
-                                <h4><?php p($l->t('Configure Accounts')); ?></h4>
-                                <button class="tile-config-close" title="<?php p($l->t('Close')); ?>">&times;</button>
-                            </div>
-                            <p class="tile-config-hint"><?php p($l->t('Drag to reorder. Toggle visibility for each account.')); ?></p>
-                            <div id="accounts-tile-list" class="tile-config-list">
-                                <!-- Populated dynamically -->
-                            </div>
-                        </div>
+                        <!-- Config panel moved to modal below -->
                     </div>
 
                     <!-- Budget Alerts -->
@@ -6077,6 +6068,20 @@ style('budget', 'budget-main');
                 <span class="icon-delete" aria-hidden="true"></span>
                 <?php p($l->t('Delete Everything')); ?>
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Tile Settings Modal -->
+<div id="tile-settings-modal" class="modal" style="display: none;" role="dialog" aria-label="<?php p($l->t('Tile Settings')); ?>">
+    <div class="modal-content" style="max-width: 450px;">
+        <h3 id="tile-settings-modal-title"><?php p($l->t('Tile Settings')); ?></h3>
+        <p class="tile-config-hint"><?php p($l->t('Drag to reorder. Toggle visibility for each item.')); ?></p>
+        <div id="tile-settings-modal-list" class="tile-config-list">
+            <!-- Populated dynamically -->
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="secondary cancel-btn"><?php p($l->t('Close')); ?></button>
         </div>
     </div>
 </div>

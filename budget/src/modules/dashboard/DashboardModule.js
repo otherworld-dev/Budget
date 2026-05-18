@@ -697,25 +697,25 @@ export default class DashboardModule {
 
     setupAccountsTileConfig() {
         const settingsBtn = document.getElementById('accounts-tile-settings-btn');
-        const configPanel = document.getElementById('accounts-tile-config');
-        const closeBtn = configPanel?.querySelector('.tile-config-close');
-
-        if (!settingsBtn || !configPanel) return;
+        if (!settingsBtn) return;
 
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isVisible = configPanel.style.display !== 'none';
-            configPanel.style.display = isVisible ? 'none' : 'block';
-            if (!isVisible) this.renderAccountsTileConfigList();
-        });
-
-        closeBtn?.addEventListener('click', () => {
-            configPanel.style.display = 'none';
+            this.openTileSettingsModal(t('budget', 'Configure Accounts'));
+            this.renderAccountsTileConfigList();
         });
     }
 
+    openTileSettingsModal(title) {
+        const modal = document.getElementById('tile-settings-modal');
+        const titleEl = document.getElementById('tile-settings-modal-title');
+        if (!modal) return;
+        if (titleEl) titleEl.textContent = title;
+        modal.style.display = 'flex';
+    }
+
     renderAccountsTileConfigList() {
-        const listEl = document.getElementById('accounts-tile-list');
+        const listEl = document.getElementById('tile-settings-modal-list');
         if (!listEl) return;
 
         const accounts = this._allDashboardAccounts || [];
@@ -2909,7 +2909,8 @@ export default class DashboardModule {
             // Hide Add Tiles button and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'none';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = 'none');
-            document.querySelectorAll('.tile-config-panel').forEach(p => p.style.display = 'none');
+            const tileModal = document.getElementById('tile-settings-modal');
+            if (tileModal) tileModal.style.display = 'none';
             // Remove all X buttons
             document.querySelectorAll('.widget-remove-btn').forEach(btn => btn.remove());
         } else {
