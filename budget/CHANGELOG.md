@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.22.0] - 2026-05-18
+
+### Added
+- **Accounts Grid/List Toggle** — New toggle in the accounts header to switch between tile grid and compact list view. Preference saved to localStorage.
+- **Live Balance Preview** — When editing an account's opening balance, the current balance updates in real-time.
+- **Dashboard Tile Settings Modal** — Tile configuration (reorder, show/hide) now opens in a centered modal instead of inline at the bottom of the tile.
+
+### Fixed
+- **Dashboard tile reorder** — Reordering accounts in the tile settings now applies immediately without page refresh.
+- **Toshl import UX** — Correct preview counts, category creation counting, and loading indicator between steps.
+- **Institution autocomplete error** — Fixed TypeError when typing in the institution field on account forms.
+- **Asset modal spacing** — Added proper margin between form groups.
+- **Account list view** — Balance text no longer overlaps action buttons.
+- **CSS isolation** — Added stacking context isolation to prevent external widget bleed-through in the navigation.
+
 ## [2.21.1] - 2026-05-17
 
 ### Fixed
