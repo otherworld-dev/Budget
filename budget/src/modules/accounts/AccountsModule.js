@@ -489,14 +489,13 @@ export default class AccountsModule {
     }
 
     setupAccountCardClickHandlers() {
-        const accountCards = document.querySelectorAll('.account-card');
-        accountCards.forEach(card => {
-            card.addEventListener('click', (e) => {
+        document.querySelectorAll('.account-card, .account-row').forEach(el => {
+            el.addEventListener('click', (e) => {
                 // Don't trigger if clicking on action buttons
-                if (e.target.closest('.account-actions, button')) {
+                if (e.target.closest('.account-actions, .account-row-actions, button')) {
                     return;
                 }
-                const accountId = parseInt(card.dataset.accountId);
+                const accountId = parseInt(el.dataset.accountId);
                 if (accountId) {
                     this.showAccountDetails(accountId);
                 }
