@@ -2583,7 +2583,7 @@ button.danger:hover {
 }
 .account-row {
     display: grid;
-    grid-template-columns: 36px 1fr 120px 120px 140px 70px;
+    grid-template-columns: 36px 1fr 120px 120px 120px 80px;
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
@@ -2633,6 +2633,9 @@ button.danger:hover {
     font-weight: 600;
     font-size: 14px;
     text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .account-row-actions {
     display: flex;
@@ -2640,6 +2643,8 @@ button.danger:hover {
     justify-content: flex-end;
     opacity: 0;
     transition: opacity 0.15s;
+    flex-shrink: 0;
+    min-width: 80px;
 }
 .account-row:hover .account-row-actions {
     opacity: 1;
