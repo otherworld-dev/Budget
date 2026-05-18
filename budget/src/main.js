@@ -258,7 +258,7 @@ class BudgetApp {
             document.querySelectorAll('#accounts-view-toggle .view-toggle-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             this.accountsModule?.setAccountsViewMode(mode);
-            this.accountsModule?.loadAccountsView();
+            this.accountsModule?.loadAccounts();
         });
 
         // Set initial toggle state from saved preference
