@@ -574,9 +574,9 @@ class ImportService {
 
         $this->normalizer->resetDateFormat();
 
-        // Build categories preview for preset imports
+        // Build categories preview for preset or category-mapped imports
         $categoriesPreview = [];
-        if ($preset && !empty($categoriesToCreate)) {
+        if (!empty($categoriesToCreate)) {
             foreach ($categoriesToCreate as $catData) {
                 $entry = ['name' => $catData['name'], 'tags' => array_keys($catData['tags'])];
                 $categoriesPreview[] = $entry;
@@ -780,8 +780,8 @@ class ImportService {
                     $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
                 }
 
-                // Resolve category from preset metadata if no category already assigned
-                if ($preset && empty($transaction['categoryId']) && !empty($transaction['_categoryName'])) {
+                // Resolve category from preset or mapping metadata if no category already assigned
+                if (empty($transaction['categoryId']) && !empty($transaction['_categoryName'])) {
                     $categoryId = $this->resolvePresetCategory(
                         $userId,
                         $transaction,

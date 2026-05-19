@@ -2145,6 +2145,12 @@ style('budget', 'budget-main');
                                     </select>
                                 </div>
                                 <div class="mapping-field">
+                                    <label><?php p($l->t('Category')); ?></label>
+                                    <select id="map-category">
+                                        <option value=""><?php p($l->t('Select column...')); ?></option>
+                                    </select>
+                                </div>
+                                <div class="mapping-field">
                                     <label><?php p($l->t('Account')); ?></label>
                                     <select id="map-account">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
