@@ -1326,6 +1326,28 @@ export default class CategoriesModule {
             });
         }
 
+        // Month navigation arrows
+        const prevBtn = document.getElementById('budget-month-prev');
+        const nextBtn = document.getElementById('budget-month-next');
+        if (prevBtn && monthSelect) {
+            prevBtn.addEventListener('click', () => {
+                const idx = monthSelect.selectedIndex;
+                if (idx > 0) {
+                    monthSelect.selectedIndex = idx - 1;
+                    monthSelect.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+        if (nextBtn && monthSelect) {
+            nextBtn.addEventListener('click', () => {
+                const idx = monthSelect.selectedIndex;
+                if (idx < monthSelect.options.length - 1) {
+                    monthSelect.selectedIndex = idx + 1;
+                    monthSelect.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+
         // Go to categories button (empty state)
         const goToCategoriesBtn = document.getElementById('empty-budget-go-categories-btn');
         if (goToCategoriesBtn) {

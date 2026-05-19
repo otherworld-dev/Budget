@@ -1919,10 +1919,11 @@ style('budget', 'budget-main');
                 <h2><?php p($l->t('Budget')); ?></h2>
                 <div class="view-controls">
                     <div class="budget-period-selector">
-                        <label for="budget-month"><?php p($l->t('Month:')); ?></label>
+                        <button id="budget-month-prev" class="budget-month-nav" title="<?php p($l->t('Previous month')); ?>" aria-label="<?php p($l->t('Previous month')); ?>">&#x276E;</button>
                         <select id="budget-month">
                             <!-- Populated dynamically -->
                         </select>
+                        <button id="budget-month-next" class="budget-month-nav" title="<?php p($l->t('Next month')); ?>" aria-label="<?php p($l->t('Next month')); ?>">&#x276F;</button>
                     </div>
                     <div id="budget-snapshot-controls" class="budget-snapshot-controls">
                         <!-- Populated dynamically: button or notice -->

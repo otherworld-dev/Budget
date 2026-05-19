@@ -9625,6 +9625,21 @@ button.danger:hover {
     min-width: 150px;
 }
 
+.budget-month-nav {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--color-main-text);
+    line-height: 1;
+    transition: background 0.15s;
+}
+.budget-month-nav:hover {
+    background: var(--color-background-hover);
+}
+
 /* Budget Summary Cards */
 .budget-summary-cards {
     display: grid;
