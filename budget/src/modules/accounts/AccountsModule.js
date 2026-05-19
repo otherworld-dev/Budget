@@ -974,6 +974,7 @@ export default class AccountsModule {
             });
             let running = parseFloat(this.accountBalanceBeforePage);
             for (const tx of chronological) {
+                if (tx.status === 'scheduled') continue; // Scheduled transactions don't affect running balance
                 const amount = parseFloat(tx.amount) || 0;
                 running += (tx.type === 'credit' ? amount : -amount);
                 balanceMap[tx.id] = running;
