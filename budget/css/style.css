@@ -5205,7 +5205,7 @@ button.danger:hover {
 
 .search-input {
     width: 100%;
-    padding: 8px 12px 8px 36px;
+    padding: 8px 12px 8px 40px;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-background-dark);
@@ -5226,6 +5226,12 @@ button.danger:hover {
     transform: translateY(-50%);
     color: var(--color-text-maxcontrast);
     pointer-events: none;
+    width: 16px;
+    height: 16px;
+}
+
+.search-input::placeholder {
+    padding-left: 0;
 }
 
 .view-options {
