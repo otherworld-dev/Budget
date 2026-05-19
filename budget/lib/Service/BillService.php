@@ -176,7 +176,6 @@ class BillService {
         ?int $categoryId = null,
         ?int $accountId = null,
         ?string $autoDetectPattern = null,
-        ?string $description = null,
         ?string $notes = null,
         ?int $reminderDays = null,
         ?string $customRecurrencePattern = null,
@@ -216,7 +215,6 @@ class BillService {
         $bill->setCategoryId($categoryId);
         $bill->setAccountId($accountId);
         $bill->setAutoDetectPattern($autoDetectPattern);
-        $bill->setDescription($description);
         $bill->setIsActive(true);
         $bill->setNotes($notes);
         $bill->setReminderDays($reminderDays);

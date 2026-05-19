@@ -101,7 +101,7 @@ class BillServiceTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Auto-pay requires an account');
 
-		$this->service->create('user1', 'Test', 10.0, 'monthly', null, null, null, null, null, null, null, null, null, false, null, true);
+		$this->service->create('user1', 'Test', 10.0, 'monthly', null, null, null, null, null, null, null, null, false, null, true);
 	}
 
 	public function testCreateTransferRequiresDestination(): void {
@@ -110,7 +110,7 @@ class BillServiceTest extends TestCase {
 
 		$this->service->create(
 			'user1', 'Transfer', 100.0, 'monthly', null, null, null, 1,
-			null, null, null, null, null, false, null, false,
+			null, null, null, null, false, null, false,
 			true, null // isTransfer=true, destinationAccountId=null
 		);
 	}
@@ -121,7 +121,7 @@ class BillServiceTest extends TestCase {
 
 		$this->service->create(
 			'user1', 'Transfer', 100.0, 'monthly', null, null, null, 5,
-			null, null, null, null, null, false, null, false,
+			null, null, null, null, false, null, false,
 			true, 5 // isTransfer=true, destinationAccountId=same as accountId
 		);
 	}
@@ -138,7 +138,7 @@ class BillServiceTest extends TestCase {
 
 		$this->service->create(
 			'user1', 'Test', 50.0, 'monthly', null, null, null, 1,
-			null, null, null, null, null,
+			null, null, null, null,
 			true, '2024-06-15' // createTransaction=true, transactionDate
 		);
 	}

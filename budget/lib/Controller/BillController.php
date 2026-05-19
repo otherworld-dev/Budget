@@ -133,7 +133,6 @@ class BillController extends Controller {
             $categoryId = isset($data['categoryId']) ? (int) $data['categoryId'] : null;
             $accountId = isset($data['accountId']) ? (int) $data['accountId'] : null;
             $autoDetectPattern = $data['autoDetectPattern'] ?? null;
-            $description = $data['description'] ?? null;
             $notes = $data['notes'] ?? null;
             $reminderDays = isset($data['reminderDays']) ? (int) $data['reminderDays'] : null;
             $customRecurrencePattern = $data['customRecurrencePattern'] ?? null;
@@ -268,7 +267,6 @@ class BillController extends Controller {
                 $categoryId,
                 $accountId,
                 $autoDetectPattern,
-                $description,
                 $notes,
                 $reminderDays,
                 $customRecurrencePattern,
@@ -371,9 +369,6 @@ class BillController extends Controller {
                 }
             }
 
-            if (array_key_exists('description', $data)) {
-                $updates['description'] = $data['description'] !== '' ? $data['description'] : null;
-            }
             // Handle other fields
             if (isset($data['amount'])) {
                 $updates['amount'] = (float) $data['amount'];
