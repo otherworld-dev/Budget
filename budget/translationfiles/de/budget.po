@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-05-20 20:11+0000\n"
-"Last-Translator: Marcus <spintike@protonmail.com>\n"
+"Last-Translator: T0mFi <tomfinger97@gmail.com>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -3839,7 +3839,7 @@ msgstr "Beschreibung (optional)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:672
 msgid "Balanced"
-msgstr ""
+msgstr "Ausgeglichen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:675
 msgid "{amount} remaining"
@@ -7800,7 +7800,7 @@ msgstr "Insgesamt ausgegeben"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1668
 msgid "Analytics"
-msgstr ""
+msgstr "Statistiken"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1679
 msgid "Average"
