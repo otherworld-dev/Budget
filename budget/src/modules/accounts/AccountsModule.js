@@ -2081,6 +2081,14 @@ export default class AccountsModule {
             const openingBalanceField = document.getElementById('account-opening-balance');
             if (openingBalanceGroup && openingBalanceField) {
                 openingBalanceGroup.style.display = '';
+
+                // Update help text for liability accounts
+                const helpText = document.getElementById('account-opening-balance-help');
+                const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(account.type);
+                if (helpText && isLiability) {
+                    helpText.textContent = t('budget', 'Enter as negative for amount owed (e.g. -5000). Enter as positive for a credit/overpayment.');
+                }
+
                 const originalOpening = parseFloat(account.openingBalance) || 0;
                 const originalBalance = parseFloat(account.balance) || 0;
                 const netChange = originalBalance - originalOpening;

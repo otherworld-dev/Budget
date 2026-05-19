@@ -424,13 +424,8 @@ class AccountController extends Controller {
             }
             if (isset($data['openingBalance']) && $data['openingBalance'] !== '') {
                 $updates['openingBalance'] = (float) $data['openingBalance'];
-
-                // Liability accounts store opening balance as negative
-                $accountData = $this->service->findWithCurrentBalance($id, $this->getEffectiveUserId());
-                $accountType = AccountType::tryFrom($accountData['type'] ?? '');
-                if ($updates['openingBalance'] > 0 && $accountType?->isLiability()) {
-                    $updates['openingBalance'] = -$updates['openingBalance'];
-                }
+                // No auto-negation on edit — user may need to set a positive
+                // balance for liability accounts with a credit/overpayment
             }
             if (isset($data['compoundingFrequency'])) {
                 $validFreqs = ['simple', 'daily', 'monthly', 'yearly'];
