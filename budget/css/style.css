@@ -8290,6 +8290,7 @@ button.danger:hover {
     font-weight: 600;
     color: var(--color-main-text);
     white-space: nowrap;
+    padding-top: 10px;
 }
 
 .bill-details {
