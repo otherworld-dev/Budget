@@ -8,14 +8,16 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-05-19 12:11+0000\n"
+"Last-Translator: Matyu9 <mathieu.degueurce@icloud.com>\n"
+"Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
+"budget/fr/>\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 2026.6.dev0\n"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:30
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:30
@@ -26,58 +28,58 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:1819
 #: /var/www/html/apps-extra/budget/templates/index.php:1886
 msgid "Budget"
-msgstr ""
+msgstr "Budget"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:44
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:44
 msgid "Bill reminder: {bill}"
-msgstr ""
+msgstr "Rappel d'échéance : {bill}"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:55
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:55
 msgid "due today"
-msgstr ""
+msgstr "À payer aujourd'hui"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:58
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:58
 msgid "due tomorrow"
-msgstr ""
+msgstr "À payer demain"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:59
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:59
 #, php-format
 msgid "due in %s days"
-msgstr ""
+msgstr "À payer dans %s jours"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:63
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:63
 msgid "{bill} ({amount}) is {dueText}"
-msgstr ""
+msgstr "{bill} ({amount}) est {dueText}"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:95
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:95
 msgid "Overdue bill: {bill}"
-msgstr ""
+msgstr "Échéance dépassée : {bill}"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:107
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:107
 msgid "1 day overdue"
-msgstr ""
+msgstr "Échéance dépassée de 1 jour"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:108
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:108
 #, php-format
 msgid "%s days overdue"
-msgstr ""
+msgstr "Échéance dépassée de %s jours"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:111
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:111
 msgid "{bill} ({amount}) is {overdueText}"
-msgstr ""
+msgstr "{bill} ({amount}) est {overdueText}"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:61
 msgid "Failed to retrieve accounts"
-msgstr ""
+msgstr "La récupération des comptes a échoué"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:74
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:427
@@ -95,64 +97,64 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:4596
 #: /var/www/html/apps-extra/budget/templates/index.php:5138
 msgid "Account"
-msgstr ""
+msgstr "Compte"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:90
 msgid "Invalid JSON data or empty request"
-msgstr ""
+msgstr "Données JSON invalide ou la requête est vide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:102
 msgid "Account type is required and cannot be empty"
-msgstr ""
+msgstr "Le type de compte est requis et ne peut pas être vide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:108
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:267
 #, php-format
 msgid "Invalid account type: %1$s"
-msgstr ""
+msgstr "Type de compte invalide : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:115
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:276
 #, php-format
 msgid "Invalid currency: %1$s"
-msgstr ""
+msgstr "Devise non valide : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:121
 #: /var/www/html/apps-extra/budget/templates/index.php:4716
 msgid "Institution"
-msgstr ""
+msgstr "Établissement"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:130
 msgid "Account holder name"
-msgstr ""
+msgstr "Nom du titulaire"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:178
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:305
 #, php-format
 msgid "Invalid routing number: %1$s"
-msgstr ""
+msgstr "Numéro de routage invalide : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:186
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:318
 #, php-format
 msgid "Invalid sort code: %1$s"
-msgstr ""
+msgstr "Code de tri invalide : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:194
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:331
 #, php-format
 msgid "Invalid IBAN: %1$s"
-msgstr ""
+msgstr "IBAN Invalide : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:202
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:344
 #, php-format
 msgid "Invalid SWIFT/BIC: %1$s"
-msgstr ""
+msgstr "SWIFT/BIC invalide : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:235
 msgid "Failed to create account"
-msgstr ""
+msgstr "Impossible de créer le compte"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:249
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:107
@@ -160,7 +162,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:606
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:301
 msgid "Invalid request data"
-msgstr ""
+msgstr "Requête invalide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:396
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:478
@@ -171,43 +173,43 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/TagSetController.php:354
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:302
 msgid "No valid fields to update"
-msgstr ""
+msgstr "Aucun champ valide à mettre à jour"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:406
 msgid "Failed to update account"
-msgstr ""
+msgstr "Impossible de mettre à jour le compte"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:448
 msgid "This account has no sensitive banking data to reveal"
-msgstr ""
+msgstr "Ce compte ne contient pas de données bancaires sensibles à afficher"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:474
 msgid "Failed to retrieve account summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé du compte"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:546
 msgid "Failed to reconcile account"
-msgstr ""
+msgstr "Impossible de rapprocher le compte"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AlertController.php:46
 msgid "Failed to retrieve budget alerts"
-msgstr ""
+msgstr "Impossible de récupérer les alertes budgétaires"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AlertController.php:59
 msgid "Failed to retrieve budget status"
-msgstr ""
+msgstr "Impossible de récupérer le statut du budget"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AlertController.php:72
 msgid "Failed to retrieve budget summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé du budget"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:73
 msgid "Failed to retrieve assets"
-msgstr ""
+msgstr "Impossible de récupérer les actifs"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:85
 msgid "Asset"
-msgstr ""
+msgstr "Actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:99
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:190
@@ -219,76 +221,78 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:167
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:636
 msgid "Invalid JSON data"
-msgstr ""
+msgstr "Données JSON invalide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:113
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:116
 msgid "Name and type are required"
-msgstr ""
+msgstr "Le nom et le type sont obligatoire"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:126
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:214
 #, php-format
 msgid "Invalid asset type. Must be one of: %1$s"
-msgstr ""
+msgstr "Type d’actif invalide. Doit être l’un des suivants : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:141
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:229
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:144
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:238
 msgid "Currency must be a 3-letter code"
-msgstr ""
+msgstr "La devise doit être un code à 3 lettres"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:146
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:234
 msgid "Current value cannot be negative"
-msgstr ""
+msgstr "La valeur actuelle ne peut pas être négative"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:149
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:237
 msgid "Purchase price cannot be negative"
-msgstr ""
+msgstr "Le prix d’achat ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:152
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:240
 #, php-format
 msgid "Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)"
 msgstr ""
+"Le taux de variation annuel doit être compris entre -1 et 1 (ex. : 0,03 pour "
+"3 %%)"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:157
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:245
 msgid "Purchase date"
-msgstr ""
+msgstr "Date d'achat"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:176
 msgid "Failed to create asset"
-msgstr ""
+msgstr "Impossible de créer l’actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:265
 msgid "Failed to update asset"
-msgstr ""
+msgstr "Impossible de modifier l’actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:276
 msgid "Asset deleted successfully"
-msgstr ""
+msgstr "Actif supprimé avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:278
 #: /var/www/html/apps-extra/budget/src/modules/assets/AssetsModule.js:414
 msgid "Failed to delete asset"
-msgstr ""
+msgstr "Impossible de supprimer l'actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:294
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:306
 msgid "Failed to retrieve snapshots"
-msgstr ""
+msgstr "Impossible de récupérer les snapshots"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:315
 msgid "Value and date are required"
-msgstr ""
+msgstr "La valeur et la date sont requises"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:320
 msgid "Value cannot be negative"
-msgstr ""
+msgstr "La valeur ne peut pas être négative"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:324
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:337
@@ -314,268 +318,270 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:5088
 #: /var/www/html/apps-extra/budget/templates/index.php:5716
 msgid "Date"
-msgstr ""
+msgstr "Date"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:332
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:345
 msgid "Failed to create snapshot"
-msgstr ""
+msgstr "Impossible de créer le snapshot"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:343
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:356
 msgid "Snapshot deleted successfully"
-msgstr ""
+msgstr "Snapshot supprimé avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:345
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:358
 msgid "Failed to delete snapshot"
-msgstr ""
+msgstr "Impossible de supprimer le snapshot"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:361
 msgid "Failed to retrieve asset summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé de l’actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:373
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Impossible de récupérer la projection de l’actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:385
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Impossible de récupérer la projection globale des actifs"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:405
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Impossible de récupérer l’historique des valeurs de l’actif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:71
 msgid "Failed to get auth status"
-msgstr ""
+msgstr "Impossible de récupérer le statut d’authentification"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:85
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:214
 #: /var/www/html/apps-extra/budget/lib/Service/AuthService.php:67
 #: /var/www/html/apps-extra/budget/lib/Service/AuthService.php:285
 msgid "Password must be at least 6 characters long"
-msgstr ""
+msgstr "Le mot de passe doit contenir au moins 6 caractères"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:107
 msgid "Failed to set up password protection"
-msgstr ""
+msgstr "Impossible d’activer la protection par mot de passe"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:134
 msgid "Failed to verify password"
-msgstr ""
+msgstr "Impossible de vérifier le mot de passe"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:148
 msgid "Failed to lock session"
-msgstr ""
+msgstr "Impossible de verrouiller la session"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:164
 msgid "No session token provided"
-msgstr ""
+msgstr "Aucun jeton de session fourni"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:174
 msgid "Invalid session"
-msgstr ""
+msgstr "Session invalide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:178
 msgid "Failed to extend session"
-msgstr ""
+msgstr "Impossible de prolonger la session"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:196
 #: /var/www/html/apps-extra/budget/src/modules/auth/AuthModule.js:179
 msgid "Incorrect password"
-msgstr ""
+msgstr "Mot de passe incorrect"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:200
 #: /var/www/html/apps-extra/budget/src/main.js:1772
 #: /var/www/html/apps-extra/budget/src/modules/settings/SettingsModule.js:484
 msgid "Failed to disable password protection"
-msgstr ""
+msgstr "Impossible de désactiver la protection par mot de passe"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:224
 msgid "Incorrect current password"
-msgstr ""
+msgstr "Mot de passe actuel incorrect"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:232
 #: /var/www/html/apps-extra/budget/src/main.js:1689
 #: /var/www/html/apps-extra/budget/src/modules/settings/SettingsModule.js:401
 msgid "Failed to change password"
-msgstr ""
+msgstr "Impossible de modifier le mot de passe"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:71
 msgid "Failed to retrieve bills"
-msgstr ""
+msgstr "Impossible de récupérer les factures"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:94
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:498
 #: /var/www/html/apps-extra/budget/templates/index.php:3161
 msgid "Bill"
-msgstr ""
+msgstr "Facture"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:112
 msgid "Name and amount are required"
-msgstr ""
+msgstr "Le nom et le montant sont requis"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:139
 #: /var/www/html/apps-extra/budget/lib/Service/BillService.php:128
 #: /var/www/html/apps-extra/budget/lib/Service/BillService.php:196
 msgid "Auto-pay requires an account to be set"
-msgstr ""
+msgstr "Le paiement automatique nécessite qu’un compte soit configuré"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:147
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:443
 #: /var/www/html/apps-extra/budget/lib/Service/BillService.php:133
 msgid "Transfer requires a destination account"
-msgstr ""
+msgstr "Le transfert nécessite un compte de destination"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:155
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:471
 #: /var/www/html/apps-extra/budget/lib/Service/BillService.php:138
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:619
 msgid "Cannot transfer to the same account"
-msgstr ""
+msgstr "Impossible d’effectuer un transfert vers le même compte"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:176
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:304
 msgid "Due day must be between 1 and 31"
-msgstr ""
+msgstr "Le jour d’échéance doit être compris entre 1 et 31"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:181
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:316
 msgid "Due month must be between 1 and 12"
-msgstr ""
+msgstr "Le mois d’échéance doit être compris entre 1 et 12"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:204
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:366
 msgid "Reminder days must be between 0 and 30"
-msgstr ""
+msgstr "Le nombre de jours de rappel doit être compris entre 0 et 30"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:217
 msgid "Transaction date"
-msgstr ""
+msgstr "Date de transaction"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:225
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:408
 #: /var/www/html/apps-extra/budget/templates/index.php:2794
 msgid "End date"
-msgstr ""
+msgstr "Date de fin"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:235
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:421
 msgid "Remaining payments must be at least 1"
-msgstr ""
+msgstr "Le nombre de paiements restants doit être au moins égal à 1"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:264
 msgid "Failed to create bill"
-msgstr ""
+msgstr "Impossible de créer la facture"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:484
 msgid "Failed to update bill"
-msgstr ""
+msgstr "Impossible de modifierla facture"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:515
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:651
 msgid "Failed to mark bill as paid"
-msgstr ""
+msgstr "Impossible de marquer la facture comme payée"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:528
 msgid "Failed to retrieve upcoming bills"
-msgstr ""
+msgstr "Impossible de récupérer les factures à venir"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:541
 msgid "Failed to retrieve bills due this month"
-msgstr ""
+msgstr "Impossible de récupérer les factures dues ce mois-ci"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:554
 msgid "Failed to retrieve overdue bills"
-msgstr ""
+msgstr "Impossible de récupérer les factures dues en retard"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:567
 msgid "Failed to retrieve bill summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé des factures"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:580
 msgid "Failed to retrieve bill status"
-msgstr ""
+msgstr "Impossible de récupérer le statut des factures"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:593
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:767
 msgid "Failed to detect recurring bills"
-msgstr ""
+msgstr "Impossible de détecter les factures récurrentes"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:615
 msgid "Failed to create bills from detected patterns"
-msgstr ""
+msgstr "Impossible de créer des factures à partir des modèles détectés"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:630
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:663
 msgid "Invalid year"
-msgstr ""
+msgstr "Année invalide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:645
 msgid "Failed to generate annual overview"
-msgstr ""
+msgstr "Impossible de générer le résumé annuel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:686
 msgid "Failed to export bills calendar"
-msgstr ""
+msgstr "Impossible d’exporter le calendrier des factures"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:829
 msgid "Invalid JSON in custom recurrence pattern"
-msgstr ""
+msgstr "JSON invalide dans le modèle de récurrence personnalisé"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:836
 msgid "Custom recurrence pattern must be a JSON object"
-msgstr ""
+msgstr "Le modèle de récurrence personnalisé doit être un objet JSON"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:845
 msgid "Months must be an array"
-msgstr ""
+msgstr "Les mois doivent être un tableau"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:852
 msgid "At least one month must be specified"
-msgstr ""
+msgstr "Au moins un mois doit être spécifié"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:860
 msgid "Each month must be a number between 1 and 12"
-msgstr ""
+msgstr "Chaque mois doit être un nombre compris entre 1 et 12"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:873
 msgid "Dates must be an array"
-msgstr ""
+msgstr "Les dates doivent être un tableau"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:880
 msgid "At least one date must be specified"
-msgstr ""
+msgstr "Au moins une date doit être spécifiée"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:888
 msgid "Each date must have \"month\" and \"day\" fields"
-msgstr ""
+msgstr "Chaque date doit contenir les champs “mois” et “jour”"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:895
 msgid "Month must be a number between 1 and 12"
-msgstr ""
+msgstr "Le mois doit être un nombre compris entre 1 et 12"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:902
 msgid "Day must be a number between 1 and 31"
-msgstr ""
+msgstr "Le jour doit être un nombre compris entre 1 et 31"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:912
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
+"Le modèle personnalisé doit contenir soit le champ “mois”, soit le champ “"
+"dates”"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:58
 msgid "Failed to retrieve categories"
-msgstr ""
+msgstr "Impossible de récupérer les catégories"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:70
 msgid "Failed to retrieve category tree"
-msgstr ""
+msgstr "Impossible de récupérer l’arborescence des catégories"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:82
 msgid "Failed to retrieve transaction counts"
-msgstr ""
+msgstr "Impossible de récupérer le nombre de transactions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:94
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:288
@@ -602,16 +608,18 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:5551
 #: /var/www/html/apps-extra/budget/templates/index.php:5592
 msgid "Category"
-msgstr ""
+msgstr "Catégorie"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:122
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:189
 msgid "Invalid category type. Must be income or expense"
-msgstr ""
+msgstr "Type de catégorie invalide. Doit être “revenu” ou “dépense”"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:216
 msgid "Invalid budget period. Must be monthly, weekly, yearly, or quarterly"
 msgstr ""
+"Période budgétaire invalide. Doit être “mensuelle”, “hebdomadaire”, “annuelle"
+"” ou “trimestrielle”"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:252
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:809
@@ -619,401 +627,406 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:844
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:848
 msgid "Failed to delete category"
-msgstr ""
+msgstr "Impossible de supprimer la catégorie"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:264
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:276
 msgid "Failed to retrieve category spending"
-msgstr ""
+msgstr "Impossible de récupérer les dépenses de la catégorie"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:52
 msgid "Failed to retrieve debts"
-msgstr ""
+msgstr "Impossible de récupérer les dettes"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:73
 msgid "Failed to retrieve debt summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé des dettes"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:90
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
-msgstr ""
+msgstr "Stratégie invalide. Doit être “avalanche” ou “snowball”"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:98
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:129
 msgid "Extra payment cannot be negative"
-msgstr ""
+msgstr "Le paiement supplémentaire ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:112
 #: /var/www/html/apps-extra/budget/src/main.js:2477
 #: /var/www/html/apps-extra/budget/src/main.js:2488
 msgid "Failed to calculate payoff plan"
-msgstr ""
+msgstr "Impossible de calculer le plan de remboursement"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:142
 #: /var/www/html/apps-extra/budget/src/main.js:2556
 #: /var/www/html/apps-extra/budget/src/main.js:2567
 msgid "Failed to compare strategies"
-msgstr ""
+msgstr "Impossible de comparer les stratégies"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:111
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:37
 msgid "Failed to load exchange rates"
-msgstr ""
+msgstr "Impossible de charger les taux de change"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:127
 msgid "Failed to get base currency"
-msgstr ""
+msgstr "Impossible de récupérer la devise de base"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:141
 msgid "Exchange rates refreshed successfully"
-msgstr ""
+msgstr "Taux de change mis à jour avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:144
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:364
 msgid "Failed to refresh exchange rates"
-msgstr ""
+msgstr "Impossible d’actualiser les taux de change"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:160
 msgid "Currency and rate are required"
-msgstr ""
+msgstr "La devise et le taux sont requis"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:173
 msgid "Failed to set manual rate"
-msgstr ""
+msgstr "Impossible de définir le taux manuel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:187
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:343
 msgid "Failed to remove manual rate"
-msgstr ""
+msgstr "Impossible de supprimer le taux manuel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:55
 msgid "Failed to generate forecast"
-msgstr ""
+msgstr "Impossible de générer les prévisions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:83
 msgid "Failed to generate cash flow forecast"
-msgstr ""
+msgstr "Impossible de générer les prévisions de flux de trésorerie"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:102
 msgid "Failed to retrieve spending trends"
-msgstr ""
+msgstr "Impossible de récupérer les tendances de dépenses"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:121
 msgid "Failed to run forecast scenarios"
-msgstr ""
+msgstr "Impossible d’exécuter les scénarios de prévision"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:144
 msgid "Failed to generate enhanced forecast"
-msgstr ""
+msgstr "Impossible de générer les prévisions avancées"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:160
 msgid "Failed to retrieve live forecast"
-msgstr ""
+msgstr "Impossible de récupérer les prévisions en temps réel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:178
 msgid "Failed to export forecast"
-msgstr ""
+msgstr "Impossible d’exporter les prévisions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:54
 msgid "Failed to retrieve goals"
-msgstr ""
+msgstr "Impossible de récupérer les objectifs"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:66
 #: /var/www/html/apps-extra/budget/templates/index.php:2609
 msgid "Goal"
-msgstr ""
+msgstr "Objectif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:102
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:181
 msgid "Target date"
-msgstr ""
+msgstr "Date cible"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:112
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:189
 msgid "Target amount must be greater than zero"
-msgstr ""
+msgstr "Le montant cible doit être supérieur à zéro"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:117
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:194
 msgid "Target months must be greater than zero"
-msgstr ""
+msgstr "Le nombre de mois cible doit être supérieur à zéro"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:122
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:199
 msgid "Current amount cannot be negative"
-msgstr ""
+msgstr "Le montant actuel ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:127
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:204
 msgid "Invalid tag ID"
-msgstr ""
+msgstr "ID de tag invalide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:142
 msgid "Failed to create goal"
-msgstr ""
+msgstr "Impossible de créer l’objectif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:225
 msgid "Failed to update goal"
-msgstr ""
+msgstr "Impossible de mettre à jour l’objectif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:236
 msgid "Goal deleted successfully"
-msgstr ""
+msgstr "Objectif supprimé avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:238
 #: /var/www/html/apps-extra/budget/src/modules/savings/SavingsModule.js:405
 msgid "Failed to delete goal"
-msgstr ""
+msgstr "Impossible de supprimer l’objectif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:250
 msgid "Failed to retrieve goal progress"
-msgstr ""
+msgstr "Impossible de récupérer la progression de l’objectif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:262
 msgid "Failed to retrieve goal forecast"
-msgstr ""
+msgstr "Impossible de récupérer les prévisions de l’objectif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:55
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:83
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:121
 msgid "No file uploaded"
-msgstr ""
+msgstr "Aucun fichier téléchargé"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:59
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:90
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:128
 msgid "File upload failed"
-msgstr ""
+msgstr "Échec du téléchargement du fichier"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:78
 #: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:93
 msgid "Failed to upload file"
-msgstr ""
+msgstr "Impossible de télécharger le fichier"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:105
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:105
 msgid "Failed to preview import"
-msgstr ""
+msgstr "Impossible de prévisualiser l’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:151
 msgid "Failed to process import"
-msgstr ""
+msgstr "Impossible de traiter l’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:163
 msgid "Failed to retrieve import templates"
-msgstr ""
+msgstr "Impossible de récupérer les modèles d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:175
 msgid "Failed to retrieve import history"
-msgstr ""
+msgstr "Impossible de récupérer l’historique des imports"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:187
 msgid "Failed to validate file"
-msgstr ""
+msgstr "Impossible de valider le fichier"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:209
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Impossible d’exécuter l’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:222
 msgid "Failed to rollback import"
-msgstr ""
+msgstr "Impossible d’annuler l’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:57
 msgid "Failed to retrieve import rules"
-msgstr ""
+msgstr "Impossible de récupérer les règles d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:69
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:307
 msgid "Import rule"
-msgstr ""
+msgstr "Règle d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:103
 msgid "Criteria required for v2 rules"
-msgstr ""
+msgstr "Critères requis pour les règles v2"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:109
 msgid "Pattern, field, and matchType required for v1 rules"
 msgstr ""
+"Le modèle, le champ et le type de correspondance sont requis pour les règles "
+"v1"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:121
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:220
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
-msgstr ""
+msgstr "Champ invalide. Doit être l’un des suivants : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:126
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:228
 #, php-format
 msgid "Invalid match type. Must be one of: %1$s"
-msgstr ""
+msgstr "Type de correspondance invalide. Doit être l’un des suivants : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:132
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:236
 msgid "Invalid regex pattern"
-msgstr ""
+msgstr "Modèle d’expression régulière invalide"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:172
 msgid "Failed to create import rule"
-msgstr ""
+msgstr "Impossible de créer la règle d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:294
 msgid "Failed to update import rule"
-msgstr ""
+msgstr "Impossible de mettre à jour la règle d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:319
 msgid "Failed to test import rules"
-msgstr ""
+msgstr "Impossible de tester les règles d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:345
 msgid "Failed to preview rule application"
-msgstr ""
+msgstr "Impossible de prévisualiser l’application de la règle"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:373
 msgid "Failed to test rule against transactions"
-msgstr ""
+msgstr "Impossible de tester la règle sur les transactions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:400
 msgid "Failed to apply rules to transactions"
-msgstr ""
+msgstr "Impossible d’appliquer les règles aux transactions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:414
 msgid "Failed to migrate import rule"
-msgstr ""
+msgstr "Impossible de migrer la règle d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:431
 msgid "Failed to migrate import rules"
-msgstr ""
+msgstr "Impossible de migrer les règles d’import"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:67
 msgid "Failed to export data"
-msgstr ""
+msgstr "Impossible d’exporter les données"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:137
 msgid ""
 "Import not confirmed. This operation will replace ALL existing data. Pass "
 "confirmed=true to proceed."
 msgstr ""
+"Import non confirmé. Cette opération remplacera TOUTES les données "
+"existantes. Passez `confirmed=true` pour continuer."
 
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:185
 msgid "Failed to import data"
-msgstr ""
+msgstr "Impossible d’importer les données"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/NetWorthController.php:59
 msgid "Failed to calculate net worth"
-msgstr ""
+msgstr "Impossible de calculer la valeur nette"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/NetWorthController.php:74
 msgid "Failed to retrieve net worth snapshots"
-msgstr ""
+msgstr "Impossible de récupérer les instantanés de la valeur nette"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/NetWorthController.php:92
 msgid "Failed to create net worth snapshot"
-msgstr ""
+msgstr "Impossible de récupérer les snapshots de la valeur nette"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/NetWorthController.php:105
 msgid "Snapshot deleted"
-msgstr ""
+msgstr "Snapshot supprimé"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/NetWorthController.php:107
 msgid "Snapshot"
-msgstr ""
+msgstr "Snapshot"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:73
 msgid "Failed to retrieve pensions"
-msgstr ""
+msgstr "Impossible de récupérer les pensions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:85
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:198
+#, fuzzy
 msgid "Pension"
-msgstr ""
+msgstr "Pension"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:129
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:223
 #, php-format
 msgid "Invalid pension type. Must be one of: %1$s"
-msgstr ""
+msgstr "Type de pension invalide. Doit être l’un des suivants : %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:149
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:243
 msgid "Current balance cannot be negative"
-msgstr ""
+msgstr "Le solde actuel ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:152
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:246
 msgid "Monthly contribution cannot be negative"
-msgstr ""
+msgstr "Le montant mensuel ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:155
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:249
 #, php-format
 msgid "Expected return rate must be between 0%% and 100%%"
-msgstr ""
+msgstr "Le taux de rendement attendu doit être compris entre 0 %% et 100 %%"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:158
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:252
 msgid "Retirement age must be between 18 and 100"
-msgstr ""
+msgstr "L’âge de départ à la retraite doit être compris entre 18 et 100"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:161
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:255
 msgid "Annual income cannot be negative"
-msgstr ""
+msgstr "Le revenu annuel ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:164
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:258
 msgid "Transfer value cannot be negative"
-msgstr ""
+msgstr "La valeur du transfert ne peut pas être négative"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:182
 msgid "Failed to create pension"
-msgstr ""
+msgstr "Impossible de créer la pension"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:277
 msgid "Failed to update pension"
-msgstr ""
+msgstr "Impossible de modifier la pension"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:288
 msgid "Pension deleted successfully"
-msgstr ""
+msgstr "Pension supprimée avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:290
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:421
 msgid "Failed to delete pension"
-msgstr ""
+msgstr "Impossible de supprimer la pension"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:328
 msgid "Balance and date are required"
-msgstr ""
+msgstr "Le solde et la date sont requis"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:333
 msgid "Balance cannot be negative"
-msgstr ""
+msgstr "Le solde ne peut pas être négatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:374
 msgid "Failed to retrieve contributions"
-msgstr ""
+msgstr "Impossible de récupérer les contributions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:397
 #: /var/www/html/apps-extra/budget/src/modules/shared-expenses/SharedExpensesModule.js:436
 msgid "Amount and date are required"
-msgstr ""
+msgstr "Le montant et la date sont requis"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:402
 msgid "Amount must be greater than zero"
-msgstr ""
+msgstr "Le montant doit être supérieur à zéro"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:423
 msgid "Failed to create contribution"
-msgstr ""
+msgstr "Impossible de créer la contribution"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:434
 msgid "Contribution deleted successfully"
-msgstr ""
+msgstr "Contribution supprimée avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:436
 msgid "Failed to delete contribution"
-msgstr ""
+msgstr "Impossible de supprimer la contribution"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:452
 msgid "Failed to retrieve pension summary"
@@ -1180,12 +1193,12 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:279
 #: /var/www/html/apps-extra/budget/templates/index.php:4255
 msgid "Sunday"
-msgstr ""
+msgstr "Dimanche"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:280
 #: /var/www/html/apps-extra/budget/templates/index.php:4256
 msgid "Monday"
-msgstr ""
+msgstr "Lundi"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:283
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:112
@@ -1198,7 +1211,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:4835
 #: /var/www/html/apps-extra/budget/templates/index.php:5221
 msgid "Weekly"
-msgstr ""
+msgstr "Hebdomadaire"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:284
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:114
@@ -1211,7 +1224,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:4837
 #: /var/www/html/apps-extra/budget/templates/index.php:5223
 msgid "Monthly"
-msgstr ""
+msgstr "Mensuel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:285
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:115
@@ -1224,7 +1237,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:4838
 #: /var/www/html/apps-extra/budget/templates/index.php:5224
 msgid "Quarterly"
-msgstr ""
+msgstr "Trimestriel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:286
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:117
@@ -1237,11 +1250,11 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:4840
 #: /var/www/html/apps-extra/budget/templates/index.php:5226
 msgid "Yearly"
-msgstr ""
+msgstr "Annuel"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SetupController.php:59
 msgid "Budget app initialized successfully"
-msgstr ""
+msgstr "Application Budget initialisée avec succès"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SetupController.php:95
 #, php-format
