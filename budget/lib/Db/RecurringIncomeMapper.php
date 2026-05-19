@@ -179,6 +179,25 @@ class RecurringIncomeMapper extends QBMapper {
     }
 
     /**
+     * Find active income entries with auto-create enabled that are due today or earlier.
+     *
+     * @return RecurringIncome[]
+     */
+    public function findDueForAutoCreate(string $userId): array {
+        $today = date('Y-m-d');
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->andWhere($qb->expr()->eq('auto_create_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->andWhere($qb->expr()->lte('next_expected_date', $qb->createNamedParameter($today)));
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Update specific fields directly using query builder.
      * This is useful for setting fields to null where Entity change detection may not work.
      *

@@ -232,6 +232,96 @@ class Notifier implements INotifier {
 
                 break;
 
+            case 'income_auto_created':
+                // TRANSLATORS: {income} is replaced with the income name. Do NOT translate {income} — keep it exactly as-is.
+                $notification->setRichSubject(
+                    $l->t('Income auto-created: {income}'),
+                    [
+                        'income' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['incomeId'],
+                            'name' => $parameters['incomeName'],
+                        ],
+                    ]
+                );
+
+                // TRANSLATORS: {income}, {amount}, {nextExpectedDate} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('{income} ({amount}) transaction was automatically created. Next expected: {nextExpectedDate}'),
+                    [
+                        'income' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['incomeId'],
+                            'name' => $parameters['incomeName'],
+                        ],
+                        'amount' => [
+                            'type' => 'highlight',
+                            'id' => 'amount',
+                            'name' => $parameters['amount'],
+                        ],
+                        'nextExpectedDate' => [
+                            'type' => 'highlight',
+                            'id' => 'nextExpectedDate',
+                            'name' => $parameters['nextExpectedDate'],
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#income');
+
+                break;
+
+            case 'income_auto_create_failed':
+                // TRANSLATORS: {income} is replaced with the income name. Do NOT translate {income} — keep it exactly as-is.
+                $notification->setRichSubject(
+                    $l->t('Auto-create failed: {income}'),
+                    [
+                        'income' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['incomeId'],
+                            'name' => $parameters['incomeName'],
+                        ],
+                    ]
+                );
+
+                // TRANSLATORS: {income}, {amount}, {reason} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('Failed to auto-create transaction for {income} ({amount}). Reason: {reason}'),
+                    [
+                        'income' => [
+                            'type' => 'highlight',
+                            'id' => $parameters['incomeId'],
+                            'name' => $parameters['incomeName'],
+                        ],
+                        'amount' => [
+                            'type' => 'highlight',
+                            'id' => 'amount',
+                            'name' => $parameters['amount'],
+                        ],
+                        'reason' => [
+                            'type' => 'highlight',
+                            'id' => 'reason',
+                            'name' => $parameters['reason'],
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#income');
+
+                break;
+
             case 'share_invitation':
                 // TRANSLATORS: {user} is replaced with the username. Do NOT translate {user} — keep it exactly as-is.
                 $notification->setRichSubject(

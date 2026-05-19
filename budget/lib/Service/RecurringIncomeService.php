@@ -74,7 +74,8 @@ class RecurringIncomeService {
         ?int $accountId = null,
         ?string $source = null,
         ?string $autoDetectPattern = null,
-        ?string $notes = null
+        ?string $notes = null,
+        bool $autoCreateEnabled = false
     ): RecurringIncome {
         $income = new RecurringIncome();
         $income->setUserId($userId);
@@ -88,6 +89,7 @@ class RecurringIncomeService {
         $income->setSource($source);
         $income->setAutoDetectPattern($autoDetectPattern);
         $income->setIsActive(true);
+        $income->setAutoCreateEnabled($autoCreateEnabled);
         $income->setNotes($notes);
         $income->setCreatedAt(date('Y-m-d H:i:s'));
 
@@ -152,6 +154,49 @@ class RecurringIncomeService {
     public function delete(int $id, string $userId): void {
         $income = $this->find($id, $userId);
         $this->mapper->delete($income);
+    }
+
+    /**
+     * Process auto-create for a recurring income entry.
+     * Creates a transaction and advances the next expected date.
+     *
+     * @param int $incomeId Income ID
+     * @param string $userId User ID
+     * @return array ['success' => bool, 'message' => string, 'income' => ?RecurringIncome]
+     */
+    public function processAutoCreate(int $incomeId, string $userId): array {
+        try {
+            $income = $this->find($incomeId, $userId);
+
+            if (!$income->getAutoCreateEnabled()) {
+                return ['success' => false, 'message' => 'Auto-create not enabled'];
+            }
+
+            if (!$income->getAccountId()) {
+                return ['success' => false, 'message' => 'No account set for income'];
+            }
+
+            // Capture the current expected date before advancing (used as transaction date)
+            $transactionDate = $income->getNextExpectedDate() ?? date('Y-m-d');
+
+            $this->transactionService->createFromIncome($userId, $income, $transactionDate, 'cleared');
+
+            // Advance next expected date
+            $nextDate = $this->frequencyCalculator->calculateNextDueDate(
+                $income->getFrequency(),
+                $income->getExpectedDay(),
+                $income->getExpectedMonth(),
+                $transactionDate
+            );
+            $income->setNextExpectedDate($nextDate);
+            $income->setLastReceivedDate($transactionDate);
+            $this->mapper->update($income);
+
+            return ['success' => true, 'income' => $income];
+        } catch (\Exception $e) {
+            $this->logger->warning("Auto-create failed for income {$incomeId}: {$e->getMessage()}");
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     /**
