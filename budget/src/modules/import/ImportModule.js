@@ -333,6 +333,7 @@ export default class ImportModule {
             'map-type': document.getElementById('map-type'),
             'map-vendor': document.getElementById('map-vendor'),
             'map-reference': document.getElementById('map-reference'),
+            'map-category': document.getElementById('map-category'),
             'map-account': document.getElementById('map-account'),
             'map-currency': document.getElementById('map-currency')
         };
@@ -366,6 +367,7 @@ export default class ImportModule {
             'map-type': ['type', 'transaction type', 'debit/credit', 'dr/cr'],
             'map-vendor': ['vendor', 'payee', 'merchant', 'counterparty'],
             'map-reference': ['reference', 'ref', 'check number', 'transaction id'],
+            'map-category': ['category', 'kategorie', 'catégorie', 'group'],
             'map-account': ['account', 'account name', 'konto'],
             'map-currency': ['currency', 'währung', 'devise']
         };
@@ -443,6 +445,7 @@ export default class ImportModule {
             type: document.getElementById('map-type')?.value || null,
             vendor: document.getElementById('map-vendor')?.value || null,
             reference: document.getElementById('map-reference')?.value || null,
+            category: document.getElementById('map-category')?.value || null,
             account: document.getElementById('map-account')?.value || null,
             currency: document.getElementById('map-currency')?.value || null,
             skipFirstRow: document.getElementById('skip-first-row')?.checked || false,
