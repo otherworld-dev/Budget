@@ -20,7 +20,7 @@ CSV is the most flexible import format. The import process walks you through upl
 
 Navigate to **Import > Upload File** and select your CSV file. The file must include a header row as the first line so the app can identify your columns.
 
-> **Note:** Ensure your file is saved with UTF-8 encoding. Files exported with other encodings (e.g., Latin-1 or Windows-1252) may display special characters incorrectly. Most spreadsheet applications let you choose the encoding when saving as CSV.
+> **Note:** The app automatically detects and converts common non-UTF-8 encodings (ISO-8859-1, Windows-1252, and ISO-8859-15) to UTF-8. In most cases no manual conversion is needed. If special characters still appear incorrectly, re-save your file as UTF-8 from your spreadsheet application.
 
 ### 2. Delimiter Detection
 
@@ -41,8 +41,19 @@ Map each column in your CSV to the corresponding transaction field:
 | **Description** | No | Transaction description or memo |
 | **Vendor** | No | Payee or merchant name |
 | **Reference** | No | Check number or reference ID |
+| **Category** | No | Category name; categories are auto-created if they do not exist |
+| **Account** | No | Account name; accounts are auto-created with inferred types |
+| **Currency** | No | Currency code for the transaction |
 
 Select the appropriate column header from the dropdown for each field. Columns you do not map are ignored.
+
+#### Category Column
+
+When you map a column to **Category**, the app automatically creates any categories that do not already exist. Imported transactions are assigned to the matching category by name. This is useful when your bank export or finance app includes category information.
+
+#### Account and Currency Columns
+
+Mapping an **Account** column lets you import transactions across multiple accounts from a single file. Accounts that do not already exist are auto-created with types inferred from the account name (e.g., names containing "Cash" default to the cash type, "Investment" to the investment type, and so on). The **Currency** column sets the currency for each transaction and is especially useful alongside the Account column for multi-currency imports.
 
 ### 4. Dual-Column Amount Mapping
 
@@ -92,6 +103,29 @@ QIF (Quicken Interchange Format) is a legacy format still exported by some banks
 
 > **Tip:** QIF has limited field support compared to OFX and CSV. If your bank offers OFX as an alternative, prefer that format for more complete data.
 
+## Import Presets (App-Specific Import)
+
+Import presets provide one-click column mapping for exports from other finance apps. When you select a preset, the app knows exactly which columns to expect, so the column mapping step is skipped entirely.
+
+**Flow:** Upload CSV → Select preset from the **Import Format** dropdown → Preview → Execute Import.
+
+Presets handle format details like date patterns, number formats, and special columns automatically. If your source app is supported, using the preset is always easier than manual CSV mapping.
+
+### Toshl Finance
+
+To import from Toshl Finance, export your data as CSV from Toshl and upload the file in the Budget app. Then select **Toshl Finance** from the **Import Format** dropdown.
+
+**Key features of the Toshl preset:**
+
+- **Language-independent** — Works regardless of the language Toshl used for the export. Column detection is based on position, not header names.
+- **Date and number handling** — Automatically parses European-style dates (`DD.MM.YY`) and comma-decimal amounts (`1.234,56`).
+- **Multi-currency support** — When a transaction is in a foreign currency, the preset uses the converted amount from Toshl's "In Main Currency" column, so all imported amounts are in your main currency.
+- **Category auto-creation** — Categories from Toshl's Category column are created automatically if they do not already exist in Budget.
+- **Tag set integration** — Tags from Toshl are imported as tag sets attached to the corresponding category. This preserves your Toshl tagging structure.
+- **Account auto-creation** — Accounts from Toshl's Account column are created automatically. Account types are inferred from the name (e.g., "Cash" becomes a cash account, "Investment" becomes an investment account).
+- **Transfer handling** — Rows where Toshl's Category is "transaction" (inter-account transfers) are skipped automatically since transfers are not regular transactions.
+- **Full preview** — Before executing, the preview shows accounts to create, categories to create, tags to import, and transfer rows that will be skipped.
+
 ## Duplicate Detection
 
 The app automatically checks for duplicate transactions during import. A transaction is considered a duplicate when it matches an existing transaction in the same account on all of the following:
@@ -119,7 +153,7 @@ Rolling back removes only the transactions from that specific import. Transactio
 ## Tips
 
 - The first row of a CSV file must contain column headers. Files without headers cannot be mapped correctly.
-- Save CSV files as UTF-8 to avoid garbled special characters (accents, currency symbols, etc.).
+- CSV encoding is auto-detected for common Western encodings (ISO-8859-1, Windows-1252, ISO-8859-15). For other encodings, save as UTF-8 before importing.
 - For large imports, the preview shows a sample of rows. Scroll through to verify different transaction types are parsed correctly.
 - Import into the correct account before clicking **Execute Import** -- transactions cannot be moved between accounts after import.
 - Use [Import Rules](rules.md) to automatically categorize transactions after import, saving you from manually categorizing each one.
