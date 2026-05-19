@@ -15,11 +15,18 @@ export default class CategoriesModule {
         this.expandedCategories = new Set();
         this.currentCategoryType = 'expense';
         this.budgetType = 'expense';
-        this.budgetMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        this.budgetMonth = this._localYearMonth(new Date()); // YYYY-MM
         this.budgetEventListenersSetup = false;
         this.categoryEventListenersSetup = false;
         this.categorySpending = {};
         this.categoryChart = null;
+    }
+
+    /** Format a Date as YYYY-MM using local time (not UTC) */
+    _localYearMonth(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
     }
 
     // State proxies
@@ -1083,7 +1090,7 @@ export default class CategoriesModule {
     async loadBudgetView() {
         // Initialize budget state
         this.budgetType = this.budgetType || 'expense';
-        this.budgetMonth = this.budgetMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+        this.budgetMonth = this.budgetMonth || this._localYearMonth(new Date()); // YYYY-MM
         this._snapshotMonths = this._snapshotMonths || [];
         this._effectiveBudgets = null;
 
@@ -1345,7 +1352,7 @@ export default class CategoriesModule {
 
         for (let i = -12; i <= 3; i++) {
             const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            const value = date.toISOString().slice(0, 7);
+            const value = this._localYearMonth(date);
             const label = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
             options.push({ value, label });
         }
