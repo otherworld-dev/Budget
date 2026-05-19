@@ -7,7 +7,9 @@ namespace OCA\Budget\Tests\Unit\BackgroundJob;
 use OCA\Budget\BackgroundJob\BillReminderJob;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
@@ -23,6 +25,8 @@ class BillReminderJobTest extends TestCase {
 	private ITimeFactory $timeFactory;
 	private BillMapper $billMapper;
 	private BillService $billService;
+	private RecurringIncomeMapper $incomeMapper;
+	private RecurringIncomeService $incomeService;
 	private INotificationManager $notificationManager;
 	private IDBConnection $db;
 	private LoggerInterface $logger;
@@ -32,6 +36,8 @@ class BillReminderJobTest extends TestCase {
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
 		$this->billMapper = $this->createMock(BillMapper::class);
 		$this->billService = $this->createMock(BillService::class);
+		$this->incomeMapper = $this->createMock(RecurringIncomeMapper::class);
+		$this->incomeService = $this->createMock(RecurringIncomeService::class);
 		$this->notificationManager = $this->createMock(INotificationManager::class);
 		$this->db = $this->createMock(IDBConnection::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
@@ -41,12 +47,17 @@ class BillReminderJobTest extends TestCase {
 		$container->method('get')->willReturnMap([
 			[BillMapper::class, $this->billMapper],
 			[BillService::class, $this->billService],
+			[RecurringIncomeMapper::class, $this->incomeMapper],
+			[RecurringIncomeService::class, $this->incomeService],
 			[INotificationManager::class, $this->notificationManager],
 			[IDBConnection::class, $this->db],
 			[LoggerInterface::class, $this->logger],
 			[SettingService::class, $this->settingService],
 		]);
 		\OC::$server = $container;
+
+		// Default: no income due for auto-create
+		$this->incomeMapper->method('findDueForAutoCreate')->willReturn([]);
 
 		$this->job = new BillReminderJob($this->timeFactory);
 	}

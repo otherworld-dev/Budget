@@ -40,6 +40,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setNextExpectedDate(?string $nextExpectedDate)
  * @method string|null getNotes()
  * @method void setNotes(?string $notes)
+ * @method bool getAutoCreateEnabled()
+ * @method void setAutoCreateEnabled(bool $autoCreateEnabled)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  */
@@ -56,6 +58,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
     protected $source;           // Income source (employer name, dividend source, etc.)
     protected $autoDetectPattern;
     protected $isActive;
+    protected $autoCreateEnabled;
     protected $lastReceivedDate;
     protected $nextExpectedDate;
     protected $notes;
@@ -69,6 +72,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
         $this->addType('categoryId', 'integer');
         $this->addType('accountId', 'integer');
         $this->addType('isActive', 'boolean');
+        $this->addType('autoCreateEnabled', 'boolean');
     }
 
     public function jsonSerialize(): array {
@@ -86,6 +90,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
             'source' => $this->getSource(),
             'autoDetectPattern' => $this->getAutoDetectPattern(),
             'isActive' => $this->getIsActive(),
+            'autoCreateEnabled' => $this->getAutoCreateEnabled(),
             'lastReceivedDate' => $this->getLastReceivedDate(),
             'nextExpectedDate' => $this->getNextExpectedDate(),
             'notes' => $this->getNotes(),

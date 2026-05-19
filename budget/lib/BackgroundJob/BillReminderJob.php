@@ -6,7 +6,9 @@ namespace OCA\Budget\BackgroundJob;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
@@ -35,6 +37,8 @@ class BillReminderJob extends TimedJob {
     protected function run($argument): void {
         $billMapper = Server::get(BillMapper::class);
         $billService = Server::get(BillService::class);
+        $incomeMapper = Server::get(RecurringIncomeMapper::class);
+        $incomeService = Server::get(RecurringIncomeService::class);
         $notificationManager = Server::get(INotificationManager::class);
         $db = Server::get(IDBConnection::class);
         $logger = Server::get(LoggerInterface::class);
@@ -45,6 +49,8 @@ class BillReminderJob extends TimedJob {
             $notificationCount = 0;
             $autoPayCount = 0;
             $autoPayFailedCount = 0;
+            $autoCreateIncomeCount = 0;
+            $autoCreateIncomeFailedCount = 0;
             $today = new \DateTime();
             $today->setTime(0, 0, 0);
 
@@ -54,6 +60,11 @@ class BillReminderJob extends TimedJob {
                     $autoPay = $this->processAutoPayForUser($userId, $billMapper, $billService, $notificationManager, $settingService);
                     $autoPayCount += $autoPay['success'];
                     $autoPayFailedCount += $autoPay['failed'];
+
+                    // Process auto-create for recurring income
+                    $autoCreate = $this->processAutoCreateIncomeForUser($userId, $incomeMapper, $incomeService, $notificationManager, $settingService, $logger);
+                    $autoCreateIncomeCount += $autoCreate['success'];
+                    $autoCreateIncomeFailedCount += $autoCreate['failed'];
 
                     $bills = $billMapper->findActive($userId);
 
@@ -98,9 +109,9 @@ class BillReminderJob extends TimedJob {
                 }
             }
 
-            if ($notificationCount > 0 || $autoPayCount > 0) {
+            if ($notificationCount > 0 || $autoPayCount > 0 || $autoCreateIncomeCount > 0) {
                 $logger->info(
-                    "Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures",
+                    "Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures, {$autoCreateIncomeCount} income auto-created, {$autoCreateIncomeFailedCount} income auto-create failures",
                     ['app' => 'budget']
                 );
             }
@@ -208,19 +219,33 @@ class BillReminderJob extends TimedJob {
      * @return string[]
      */
     private function getAllUserIds(IDBConnection $db): array {
+        $userIds = [];
+
+        // Users with active bills
         $qb = $db->getQueryBuilder();
         $qb->selectDistinct('user_id')
             ->from('budget_bills')
             ->where($qb->expr()->eq('is_active', $qb->createNamedParameter(true)));
 
         $result = $qb->executeQuery();
-        $userIds = [];
         while ($row = $result->fetch()) {
-            $userIds[] = $row['user_id'];
+            $userIds[$row['user_id']] = true;
         }
         $result->closeCursor();
 
-        return $userIds;
+        // Users with active recurring income (for auto-create)
+        $qb2 = $db->getQueryBuilder();
+        $qb2->selectDistinct('user_id')
+            ->from('budget_recurring_income')
+            ->where($qb2->expr()->eq('is_active', $qb2->createNamedParameter(true)));
+
+        $result2 = $qb2->executeQuery();
+        while ($row = $result2->fetch()) {
+            $userIds[$row['user_id']] = true;
+        }
+        $result2->closeCursor();
+
+        return array_keys($userIds);
     }
 
     /**
@@ -310,6 +335,99 @@ class BillReminderJob extends TimedJob {
                 'billId' => $bill->getId(),
                 'billName' => $bill->getName(),
                 'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+                'reason' => $reason,
+            ]);
+
+        $notificationManager->notify($notification);
+    }
+
+    /**
+     * Process auto-create for all due recurring income for a user.
+     *
+     * @return array ['success' => int, 'failed' => int]
+     */
+    private function processAutoCreateIncomeForUser(
+        string $userId,
+        RecurringIncomeMapper $incomeMapper,
+        RecurringIncomeService $incomeService,
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        LoggerInterface $logger
+    ): array {
+        $successCount = 0;
+        $failedCount = 0;
+
+        try {
+            $dueIncome = $incomeMapper->findDueForAutoCreate($userId);
+
+            foreach ($dueIncome as $income) {
+                $result = $incomeService->processAutoCreate($income->getId(), $userId);
+
+                if ($result['success']) {
+                    $successCount++;
+                    $this->sendAutoCreateIncomeSuccessNotification(
+                        $notificationManager,
+                        $settingService,
+                        $userId,
+                        $result['income']
+                    );
+                } else {
+                    $failedCount++;
+                    $this->sendAutoCreateIncomeFailureNotification(
+                        $notificationManager,
+                        $settingService,
+                        $userId,
+                        $income,
+                        $result['message']
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            $logger->warning("Income auto-create processing failed for user {$userId}: " . $e->getMessage());
+        }
+
+        return ['success' => $successCount, 'failed' => $failedCount];
+    }
+
+    private function sendAutoCreateIncomeSuccessNotification(
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        string $userId,
+        $income
+    ): void {
+        $notification = $notificationManager->createNotification();
+
+        $notification->setApp(Application::APP_ID)
+            ->setUser($userId)
+            ->setDateTime(new \DateTime())
+            ->setObject('recurring_income', (string)$income->getId())
+            ->setSubject('income_auto_created', [
+                'incomeId' => $income->getId(),
+                'incomeName' => $income->getName(),
+                'amount' => $this->formatAmount($settingService, $userId, $income->getAmount()),
+                'nextExpectedDate' => $income->getNextExpectedDate(),
+            ]);
+
+        $notificationManager->notify($notification);
+    }
+
+    private function sendAutoCreateIncomeFailureNotification(
+        INotificationManager $notificationManager,
+        SettingService $settingService,
+        string $userId,
+        $income,
+        string $reason
+    ): void {
+        $notification = $notificationManager->createNotification();
+
+        $notification->setApp(Application::APP_ID)
+            ->setUser($userId)
+            ->setDateTime(new \DateTime())
+            ->setObject('recurring_income', (string)$income->getId())
+            ->setSubject('income_auto_create_failed', [
+                'incomeId' => $income->getId(),
+                'incomeName' => $income->getName(),
+                'amount' => $this->formatAmount($settingService, $userId, $income->getAmount()),
                 'reason' => $reason,
             ]);
 

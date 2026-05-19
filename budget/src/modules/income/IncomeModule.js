@@ -120,6 +120,7 @@ export default class IncomeModule {
             };
             const frequencyLabel = frequencyLabels[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1);
             const source = income.source || '';
+            const autoCreateEnabled = income.autoCreateEnabled ?? income.auto_create_enabled ?? false;
 
             return `
                 <div class="income-card ${statusClass}" data-income-id="${income.id}" data-status="${statusClass}">
@@ -138,6 +139,7 @@ export default class IncomeModule {
                         </div>
                         <div class="income-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
+                            ${autoCreateEnabled ? `<span class="status-badge auto-create" title="${t('budget', 'Auto-create enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
                         </div>
                     </div>
                     <div class="income-actions">
@@ -257,6 +259,25 @@ export default class IncomeModule {
             });
         }
 
+        // Account dropdown change (enable/disable auto-create checkbox)
+        const incomeAccount = document.getElementById('income-account');
+        const autoCreateCheckbox = document.getElementById('income-auto-create');
+        if (incomeAccount && autoCreateCheckbox) {
+            incomeAccount.addEventListener('change', () => {
+                if (!incomeAccount.value || incomeAccount.value === '') {
+                    autoCreateCheckbox.checked = false;
+                    autoCreateCheckbox.disabled = true;
+                } else {
+                    autoCreateCheckbox.disabled = false;
+                }
+            });
+
+            // Set initial state
+            if (!incomeAccount.value || incomeAccount.value === '') {
+                autoCreateCheckbox.disabled = true;
+            }
+        }
+
         // Frequency change (show/hide month selector)
         const frequencySelect = document.getElementById('income-frequency');
         if (frequencySelect) {
@@ -322,8 +343,13 @@ export default class IncomeModule {
             document.getElementById('income-account').value = income.accountId || income.account_id || '';
             document.getElementById('income-auto-pattern').value = income.autoDetectPattern || income.auto_detect_pattern || '';
             document.getElementById('income-notes').value = income.notes || '';
+
+            // Set auto-create checkbox
+            const autoCreateEnabled = income.autoCreateEnabled ?? income.auto_create_enabled ?? false;
+            document.getElementById('income-auto-create').checked = autoCreateEnabled;
         } else {
             title.textContent = t('budget', 'Add Recurring Income');
+            document.getElementById('income-auto-create').checked = false;
         }
 
         this.updateIncomeFormFields();
@@ -342,6 +368,18 @@ export default class IncomeModule {
         const expectedDayGroup = document.getElementById('expected-day-group');
         const expectedMonthGroup = document.getElementById('expected-month-group');
         const isOneTime = frequency === 'one-time';
+
+        // Update auto-create checkbox state based on account selection
+        const incomeAccount = document.getElementById('income-account');
+        const autoCreateCheckbox = document.getElementById('income-auto-create');
+        if (incomeAccount && autoCreateCheckbox) {
+            if (!incomeAccount.value || incomeAccount.value === '') {
+                autoCreateCheckbox.checked = false;
+                autoCreateCheckbox.disabled = true;
+            } else {
+                autoCreateCheckbox.disabled = false;
+            }
+        }
 
         // Hide day/month fields for one-time income
         if (isOneTime) {
@@ -412,7 +450,8 @@ export default class IncomeModule {
                 categoryId: parseInt(document.getElementById('income-category').value) || null,
                 accountId: parseInt(document.getElementById('income-account').value) || null,
                 autoDetectPattern: document.getElementById('income-auto-pattern').value.trim() || null,
-                notes: document.getElementById('income-notes').value.trim() || null
+                notes: document.getElementById('income-notes').value.trim() || null,
+                autoCreateEnabled: document.getElementById('income-auto-create')?.checked || false
             };
 
             const url = isNew

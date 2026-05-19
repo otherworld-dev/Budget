@@ -5514,6 +5514,14 @@ style('budget', 'budget-main');
             </div>
 
             <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="income-auto-create" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span><?php p($l->t('Auto-create transaction when due')); ?></span>
+                </label>
+                <small class="form-text"><?php p($l->t('Automatically create a transaction when the expected date arrives (requires account)')); ?></small>
+            </div>
+
+            <div class="form-group">
                 <label for="income-auto-pattern"><?php p($l->t('Auto-detect Pattern')); ?></label>
                 <input type="text" id="income-auto-pattern" aria-describedby="income-auto-pattern-help" maxlength="255" placeholder="<?php p($l->t('e.g., PAYROLL, DIVIDEND')); ?>">
                 <small id="income-auto-pattern-help" class="form-text"><?php p($l->t('Pattern to match in transaction descriptions for auto-linking')); ?></small>

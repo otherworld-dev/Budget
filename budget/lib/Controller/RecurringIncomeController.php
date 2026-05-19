@@ -104,7 +104,8 @@ class RecurringIncomeController extends Controller {
         ?int $accountId = null,
         ?string $source = null,
         ?string $autoDetectPattern = null,
-        ?string $notes = null
+        ?string $notes = null,
+        bool $autoCreateEnabled = false
     ): DataResponse {
         try {
             // Validate name (required)
@@ -160,7 +161,8 @@ class RecurringIncomeController extends Controller {
                 $accountId,
                 $source,
                 $autoDetectPattern,
-                $notes
+                $notes,
+                $autoCreateEnabled
             );
 
             return new DataResponse($income, Http::STATUS_CREATED);
