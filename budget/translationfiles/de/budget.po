@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-05-20 20:11+0000\n"
-"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
+"Last-Translator: Marcus <spintike@protonmail.com>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -1262,8 +1262,8 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/settings/SettingsModule.js:609
 msgid "Factory reset completed successfully. All data has been deleted."
 msgstr ""
-"Zurücksetzen auf Werkseinstellungen erfolgreich durchgeführt. Alle Daten "
-"wurden gelöscht."
+"Zurücksetzen auf Werkseinstellungen erfolgreich beendet. Alle Daten wurden "
+"gelöscht."
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:156
 #, php-format
@@ -1402,7 +1402,7 @@ msgstr "Bitte mindestens eine Ausgabe zum Begleichen auswählen"
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:499
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:527
 msgid "Failed to settle expenses"
-msgstr "Ausgaben konnten nicht beglichen werden"
+msgstr "Kostenausgleich fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:413
 msgid "Failed to record settlement"
