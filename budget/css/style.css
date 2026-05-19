@@ -2560,7 +2560,7 @@ button.danger:hover {
 /* View Toggle */
 .view-toggle {
     display: flex;
-    border: 1px solid var(--color-border-dark, #ccc);
+    border: none;
     border-radius: 4px;
     overflow: hidden;
 }
@@ -2575,7 +2575,7 @@ button.danger:hover {
     transition: all 0.15s;
 }
 .view-toggle-btn:not(:last-child) {
-    border-right: 1px solid var(--color-border-dark, #ccc);
+    border-right: none;
 }
 .view-toggle-btn.active {
     background: var(--color-primary-element, #0082c9);
