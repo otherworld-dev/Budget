@@ -13,10 +13,44 @@ When creating an account, you select a type that determines how the app interpre
 | **Credit Card** | Revolving credit accounts. Balances are displayed as amounts owed. Supports credit limit tracking and utilization warnings (alerts at 70% and 90% utilization). |
 | **Investment** | Brokerage, retirement, or other investment accounts for tracking portfolio value. |
 | **Cash** | Physical cash or petty cash tracking. Useful when you want to record cash spending without tying it to a bank. |
-| **Loan** | Mortgages, personal loans, auto loans, or other debts. Balances represent the amount owed. Supports interest rate and minimum payment fields for debt payoff planning. |
+| **Loan** | Personal loans, auto loans, or other debts. Balances represent the amount owed. Supports interest rate and minimum payment fields for debt payoff planning. |
+| **Mortgage** | Home loans and property-secured debt. Treated the same as Loan but visually distinguished. Supports interest rate and minimum payment fields. |
+| **Line of Credit** | Revolving credit facilities such as HELOCs or overdraft lines. Similar to Credit Card but intended for non-card credit accounts. Supports credit limit, interest rate, and minimum payment fields. |
 | **Cryptocurrency** | Wallets or exchange accounts for digital currencies. Supports a wallet address field and works with crypto currencies (BTC, ETH, etc.). |
 
 > **Tip:** The account type mainly affects how balances are displayed and which optional fields appear on the account form. You can always change the type later by editing the account.
+
+## Liability Balance Model
+
+Credit Card, Loan, Mortgage, and Line of Credit are all **liability** account types. They share a common balance model that differs from asset accounts like Checking or Savings.
+
+### How Liability Balances Work
+
+Liability balances are stored as negative numbers internally, but the app displays them as positive amounts with an "Owed" label so they are easy to read at a glance.
+
+- A **payment** (credit transaction) decreases the amount you owe.
+- A **charge** or **withdrawal** (debit transaction) increases the amount you owe.
+
+For example, if you create a Loan account with £10,000 owed, the app stores the balance as −10,000 but displays it as **£10,000 Owed**. After making a £500 payment the display updates to **£9,500 Owed**.
+
+### Creating a Liability Account
+
+When you create a liability account, enter the amount you currently owe as a **positive number** in the Opening Balance field. The app converts it to a negative value automatically — you never need to enter negative numbers yourself.
+
+### Net Worth
+
+The dashboard's net worth calculation correctly subtracts liability balances from asset balances. If you have £20,000 across checking and savings accounts and £8,000 owed on a loan, your net worth shows as £12,000.
+
+## Grid and List Views
+
+The accounts page offers two layouts, toggled with the view switcher in the accounts header.
+
+| View | Description |
+|------|-------------|
+| **Grid** (default) | Tile cards showing account name, balance, sparkline chart, and health status indicators. |
+| **List** | Compact table with columns for name, type, institution, and balance. Useful when you have many accounts. |
+
+Your chosen view is saved automatically and restored the next time you visit the accounts page. In either view, click any card or row to open the account detail view.
 
 ## Creating an Account
 
@@ -27,17 +61,17 @@ Navigate to **Accounts > Add Account** to create a new account.
 | Field | Description |
 |-------|-------------|
 | **Name** | A descriptive name for the account (e.g., "Chase Checking", "Amex Gold"). |
-| **Type** | One of the seven account types listed above. |
+| **Type** | One of the account types listed above. |
 | **Currency** | The currency this account operates in. The app supports 45+ currencies including major fiat currencies (USD, EUR, GBP, JPY, CAD, AUD, CHF, etc.) and cryptocurrencies (BTC, ETH, XRP, LTC, etc.). |
 
 ### Optional Fields
 
 | Field | Description |
 |-------|-------------|
-| **Opening Balance** | The starting balance when you begin tracking this account. For credit cards and loans, enter the amount owed as a positive number. |
+| **Opening Balance** | The starting balance when you begin tracking this account. For liability accounts (Credit Card, Loan, Mortgage, Line of Credit), enter the amount owed as a positive number — see [Liability Balance Model](#liability-balance-model). A live preview of the resulting current balance is shown as you edit this field. |
 | **Credit Limit** | Available for credit card accounts. Used to calculate credit utilization percentage. |
-| **Interest Rate** | Available for loan and credit card accounts. Used in debt payoff calculations. |
-| **Minimum Payment** | Available for loan and credit card accounts. Used in debt payoff planning. |
+| **Interest Rate** | Available for liability accounts. Used in debt payoff calculations. |
+| **Minimum Payment** | Available for liability accounts. Used in debt payoff planning. |
 | **Overdraft Limit** | The overdraft threshold for the account. The app warns you when your balance drops below this limit. |
 
 > **Note:** The currency is set per account, so you can track accounts in different currencies. Multi-currency totals on the dashboard use exchange rates to convert to your default currency. See [Exchange Rates](exchange-rates.md) for details.
