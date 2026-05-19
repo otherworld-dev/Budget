@@ -1329,18 +1329,18 @@ style('budget', 'budget-main');
                         <table id="account-transactions-table" class="transactions-table">
                             <thead>
                                 <tr>
-                                    <th class="sortable" data-sort="date">
+                                    <th class="date-column sortable" data-sort="date">
                                         <?php p($l->t('Date')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="sortable" data-sort="description">
+                                    <th class="description-column sortable" data-sort="description">
                                         <?php p($l->t('Description')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th><?php p($l->t('Category')); ?></th>
-                                    <th class="sortable" data-sort="amount">
+                                    <th class="category-column"><?php p($l->t('Category')); ?></th>
+                                    <th class="amount-column sortable" data-sort="amount">
                                         <?php p($l->t('Amount')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th><?php p($l->t('Balance')); ?></th>
-                                    <th><?php p($l->t('Actions')); ?></th>
+                                    <th class="balance-column"><?php p($l->t('Balance')); ?></th>
+                                    <th class="actions-column"><?php p($l->t('Actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="account-transactions-body"></tbody>
