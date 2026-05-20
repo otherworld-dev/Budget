@@ -350,7 +350,7 @@ export default class SavingsModule {
             currentAmount: parseFloat(document.getElementById('goal-current').value) || 0,
             targetDate: targetDateValue || null,
             description: descriptionValue || null,
-            accountId: accountId,
+            accountId: accountId || null,
             tagId: tagValue ? parseInt(tagValue) : null,
             color: color,
         };
