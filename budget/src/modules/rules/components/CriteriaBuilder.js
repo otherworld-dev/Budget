@@ -84,7 +84,7 @@ export class CriteriaBuilder {
 						<option value="AND" ${node.operator === 'AND' ? 'selected' : ''}>${t('budget', 'All conditions must match (AND)')}</option>
 						<option value="OR" ${node.operator === 'OR' ? 'selected' : ''}>${t('budget', 'Any condition can match (OR)')}</option>
 					</select>
-					${!isRoot ? `<button class="btn-remove-group" type="button" title="${t('budget', 'Remove this group')}">✕</button>` : ''}
+					${!isRoot ? `<button class="btn-remove-group" type="button" data-path="${pathStr}" title="${t('budget', 'Remove this group')}">✕</button>` : ''}
 				</div>
 				<div class="group-conditions">
 					${node.conditions.map((cond, idx) => {
