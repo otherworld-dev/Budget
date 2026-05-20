@@ -120,6 +120,8 @@ class ToshlPreset implements ImportPresetInterface {
             }
         }
 
+        $normalizedRow['source'] = 'Toshl';
+
         return $normalizedRow;
     }
 

@@ -120,6 +120,9 @@ class TransactionNormalizer {
         // Clean description
         $transaction['description'] = trim($transaction['description'] ?? '');
 
+        // Set import source for rule matching
+        $transaction['source'] = 'CSV Import';
+
         return $transaction;
     }
 

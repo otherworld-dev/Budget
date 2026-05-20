@@ -119,6 +119,7 @@ export class CriteriaBuilder {
 						<option value="reference" ${node.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
 						<option value="notes" ${node.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
 						<option value="date" ${node.field === 'date' ? 'selected' : ''}>${t('budget', 'Date')}</option>
+						<option value="source" ${node.field === 'source' ? 'selected' : ''}>${t('budget', 'Import Source')}</option>
 					</select>
 					<select class="condition-match-type" data-path="${pathStr}">
 						${this.renderMatchTypeOptions(node.field, node.matchType)}

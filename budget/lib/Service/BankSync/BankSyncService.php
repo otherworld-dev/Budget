@@ -240,6 +240,7 @@ class BankSyncService {
                         'vendor' => $tx['vendor'] ?? null,
                         'categoryId' => null,
                         'notes' => null,
+                        'source' => 'Bank Sync',
                     ];
 
                     // Apply import rules if enabled for this connection
