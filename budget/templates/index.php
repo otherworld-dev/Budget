@@ -2704,7 +2704,7 @@ style('budget', 'budget-main');
                     <div class="form-group">
                         <label for="goal-color"><?php p($l->t('Color')); ?></label>
                         <div class="color-picker-row">
-                            <input type="color" id="goal-color" name="color" value="#0082c9">
+                            <input type="color" id="goal-color" name="color">
                             <span class="color-preview" id="goal-color-preview"></span>
                         </div>
                     </div>

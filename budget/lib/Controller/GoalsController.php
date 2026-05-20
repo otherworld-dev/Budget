@@ -94,7 +94,9 @@ class GoalsController extends Controller {
         ?int $targetMonths = null,
         ?string $description = null,
         ?string $targetDate = null,
-        ?int $tagId = null
+        ?string $accountId = null,
+        ?int $tagId = null,
+        ?string $color = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -138,9 +140,22 @@ class GoalsController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Current amount cannot be negative')], Http::STATUS_BAD_REQUEST);
             }
 
+            // Validate accountId if provided
+            if ($accountId !== null && $accountId <= 0) {
+                return new DataResponse(['error' => $this->l->t('Invalid account ID')], Http::STATUS_BAD_REQUEST);
+            }
+
             // Validate tagId if provided
             if ($tagId !== null && $tagId <= 0) {
                 return new DataResponse(['error' => $this->l->t('Invalid tag ID')], Http::STATUS_BAD_REQUEST);
+            }
+
+            if ($color !== null) {
+                $colorValidation = $this->validationService->validateColor($color);
+                if (!$colorValidation['valid']) {
+                    return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $color = $colorValidation['sanitized'];
             }
 
             $goal = $this->service->create(
@@ -151,7 +166,9 @@ class GoalsController extends Controller {
                 $currentAmount,
                 $description,
                 $targetDate,
-                $tagId
+                $accountId,
+                $tagId,
+                $color,
             );
             return new DataResponse($goal, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -171,7 +188,9 @@ class GoalsController extends Controller {
         ?float $currentAmount = null,
         ?string $description = null,
         ?string $targetDate = null,
-        ?int $tagId = null
+        ?string $accountId = null,
+        ?int $tagId = null,
+        ?string $color = null,
     ): DataResponse {
         try {
             $this->requireWriteAccess('savings_goal', $id);
@@ -217,9 +236,22 @@ class GoalsController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Current amount cannot be negative')], Http::STATUS_BAD_REQUEST);
             }
 
+            // Validate accountId if provided
+            if ($accountId !== null && $accountId <= 0) {
+                return new DataResponse(['error' => $this->l->t('Invalid account ID')], Http::STATUS_BAD_REQUEST);
+            }
+
             // Validate tagId if provided
             if ($tagId !== null && $tagId <= 0) {
                 return new DataResponse(['error' => $this->l->t('Invalid tag ID')], Http::STATUS_BAD_REQUEST);
+            }
+
+            if ($color !== null) {
+                $colorValidation = $this->validationService->validateColor($color);
+                if (!$colorValidation['valid']) {
+                    return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $color = $colorValidation['sanitized'];
             }
 
             // Detect if tagId was explicitly sent in the request body
@@ -235,7 +267,9 @@ class GoalsController extends Controller {
                 $currentAmount,
                 $description,
                 $targetDate,
+                $accountId,
                 $tagId,
+                $color,
                 $updateTagId
             );
             return new DataResponse($goal);

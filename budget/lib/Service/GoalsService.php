@@ -42,7 +42,9 @@ class GoalsService {
         float $currentAmount = 0.0,
         ?string $description = null,
         ?string $targetDate = null,
-        ?int $tagId = null
+        ?string $accountId = null,
+        ?int $tagId = null,
+        ?string $color = null
     ): SavingsGoal {
         $goal = new SavingsGoal();
         $goal->setUserId($userId);
@@ -52,7 +54,9 @@ class GoalsService {
         $goal->setTargetMonths($targetMonths);
         $goal->setDescription($description);
         $goal->setTargetDate($targetDate);
+        $goal->setAccountId($accountId);
         $goal->setTagId($tagId);
+        $goal->setColor($color);
         $goal->setCreatedAt(date('Y-m-d H:i:s'));
 
         $inserted = $this->mapper->insert($goal);
@@ -71,7 +75,9 @@ class GoalsService {
         ?float $currentAmount = null,
         ?string $description = null,
         ?string $targetDate = null,
+        ?string $accountId = null,
         ?int $tagId = null,
+        ?string $color = null,
         bool $updateTagId = false
     ): SavingsGoal {
         $goal = $this->mapper->find($id, $userId);
@@ -91,9 +97,14 @@ class GoalsService {
         if ($targetDate !== null) {
             $goal->setTargetDate($targetDate);
         }
-
+        if ($accountId !== null) {
+            $goal->setAccountId($accountId);
+        }
         if ($updateTagId) {
             $goal->setTagId($tagId);
+        }
+        if ($color !== null) {
+            $goal->setColor($color);
         }
 
         // Only update currentAmount if goal is not tag-linked

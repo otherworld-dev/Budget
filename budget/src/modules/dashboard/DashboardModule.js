@@ -1060,7 +1060,7 @@ export default class DashboardModule {
                         <div class="savings-goal-target">${t('budget', 'Target: {amount}', { amount: this.formatCurrency(target) })}</div>
                     </div>
                     <div class="savings-goal-progress">
-                        <div class="savings-goal-fill" style="width: ${percentage}%"></div>
+                        <div class="savings-goal-fill" style="width: ${percentage}%; background: ${goal.color}"></div>
                     </div>
                     <div class="savings-goal-footer">
                         <span class="savings-goal-current">${t('budget', '{amount} saved', { amount: this.formatCurrency(current) })}</span>

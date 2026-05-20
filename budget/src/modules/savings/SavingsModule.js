@@ -314,19 +314,22 @@ export default class SavingsModule {
         this.updateCurrentAmountFieldState(false);
 
         // Populate if editing
-        if (goal) {
+        if (goal) {            
             document.getElementById('goal-id').value = goal.id;
             document.getElementById('goal-name').value = goal.name;
             document.getElementById('goal-target').value = goal.targetAmount || goal.target_amount || '';
             document.getElementById('goal-current').value = goal.currentAmount || goal.current_amount || 0;
             setDateValue('goal-target-date', goal.targetDate || goal.target_date || '');
             document.getElementById('goal-notes').value = goal.description || '';
+            document.getElementById('goal-account').value = goal.accountId || '';
 
             // Set tag dropdown
             if (tagDropdown && goal.tagId) {
                 tagDropdown.value = goal.tagId;
                 this.updateCurrentAmountFieldState(true);
             }
+            
+            document.getElementById('goal-color').value = goal.color || '#0082c9';
         }
 
         modal.style.display = 'flex';
@@ -338,6 +341,8 @@ export default class SavingsModule {
 
         const targetDateValue = document.getElementById('goal-target-date').value;
         const descriptionValue = document.getElementById('goal-notes').value;
+        const accountId = document.getElementById('goal-account').value;
+        const color = document.getElementById('goal-color').value;
 
         const data = {
             name: document.getElementById('goal-name').value,
@@ -345,7 +350,9 @@ export default class SavingsModule {
             currentAmount: parseFloat(document.getElementById('goal-current').value) || 0,
             targetDate: targetDateValue || null,
             description: descriptionValue || null,
-            tagId: tagValue ? parseInt(tagValue) : null
+            accountId: accountId,
+            tagId: tagValue ? parseInt(tagValue) : null,
+            color: color,
         };
 
         try {
