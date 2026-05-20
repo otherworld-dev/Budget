@@ -216,23 +216,53 @@ export default class RulesModule {
     getRuleActionBadges(rule, actions) {
         const badges = [];
 
-        // Check for category action
-        const categoryId = actions.categoryId || rule.categoryId;
-        if (categoryId) {
-            const category = this.categories?.find(c => c.id === categoryId);
-            const categoryName = category?.name || t('budget', 'Category #{id}', { id: categoryId });
-            badges.push(`<span class="action-badge category">→ ${this.escapeHtml(categoryName)}</span>`);
-        }
+        // Handle v2 nested actions format: {version: 2, actions: [{type, value}, ...]}
+        if (actions.version === 2 && Array.isArray(actions.actions)) {
+            for (const action of actions.actions) {
+                switch (action.type) {
+                    case 'category': {
+                        const cat = this.categories?.find(c => c.id === action.value);
+                        const name = cat?.name || t('budget', 'Category #{id}', { id: action.value });
+                        badges.push(`<span class="action-badge category">→ ${this.escapeHtml(name)}</span>`);
+                        break;
+                    }
+                    case 'vendor':
+                        badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(action.value)}</span>`);
+                        break;
+                    case 'notes':
+                        badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
+                        break;
+                    case 'tags':
+                        badges.push(`<span class="action-badge tags">${t('budget', 'Set tags')}</span>`);
+                        break;
+                    case 'type':
+                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${action.value}</span>`);
+                        break;
+                    case 'account':
+                        badges.push(`<span class="action-badge account">${t('budget', 'Move account')}</span>`);
+                        break;
+                    case 'reference':
+                        badges.push(`<span class="action-badge reference">${t('budget', 'Set reference')}</span>`);
+                        break;
+                }
+            }
+        } else {
+            // Legacy flat format
+            const categoryId = actions.categoryId || rule.categoryId;
+            if (categoryId) {
+                const category = this.categories?.find(c => c.id === categoryId);
+                const categoryName = category?.name || t('budget', 'Category #{id}', { id: categoryId });
+                badges.push(`<span class="action-badge category">→ ${this.escapeHtml(categoryName)}</span>`);
+            }
 
-        // Check for vendor action
-        const vendor = actions.vendor || rule.vendorName;
-        if (vendor) {
-            badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(vendor)}</span>`);
-        }
+            const vendor = actions.vendor || rule.vendorName;
+            if (vendor) {
+                badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(vendor)}</span>`);
+            }
 
-        // Check for notes action
-        if (actions.notes) {
-            badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
+            if (actions.notes) {
+                badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
+            }
         }
 
         return badges.length > 0 ? badges.join('') : `<span class="action-badge none">${t('budget', 'No actions')}</span>`;
