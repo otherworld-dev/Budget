@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.0] - 2026-05-20
+
+### Added
+- **Import Rules for Bank Sync** — Bank sync transactions now run through import rules when the "Apply rules" toggle is enabled per connection. Rules with "Apply during import" will auto-categorize, tag, set vendors, etc.
+- **Import Source Rule Criteria** — New "Import Source" field in rule criteria. Match on "Bank Sync", "CSV Import", or "Toshl" to target specific import sources.
+- **Savings Goal Color & Account** ([#203](https://github.com/otherworld-dev/budget/issues/203)) — Color picker and account selector on savings goals now save correctly. Progress bars on the dashboard use the saved color.
+
+### Fixed
+- **Account Tab Date Format** ([#200](https://github.com/otherworld-dev/budget/issues/200)) — Date column now uses the user's configured format instead of ISO.
+- **Account Tab Vendor Column** ([#200](https://github.com/otherworld-dev/budget/issues/200)) — Vendor is now a separate column instead of being merged into Description.
+- **CSV Import TypeError** ([#201](https://github.com/otherworld-dev/budget/issues/201)) — Fixed crash when Account column contains numeric values.
+- **Account Detail Page Jump** ([#194](https://github.com/otherworld-dev/budget/issues/194)) — Pagination buttons no longer skip multiple pages due to stacked event listeners.
+- **Rules Table Borders** — Fixed misaligned row borders caused by `display:flex` on the status column.
+- **Rules Action Badges** — V2 rule actions (category, vendor, tags, type, etc.) now display correctly in the rules list.
+- **Remove Group Button** — The ✕ button to remove a criteria group in the rule editor now works (was missing data-path attribute).
+- **Transaction Table Column Widths** — Set explicit column widths on account transaction table for proper alignment.
+
 ## [2.23.0] - 2026-05-20
 
 ### Added
