@@ -336,6 +336,7 @@ return [
         ['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'POST'],
         ['name' => 'bankSync#connections', 'url' => '/api/bank-sync/connections', 'verb' => 'GET'],
         ['name' => 'bankSync#connect', 'url' => '/api/bank-sync/connections', 'verb' => 'POST'],
+        ['name' => 'bankSync#updateConnection', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'PUT'],
         ['name' => 'bankSync#disconnect', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'DELETE'],
         ['name' => 'bankSync#sync', 'url' => '/api/bank-sync/connections/{id}/sync', 'verb' => 'POST'],
         ['name' => 'bankSync#mappings', 'url' => '/api/bank-sync/connections/{id}/mappings', 'verb' => 'GET'],

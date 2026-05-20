@@ -242,8 +242,10 @@ class BankSyncService {
                         'notes' => null,
                     ];
 
-                    // Apply import rules (auto-categorize, tag, set vendor, etc.)
-                    $txData = $this->ruleApplicator->applyRules($userId, $txData);
+                    // Apply import rules if enabled for this connection
+                    if ($connection->getApplyRules()) {
+                        $txData = $this->ruleApplicator->applyRules($userId, $txData);
+                    }
 
                     $this->transactionService->create(
                         userId: $userId,
@@ -303,6 +305,20 @@ class BankSyncService {
             'errors' => $totalErrors,
             'accounts' => $accountResults,
         ];
+    }
+
+    /**
+     * Get a single connection by ID (verified ownership).
+     */
+    public function getConnection(string $userId, int $connectionId): BankConnection {
+        return $this->connectionMapper->find($connectionId, $userId);
+    }
+
+    /**
+     * Update a connection entity directly.
+     */
+    public function updateConnectionEntity(BankConnection $connection): void {
+        $this->connectionMapper->update($connection);
     }
 
     /**

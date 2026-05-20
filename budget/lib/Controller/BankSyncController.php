@@ -181,6 +181,31 @@ class BankSyncController extends Controller {
     }
 
     /**
+     * Update connection settings.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function updateConnection(int $id): DataResponse {
+        if ($r = $this->requireBankSync()) return $r;
+
+        try {
+            $params = $this->request->getParams();
+            $connection = $this->syncService->getConnection($this->userId, $id);
+
+            if (isset($params['applyRules'])) {
+                $connection->setApplyRules((bool) $params['applyRules']);
+            }
+
+            $connection->setUpdatedAt(date('Y-m-d H:i:s'));
+            $this->syncService->updateConnectionEntity($connection);
+
+            return new DataResponse($connection);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to update connection'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+        }
+    }
+
+    /**
      * Manually trigger a sync for a connection.
      * @NoAdminRequired
      */

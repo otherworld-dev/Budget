@@ -190,6 +190,10 @@ export default class BankSyncModule {
                     <div class="bank-connection-meta">
                         <span>${lastSync}</span>
                         <span>${t('budget', '{count} account(s) mapped', { count: mappedCount })}</span>
+                        <label class="bank-connection-toggle" title="${t('budget', 'Auto-apply import rules to synced transactions')}">
+                            <input type="checkbox" class="apply-rules-checkbox" data-connection-id="${connection.id}" ${connection.applyRules ? 'checked' : ''}>
+                            <span>${t('budget', 'Apply rules')}</span>
+                        </label>
                         ${connection.lastError ? `<span class="bank-connection-error">${this.escapeHtml(connection.lastError)}</span>` : ''}
                     </div>
                 </div>
@@ -204,6 +208,9 @@ export default class BankSyncModule {
         });
         container.querySelectorAll('.bank-mappings-btn').forEach(btn => {
             btn.addEventListener('click', () => this.showMappings(parseInt(btn.dataset.connectionId)));
+        });
+        container.querySelectorAll('.apply-rules-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => this.updateConnectionApplyRules(parseInt(cb.dataset.connectionId), cb.checked));
         });
         container.querySelectorAll('.bank-disconnect-btn').forEach(btn => {
             btn.addEventListener('click', () => this.disconnect(parseInt(btn.dataset.connectionId)));
@@ -881,6 +888,20 @@ export default class BankSyncModule {
     }
 
     // ── Utilities ───────────────────────────────────────────────
+
+    async updateConnectionApplyRules(connectionId, applyRules) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ applyRules })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            showSuccess(t('budget', applyRules ? 'Import rules will be applied during sync' : 'Import rules disabled for this connection'));
+        } catch (error) {
+            showError(t('budget', 'Failed to update connection settings'));
+        }
+    }
 
     escapeHtml(text) {
         if (!text) return '';
