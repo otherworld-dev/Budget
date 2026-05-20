@@ -28,6 +28,7 @@ class BankSyncService {
         private AuditService $auditService,
         private AdminSettingService $adminSettings,
         private AccountMapper $accountMapper,
+        private \OCA\Budget\Service\Import\ImportRuleApplicator $ruleApplicator,
         private IL10N $l,
         private LoggerInterface $logger
     ) {
@@ -230,14 +231,30 @@ class BankSyncService {
                 $absAmount = abs($amount);
 
                 try {
+                    // Build transaction array for rule matching
+                    $txData = [
+                        'date' => $tx['date'],
+                        'description' => $tx['description'] ?? '',
+                        'amount' => $absAmount,
+                        'type' => $type,
+                        'vendor' => $tx['vendor'] ?? null,
+                        'categoryId' => null,
+                        'notes' => null,
+                    ];
+
+                    // Apply import rules (auto-categorize, tag, set vendor, etc.)
+                    $txData = $this->ruleApplicator->applyRules($userId, $txData);
+
                     $this->transactionService->create(
                         userId: $userId,
                         accountId: $budgetAccountId,
-                        date: $tx['date'],
-                        description: $tx['description'] ?? '',
-                        amount: $absAmount,
-                        type: $type,
-                        vendor: $tx['vendor'] ?? null,
+                        date: $txData['date'],
+                        description: $txData['description'],
+                        amount: $txData['amount'],
+                        type: $txData['type'],
+                        categoryId: $txData['categoryId'] ?? null,
+                        vendor: $txData['vendor'] ?? null,
+                        notes: $txData['notes'] ?? null,
                         importId: $importId,
                         status: 'cleared'
                     );
