@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-16 08:12+0000\n"
+"PO-Revision-Date: 2026-05-20 20:11+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -69,7 +69,7 @@ msgstr "Ungültige Währung: %1$s"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:141
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4704
 msgid "Institution"
-msgstr "Einrichtung"
+msgstr "Finanzinstitut"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:150
 msgid "Account holder name"
@@ -500,7 +500,7 @@ msgstr "Die Aufteilungsvorlage muss mindestens 2 Aufteilungen enthalten"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:956
 msgid "Each split must have a positive amount"
-msgstr "Jede Aufteilung muss einen positiven Betrag haben"
+msgstr "Jeder Split muss einen positiven Betrag haben"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/BillController.php:962
 msgid "Split amounts must equal the bill amount"
@@ -825,11 +825,11 @@ msgstr "Importregel"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:103
 msgid "Criteria required for v2 rules"
-msgstr "Notwendige Kriterien für v2-Regeln"
+msgstr "Kriterien benötigt für v2-Regeln"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:109
 msgid "Pattern, field, and matchType required for v1 rules"
-msgstr "Muster, Feld und „matchType“ benötigt für v1-Regeln"
+msgstr "Muster, Feld und Vergleichstyp benötigt für v1-Regeln"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:121
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:220
@@ -1254,9 +1254,8 @@ msgid ""
 "Factory reset requires confirmed=true parameter. This will permanently "
 "delete ALL your data."
 msgstr ""
-"Das Zurücksetzen auf Werkseinstellungen bedingt, dass das Parameter „"
-"confirmed“ aktiviert ist. Diese Aktion wird ALLE Deine Daten permanent "
-"löschen."
+"Factory-Reset erfordert den Parameter confirmed=true. Dadurch werden ALLE "
+"Daten dauerhaft gelöscht."
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SetupController.php:151
 #: /tmp/budget-v2.11.0/budget/src/main.js:1961
@@ -1623,7 +1622,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:713
 msgid "Failed to set transaction tags"
-msgstr "Einstellungen Transaktionsmarkierung fehlgeschlagen"
+msgstr "Transaktions-Tags konnten nicht gesetzt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:728
 msgid "Failed to clear transaction tags"
@@ -1666,7 +1665,7 @@ msgstr "Budget"
 #. Do NOT translate {bill} — it is a placeholder replaced with the bill name at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:45
 msgid "Bill reminder: {bill}"
-msgstr ""
+msgstr "Rechnungserinnerung: {bill}"
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:56
 msgid "due today"
@@ -1684,12 +1683,12 @@ msgstr "Fällig in %s Tagen"
 #. Do NOT translate {bill}, {amount}, or {dueText} — they are placeholders replaced at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:65
 msgid "{bill} ({amount}) is {dueText}"
-msgstr ""
+msgstr "{bill} ({amount}) ist {dueText}"
 
 #. Do NOT translate {bill} — it is a placeholder replaced with the bill name at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:98
 msgid "Overdue bill: {bill}"
-msgstr ""
+msgstr "Überfällige Rechnung: {bill}"
 
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:110
 msgid "1 day overdue"
@@ -1703,22 +1702,24 @@ msgstr "Überfällig %s Tage"
 #. Do NOT translate {bill}, {amount}, or {overdueText} — they are placeholders replaced at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:115
 msgid "{bill} ({amount}) is {overdueText}"
-msgstr ""
+msgstr "{bill} ({amount}) ist {overdueText}"
 
 #. Do NOT translate {bill} — it is a placeholder replaced with the bill name at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:148
 msgid "Bill auto-paid: {bill}"
-msgstr ""
+msgstr "Rechnung automatisch bezahlt: {bill}"
 
 #. Do NOT translate {bill}, {amount}, or {nextDueDate} — they are placeholders replaced at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:160
 msgid "{bill} ({amount}) was automatically paid. Next due: {nextDueDate}"
 msgstr ""
+"{bill} ({amount}) wurde automatisch bezahlt. Nächste Fälligkeit: "
+"{nextDueDate}"
 
 #. Do NOT translate {bill} — it is a placeholder replaced with the bill name at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:193
 msgid "Auto-pay failed: {bill}"
-msgstr ""
+msgstr "Automatische Zahlung fehlgeschlagen: {bill}"
 
 #. Do NOT translate {bill}, {amount}, or {reason} — they are placeholders replaced at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:205
@@ -1726,11 +1727,13 @@ msgid ""
 "Failed to auto-pay {bill} ({amount}). Auto-pay has been disabled. Reason: "
 "{reason}"
 msgstr ""
+"{bill} ({amount}) konnte nicht automatisch bezahlt werden. Die automatische "
+"Zahlung wurde deaktiviert. Grund: {reason}"
 
 #. Do NOT translate {user} — it is a placeholder replaced with the username at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:238
 msgid "{user} shared their budget with you"
-msgstr ""
+msgstr "{user} hat sein Budget mit dir geteilt"
 
 #. Do NOT translate {user} — it is a placeholder replaced with the username at runtime.
 #: /tmp/budget-v2.11.0/budget/lib/Notification/Notifier.php:250
@@ -2322,7 +2325,7 @@ msgstr "Fällige Zahlungen"
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:42
 #: /tmp/budget-v2.11.0/budget/templates/index.php:669
 msgid "Budget Progress"
-msgstr ""
+msgstr "Budgetfortschritt"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:43
 #: /tmp/budget-v2.11.0/budget/src/modules/sharing/SharingModule.js:243
@@ -2404,7 +2407,7 @@ msgstr "Geldflussprognose"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:64
 msgid "Year-over-Year"
-msgstr ""
+msgstr "Jährlicher Vergleich"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:65
 #: /tmp/budget-v2.11.0/budget/templates/index.php:844
@@ -2450,7 +2453,7 @@ msgstr "Transfer aufheben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:365
 msgid "Match transfer"
-msgstr ""
+msgstr "Transfer zuordnen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:705
 msgid "Failed to load accounts: {status} {statusText}"
@@ -2471,16 +2474,16 @@ msgstr "Umbuchung"
 #: /tmp/budget-v2.11.0/budget/src/main.js:978
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:685
 msgid "Click to view linked transaction in {account}"
-msgstr ""
+msgstr "Klicken, um die verknüpfte Transaktion in {account} anzuzeigen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:978
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:685
 msgid "Linked transfer"
-msgstr ""
+msgstr "Verknüpfter Transfer"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:988
 msgid "Shared expense - unsettled"
-msgstr ""
+msgstr "Geteilte Ausgabe – nicht beglichen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:988
 msgid "Shared"
@@ -2488,7 +2491,7 @@ msgstr "Geteilt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:990
 msgid "Shared expense - settled"
-msgstr ""
+msgstr "Geteilte Ausgabe – beglichen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:990
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:106
@@ -2499,12 +2502,14 @@ msgid "Settled"
 msgstr "Erledigt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:993
+#, fuzzy
 msgid "Match Transfer"
-msgstr ""
+msgstr "Transfer zuordnen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:994
+#, fuzzy
 msgid "Unlink Transfer"
-msgstr ""
+msgstr "Transfer aufheben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1014
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:697
@@ -2940,7 +2945,7 @@ msgstr "Zinsen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2630
 msgid "Avalanche Recommended"
-msgstr ""
+msgstr "Empfohlen nach der Avalanche-Methode"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2631
 msgid "Snowball Recommended"
@@ -2968,7 +2973,7 @@ msgstr "Transaktion nicht gefunden"
 #: /tmp/budget-v2.11.0/budget/src/main.js:2774
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1734
 msgid "Link as Transfer"
-msgstr ""
+msgstr "Als Transfer verknüpfen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2783
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1743
@@ -2989,7 +2994,7 @@ msgstr "Transaktionen verknüpfen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2818
 msgid "Could not navigate to linked transaction"
-msgstr ""
+msgstr "Verknüpfte Transaktion konnte nicht geöffnet werden"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2869
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1761
@@ -3040,7 +3045,7 @@ msgstr "Beschreibung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2922
 msgid "Total Amount"
-msgstr ""
+msgstr "Gesamtbetrag"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2983
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2256
@@ -3093,52 +3098,56 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3151
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1984
-#, fuzzy
 msgid "Transaction split successfully"
 msgstr "Transaktion teilen erfolgreich"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3155
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1988
 msgid "Failed to save splits"
-msgstr ""
+msgstr "Fehler beim Speichern der Aufteilungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3166
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1996
 msgid ""
 "Are you sure you want to remove the split and revert to a single transaction?"
 msgstr ""
+"Möchtest du die Aufteilung wirklich entfernen und zur Einzeltransaktion "
+"zurückkehren?"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3182
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2012
 msgid "Transaction unsplit successfully"
-msgstr ""
+msgstr "Aufteilung der Transaktion erfolgreich entfernt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3186
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2016
 msgid "Failed to unsplit transaction"
-msgstr ""
+msgstr "Aufhebung der Transaktionsaufteilung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3503
 msgid "At least one column must remain visible"
-msgstr ""
+msgstr "Mindestens eine Spalte muss sichtbar bleiben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3530
 msgid "Failed to save column visibility"
-msgstr ""
+msgstr "Spaltensichtbarkeit konnte nicht gespeichert werden"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3537
 msgid "Failed to save column preferences"
-msgstr ""
+msgstr "Spalteneinstellungen konnten nicht gespeichert werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:217
 msgid ""
 "Accounts in {currencies} are excluded from totals because exchange rates are "
 "unavailable. Add rates in Settings > Exchange Rates."
 msgstr ""
+"Konten in {currencies} werden von den Gesamtsummen ausgeschlossen, da keine "
+"Wechselkurse verfügbar sind. Füge Wechselkurse unter Einstellungen > "
+"Wechselkurse hinzu."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:235
 msgid "No asset accounts yet"
-msgstr ""
+msgstr "Noch keine Anlagekonten vorhanden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:254
 msgid "Unnamed Account"
