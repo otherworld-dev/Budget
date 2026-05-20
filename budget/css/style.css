@@ -4995,6 +4995,13 @@ button.danger:hover {
 #account-transactions-table {
     margin-top: 0;
 }
+#account-transactions-table .date-column { width: 90px; }
+#account-transactions-table .description-column { width: auto; }
+#account-transactions-table .vendor-column { width: 120px; }
+#account-transactions-table .category-column { width: 110px; }
+#account-transactions-table .amount-column { width: 100px; }
+#account-transactions-table .balance-column { width: 100px; }
+#account-transactions-table .actions-column { width: 80px; }
 
 /* Transaction Balance Column */
 .transaction-balance {
