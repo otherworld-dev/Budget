@@ -14437,9 +14437,11 @@ tr.scheduled-transaction:hover {
 }
 
 .rules-table td {
-    padding: 6px 10px;
+    padding: 10px 10px;
     border-bottom: 1px solid var(--color-border-dark);
     vertical-align: middle;
+    height: 44px;
+    box-sizing: border-box;
 }
 
 .rules-table tbody tr:last-child td {
@@ -14478,6 +14480,9 @@ tr.scheduled-transaction:hover {
 .rules-col-status {
     width: 120px;
     white-space: nowrap;
+}
+.rules-col-status > * {
+    vertical-align: middle;
 }
 
 .rules-col-criteria {
