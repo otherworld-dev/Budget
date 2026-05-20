@@ -1140,6 +1140,9 @@ export default class AccountsModule {
     }
 
     setupAccountDetailsEventListeners() {
+        if (this._accountDetailsListenersSetup) return;
+        this._accountDetailsListenersSetup = true;
+
         // Back to accounts button
         const backBtn = document.getElementById('back-to-accounts-btn');
         if (backBtn) {
