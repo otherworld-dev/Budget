@@ -97,9 +97,7 @@ class GoalsService {
         if ($targetDate !== null) {
             $goal->setTargetDate($targetDate);
         }
-        if ($accountId !== null) {
-            $goal->setAccountId($accountId);
-        }
+        $goal->setAccountId($accountId);
         if ($updateTagId) {
             $goal->setTagId($tagId);
         }

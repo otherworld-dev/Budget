@@ -141,12 +141,8 @@ class GoalsController extends Controller {
             }
 
             // Validate accountId if provided
-            if (!empty($accountId)) {
-                $accountValidation = $this->validationService->validateAccountNumber($accountId);
-                if (!$accountValidation['valid']) {
-                    return new DataResponse(['error' => $accountValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $accountId = $accountValidation['sanitized'];
+            if ($accountId === '') {
+                return new DataResponse(['error' => $this->l->t("Account id can't be empty")], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate tagId if provided
@@ -241,13 +237,9 @@ class GoalsController extends Controller {
             }
 
             // Validate accountId if provided
-            if ($accountId !== null) {
-                $accountValidation = $this->validationService->validateAccountNumber($accountId);
-                if (!$accountValidation['valid']) {
-                    return new DataResponse(['error' => $accountValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $accountId = $accountValidation['sanitized'];            }
-
+            if ($accountId === '') {
+                return new DataResponse(['error' => $this->l->t("Account id can't be empty")], Http::STATUS_BAD_REQUEST);
+            }
             // Validate tagId if provided
             if ($tagId !== null && $tagId <= 0) {
                 return new DataResponse(['error' => $this->l->t('Invalid tag ID')], Http::STATUS_BAD_REQUEST);
