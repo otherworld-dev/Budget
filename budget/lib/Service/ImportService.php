@@ -938,6 +938,7 @@ class ImportService {
         $created = [];
 
         foreach ($accountInfo as $name => $info) {
+            $name = (string) $name;
             $existing = $this->accountMapper->findByName($userId, $name);
             if ($existing) {
                 $resolved[$name] = $existing->getId();
