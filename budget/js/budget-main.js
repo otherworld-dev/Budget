@@ -20383,6 +20383,20 @@ var DASHBOARD_WIDGETS = {
       size: 'small',
       defaultVisible: true
     },
+    debtChart: {
+      id: 'debt-chart-card',
+      name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Debt Payoff Chart'),
+      size: 'medium',
+      defaultVisible: false,
+      category: 'debts'
+    },
+    debtProgress: {
+      id: 'debt-progress-card',
+      name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Debt Progress'),
+      size: 'small',
+      defaultVisible: false,
+      category: 'debts'
+    },
     // Phase 1 - Quick Wins (use existing data)
     topCategories: {
       id: 'top-categories-card',
@@ -32363,6 +32377,38 @@ var DashboardModule = /*#__PURE__*/function () {
         });
       }
     }
+  }, {
+    key: "updateDaysUntilDebtFreeHero",
+    value: function updateDaysUntilDebtFreeHero() {
+      var el = document.getElementById('hero-debt-free-value');
+      if (!el) return;
+      var plan = this.widgetData.daysUntilDebtFree;
+      if (!plan || !plan.debts || plan.debts.length === 0) {
+        // No debts — hide the tile
+        var tile = document.querySelector('[data-widget-id="daysUntilDebtFree"]');
+        if (tile) tile.style.display = 'none';
+        return;
+      }
+      if (!plan.payoffDate) {
+        el.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'N/A');
+        return;
+      }
+      var today = new Date();
+      var payoff = new Date(plan.payoffDate);
+      var msPerDay = 1000 * 60 * 60 * 24;
+      var daysLeft = Math.max(0, Math.round((payoff - today) / msPerDay));
+      el.textContent = daysLeft.toLocaleString();
+      var changeEl = document.getElementById('hero-debt-free-change');
+      if (changeEl) {
+        var payoffDisplay = payoff.toLocaleDateString(undefined, {
+          month: 'short',
+          year: 'numeric'
+        });
+        changeEl.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Debt free by {date}', {
+          date: payoffDisplay
+        });
+      }
+    }
 
     // ===========================
     // Currency Conversion Indicator
@@ -32746,6 +32792,306 @@ var DashboardModule = /*#__PURE__*/function () {
         }
       }
     }
+  }, {
+    key: "renderDebtChartWidget",
+    value: function () {
+      var _renderDebtChartWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0() {
+        var plan, scenariosRes, scenarios, active, res, _res, statsEl, totalDebt, payoffDate, endEl, canvas, colors, labels, datasets, _t10;
+        return _regenerator().w(function (_context0) {
+          while (1) switch (_context0.p = _context0.n) {
+            case 0:
+              _context0.p = 0;
+              _context0.n = 1;
+              return fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 1:
+              scenariosRes = _context0.v;
+              _context0.n = 2;
+              return scenariosRes.json();
+            case 2:
+              scenarios = _context0.v;
+              active = Array.isArray(scenarios) ? scenarios.find(function (s) {
+                return s.isActive;
+              }) : null;
+              if (!active) {
+                _context0.n = 5;
+                break;
+              }
+              _context0.n = 3;
+              return fetch(OC.generateUrl("/apps/budget/api/debt-scenarios/".concat(active.id, "/calculate")), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 3:
+              res = _context0.v;
+              _context0.n = 4;
+              return res.json();
+            case 4:
+              plan = _context0.v;
+              _context0.n = 8;
+              break;
+            case 5:
+              _context0.n = 6;
+              return fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 6:
+              _res = _context0.v;
+              _context0.n = 7;
+              return _res.json();
+            case 7:
+              plan = _context0.v;
+            case 8:
+              if (!(!plan || !plan.debts || plan.debts.length === 0)) {
+                _context0.n = 9;
+                break;
+              }
+              return _context0.a(2);
+            case 9:
+              // Stats row
+              statsEl = document.getElementById('debt-chart-widget-stats');
+              if (statsEl) {
+                totalDebt = plan.debts.reduce(function (sum, d) {
+                  return sum + d.originalBalance;
+                }, 0);
+                payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(undefined, {
+                  month: 'short',
+                  year: 'numeric'
+                }) : 'N/A';
+                statsEl.innerHTML = "\n                    <div style=\"flex:1;\"><div style=\"font-size:10px;color:var(--color-text-maxcontrast);\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Total Debt'), "</div><div style=\"font-size:14px;font-weight:bold;color:var(--color-error);\">").concat(this.formatCurrency(totalDebt), "</div></div>\n                    <div style=\"flex:1;\"><div style=\"font-size:10px;color:var(--color-text-maxcontrast);\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Debt Free'), "</div><div style=\"font-size:14px;font-weight:bold;color:var(--color-success);\">").concat(payoffDate, "</div></div>\n                ");
+              }
+
+              // End date label
+              endEl = document.getElementById('debt-chart-widget-end');
+              if (endEl && plan.payoffDate) {
+                endEl.textContent = new Date(plan.payoffDate).toLocaleDateString(undefined, {
+                  year: 'numeric'
+                });
+              }
+
+              // Mini sparkline chart
+              canvas = document.getElementById('debt-chart-widget-canvas');
+              if (!(!canvas || !plan.timeline || plan.timeline.length === 0)) {
+                _context0.n = 10;
+                break;
+              }
+              return _context0.a(2);
+            case 10:
+              colors = ['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#9b59b6', '#1abc9c'];
+              labels = plan.timeline.map(function () {
+                return '';
+              }); // Build per-debt balance data
+              datasets = plan.debts.map(function (debt, i) {
+                var data = plan.timeline.map(function (entry) {
+                  var p = entry.payments.find(function (p) {
+                    return p.debtId === debt.id;
+                  });
+                  return p ? Math.max(0, p.remainingBalance) : 0;
+                });
+                return {
+                  data: data,
+                  borderColor: colors[i % colors.length],
+                  backgroundColor: colors[i % colors.length] + '40',
+                  fill: true,
+                  tension: 0.3,
+                  pointRadius: 0,
+                  borderWidth: 1
+                };
+              });
+              if (this.debtChartWidget) this.debtChartWidget.destroy();
+              this.debtChartWidget = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                  labels: labels,
+                  datasets: datasets
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      display: false
+                    },
+                    tooltip: {
+                      enabled: false
+                    }
+                  },
+                  scales: {
+                    x: {
+                      display: false
+                    },
+                    y: {
+                      display: false,
+                      stacked: true
+                    }
+                  }
+                }
+              });
+              _context0.n = 12;
+              break;
+            case 11:
+              _context0.p = 11;
+              _t10 = _context0.v;
+              console.error('Failed to render debt chart widget', _t10);
+            case 12:
+              return _context0.a(2);
+          }
+        }, _callee0, this, [[0, 11]]);
+      }));
+      function renderDebtChartWidget() {
+        return _renderDebtChartWidget.apply(this, arguments);
+      }
+      return renderDebtChartWidget;
+    }()
+  }, {
+    key: "renderDebtProgressWidget",
+    value: function () {
+      var _renderDebtProgressWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
+        var _yield$Promise$all3, _yield$Promise$all4, progressRes, summaryRes, progress, summary, monthsEl, currentDebt, originalDebt, paidOff, remainingEl, percentEl, barEl, scenariosRes, scenarios, active, _plan$debts, planRes, plan, nextDebt, nextNameEl, nextDateEl, payoffDate, statusEl, statusMap, s, _t11;
+        return _regenerator().w(function (_context1) {
+          while (1) switch (_context1.p = _context1.n) {
+            case 0:
+              _context1.p = 0;
+              _context1.n = 1;
+              return Promise.all([fetch(OC.generateUrl('/apps/budget/api/debts/progress'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              }), fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              })]);
+            case 1:
+              _yield$Promise$all3 = _context1.v;
+              _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
+              progressRes = _yield$Promise$all4[0];
+              summaryRes = _yield$Promise$all4[1];
+              _context1.n = 2;
+              return progressRes.json();
+            case 2:
+              progress = _context1.v;
+              _context1.n = 3;
+              return summaryRes.json();
+            case 3:
+              summary = _context1.v;
+              if (!(summary.debtCount === 0)) {
+                _context1.n = 4;
+                break;
+              }
+              return _context1.a(2);
+            case 4:
+              // Countdown
+              monthsEl = document.getElementById('debt-progress-months');
+              if (monthsEl) {
+                monthsEl.textContent = progress.hasActiveScenario ? progress.totalMonths : '?';
+              }
+
+              // Progress bar
+              currentDebt = Math.abs(summary.totalBalance || 0);
+              originalDebt = progress.hasActiveScenario ? progress.originalTotalDebt : currentDebt;
+              paidOff = originalDebt > 0 ? Math.max(0, Math.min(100, (originalDebt - currentDebt) / originalDebt * 100)) : 0;
+              remainingEl = document.getElementById('debt-progress-remaining');
+              if (remainingEl) remainingEl.textContent = this.formatCurrency(currentDebt) + ' ' + (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'remaining');
+              percentEl = document.getElementById('debt-progress-percent');
+              if (percentEl) percentEl.textContent = Math.round(paidOff) + '% ' + (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'paid off');
+              barEl = document.getElementById('debt-progress-bar');
+              if (barEl) barEl.style.width = paidOff + '%';
+
+              // Next payoff & status
+              if (!progress.hasActiveScenario) {
+                _context1.n = 10;
+                break;
+              }
+              _context1.n = 5;
+              return fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 5:
+              scenariosRes = _context1.v;
+              _context1.n = 6;
+              return scenariosRes.json();
+            case 6:
+              scenarios = _context1.v;
+              active = Array.isArray(scenarios) ? scenarios.find(function (s) {
+                return s.isActive;
+              }) : null;
+              if (!active) {
+                _context1.n = 9;
+                break;
+              }
+              _context1.n = 7;
+              return fetch(OC.generateUrl("/apps/budget/api/debt-scenarios/".concat(active.id, "/calculate")), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 7:
+              planRes = _context1.v;
+              _context1.n = 8;
+              return planRes.json();
+            case 8:
+              plan = _context1.v;
+              nextDebt = (_plan$debts = plan.debts) === null || _plan$debts === void 0 ? void 0 : _plan$debts.find(function (d) {
+                return d.payoffMonth;
+              });
+              nextNameEl = document.getElementById('debt-progress-next-name');
+              nextDateEl = document.getElementById('debt-progress-next-date');
+              if (nextDebt && nextNameEl) {
+                nextNameEl.textContent = nextDebt.name;
+                payoffDate = new Date();
+                payoffDate.setMonth(payoffDate.getMonth() + nextDebt.payoffMonth);
+                if (nextDateEl) nextDateEl.textContent = payoffDate.toLocaleDateString(undefined, {
+                  month: 'short',
+                  year: 'numeric'
+                });
+              }
+            case 9:
+              statusEl = document.getElementById('debt-progress-status');
+              if (statusEl) {
+                statusMap = {
+                  'ahead': {
+                    text: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Ahead of schedule'),
+                    color: 'var(--color-success)'
+                  },
+                  'behind': {
+                    text: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Behind schedule'),
+                    color: 'var(--color-error)'
+                  },
+                  'on_track': {
+                    text: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'On track'),
+                    color: 'var(--color-success)'
+                  }
+                };
+                s = statusMap[progress.status] || statusMap['on_track'];
+                statusEl.textContent = s.text;
+                statusEl.style.color = s.color;
+              }
+            case 10:
+              _context1.n = 12;
+              break;
+            case 11:
+              _context1.p = 11;
+              _t11 = _context1.v;
+              console.error('Failed to render debt progress widget', _t11);
+            case 12:
+              return _context1.a(2);
+          }
+        }, _callee1, this, [[0, 11]]);
+      }));
+      function renderDebtProgressWidget() {
+        return _renderDebtProgressWidget.apply(this, arguments);
+      }
+      return renderDebtProgressWidget;
+    }()
   }, {
     key: "updateUpcomingBillsWidget",
     value: function updateUpcomingBillsWidget(bills) {
@@ -33682,41 +34028,41 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshAssetValueChart",
     value: function () {
-      var _refreshAssetValueChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(days) {
-        var response, data, _t10;
-        return _regenerator().w(function (_context0) {
-          while (1) switch (_context0.p = _context0.n) {
+      var _refreshAssetValueChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(days) {
+        var response, data, _t12;
+        return _regenerator().w(function (_context10) {
+          while (1) switch (_context10.p = _context10.n) {
             case 0:
-              _context0.p = 0;
-              _context0.n = 1;
+              _context10.p = 0;
+              _context10.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/assets/value-history?days=".concat(days)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context0.v;
+              response = _context10.v;
               if (response.ok) {
-                _context0.n = 2;
+                _context10.n = 2;
                 break;
               }
               throw new Error('Failed to fetch asset value history');
             case 2:
-              _context0.n = 3;
+              _context10.n = 3;
               return response.json();
             case 3:
-              data = _context0.v;
+              data = _context10.v;
               this.updateAssetValueHistoryChart(data);
-              _context0.n = 5;
+              _context10.n = 5;
               break;
             case 4:
-              _context0.p = 4;
-              _t10 = _context0.v;
-              console.error('Failed to refresh asset value chart:', _t10);
+              _context10.p = 4;
+              _t12 = _context10.v;
+              console.error('Failed to refresh asset value chart:', _t12);
             case 5:
-              return _context0.a(2);
+              return _context10.a(2);
           }
-        }, _callee0, this, [[0, 4]]);
+        }, _callee10, this, [[0, 4]]);
       }));
       function refreshAssetValueChart(_x7) {
         return _refreshAssetValueChart.apply(this, arguments);
@@ -33770,16 +34116,16 @@ var DashboardModule = /*#__PURE__*/function () {
       var inlineBtn = document.getElementById('record-net-worth-btn-inline');
       if (inlineBtn && !inlineBtn.hasAttribute('data-initialized')) {
         inlineBtn.setAttribute('data-initialized', 'true');
-        inlineBtn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
-          return _regenerator().w(function (_context1) {
-            while (1) switch (_context1.n) {
+        inlineBtn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
+          return _regenerator().w(function (_context11) {
+            while (1) switch (_context11.n) {
               case 0:
-                _context1.n = 1;
+                _context11.n = 1;
                 return _this24.recordNetWorthSnapshot();
               case 1:
-                return _context1.a(2);
+                return _context11.a(2);
             }
-          }, _callee1);
+          }, _callee11);
         })));
       }
     }
@@ -33795,23 +34141,23 @@ var DashboardModule = /*#__PURE__*/function () {
       var trendAccountSelect = document.getElementById('trend-account-select');
       if (trendAccountSelect && !trendAccountSelect.hasAttribute('data-initialized')) {
         trendAccountSelect.setAttribute('data-initialized', 'true');
-        trendAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
+        trendAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12() {
           var periodSelect, months, accountId;
-          return _regenerator().w(function (_context10) {
-            while (1) switch (_context10.n) {
+          return _regenerator().w(function (_context12) {
+            while (1) switch (_context12.n) {
               case 0:
                 periodSelect = document.getElementById('trend-period-select');
                 months = periodSelect ? parseInt(periodSelect.value) : 6;
                 accountId = trendAccountSelect.value || null;
-                _context10.n = 1;
+                _context12.n = 1;
                 return _this25.refreshTrendChart(months, accountId);
               case 1:
-                _context10.n = 2;
+                _context12.n = 2;
                 return _this25.saveWidgetAccountSelection('trend-account-select', trendAccountSelect.value);
               case 2:
-                return _context10.a(2);
+                return _context12.a(2);
             }
-          }, _callee10);
+          }, _callee12);
         })));
       }
 
@@ -33820,20 +34166,20 @@ var DashboardModule = /*#__PURE__*/function () {
       if (trendPeriodSelect && !trendPeriodSelect.hasAttribute('data-initialized')) {
         trendPeriodSelect.setAttribute('data-initialized', 'true');
         trendPeriodSelect.addEventListener('change', /*#__PURE__*/function () {
-          var _ref11 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(e) {
+          var _ref11 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(e) {
             var months, accountSelect, accountId;
-            return _regenerator().w(function (_context11) {
-              while (1) switch (_context11.n) {
+            return _regenerator().w(function (_context13) {
+              while (1) switch (_context13.n) {
                 case 0:
                   months = parseInt(e.target.value);
                   accountSelect = document.getElementById('trend-account-select');
                   accountId = accountSelect ? accountSelect.value || null : null;
-                  _context11.n = 1;
+                  _context13.n = 1;
                   return _this25.refreshTrendChart(months, accountId);
                 case 1:
-                  return _context11.a(2);
+                  return _context13.a(2);
               }
-            }, _callee11);
+            }, _callee13);
           }));
           return function (_x8) {
             return _ref11.apply(this, arguments);
@@ -33845,23 +34191,23 @@ var DashboardModule = /*#__PURE__*/function () {
       var spendingAccountSelect = document.getElementById('spending-account-select');
       if (spendingAccountSelect && !spendingAccountSelect.hasAttribute('data-initialized')) {
         spendingAccountSelect.setAttribute('data-initialized', 'true');
-        spendingAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12() {
+        spendingAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
           var periodSelect, period, accountId;
-          return _regenerator().w(function (_context12) {
-            while (1) switch (_context12.n) {
+          return _regenerator().w(function (_context14) {
+            while (1) switch (_context14.n) {
               case 0:
                 periodSelect = document.getElementById('spending-period-select');
                 period = periodSelect ? periodSelect.value : 'month';
                 accountId = spendingAccountSelect.value || null;
-                _context12.n = 1;
+                _context14.n = 1;
                 return _this25.refreshSpendingChart(period, accountId);
               case 1:
-                _context12.n = 2;
+                _context14.n = 2;
                 return _this25.saveWidgetAccountSelection('spending-account-select', spendingAccountSelect.value);
               case 2:
-                return _context12.a(2);
+                return _context14.a(2);
             }
-          }, _callee12);
+          }, _callee14);
         })));
       }
 
@@ -33870,20 +34216,20 @@ var DashboardModule = /*#__PURE__*/function () {
       if (spendingPeriodSelect && !spendingPeriodSelect.hasAttribute('data-initialized')) {
         spendingPeriodSelect.setAttribute('data-initialized', 'true');
         spendingPeriodSelect.addEventListener('change', /*#__PURE__*/function () {
-          var _ref13 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(e) {
+          var _ref13 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(e) {
             var period, accountSelect, accountId;
-            return _regenerator().w(function (_context13) {
-              while (1) switch (_context13.n) {
+            return _regenerator().w(function (_context15) {
+              while (1) switch (_context15.n) {
                 case 0:
                   period = e.target.value;
                   accountSelect = document.getElementById('spending-account-select');
                   accountId = accountSelect ? accountSelect.value || null : null;
-                  _context13.n = 1;
+                  _context15.n = 1;
                   return _this25.refreshSpendingChart(period, accountId);
                 case 1:
-                  return _context13.a(2);
+                  return _context15.a(2);
               }
-            }, _callee13);
+            }, _callee15);
           }));
           return function (_x9) {
             return _ref13.apply(this, arguments);
@@ -33895,23 +34241,23 @@ var DashboardModule = /*#__PURE__*/function () {
       var netWorthAccountSelect = document.getElementById('net-worth-account-select');
       if (netWorthAccountSelect && !netWorthAccountSelect.hasAttribute('data-initialized')) {
         netWorthAccountSelect.setAttribute('data-initialized', 'true');
-        netWorthAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
+        netWorthAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16() {
           var activeBtn, days, accountId;
-          return _regenerator().w(function (_context14) {
-            while (1) switch (_context14.n) {
+          return _regenerator().w(function (_context16) {
+            while (1) switch (_context16.n) {
               case 0:
                 activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
                 days = activeBtn ? parseInt(activeBtn.dataset.days) : 30;
                 accountId = netWorthAccountSelect.value || null;
-                _context14.n = 1;
+                _context16.n = 1;
                 return _this25.refreshNetWorthChart(days, accountId);
               case 1:
-                _context14.n = 2;
+                _context16.n = 2;
                 return _this25.saveWidgetAccountSelection('net-worth-account-select', netWorthAccountSelect.value);
               case 2:
-                return _context14.a(2);
+                return _context16.a(2);
             }
-          }, _callee14);
+          }, _callee16);
         })));
       }
 
@@ -33920,13 +34266,13 @@ var DashboardModule = /*#__PURE__*/function () {
       if (netWorthPeriodSelector && !netWorthPeriodSelector.hasAttribute('data-initialized')) {
         netWorthPeriodSelector.setAttribute('data-initialized', 'true');
         netWorthPeriodSelector.addEventListener('click', /*#__PURE__*/function () {
-          var _ref15 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(e) {
+          var _ref15 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(e) {
             var days, accountSelect, accountId;
-            return _regenerator().w(function (_context15) {
-              while (1) switch (_context15.n) {
+            return _regenerator().w(function (_context17) {
+              while (1) switch (_context17.n) {
                 case 0:
                   if (!e.target.classList.contains('period-btn')) {
-                    _context15.n = 1;
+                    _context17.n = 1;
                     break;
                   }
                   // Update active button
@@ -33938,12 +34284,12 @@ var DashboardModule = /*#__PURE__*/function () {
                   days = parseInt(e.target.dataset.days);
                   accountSelect = document.getElementById('net-worth-account-select');
                   accountId = accountSelect ? accountSelect.value || null : null;
-                  _context15.n = 1;
+                  _context17.n = 1;
                   return _this25.refreshNetWorthChart(days, accountId);
                 case 1:
-                  return _context15.a(2);
+                  return _context17.a(2);
               }
-            }, _callee15);
+            }, _callee17);
           }));
           return function (_x0) {
             return _ref15.apply(this, arguments);
@@ -33956,13 +34302,13 @@ var DashboardModule = /*#__PURE__*/function () {
       if (assetValuePeriodSelector && !assetValuePeriodSelector.hasAttribute('data-initialized')) {
         assetValuePeriodSelector.setAttribute('data-initialized', 'true');
         assetValuePeriodSelector.addEventListener('click', /*#__PURE__*/function () {
-          var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(e) {
+          var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(e) {
             var days;
-            return _regenerator().w(function (_context16) {
-              while (1) switch (_context16.n) {
+            return _regenerator().w(function (_context18) {
+              while (1) switch (_context18.n) {
                 case 0:
                   if (!e.target.classList.contains('period-btn')) {
-                    _context16.n = 1;
+                    _context18.n = 1;
                     break;
                   }
                   assetValuePeriodSelector.querySelectorAll('.period-btn').forEach(function (btn) {
@@ -33970,12 +34316,12 @@ var DashboardModule = /*#__PURE__*/function () {
                   });
                   e.target.classList.add('active');
                   days = parseInt(e.target.dataset.days);
-                  _context16.n = 1;
+                  _context18.n = 1;
                   return _this25.refreshAssetValueChart(days);
                 case 1:
-                  return _context16.a(2);
+                  return _context18.a(2);
               }
-            }, _callee16);
+            }, _callee18);
           }));
           return function (_x1) {
             return _ref16.apply(this, arguments);
@@ -33987,16 +34333,16 @@ var DashboardModule = /*#__PURE__*/function () {
       var recordNetWorthBtn = document.getElementById('record-net-worth-btn');
       if (recordNetWorthBtn && !recordNetWorthBtn.hasAttribute('data-initialized')) {
         recordNetWorthBtn.setAttribute('data-initialized', 'true');
-        recordNetWorthBtn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
-          return _regenerator().w(function (_context17) {
-            while (1) switch (_context17.n) {
+        recordNetWorthBtn.addEventListener('click', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
+          return _regenerator().w(function (_context19) {
+            while (1) switch (_context19.n) {
               case 0:
-                _context17.n = 1;
+                _context19.n = 1;
                 return _this25.recordNetWorthSnapshot();
               case 1:
-                return _context17.a(2);
+                return _context19.a(2);
             }
-          }, _callee17);
+          }, _callee19);
         })));
       }
 
@@ -34004,21 +34350,21 @@ var DashboardModule = /*#__PURE__*/function () {
       var recentTxAccountSelect = document.getElementById('recent-transactions-account-select');
       if (recentTxAccountSelect && !recentTxAccountSelect.hasAttribute('data-initialized')) {
         recentTxAccountSelect.setAttribute('data-initialized', 'true');
-        recentTxAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
+        recentTxAccountSelect.addEventListener('change', /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
           var accountId;
-          return _regenerator().w(function (_context18) {
-            while (1) switch (_context18.n) {
+          return _regenerator().w(function (_context20) {
+            while (1) switch (_context20.n) {
               case 0:
                 accountId = recentTxAccountSelect.value || null;
-                _context18.n = 1;
+                _context20.n = 1;
                 return _this25.refreshRecentTransactions(accountId);
               case 1:
-                _context18.n = 2;
+                _context20.n = 2;
                 return _this25.saveWidgetAccountSelection('recent-transactions-account-select', recentTxAccountSelect.value);
               case 2:
-                return _context18.a(2);
+                return _context20.a(2);
             }
-          }, _callee18);
+          }, _callee20);
         })));
       }
 
@@ -34041,50 +34387,50 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshTrendChart",
     value: function () {
-      var _refreshTrendChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(months) {
+      var _refreshTrendChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(months) {
         var accountId,
           startDate,
           url,
           response,
           data,
-          _args19 = arguments,
-          _t11;
-        return _regenerator().w(function (_context19) {
-          while (1) switch (_context19.p = _context19.n) {
+          _args21 = arguments,
+          _t13;
+        return _regenerator().w(function (_context21) {
+          while (1) switch (_context21.p = _context21.n) {
             case 0:
-              accountId = _args19.length > 1 && _args19[1] !== undefined ? _args19[1] : null;
-              _context19.p = 1;
+              accountId = _args21.length > 1 && _args21[1] !== undefined ? _args21[1] : null;
+              _context21.p = 1;
               startDate = new Date();
               startDate.setMonth(startDate.getMonth() - months);
               url = "/apps/budget/api/reports/summary?startDate=".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(startDate));
               if (accountId) {
                 url += "&accountId=".concat(accountId);
               }
-              _context19.n = 2;
+              _context21.n = 2;
               return fetch(OC.generateUrl(url), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context19.v;
-              _context19.n = 3;
+              response = _context21.v;
+              _context21.n = 3;
               return response.json();
             case 3:
-              data = _context19.v;
+              data = _context21.v;
               if (data.trends) {
                 this.updateTrendChart(data.trends);
               }
-              _context19.n = 5;
+              _context21.n = 5;
               break;
             case 4:
-              _context19.p = 4;
-              _t11 = _context19.v;
-              console.error('Failed to refresh trend chart:', _t11);
+              _context21.p = 4;
+              _t13 = _context21.v;
+              console.error('Failed to refresh trend chart:', _t13);
             case 5:
-              return _context19.a(2);
+              return _context21.a(2);
           }
-        }, _callee19, this, [[1, 4]]);
+        }, _callee21, this, [[1, 4]]);
       }));
       function refreshTrendChart(_x10) {
         return _refreshTrendChart.apply(this, arguments);
@@ -34094,65 +34440,65 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshSpendingChart",
     value: function () {
-      var _refreshSpendingChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(period) {
+      var _refreshSpendingChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(period) {
         var accountId,
           startDate,
           endDate,
           url,
           response,
           data,
-          _args20 = arguments,
-          _t12,
-          _t13;
-        return _regenerator().w(function (_context20) {
-          while (1) switch (_context20.p = _context20.n) {
+          _args22 = arguments,
+          _t14,
+          _t15;
+        return _regenerator().w(function (_context22) {
+          while (1) switch (_context22.p = _context22.n) {
             case 0:
-              accountId = _args20.length > 1 && _args20[1] !== undefined ? _args20[1] : null;
-              _context20.p = 1;
+              accountId = _args22.length > 1 && _args22[1] !== undefined ? _args22[1] : null;
+              _context22.p = 1;
               startDate = new Date();
               endDate = new Date();
-              _t12 = period;
-              _context20.n = _t12 === 'month' ? 2 : _t12 === '3months' ? 3 : _t12 === 'year' ? 4 : 5;
+              _t14 = period;
+              _context22.n = _t14 === 'month' ? 2 : _t14 === '3months' ? 3 : _t14 === 'year' ? 4 : 5;
               break;
             case 2:
               startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-              return _context20.a(3, 5);
+              return _context22.a(3, 5);
             case 3:
               startDate.setMonth(startDate.getMonth() - 3);
-              return _context20.a(3, 5);
+              return _context22.a(3, 5);
             case 4:
               startDate = new Date(endDate.getFullYear(), 0, 1);
-              return _context20.a(3, 5);
+              return _context22.a(3, 5);
             case 5:
               url = "/apps/budget/api/reports/spending?startDate=".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(startDate), "&endDate=").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(endDate));
               if (accountId) {
                 url += "&accountId=".concat(accountId);
               }
-              _context20.n = 6;
+              _context22.n = 6;
               return fetch(OC.generateUrl(url), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 6:
-              response = _context20.v;
-              _context20.n = 7;
+              response = _context22.v;
+              _context22.n = 7;
               return response.json();
             case 7:
-              data = _context20.v;
+              data = _context22.v;
               if (data.data) {
                 this.updateSpendingChart(data.data);
               }
-              _context20.n = 9;
+              _context22.n = 9;
               break;
             case 8:
-              _context20.p = 8;
-              _t13 = _context20.v;
-              console.error('Failed to refresh spending chart:', _t13);
+              _context22.p = 8;
+              _t15 = _context22.v;
+              console.error('Failed to refresh spending chart:', _t15);
             case 9:
-              return _context20.a(2);
+              return _context22.a(2);
           }
-        }, _callee20, this, [[1, 8]]);
+        }, _callee22, this, [[1, 8]]);
       }));
       function refreshSpendingChart(_x11) {
         return _refreshSpendingChart.apply(this, arguments);
@@ -34162,75 +34508,75 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshNetWorthChart",
     value: function () {
-      var _refreshNetWorthChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(days) {
+      var _refreshNetWorthChart = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(days) {
         var accountId,
           response,
           history,
           _response,
           snapshots,
-          _args21 = arguments,
-          _t14;
-        return _regenerator().w(function (_context21) {
-          while (1) switch (_context21.p = _context21.n) {
+          _args23 = arguments,
+          _t16;
+        return _regenerator().w(function (_context23) {
+          while (1) switch (_context23.p = _context23.n) {
             case 0:
-              accountId = _args21.length > 1 && _args21[1] !== undefined ? _args21[1] : null;
-              _context21.p = 1;
+              accountId = _args23.length > 1 && _args23[1] !== undefined ? _args23[1] : null;
+              _context23.p = 1;
               if (!accountId) {
-                _context21.n = 5;
+                _context23.n = 5;
                 break;
               }
-              _context21.n = 2;
+              _context23.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/accounts/".concat(accountId, "/balance-history?days=").concat(days)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context21.v;
+              response = _context23.v;
               if (response.ok) {
-                _context21.n = 3;
+                _context23.n = 3;
                 break;
               }
               throw new Error('Failed to fetch balance history');
             case 3:
-              _context21.n = 4;
+              _context23.n = 4;
               return response.json();
             case 4:
-              history = _context21.v;
+              history = _context23.v;
               this.updateNetWorthHistoryChart(history, accountId);
-              _context21.n = 9;
+              _context23.n = 9;
               break;
             case 5:
-              _context21.n = 6;
+              _context23.n = 6;
               return fetch(OC.generateUrl("/apps/budget/api/net-worth/snapshots?days=".concat(days)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 6:
-              _response = _context21.v;
+              _response = _context23.v;
               if (_response.ok) {
-                _context21.n = 7;
+                _context23.n = 7;
                 break;
               }
               throw new Error('Failed to fetch net worth snapshots');
             case 7:
-              _context21.n = 8;
+              _context23.n = 8;
               return _response.json();
             case 8:
-              snapshots = _context21.v;
+              snapshots = _context23.v;
               this.updateNetWorthHistoryChart(snapshots, null);
             case 9:
-              _context21.n = 11;
+              _context23.n = 11;
               break;
             case 10:
-              _context21.p = 10;
-              _t14 = _context21.v;
-              console.error('Failed to refresh net worth chart:', _t14);
+              _context23.p = 10;
+              _t16 = _context23.v;
+              console.error('Failed to refresh net worth chart:', _t16);
             case 11:
-              return _context21.a(2);
+              return _context23.a(2);
           }
-        }, _callee21, this, [[1, 10]]);
+        }, _callee23, this, [[1, 10]]);
       }));
       function refreshNetWorthChart(_x12) {
         return _refreshNetWorthChart.apply(this, arguments);
@@ -34240,51 +34586,51 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshRecentTransactions",
     value: function () {
-      var _refreshRecentTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
+      var _refreshRecentTransactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
         var accountId,
           url,
           response,
           data,
-          _args22 = arguments,
-          _t15;
-        return _regenerator().w(function (_context22) {
-          while (1) switch (_context22.p = _context22.n) {
+          _args24 = arguments,
+          _t17;
+        return _regenerator().w(function (_context24) {
+          while (1) switch (_context24.p = _context24.n) {
             case 0:
-              accountId = _args22.length > 0 && _args22[0] !== undefined ? _args22[0] : null;
-              _context22.p = 1;
+              accountId = _args24.length > 0 && _args24[0] !== undefined ? _args24[0] : null;
+              _context24.p = 1;
               url = '/apps/budget/api/transactions?limit=8';
               if (accountId) {
                 url += "&accountId=".concat(accountId);
               }
-              _context22.n = 2;
+              _context24.n = 2;
               return fetch(OC.generateUrl(url), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context22.v;
+              response = _context24.v;
               if (response.ok) {
-                _context22.n = 3;
+                _context24.n = 3;
                 break;
               }
               throw new Error('Failed to fetch recent transactions');
             case 3:
-              _context22.n = 4;
+              _context24.n = 4;
               return response.json();
             case 4:
-              data = _context22.v;
+              data = _context24.v;
               this.updateRecentTransactions(data.transactions || data);
-              _context22.n = 6;
+              _context24.n = 6;
               break;
             case 5:
-              _context22.p = 5;
-              _t15 = _context22.v;
-              console.error('Failed to refresh recent transactions:', _t15);
+              _context24.p = 5;
+              _t17 = _context24.v;
+              console.error('Failed to refresh recent transactions:', _t17);
             case 6:
-              return _context22.a(2);
+              return _context24.a(2);
           }
-        }, _callee22, this, [[1, 5]]);
+        }, _callee24, this, [[1, 5]]);
       }));
       function refreshRecentTransactions() {
         return _refreshRecentTransactions.apply(this, arguments);
@@ -34294,13 +34640,13 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "recordNetWorthSnapshot",
     value: function () {
-      var _recordNetWorthSnapshot = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23() {
-        var response, activeBtn, days, _t16;
-        return _regenerator().w(function (_context23) {
-          while (1) switch (_context23.p = _context23.n) {
+      var _recordNetWorthSnapshot = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25() {
+        var response, activeBtn, days, _t18;
+        return _regenerator().w(function (_context25) {
+          while (1) switch (_context25.p = _context25.n) {
             case 0:
-              _context23.p = 0;
-              _context23.n = 1;
+              _context25.p = 0;
+              _context25.n = 1;
               return fetch(OC.generateUrl('/apps/budget/api/net-worth/snapshots'), {
                 method: 'POST',
                 headers: {
@@ -34309,9 +34655,9 @@ var DashboardModule = /*#__PURE__*/function () {
                 }
               });
             case 1:
-              response = _context23.v;
+              response = _context25.v;
               if (response.ok) {
-                _context23.n = 2;
+                _context25.n = 2;
                 break;
               }
               throw new Error('Failed to record snapshot');
@@ -34321,20 +34667,20 @@ var DashboardModule = /*#__PURE__*/function () {
               // Refresh the chart with current period
               activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
               days = activeBtn ? parseInt(activeBtn.dataset.days) : 30;
-              _context23.n = 3;
+              _context25.n = 3;
               return this.refreshNetWorthChart(days);
             case 3:
-              _context23.n = 5;
+              _context25.n = 5;
               break;
             case 4:
-              _context23.p = 4;
-              _t16 = _context23.v;
-              console.error('Failed to record net worth snapshot:', _t16);
+              _context25.p = 4;
+              _t18 = _context25.v;
+              console.error('Failed to record net worth snapshot:', _t18);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to record snapshot'));
             case 5:
-              return _context23.a(2);
+              return _context25.a(2);
           }
-        }, _callee23, this, [[0, 4]]);
+        }, _callee25, this, [[0, 4]]);
       }));
       function recordNetWorthSnapshot() {
         return _recordNetWorthSnapshot.apply(this, arguments);
@@ -34384,37 +34730,37 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardVisibility",
     value: function () {
-      var _applyDashboardVisibility = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
+      var _applyDashboardVisibility = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26() {
         var _i, _Object$entries, _Object$entries$_i, key, visible, widget, element, updateMethod, _i2, _Object$entries2, _Object$entries2$_i, _key, _visible, _widget, _element, _updateMethod, hasConditionalHide;
-        return _regenerator().w(function (_context24) {
-          while (1) switch (_context24.n) {
+        return _regenerator().w(function (_context26) {
+          while (1) switch (_context26.n) {
             case 0:
               _i = 0, _Object$entries = Object.entries(this.dashboardConfig.hero.visibility);
             case 1:
               if (!(_i < _Object$entries.length)) {
-                _context24.n = 7;
+                _context26.n = 7;
                 break;
               }
               _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2), key = _Object$entries$_i[0], visible = _Object$entries$_i[1];
               widget = _config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_3__.DASHBOARD_WIDGETS.hero[key];
               if (widget) {
-                _context24.n = 2;
+                _context26.n = 2;
                 break;
               }
-              return _context24.a(3, 6);
+              return _context26.a(3, 6);
             case 2:
               element = document.querySelector("[data-widget-id=\"".concat(key, "\"][data-widget-category=\"hero\"]"));
               if (element) {
-                _context24.n = 3;
+                _context26.n = 3;
                 break;
               }
-              return _context24.a(3, 6);
+              return _context26.a(3, 6);
             case 3:
               if (!(visible && this.app.needsLazyLoad(key) && !this.widgetDataLoaded[key])) {
-                _context24.n = 5;
+                _context26.n = 5;
                 break;
               }
-              _context24.n = 4;
+              _context26.n = 4;
               return this.app.loadWidgetData(key);
             case 4:
               // Call the appropriate update method
@@ -34426,29 +34772,29 @@ var DashboardModule = /*#__PURE__*/function () {
               element.style.display = visible ? '' : 'none';
             case 6:
               _i++;
-              _context24.n = 1;
+              _context26.n = 1;
               break;
             case 7:
               _i2 = 0, _Object$entries2 = Object.entries(this.dashboardConfig.widgets.visibility);
             case 8:
               if (!(_i2 < _Object$entries2.length)) {
-                _context24.n = 14;
+                _context26.n = 14;
                 break;
               }
               _Object$entries2$_i = _slicedToArray(_Object$entries2[_i2], 2), _key = _Object$entries2$_i[0], _visible = _Object$entries2$_i[1];
               _widget = _config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_3__.DASHBOARD_WIDGETS.widgets[_key];
               if (_widget) {
-                _context24.n = 9;
+                _context26.n = 9;
                 break;
               }
-              return _context24.a(3, 13);
+              return _context26.a(3, 13);
             case 9:
               _element = document.querySelector("[data-widget-id=\"".concat(_key, "\"][data-widget-category=\"widget\"]"));
               if (_element) {
-                _context24.n = 10;
+                _context26.n = 10;
                 break;
               }
-              return _context24.a(3, 13);
+              return _context26.a(3, 13);
             case 10:
               // Initialize Quick Add form when it becomes visible (Phase 4)
               // Must be checked before lazy load, which sets widgetDataLoaded
@@ -34459,10 +34805,10 @@ var DashboardModule = /*#__PURE__*/function () {
 
               // Lazy load data if becoming visible and not yet loaded
               if (!(_visible && this.app.needsLazyLoad(_key) && !this.widgetDataLoaded[_key])) {
-                _context24.n = 12;
+                _context26.n = 12;
                 break;
               }
-              _context24.n = 11;
+              _context26.n = 11;
               return this.app.loadWidgetData(_key);
             case 11:
               // Call the appropriate update method
@@ -34482,12 +34828,12 @@ var DashboardModule = /*#__PURE__*/function () {
               }
             case 13:
               _i2++;
-              _context24.n = 8;
+              _context26.n = 8;
               break;
             case 14:
-              return _context24.a(2);
+              return _context26.a(2);
           }
-        }, _callee24, this);
+        }, _callee26, this);
       }));
       function applyDashboardVisibility() {
         return _applyDashboardVisibility.apply(this, arguments);
@@ -34497,28 +34843,28 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "hideWidget",
     value: function () {
-      var _hideWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(widgetId, category) {
+      var _hideWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(widgetId, category) {
         var config;
-        return _regenerator().w(function (_context25) {
-          while (1) switch (_context25.n) {
+        return _regenerator().w(function (_context27) {
+          while (1) switch (_context27.n) {
             case 0:
               config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets; // Update visibility
               config.visibility[widgetId] = false;
 
               // Apply to DOM
-              _context25.n = 1;
+              _context27.n = 1;
               return this.applyDashboardVisibility();
             case 1:
               // Update Add Tiles menu
               this.app.updateAddTilesMenu();
 
               // Save to backend
-              _context25.n = 2;
+              _context27.n = 2;
               return this.saveDashboardVisibility();
             case 2:
-              return _context25.a(2);
+              return _context27.a(2);
           }
-        }, _callee25, this);
+        }, _callee27, this);
       }));
       function hideWidget(_x13, _x14) {
         return _hideWidget.apply(this, arguments);
@@ -34528,16 +34874,16 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "showWidget",
     value: function () {
-      var _showWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(widgetId, category) {
+      var _showWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(widgetId, category) {
         var config;
-        return _regenerator().w(function (_context26) {
-          while (1) switch (_context26.n) {
+        return _regenerator().w(function (_context28) {
+          while (1) switch (_context28.n) {
             case 0:
               config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets; // Update visibility
               config.visibility[widgetId] = true;
 
               // Apply to DOM
-              _context26.n = 1;
+              _context28.n = 1;
               return this.applyDashboardVisibility();
             case 1:
               // Add remove buttons if unlocked
@@ -34549,12 +34895,12 @@ var DashboardModule = /*#__PURE__*/function () {
               this.app.updateAddTilesMenu();
 
               // Save to backend
-              _context26.n = 2;
+              _context28.n = 2;
               return this.saveDashboardVisibility();
             case 2:
-              return _context26.a(2);
+              return _context28.a(2);
           }
-        }, _callee26, this);
+        }, _callee28, this);
       }));
       function showWidget(_x15, _x16) {
         return _showWidget.apply(this, arguments);
@@ -34564,29 +34910,29 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "saveDashboardVisibility",
     value: function () {
-      var _saveDashboardVisibility = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
-        var _t17;
-        return _regenerator().w(function (_context27) {
-          while (1) switch (_context27.p = _context27.n) {
+      var _saveDashboardVisibility = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29() {
+        var _t19;
+        return _regenerator().w(function (_context29) {
+          while (1) switch (_context29.p = _context29.n) {
             case 0:
-              _context27.p = 0;
-              _context27.n = 1;
+              _context29.p = 0;
+              _context29.n = 1;
               return this._saveSettings({
                 dashboard_hero_config: JSON.stringify(this.dashboardConfig.hero),
                 dashboard_widgets_config: JSON.stringify(this.dashboardConfig.widgets)
               });
             case 1:
-              _context27.n = 3;
+              _context29.n = 3;
               break;
             case 2:
-              _context27.p = 2;
-              _t17 = _context27.v;
-              console.error('Failed to save dashboard config:', _t17);
+              _context29.p = 2;
+              _t19 = _context29.v;
+              console.error('Failed to save dashboard config:', _t19);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save dashboard layout'));
             case 3:
-              return _context27.a(2);
+              return _context29.a(2);
           }
-        }, _callee27, this, [[0, 2]]);
+        }, _callee29, this, [[0, 2]]);
       }));
       function saveDashboardVisibility() {
         return _saveDashboardVisibility.apply(this, arguments);
@@ -34656,33 +35002,33 @@ var DashboardModule = /*#__PURE__*/function () {
           _this26.showDashboardDropIndicator(e, container);
         });
         container.addEventListener('drop', /*#__PURE__*/function () {
-          var _ref19 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(e) {
-            var data, dropInfo, _t18;
-            return _regenerator().w(function (_context28) {
-              while (1) switch (_context28.p = _context28.n) {
+          var _ref19 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30(e) {
+            var data, dropInfo, _t20;
+            return _regenerator().w(function (_context30) {
+              while (1) switch (_context30.p = _context30.n) {
                 case 0:
                   e.preventDefault();
                   _this26.clearDashboardDropIndicators();
-                  _context28.p = 1;
+                  _context30.p = 1;
                   data = JSON.parse(e.dataTransfer.getData('text/plain'));
                   dropInfo = _this26.getDashboardDropTarget(e, container);
                   if (!dropInfo) {
-                    _context28.n = 2;
+                    _context30.n = 2;
                     break;
                   }
-                  _context28.n = 2;
+                  _context30.n = 2;
                   return _this26.reorderDashboardWidget(data.id, dropInfo.targetId, dropInfo.position, data.category);
                 case 2:
-                  _context28.n = 4;
+                  _context30.n = 4;
                   break;
                 case 3:
-                  _context28.p = 3;
-                  _t18 = _context28.v;
-                  console.error('Drop failed:', _t18);
+                  _context30.p = 3;
+                  _t20 = _context30.v;
+                  console.error('Drop failed:', _t20);
                 case 4:
-                  return _context28.a(2);
+                  return _context30.a(2);
               }
-            }, _callee28, null, [[1, 3]]);
+            }, _callee30, null, [[1, 3]]);
           }));
           return function (_x17) {
             return _ref19.apply(this, arguments);
@@ -34792,35 +35138,35 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "loadWidgetData",
     value: function () {
-      var _loadWidgetData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(widgetKey) {
-        var uncatResp, now, thisMonth, lastMonthDate, lastMonth, _yield$Promise$all3, _yield$Promise$all4, currentResp, previousResp, largeResp, forecastResp, yoyResp, incomeResp, debtResp, importsResp, rulesResp, weekEnd, weekStart, weekResp, weekData, unmatchedResp, unmatchedData, billsResp, allBills, todayStr, ctNow, ctThisMonth, ctLastDate, ctLastMonth, _yield$Promise$all5, _yield$Promise$all6, ctCurrentResp, ctPrevResp, ctCurrent, ctPrev, prevMap, svNow, svMonthStart, svToday, svDayOfMonth, svResp, svData, totalSpent, _t19, _t20, _t21, _t22, _t23;
-        return _regenerator().w(function (_context29) {
-          while (1) switch (_context29.p = _context29.n) {
+      var _loadWidgetData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(widgetKey) {
+        var uncatResp, now, thisMonth, lastMonthDate, lastMonth, _yield$Promise$all5, _yield$Promise$all6, currentResp, previousResp, largeResp, forecastResp, yoyResp, incomeResp, debtResp, importsResp, rulesResp, weekEnd, weekStart, weekResp, weekData, unmatchedResp, unmatchedData, billsResp, allBills, todayStr, ctNow, ctThisMonth, ctLastDate, ctLastMonth, _yield$Promise$all7, _yield$Promise$all8, ctCurrentResp, ctPrevResp, ctCurrent, ctPrev, prevMap, svNow, svMonthStart, svToday, svDayOfMonth, svResp, svData, totalSpent, _t21, _t22, _t23, _t24, _t25;
+        return _regenerator().w(function (_context31) {
+          while (1) switch (_context31.p = _context31.n) {
             case 0:
               if (!this.widgetDataLoaded[widgetKey]) {
-                _context29.n = 1;
+                _context31.n = 1;
                 break;
               }
-              return _context29.a(2);
+              return _context31.a(2);
             case 1:
-              _context29.p = 1;
-              _t19 = widgetKey;
-              _context29.n = _t19 === 'uncategorizedCount' ? 2 : _t19 === 'monthlyComparison' ? 5 : _t19 === 'largeTransactions' ? 9 : _t19 === 'cashFlowForecast' ? 12 : _t19 === 'yoyComparison' ? 15 : _t19 === 'incomeTracking' ? 18 : _t19 === 'daysUntilDebtFree' ? 21 : _t19 === 'recentImports' ? 24 : _t19 === 'ruleEffectiveness' ? 29 : _t19 === 'weeklyTrend' ? 32 : _t19 === 'unmatchedTransfers' ? 35 : _t19 === 'billsDueSoon' ? 38 : _t19 === 'categoryTrends' ? 41 : _t19 === 'spendingVelocity' ? 45 : 48;
+              _context31.p = 1;
+              _t21 = widgetKey;
+              _context31.n = _t21 === 'uncategorizedCount' ? 2 : _t21 === 'monthlyComparison' ? 5 : _t21 === 'largeTransactions' ? 9 : _t21 === 'cashFlowForecast' ? 12 : _t21 === 'yoyComparison' ? 15 : _t21 === 'incomeTracking' ? 18 : _t21 === 'daysUntilDebtFree' ? 21 : _t21 === 'debtChart' ? 24 : _t21 === 'debtProgress' ? 26 : _t21 === 'recentImports' ? 28 : _t21 === 'ruleEffectiveness' ? 33 : _t21 === 'weeklyTrend' ? 36 : _t21 === 'unmatchedTransfers' ? 39 : _t21 === 'billsDueSoon' ? 42 : _t21 === 'categoryTrends' ? 45 : _t21 === 'spendingVelocity' ? 49 : 52;
               break;
             case 2:
-              _context29.n = 3;
+              _context31.n = 3;
               return fetch(OC.generateUrl('/apps/budget/api/transactions/uncategorized?limit=100'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 3:
-              uncatResp = _context29.v;
-              _context29.n = 4;
+              uncatResp = _context31.v;
+              _context31.n = 4;
               return uncatResp.json();
             case 4:
-              this.widgetData.uncategorizedCount = _context29.v;
-              return _context29.a(3, 48);
+              this.widgetData.uncategorizedCount = _context31.v;
+              return _context31.a(3, 52);
             case 5:
               now = new Date();
               thisMonth = {
@@ -34832,7 +35178,7 @@ var DashboardModule = /*#__PURE__*/function () {
                 start: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1),
                 end: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthEnd(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1)
               };
-              _context29.n = 6;
+              _context31.n = 6;
               return Promise.all([fetch(OC.generateUrl("/apps/budget/api/reports/summary?startDate=".concat(thisMonth.start, "&endDate=").concat(thisMonth.end)), {
                 headers: {
                   'requesttoken': OC.requestToken
@@ -34843,179 +35189,189 @@ var DashboardModule = /*#__PURE__*/function () {
                 }
               })]);
             case 6:
-              _yield$Promise$all3 = _context29.v;
-              _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
-              currentResp = _yield$Promise$all4[0];
-              previousResp = _yield$Promise$all4[1];
-              _context29.n = 7;
+              _yield$Promise$all5 = _context31.v;
+              _yield$Promise$all6 = _slicedToArray(_yield$Promise$all5, 2);
+              currentResp = _yield$Promise$all6[0];
+              previousResp = _yield$Promise$all6[1];
+              _context31.n = 7;
               return currentResp.json();
             case 7:
-              _t20 = _context29.v;
-              _context29.n = 8;
+              _t22 = _context31.v;
+              _context31.n = 8;
               return previousResp.json();
             case 8:
-              _t21 = _context29.v;
+              _t23 = _context31.v;
               this.widgetData.monthlyComparison = {
-                current: _t20,
-                previous: _t21
+                current: _t22,
+                previous: _t23
               };
-              return _context29.a(3, 48);
+              return _context31.a(3, 52);
             case 9:
-              _context29.n = 10;
+              _context31.n = 10;
               return fetch(OC.generateUrl('/apps/budget/api/transactions?limit=10&sort=amount'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 10:
-              largeResp = _context29.v;
-              _context29.n = 11;
+              largeResp = _context31.v;
+              _context31.n = 11;
               return largeResp.json();
             case 11:
-              this.widgetData.largeTransactions = _context29.v;
-              return _context29.a(3, 48);
+              this.widgetData.largeTransactions = _context31.v;
+              return _context31.a(3, 52);
             case 12:
-              _context29.n = 13;
+              _context31.n = 13;
               return fetch(OC.generateUrl('/apps/budget/api/forecast/live?days=90'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 13:
-              forecastResp = _context29.v;
-              _context29.n = 14;
+              forecastResp = _context31.v;
+              _context31.n = 14;
               return forecastResp.json();
             case 14:
-              this.widgetData.cashFlowForecast = _context29.v;
-              return _context29.a(3, 48);
+              this.widgetData.cashFlowForecast = _context31.v;
+              return _context31.a(3, 52);
             case 15:
-              _context29.n = 16;
+              _context31.n = 16;
               return fetch(OC.generateUrl('/apps/budget/api/yoy/years?years=2'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 16:
-              yoyResp = _context29.v;
-              _context29.n = 17;
+              yoyResp = _context31.v;
+              _context31.n = 17;
               return yoyResp.json();
             case 17:
-              this.widgetData.yoyComparison = _context29.v;
-              return _context29.a(3, 48);
+              this.widgetData.yoyComparison = _context31.v;
+              return _context31.a(3, 52);
             case 18:
-              _context29.n = 19;
+              _context31.n = 19;
               return fetch(OC.generateUrl('/apps/budget/api/recurring-income/summary'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 19:
-              incomeResp = _context29.v;
-              _context29.n = 20;
+              incomeResp = _context31.v;
+              _context31.n = 20;
               return incomeResp.json();
             case 20:
-              this.widgetData.incomeTracking = _context29.v;
-              return _context29.a(3, 48);
+              this.widgetData.incomeTracking = _context31.v;
+              return _context31.a(3, 52);
             case 21:
-              _context29.n = 22;
+              _context31.n = 22;
               return fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 22:
-              debtResp = _context29.v;
-              _context29.n = 23;
+              debtResp = _context31.v;
+              _context31.n = 23;
               return debtResp.json();
             case 23:
-              this.widgetData.daysUntilDebtFree = _context29.v;
-              return _context29.a(3, 48);
+              this.widgetData.daysUntilDebtFree = _context31.v;
+              return _context31.a(3, 52);
             case 24:
-              _context29.n = 25;
+              _context31.n = 25;
+              return this.renderDebtChartWidget();
+            case 25:
+              return _context31.a(3, 52);
+            case 26:
+              _context31.n = 27;
+              return this.renderDebtProgressWidget();
+            case 27:
+              return _context31.a(3, 52);
+            case 28:
+              _context31.n = 29;
               return fetch(OC.generateUrl('/apps/budget/api/import/history?limit=5'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 25:
-              importsResp = _context29.v;
+            case 29:
+              importsResp = _context31.v;
               if (!importsResp.ok) {
-                _context29.n = 27;
+                _context31.n = 31;
                 break;
               }
-              _context29.n = 26;
+              _context31.n = 30;
               return importsResp.json();
-            case 26:
-              _t22 = _context29.v;
-              _context29.n = 28;
+            case 30:
+              _t24 = _context31.v;
+              _context31.n = 32;
               break;
-            case 27:
-              _t22 = [];
-            case 28:
-              this.widgetData.recentImports = _t22;
-              return _context29.a(3, 48);
-            case 29:
-              _context29.n = 30;
+            case 31:
+              _t24 = [];
+            case 32:
+              this.widgetData.recentImports = _t24;
+              return _context31.a(3, 52);
+            case 33:
+              _context31.n = 34;
               return fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 30:
-              rulesResp = _context29.v;
-              _context29.n = 31;
+            case 34:
+              rulesResp = _context31.v;
+              _context31.n = 35;
               return rulesResp.json();
-            case 31:
-              this.widgetData.ruleEffectiveness = _context29.v;
-              return _context29.a(3, 48);
-            case 32:
+            case 35:
+              this.widgetData.ruleEffectiveness = _context31.v;
+              return _context31.a(3, 52);
+            case 36:
               weekEnd = new Date();
               weekStart = new Date();
               weekStart.setDate(weekEnd.getDate() - 7);
-              _context29.n = 33;
+              _context31.n = 37;
               return fetch(OC.generateUrl("/apps/budget/api/reports/summary?startDate=".concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(weekStart), "&endDate=").concat(_utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(weekEnd))), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 33:
-              weekResp = _context29.v;
-              _context29.n = 34;
+            case 37:
+              weekResp = _context31.v;
+              _context31.n = 38;
               return weekResp.json();
-            case 34:
-              weekData = _context29.v;
+            case 38:
+              weekData = _context31.v;
               this.widgetData.weeklyTrend = [{
                 total: weekData.totalExpenses || 0
               }];
-              return _context29.a(3, 48);
-            case 35:
-              _context29.n = 36;
+              return _context31.a(3, 52);
+            case 39:
+              _context31.n = 40;
               return fetch(OC.generateUrl('/apps/budget/api/transactions?limit=10&unmatched=true'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 36:
-              unmatchedResp = _context29.v;
-              _context29.n = 37;
+            case 40:
+              unmatchedResp = _context31.v;
+              _context31.n = 41;
               return unmatchedResp.json();
-            case 37:
-              unmatchedData = _context29.v;
+            case 41:
+              unmatchedData = _context31.v;
               this.widgetData.unmatchedTransfers = Array.isArray(unmatchedData) ? unmatchedData : [];
-              return _context29.a(3, 48);
-            case 38:
-              _context29.n = 39;
+              return _context31.a(3, 52);
+            case 42:
+              _context31.n = 43;
               return fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 39:
-              billsResp = _context29.v;
-              _context29.n = 40;
+            case 43:
+              billsResp = _context31.v;
+              _context31.n = 44;
               return billsResp.json();
-            case 40:
-              allBills = _context29.v;
+            case 44:
+              allBills = _context31.v;
               // Filter to upcoming bills (due within 14 days)
               todayStr = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString();
               this.widgetData.billsDueSoon = (Array.isArray(allBills) ? allBills : []).filter(function (b) {
@@ -35026,8 +35382,8 @@ var DashboardModule = /*#__PURE__*/function () {
               }).sort(function (a, b) {
                 return (a.nextDueDate || a.next_due_date || '').localeCompare(b.nextDueDate || b.next_due_date || '');
               });
-              return _context29.a(3, 48);
-            case 41:
+              return _context31.a(3, 52);
+            case 45:
               ctNow = new Date();
               ctThisMonth = {
                 start: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(ctNow.getFullYear(), ctNow.getMonth() + 1),
@@ -35038,7 +35394,7 @@ var DashboardModule = /*#__PURE__*/function () {
                 start: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1),
                 end: _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthEnd(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1)
               };
-              _context29.n = 42;
+              _context31.n = 46;
               return Promise.all([fetch(OC.generateUrl("/apps/budget/api/categories/spending?startDate=".concat(ctThisMonth.start, "&endDate=").concat(ctThisMonth.end)), {
                 headers: {
                   'requesttoken': OC.requestToken
@@ -35048,19 +35404,19 @@ var DashboardModule = /*#__PURE__*/function () {
                   'requesttoken': OC.requestToken
                 }
               })]);
-            case 42:
-              _yield$Promise$all5 = _context29.v;
-              _yield$Promise$all6 = _slicedToArray(_yield$Promise$all5, 2);
-              ctCurrentResp = _yield$Promise$all6[0];
-              ctPrevResp = _yield$Promise$all6[1];
-              _context29.n = 43;
+            case 46:
+              _yield$Promise$all7 = _context31.v;
+              _yield$Promise$all8 = _slicedToArray(_yield$Promise$all7, 2);
+              ctCurrentResp = _yield$Promise$all8[0];
+              ctPrevResp = _yield$Promise$all8[1];
+              _context31.n = 47;
               return ctCurrentResp.json();
-            case 43:
-              ctCurrent = _context29.v;
-              _context29.n = 44;
+            case 47:
+              ctCurrent = _context31.v;
+              _context31.n = 48;
               return ctPrevResp.json();
-            case 44:
-              ctPrev = _context29.v;
+            case 48:
+              ctPrev = _context31.v;
               // Build lookup for previous month
               prevMap = {};
               if (Array.isArray(ctPrev)) {
@@ -35080,41 +35436,41 @@ var DashboardModule = /*#__PURE__*/function () {
               }).sort(function (a, b) {
                 return b.currentTotal - a.currentTotal;
               });
-              return _context29.a(3, 48);
-            case 45:
+              return _context31.a(3, 52);
+            case 49:
               svNow = new Date();
               svMonthStart = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getMonthStart(svNow.getFullYear(), svNow.getMonth() + 1);
               svToday = _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDateForAPI(svNow);
               svDayOfMonth = svNow.getDate();
-              _context29.n = 46;
+              _context31.n = 50;
               return fetch(OC.generateUrl("/apps/budget/api/reports/summary?startDate=".concat(svMonthStart, "&endDate=").concat(svToday)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 46:
-              svResp = _context29.v;
-              _context29.n = 47;
+            case 50:
+              svResp = _context31.v;
+              _context31.n = 51;
               return svResp.json();
-            case 47:
-              svData = _context29.v;
+            case 51:
+              svData = _context31.v;
               totalSpent = parseFloat(svData.totalExpenses || 0);
               this.widgetData.spendingVelocity = {
                 dailyRate: svDayOfMonth > 0 ? totalSpent / svDayOfMonth : 0
               };
-              return _context29.a(3, 48);
-            case 48:
+              return _context31.a(3, 52);
+            case 52:
               this.widgetDataLoaded[widgetKey] = true;
-              _context29.n = 50;
+              _context31.n = 54;
               break;
-            case 49:
-              _context29.p = 49;
-              _t23 = _context29.v;
-              console.error("Failed to load data for ".concat(widgetKey, ":"), _t23);
-            case 50:
-              return _context29.a(2);
+            case 53:
+              _context31.p = 53;
+              _t25 = _context31.v;
+              console.error("Failed to load data for ".concat(widgetKey, ":"), _t25);
+            case 54:
+              return _context31.a(2);
           }
-        }, _callee29, this, [[1, 49]]);
+        }, _callee31, this, [[1, 53]]);
       }));
       function loadWidgetData(_x18) {
         return _loadWidgetData.apply(this, arguments);
@@ -35162,10 +35518,10 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "toggleDashboardLock",
     value: function () {
-      var _toggleDashboardLock = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30() {
-        var _t24;
-        return _regenerator().w(function (_context30) {
-          while (1) switch (_context30.p = _context30.n) {
+      var _toggleDashboardLock = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32() {
+        var _t26;
+        return _regenerator().w(function (_context32) {
+          while (1) switch (_context32.p = _context32.n) {
             case 0:
               this.app.dashboardLocked = !this.app.dashboardLocked;
 
@@ -35176,23 +35532,23 @@ var DashboardModule = /*#__PURE__*/function () {
               this.setupDashboardDragAndDrop();
 
               // Save state to backend
-              _context30.p = 1;
-              _context30.n = 2;
+              _context32.p = 1;
+              _context32.n = 2;
               return this._saveSettings({
                 dashboard_locked: this.app.dashboardLocked.toString()
               });
             case 2:
-              _context30.n = 4;
+              _context32.n = 4;
               break;
             case 3:
-              _context30.p = 3;
-              _t24 = _context30.v;
-              console.error('Failed to save lock state:', _t24);
+              _context32.p = 3;
+              _t26 = _context32.v;
+              console.error('Failed to save lock state:', _t26);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save dashboard lock state'));
             case 4:
-              return _context30.a(2);
+              return _context32.a(2);
           }
-        }, _callee30, this, [[1, 3]]);
+        }, _callee32, this, [[1, 3]]);
       }));
       function toggleDashboardLock() {
         return _toggleDashboardLock.apply(this, arguments);
@@ -35496,10 +35852,10 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "reorderDashboardWidget",
     value: function () {
-      var _reorderDashboardWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(draggedId, targetId, position, category) {
-        var config, order, draggedIndex, targetIndex, settingKey, _t25;
-        return _regenerator().w(function (_context31) {
-          while (1) switch (_context31.p = _context31.n) {
+      var _reorderDashboardWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(draggedId, targetId, position, category) {
+        var config, order, draggedIndex, targetIndex, settingKey, _t27;
+        return _regenerator().w(function (_context33) {
+          while (1) switch (_context33.p = _context33.n) {
             case 0:
               // Determine which config to update
               config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
@@ -35507,7 +35863,7 @@ var DashboardModule = /*#__PURE__*/function () {
               draggedIndex = order.indexOf(draggedId);
               targetIndex = order.indexOf(targetId);
               if (!(draggedIndex === -1 || targetIndex === -1)) {
-                _context31.n = 3;
+                _context33.n = 3;
                 break;
               }
               console.warn('Widget not found in order array:', {
@@ -35518,7 +35874,7 @@ var DashboardModule = /*#__PURE__*/function () {
               });
               // If widget not in order, add it
               if (!(draggedIndex === -1 && targetIndex !== -1)) {
-                _context31.n = 2;
+                _context33.n = 2;
                 break;
               }
               // Dragged widget not in order, insert it next to target
@@ -35528,14 +35884,14 @@ var DashboardModule = /*#__PURE__*/function () {
                 order.splice(targetIndex + 1, 0, draggedId);
               }
               config.order = order;
-              _context31.n = 1;
+              _context33.n = 1;
               return this.saveDashboardVisibility();
             case 1:
               this.applyDashboardOrder();
-              return _context31.a(2);
+              return _context33.a(2);
             case 2:
               console.error('Cannot reorder - target not found');
-              return _context31.a(2);
+              return _context33.a(2);
             case 3:
               // Remove dragged item
               order.splice(draggedIndex, 1);
@@ -35556,17 +35912,17 @@ var DashboardModule = /*#__PURE__*/function () {
               config.order = order;
 
               // Persist to backend (debounced to coalesce rapid reorders)
-              _context31.p = 4;
+              _context33.p = 4;
               settingKey = category === 'hero' ? 'dashboard_hero_config' : 'dashboard_widgets_config';
-              _context31.n = 5;
+              _context33.n = 5;
               return this._saveSettings(_defineProperty({}, settingKey, JSON.stringify(config)));
             case 5:
-              _context31.n = 7;
+              _context33.n = 7;
               break;
             case 6:
-              _context31.p = 6;
-              _t25 = _context31.v;
-              console.error('Failed to save widget order:', _t25);
+              _context33.p = 6;
+              _t27 = _context33.v;
+              console.error('Failed to save widget order:', _t27);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save widget order'));
             case 7:
               // Reorder DOM elements after config is saved
@@ -35575,9 +35931,9 @@ var DashboardModule = /*#__PURE__*/function () {
               // Update CSS layout properties
               this.applyDashboardLayout();
             case 8:
-              return _context31.a(2);
+              return _context33.a(2);
           }
-        }, _callee31, this, [[4, 6]]);
+        }, _callee33, this, [[4, 6]]);
       }));
       function reorderDashboardWidget(_x19, _x20, _x21, _x22) {
         return _reorderDashboardWidget.apply(this, arguments);
