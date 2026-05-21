@@ -4098,53 +4098,48 @@ style('budget', 'budget-main');
         </div>
 
         <!-- Scenario Modal (outside debt-payoff-view so it remains visible when view is hidden) -->
-        <div id="debt-scenario-modal" class="modal" style="display: none;" role="dialog">
-            <div class="modal-container">
-                <div class="modal-header">
-                    <h3 id="scenario-modal-title"><?php p($l->t('New Scenario')); ?></h3>
-                    <button class="modal-close" id="scenario-modal-close">&times;</button>
+        <div id="debt-scenario-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="scenario-modal-title">
+            <div class="modal-content" style="max-width: 600px;">
+                <h3 id="scenario-modal-title"><?php p($l->t('New Scenario')); ?></h3>
+                <div class="form-group">
+                    <label for="scenario-name"><?php p($l->t('Scenario Name')); ?></label>
+                    <input type="text" id="scenario-name" placeholder="<?php p($l->t('e.g., Aggressive Payoff')); ?>">
                 </div>
-                <div class="modal-body">
+                <div class="form-row">
                     <div class="form-group">
-                        <label for="scenario-name"><?php p($l->t('Scenario Name')); ?></label>
-                        <input type="text" id="scenario-name" placeholder="<?php p($l->t('e.g., Aggressive Payoff')); ?>">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="scenario-strategy"><?php p($l->t('Strategy')); ?></label>
-                            <select id="scenario-strategy">
-                                <option value="avalanche"><?php p($l->t('Avalanche (highest rate first)')); ?></option>
-                                <option value="snowball"><?php p($l->t('Snowball (smallest balance first)')); ?></option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="scenario-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
-                            <input type="number" id="scenario-extra-payment" min="0" step="0.01" value="0">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="scenario-lump-sum"><?php p($l->t('One-Time Lump Sum')); ?></label>
-                            <input type="number" id="scenario-lump-sum" min="0" step="0.01" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="scenario-lump-month"><?php p($l->t('Apply Lump Sum In Month')); ?></label>
-                            <input type="number" id="scenario-lump-month" min="1" value="1">
-                        </div>
+                        <label for="scenario-strategy"><?php p($l->t('Strategy')); ?></label>
+                        <select id="scenario-strategy">
+                            <option value="avalanche"><?php p($l->t('Avalanche (highest rate first)')); ?></option>
+                            <option value="snowball"><?php p($l->t('Snowball (smallest balance first)')); ?></option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label><?php p($l->t('Include Debts')); ?></label>
-                        <div id="scenario-debt-checkboxes" class="debt-checkbox-list"></div>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <span><?php p($l->t('Rate Overrides')); ?></span>
-                            <button id="toggle-rate-overrides" class="text-btn"><?php p($l->t('Show')); ?></button>
-                        </label>
-                        <div id="scenario-rate-overrides" class="rate-overrides-list" style="display: none;"></div>
+                        <label for="scenario-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
+                        <input type="number" id="scenario-extra-payment" min="0" step="0.01" value="0">
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="scenario-lump-sum"><?php p($l->t('One-Time Lump Sum')); ?></label>
+                        <input type="number" id="scenario-lump-sum" min="0" step="0.01" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="scenario-lump-month"><?php p($l->t('Apply Lump Sum In Month')); ?></label>
+                        <input type="number" id="scenario-lump-month" min="1" value="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><?php p($l->t('Include Debts')); ?></label>
+                    <div id="scenario-debt-checkboxes" class="debt-checkbox-list"></div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <span><?php p($l->t('Rate Overrides')); ?></span>
+                        <button id="toggle-rate-overrides" class="text-btn"><?php p($l->t('Show')); ?></button>
+                    </label>
+                    <div id="scenario-rate-overrides" class="rate-overrides-list" style="display: none;"></div>
+                </div>
+                <div class="modal-buttons">
                     <button id="scenario-modal-cancel" class="secondary"><?php p($l->t('Cancel')); ?></button>
                     <button id="scenario-modal-save" class="primary"><?php p($l->t('Save & Calculate')); ?></button>
                 </div>
