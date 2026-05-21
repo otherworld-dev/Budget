@@ -2966,7 +2966,7 @@ class BudgetApp {
                 data,
                 borderColor: color,
                 backgroundColor: isArea ? color + '40' : 'transparent',
-                fill: isArea ? (i === 0 ? 'origin' : '-1') : false,
+                fill: mode === 'area',
                 borderWidth: 2,
                 pointRadius: 0,
                 pointHoverRadius: 4,
@@ -3345,63 +3345,44 @@ class BudgetApp {
         section.style.display = '';
         const currency = this.getPrimaryCurrency();
 
-        // Destroy existing comparison chart
+        // Destroy any existing comparison chart (legacy cleanup)
         if (this.debtComparisonChart) {
             this.debtComparisonChart.destroy();
             this.debtComparisonChart = null;
         }
 
-        const canvas = document.getElementById('debt-comparison-chart');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            const avalancheMonths = comparison.avalanche?.totalMonths || 0;
-            const snowballMonths = comparison.snowball?.totalMonths || 0;
-            const avalancheInterest = comparison.avalanche?.totalInterest || 0;
-            const snowballInterest = comparison.snowball?.totalInterest || 0;
+        const avalanchePlan = comparison.avalanche || {};
+        const snowballPlan = comparison.snowball || {};
+        const rec = comparison.comparison?.recommendation;
 
-            this.debtComparisonChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: [t('budget', 'Months to Payoff'), t('budget', 'Total Interest')],
-                    datasets: [
-                        {
-                            label: t('budget', 'Avalanche'),
-                            data: [avalancheMonths, avalancheInterest],
-                            backgroundColor: '#4285f4',
-                        },
-                        {
-                            label: t('budget', 'Snowball'),
-                            data: [snowballMonths, snowballInterest],
-                            backgroundColor: '#ea4335',
-                        },
-                    ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
-                            },
-                        },
-                        x: {
-                            ticks: {
-                                color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
-                            },
-                        },
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: getComputedStyle(document.documentElement).getPropertyValue('--color-main-text').trim() || '#222',
-                            },
-                        },
-                    },
-                },
-            });
+        const chartContainer = document.querySelector('.debt-comparison-chart-container');
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div style="display: flex; gap: 16px;">
+                    <div class="debt-comparison-card${rec === 'avalanche' ? ' recommended' : ''}" style="flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ${rec === 'avalanche' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;'}">
+                        <h4 style="margin: 0 0 12px 0;">${this.escapeHtml(avalanchePlan.strategyName || t('budget', 'Avalanche'))}</h4>
+                        <div style="margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Months to payoff')}</div>
+                            <div style="font-size: 20px; font-weight: bold;">${avalanchePlan.totalMonths || 0}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Total interest')}</div>
+                            <div style="font-size: 20px; font-weight: bold; color: var(--color-error);">${this.formatCurrency(avalanchePlan.totalInterest || 0, currency)}</div>
+                        </div>
+                    </div>
+                    <div class="debt-comparison-card${rec === 'snowball' ? ' recommended' : ''}" style="flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ${rec === 'snowball' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;'}">
+                        <h4 style="margin: 0 0 12px 0;">${this.escapeHtml(snowballPlan.strategyName || t('budget', 'Snowball'))}</h4>
+                        <div style="margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Months to payoff')}</div>
+                            <div style="font-size: 20px; font-weight: bold;">${snowballPlan.totalMonths || 0}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Total interest')}</div>
+                            <div style="font-size: 20px; font-weight: bold; color: var(--color-error);">${this.formatCurrency(snowballPlan.totalInterest || 0, currency)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // Recommendation text

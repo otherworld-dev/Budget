@@ -4095,7 +4095,9 @@ style('budget', 'budget-main');
                 <p><?php p($l->t('No debt accounts found. Debts are pulled from your liability accounts (credit cards, loans, mortgages).')); ?></p>
             </div>
 
-        <!-- Scenario Modal -->
+        </div>
+
+        <!-- Scenario Modal (outside debt-payoff-view so it remains visible when view is hidden) -->
         <div id="debt-scenario-modal" class="modal" style="display: none;" role="dialog">
             <div class="modal-container">
                 <div class="modal-header">
@@ -4147,7 +4149,6 @@ style('budget', 'budget-main');
                     <button id="scenario-modal-save" class="primary"><?php p($l->t('Save & Calculate')); ?></button>
                 </div>
             </div>
-        </div>
         </div>
 
         <!-- Shared Expenses View -->

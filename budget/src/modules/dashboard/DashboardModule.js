@@ -984,6 +984,7 @@ export default class DashboardModule {
             const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
                 headers: { 'requesttoken': OC.requestToken }
             });
+            if (!scenariosRes.ok) return;
             const scenarios = await scenariosRes.json();
             const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
 
@@ -991,11 +992,13 @@ export default class DashboardModule {
                 const res = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), {
                     headers: { 'requesttoken': OC.requestToken }
                 });
+                if (!res.ok) return;
                 plan = await res.json();
             } else {
                 const res = await fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
                     headers: { 'requesttoken': OC.requestToken }
                 });
+                if (!res.ok) return;
                 plan = await res.json();
             }
 
@@ -1004,7 +1007,7 @@ export default class DashboardModule {
             // Stats row
             const statsEl = document.getElementById('debt-chart-widget-stats');
             if (statsEl) {
-                const totalDebt = plan.debts.reduce((sum, d) => sum + d.originalBalance, 0);
+                const totalDebt = plan.debts.reduce((sum, d) => sum + (parseFloat(d.originalBalance) || 0), 0);
                 const payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A';
                 statsEl.innerHTML = `
                     <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Total Debt')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-error);">${this.formatCurrency(totalDebt)}</div></div>
@@ -1028,7 +1031,7 @@ export default class DashboardModule {
             // Build per-debt balance data
             const datasets = plan.debts.map((debt, i) => {
                 const data = plan.timeline.map(entry => {
-                    const p = entry.payments.find(p => p.debtId === debt.id);
+                    const p = entry.payments?.find(p => p.debtId === debt.id);
                     return p ? Math.max(0, p.remainingBalance) : 0;
                 });
                 return {
@@ -1067,6 +1070,7 @@ export default class DashboardModule {
                 fetch(OC.generateUrl('/apps/budget/api/debts/progress'), { headers: { 'requesttoken': OC.requestToken } }),
                 fetch(OC.generateUrl('/apps/budget/api/debts/summary'), { headers: { 'requesttoken': OC.requestToken } }),
             ]);
+            if (!progressRes.ok || !summaryRes.ok) return;
             const progress = await progressRes.json();
             const summary = await summaryRes.json();
 
@@ -1096,10 +1100,12 @@ export default class DashboardModule {
             if (progress.hasActiveScenario) {
                 // Get plan to find first unpaid debt
                 const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), { headers: { 'requesttoken': OC.requestToken } });
+                if (!scenariosRes.ok) return;
                 const scenarios = await scenariosRes.json();
                 const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
                 if (active) {
                     const planRes = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), { headers: { 'requesttoken': OC.requestToken } });
+                    if (!planRes.ok) return;
                     const plan = await planRes.json();
                     const nextDebt = plan.debts?.find(d => d.payoffMonth);
                     const nextNameEl = document.getElementById('debt-progress-next-name');

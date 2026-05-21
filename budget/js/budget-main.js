@@ -32809,56 +32809,74 @@ var DashboardModule = /*#__PURE__*/function () {
               });
             case 1:
               scenariosRes = _context0.v;
-              _context0.n = 2;
-              return scenariosRes.json();
+              if (scenariosRes.ok) {
+                _context0.n = 2;
+                break;
+              }
+              return _context0.a(2);
             case 2:
+              _context0.n = 3;
+              return scenariosRes.json();
+            case 3:
               scenarios = _context0.v;
               active = Array.isArray(scenarios) ? scenarios.find(function (s) {
                 return s.isActive;
               }) : null;
               if (!active) {
-                _context0.n = 5;
+                _context0.n = 7;
                 break;
               }
-              _context0.n = 3;
+              _context0.n = 4;
               return fetch(OC.generateUrl("/apps/budget/api/debt-scenarios/".concat(active.id, "/calculate")), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 3:
-              res = _context0.v;
-              _context0.n = 4;
-              return res.json();
             case 4:
-              plan = _context0.v;
-              _context0.n = 8;
-              break;
+              res = _context0.v;
+              if (res.ok) {
+                _context0.n = 5;
+                break;
+              }
+              return _context0.a(2);
             case 5:
               _context0.n = 6;
+              return res.json();
+            case 6:
+              plan = _context0.v;
+              _context0.n = 11;
+              break;
+            case 7:
+              _context0.n = 8;
               return fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 6:
-              _res = _context0.v;
-              _context0.n = 7;
-              return _res.json();
-            case 7:
-              plan = _context0.v;
             case 8:
-              if (!(!plan || !plan.debts || plan.debts.length === 0)) {
+              _res = _context0.v;
+              if (_res.ok) {
                 _context0.n = 9;
                 break;
               }
               return _context0.a(2);
             case 9:
+              _context0.n = 10;
+              return _res.json();
+            case 10:
+              plan = _context0.v;
+            case 11:
+              if (!(!plan || !plan.debts || plan.debts.length === 0)) {
+                _context0.n = 12;
+                break;
+              }
+              return _context0.a(2);
+            case 12:
               // Stats row
               statsEl = document.getElementById('debt-chart-widget-stats');
               if (statsEl) {
                 totalDebt = plan.debts.reduce(function (sum, d) {
-                  return sum + d.originalBalance;
+                  return sum + (parseFloat(d.originalBalance) || 0);
                 }, 0);
                 payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(undefined, {
                   month: 'short',
@@ -32878,18 +32896,19 @@ var DashboardModule = /*#__PURE__*/function () {
               // Mini sparkline chart
               canvas = document.getElementById('debt-chart-widget-canvas');
               if (!(!canvas || !plan.timeline || plan.timeline.length === 0)) {
-                _context0.n = 10;
+                _context0.n = 13;
                 break;
               }
               return _context0.a(2);
-            case 10:
+            case 13:
               colors = ['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#9b59b6', '#1abc9c'];
               labels = plan.timeline.map(function () {
                 return '';
               }); // Build per-debt balance data
               datasets = plan.debts.map(function (debt, i) {
                 var data = plan.timeline.map(function (entry) {
-                  var p = entry.payments.find(function (p) {
+                  var _entry$payments;
+                  var p = (_entry$payments = entry.payments) === null || _entry$payments === void 0 ? void 0 : _entry$payments.find(function (p) {
                     return p.debtId === debt.id;
                   });
                   return p ? Math.max(0, p.remainingBalance) : 0;
@@ -32933,16 +32952,16 @@ var DashboardModule = /*#__PURE__*/function () {
                   }
                 }
               });
-              _context0.n = 12;
+              _context0.n = 15;
               break;
-            case 11:
-              _context0.p = 11;
+            case 14:
+              _context0.p = 14;
               _t10 = _context0.v;
               console.error('Failed to render debt chart widget', _t10);
-            case 12:
+            case 15:
               return _context0.a(2);
           }
-        }, _callee0, this, [[0, 11]]);
+        }, _callee0, this, [[0, 14]]);
       }));
       function renderDebtChartWidget() {
         return _renderDebtChartWidget.apply(this, arguments);
@@ -32973,20 +32992,26 @@ var DashboardModule = /*#__PURE__*/function () {
               _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
               progressRes = _yield$Promise$all4[0];
               summaryRes = _yield$Promise$all4[1];
-              _context1.n = 2;
-              return progressRes.json();
-            case 2:
-              progress = _context1.v;
-              _context1.n = 3;
-              return summaryRes.json();
-            case 3:
-              summary = _context1.v;
-              if (!(summary.debtCount === 0)) {
-                _context1.n = 4;
+              if (!(!progressRes.ok || !summaryRes.ok)) {
+                _context1.n = 2;
                 break;
               }
               return _context1.a(2);
+            case 2:
+              _context1.n = 3;
+              return progressRes.json();
+            case 3:
+              progress = _context1.v;
+              _context1.n = 4;
+              return summaryRes.json();
             case 4:
+              summary = _context1.v;
+              if (!(summary.debtCount === 0)) {
+                _context1.n = 5;
+                break;
+              }
+              return _context1.a(2);
+            case 5:
               // Countdown
               monthsEl = document.getElementById('debt-progress-months');
               if (monthsEl) {
@@ -33006,39 +33031,51 @@ var DashboardModule = /*#__PURE__*/function () {
 
               // Next payoff & status
               if (!progress.hasActiveScenario) {
-                _context1.n = 10;
+                _context1.n = 13;
                 break;
               }
-              _context1.n = 5;
+              _context1.n = 6;
               return fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 5:
-              scenariosRes = _context1.v;
-              _context1.n = 6;
-              return scenariosRes.json();
             case 6:
+              scenariosRes = _context1.v;
+              if (scenariosRes.ok) {
+                _context1.n = 7;
+                break;
+              }
+              return _context1.a(2);
+            case 7:
+              _context1.n = 8;
+              return scenariosRes.json();
+            case 8:
               scenarios = _context1.v;
               active = Array.isArray(scenarios) ? scenarios.find(function (s) {
                 return s.isActive;
               }) : null;
               if (!active) {
-                _context1.n = 9;
+                _context1.n = 12;
                 break;
               }
-              _context1.n = 7;
+              _context1.n = 9;
               return fetch(OC.generateUrl("/apps/budget/api/debt-scenarios/".concat(active.id, "/calculate")), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
-            case 7:
+            case 9:
               planRes = _context1.v;
-              _context1.n = 8;
+              if (planRes.ok) {
+                _context1.n = 10;
+                break;
+              }
+              return _context1.a(2);
+            case 10:
+              _context1.n = 11;
               return planRes.json();
-            case 8:
+            case 11:
               plan = _context1.v;
               nextDebt = (_plan$debts = plan.debts) === null || _plan$debts === void 0 ? void 0 : _plan$debts.find(function (d) {
                 return d.payoffMonth;
@@ -33054,7 +33091,7 @@ var DashboardModule = /*#__PURE__*/function () {
                   year: 'numeric'
                 });
               }
-            case 9:
+            case 12:
               statusEl = document.getElementById('debt-progress-status');
               if (statusEl) {
                 statusMap = {
@@ -33075,17 +33112,17 @@ var DashboardModule = /*#__PURE__*/function () {
                 statusEl.textContent = s.text;
                 statusEl.style.color = s.color;
               }
-            case 10:
-              _context1.n = 12;
+            case 13:
+              _context1.n = 15;
               break;
-            case 11:
-              _context1.p = 11;
+            case 14:
+              _context1.p = 14;
               _t11 = _context1.v;
               console.error('Failed to render debt progress widget', _t11);
-            case 12:
+            case 15:
               return _context1.a(2);
           }
-        }, _callee1, this, [[0, 11]]);
+        }, _callee1, this, [[0, 14]]);
       }));
       function renderDebtProgressWidget() {
         return _renderDebtProgressWidget.apply(this, arguments);
@@ -61817,7 +61854,7 @@ var BudgetApp = /*#__PURE__*/function () {
           data: data,
           borderColor: color,
           backgroundColor: isArea ? color + '40' : 'transparent',
-          fill: isArea ? i === 0 ? 'origin' : '-1' : false,
+          fill: mode === 'area',
           borderWidth: 2,
           pointRadius: 0,
           pointHoverRadius: 4,
@@ -62351,64 +62388,23 @@ var BudgetApp = /*#__PURE__*/function () {
   }, {
     key: "displayComparison",
     value: function displayComparison(comparison) {
+      var _comparison$compariso;
       var section = document.getElementById('debt-comparison-section');
       if (!section) return;
       section.style.display = '';
       var currency = this.getPrimaryCurrency();
 
-      // Destroy existing comparison chart
+      // Destroy any existing comparison chart (legacy cleanup)
       if (this.debtComparisonChart) {
         this.debtComparisonChart.destroy();
         this.debtComparisonChart = null;
       }
-      var canvas = document.getElementById('debt-comparison-chart');
-      if (canvas) {
-        var _comparison$avalanche, _comparison$snowball, _comparison$avalanche2, _comparison$snowball2;
-        var ctx = canvas.getContext('2d');
-        var avalancheMonths = ((_comparison$avalanche = comparison.avalanche) === null || _comparison$avalanche === void 0 ? void 0 : _comparison$avalanche.totalMonths) || 0;
-        var snowballMonths = ((_comparison$snowball = comparison.snowball) === null || _comparison$snowball === void 0 ? void 0 : _comparison$snowball.totalMonths) || 0;
-        var avalancheInterest = ((_comparison$avalanche2 = comparison.avalanche) === null || _comparison$avalanche2 === void 0 ? void 0 : _comparison$avalanche2.totalInterest) || 0;
-        var snowballInterest = ((_comparison$snowball2 = comparison.snowball) === null || _comparison$snowball2 === void 0 ? void 0 : _comparison$snowball2.totalInterest) || 0;
-        this.debtComparisonChart = new chart_js_auto__WEBPACK_IMPORTED_MODULE_0__["default"](ctx, {
-          type: 'bar',
-          data: {
-            labels: [(0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Months to Payoff'), (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Total Interest')],
-            datasets: [{
-              label: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Avalanche'),
-              data: [avalancheMonths, avalancheInterest],
-              backgroundColor: '#4285f4'
-            }, {
-              label: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Snowball'),
-              data: [snowballMonths, snowballInterest],
-              backgroundColor: '#ea4335'
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999'
-                }
-              },
-              x: {
-                ticks: {
-                  color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999'
-                }
-              }
-            },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  color: getComputedStyle(document.documentElement).getPropertyValue('--color-main-text').trim() || '#222'
-                }
-              }
-            }
-          }
-        });
+      var avalanchePlan = comparison.avalanche || {};
+      var snowballPlan = comparison.snowball || {};
+      var rec = (_comparison$compariso = comparison.comparison) === null || _comparison$compariso === void 0 ? void 0 : _comparison$compariso.recommendation;
+      var chartContainer = document.querySelector('.debt-comparison-chart-container');
+      if (chartContainer) {
+        chartContainer.innerHTML = "\n                <div style=\"display: flex; gap: 16px;\">\n                    <div class=\"debt-comparison-card".concat(rec === 'avalanche' ? ' recommended' : '', "\" style=\"flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ").concat(rec === 'avalanche' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;', "\">\n                        <h4 style=\"margin: 0 0 12px 0;\">").concat(this.escapeHtml(avalanchePlan.strategyName || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Avalanche')), "</h4>\n                        <div style=\"margin-bottom: 8px;\">\n                            <div style=\"font-size: 12px; color: var(--color-text-maxcontrast);\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Months to payoff'), "</div>\n                            <div style=\"font-size: 20px; font-weight: bold;\">").concat(avalanchePlan.totalMonths || 0, "</div>\n                        </div>\n                        <div>\n                            <div style=\"font-size: 12px; color: var(--color-text-maxcontrast);\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Total interest'), "</div>\n                            <div style=\"font-size: 20px; font-weight: bold; color: var(--color-error);\">").concat(this.formatCurrency(avalanchePlan.totalInterest || 0, currency), "</div>\n                        </div>\n                    </div>\n                    <div class=\"debt-comparison-card").concat(rec === 'snowball' ? ' recommended' : '', "\" style=\"flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ").concat(rec === 'snowball' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;', "\">\n                        <h4 style=\"margin: 0 0 12px 0;\">").concat(this.escapeHtml(snowballPlan.strategyName || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Snowball')), "</h4>\n                        <div style=\"margin-bottom: 8px;\">\n                            <div style=\"font-size: 12px; color: var(--color-text-maxcontrast);\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Months to payoff'), "</div>\n                            <div style=\"font-size: 20px; font-weight: bold;\">").concat(snowballPlan.totalMonths || 0, "</div>\n                        </div>\n                        <div>\n                            <div style=\"font-size: 12px; color: var(--color-text-maxcontrast);\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Total interest'), "</div>\n                            <div style=\"font-size: 20px; font-weight: bold; color: var(--color-error);\">").concat(this.formatCurrency(snowballPlan.totalInterest || 0, currency), "</div>\n                        </div>\n                    </div>\n                </div>\n            ");
       }
 
       // Recommendation text
