@@ -229,6 +229,16 @@ return [
         ['name' => 'debt#summary', 'url' => '/api/debts/summary', 'verb' => 'GET'],
         ['name' => 'debt#payoffPlan', 'url' => '/api/debts/payoff-plan', 'verb' => 'GET'],
         ['name' => 'debt#compare', 'url' => '/api/debts/compare', 'verb' => 'GET'],
+        ['name' => 'debt#progress', 'url' => '/api/debts/progress', 'verb' => 'GET'],
+
+        // Debt Scenario routes (specific routes before {id} routes)
+        ['name' => 'debt_scenario#index', 'url' => '/api/debt-scenarios', 'verb' => 'GET'],
+        ['name' => 'debt_scenario#create', 'url' => '/api/debt-scenarios', 'verb' => 'POST'],
+        ['name' => 'debt_scenario#compare', 'url' => '/api/debt-scenarios/compare', 'verb' => 'GET'],
+        ['name' => 'debt_scenario#update', 'url' => '/api/debt-scenarios/{id}', 'verb' => 'PUT'],
+        ['name' => 'debt_scenario#destroy', 'url' => '/api/debt-scenarios/{id}', 'verb' => 'DELETE'],
+        ['name' => 'debt_scenario#activate', 'url' => '/api/debt-scenarios/{id}/activate', 'verb' => 'POST'],
+        ['name' => 'debt_scenario#calculate', 'url' => '/api/debt-scenarios/{id}/calculate', 'verb' => 'GET'],
 
         // Year-over-Year Comparison routes
         ['name' => 'yearOverYear#compareMonth', 'url' => '/api/yoy/month', 'verb' => 'GET'],

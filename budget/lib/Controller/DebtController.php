@@ -122,6 +122,24 @@ class DebtController extends Controller {
     }
 
     /**
+     * Get progress vs active scenario.
+     *
+     * @NoAdminRequired
+     */
+    public function progress(): DataResponse {
+        try {
+            $progress = $this->service->getProgressVsActive($this->getEffectiveUserId());
+            return new DataResponse($progress);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to get debt progress', ['exception' => $e]);
+            return new DataResponse(
+                ['error' => $this->l->t('Failed to get debt progress')],
+                Http::STATUS_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
      * Compare avalanche and snowball strategies.
      *
      * @NoAdminRequired
