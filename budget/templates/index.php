@@ -3970,144 +3970,128 @@ style('budget', 'budget-main');
                 <h2><?php p($l->t('Debt Payoff Planner')); ?></h2>
             </div>
 
-            <!-- Debt Summary Cards -->
-            <div class="debt-summary-header">
-                <div class="summary-card summary-card-debt">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-                        </svg>
-                    </div>
-                    <div class="summary-content">
-                        <span class="summary-label"><?php p($l->t('Total Debt')); ?></span>
-                        <span id="debt-view-total" class="summary-value">--</span>
-                    </div>
+            <!-- Summary Cards -->
+            <div class="debt-summary-cards">
+                <div class="debt-summary-card">
+                    <div class="debt-summary-label"><?php p($l->t('Total Debt')); ?></div>
+                    <div class="debt-summary-value" id="debt-total-value">-</div>
                 </div>
-                <div class="summary-card summary-card-rate">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.36 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z"/>
-                        </svg>
-                    </div>
-                    <div class="summary-content">
-                        <span class="summary-label"><?php p($l->t('Highest Rate')); ?></span>
-                        <span id="debt-view-highest-rate" class="summary-value">--</span>
-                    </div>
+                <div class="debt-summary-card">
+                    <div class="debt-summary-label"><?php p($l->t('Monthly Payment')); ?></div>
+                    <div class="debt-summary-value" id="debt-monthly-value">-</div>
                 </div>
-                <div class="summary-card summary-card-payment">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 14V6c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-2 0H3V6h14v8zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm13 0v11c0 1.1-.9 2-2 2H4v-2h17V7h2z"/>
-                        </svg>
-                    </div>
-                    <div class="summary-content">
-                        <span class="summary-label"><?php p($l->t('Monthly Minimum')); ?></span>
-                        <span id="debt-view-minimum" class="summary-value">--</span>
-                    </div>
+                <div class="debt-summary-card">
+                    <div class="debt-summary-label"><?php p($l->t('Debt Free By')); ?></div>
+                    <div class="debt-summary-value" id="debt-payoff-date-value">-</div>
                 </div>
-                <div class="summary-card summary-card-count">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                        </svg>
-                    </div>
-                    <div class="summary-content">
-                        <span class="summary-label"><?php p($l->t('Debt Accounts')); ?></span>
-                        <span id="debt-view-count" class="summary-value">--</span>
-                    </div>
+                <div class="debt-summary-card">
+                    <div class="debt-summary-label"><?php p($l->t('Total Interest')); ?></div>
+                    <div class="debt-summary-value" id="debt-interest-value">-</div>
                 </div>
             </div>
 
-            <!-- Strategy Selection -->
-            <div class="debt-strategy-section">
-                <div class="debt-controls">
-                    <div class="debt-control-group">
-                        <label for="debt-strategy-select"><?php p($l->t('Payoff Strategy')); ?></label>
-                        <select id="debt-strategy-select" class="debt-select">
-                            <option value="avalanche"><?php p($l->t('Avalanche (Highest Interest First)')); ?></option>
-                            <option value="snowball"><?php p($l->t('Snowball (Smallest Balance First)')); ?></option>
-                        </select>
+            <!-- Chart Section -->
+            <div class="debt-chart-section">
+                <div class="debt-chart-header">
+                    <h3><?php p($l->t('Repayment Timeline')); ?></h3>
+                    <div class="debt-chart-toggle">
+                        <button id="debt-chart-toggle-area" class="toggle-btn active"><?php p($l->t('Area')); ?></button>
+                        <button id="debt-chart-toggle-lines" class="toggle-btn"><?php p($l->t('Lines')); ?></button>
                     </div>
-                    <div class="debt-control-group">
-                        <label for="debt-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
-                        <div class="input-with-prefix">
-                            <span class="input-prefix">£</span>
-                            <input type="number" id="debt-extra-payment" min="0" step="10" value="0" placeholder="0">
-                        </div>
-                    </div>
-                    <button id="calculate-payoff-btn" class="primary"><?php p($l->t('Calculate Plan')); ?></button>
+                </div>
+                <div class="debt-chart-container">
+                    <canvas id="debt-payoff-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Scenarios Section -->
+            <div class="debt-scenarios-section">
+                <div class="debt-section-header">
+                    <h3><?php p($l->t('Scenarios')); ?></h3>
+                    <button id="add-scenario-btn" class="primary">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        <?php p($l->t('New Scenario')); ?>
+                    </button>
+                </div>
+                <div id="debt-scenarios-list" class="debt-scenarios-row"></div>
+            </div>
+
+            <!-- Payoff Order Section -->
+            <div class="debt-payoff-section">
+                <div class="debt-section-header">
+                    <h3><?php p($l->t('Payoff Order')); ?></h3>
                     <button id="compare-strategies-btn" class="secondary"><?php p($l->t('Compare Strategies')); ?></button>
                 </div>
+                <div id="debt-payoff-order" class="debt-cards-grid"></div>
             </div>
 
-            <!-- Payoff Plan Results -->
-            <div id="debt-payoff-results" class="debt-payoff-results" style="display: none;">
-                <div class="payoff-summary-cards">
-                    <div class="payoff-card payoff-months">
-                        <span class="payoff-card-label"><?php p($l->t('Time to Debt Free')); ?></span>
-                        <span id="payoff-months" class="payoff-card-value">--</span>
-                        <span id="payoff-date" class="payoff-card-date"></span>
-                    </div>
-                    <div class="payoff-card payoff-interest">
-                        <span class="payoff-card-label"><?php p($l->t('Total Interest')); ?></span>
-                        <span id="payoff-total-interest" class="payoff-card-value">--</span>
-                    </div>
-                    <div class="payoff-card payoff-total">
-                        <span class="payoff-card-label"><?php p($l->t('Total Paid')); ?></span>
-                        <span id="payoff-total-paid" class="payoff-card-value">--</span>
-                    </div>
-                </div>
-
-                <div class="payoff-details">
-                    <h3><?php p($l->t('Payoff Order')); ?></h3>
-                    <div id="debt-payoff-order" class="debt-payoff-order"></div>
-                </div>
-            </div>
-
-            <!-- Strategy Comparison -->
-            <div id="debt-comparison-results" class="debt-comparison-results" style="display: none;">
+            <!-- Strategy Comparison (hidden by default) -->
+            <div id="debt-comparison-section" class="debt-comparison-section" style="display: none;">
                 <h3><?php p($l->t('Strategy Comparison')); ?></h3>
-                <div class="comparison-cards">
-                    <div class="comparison-card" id="avalanche-comparison">
-                        <h4><?php p($l->t('Debt Avalanche')); ?></h4>
-                        <p class="strategy-desc"><?php p($l->t('Pay highest interest rates first')); ?></p>
-                        <div class="comparison-stats">
-                            <div class="comparison-stat">
-                                <span class="stat-label"><?php p($l->t('Months')); ?></span>
-                                <span id="avalanche-months" class="stat-value">--</span>
-                            </div>
-                            <div class="comparison-stat">
-                                <span class="stat-label"><?php p($l->t('Interest')); ?></span>
-                                <span id="avalanche-interest" class="stat-value">--</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="comparison-card" id="snowball-comparison">
-                        <h4><?php p($l->t('Debt Snowball')); ?></h4>
-                        <p class="strategy-desc"><?php p($l->t('Pay smallest balances first')); ?></p>
-                        <div class="comparison-stats">
-                            <div class="comparison-stat">
-                                <span class="stat-label"><?php p($l->t('Months')); ?></span>
-                                <span id="snowball-months" class="stat-value">--</span>
-                            </div>
-                            <div class="comparison-stat">
-                                <span class="stat-label"><?php p($l->t('Interest')); ?></span>
-                                <span id="snowball-interest" class="stat-value">--</span>
-                            </div>
-                        </div>
-                    </div>
+                <div class="debt-comparison-chart-container">
+                    <canvas id="debt-comparison-chart"></canvas>
                 </div>
-                <div id="comparison-recommendation" class="comparison-recommendation"></div>
+                <div id="debt-comparison-recommendation" class="debt-recommendation"></div>
             </div>
 
-            <!-- Debt List -->
-            <div class="debt-list-section">
-                <h3><?php p($l->t('Your Debts')); ?></h3>
-                <p class="section-hint"><?php p($l->t('Debts are pulled from your liability accounts. Edit minimum payments in account settings.')); ?></p>
-                <div id="debt-list" class="debt-list">
-                    <div class="empty-state"><?php p($l->t('No debt accounts found')); ?></div>
+            <!-- Empty State -->
+            <div id="debt-empty-state" class="empty-state" style="display: none;">
+                <p><?php p($l->t('No debt accounts found. Debts are pulled from your liability accounts (credit cards, loans, mortgages).')); ?></p>
+            </div>
+
+        <!-- Scenario Modal -->
+        <div id="debt-scenario-modal" class="modal" style="display: none;" role="dialog">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3 id="scenario-modal-title"><?php p($l->t('New Scenario')); ?></h3>
+                    <button class="modal-close" id="scenario-modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="scenario-name"><?php p($l->t('Scenario Name')); ?></label>
+                        <input type="text" id="scenario-name" placeholder="<?php p($l->t('e.g., Aggressive Payoff')); ?>">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="scenario-strategy"><?php p($l->t('Strategy')); ?></label>
+                            <select id="scenario-strategy">
+                                <option value="avalanche"><?php p($l->t('Avalanche (highest rate first)')); ?></option>
+                                <option value="snowball"><?php p($l->t('Snowball (smallest balance first)')); ?></option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scenario-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
+                            <input type="number" id="scenario-extra-payment" min="0" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="scenario-lump-sum"><?php p($l->t('One-Time Lump Sum')); ?></label>
+                            <input type="number" id="scenario-lump-sum" min="0" step="0.01" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="scenario-lump-month"><?php p($l->t('Apply Lump Sum In Month')); ?></label>
+                            <input type="number" id="scenario-lump-month" min="1" value="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><?php p($l->t('Include Debts')); ?></label>
+                        <div id="scenario-debt-checkboxes" class="debt-checkbox-list"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <span><?php p($l->t('Rate Overrides')); ?></span>
+                            <button id="toggle-rate-overrides" class="text-btn"><?php p($l->t('Show')); ?></button>
+                        </label>
+                        <div id="scenario-rate-overrides" class="rate-overrides-list" style="display: none;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="scenario-modal-cancel" class="secondary"><?php p($l->t('Cancel')); ?></button>
+                    <button id="scenario-modal-save" class="primary"><?php p($l->t('Save & Calculate')); ?></button>
                 </div>
             </div>
+        </div>
         </div>
 
         <!-- Shared Expenses View -->

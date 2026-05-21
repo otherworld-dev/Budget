@@ -2800,178 +2800,528 @@ class BudgetApp {
 
     async loadDebtPayoffView() {
         try {
-            // Load debt summary
-            const summaryResponse = await fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            const summary = summaryResponse.ok ? await summaryResponse.json() : null;
+            // Fetch summary, debts, and scenarios in parallel
+            const [summaryRes, debtsRes, scenariosRes] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/debts'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), { headers: { 'requesttoken': OC.requestToken } }),
+            ]);
 
-            // Load debt list
-            const debtsResponse = await fetch(OC.generateUrl('/apps/budget/api/debts'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            const debts = debtsResponse.ok ? await debtsResponse.json() : [];
+            const summary = summaryRes.ok ? await summaryRes.json() : {};
+            this.debtAccounts = debtsRes.ok ? await debtsRes.json() : [];
+            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+
+            const currency = this.getPrimaryCurrency();
 
             // Update summary cards
-            const currency = this.getPrimaryCurrency();
-            if (summary) {
-                const totalEl = document.getElementById('debt-view-total');
-                const rateEl = document.getElementById('debt-view-highest-rate');
-                const minEl = document.getElementById('debt-view-minimum');
-                const countEl = document.getElementById('debt-view-count');
+            document.getElementById('debt-total-value').textContent = this.formatCurrency(Math.abs(summary.totalBalance || 0), currency);
+            document.getElementById('debt-monthly-value').textContent = this.formatCurrency(summary.totalMinimumPayment || 0, currency);
 
-                if (totalEl) totalEl.textContent = this.formatCurrency(summary.totalBalance, currency);
-                if (rateEl) rateEl.textContent = summary.highestInterestRate > 0 ? `${summary.highestInterestRate.toFixed(1)}%` : t('budget', 'N/A');
-                if (minEl) minEl.textContent = this.formatCurrency(summary.totalMinimumPayment, currency);
-                if (countEl) countEl.textContent = summary.debtCount.toString();
+            // Check if there are debts
+            const emptyState = document.getElementById('debt-empty-state');
+            if (!this.debtAccounts || this.debtAccounts.length === 0) {
+                if (emptyState) emptyState.style.display = '';
+                return;
+            }
+            if (emptyState) emptyState.style.display = 'none';
+
+            // Render scenarios
+            this.renderScenarioCards();
+
+            // Calculate and display — use active scenario or defaults
+            const activeScenario = this.debtScenarios.find(s => s.isActive);
+            if (activeScenario) {
+                this.selectedScenarioId = activeScenario.id;
+                await this.calculateAndDisplayScenario(activeScenario.id);
+            } else {
+                await this.calculateDefaultPlan();
             }
 
-            // Update debt list
-            this.renderDebtList(debts);
-
-            // Setup event listeners
             this.setupDebtPayoffControls();
-
-        } catch (error) {
-            console.error('Failed to load debt payoff view:', error);
+        } catch (e) {
+            console.error('Failed to load debt payoff view', e);
         }
     }
 
-    renderDebtList(debts) {
-        const container = document.getElementById('debt-list');
-        if (!container) return;
+    async calculateAndDisplayScenario(scenarioId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${scenarioId}/calculate`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to calculate scenario');
+            const plan = await response.json();
+            this.currentDebtPlan = plan;
+            this.updateDebtSummaryFromPlan(plan);
+            this.renderDebtPayoffChart(plan, this.debtChartMode || 'area');
+            this.renderDebtCards(plan);
+        } catch (error) {
+            console.error('Failed to calculate scenario:', error);
+            showError(t('budget', 'Failed to calculate scenario'));
+        }
+    }
 
-        if (!Array.isArray(debts) || debts.length === 0) {
-            container.innerHTML = '<div class="empty-state">' + t('budget', 'No debt accounts found. Debts are pulled from liability accounts (credit cards, loans, mortgages).') + '</div>';
-            return;
+    async calculateDefaultPlan() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to calculate payoff plan');
+            const plan = await response.json();
+            this.currentDebtPlan = plan;
+            this.updateDebtSummaryFromPlan(plan);
+            this.renderDebtPayoffChart(plan, 'area');
+            this.renderDebtCards(plan);
+        } catch (error) {
+            console.error('Failed to calculate default plan:', error);
+        }
+    }
+
+    updateDebtSummaryFromPlan(plan) {
+        const currency = this.getPrimaryCurrency();
+
+        // Total Debt: sum of originalBalance from each debt
+        if (plan.debts && plan.debts.length > 0) {
+            const totalDebt = plan.debts.reduce((sum, d) => sum + (parseFloat(d.originalBalance) || 0), 0);
+            document.getElementById('debt-total-value').textContent = this.formatCurrency(totalDebt, currency);
         }
 
+        // Monthly Payment: sum of minimum payments + extraPayment
+        if (plan.debts) {
+            const totalMin = plan.debts.reduce((sum, d) => sum + (parseFloat(d.minimumPayment) || 0), 0);
+            const extra = parseFloat(plan.extraPayment) || 0;
+            document.getElementById('debt-monthly-value').textContent = this.formatCurrency(totalMin + extra, currency);
+        }
+
+        // Debt Free By
+        const dateEl = document.getElementById('debt-payoff-date-value');
+        if (dateEl) {
+            if (plan.payoffDate) {
+                const date = new Date(plan.payoffDate);
+                dateEl.textContent = date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            } else if (plan.totalMonths) {
+                const now = new Date();
+                now.setMonth(now.getMonth() + plan.totalMonths);
+                dateEl.textContent = now.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            } else {
+                dateEl.textContent = t('budget', 'N/A');
+            }
+        }
+
+        // Total Interest
+        const interestEl = document.getElementById('debt-interest-value');
+        if (interestEl) {
+            interestEl.textContent = this.formatCurrency(plan.totalInterest || 0, currency);
+        }
+    }
+
+    renderDebtPayoffChart(plan, mode) {
+        // Destroy existing chart
+        if (this.debtPayoffChart) {
+            this.debtPayoffChart.destroy();
+            this.debtPayoffChart = null;
+        }
+
+        const canvas = document.getElementById('debt-payoff-chart');
+        if (!canvas || !plan.timeline || !plan.debts) return;
+
+        const ctx = canvas.getContext('2d');
+        const isArea = mode === 'area';
+
+        // Color palette
+        const palette = [
+            '#4285f4', '#ea4335', '#fbbc04', '#34a853', '#ff6d01',
+            '#46bdc6', '#7baaf7', '#f07b72', '#fcd04f', '#71c287',
+            '#ff9e40', '#78d4db'
+        ];
+
+        // Build labels from timeline months
+        const labels = plan.timeline.map(entry => {
+            if (entry.date) {
+                const d = new Date(entry.date);
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                return `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
+            }
+            return `${t('budget', 'Month')} ${entry.month || ''}`;
+        });
+
+        // Build one dataset per debt
+        const datasets = plan.debts.map((debt, i) => {
+            const color = palette[i % palette.length];
+            // Extract remaining balance for this debt from each timeline entry
+            const data = plan.timeline.map(entry => {
+                if (entry.payments) {
+                    const payment = entry.payments.find(p => p.debtId === debt.id || p.name === debt.name);
+                    return payment ? parseFloat(payment.remainingBalance) || 0 : 0;
+                }
+                // Fallback: check for balances array
+                if (entry.balances) {
+                    const bal = entry.balances.find(b => b.debtId === debt.id || b.name === debt.name);
+                    return bal ? parseFloat(bal.balance) || 0 : 0;
+                }
+                return 0;
+            });
+
+            return {
+                label: this.escapeHtml(debt.name),
+                data,
+                borderColor: color,
+                backgroundColor: isArea ? color + '40' : 'transparent',
+                fill: isArea ? (i === 0 ? 'origin' : '-1') : false,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.3,
+            };
+        });
+
+        this.debtPayoffChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 12,
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
+                        },
+                        grid: { display: false },
+                    },
+                    y: {
+                        stacked: isArea,
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => this.formatCurrency(value, this.getPrimaryCurrency()),
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
+                        },
+                        grid: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim() || '#eee',
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--color-main-text').trim() || '#222',
+                            usePointStyle: true,
+                            padding: 16,
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.dataset.label}: ${this.formatCurrency(context.parsed.y, this.getPrimaryCurrency())}`;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    setupChartToggle() {
+        const areaBtn = document.getElementById('debt-chart-toggle-area');
+        const linesBtn = document.getElementById('debt-chart-toggle-lines');
+
+        if (areaBtn) {
+            areaBtn.onclick = () => {
+                this.debtChartMode = 'area';
+                areaBtn.classList.add('active');
+                if (linesBtn) linesBtn.classList.remove('active');
+                if (this.currentDebtPlan) {
+                    this.renderDebtPayoffChart(this.currentDebtPlan, 'area');
+                }
+            };
+        }
+
+        if (linesBtn) {
+            linesBtn.onclick = () => {
+                this.debtChartMode = 'lines';
+                linesBtn.classList.add('active');
+                if (areaBtn) areaBtn.classList.remove('active');
+                if (this.currentDebtPlan) {
+                    this.renderDebtPayoffChart(this.currentDebtPlan, 'lines');
+                }
+            };
+        }
+    }
+
+    renderDebtCards(plan) {
+        const container = document.getElementById('debt-payoff-order');
+        if (!container || !plan.debts) return;
+
         const currency = this.getPrimaryCurrency();
-        container.innerHTML = debts.map(debt => {
-            const balance = Math.abs(parseFloat(debt.balance) || 0);
+
+        container.innerHTML = plan.debts.map((debt, index) => {
+            const balance = parseFloat(debt.originalBalance) || 0;
             const rate = parseFloat(debt.interestRate) || 0;
             const minPayment = parseFloat(debt.minimumPayment) || 0;
+            const interest = parseFloat(debt.interestPaid) || 0;
+
+            // Calculate payoff date from month number
+            let payoffDateStr = '';
+            if (debt.payoffMonth) {
+                const payoffDate = new Date();
+                payoffDate.setMonth(payoffDate.getMonth() + debt.payoffMonth);
+                payoffDateStr = payoffDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            }
 
             return `
-                <div class="debt-item" data-id="${debt.id}">
-                    <div class="debt-item-header">
-                        <div class="debt-item-name">${this.escapeHtml(debt.name)}</div>
-                        <div class="debt-item-type">${this.formatAccountType(debt.type)}</div>
+                <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
+                    <div class="debt-card-header">
+                        <span class="debt-card-name">${this.escapeHtml(debt.name)}</span>
+                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}</span>
                     </div>
-                    <div class="debt-item-details">
-                        <div class="debt-detail">
-                            <span class="detail-label">${t('budget', 'Balance')}</span>
-                            <span class="detail-value debt-balance">${this.formatCurrency(balance, currency)}</span>
-                        </div>
-                        <div class="debt-detail">
-                            <span class="detail-label">${t('budget', 'Interest Rate')}</span>
-                            <span class="detail-value">${rate > 0 ? rate.toFixed(1) + '%' : t('budget', 'N/A')}</span>
-                        </div>
-                        <div class="debt-detail">
-                            <span class="detail-label">${t('budget', 'Min Payment')}</span>
-                            <span class="detail-value">${minPayment > 0 ? this.formatCurrency(minPayment, currency) : t('budget', 'Not set')}</span>
-                        </div>
+                    <div class="debt-card-meta">
+                        ${rate > 0 ? `<div>${t('budget', 'Interest Rate')}: ${rate.toFixed(1)}%</div>` : ''}
+                        ${minPayment > 0 ? `<div>${t('budget', 'Min Payment')}: ${this.formatCurrency(minPayment, currency)}</div>` : ''}
+                        ${payoffDateStr ? `<div>${t('budget', 'Payoff')}: ${payoffDateStr} (${t('budget', 'month {month}', { month: debt.payoffMonth })})</div>` : ''}
+                        ${interest > 0 ? `<div>${t('budget', 'Total Interest')}: ${this.formatCurrency(interest, currency)}</div>` : ''}
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-    setupDebtPayoffControls() {
-        const calculateBtn = document.getElementById('calculate-payoff-btn');
-        const compareBtn = document.getElementById('compare-strategies-btn');
-
-        if (calculateBtn) {
-            calculateBtn.onclick = () => this.calculatePayoffPlan();
-        }
-
-        if (compareBtn) {
-            compareBtn.onclick = () => this.compareStrategies();
-        }
+    _debtColor(index) {
+        const palette = [
+            '#4285f4', '#ea4335', '#fbbc04', '#34a853', '#ff6d01',
+            '#46bdc6', '#7baaf7', '#f07b72', '#fcd04f', '#71c287',
+            '#ff9e40', '#78d4db'
+        ];
+        return palette[index % palette.length];
     }
 
-    async calculatePayoffPlan() {
-        const strategy = document.getElementById('debt-strategy-select')?.value || 'avalanche';
-        const extraPayment = parseFloat(document.getElementById('debt-extra-payment')?.value) || 0;
+    // --- Scenario CRUD ---
 
-        try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/debts/payoff-plan?strategy=${strategy}&extraPayment=${extraPayment}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+    renderScenarioCards() {
+        const container = document.getElementById('debt-scenarios-list');
+        if (!container) return;
 
-            if (!response.ok) throw new Error(t('budget', 'Failed to calculate payoff plan'));
-
-            const plan = await response.json();
-            this.displayPayoffPlan(plan);
-
-            // Hide comparison results when showing plan
-            const comparisonEl = document.getElementById('debt-comparison-results');
-            if (comparisonEl) comparisonEl.style.display = 'none';
-
-        } catch (error) {
-            console.error('Failed to calculate payoff plan:', error);
-            showError(t('budget', 'Failed to calculate payoff plan'));
-        }
-    }
-
-    displayPayoffPlan(plan) {
-        const resultsEl = document.getElementById('debt-payoff-results');
-        if (!resultsEl) return;
-
-        resultsEl.style.display = '';
-        const currency = this.getPrimaryCurrency();
-
-        // Update summary cards
-        const monthsEl = document.getElementById('payoff-months');
-        const dateEl = document.getElementById('payoff-date');
-        const interestEl = document.getElementById('payoff-total-interest');
-        const totalEl = document.getElementById('payoff-total-paid');
-
-        if (monthsEl) {
-            const years = Math.floor(plan.totalMonths / 12);
-            const months = plan.totalMonths % 12;
-            if (years > 0) {
-                monthsEl.textContent = t('budget', '{years}y {months}m', { years, months });
-            } else {
-                monthsEl.textContent = n('budget', '%n month', '%n months', months);
-            }
+        if (!this.debtScenarios || this.debtScenarios.length === 0) {
+            container.innerHTML = `<div class="scenario-empty-hint">${t('budget', 'No scenarios yet. Create one to compare strategies.')}</div>`;
+            return;
         }
 
-        if (dateEl && plan.payoffDate) {
-            const date = new Date(plan.payoffDate);
-            dateEl.textContent = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-        }
+        container.innerHTML = this.debtScenarios.map(s => {
+            const strategy = s.strategy === 'snowball' ? t('budget', 'Snowball') : t('budget', 'Avalanche');
+            const extra = parseFloat(s.extraPayment) || 0;
+            const isSelected = s.id === this.selectedScenarioId;
+            const isActive = !!s.isActive;
 
-        if (interestEl) interestEl.textContent = this.formatCurrency(plan.totalInterest, currency);
-        if (totalEl) totalEl.textContent = this.formatCurrency(plan.totalPaid, currency);
-
-        // Update payoff order
-        const orderEl = document.getElementById('debt-payoff-order');
-        if (orderEl && plan.debts) {
-            orderEl.innerHTML = plan.debts.map((debt, index) => `
-                <div class="payoff-order-item">
-                    <span class="payoff-order-number">${index + 1}</span>
-                    <div class="payoff-order-details">
-                        <div class="payoff-order-name">${this.escapeHtml(debt.name)}</div>
-                        <div class="payoff-order-meta">
-                            <span>${this.formatCurrency(debt.originalBalance, currency)}</span>
-                            <span class="meta-separator">•</span>
-                            <span>${debt.interestRate}% ${t('budget', 'APR')}</span>
-                            <span class="meta-separator">•</span>
-                            <span>${t('budget', 'Paid off month {month}', { month: debt.payoffMonth })}</span>
-                        </div>
-                    </div>
-                    <div class="payoff-order-interest">
-                        <span class="interest-label">${t('budget', 'Interest')}</span>
-                        <span class="interest-value">${this.formatCurrency(debt.interestPaid, currency)}</span>
+            return `
+                <div class="debt-scenario-card ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}"
+                     data-scenario-id="${s.id}">
+                    <div class="scenario-card-name">${this.escapeHtml(s.name)}</div>
+                    <div class="scenario-card-meta">${strategy} · +${this.formatCurrency(extra, this.getPrimaryCurrency())}/mo</div>
+                    <div class="scenario-card-actions">
+                        <button class="scenario-edit-btn" data-id="${s.id}" title="${t('budget', 'Edit')}">&#9998;</button>
+                        <button class="scenario-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}">&times;</button>
+                        ${!isActive ? `<button class="scenario-activate-btn" data-id="${s.id}" title="${t('budget', 'Set as active')}">&#9733;</button>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `;
+        }).join('');
+    }
+
+    openScenarioModal(scenario = null) {
+        const modal = document.getElementById('debt-scenario-modal');
+        if (!modal) return;
+
+        // Set title
+        const titleEl = document.getElementById('scenario-modal-title');
+        if (titleEl) {
+            titleEl.textContent = scenario ? t('budget', 'Edit Scenario') : t('budget', 'New Scenario');
+        }
+
+        // Fill fields
+        document.getElementById('scenario-name').value = scenario?.name || '';
+        document.getElementById('scenario-strategy').value = scenario?.strategy || 'avalanche';
+        document.getElementById('scenario-extra-payment').value = scenario?.extraPayment || 0;
+        document.getElementById('scenario-lump-sum').value = scenario?.lumpSum || 0;
+        document.getElementById('scenario-lump-month').value = scenario?.lumpSumMonth || 1;
+
+        // Store editing state
+        this.editingScenarioId = scenario?.id || null;
+
+        // Populate debt checkboxes
+        const checkboxContainer = document.getElementById('scenario-debt-checkboxes');
+        if (checkboxContainer && this.debtAccounts) {
+            const selectedIds = scenario?.selectedDebtIds || this.debtAccounts.map(d => d.id);
+            checkboxContainer.innerHTML = this.debtAccounts.map(debt => {
+                const checked = selectedIds.includes(debt.id);
+                return `
+                    <label class="debt-checkbox-item ${checked ? 'checked' : ''}">
+                        <input type="checkbox" value="${debt.id}" ${checked ? 'checked' : ''} class="scenario-debt-checkbox">
+                        ${this.escapeHtml(debt.name)}
+                    </label>
+                `;
+            }).join('');
+
+            // Toggle checked class on change
+            checkboxContainer.querySelectorAll('.scenario-debt-checkbox').forEach(cb => {
+                cb.onchange = () => {
+                    cb.closest('.debt-checkbox-item').classList.toggle('checked', cb.checked);
+                };
+            });
+        }
+
+        // Populate rate overrides
+        const overridesContainer = document.getElementById('scenario-rate-overrides');
+        if (overridesContainer && this.debtAccounts) {
+            const overrides = scenario?.rateOverrides || {};
+            overridesContainer.innerHTML = this.debtAccounts.map(debt => {
+                const rate = overrides[debt.id] !== undefined ? overrides[debt.id] : (parseFloat(debt.interestRate) || 0);
+                return `
+                    <span>${this.escapeHtml(debt.name)}</span>
+                    <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01">
+                `;
+            }).join('');
+            overridesContainer.style.display = 'none';
+        }
+
+        // Reset rate overrides toggle
+        const toggleBtn = document.getElementById('toggle-rate-overrides');
+        if (toggleBtn) toggleBtn.textContent = t('budget', 'Show');
+
+        modal.style.display = '';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    async saveScenario() {
+        const name = document.getElementById('scenario-name')?.value?.trim();
+        if (!name) {
+            showError(t('budget', 'Please enter a scenario name'));
+            return;
+        }
+
+        const strategy = document.getElementById('scenario-strategy')?.value || 'avalanche';
+        const extraPayment = parseFloat(document.getElementById('scenario-extra-payment')?.value) || 0;
+        const lumpSum = parseFloat(document.getElementById('scenario-lump-sum')?.value) || 0;
+        const lumpSumMonth = parseInt(document.getElementById('scenario-lump-month')?.value) || 1;
+
+        // Collect selected debt IDs
+        const selectedDebtIds = [];
+        document.querySelectorAll('.scenario-debt-checkbox:checked').forEach(cb => {
+            selectedDebtIds.push(parseInt(cb.value));
+        });
+
+        // Collect rate overrides (only if different from default)
+        const rateOverrides = {};
+        document.querySelectorAll('.rate-override-input').forEach(input => {
+            const debtId = parseInt(input.dataset.debtId);
+            const overrideRate = parseFloat(input.value);
+            const debt = this.debtAccounts?.find(d => d.id === debtId);
+            const defaultRate = parseFloat(debt?.interestRate) || 0;
+            if (!isNaN(overrideRate) && Math.abs(overrideRate - defaultRate) > 0.001) {
+                rateOverrides[debtId] = overrideRate;
+            }
+        });
+
+        const payload = { name, strategy, extraPayment, lumpSum, lumpSumMonth, selectedDebtIds, rateOverrides };
+        const isEdit = !!this.editingScenarioId;
+
+        try {
+            const url = isEdit
+                ? OC.generateUrl(`/apps/budget/api/debt-scenarios/${this.editingScenarioId}`)
+                : OC.generateUrl('/apps/budget/api/debt-scenarios');
+
+            const response = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) throw new Error('Failed to save scenario');
+
+            const saved = await response.json();
+
+            // Close modal
+            this.hideModals();
+
+            // Refresh scenarios
+            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.renderScenarioCards();
+
+            // Calculate and display the saved scenario
+            this.selectedScenarioId = saved.id;
+            await this.calculateAndDisplayScenario(saved.id);
+
+        } catch (error) {
+            console.error('Failed to save scenario:', error);
+            showError(t('budget', 'Failed to save scenario'));
+        }
+    }
+
+    async deleteScenario(id) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this scenario?'))) return;
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${id}`), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken },
+            });
+
+            if (!response.ok) throw new Error('Failed to delete scenario');
+
+            // Refresh scenarios
+            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.renderScenarioCards();
+
+            // If deleted the selected scenario, revert to default
+            if (this.selectedScenarioId === id) {
+                this.selectedScenarioId = null;
+                await this.calculateDefaultPlan();
+            }
+        } catch (error) {
+            console.error('Failed to delete scenario:', error);
+            showError(t('budget', 'Failed to delete scenario'));
+        }
+    }
+
+    async activateScenario(id) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${id}/activate`), {
+                method: 'POST',
+                headers: { 'requesttoken': OC.requestToken },
+            });
+
+            if (!response.ok) throw new Error('Failed to activate scenario');
+
+            // Refresh scenarios
+            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.renderScenarioCards();
+        } catch (error) {
+            console.error('Failed to activate scenario:', error);
+            showError(t('budget', 'Failed to activate scenario'));
         }
     }
 
     async compareStrategies() {
-        const extraPayment = parseFloat(document.getElementById('debt-extra-payment')?.value) || 0;
+        // Use selected scenario params or defaults
+        let extraPayment = 0;
+        if (this.selectedScenarioId) {
+            const scenario = this.debtScenarios.find(s => s.id === this.selectedScenarioId);
+            if (scenario) extraPayment = parseFloat(scenario.extraPayment) || 0;
+        }
 
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/debts/compare?extraPayment=${extraPayment}`), {
@@ -2982,11 +3332,6 @@ class BudgetApp {
 
             const comparison = await response.json();
             this.displayComparison(comparison);
-
-            // Hide plan results when showing comparison
-            const planEl = document.getElementById('debt-payoff-results');
-            if (planEl) planEl.style.display = 'none';
-
         } catch (error) {
             console.error('Failed to compare strategies:', error);
             showError(t('budget', 'Failed to compare strategies'));
@@ -2994,32 +3339,79 @@ class BudgetApp {
     }
 
     displayComparison(comparison) {
-        const resultsEl = document.getElementById('debt-comparison-results');
-        if (!resultsEl) return;
+        const section = document.getElementById('debt-comparison-section');
+        if (!section) return;
 
-        resultsEl.style.display = '';
+        section.style.display = '';
         const currency = this.getPrimaryCurrency();
 
-        // Update avalanche stats
-        const avalancheMonths = document.getElementById('avalanche-months');
-        const avalancheInterest = document.getElementById('avalanche-interest');
-        if (avalancheMonths) avalancheMonths.textContent = n('budget', '%n month', '%n months', comparison.avalanche.totalMonths);
-        if (avalancheInterest) avalancheInterest.textContent = this.formatCurrency(comparison.avalanche.totalInterest, currency);
+        // Destroy existing comparison chart
+        if (this.debtComparisonChart) {
+            this.debtComparisonChart.destroy();
+            this.debtComparisonChart = null;
+        }
 
-        // Update snowball stats
-        const snowballMonths = document.getElementById('snowball-months');
-        const snowballInterest = document.getElementById('snowball-interest');
-        if (snowballMonths) snowballMonths.textContent = n('budget', '%n month', '%n months', comparison.snowball.totalMonths);
-        if (snowballInterest) snowballInterest.textContent = this.formatCurrency(comparison.snowball.totalInterest, currency);
+        const canvas = document.getElementById('debt-comparison-chart');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            const avalancheMonths = comparison.avalanche?.totalMonths || 0;
+            const snowballMonths = comparison.snowball?.totalMonths || 0;
+            const avalancheInterest = comparison.avalanche?.totalInterest || 0;
+            const snowballInterest = comparison.snowball?.totalInterest || 0;
 
-        // Update recommendation
-        const recommendationEl = document.getElementById('comparison-recommendation');
-        if (recommendationEl && comparison.comparison) {
+            this.debtComparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [t('budget', 'Months to Payoff'), t('budget', 'Total Interest')],
+                    datasets: [
+                        {
+                            label: t('budget', 'Avalanche'),
+                            data: [avalancheMonths, avalancheInterest],
+                            backgroundColor: '#4285f4',
+                        },
+                        {
+                            label: t('budget', 'Snowball'),
+                            data: [snowballMonths, snowballInterest],
+                            backgroundColor: '#ea4335',
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
+                            },
+                        },
+                        x: {
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
+                            },
+                        },
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--color-main-text').trim() || '#222',
+                            },
+                        },
+                    },
+                },
+            });
+        }
+
+        // Recommendation text
+        const recEl = document.getElementById('debt-comparison-recommendation');
+        if (recEl && comparison.comparison) {
             const c = comparison.comparison;
             let recClass = c.recommendation === 'avalanche' ? 'recommend-avalanche' :
                            c.recommendation === 'snowball' ? 'recommend-snowball' : 'recommend-either';
 
-            recommendationEl.innerHTML = `
+            recEl.innerHTML = `
                 <div class="recommendation-box ${recClass}">
                     <div class="recommendation-title">
                         ${c.recommendation === 'avalanche' ? t('budget', 'Avalanche Recommended') :
@@ -3031,12 +3423,74 @@ class BudgetApp {
                 </div>
             `;
         }
+    }
 
-        // Highlight recommended card
-        const avalancheCard = document.getElementById('avalanche-comparison');
-        const snowballCard = document.getElementById('snowball-comparison');
-        if (avalancheCard) avalancheCard.classList.toggle('recommended', comparison.comparison?.recommendation === 'avalanche');
-        if (snowballCard) snowballCard.classList.toggle('recommended', comparison.comparison?.recommendation === 'snowball');
+    setupDebtPayoffControls() {
+        // Add scenario button
+        const addBtn = document.getElementById('add-scenario-btn');
+        if (addBtn) addBtn.onclick = () => this.openScenarioModal();
+
+        // Save scenario
+        const saveBtn = document.getElementById('scenario-modal-save');
+        if (saveBtn) saveBtn.onclick = () => this.saveScenario();
+
+        // Cancel / close modal
+        const cancelBtn = document.getElementById('scenario-modal-cancel');
+        const closeBtn = document.getElementById('scenario-modal-close');
+        if (cancelBtn) cancelBtn.onclick = () => this.hideModals();
+        if (closeBtn) closeBtn.onclick = () => this.hideModals();
+
+        // Compare strategies
+        const compareBtn = document.getElementById('compare-strategies-btn');
+        if (compareBtn) compareBtn.onclick = () => this.compareStrategies();
+
+        // Chart toggle
+        this.setupChartToggle();
+
+        // Rate overrides toggle
+        const toggleBtn = document.getElementById('toggle-rate-overrides');
+        if (toggleBtn) {
+            toggleBtn.onclick = () => {
+                const container = document.getElementById('scenario-rate-overrides');
+                if (container) {
+                    const hidden = container.style.display === 'none';
+                    container.style.display = hidden ? '' : 'none';
+                    toggleBtn.textContent = hidden ? t('budget', 'Hide') : t('budget', 'Show');
+                }
+            };
+        }
+
+        // Event delegation on scenario cards
+        const scenariosList = document.getElementById('debt-scenarios-list');
+        if (scenariosList) {
+            scenariosList.onclick = (e) => {
+                const editBtn = e.target.closest('.scenario-edit-btn');
+                const deleteBtn = e.target.closest('.scenario-delete-btn');
+                const activateBtn = e.target.closest('.scenario-activate-btn');
+                const card = e.target.closest('.debt-scenario-card');
+
+                if (editBtn) {
+                    const id = parseInt(editBtn.dataset.id);
+                    const scenario = this.debtScenarios.find(s => s.id === id);
+                    if (scenario) this.openScenarioModal(scenario);
+                } else if (deleteBtn) {
+                    const id = parseInt(deleteBtn.dataset.id);
+                    this.deleteScenario(id);
+                } else if (activateBtn) {
+                    const id = parseInt(activateBtn.dataset.id);
+                    this.activateScenario(id);
+                } else if (card) {
+                    const id = parseInt(card.dataset.scenarioId);
+                    if (id && !isNaN(id)) {
+                        this.selectedScenarioId = id;
+                        // Update selected class
+                        scenariosList.querySelectorAll('.debt-scenario-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        this.calculateAndDisplayScenario(id);
+                    }
+                }
+            };
+        }
     }
 
     formatAccountType(type) {
@@ -3621,7 +4075,8 @@ class BudgetApp {
             'global-tag-modal',
             'duplicates-modal',
             'bank-sync-modal',
-            'tile-settings-modal'
+            'tile-settings-modal',
+            'debt-scenario-modal'
         ];
 
         modalIds.forEach(modalId => {
