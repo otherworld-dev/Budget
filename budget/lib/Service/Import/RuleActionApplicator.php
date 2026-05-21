@@ -81,6 +81,11 @@ class RuleActionApplicator {
 			}
 		}
 
+		// Pass deferred tag actions through so the caller can apply them after persist
+		if (!empty($appliedActions['_deferred_tags'])) {
+			$changes['_deferred_tags'] = $appliedActions['_deferred_tags'];
+		}
+
 		return $changes;
 	}
 

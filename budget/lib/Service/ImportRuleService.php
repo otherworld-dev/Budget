@@ -521,8 +521,7 @@ class ImportRuleService {
                     $updatedTransaction = $this->transactionMapper->update($transaction);
 
                     // Apply deferred tag actions after transaction is persisted
-                    $appliedActions = $changes['_appliedActions'] ?? [];
-                    $this->actionApplicator->applyDeferredTagActions($updatedTransaction, $appliedActions, $userId, $changes);
+                    $this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
 
                     $success++;
                     $applied[] = [
