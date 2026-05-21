@@ -742,6 +742,62 @@ style('budget', 'budget-main');
                         </div>
                     </div>
 
+                    <!-- Debt Chart Widget -->
+                    <div id="debt-chart-card" class="dashboard-card" data-widget-id="debtChart" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Debt Payoff Chart')); ?></h3>
+                            <div class="card-header-actions">
+                                <a href="#debt-payoff" class="card-link"><?php p($l->t('Plan')); ?> →</a>
+                            </div>
+                        </div>
+                        <div class="card-content" id="debt-chart-widget-content">
+                            <div id="debt-chart-widget-stats" style="display: flex; gap: 16px; margin-bottom: 12px;"></div>
+                            <div style="position: relative; height: 80px;">
+                                <canvas id="debt-chart-widget-canvas"></canvas>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-maxcontrast); margin-top: 4px;">
+                                <span><?php p($l->t('Now')); ?></span>
+                                <span id="debt-chart-widget-end"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Debt Progress Widget -->
+                    <div id="debt-progress-card" class="dashboard-card" data-widget-id="debtProgress" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Debt Progress')); ?></h3>
+                            <div class="card-header-actions">
+                                <a href="#debt-payoff" class="card-link"><?php p($l->t('Plan')); ?> →</a>
+                            </div>
+                        </div>
+                        <div class="card-content" id="debt-progress-widget-content">
+                            <div id="debt-progress-countdown" style="text-align: center; margin-bottom: 12px;">
+                                <div id="debt-progress-months" style="font-size: 32px; font-weight: bold; color: var(--color-success);"></div>
+                                <div style="font-size: 12px; color: var(--color-text-maxcontrast);"><?php p($l->t('months until debt free')); ?></div>
+                            </div>
+                            <div id="debt-progress-bar-section" style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                                    <span id="debt-progress-remaining"></span>
+                                    <span id="debt-progress-percent"></span>
+                                </div>
+                                <div style="background: var(--color-background-dark); border-radius: 10px; height: 12px; overflow: hidden;">
+                                    <div id="debt-progress-bar" style="background: linear-gradient(90deg, var(--color-success), #27ae60); height: 100%; border-radius: 10px; transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="debt-progress-details" style="display: flex; gap: 8px;">
+                                <div style="flex: 1; background: var(--color-background-dark); border-radius: 6px; padding: 8px; text-align: center;">
+                                    <div style="font-size: 10px; color: var(--color-text-maxcontrast);"><?php p($l->t('Next Payoff')); ?></div>
+                                    <div id="debt-progress-next-name" style="font-size: 12px; font-weight: bold;"></div>
+                                    <div id="debt-progress-next-date" style="font-size: 10px; color: var(--color-text-maxcontrast);"></div>
+                                </div>
+                                <div style="flex: 1; background: var(--color-background-dark); border-radius: 6px; padding: 8px; text-align: center;">
+                                    <div style="font-size: 10px; color: var(--color-text-maxcontrast);"><?php p($l->t('Status')); ?></div>
+                                    <div id="debt-progress-status" style="font-size: 12px; font-weight: bold;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Phase 1: New Widget Tiles (Hidden by Default) -->
                     <div id="top-categories-card" class="dashboard-card" data-widget-id="topCategories" data-widget-category="widget" style="display: none;">
                         <div class="card-header">

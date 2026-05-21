@@ -42,6 +42,20 @@ export const DASHBOARD_WIDGETS = {
         budgetProgress: { id: 'budget-progress-card', name: t('budget', 'Budget Progress'), size: 'small', defaultVisible: true },
         savingsGoals: { id: 'savings-goals-card', name: t('budget', 'Savings Goals'), size: 'small', defaultVisible: true },
         debtPayoff: { id: 'debt-payoff-card', name: t('budget', 'Debt Payoff'), size: 'small', defaultVisible: true },
+        debtChart: {
+            id: 'debt-chart-card',
+            name: t('budget', 'Debt Payoff Chart'),
+            size: 'medium',
+            defaultVisible: false,
+            category: 'debts',
+        },
+        debtProgress: {
+            id: 'debt-progress-card',
+            name: t('budget', 'Debt Progress'),
+            size: 'small',
+            defaultVisible: false,
+            category: 'debts',
+        },
 
         // Phase 1 - Quick Wins (use existing data)
         topCategories: { id: 'top-categories-card', name: t('budget', 'Top Spending Categories'), size: 'small', defaultVisible: false, category: 'insights' },

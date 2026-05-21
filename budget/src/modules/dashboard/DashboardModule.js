@@ -566,6 +566,37 @@ export default class DashboardModule {
         }
     }
 
+    updateDaysUntilDebtFreeHero() {
+        const el = document.getElementById('hero-debt-free-value');
+        if (!el) return;
+
+        const plan = this.widgetData.daysUntilDebtFree;
+        if (!plan || !plan.debts || plan.debts.length === 0) {
+            // No debts — hide the tile
+            const tile = document.querySelector('[data-widget-id="daysUntilDebtFree"]');
+            if (tile) tile.style.display = 'none';
+            return;
+        }
+
+        if (!plan.payoffDate) {
+            el.textContent = t('budget', 'N/A');
+            return;
+        }
+
+        const today = new Date();
+        const payoff = new Date(plan.payoffDate);
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const daysLeft = Math.max(0, Math.round((payoff - today) / msPerDay));
+
+        el.textContent = daysLeft.toLocaleString();
+
+        const changeEl = document.getElementById('hero-debt-free-change');
+        if (changeEl) {
+            const payoffDisplay = payoff.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            changeEl.textContent = t('budget', 'Debt free by {date}', { date: payoffDisplay });
+        }
+    }
+
     // ===========================
     // Currency Conversion Indicator
     // ===========================
@@ -943,6 +974,158 @@ export default class DashboardModule {
             } else {
                 estimateEl.innerHTML = '';
             }
+        }
+    }
+
+    async renderDebtChartWidget() {
+        try {
+            // Try active scenario first, fall back to default plan
+            let plan;
+            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            const scenarios = await scenariosRes.json();
+            const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
+
+            if (active) {
+                const res = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), {
+                    headers: { 'requesttoken': OC.requestToken }
+                });
+                plan = await res.json();
+            } else {
+                const res = await fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                });
+                plan = await res.json();
+            }
+
+            if (!plan || !plan.debts || plan.debts.length === 0) return;
+
+            // Stats row
+            const statsEl = document.getElementById('debt-chart-widget-stats');
+            if (statsEl) {
+                const totalDebt = plan.debts.reduce((sum, d) => sum + d.originalBalance, 0);
+                const payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A';
+                statsEl.innerHTML = `
+                    <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Total Debt')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-error);">${this.formatCurrency(totalDebt)}</div></div>
+                    <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Debt Free')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-success);">${payoffDate}</div></div>
+                `;
+            }
+
+            // End date label
+            const endEl = document.getElementById('debt-chart-widget-end');
+            if (endEl && plan.payoffDate) {
+                endEl.textContent = new Date(plan.payoffDate).toLocaleDateString(undefined, { year: 'numeric' });
+            }
+
+            // Mini sparkline chart
+            const canvas = document.getElementById('debt-chart-widget-canvas');
+            if (!canvas || !plan.timeline || plan.timeline.length === 0) return;
+
+            const colors = ['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#9b59b6', '#1abc9c'];
+            const labels = plan.timeline.map(() => '');
+
+            // Build per-debt balance data
+            const datasets = plan.debts.map((debt, i) => {
+                const data = plan.timeline.map(entry => {
+                    const p = entry.payments.find(p => p.debtId === debt.id);
+                    return p ? Math.max(0, p.remainingBalance) : 0;
+                });
+                return {
+                    data,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: colors[i % colors.length] + '40',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    borderWidth: 1,
+                };
+            });
+
+            if (this.debtChartWidget) this.debtChartWidget.destroy();
+            this.debtChartWidget = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false, stacked: true },
+                    },
+                },
+            });
+        } catch (e) {
+            console.error('Failed to render debt chart widget', e);
+        }
+    }
+
+    async renderDebtProgressWidget() {
+        try {
+            const [progressRes, summaryRes] = await Promise.all([
+                fetch(OC.generateUrl('/apps/budget/api/debts/progress'), { headers: { 'requesttoken': OC.requestToken } }),
+                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), { headers: { 'requesttoken': OC.requestToken } }),
+            ]);
+            const progress = await progressRes.json();
+            const summary = await summaryRes.json();
+
+            if (summary.debtCount === 0) return;
+
+            // Countdown
+            const monthsEl = document.getElementById('debt-progress-months');
+            if (monthsEl) {
+                monthsEl.textContent = progress.hasActiveScenario ? progress.totalMonths : '?';
+            }
+
+            // Progress bar
+            const currentDebt = Math.abs(summary.totalBalance || 0);
+            const originalDebt = progress.hasActiveScenario ? progress.originalTotalDebt : currentDebt;
+            const paidOff = originalDebt > 0 ? Math.max(0, Math.min(100, ((originalDebt - currentDebt) / originalDebt) * 100)) : 0;
+
+            const remainingEl = document.getElementById('debt-progress-remaining');
+            if (remainingEl) remainingEl.textContent = this.formatCurrency(currentDebt) + ' ' + t('budget', 'remaining');
+
+            const percentEl = document.getElementById('debt-progress-percent');
+            if (percentEl) percentEl.textContent = Math.round(paidOff) + '% ' + t('budget', 'paid off');
+
+            const barEl = document.getElementById('debt-progress-bar');
+            if (barEl) barEl.style.width = paidOff + '%';
+
+            // Next payoff & status
+            if (progress.hasActiveScenario) {
+                // Get plan to find first unpaid debt
+                const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), { headers: { 'requesttoken': OC.requestToken } });
+                const scenarios = await scenariosRes.json();
+                const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
+                if (active) {
+                    const planRes = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), { headers: { 'requesttoken': OC.requestToken } });
+                    const plan = await planRes.json();
+                    const nextDebt = plan.debts?.find(d => d.payoffMonth);
+                    const nextNameEl = document.getElementById('debt-progress-next-name');
+                    const nextDateEl = document.getElementById('debt-progress-next-date');
+                    if (nextDebt && nextNameEl) {
+                        nextNameEl.textContent = nextDebt.name;
+                        const payoffDate = new Date();
+                        payoffDate.setMonth(payoffDate.getMonth() + nextDebt.payoffMonth);
+                        if (nextDateEl) nextDateEl.textContent = payoffDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                    }
+                }
+
+                const statusEl = document.getElementById('debt-progress-status');
+                if (statusEl) {
+                    const statusMap = {
+                        'ahead': { text: t('budget', 'Ahead of schedule'), color: 'var(--color-success)' },
+                        'behind': { text: t('budget', 'Behind schedule'), color: 'var(--color-error)' },
+                        'on_track': { text: t('budget', 'On track'), color: 'var(--color-success)' },
+                    };
+                    const s = statusMap[progress.status] || statusMap['on_track'];
+                    statusEl.textContent = s.text;
+                    statusEl.style.color = s.color;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to render debt progress widget', e);
         }
     }
 
@@ -2711,6 +2894,16 @@ export default class DashboardModule {
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.daysUntilDebtFree = await debtResp.json();
+                    break;
+
+                case 'debtChart':
+                    // Data is fetched directly inside renderDebtChartWidget
+                    await this.renderDebtChartWidget();
+                    break;
+
+                case 'debtProgress':
+                    // Data is fetched directly inside renderDebtProgressWidget
+                    await this.renderDebtProgressWidget();
                     break;
 
                 case 'recentImports': {
