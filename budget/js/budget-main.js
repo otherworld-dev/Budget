@@ -62031,15 +62031,10 @@ var BudgetApp = /*#__PURE__*/function () {
         });
         checkboxContainer.innerHTML = this.debtAccounts.map(function (debt) {
           var checked = selectedIds.includes(debt.id);
-          return "\n                    <label class=\"debt-checkbox-item ".concat(checked ? 'checked' : '', "\">\n                        <input type=\"checkbox\" value=\"").concat(debt.id, "\" ").concat(checked ? 'checked' : '', " class=\"scenario-debt-checkbox\">\n                        ").concat(_this22.escapeHtml(debt.name), "\n                    </label>\n                ");
+          var balance = _this22.formatCurrency(Math.abs(parseFloat(debt.balance) || 0));
+          var rate = parseFloat(debt.interestRate) || 0;
+          return "\n                    <label>\n                        <input type=\"checkbox\" value=\"".concat(debt.id, "\" ").concat(checked ? 'checked' : '', " class=\"scenario-debt-checkbox\">\n                        ").concat(_this22.escapeHtml(debt.name), "\n                        <span class=\"debt-detail\">").concat(balance, " \xB7 ").concat(rate, "%</span>\n                    </label>\n                ");
         }).join('');
-
-        // Toggle checked class on change
-        checkboxContainer.querySelectorAll('.scenario-debt-checkbox').forEach(function (cb) {
-          cb.onchange = function () {
-            cb.closest('.debt-checkbox-item').classList.toggle('checked', cb.checked);
-          };
-        });
       }
 
       // Populate rate overrides
@@ -62048,14 +62043,9 @@ var BudgetApp = /*#__PURE__*/function () {
         var overrides = (scenario === null || scenario === void 0 ? void 0 : scenario.rateOverrides) || {};
         overridesContainer.innerHTML = this.debtAccounts.map(function (debt) {
           var rate = overrides[debt.id] !== undefined ? overrides[debt.id] : parseFloat(debt.interestRate) || 0;
-          return "\n                    <span>".concat(_this22.escapeHtml(debt.name), "</span>\n                    <input type=\"number\" class=\"rate-override-input\" data-debt-id=\"").concat(debt.id, "\" value=\"").concat(rate, "\" min=\"0\" step=\"0.01\">\n                ");
+          return "\n                    <div class=\"scenario-rate-item\">\n                        <span class=\"rate-label\">".concat(_this22.escapeHtml(debt.name), "</span>\n                        <input type=\"number\" class=\"rate-override-input\" data-debt-id=\"").concat(debt.id, "\" value=\"").concat(rate, "\" min=\"0\" step=\"0.01\">\n                        <span class=\"rate-suffix\">%</span>\n                    </div>\n                ");
         }).join('');
-        overridesContainer.style.display = 'none';
       }
-
-      // Reset rate overrides toggle
-      var toggleBtn = document.getElementById('toggle-rate-overrides');
-      if (toggleBtn) toggleBtn.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Show');
       modal.style.display = '';
       modal.setAttribute('aria-hidden', 'false');
     }

@@ -3156,20 +3156,16 @@ class BudgetApp {
             const selectedIds = scenario?.selectedDebtIds || this.debtAccounts.map(d => d.id);
             checkboxContainer.innerHTML = this.debtAccounts.map(debt => {
                 const checked = selectedIds.includes(debt.id);
+                const balance = this.formatCurrency(Math.abs(parseFloat(debt.balance) || 0));
+                const rate = parseFloat(debt.interestRate) || 0;
                 return `
-                    <label class="debt-checkbox-item ${checked ? 'checked' : ''}">
+                    <label>
                         <input type="checkbox" value="${debt.id}" ${checked ? 'checked' : ''} class="scenario-debt-checkbox">
                         ${this.escapeHtml(debt.name)}
+                        <span class="debt-detail">${balance} · ${rate}%</span>
                     </label>
                 `;
             }).join('');
-
-            // Toggle checked class on change
-            checkboxContainer.querySelectorAll('.scenario-debt-checkbox').forEach(cb => {
-                cb.onchange = () => {
-                    cb.closest('.debt-checkbox-item').classList.toggle('checked', cb.checked);
-                };
-            });
         }
 
         // Populate rate overrides
@@ -3179,16 +3175,14 @@ class BudgetApp {
             overridesContainer.innerHTML = this.debtAccounts.map(debt => {
                 const rate = overrides[debt.id] !== undefined ? overrides[debt.id] : (parseFloat(debt.interestRate) || 0);
                 return `
-                    <span>${this.escapeHtml(debt.name)}</span>
-                    <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01">
+                    <div class="scenario-rate-item">
+                        <span class="rate-label">${this.escapeHtml(debt.name)}</span>
+                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01">
+                        <span class="rate-suffix">%</span>
+                    </div>
                 `;
             }).join('');
-            overridesContainer.style.display = 'none';
         }
-
-        // Reset rate overrides toggle
-        const toggleBtn = document.getElementById('toggle-rate-overrides');
-        if (toggleBtn) toggleBtn.textContent = t('budget', 'Show');
 
         modal.style.display = '';
         modal.setAttribute('aria-hidden', 'false');
