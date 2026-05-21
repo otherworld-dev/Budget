@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-20 20:11+0000\n"
-"Last-Translator: T0mFi <tomfinger97@gmail.com>\n"
+"PO-Revision-Date: 2026-05-22 06:11+0000\n"
+"Last-Translator: Dayflare <hiazu@hotmail.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -3151,7 +3151,7 @@ msgstr "Noch keine Anlagekonten vorhanden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:254
 msgid "Unnamed Account"
-msgstr ""
+msgstr "unbenanntes Konto"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:268
 msgid "Owed"
@@ -3159,7 +3159,7 @@ msgstr "Geschuldet"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:268
 msgid "Credit"
-msgstr ""
+msgstr "Kredit"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:307
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1717
@@ -3168,11 +3168,11 @@ msgstr "Konto bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:310
 msgid "Delete Account"
-msgstr ""
+msgstr "Konto löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:469
 msgid "Failed to load account details"
-msgstr ""
+msgstr "Fehler beim Laden der Konto Details"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:569
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:570
@@ -3197,11 +3197,11 @@ msgstr "Nie"
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:646
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:553
 msgid "No transactions found"
-msgstr ""
+msgstr "Keine Transaktionen gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:647
 msgid "This account doesn't have any transactions yet."
-msgstr ""
+msgstr "Dieses Konto hat bisher keine Transaktionen."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:678
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1195
@@ -3211,14 +3211,14 @@ msgstr "Geplant"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:684
 msgid "Transfer {direction} {account}"
-msgstr ""
+msgstr "Umbuchung {direction} {account}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:913
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:343
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1175
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1326
 msgid "All Categories"
-msgstr ""
+msgstr "Alle Kategorien"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:951
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:1174
@@ -3242,27 +3242,27 @@ msgstr "Stichworte"
 #: /tmp/budget-v2.11.0/budget/src/modules/tagsets/TagSetsModule.js:645
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:399
 msgid "No tags available"
-msgstr ""
+msgstr "Keine Stichworte verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:979
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:213
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:410
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2901
 msgid "Type to filter tags..."
-msgstr ""
+msgstr "Tippe um nach Stichworten zu filtern..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1062
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:279
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:494
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2976
 msgid "No tags found"
-msgstr ""
+msgstr "Keine Stichworte gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1169
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:353
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1421
 msgid "Select account to reconcile"
-msgstr ""
+msgstr "Wähle ein Konto zur Abstimmung"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1190
 msgid "Cannot finish reconciliation - balances do not match"
@@ -3277,29 +3277,29 @@ msgstr "Abstimmung erfolgreich abgeschlossen"
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1260
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1383
 msgid "No accounts available. Please create an account first."
-msgstr ""
+msgstr "Kein Konto verfügbar. Bitte erstelle zuerst ein Konto."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1263
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1386
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:770
 msgid "Please select an account"
-msgstr ""
+msgstr "Bitte wähle ein Konto"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1267
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1390
 msgid "Please enter a date"
-msgstr ""
+msgstr "Bitte wähle ein Datum"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1271
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1394
 msgid "Please select a transaction type"
-msgstr ""
+msgstr "Bitte wähle einen Transaktionstyp"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1275
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1398
 #: /tmp/budget-v2.11.0/budget/src/modules/savings/SavingsModule.js:432
 msgid "Please enter a valid amount"
-msgstr ""
+msgstr "Bitte gib eine gültige Summe ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1279
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1402
@@ -3308,23 +3308,23 @@ msgstr "Bitte geben Sie eine Beschreibung ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1323
 msgid "Transaction saved successfully"
-msgstr ""
+msgstr "Transaktionen wurden erfolgreich gespeichert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1332
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1345
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1562
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1566
 msgid "Failed to save transaction"
-msgstr ""
+msgstr "Speichern der Transaktionen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1428
 msgid "Transaction added successfully!"
-msgstr ""
+msgstr "Transaktion erfolgreich erstellt!"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1439
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1452
 msgid "Failed to add transaction"
-msgstr ""
+msgstr "Transaktion konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1493
 #: /tmp/budget-v2.11.0/budget/templates/index.php:892
@@ -3346,7 +3346,7 @@ msgstr "Keine Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1524
 msgid "Form error: Account name field not found"
-msgstr ""
+msgstr "Formularfehler: Feld für den Kontonamen nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1530
 msgid "Form error: Account type field not found"
@@ -3354,7 +3354,7 @@ msgstr "Formularfehler: Feld für die Kontoart wurde nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1603
 msgid "Please enter an account name"
-msgstr ""
+msgstr "Bitte gib einen Kontonamen ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1610
 msgid "Please select an account type"
@@ -3362,27 +3362,27 @@ msgstr "Bitte wählen Sie eine Kontoart aus"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1617
 msgid "Account name is too long (maximum 255 characters)"
-msgstr ""
+msgstr "Kontoname ist zu lang (maximal 255 Zeichen)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1624
 msgid "Please enter a valid balance amount"
-msgstr ""
+msgstr "Bitte gib einen gültigen Saldo ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1656
 msgid "Account saved successfully"
-msgstr ""
+msgstr "Konto erfolgreich gespeichert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1677
 msgid "Failed to save account"
-msgstr ""
+msgstr "Konto konnte nicht gespeichert werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1700
 msgid "Unknown error occurred"
-msgstr ""
+msgstr "Unbekannter Fehler aufgetreten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1701
 msgid "Failed to save account: {error}"
-msgstr ""
+msgstr "Konto konnte nicht gespeichert werden: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1720
 #: /tmp/budget-v2.11.0/budget/templates/index.php:935
@@ -3391,7 +3391,7 @@ msgstr "Konto hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1758
 msgid "Balance is calculated from transactions"
-msgstr ""
+msgstr "Der Saldo wird aus den Transaktionen berechnet"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1762
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1043
@@ -3451,7 +3451,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:193
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4669
 msgid "Credit Card"
-msgstr ""
+msgstr "Kreditkarte"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2154
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:624
@@ -3519,7 +3519,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:87
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3759
 msgid "Real Estate"
-msgstr ""
+msgstr "Immobilie"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:92
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3760
@@ -3534,7 +3534,7 @@ msgstr "Schmuck"
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:102
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3762
 msgid "Collectibles"
-msgstr ""
+msgstr "Sammlerstücke"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:107
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1167
@@ -3572,11 +3572,11 @@ msgstr "Löschen"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3654
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3778
 msgid "Current Value"
-msgstr ""
+msgstr "Aktueller Wert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:182
 msgid "View Details"
-msgstr ""
+msgstr "Details ansehen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:211
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:974
@@ -3641,7 +3641,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/assets/AssetsModule.js:717
 msgid "Value updated"
-msgstr ""
+msgstr "Wert aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/auth/AuthModule.js:121
 msgid "Password Required"
