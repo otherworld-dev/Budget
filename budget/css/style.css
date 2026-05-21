@@ -13471,9 +13471,6 @@ tr.scheduled-transaction:hover {
 }
 
 /* Scenario Modal */
-#debt-scenario-modal .modal-container {
-    max-width: 600px;
-}
 .form-row {
     display: flex;
     gap: 16px;
