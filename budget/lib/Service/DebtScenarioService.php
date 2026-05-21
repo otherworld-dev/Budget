@@ -39,8 +39,6 @@ class DebtScenarioService {
     }
 
     public function create(string $userId, array $params): DebtScenario {
-        $summary = $this->payoffService->getSummary($userId);
-
         $scenario = new DebtScenario();
         $scenario->setUserId($userId);
         $scenario->setName($params['name']);
@@ -59,7 +57,21 @@ class DebtScenarioService {
                 : null
         );
         $scenario->setIsActive(false);
-        $scenario->setOriginalTotalDebt((float) ($summary['totalBalance'] ?? 0));
+
+        // Snapshot current total debt for progress tracking
+        if (!empty($params['selectedDebtIds'])) {
+            $debts = $this->payoffService->getDebts($userId);
+            $total = 0;
+            foreach ($debts as $debt) {
+                if (in_array($debt->getId(), $params['selectedDebtIds'])) {
+                    $total += abs((float)$debt->getBalance());
+                }
+            }
+            $scenario->setOriginalTotalDebt($total);
+        } else {
+            $summary = $this->payoffService->getSummary($userId);
+            $scenario->setOriginalTotalDebt(abs($summary['totalBalance']));
+        }
 
         $now = date('Y-m-d H:i:s');
         $scenario->setCreatedAt($now);
@@ -127,8 +139,21 @@ class DebtScenarioService {
 
         $scenario = $this->mapper->find($id, $userId);
 
-        $summary = $this->payoffService->getSummary($userId);
-        $scenario->setOriginalTotalDebt((float) ($summary['totalBalance'] ?? 0));
+        // Snapshot current total debt, respecting selectedDebtIds if set
+        $parsedIds = $scenario->getParsedSelectedDebtIds();
+        if (!empty($parsedIds)) {
+            $debts = $this->payoffService->getDebts($userId);
+            $total = 0;
+            foreach ($debts as $debt) {
+                if (in_array($debt->getId(), $parsedIds)) {
+                    $total += abs((float)$debt->getBalance());
+                }
+            }
+            $scenario->setOriginalTotalDebt($total);
+        } else {
+            $summary = $this->payoffService->getSummary($userId);
+            $scenario->setOriginalTotalDebt(abs($summary['totalBalance']));
+        }
         $scenario->setIsActive(true);
         $scenario->setUpdatedAt(date('Y-m-d H:i:s'));
 

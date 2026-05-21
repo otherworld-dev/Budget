@@ -6,15 +6,20 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\DebtScenarioService;
+use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class DebtScenarioController extends Controller {
+    use SharedAccessTrait;
+
     private DebtScenarioService $service;
     private IL10N $l;
     private string $userId;
@@ -23,6 +28,7 @@ class DebtScenarioController extends Controller {
     public function __construct(
         IRequest $request,
         DebtScenarioService $service,
+        GranularShareService $granularShareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -32,6 +38,7 @@ class DebtScenarioController extends Controller {
         $this->l = $l;
         $this->userId = $userId;
         $this->logger = $logger;
+        $this->setGranularShareService($granularShareService);
     }
 
     /**
@@ -41,7 +48,7 @@ class DebtScenarioController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $scenarios = $this->service->findAll($this->userId);
+            $scenarios = $this->service->findAll($this->getEffectiveUserId());
             return new DataResponse(array_values($scenarios));
         } catch (\Exception $e) {
             $this->logger->error('Failed to retrieve debt scenarios', [
@@ -69,8 +76,21 @@ class DebtScenarioController extends Controller {
         ?array $selectedDebtIds = null,
         ?array $rateOverrides = null
     ): DataResponse {
+        if (empty($name)) {
+            return new DataResponse(['error' => $this->l->t('Scenario name is required')], Http::STATUS_BAD_REQUEST);
+        }
+        if (!in_array($strategy, ['avalanche', 'snowball'], true)) {
+            return new DataResponse(['error' => $this->l->t('Invalid strategy')], Http::STATUS_BAD_REQUEST);
+        }
+        if ($extraPayment < 0 || $lumpSum < 0) {
+            return new DataResponse(['error' => $this->l->t('Payment amounts cannot be negative')], Http::STATUS_BAD_REQUEST);
+        }
+        if ($lumpSumMonth < 1) {
+            return new DataResponse(['error' => $this->l->t('Lump sum month must be at least 1')], Http::STATUS_BAD_REQUEST);
+        }
+
         try {
-            $scenario = $this->service->create($this->userId, [
+            $scenario = $this->service->create($this->getEffectiveUserId(), [
                 'name' => $name,
                 'strategy' => $strategy,
                 'extraPayment' => $extraPayment,
@@ -107,6 +127,22 @@ class DebtScenarioController extends Controller {
         ?array $selectedDebtIds = null,
         ?array $rateOverrides = null
     ): DataResponse {
+        if ($name !== null && empty($name)) {
+            return new DataResponse(['error' => $this->l->t('Scenario name is required')], Http::STATUS_BAD_REQUEST);
+        }
+        if ($strategy !== null && !in_array($strategy, ['avalanche', 'snowball'], true)) {
+            return new DataResponse(['error' => $this->l->t('Invalid strategy')], Http::STATUS_BAD_REQUEST);
+        }
+        if ($extraPayment !== null && $extraPayment < 0) {
+            return new DataResponse(['error' => $this->l->t('Payment amounts cannot be negative')], Http::STATUS_BAD_REQUEST);
+        }
+        if ($lumpSum !== null && $lumpSum < 0) {
+            return new DataResponse(['error' => $this->l->t('Payment amounts cannot be negative')], Http::STATUS_BAD_REQUEST);
+        }
+        if ($lumpSumMonth !== null && $lumpSumMonth < 1) {
+            return new DataResponse(['error' => $this->l->t('Lump sum month must be at least 1')], Http::STATUS_BAD_REQUEST);
+        }
+
         try {
             $params = [];
             if ($name !== null) {
@@ -131,7 +167,7 @@ class DebtScenarioController extends Controller {
                 $params['rateOverrides'] = $rateOverrides;
             }
 
-            $scenario = $this->service->update($id, $this->userId, $params);
+            $scenario = $this->service->update($id, $this->getEffectiveUserId(), $params);
             return new DataResponse($scenario);
         } catch (DoesNotExistException $e) {
             return new DataResponse(
@@ -158,7 +194,7 @@ class DebtScenarioController extends Controller {
      */
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->userId);
+            $this->service->delete($id, $this->getEffectiveUserId());
             return new DataResponse([]);
         } catch (DoesNotExistException $e) {
             return new DataResponse(
@@ -185,7 +221,7 @@ class DebtScenarioController extends Controller {
      */
     public function activate(int $id): DataResponse {
         try {
-            $scenario = $this->service->activate($id, $this->userId);
+            $scenario = $this->service->activate($id, $this->getEffectiveUserId());
             return new DataResponse($scenario);
         } catch (DoesNotExistException $e) {
             return new DataResponse(
@@ -210,9 +246,10 @@ class DebtScenarioController extends Controller {
      *
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function calculate(int $id): DataResponse {
         try {
-            $plan = $this->service->calculate($id, $this->userId);
+            $plan = $this->service->calculate($id, $this->getEffectiveUserId());
             return new DataResponse($plan);
         } catch (DoesNotExistException $e) {
             return new DataResponse(
@@ -237,6 +274,7 @@ class DebtScenarioController extends Controller {
      *
      * @NoAdminRequired
      */
+    #[UserRateLimit(limit: 30, period: 60)]
     public function compare(string $ids): DataResponse {
         try {
             $scenarioIds = array_map('intval', array_filter(explode(',', $ids), 'strlen'));
@@ -248,7 +286,7 @@ class DebtScenarioController extends Controller {
                 );
             }
 
-            $results = $this->service->compareScenarios($this->userId, $scenarioIds);
+            $results = $this->service->compareScenarios($this->getEffectiveUserId(), $scenarioIds);
             return new DataResponse($results);
         } catch (\Exception $e) {
             $this->logger->error('Failed to compare debt scenarios', [

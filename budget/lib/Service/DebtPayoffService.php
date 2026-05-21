@@ -420,9 +420,11 @@ class DebtPayoffService {
         if ($monthsElapsed > 0 && $monthsElapsed <= count($plan['timeline'])) {
             $entry = $plan['timeline'][$monthsElapsed - 1] ?? null;
             if ($entry) {
+                $balancesByDebt = [];
                 foreach ($entry['payments'] as $payment) {
-                    $projectedBalance += $payment['remainingBalance'];
+                    $balancesByDebt[$payment['debtId']] = $payment['remainingBalance'];
                 }
+                $projectedBalance = array_sum($balancesByDebt);
             }
         } elseif ($monthsElapsed === 0) {
             // Just started — projected is original total
