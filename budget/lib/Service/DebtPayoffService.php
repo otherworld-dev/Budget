@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\DebtScenarioMapper;
 use OCA\Budget\Db\TransactionMapper;
 
 /**
@@ -25,13 +26,16 @@ class DebtPayoffService {
 
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
+    private ?DebtScenarioMapper $scenarioMapper;
 
     public function __construct(
         AccountMapper $accountMapper,
-        TransactionMapper $transactionMapper
+        TransactionMapper $transactionMapper,
+        ?DebtScenarioMapper $scenarioMapper = null
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
+        $this->scenarioMapper = $scenarioMapper;
     }
 
     /**
@@ -372,6 +376,86 @@ class DebtPayoffService {
                     : ($interestSaved < -50 ? 'snowball' : 'either'),
                 'explanation' => $this->getRecommendationExplanation($interestSaved, $timeDifference),
             ],
+        ];
+    }
+
+    /**
+     * Compare actual current debt balance against the projected balance from the active scenario.
+     */
+    public function getProgressVsActive(string $userId): array {
+        if ($this->scenarioMapper === null) {
+            return ['hasActiveScenario' => false];
+        }
+
+        $scenario = $this->scenarioMapper->findActive($userId);
+        if ($scenario === null) {
+            return ['hasActiveScenario' => false];
+        }
+
+        $monthsElapsed = max(0, (int)round(
+            (time() - strtotime($scenario->getCreatedAt())) / (30.44 * 86400)
+        ));
+
+        // Resolve selected debt IDs — empty array means "all", so pass null
+        $parsedIds = $scenario->getParsedSelectedDebtIds();
+        $selectedDebtIds = !empty($parsedIds) ? $parsedIds : null;
+
+        // Resolve rate overrides — empty array means none
+        $parsedOverrides = $scenario->getParsedRateOverrides();
+        $rateOverrides = !empty($parsedOverrides) ? $parsedOverrides : null;
+
+        // Calculate plan using scenario params
+        $plan = $this->calculatePayoffPlan(
+            $userId,
+            $scenario->getStrategy(),
+            $scenario->getExtraPayment(),
+            $selectedDebtIds,
+            $scenario->getLumpSum(),
+            $scenario->getLumpSumMonth(),
+            $rateOverrides
+        );
+
+        // Find projected balance at current month from timeline
+        $projectedBalance = 0;
+        if ($monthsElapsed > 0 && $monthsElapsed <= count($plan['timeline'])) {
+            $entry = $plan['timeline'][$monthsElapsed - 1] ?? null;
+            if ($entry) {
+                foreach ($entry['payments'] as $payment) {
+                    $projectedBalance += $payment['remainingBalance'];
+                }
+            }
+        } elseif ($monthsElapsed === 0) {
+            // Just started — projected is original total
+            $projectedBalance = $scenario->getOriginalTotalDebt();
+        }
+        // If past the end of the timeline, projected is 0 (fully paid off)
+
+        // Get actual current total debt
+        $summary = $this->getSummary($userId);
+        $actualBalance = abs($summary['totalBalance']);
+
+        $difference = $projectedBalance - $actualBalance;
+        $tolerance = $scenario->getOriginalTotalDebt() * 0.05;
+
+        if ($difference > $tolerance) {
+            $status = 'ahead';
+        } elseif ($difference < -$tolerance) {
+            $status = 'behind';
+        } else {
+            $status = 'on_track';
+        }
+
+        return [
+            'hasActiveScenario' => true,
+            'scenarioName' => $scenario->getName(),
+            'monthsElapsed' => $monthsElapsed,
+            'projectedBalance' => round($projectedBalance, 2),
+            'actualBalance' => round($actualBalance, 2),
+            'difference' => round($difference, 2),
+            'status' => $status,
+            'projectedPayoffDate' => $plan['payoffDate'],
+            'originalTotalDebt' => $scenario->getOriginalTotalDebt(),
+            'totalMonths' => $plan['totalMonths'],
         ];
     }
 
