@@ -2897,19 +2897,19 @@ export default class DashboardModule {
         const btn = document.getElementById('toggle-dashboard-lock-btn');
         const btnText = document.getElementById('lock-btn-text');
         const hint = document.getElementById('dashboard-hint');
-        const icon = btn?.querySelector('.icon-lock, .icon-unlock');
+        const icon = document.getElementById('lock-btn-icon');
         const addTilesDropdown = document.getElementById('add-tiles-dropdown');
 
         if (!btn || !btnText || !hint) return;
+
+        const lockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
+        const unlockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"></path>';
 
         if (this.dashboardLocked) {
             // Locked state
             btnText.textContent = t('budget', 'Unlock Dashboard');
             hint.querySelector('span:last-child').textContent = t('budget', 'Dashboard is locked. Click unlock to reorder tiles.');
-            if (icon) {
-                icon.classList.remove('icon-unlock');
-                icon.classList.add('icon-lock');
-            }
+            if (icon) icon.innerHTML = lockedSvg;
             // Hide Add Tiles button and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'none';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = 'none');
@@ -2921,10 +2921,7 @@ export default class DashboardModule {
             // Unlocked state
             btnText.textContent = t('budget', 'Lock Dashboard');
             hint.querySelector('span:last-child').textContent = t('budget', 'Drag tiles to reorder your dashboard');
-            if (icon) {
-                icon.classList.remove('icon-lock');
-                icon.classList.add('icon-unlock');
-            }
+            if (icon) icon.innerHTML = unlockedSvg;
             // Show Add Tiles button and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = '');
