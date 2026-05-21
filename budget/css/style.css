@@ -13471,50 +13471,70 @@ tr.scheduled-transaction:hover {
 }
 
 /* Scenario Modal */
-.form-row {
+/* Scenario Modal — Debt List */
+.scenario-debt-list {
     display: flex;
-    gap: 16px;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
 }
-.form-row .form-group { flex: 1; }
-.debt-checkbox-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.debt-checkbox-item {
+.scenario-debt-list label {
     display: flex;
     align-items: center;
-    gap: 6px;
-    background: var(--color-background-dark);
-    padding: 6px 10px;
-    border-radius: 16px;
-    font-size: 13px;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 3px;
     cursor: pointer;
+    font-weight: normal;
+    font-size: 14px;
+    color: var(--color-main-text);
 }
-.debt-checkbox-item.checked {
-    background: var(--color-success);
-    color: #000;
+.scenario-debt-list label:hover {
+    background: var(--color-background-hover);
 }
-.debt-checkbox-item input[type="checkbox"] {
+.scenario-debt-list input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-height: auto;
     margin: 0;
+    flex-shrink: 0;
 }
-.rate-overrides-list {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-    align-items: center;
+.scenario-debt-list .debt-detail {
+    color: var(--color-text-maxcontrast);
     font-size: 13px;
+    margin-left: auto;
 }
-.rate-overrides-list input {
+
+/* Scenario Modal — Rate Overrides */
+.scenario-rate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+.scenario-rate-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+.scenario-rate-item .rate-label {
+    flex: 1;
+}
+.scenario-rate-item input {
     width: 80px;
+    min-height: 36px;
     padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    font-size: 14px;
+    text-align: right;
 }
-.text-btn {
-    background: none;
-    border: none;
-    color: var(--color-primary-element);
-    cursor: pointer;
-    font-size: 12px;
+.scenario-rate-item .rate-suffix {
+    color: var(--color-text-maxcontrast);
+    font-size: 13px;
 }
 
 /* Responsive - Debt Payoff */
