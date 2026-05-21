@@ -110,11 +110,19 @@ class DebtPayoffService {
      * @param string $userId User ID
      * @param string $strategy 'avalanche' or 'snowball'
      * @param float|null $extraPayment Extra monthly payment beyond minimums
+     * @param int[]|null $selectedDebtIds Limit simulation to these debt account IDs (null = all)
+     * @param float $lumpSum One-time extra payment applied in $lumpSumMonth
+     * @param int $lumpSumMonth Month number (1-based) in which to apply the lump sum
+     * @param array<string,float>|null $rateOverrides Map of debt ID (string) to override APR percentage
      */
     public function calculatePayoffPlan(
         string $userId,
         string $strategy = 'avalanche',
-        ?float $extraPayment = null
+        ?float $extraPayment = null,
+        ?array $selectedDebtIds = null,
+        float $lumpSum = 0,
+        int $lumpSumMonth = 1,
+        ?array $rateOverrides = null
     ): array {
         $debts = $this->getDebts($userId);
         $extraPayment = $extraPayment ?? 0;
@@ -174,6 +182,38 @@ class DebtPayoffService {
             ];
         }
 
+        // Filter to selected debts if specified
+        if ($selectedDebtIds !== null) {
+            $debtData = array_values(array_filter($debtData, function ($debt) use ($selectedDebtIds) {
+                return in_array($debt['id'], $selectedDebtIds);
+            }));
+        }
+
+        // Apply rate overrides
+        if ($rateOverrides !== null) {
+            foreach ($debtData as &$debt) {
+                $idStr = (string)$debt['id'];
+                if (isset($rateOverrides[$idStr])) {
+                    $debt['interestRate'] = (float)$rateOverrides[$idStr] / 100;
+                    $debt['monthlyRate'] = $debt['interestRate'] / 12;
+                }
+            }
+            unset($debt);
+        }
+
+        if (empty($debtData)) {
+            return [
+                'strategy' => $strategy,
+                'extraPayment' => $extraPayment,
+                'debts' => [],
+                'timeline' => [],
+                'totalMonths' => 0,
+                'totalInterest' => 0,
+                'totalPaid' => 0,
+                'payoffDate' => null,
+            ];
+        }
+
         // Sort based on strategy
         $debtData = $this->sortByStrategy($debtData, $strategy);
 
@@ -186,7 +226,11 @@ class DebtPayoffService {
         while ($this->hasActiveDebts($debtData) && $month < self::MAX_MONTHS) {
             $month++;
             $monthData = ['month' => $month, 'payments' => [], 'debtsPaidOff' => []];
-            $availableExtra = $extraPayment;
+            $monthlyExtra = $extraPayment;
+            if ($lumpSum > 0 && $month === $lumpSumMonth) {
+                $monthlyExtra += $lumpSum;
+            }
+            $availableExtra = $monthlyExtra;
 
             // Apply interest and minimum payments first
             foreach ($debtData as &$debt) {
