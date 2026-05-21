@@ -13471,6 +13471,10 @@ tr.scheduled-transaction:hover {
 }
 
 /* Scenario Modal */
+#scenario-form .form-section .form-group {
+    margin-top: 15px;
+}
+
 /* Scenario Modal — Debt List */
 .scenario-debt-list {
     display: flex;

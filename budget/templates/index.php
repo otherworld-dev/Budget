@@ -4024,6 +4024,10 @@ style('budget', 'budget-main');
         <div id="debt-payoff-view" class="view">
             <div class="view-header">
                 <h2><?php p($l->t('Debt Payoff Planner')); ?></h2>
+                <button id="add-scenario-btn" class="primary" aria-label="<?php p($l->t('New Scenario')); ?>">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    <?php p($l->t('New Scenario')); ?>
+                </button>
             </div>
 
             <!-- Summary Cards -->
@@ -4064,10 +4068,6 @@ style('budget', 'budget-main');
             <div class="debt-scenarios-section">
                 <div class="debt-section-header">
                     <h3><?php p($l->t('Scenarios')); ?></h3>
-                    <button id="add-scenario-btn" class="primary">
-                        <span class="icon-add" aria-hidden="true"></span>
-                        <?php p($l->t('New Scenario')); ?>
-                    </button>
                 </div>
                 <div id="debt-scenarios-list" class="debt-scenarios-row"></div>
             </div>
