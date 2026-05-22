@@ -20359,7 +20359,8 @@ var DASHBOARD_WIDGETS = {
         dateRange: true,
         accountSelector: true,
         showLegend: true,
-        chartType: ['doughnut', 'bar']
+        chartType: ['doughnut', 'bar'],
+        topLevelOnly: true
       }
     },
     netWorthHistory: {
@@ -20440,7 +20441,9 @@ var DASHBOARD_WIDGETS = {
       defaultSize: 's',
       allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: true,
-      settingsSchema: {}
+      settingsSchema: {
+        topLevelOnly: true
+      }
     },
     savingsGoals: {
       id: 'savings-goals-card',
@@ -20488,7 +20491,9 @@ var DASHBOARD_WIDGETS = {
       allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
-      settingsSchema: {}
+      settingsSchema: {
+        topLevelOnly: true
+      }
     },
     accountPerformance: {
       id: 'account-performance-card',
@@ -20594,7 +20599,8 @@ var DASHBOARD_WIDGETS = {
       settingsSchema: {
         dateRange: true,
         accountSelector: true,
-        showLegend: true
+        showLegend: true,
+        topLevelOnly: true
       }
     },
     billsDueSoon: {
@@ -20638,7 +20644,8 @@ var DASHBOARD_WIDGETS = {
       settingsSchema: {
         dateRange: true,
         accountSelector: true,
-        showLegend: true
+        showLegend: true,
+        topLevelOnly: true
       }
     },
     incomeTracking: {
@@ -33314,7 +33321,8 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateBudgetProgressWidget",
     value: function updateBudgetProgressWidget(categories) {
-      var _this8 = this;
+      var _this$dashboardConfig5,
+        _this8 = this;
       var container = document.getElementById('budget-progress');
       if (!container) return;
       if (!Array.isArray(categories) || categories.length === 0) {
@@ -33322,8 +33330,15 @@ var DashboardModule = /*#__PURE__*/function () {
         return;
       }
 
+      // Aggregate to top-level if setting is enabled
+      var budgetSettings = ((_this$dashboardConfig5 = this.dashboardConfig.widgets) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.tileSettings) === null || _this$dashboardConfig5 === void 0 ? void 0 : _this$dashboardConfig5.budgetProgress) || {};
+      var catData = categories;
+      if (budgetSettings.topLevelOnly) {
+        catData = this.aggregateToTopLevel(categories);
+      }
+
       // Filter to only categories with budgets
-      var budgetedCategories = categories.filter(function (c) {
+      var budgetedCategories = catData.filter(function (c) {
         return c.budgeted > 0 || c.budget > 0;
       });
       if (budgetedCategories.length === 0) {
@@ -33840,7 +33855,8 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateSpendingChart",
     value: function updateSpendingChart(spending) {
-      var _this$dashboardConfig5,
+      var _this$dashboardConfig6,
+        _this$dashboardConfig7,
         _this20 = this;
       var canvas = document.getElementById('spending-chart');
       if (!canvas) return;
@@ -33872,11 +33888,17 @@ var DashboardModule = /*#__PURE__*/function () {
       } else {
         return;
       }
+
+      // Aggregate to top-level categories if setting is enabled
+      var spendingSettings = ((_this$dashboardConfig6 = this.dashboardConfig.widgets) === null || _this$dashboardConfig6 === void 0 || (_this$dashboardConfig6 = _this$dashboardConfig6.tileSettings) === null || _this$dashboardConfig6 === void 0 ? void 0 : _this$dashboardConfig6.spendingChart) || {};
+      if (spendingSettings.topLevelOnly) {
+        spendingData = this.aggregateToTopLevel(spendingData);
+      }
       var ctx = canvas.getContext('2d');
 
       // Sort by absolute amount and take top 10
       var sortedData = spendingData.sort(function (a, b) {
-        return Math.abs(b.amount) - Math.abs(a.amount);
+        return Math.abs(b.total || b.amount || 0) - Math.abs(a.total || a.amount || 0);
       }).slice(0, 10);
 
       // Extract data - API already returns name and color in each item
@@ -33891,7 +33913,7 @@ var DashboardModule = /*#__PURE__*/function () {
         // Use the color directly from the spending item (API includes it)
         return item.color || '#999';
       });
-      var spendingChartType = ((_this$dashboardConfig5 = this.dashboardConfig.widgets) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.tileSettings) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.spendingChart) === null || _this$dashboardConfig5 === void 0 ? void 0 : _this$dashboardConfig5.chartType) || 'doughnut';
+      var spendingChartType = ((_this$dashboardConfig7 = this.dashboardConfig.widgets) === null || _this$dashboardConfig7 === void 0 || (_this$dashboardConfig7 = _this$dashboardConfig7.tileSettings) === null || _this$dashboardConfig7 === void 0 || (_this$dashboardConfig7 = _this$dashboardConfig7.spendingChart) === null || _this$dashboardConfig7 === void 0 ? void 0 : _this$dashboardConfig7.chartType) || 'doughnut';
       var isSpendingBar = spendingChartType === 'bar';
       this.charts.spending = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
         type: isSpendingBar ? 'bar' : 'doughnut',
@@ -33944,7 +33966,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateTrendChart",
     value: function updateTrendChart(trends) {
-      var _this$dashboardConfig6,
+      var _this$dashboardConfig8,
         _this21 = this;
       var canvas = document.getElementById('trend-chart');
       if (!canvas) {
@@ -33959,7 +33981,7 @@ var DashboardModule = /*#__PURE__*/function () {
         return;
       }
       var ctx = canvas.getContext('2d');
-      var trendSettings = ((_this$dashboardConfig6 = this.dashboardConfig.widgets) === null || _this$dashboardConfig6 === void 0 || (_this$dashboardConfig6 = _this$dashboardConfig6.tileSettings) === null || _this$dashboardConfig6 === void 0 ? void 0 : _this$dashboardConfig6.trendChart) || {};
+      var trendSettings = ((_this$dashboardConfig8 = this.dashboardConfig.widgets) === null || _this$dashboardConfig8 === void 0 || (_this$dashboardConfig8 = _this$dashboardConfig8.tileSettings) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8.trendChart) || {};
       var trendChartType = trendSettings.chartType || 'line';
       var isBar = trendChartType === 'bar';
       var trendShowLegend = trendSettings.showLegend !== false;
@@ -35288,11 +35310,11 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyTileSizes",
     value: function applyTileSizes() {
-      var _this$dashboardConfig7,
+      var _this$dashboardConfig9,
         _this27 = this;
       var grid = document.querySelector('.dashboard-grid');
       if (!grid) return;
-      var sizes = ((_this$dashboardConfig7 = this.dashboardConfig.widgets) === null || _this$dashboardConfig7 === void 0 ? void 0 : _this$dashboardConfig7.sizes) || {};
+      var sizes = ((_this$dashboardConfig9 = this.dashboardConfig.widgets) === null || _this$dashboardConfig9 === void 0 ? void 0 : _this$dashboardConfig9.sizes) || {};
       grid.querySelectorAll('[data-widget-category="widget"]').forEach(function (card) {
         var widgetId = card.dataset.widgetId;
         var size = sizes[widgetId] || _this27.getWidgetSize(widgetId, 'widgets');
@@ -35303,12 +35325,12 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardOrder",
     value: function applyDashboardOrder() {
-      var _this$dashboardConfig9;
+      var _this$dashboardConfig1;
       // Hero cards (unchanged logic)
       var heroContainer = document.querySelector('.dashboard-hero');
       if (heroContainer) {
-        var _this$dashboardConfig8;
-        var heroOrder = ((_this$dashboardConfig8 = this.dashboardConfig.hero) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8.order) || [];
+        var _this$dashboardConfig0;
+        var heroOrder = ((_this$dashboardConfig0 = this.dashboardConfig.hero) === null || _this$dashboardConfig0 === void 0 ? void 0 : _this$dashboardConfig0.order) || [];
         var heroCards = Array.from(heroContainer.querySelectorAll('[data-widget-category="hero"]'));
         heroCards.sort(function (a, b) {
           var aIdx = heroOrder.indexOf(a.dataset.widgetId);
@@ -35323,7 +35345,7 @@ var DashboardModule = /*#__PURE__*/function () {
       // Widget cards — flat grid, no column split
       var grid = document.querySelector('.dashboard-grid');
       if (!grid) return;
-      var widgetOrder = ((_this$dashboardConfig9 = this.dashboardConfig.widgets) === null || _this$dashboardConfig9 === void 0 ? void 0 : _this$dashboardConfig9.order) || [];
+      var widgetOrder = ((_this$dashboardConfig1 = this.dashboardConfig.widgets) === null || _this$dashboardConfig1 === void 0 ? void 0 : _this$dashboardConfig1.order) || [];
       var allCards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]'));
       allCards.sort(function (a, b) {
         var aIdx = widgetOrder.indexOf(a.dataset.widgetId);
@@ -36029,14 +36051,14 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "openTileSettingsModal",
     value: function openTileSettingsModal(widgetId, category) {
-      var _this$dashboardConfig0,
+      var _this$dashboardConfig10,
         _this33 = this;
       var modal = document.getElementById('tile-settings-modal');
       if (!modal) return;
       var widgetDef = this.findWidgetDef(widgetId);
       var schema = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.settingsSchema) || {};
       var configCategory = category === 'hero' ? 'hero' : 'widgets';
-      var currentSettings = ((_this$dashboardConfig0 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig0 === void 0 || (_this$dashboardConfig0 = _this$dashboardConfig0.tileSettings) === null || _this$dashboardConfig0 === void 0 ? void 0 : _this$dashboardConfig0[widgetId]) || {};
+      var currentSettings = ((_this$dashboardConfig10 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig10 === void 0 || (_this$dashboardConfig10 = _this$dashboardConfig10.tileSettings) === null || _this$dashboardConfig10 === void 0 ? void 0 : _this$dashboardConfig10[widgetId]) || {};
 
       // Set title
       var titleEl = document.getElementById('tile-settings-modal-title');
@@ -36073,6 +36095,12 @@ var DashboardModule = /*#__PURE__*/function () {
         fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showLegend\" ".concat(checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show legend'), "\n                    </label>\n                </div>\n            "));
       }
 
+      // Top-level categories only
+      if (schema.topLevelOnly) {
+        var _checked = currentSettings.topLevelOnly || false;
+        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"topLevelOnly\" ".concat(_checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Top-level categories only'), "\n                    </label>\n                </div>\n            "));
+      }
+
       // Chart type
       if (schema.chartType && Array.isArray(schema.chartType)) {
         var _current = currentSettings.chartType || schema.chartType[0];
@@ -36101,8 +36129,8 @@ var DashboardModule = /*#__PURE__*/function () {
 
       // Show change indicator (hero tiles)
       if (schema.showChangeIndicator) {
-        var _checked = currentSettings.showChangeIndicator !== false;
-        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showChangeIndicator\" ".concat(_checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show change indicator'), "\n                    </label>\n                </div>\n            "));
+        var _checked2 = currentSettings.showChangeIndicator !== false;
+        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showChangeIndicator\" ".concat(_checked2 ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show change indicator'), "\n                    </label>\n                </div>\n            "));
       }
 
       // Render fields
@@ -36169,10 +36197,10 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshTileAfterSettingsChange",
     value: function refreshTileAfterSettingsChange(widgetId, category) {
-      var _this$dashboardConfig1,
+      var _this$dashboardConfig11,
         _this34 = this;
       var configCategory = category === 'hero' ? 'hero' : 'widgets';
-      var settings = ((_this$dashboardConfig1 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig1 === void 0 || (_this$dashboardConfig1 = _this$dashboardConfig1.tileSettings) === null || _this$dashboardConfig1 === void 0 ? void 0 : _this$dashboardConfig1[widgetId]) || {};
+      var settings = ((_this$dashboardConfig11 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig11 === void 0 || (_this$dashboardConfig11 = _this$dashboardConfig11.tileSettings) === null || _this$dashboardConfig11 === void 0 ? void 0 : _this$dashboardConfig11[widgetId]) || {};
 
       // Sync tile settings back to HTML selectors so existing refresh methods pick them up
       var selectorSync = {
@@ -36311,6 +36339,80 @@ var DashboardModule = /*#__PURE__*/function () {
           console.error('Failed to refresh tile', widgetId, e);
         }
       }
+    }
+
+    /**
+     * Aggregate subcategory data into parent categories.
+     * Works with spending data ({id, name, color, total/amount}) and
+     * budget data ({id, categoryName, color, budgeted, spent}).
+     * Returns only top-level categories with summed values.
+     */
+  }, {
+    key: "aggregateToTopLevel",
+    value: function aggregateToTopLevel(data) {
+      if (!data || !Array.isArray(data) || data.length === 0) return data;
+      var categories = this.app.categories || [];
+      var catById = {};
+      var parentMap = {};
+      var _iterator = _createForOfIteratorHelper(categories),
+        _step;
+      try {
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var cat = _step.value;
+          catById[cat.id] = cat;
+        }
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
+      }
+      var _findTopLevel = function findTopLevel(catId) {
+        if (parentMap[catId] !== undefined) return parentMap[catId];
+        var cat = catById[catId];
+        if (!cat || !cat.parentId) {
+          parentMap[catId] = catId;
+          return catId;
+        }
+        parentMap[catId] = _findTopLevel(cat.parentId);
+        return parentMap[catId];
+      };
+      var aggregated = {};
+      var _iterator2 = _createForOfIteratorHelper(data),
+        _step2;
+      try {
+        for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+          var item = _step2.value;
+          var catId = item.id || item.categoryId;
+          var topId = _findTopLevel(catId);
+          var topCat = catById[topId];
+          if (!aggregated[topId]) {
+            aggregated[topId] = _objectSpread(_objectSpread({}, item), {}, {
+              id: topId,
+              categoryId: topId,
+              name: (topCat === null || topCat === void 0 ? void 0 : topCat.name) || item.categoryName || item.name,
+              categoryName: (topCat === null || topCat === void 0 ? void 0 : topCat.name) || item.categoryName || item.name,
+              color: (topCat === null || topCat === void 0 ? void 0 : topCat.color) || item.color,
+              total: 0,
+              amount: 0,
+              count: 0,
+              budgeted: 0,
+              budget: 0,
+              spent: 0
+            });
+          }
+          aggregated[topId].total += Math.abs(parseFloat(item.total || item.amount || 0));
+          aggregated[topId].amount += Math.abs(parseFloat(item.total || item.amount || 0));
+          aggregated[topId].count += parseInt(item.count || 1);
+          aggregated[topId].budgeted += parseFloat(item.budgeted || item.budget || 0);
+          aggregated[topId].budget += parseFloat(item.budgeted || item.budget || 0);
+          aggregated[topId].spent += parseFloat(item.spent || 0);
+        }
+      } catch (err) {
+        _iterator2.e(err);
+      } finally {
+        _iterator2.f();
+      }
+      return Object.values(aggregated);
     }
   }, {
     key: "resizeAllCharts",
@@ -36529,11 +36631,11 @@ var DashboardModule = /*#__PURE__*/function () {
       }
 
       // Within the row, find which card the cursor is to the left of
-      var _iterator = _createForOfIteratorHelper(targetRow),
-        _step;
+      var _iterator3 = _createForOfIteratorHelper(targetRow),
+        _step3;
       try {
-        for (_iterator.s(); !(_step = _iterator.n()).done;) {
-          var pos = _step.value;
+        for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+          var pos = _step3.value;
           if (x < pos.centerX) {
             return pos.index;
           }
@@ -36541,9 +36643,9 @@ var DashboardModule = /*#__PURE__*/function () {
 
         // Cursor is past all cards in the row — insert after the last card in this row
       } catch (err) {
-        _iterator.e(err);
+        _iterator3.e(err);
       } finally {
-        _iterator.f();
+        _iterator3.f();
       }
       var lastInRow = targetRow[targetRow.length - 1];
       return lastInRow.index + 1;

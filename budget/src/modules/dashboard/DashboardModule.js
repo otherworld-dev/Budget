@@ -1178,8 +1178,15 @@ export default class DashboardModule {
             return;
         }
 
+        // Aggregate to top-level if setting is enabled
+        const budgetSettings = this.dashboardConfig.widgets?.tileSettings?.budgetProgress || {};
+        let catData = categories;
+        if (budgetSettings.topLevelOnly) {
+            catData = this.aggregateToTopLevel(categories);
+        }
+
         // Filter to only categories with budgets
-        const budgetedCategories = categories.filter(c => c.budgeted > 0 || c.budget > 0);
+        const budgetedCategories = catData.filter(c => c.budgeted > 0 || c.budget > 0);
 
         if (budgetedCategories.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budgets configured')}</div>`;
@@ -1886,11 +1893,17 @@ export default class DashboardModule {
             return;
         }
 
+        // Aggregate to top-level categories if setting is enabled
+        const spendingSettings = this.dashboardConfig.widgets?.tileSettings?.spendingChart || {};
+        if (spendingSettings.topLevelOnly) {
+            spendingData = this.aggregateToTopLevel(spendingData);
+        }
+
         const ctx = canvas.getContext('2d');
 
         // Sort by absolute amount and take top 10
         const sortedData = spendingData
-            .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+            .sort((a, b) => Math.abs(b.total || b.amount || 0) - Math.abs(a.total || a.amount || 0))
             .slice(0, 10);
 
         // Extract data - API already returns name and color in each item
@@ -3381,6 +3394,19 @@ export default class DashboardModule {
             `);
         }
 
+        // Top-level categories only
+        if (schema.topLevelOnly) {
+            const checked = currentSettings.topLevelOnly || false;
+            fields.push(`
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" class="tile-setting-input" data-setting="topLevelOnly" ${checked ? 'checked' : ''}>
+                        ${t('budget', 'Top-level categories only')}
+                    </label>
+                </div>
+            `);
+        }
+
         // Chart type
         if (schema.chartType && Array.isArray(schema.chartType)) {
             const current = currentSettings.chartType || schema.chartType[0];
@@ -3572,6 +3598,67 @@ export default class DashboardModule {
 
     }
 
+
+    /**
+     * Aggregate subcategory data into parent categories.
+     * Works with spending data ({id, name, color, total/amount}) and
+     * budget data ({id, categoryName, color, budgeted, spent}).
+     * Returns only top-level categories with summed values.
+     */
+    aggregateToTopLevel(data) {
+        if (!data || !Array.isArray(data) || data.length === 0) return data;
+
+        const categories = this.app.categories || [];
+        const catById = {};
+        const parentMap = {};
+
+        for (const cat of categories) {
+            catById[cat.id] = cat;
+        }
+
+        const findTopLevel = (catId) => {
+            if (parentMap[catId] !== undefined) return parentMap[catId];
+            const cat = catById[catId];
+            if (!cat || !cat.parentId) {
+                parentMap[catId] = catId;
+                return catId;
+            }
+            parentMap[catId] = findTopLevel(cat.parentId);
+            return parentMap[catId];
+        };
+
+        const aggregated = {};
+        for (const item of data) {
+            const catId = item.id || item.categoryId;
+            const topId = findTopLevel(catId);
+            const topCat = catById[topId];
+
+            if (!aggregated[topId]) {
+                aggregated[topId] = {
+                    ...item,
+                    id: topId,
+                    categoryId: topId,
+                    name: topCat?.name || item.categoryName || item.name,
+                    categoryName: topCat?.name || item.categoryName || item.name,
+                    color: topCat?.color || item.color,
+                    total: 0,
+                    amount: 0,
+                    count: 0,
+                    budgeted: 0,
+                    budget: 0,
+                    spent: 0,
+                };
+            }
+            aggregated[topId].total += Math.abs(parseFloat(item.total || item.amount || 0));
+            aggregated[topId].amount += Math.abs(parseFloat(item.total || item.amount || 0));
+            aggregated[topId].count += parseInt(item.count || 1);
+            aggregated[topId].budgeted += parseFloat(item.budgeted || item.budget || 0);
+            aggregated[topId].budget += parseFloat(item.budgeted || item.budget || 0);
+            aggregated[topId].spent += parseFloat(item.spent || 0);
+        }
+
+        return Object.values(aggregated);
+    }
 
     resizeAllCharts() {
         const chartKeys = Object.keys(this.charts || {});
