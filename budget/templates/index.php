@@ -310,6 +310,12 @@ style('budget', 'budget-main');
                             </div>
                         </div>
                     </div>
+                    <div class="dashboard-columns-picker" id="dashboard-columns-picker" style="display: none;">
+                        <span class="columns-picker-label"><?php p($l->t('Columns')); ?></span>
+                        <button class="columns-btn" data-cols="2">2</button>
+                        <button class="columns-btn" data-cols="3">3</button>
+                        <button class="columns-btn" data-cols="4">4</button>
+                    </div>
                     <button id="toggle-dashboard-lock-btn" class="btn btn-secondary" aria-label="<?php p($l->t('Toggle dashboard lock')); ?>">
                         <svg id="lock-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                         <span id="lock-btn-text"><?php p($l->t('Unlock Dashboard')); ?></span>

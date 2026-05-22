@@ -32764,12 +32764,9 @@ var DashboardModule = /*#__PURE__*/function () {
     }
   }, {
     key: "openTileSettingsModal",
-    value: function openTileSettingsModal(title) {
-      var modal = document.getElementById('tile-settings-modal');
-      var titleEl = document.getElementById('tile-settings-modal-title');
-      if (!modal) return;
-      if (titleEl) titleEl.textContent = title;
-      modal.style.display = 'flex';
+    value: function openTileSettingsModal(widgetId, category) {
+      // TODO: Phase 3 implementation
+      console.log('Tile settings for', widgetId, category);
     }
   }, {
     key: "renderAccountsTileConfigList",
@@ -35142,7 +35139,7 @@ var DashboardModule = /*#__PURE__*/function () {
             case 1:
               // Add remove buttons if unlocked
               if (!this.dashboardLocked) {
-                this.app.addRemoveButtons();
+                this.app.addTileControls();
               }
 
               // Update Add Tiles menu
@@ -35797,8 +35794,41 @@ var DashboardModule = /*#__PURE__*/function () {
         });
       }
 
+      // Setup column picker
+      this.setupColumnPicker();
+
       // Setup tile-level config panels
       this.setupAccountsTileConfig();
+    }
+  }, {
+    key: "setupColumnPicker",
+    value: function setupColumnPicker() {
+      var _this30 = this;
+      var picker = document.getElementById('dashboard-columns-picker');
+      if (!picker) return;
+
+      // Highlight current column count
+      picker.querySelectorAll('.columns-btn').forEach(function (btn) {
+        btn.classList.toggle('active', parseInt(btn.dataset.cols) === _this30.gridColumns);
+        btn.onclick = function () {
+          var cols = parseInt(btn.dataset.cols);
+          _this30.gridColumns = cols;
+          var grid = document.querySelector('.dashboard-grid');
+          if (grid) grid.style.setProperty('--dashboard-cols', cols);
+          picker.querySelectorAll('.columns-btn').forEach(function (b) {
+            return b.classList.remove('active');
+          });
+          btn.classList.add('active');
+          _this30._saveSettings({
+            dashboard_grid_columns: cols.toString()
+          });
+
+          // Resize charts after layout change
+          requestAnimationFrame(function () {
+            return _this30.resizeAllCharts();
+          });
+        };
+      });
     }
   }, {
     key: "toggleDashboardLock",
@@ -35851,77 +35881,178 @@ var DashboardModule = /*#__PURE__*/function () {
       if (!btn || !btnText || !hint) return;
       var lockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
       var unlockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"></path>';
+      var columnsPicker = document.getElementById('dashboard-columns-picker');
       if (this.dashboardLocked) {
         // Locked state
         btnText.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Unlock Dashboard');
         hint.querySelector('span:last-child').textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Dashboard is locked. Click unlock to reorder tiles.');
         if (icon) icon.innerHTML = lockedSvg;
-        // Hide Add Tiles button and tile settings buttons
+        // Hide Add Tiles button, column picker, and tile settings buttons
         if (addTilesDropdown) addTilesDropdown.style.display = 'none';
+        if (columnsPicker) columnsPicker.style.display = 'none';
         document.querySelectorAll('.tile-settings-btn').forEach(function (b) {
           return b.style.display = 'none';
         });
         var tileModal = document.getElementById('tile-settings-modal');
         if (tileModal) tileModal.style.display = 'none';
-        // Remove all X buttons
-        document.querySelectorAll('.widget-remove-btn').forEach(function (btn) {
-          return btn.remove();
+        // Remove all tile controls
+        document.querySelectorAll('.widget-tile-controls').forEach(function (el) {
+          return el.remove();
         });
       } else {
         // Unlocked state
         btnText.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Lock Dashboard');
         hint.querySelector('span:last-child').textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Drag tiles to reorder your dashboard');
         if (icon) icon.innerHTML = unlockedSvg;
-        // Show Add Tiles button and tile settings buttons
+        // Show Add Tiles button, column picker, and tile settings buttons
         if (addTilesDropdown) addTilesDropdown.style.display = 'block';
+        if (columnsPicker) columnsPicker.style.display = 'flex';
         document.querySelectorAll('.tile-settings-btn').forEach(function (b) {
           return b.style.display = '';
         });
-        // Add X buttons to all visible widgets
-        this.addRemoveButtons();
+        // Add tile controls to all visible widgets
+        this.addTileControls();
       }
 
       // Update Add Tiles dropdown content
       this.updateAddTilesMenu();
     }
   }, {
-    key: "addRemoveButtons",
-    value: function addRemoveButtons() {
-      var _this30 = this;
-      // Add remove button to hero cards
-      document.querySelectorAll('.hero-card').forEach(function (card) {
-        if (card.querySelector('.widget-remove-btn')) return; // Already has button
-
-        var removeBtn = document.createElement('button');
-        removeBtn.className = 'widget-remove-btn';
-        removeBtn.setAttribute('aria-label', (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Remove tile'));
-        removeBtn.innerHTML = '&times;';
-        removeBtn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          _this30.hideWidget(card.dataset.widgetId, 'hero');
-        });
-        card.appendChild(removeBtn);
+    key: "addTileControls",
+    value: function addTileControls() {
+      var _this31 = this;
+      // Remove existing controls first
+      document.querySelectorAll('.widget-tile-controls').forEach(function (el) {
+        return el.remove();
       });
+      var addControls = function addControls(card, category) {
+        var widgetId = card.dataset.widgetId;
+        if (!widgetId) return;
+        var controls = document.createElement('div');
+        controls.className = 'widget-tile-controls';
 
-      // Add remove button to dashboard cards
-      document.querySelectorAll('.dashboard-card').forEach(function (card) {
-        if (card.querySelector('.widget-remove-btn')) return; // Already has button
+        // Size picker (widgets only, not hero)
+        if (category === 'widget') {
+          var widgetDef = _this31.findWidgetDef(widgetId);
+          var allowedSizes = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.allowedSizes) || ['xs', 's', 'm', 'l'];
+          var currentSize = _this31.getWidgetSize(widgetId, 'widgets');
+          var sizePicker = document.createElement('div');
+          sizePicker.className = 'tile-size-picker';
+          allowedSizes.forEach(function (size) {
+            var btn = document.createElement('button');
+            btn.className = "size-btn ".concat(size === currentSize ? 'active' : '');
+            btn.dataset.size = size;
+            btn.textContent = size.toUpperCase();
+            btn.title = {
+              xs: 'Extra Small',
+              s: 'Small',
+              m: 'Medium',
+              l: 'Large'
+            }[size];
+            btn.onclick = function (e) {
+              e.stopPropagation();
+              _this31.changeTileSize(widgetId, size, card);
+              sizePicker.querySelectorAll('.size-btn').forEach(function (b) {
+                return b.classList.remove('active');
+              });
+              btn.classList.add('active');
+            };
+            sizePicker.appendChild(btn);
+          });
+          controls.appendChild(sizePicker);
+        }
 
+        // Gear icon
+        var gearBtn = document.createElement('button');
+        gearBtn.className = 'tile-gear-btn';
+        gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+        gearBtn.title = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Tile Settings');
+        gearBtn.onclick = function (e) {
+          e.stopPropagation();
+          _this31.openTileSettingsModal(widgetId, category);
+        };
+        controls.appendChild(gearBtn);
+
+        // Remove button
         var removeBtn = document.createElement('button');
         removeBtn.className = 'widget-remove-btn';
-        removeBtn.setAttribute('aria-label', (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Remove tile'));
         removeBtn.innerHTML = '&times;';
-        removeBtn.addEventListener('click', function (e) {
+        removeBtn.title = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Hide tile');
+        removeBtn.onclick = function (e) {
           e.stopPropagation();
-          _this30.hideWidget(card.dataset.widgetId, 'widget');
-        });
-        card.appendChild(removeBtn);
+          _this31.hideWidget(widgetId, category === 'widget' ? 'widgets' : 'hero');
+        };
+        controls.appendChild(removeBtn);
+        card.style.position = 'relative';
+        card.appendChild(controls);
+      };
+      document.querySelectorAll('.hero-card').forEach(function (card) {
+        return addControls(card, 'hero');
+      });
+      document.querySelectorAll('.dashboard-card').forEach(function (card) {
+        return addControls(card, 'widget');
+      });
+    }
+  }, {
+    key: "findWidgetDef",
+    value: function findWidgetDef(widgetId) {
+      for (var _i5 = 0, _arr2 = ['hero', 'widgets']; _i5 < _arr2.length; _i5++) {
+        var category = _arr2[_i5];
+        for (var _i6 = 0, _Object$entries4 = Object.entries(_config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_3__.DASHBOARD_WIDGETS[category] || {}); _i6 < _Object$entries4.length; _i6++) {
+          var _Object$entries4$_i = _slicedToArray(_Object$entries4[_i6], 2),
+            key = _Object$entries4$_i[0],
+            def = _Object$entries4$_i[1];
+          if (key === widgetId || def.id === widgetId) return def;
+        }
+      }
+      return null;
+    }
+  }, {
+    key: "changeTileSize",
+    value: function changeTileSize(widgetId, newSize, card) {
+      var _this32 = this;
+      // Update config
+      if (!this.dashboardConfig.widgets.sizes) this.dashboardConfig.widgets.sizes = {};
+      this.dashboardConfig.widgets.sizes[widgetId] = newSize;
+
+      // Update CSS class
+      card.classList.remove('dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l');
+      card.classList.add("dashboard-tile-".concat(newSize));
+
+      // Save
+      this.saveDashboardVisibility('widgets');
+
+      // Resize chart if present
+      requestAnimationFrame(function () {
+        var canvas = card.querySelector('canvas');
+        if (canvas) {
+          var chartKeys = Object.keys(_this32.charts || {});
+          for (var _i7 = 0, _chartKeys = chartKeys; _i7 < _chartKeys.length; _i7++) {
+            var _this32$charts$key;
+            var key = _chartKeys[_i7];
+            if (((_this32$charts$key = _this32.charts[key]) === null || _this32$charts$key === void 0 ? void 0 : _this32$charts$key.canvas) === canvas) {
+              _this32.charts[key].resize();
+              break;
+            }
+          }
+        }
+      });
+    }
+  }, {
+    key: "resizeAllCharts",
+    value: function resizeAllCharts() {
+      var _this33 = this;
+      var chartKeys = Object.keys(this.charts || {});
+      chartKeys.forEach(function (key) {
+        if (_this33.charts[key] && typeof _this33.charts[key].resize === 'function') {
+          _this33.charts[key].resize();
+        }
       });
     }
   }, {
     key: "updateAddTilesMenu",
     value: function updateAddTilesMenu() {
-      var _this31 = this;
+      var _this34 = this;
       var menuList = document.getElementById('add-tiles-menu-list');
       if (!menuList) return;
       menuList.innerHTML = '';
@@ -35934,7 +36065,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref21 = _slicedToArray(_ref20, 2),
           key = _ref21[0],
           widget = _ref21[1];
-        if (!_this31.dashboardConfig.hero.visibility[key]) {
+        if (!_this34.dashboardConfig.hero.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -35953,7 +36084,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref23 = _slicedToArray(_ref22, 2),
           key = _ref23[0],
           widget = _ref23[1];
-        if (!_this31.dashboardConfig.widgets.visibility[key]) {
+        if (!_this34.dashboardConfig.widgets.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -36043,7 +36174,7 @@ var DashboardModule = /*#__PURE__*/function () {
           e.stopPropagation();
           var widgetId = btn.dataset.widgetId;
           var category = btn.dataset.category;
-          _this31.showWidget(widgetId, category);
+          _this34.showWidget(widgetId, category);
         });
       });
     }
@@ -36057,7 +36188,7 @@ var DashboardModule = /*#__PURE__*/function () {
         return el.classList.contains('hero-card') || el.classList.contains('dashboard-card');
       });
       var draggingCard = document.querySelector('.dragging');
-      var afterCard = this.getDragAfterElement(container, e.clientY);
+      var afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
 
       // Remove existing indicators
       this.clearDashboardDropIndicators();
@@ -36081,21 +36212,21 @@ var DashboardModule = /*#__PURE__*/function () {
     }
   }, {
     key: "getDragAfterElement",
-    value: function getDragAfterElement(container, y) {
+    value: function getDragAfterElement(container, x, y) {
       var draggableElements = Array.from(container.children).filter(function (el) {
         return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('dragging');
       });
       return draggableElements.reduce(function (closest, child) {
         var box = child.getBoundingClientRect();
-        var offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
+        var offsetY = y - box.top - box.height / 2;
+        var offsetX = x - box.left - box.width / 2;
+        if (offsetY < 0 && offsetY > closest.offset) {
           return {
-            offset: offset,
+            offset: offsetY,
             element: child
           };
-        } else {
-          return closest;
         }
+        return closest;
       }, {
         offset: Number.NEGATIVE_INFINITY
       }).element;
@@ -36103,7 +36234,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "getDashboardDropTarget",
     value: function getDashboardDropTarget(e, container) {
-      var afterCard = this.getDragAfterElement(container, e.clientY);
+      var afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
       if (afterCard) {
         return {
           targetId: afterCard.dataset.widgetId,
@@ -59194,9 +59325,9 @@ var BudgetApp = /*#__PURE__*/function () {
       return this.dashboardModule.updateDashboardLockUI();
     }
   }, {
-    key: "addRemoveButtons",
-    value: function addRemoveButtons() {
-      return this.dashboardModule.addRemoveButtons();
+    key: "addTileControls",
+    value: function addTileControls() {
+      return this.dashboardModule.addTileControls();
     }
   }, {
     key: "updateAddTilesMenu",

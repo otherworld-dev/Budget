@@ -2710,7 +2710,7 @@ export default class DashboardModule {
 
         // Add remove buttons if unlocked
         if (!this.dashboardLocked) {
-            this.app.addRemoveButtons();
+            this.app.addTileControls();
         }
 
         // Update Add Tiles menu
@@ -3099,8 +3099,35 @@ export default class DashboardModule {
             });
         }
 
+        // Setup column picker
+        this.setupColumnPicker();
+
         // Setup tile-level config panels
         this.setupAccountsTileConfig();
+    }
+
+    setupColumnPicker() {
+        const picker = document.getElementById('dashboard-columns-picker');
+        if (!picker) return;
+
+        // Highlight current column count
+        picker.querySelectorAll('.columns-btn').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.cols) === this.gridColumns);
+            btn.onclick = () => {
+                const cols = parseInt(btn.dataset.cols);
+                this.gridColumns = cols;
+                const grid = document.querySelector('.dashboard-grid');
+                if (grid) grid.style.setProperty('--dashboard-cols', cols);
+
+                picker.querySelectorAll('.columns-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                this._saveSettings({ dashboard_grid_columns: cols.toString() });
+
+                // Resize charts after layout change
+                requestAnimationFrame(() => this.resizeAllCharts());
+            };
+        });
     }
 
     async toggleDashboardLock() {
@@ -3135,63 +3162,151 @@ export default class DashboardModule {
         const lockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
         const unlockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"></path>';
 
+        const columnsPicker = document.getElementById('dashboard-columns-picker');
+
         if (this.dashboardLocked) {
             // Locked state
             btnText.textContent = t('budget', 'Unlock Dashboard');
             hint.querySelector('span:last-child').textContent = t('budget', 'Dashboard is locked. Click unlock to reorder tiles.');
             if (icon) icon.innerHTML = lockedSvg;
-            // Hide Add Tiles button and tile settings buttons
+            // Hide Add Tiles button, column picker, and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'none';
+            if (columnsPicker) columnsPicker.style.display = 'none';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = 'none');
             const tileModal = document.getElementById('tile-settings-modal');
             if (tileModal) tileModal.style.display = 'none';
-            // Remove all X buttons
-            document.querySelectorAll('.widget-remove-btn').forEach(btn => btn.remove());
+            // Remove all tile controls
+            document.querySelectorAll('.widget-tile-controls').forEach(el => el.remove());
         } else {
             // Unlocked state
             btnText.textContent = t('budget', 'Lock Dashboard');
             hint.querySelector('span:last-child').textContent = t('budget', 'Drag tiles to reorder your dashboard');
             if (icon) icon.innerHTML = unlockedSvg;
-            // Show Add Tiles button and tile settings buttons
+            // Show Add Tiles button, column picker, and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
+            if (columnsPicker) columnsPicker.style.display = 'flex';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = '');
-            // Add X buttons to all visible widgets
-            this.addRemoveButtons();
+            // Add tile controls to all visible widgets
+            this.addTileControls();
         }
 
         // Update Add Tiles dropdown content
         this.updateAddTilesMenu();
     }
 
-    addRemoveButtons() {
-        // Add remove button to hero cards
-        document.querySelectorAll('.hero-card').forEach(card => {
-            if (card.querySelector('.widget-remove-btn')) return; // Already has button
+    addTileControls() {
+        // Remove existing controls first
+        document.querySelectorAll('.widget-tile-controls').forEach(el => el.remove());
 
+        const addControls = (card, category) => {
+            const widgetId = card.dataset.widgetId;
+            if (!widgetId) return;
+
+            const controls = document.createElement('div');
+            controls.className = 'widget-tile-controls';
+
+            // Size picker (widgets only, not hero)
+            if (category === 'widget') {
+                const widgetDef = this.findWidgetDef(widgetId);
+                const allowedSizes = widgetDef?.allowedSizes || ['xs', 's', 'm', 'l'];
+                const currentSize = this.getWidgetSize(widgetId, 'widgets');
+
+                const sizePicker = document.createElement('div');
+                sizePicker.className = 'tile-size-picker';
+                allowedSizes.forEach(size => {
+                    const btn = document.createElement('button');
+                    btn.className = `size-btn ${size === currentSize ? 'active' : ''}`;
+                    btn.dataset.size = size;
+                    btn.textContent = size.toUpperCase();
+                    btn.title = { xs: 'Extra Small', s: 'Small', m: 'Medium', l: 'Large' }[size];
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        this.changeTileSize(widgetId, size, card);
+                        sizePicker.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    };
+                    sizePicker.appendChild(btn);
+                });
+                controls.appendChild(sizePicker);
+            }
+
+            // Gear icon
+            const gearBtn = document.createElement('button');
+            gearBtn.className = 'tile-gear-btn';
+            gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+            gearBtn.title = t('budget', 'Tile Settings');
+            gearBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.openTileSettingsModal(widgetId, category);
+            };
+            controls.appendChild(gearBtn);
+
+            // Remove button
             const removeBtn = document.createElement('button');
             removeBtn.className = 'widget-remove-btn';
-            removeBtn.setAttribute('aria-label', t('budget', 'Remove tile'));
             removeBtn.innerHTML = '&times;';
-            removeBtn.addEventListener('click', (e) => {
+            removeBtn.title = t('budget', 'Hide tile');
+            removeBtn.onclick = (e) => {
                 e.stopPropagation();
-                this.hideWidget(card.dataset.widgetId, 'hero');
-            });
-            card.appendChild(removeBtn);
+                this.hideWidget(widgetId, category === 'widget' ? 'widgets' : 'hero');
+            };
+            controls.appendChild(removeBtn);
+
+            card.style.position = 'relative';
+            card.appendChild(controls);
+        };
+
+        document.querySelectorAll('.hero-card').forEach(card => addControls(card, 'hero'));
+        document.querySelectorAll('.dashboard-card').forEach(card => addControls(card, 'widget'));
+    }
+
+    findWidgetDef(widgetId) {
+        for (const category of ['hero', 'widgets']) {
+            for (const [key, def] of Object.entries(DASHBOARD_WIDGETS[category] || {})) {
+                if (key === widgetId || def.id === widgetId) return def;
+            }
+        }
+        return null;
+    }
+
+    changeTileSize(widgetId, newSize, card) {
+        // Update config
+        if (!this.dashboardConfig.widgets.sizes) this.dashboardConfig.widgets.sizes = {};
+        this.dashboardConfig.widgets.sizes[widgetId] = newSize;
+
+        // Update CSS class
+        card.classList.remove('dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l');
+        card.classList.add(`dashboard-tile-${newSize}`);
+
+        // Save
+        this.saveDashboardVisibility('widgets');
+
+        // Resize chart if present
+        requestAnimationFrame(() => {
+            const canvas = card.querySelector('canvas');
+            if (canvas) {
+                const chartKeys = Object.keys(this.charts || {});
+                for (const key of chartKeys) {
+                    if (this.charts[key]?.canvas === canvas) {
+                        this.charts[key].resize();
+                        break;
+                    }
+                }
+            }
         });
+    }
 
-        // Add remove button to dashboard cards
-        document.querySelectorAll('.dashboard-card').forEach(card => {
-            if (card.querySelector('.widget-remove-btn')) return; // Already has button
+    openTileSettingsModal(widgetId, category) {
+        // TODO: Phase 3 implementation
+        console.log('Tile settings for', widgetId, category);
+    }
 
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'widget-remove-btn';
-            removeBtn.setAttribute('aria-label', t('budget', 'Remove tile'));
-            removeBtn.innerHTML = '&times;';
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.hideWidget(card.dataset.widgetId, 'widget');
-            });
-            card.appendChild(removeBtn);
+    resizeAllCharts() {
+        const chartKeys = Object.keys(this.charts || {});
+        chartKeys.forEach(key => {
+            if (this.charts[key] && typeof this.charts[key].resize === 'function') {
+                this.charts[key].resize();
+            }
         });
     }
 
@@ -3400,7 +3515,7 @@ export default class DashboardModule {
         );
 
         const draggingCard = document.querySelector('.dragging');
-        const afterCard = this.getDragAfterElement(container, e.clientY);
+        const afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
 
         // Remove existing indicators
         this.clearDashboardDropIndicators();
@@ -3423,7 +3538,7 @@ export default class DashboardModule {
         }
     }
 
-    getDragAfterElement(container, y) {
+    getDragAfterElement(container, x, y) {
         const draggableElements = Array.from(container.children).filter(el =>
             (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
             !el.classList.contains('dragging')
@@ -3431,18 +3546,18 @@ export default class DashboardModule {
 
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
+            const offsetY = y - box.top - box.height / 2;
+            const offsetX = x - box.left - box.width / 2;
 
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
+            if (offsetY < 0 && offsetY > closest.offset) {
+                return { offset: offsetY, element: child };
             }
+            return closest;
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     getDashboardDropTarget(e, container) {
-        const afterCard = this.getDragAfterElement(container, e.clientY);
+        const afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
 
         if (afterCard) {
             return {

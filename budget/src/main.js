@@ -886,8 +886,8 @@ class BudgetApp {
         return this.dashboardModule.updateDashboardLockUI();
     }
 
-    addRemoveButtons() {
-        return this.dashboardModule.addRemoveButtons();
+    addTileControls() {
+        return this.dashboardModule.addTileControls();
     }
 
     updateAddTilesMenu() {
