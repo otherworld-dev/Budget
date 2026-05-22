@@ -5678,9 +5678,8 @@ button.danger:hover {
 }
 
 .recent-transactions-list {
-    max-height: 200px;
+    max-height: 400px;
     overflow-y: auto;
-    margin-bottom: 16px;
 }
 
 .transaction-item {
