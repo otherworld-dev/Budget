@@ -5,29 +5,29 @@ import { translate as t } from '@nextcloud/l10n';
 
 export const DASHBOARD_WIDGETS = {
     hero: {
-        netWorth: { id: 'hero-net-worth', name: t('budget', 'Net Worth'), defaultSize: 'hero', defaultVisible: true, settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        income: { id: 'hero-income', name: t('budget', 'Income This Month'), defaultSize: 'hero', defaultVisible: true, settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        expenses: { id: 'hero-expenses', name: t('budget', 'Expenses This Month'), defaultSize: 'hero', defaultVisible: true, settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        savings: { id: 'hero-savings', name: t('budget', 'Net Savings'), defaultSize: 'hero', defaultVisible: true, settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        pension: { id: 'hero-pension', name: t('budget', 'Pension Worth'), defaultSize: 'hero', defaultVisible: true, settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        assets: { id: 'hero-assets', name: t('budget', 'Assets Worth'), defaultSize: 'hero', defaultVisible: true, settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
+        netWorth: { id: 'hero-net-worth', name: t('budget', 'Net Worth'), defaultSize: 'hero', defaultVisible: true, settingsSchema: {} },
+        income: { id: 'hero-income', name: t('budget', 'Income This Month'), defaultSize: 'hero', defaultVisible: true, settingsSchema: {} },
+        expenses: { id: 'hero-expenses', name: t('budget', 'Expenses This Month'), defaultSize: 'hero', defaultVisible: true, settingsSchema: {} },
+        savings: { id: 'hero-savings', name: t('budget', 'Net Savings'), defaultSize: 'hero', defaultVisible: true, settingsSchema: {} },
+        pension: { id: 'hero-pension', name: t('budget', 'Pension Worth'), defaultSize: 'hero', defaultVisible: true, settingsSchema: {} },
+        assets: { id: 'hero-assets', name: t('budget', 'Assets Worth'), defaultSize: 'hero', defaultVisible: true, settingsSchema: {} },
 
         // Phase 1 - Quick Wins (use existing data)
-        savingsRate: { id: 'hero-savings-rate', name: t('budget', 'Savings Rate'), defaultSize: 'hero', defaultVisible: false, category: 'insights', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        cashFlow: { id: 'hero-cash-flow', name: t('budget', 'Cash Flow'), defaultSize: 'hero', defaultVisible: false, category: 'insights', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        budgetRemaining: { id: 'hero-budget-remaining', name: t('budget', 'Budget Remaining'), defaultSize: 'hero', defaultVisible: false, category: 'budgeting', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        budgetHealth: { id: 'hero-budget-health', name: t('budget', 'Budget Health'), defaultSize: 'hero', defaultVisible: false, category: 'budgeting', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
+        savingsRate: { id: 'hero-savings-rate', name: t('budget', 'Savings Rate'), defaultSize: 'hero', defaultVisible: false, category: 'insights', settingsSchema: {} },
+        cashFlow: { id: 'hero-cash-flow', name: t('budget', 'Cash Flow'), defaultSize: 'hero', defaultVisible: false, category: 'insights', settingsSchema: {} },
+        budgetRemaining: { id: 'hero-budget-remaining', name: t('budget', 'Budget Remaining'), defaultSize: 'hero', defaultVisible: false, category: 'budgeting', settingsSchema: {} },
+        budgetHealth: { id: 'hero-budget-health', name: t('budget', 'Budget Health'), defaultSize: 'hero', defaultVisible: false, category: 'budgeting', settingsSchema: {} },
 
         // Per-Account Views
-        accountIncome: { id: 'hero-account-income', name: t('budget', 'Account Income'), defaultSize: 'hero', defaultVisible: false, category: 'accounts', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        accountExpenses: { id: 'hero-account-expenses', name: t('budget', 'Account Expenses'), defaultSize: 'hero', defaultVisible: false, category: 'accounts', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
+        accountIncome: { id: 'hero-account-income', name: t('budget', 'Account Income'), defaultSize: 'hero', defaultVisible: false, category: 'accounts', settingsSchema: {} },
+        accountExpenses: { id: 'hero-account-expenses', name: t('budget', 'Account Expenses'), defaultSize: 'hero', defaultVisible: false, category: 'accounts', settingsSchema: {} },
 
         // Phase 2 - Moderate Complexity (lazy loaded)
-        uncategorizedCount: { id: 'hero-uncategorized', name: t('budget', 'Uncategorized'), defaultSize: 'hero', defaultVisible: false, category: 'alerts', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
-        lowBalanceAlert: { id: 'hero-low-balance', name: t('budget', 'Low Balance Alert'), defaultSize: 'hero', defaultVisible: false, category: 'alerts', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
+        uncategorizedCount: { id: 'hero-uncategorized', name: t('budget', 'Uncategorized'), defaultSize: 'hero', defaultVisible: false, category: 'alerts', settingsSchema: {} },
+        lowBalanceAlert: { id: 'hero-low-balance', name: t('budget', 'Low Balance Alert'), defaultSize: 'hero', defaultVisible: false, category: 'alerts', settingsSchema: {} },
 
         // Phase 3 - Advanced Features (lazy loaded with charts)
-        burnRate: { id: 'hero-burn-rate', name: t('budget', 'Burn Rate'), defaultSize: 'hero', defaultVisible: false, category: 'forecasting', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } },
+        burnRate: { id: 'hero-burn-rate', name: t('budget', 'Burn Rate'), defaultSize: 'hero', defaultVisible: false, category: 'forecasting', settingsSchema: {} },
         daysUntilDebtFree: { id: 'hero-debt-free', name: t('budget', 'Days Until Debt Free'), defaultSize: 'hero', defaultVisible: false, category: 'debts', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } }
     },
     widgets: {

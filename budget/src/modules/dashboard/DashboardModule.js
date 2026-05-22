@@ -259,9 +259,6 @@ export default class DashboardModule {
             // Apply dashboard widget visibility
             this.applyDashboardVisibility();
 
-            // Apply saved hero tile settings (compact mode, change indicator)
-            this.applyAllHeroTileSettings();
-
             // Setup drag-and-drop for dashboard customization
             this.setupDashboardDragAndDrop();
 
@@ -3242,16 +3239,18 @@ export default class DashboardModule {
                 controls.appendChild(div1);
             }
 
-            // Gear icon
-            const gearBtn = document.createElement('button');
-            gearBtn.className = 'tile-gear-btn';
-            gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
-            gearBtn.title = t('budget', 'Tile Settings');
-            gearBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.openTileSettingsModal(widgetId, category);
-            };
-            controls.appendChild(gearBtn);
+            // Gear icon (widgets only — hero tiles have no settings)
+            if (category !== 'hero') {
+                const gearBtn = document.createElement('button');
+                gearBtn.className = 'tile-gear-btn';
+                gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+                gearBtn.title = t('budget', 'Tile Settings');
+                gearBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.openTileSettingsModal(widgetId, category);
+                };
+                controls.appendChild(gearBtn);
+            }
 
             // Divider before remove
             const div2 = document.createElement('div');
@@ -3571,37 +3570,8 @@ export default class DashboardModule {
             try { refreshFn(); } catch (e) { console.error('Failed to refresh tile', widgetId, e); }
         }
 
-        // Apply hero tile visual settings (displayFormat, showChangeIndicator)
-        if (category === 'hero') {
-            this.applyHeroTileSettings(widgetId, settings);
-        }
     }
 
-    applyAllHeroTileSettings() {
-        const heroSettings = this.dashboardConfig.hero?.tileSettings || {};
-        for (const [widgetId, settings] of Object.entries(heroSettings)) {
-            this.applyHeroTileSettings(widgetId, settings);
-        }
-    }
-
-    applyHeroTileSettings(widgetId, settings) {
-        const card = document.querySelector(`.hero-card[data-widget-id="${widgetId}"]`);
-        if (!card) return;
-
-        // Display format
-        if (settings.displayFormat === 'compact') {
-            card.classList.add('hero-compact');
-        } else {
-            card.classList.remove('hero-compact');
-        }
-
-        // Show/hide change indicator
-        if (settings.showChangeIndicator === false) {
-            card.classList.add('hero-hide-change');
-        } else {
-            card.classList.remove('hero-hide-change');
-        }
-    }
 
     resizeAllCharts() {
         const chartKeys = Object.keys(this.charts || {});

@@ -404,8 +404,8 @@
 /* Hero Section - Key Metrics */
 .dashboard-hero {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
     margin-bottom: 20px;
     grid-auto-flow: dense;
 }
@@ -422,36 +422,6 @@
     transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-/* Hero Tile — Compact display format */
-.hero-card.hero-compact {
-    padding: 10px 14px;
-    gap: 10px;
-}
-.hero-card.hero-compact .hero-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-}
-.hero-card.hero-compact .hero-icon svg {
-    width: 16px;
-    height: 16px;
-}
-.hero-card.hero-compact .hero-label {
-    font-size: 10px;
-    margin-bottom: 2px;
-}
-.hero-card.hero-compact .hero-value {
-    font-size: 18px;
-}
-.hero-card.hero-compact .hero-change {
-    font-size: 10px;
-    margin-top: 2px;
-}
-
-/* Hero Tile — Hide change indicator */
-.hero-card.hero-hide-change .hero-change {
-    display: none;
-}
 
 .hero-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -544,6 +514,9 @@
     color: var(--color-main-text);
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .hero-value.income {
