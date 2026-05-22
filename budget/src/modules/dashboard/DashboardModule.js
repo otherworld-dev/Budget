@@ -15,6 +15,15 @@ import Chart from 'chart.js/auto';
 import { DASHBOARD_WIDGETS } from '../../config/dashboardWidgets.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { GridStack } from 'gridstack';
+import 'gridstack/dist/gridstack.min.css';
+
+const GRIDSTACK_SIZE_MAP = {
+    xs: { w: 1, h: 1 },
+    s: { w: 1, h: 4 },
+    m: { w: 2, h: 4 },
+    l: { w: 3, h: 4 },  // w will be set dynamically to match column count
+};
 
 export default class DashboardModule {
     constructor(app) {
@@ -259,8 +268,8 @@ export default class DashboardModule {
             // Apply dashboard widget visibility
             this.applyDashboardVisibility();
 
-            // Setup drag-and-drop for dashboard customization
-            this.setupDashboardDragAndDrop();
+            // Initialize Gridstack for dashboard layout
+            this.initGridstack();
 
             // Apply responsive layout ordering
             this.applyDashboardLayout();
@@ -2706,8 +2715,12 @@ export default class DashboardModule {
         // Apply to DOM
         await this.applyDashboardVisibility();
 
-        // Recompute grid positions after visibility change
-        this.computeGridPositions();
+        // Remove from Gridstack if it's a widget tile
+        if (category !== 'hero' && this.gridstack) {
+            const gridEl = document.querySelector('.dashboard-grid');
+            const wrapper = gridEl?.querySelector(`[gs-id="${widgetId}"]`);
+            if (wrapper) this.gridstack.removeWidget(wrapper, false);
+        }
 
         // Update Add Tiles menu
         this.app.updateAddTilesMenu();
@@ -2725,8 +2738,25 @@ export default class DashboardModule {
         // Apply to DOM
         await this.applyDashboardVisibility();
 
-        // Recompute grid positions after visibility change
-        this.computeGridPositions();
+        // Add to Gridstack if it's a widget tile
+        if (category !== 'hero' && this.gridstack) {
+            const gridEl = document.querySelector('.dashboard-grid');
+            let wrapper = gridEl?.querySelector(`[gs-id="${widgetId}"]`);
+            // If the card isn't wrapped yet, wrap it
+            if (!wrapper) {
+                const card = gridEl?.querySelector(`[data-widget-id="${widgetId}"][data-widget-category="widget"]`);
+                if (card) {
+                    this._wrapCardsForGridstack(gridEl);
+                    wrapper = gridEl?.querySelector(`[gs-id="${widgetId}"]`);
+                }
+            }
+            if (wrapper) {
+                const size = this.getWidgetSize(widgetId, 'widgets');
+                const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
+                const w = size === 'l' ? (this.gridColumns || 3) : mapped.w;
+                this.gridstack.makeWidget(wrapper, { w, h: mapped.h, autoPosition: true });
+            }
+        }
 
         // Add remove buttons if unlocked
         if (!this.dashboardLocked) {
@@ -2752,9 +2782,130 @@ export default class DashboardModule {
         }
     }
 
-    setupDashboardDragAndDrop() {
-        // Implementation for dashboard drag and drop would go here
-        // This is a complex feature that allows reordering dashboard tiles
+    // ===========================
+    // Gridstack Integration
+    // ===========================
+
+    _wrapCardsForGridstack(gridEl) {
+        gridEl.classList.add('grid-stack');
+        const cards = Array.from(gridEl.querySelectorAll('[data-widget-category="widget"]'));
+        cards.forEach(card => {
+            if (card.closest('.grid-stack-item')) return; // already wrapped
+            const wrapper = document.createElement('div');
+            wrapper.className = 'grid-stack-item';
+            wrapper.setAttribute('gs-id', card.dataset.widgetId);
+            const content = document.createElement('div');
+            content.className = 'grid-stack-item-content';
+            card.parentNode.insertBefore(wrapper, card);
+            content.appendChild(card);
+            wrapper.appendChild(content);
+        });
+    }
+
+    _computeInitialPositions() {
+        // Use saved positions if available
+        if (this.dashboardConfig.widgets?.positions && Object.keys(this.dashboardConfig.widgets.positions).length > 0) {
+            return this.dashboardConfig.widgets.positions;
+        }
+
+        // Derive from legacy order + sizes
+        const cols = this.gridColumns || 3;
+        const order = this.dashboardConfig.widgets?.order || [];
+        const visibility = this.dashboardConfig.widgets?.visibility || {};
+        const positions = {};
+        let x = 0, y = 0;
+
+        for (const widgetId of order) {
+            if (visibility[widgetId] === false) continue;
+            const size = this.getWidgetSize(widgetId, 'widgets');
+            const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
+            const w = size === 'l' ? cols : mapped.w;
+            const h = mapped.h;
+
+            if (size === 'l' && x !== 0) { y += 4; x = 0; }
+            if (x + w > cols) { y += 4; x = 0; }
+
+            positions[widgetId] = { x, y, w, h };
+            x += w;
+            if (x >= cols) { x = 0; y += h; }
+        }
+
+        return positions;
+    }
+
+    initGridstack() {
+        const gridEl = document.querySelector('.dashboard-grid');
+        if (!gridEl || this.gridstack) return;
+
+        this._wrapCardsForGridstack(gridEl);
+        const positions = this._computeInitialPositions();
+
+        this.gridstack = GridStack.init({
+            column: this.gridColumns || 3,
+            cellHeight: 80,
+            margin: 10,
+            float: false,
+            animate: true,
+            disableOneColumnMode: true,
+            disableResize: true,
+            staticGrid: this.dashboardLocked,
+        }, gridEl);
+
+        // Apply positions
+        const items = [];
+        for (const [widgetId, pos] of Object.entries(positions)) {
+            const el = gridEl.querySelector(`[gs-id="${widgetId}"]`);
+            if (el && el.offsetParent !== null) {
+                items.push({ el, ...pos });
+            }
+        }
+        this.gridstack.load(items);
+
+        // Listen for changes (drag end)
+        this.gridstack.on('change', (event, changedItems) => {
+            this._saveGridstackPositions();
+        });
+
+        // Resize charts after any drag
+        this.gridstack.on('dragstop', () => {
+            requestAnimationFrame(() => this.resizeAllCharts());
+        });
+    }
+
+    _saveGridstackPositions() {
+        if (!this.gridstack) return;
+        const positions = {};
+        this.gridstack.getGridItems().forEach(el => {
+            const id = el.getAttribute('gs-id');
+            if (id) {
+                const node = el.gridstackNode;
+                if (node) {
+                    positions[id] = { x: node.x, y: node.y, w: node.w, h: node.h };
+                }
+            }
+        });
+
+        if (!this.dashboardConfig.widgets) this.dashboardConfig.widgets = {};
+        this.dashboardConfig.widgets.positions = positions;
+
+        // Update legacy order from sorted positions
+        const sorted = Object.entries(positions)
+            .sort(([, a], [, b]) => a.y - b.y || a.x - b.x)
+            .map(([id]) => id);
+        this.dashboardConfig.widgets.order = sorted;
+
+        this.saveDashboardVisibility('widgets');
+    }
+
+    _updateFullWidthTiles(cols) {
+        if (!this.gridstack) return;
+        const sizes = this.dashboardConfig.widgets?.sizes || {};
+        this.gridstack.getGridItems().forEach(el => {
+            const id = el.getAttribute('gs-id');
+            if (id && sizes[id] === 'l') {
+                this.gridstack.update(el, { w: cols });
+            }
+        });
     }
 
     getDefaultSize(widgetKey) {
@@ -2787,64 +2938,9 @@ export default class DashboardModule {
             card.classList.remove('dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l');
             card.classList.add(`dashboard-tile-${size}`);
         });
-
-        this.computeGridPositions();
     }
 
-    computeGridPositions() {
-        const grid = document.querySelector('.dashboard-grid');
-        if (!grid) return;
 
-        const cols = this.gridColumns || 3;
-        const cards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]'))
-            .filter(el => el.style.display !== 'none' && el.offsetParent !== null);
-
-        let currentRow = 1;
-        let currentCol = 1;
-
-        cards.forEach(card => {
-            const widgetId = card.dataset.widgetId;
-            const size = this.getWidgetSize(widgetId, 'widgets');
-
-            let span;
-            if (size === 'l') {
-                span = cols;
-            } else if (size === 'm') {
-                span = 2;
-            } else {
-                span = 1;
-            }
-
-            // L tiles always start a new row
-            if (size === 'l' && currentCol !== 1) {
-                currentRow++;
-                currentCol = 1;
-            }
-
-            // If this tile won't fit in the current row, move to next row
-            if (currentCol + span - 1 > cols) {
-                currentRow++;
-                currentCol = 1;
-            }
-
-            card.style.gridRow = currentRow;
-            card.style.gridColumn = `${currentCol} / span ${span}`;
-
-            currentCol += span;
-
-            // If we've filled the row, move to next
-            if (currentCol > cols) {
-                currentRow++;
-                currentCol = 1;
-            }
-
-            // L tiles always end the row
-            if (size === 'l') {
-                currentRow++;
-                currentCol = 1;
-            }
-        });
-    }
 
     applyDashboardOrder() {
         // Hero cards (unchanged logic)
@@ -2860,31 +2956,11 @@ export default class DashboardModule {
             heroCards.forEach(card => heroContainer.appendChild(card));
         }
 
-        // Widget cards — flat grid, no column split
-        const grid = document.querySelector('.dashboard-grid');
-        if (!grid) return;
-
-        const widgetOrder = this.dashboardConfig.widgets?.order || [];
-        const allCards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]'));
-
-        allCards.sort((a, b) => {
-            const aIdx = widgetOrder.indexOf(a.dataset.widgetId);
-            const bIdx = widgetOrder.indexOf(b.dataset.widgetId);
-            return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
-        });
-
-        allCards.forEach(card => grid.appendChild(card));
-
-        // Apply size classes
+        // Widget card positions are managed by Gridstack — just apply size classes
         this.applyTileSizes();
     }
 
     applyDashboardLayout() {
-        // Set grid columns from user preference
-        const grid = document.querySelector('.dashboard-grid');
-        if (grid) {
-            grid.style.setProperty('--dashboard-cols', this.gridColumns || 3);
-        }
 
         const isMobile = window.innerWidth < 1200;
 
@@ -3193,16 +3269,17 @@ export default class DashboardModule {
             btn.onclick = () => {
                 const cols = parseInt(btn.dataset.cols);
                 this.gridColumns = cols;
-                const grid = document.querySelector('.dashboard-grid');
-                if (grid) grid.style.setProperty('--dashboard-cols', cols);
 
                 picker.querySelectorAll('.columns-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
                 this._saveSettings({ dashboard_grid_columns: cols.toString() });
 
-                // Recompute grid positions after column change
-                this.computeGridPositions();
+                // Update Gridstack column count
+                if (this.gridstack) {
+                    this.gridstack.column(cols, 'moveScale');
+                    this._updateFullWidthTiles(cols);
+                }
 
                 // Resize charts after layout change
                 requestAnimationFrame(() => this.resizeAllCharts());
@@ -3216,8 +3293,14 @@ export default class DashboardModule {
         // Update UI immediately
         this.updateDashboardLockUI();
 
-        // Apply/remove draggable state
-        this.setupDashboardDragAndDrop();
+        // Update Gridstack static mode
+        if (this.gridstack) {
+            if (this.app.dashboardLocked) {
+                this.gridstack.disable();
+            } else {
+                this.gridstack.enable();
+            }
+        }
 
         // Save state to backend
         try {
@@ -3367,21 +3450,25 @@ export default class DashboardModule {
     }
 
     changeTileSize(widgetId, newSize, card) {
-        // Update config
         if (!this.dashboardConfig.widgets.sizes) this.dashboardConfig.widgets.sizes = {};
         this.dashboardConfig.widgets.sizes[widgetId] = newSize;
 
-        // Update CSS class
+        // Update CSS class (for content styling like XS max-height)
         card.classList.remove('dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l');
         card.classList.add(`dashboard-tile-${newSize}`);
 
-        // Save
+        // Update Gridstack dimensions
+        if (this.gridstack) {
+            const mapped = GRIDSTACK_SIZE_MAP[newSize] || { w: 1, h: 4 };
+            const w = newSize === 'l' ? (this.gridColumns || 3) : mapped.w;
+            const wrapper = card.closest('.grid-stack-item');
+            if (wrapper) {
+                this.gridstack.update(wrapper, { w, h: mapped.h });
+            }
+        }
+
         this.saveDashboardVisibility('widgets');
 
-        // Recompute grid positions after size change
-        this.computeGridPositions();
-
-        // Resize chart if present
         requestAnimationFrame(() => {
             const canvas = card.querySelector('canvas');
             if (canvas) {
@@ -3851,287 +3938,4 @@ export default class DashboardModule {
         });
     }
 
-    // ===========================
-    // Dashboard Drag and Drop
-    // ===========================
-
-    setupDashboardDragAndDrop() {
-        // Check if touch device - disable drag on mobile
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isTouchDevice) {
-            return; // Only allow drag-and-drop on desktop
-        }
-
-        // Set draggable based on lock state
-        const isDraggable = !this.dashboardLocked;
-
-        // Make hero cards draggable
-        document.querySelectorAll('.hero-card').forEach(card => {
-            card.draggable = isDraggable;
-
-            card.addEventListener('dragstart', (e) => {
-                const widgetId = card.dataset.widgetId;
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                    id: widgetId,
-                    category: 'hero'
-                }));
-                card.classList.add('dragging');
-                this._dragOriginalOrder = Array.from(card.parentElement.children).map(c => c.dataset.widgetId);
-            });
-
-            card.addEventListener('dragend', (e) => {
-                card.classList.remove('dragging');
-                this.clearDashboardDropIndicators();
-                this._dragOriginalOrder = null;
-            });
-        });
-
-        // Make dashboard cards draggable
-        document.querySelectorAll('.dashboard-card').forEach(card => {
-            card.draggable = isDraggable;
-
-            card.addEventListener('dragstart', (e) => {
-                const widgetId = card.dataset.widgetId;
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                    id: widgetId,
-                    category: 'widget'
-                }));
-                card.classList.add('dragging');
-                this._dragOriginalOrder = Array.from(card.parentElement.children)
-                    .filter(c => c.classList.contains('dashboard-card'))
-                    .map(c => c.dataset.widgetId);
-            });
-
-            card.addEventListener('dragend', (e) => {
-                card.classList.remove('dragging');
-                this.clearDashboardDropIndicators();
-                this._dragOriginalOrder = null;
-            });
-        });
-
-        // Setup drop zones
-        const heroContainer = document.querySelector('.dashboard-hero');
-        const widgetGrid = document.querySelector('.dashboard-grid');
-
-        [heroContainer, widgetGrid].forEach(container => {
-            if (!container) return;
-
-            let lastDragUpdate = 0;
-            container.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                const now = Date.now();
-                if (now - lastDragUpdate < 50) return;
-                lastDragUpdate = now;
-                this.showDashboardDropIndicator(e, container);
-            });
-
-            container.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                this.clearDashboardDropIndicators();
-
-                try {
-                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                    const category = data.category === 'hero' ? 'hero' : 'widgets';
-                    const selector = category === 'hero' ? '.hero-card' : '.dashboard-card';
-
-                    // Card is already in position from live preview — save the current DOM order
-                    const newOrder = Array.from(container.querySelectorAll(selector))
-                        .map(c => c.dataset.widgetId)
-                        .filter(Boolean);
-
-                    this.dashboardConfig[category].order = newOrder;
-                    this.saveDashboardVisibility(category);
-                    this._dragOriginalOrder = null;
-                } catch (error) {
-                    console.error('Drop failed:', error);
-                }
-            });
-
-            container.addEventListener('dragleave', (e) => {
-                if (!container.contains(e.relatedTarget)) {
-                    this.clearDashboardDropIndicators();
-                }
-            });
-        });
-    }
-
-    showDashboardDropIndicator(e, container) {
-        const draggingCard = document.querySelector('.dragging');
-        if (!draggingCard || draggingCard.parentElement !== container) return;
-
-        const cards = Array.from(container.children).filter(el =>
-            (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
-            !el.classList.contains('drop-ghost') &&
-            el.offsetParent !== null  // exclude hidden (display:none) elements
-        );
-
-        if (cards.length < 2) return;
-
-        const dragIndex = cards.indexOf(draggingCard);
-        const targetIndex = this.getDragTargetIndex(cards, draggingCard, e.clientX, e.clientY);
-
-        // Don't move if already in the right spot or adjacent (prevents flicker)
-        if (targetIndex === -1 || targetIndex === dragIndex || targetIndex === dragIndex + 1) return;
-
-        // Move the card in the DOM
-        const refCard = cards[targetIndex];
-        if (refCard) {
-            container.insertBefore(draggingCard, refCard);
-        } else {
-            container.appendChild(draggingCard);
-        }
-    }
-
-    getDragTargetIndex(cards, draggingCard, x, y) {
-        // Find the index where the dragged card should be inserted.
-        // We look at the visual midpoints of all non-dragging cards
-        // and find where the cursor falls in reading order.
-
-        const positions = [];
-        for (let i = 0; i < cards.length; i++) {
-            if (cards[i] === draggingCard) continue;
-            const box = cards[i].getBoundingClientRect();
-            positions.push({
-                index: i,
-                left: box.left,
-                top: box.top,
-                centerX: box.left + box.width / 2,
-                centerY: box.top + box.height / 2,
-                bottom: box.bottom
-            });
-        }
-
-        if (positions.length === 0) return -1;
-
-        // Group cards into visual rows (cards within 20px vertical tolerance are same row)
-        const rows = [];
-        let currentRow = [positions[0]];
-        for (let i = 1; i < positions.length; i++) {
-            if (Math.abs(positions[i].top - currentRow[0].top) < 20) {
-                currentRow.push(positions[i]);
-            } else {
-                rows.push(currentRow.sort((a, b) => a.left - b.left));
-                currentRow = [positions[i]];
-            }
-        }
-        rows.push(currentRow.sort((a, b) => a.left - b.left));
-
-        // Find which row the cursor is in
-        let targetRow = rows[rows.length - 1]; // default to last row
-        for (const row of rows) {
-            const rowBottom = Math.max(...row.map(p => p.bottom));
-            if (y < rowBottom + 10) {
-                targetRow = row;
-                break;
-            }
-        }
-
-        // Within the row, find which card the cursor is to the left of
-        for (const pos of targetRow) {
-            if (x < pos.centerX) {
-                return pos.index;
-            }
-        }
-
-        // Cursor is past all cards in the row — insert after the last card in this row
-        const lastInRow = targetRow[targetRow.length - 1];
-        return lastInRow.index + 1;
-    }
-
-    getDashboardDropTarget(e, container) {
-        const result = this.getDragAfterElement(container, e.clientX, e.clientY);
-
-        if (result && result.element) {
-            return {
-                targetId: result.element.dataset.widgetId,
-                position: result.position
-            };
-        }
-
-        // Fallback: drop at end
-        const cards = Array.from(container.children).filter(el =>
-            (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
-            !el.classList.contains('dragging') &&
-            !el.classList.contains('drop-ghost')
-        );
-        const lastCard = cards[cards.length - 1];
-        if (lastCard) {
-            return { targetId: lastCard.dataset.widgetId, position: 'after' };
-        }
-        return null;
-    }
-
-    clearDashboardDropIndicators() {
-        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-        document.querySelectorAll('.drop-ghost').forEach(el => el.remove());
-        document.querySelectorAll('.drag-over').forEach(el => {
-            el.classList.remove('drag-over');
-            delete el.dataset.dropPosition;
-        });
-    }
-
-    async reorderDashboardWidget(draggedId, targetId, position, category) {
-        // Determine which config to update
-        const config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
-        const order = [...config.order];
-
-        // Find indices
-        const draggedIndex = order.indexOf(draggedId);
-        let targetIndex = order.indexOf(targetId);
-
-        if (draggedIndex === -1 || targetIndex === -1) {
-            console.warn('Widget not found in order array:', { draggedId, targetId, order, category });
-            // If widget not in order, add it
-            if (draggedIndex === -1 && targetIndex !== -1) {
-                // Dragged widget not in order, insert it next to target
-                if (position === 'before') {
-                    order.splice(targetIndex, 0, draggedId);
-                } else {
-                    order.splice(targetIndex + 1, 0, draggedId);
-                }
-                config.order = order;
-                await this.saveDashboardVisibility();
-                this.applyDashboardOrder();
-                return;
-            } else {
-                console.error('Cannot reorder - target not found');
-                return;
-            }
-        }
-
-        // Remove dragged item
-        order.splice(draggedIndex, 1);
-
-        // Adjust target index if needed
-        if (draggedIndex < targetIndex) {
-            targetIndex--;
-        }
-
-        // Insert at new position
-        if (position === 'before') {
-            order.splice(targetIndex, 0, draggedId);
-        } else {
-            order.splice(targetIndex + 1, 0, draggedId);
-        }
-
-        // Update config
-        config.order = order;
-
-        // Persist to backend (debounced to coalesce rapid reorders)
-        try {
-            const settingKey = category === 'hero' ? 'dashboard_hero_config' : 'dashboard_widgets_config';
-            await this._saveSettings({
-                [settingKey]: JSON.stringify(config)
-            });
-        } catch (error) {
-            console.error('Failed to save widget order:', error);
-            showError(t('budget', 'Failed to save widget order'));
-        }
-
-        // Reorder DOM elements after config is saved
-        this.applyDashboardOrder();
-
-        // Update CSS layout properties
-        this.applyDashboardLayout();
-    }
 }

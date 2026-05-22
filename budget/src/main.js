@@ -894,28 +894,8 @@ class BudgetApp {
         return this.dashboardModule.updateAddTilesMenu();
     }
 
-    setupDashboardDragAndDrop() {
-        return this.dashboardModule.setupDashboardDragAndDrop();
-    }
-
-    showDashboardDropIndicator(e, container) {
-        return this.dashboardModule.showDashboardDropIndicator(e, container);
-    }
-
-    getDragAfterElement(container, y) {
-        return this.dashboardModule.getDragAfterElement(container, y);
-    }
-
-    getDashboardDropTarget(e, container) {
-        return this.dashboardModule.getDashboardDropTarget(e, container);
-    }
-
-    clearDashboardDropIndicators() {
-        return this.dashboardModule.clearDashboardDropIndicators();
-    }
-
-    async reorderDashboardWidget(draggedId, targetId, position, category) {
-        return this.dashboardModule.reorderDashboardWidget(draggedId, targetId, position, category);
+    initGridstack() {
+        return this.dashboardModule.initGridstack();
     }
 
 

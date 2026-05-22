@@ -565,16 +565,27 @@
 
 /* Main Dashboard Grid */
 .dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(var(--dashboard-cols, 3), 1fr);
-    gap: 20px;
+    position: relative;
+    min-height: 200px;
 }
 
 /* Tile Sizes */
-.dashboard-tile-xs { grid-column: span 1; max-height: 120px; overflow: hidden; }
-.dashboard-tile-s  { grid-column: span 1; }
-.dashboard-tile-m  { grid-column: span 2; }
-.dashboard-tile-l  { grid-column: 1 / -1; }
+.dashboard-tile-xs { max-height: 100px; overflow: hidden; padding: 10px 16px; }
+
+/* Gridstack overrides */
+.grid-stack-item-content {
+    overflow: visible !important;
+}
+.grid-stack-item-content .dashboard-card {
+    height: 100%;
+    box-sizing: border-box;
+}
+.grid-stack > .grid-stack-placeholder > .placeholder-content {
+    border: 2px dashed var(--color-primary-element) !important;
+    border-radius: 8px;
+    background: var(--color-primary-element-light) !important;
+    opacity: 0.3;
+}
 
 /* Dashboard Cards */
 .dashboard-card {
@@ -583,10 +594,6 @@
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-.dashboard-card[draggable="true"],
-.hero-card[draggable="true"] {
-    cursor: move;
 }
 
 .dashboard-card-large {
@@ -1545,11 +1552,6 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .dashboard-grid {
-        --dashboard-cols: 2 !important;
-    }
-    .dashboard-tile-m { grid-column: span 2; }
-    .dashboard-tile-l { grid-column: 1 / -1; }
 
     /* Accounts Page */
     .accounts-grid {
@@ -2090,16 +2092,6 @@ button.danger:hover {
 }
 
 @media (max-width: 768px) {
-    .dashboard-grid {
-        --dashboard-cols: 1 !important;
-    }
-    .dashboard-tile-xs,
-    .dashboard-tile-s,
-    .dashboard-tile-m,
-    .dashboard-tile-l {
-        grid-column: span 1;
-        max-height: none;
-    }
 
     .view-controls {
         gap: 5px;
@@ -15393,63 +15385,6 @@ tr.scheduled-transaction:hover {
     position: relative;
 }
 
-/* Drop Indicator for Dashboard Widgets */
-.dashboard-hero .drop-indicator,
-.dashboard-grid .drop-indicator {
-    height: 3px;
-    background-color: var(--color-primary);
-    border-radius: 2px;
-    margin: 4px 0;
-    transition: all 0.2s;
-}
-
-/* Drop Ghost - shows where the tile will land */
-.drop-ghost {
-    border: 2px dashed var(--color-primary-element);
-    border-radius: 8px;
-    background: var(--color-primary-element-light);
-    opacity: 0.3;
-    min-height: 100px;
-    transition: all 0.15s ease;
-    pointer-events: none;
-}
-.drop-ghost.dashboard-tile-xs { min-height: 60px; }
-.drop-ghost.dashboard-tile-s  { min-height: 100px; }
-.drop-ghost.dashboard-tile-m  { min-height: 150px; }
-.drop-ghost.dashboard-tile-l  { min-height: 150px; }
-
-/* Make dashboard cards visually draggable on desktop */
-.hero-card[draggable="true"],
-.dashboard-card[draggable="true"] {
-    cursor: move;
-    cursor: grab;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.hero-card[draggable="true"]:hover,
-.dashboard-card[draggable="true"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
-}
-
-.hero-card[draggable="true"]:active,
-.dashboard-card[draggable="true"]:active {
-    cursor: grabbing;
-}
-
-/* Dragging States for Dashboard Widgets */
-.hero-card.dragging,
-.dashboard-card.dragging {
-    opacity: 0.5;
-    transform: scale(0.98);
-    cursor: grabbing;
-}
-
-.hero-card.drag-over,
-.dashboard-card.drag-over {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-primary-element-light);
-}
 
 /* Phase 1: New Hero Tile Styles */
 .hero-savings-rate .hero-icon {
