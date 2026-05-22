@@ -732,17 +732,8 @@ export default class DashboardModule {
 
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.openTileSettingsModal(t('budget', 'Configure Accounts'));
-            this.renderAccountsTileConfigList();
+            this.openTileSettingsModal('accounts', 'widget');
         });
-    }
-
-    openTileSettingsModal(title) {
-        const modal = document.getElementById('tile-settings-modal');
-        const titleEl = document.getElementById('tile-settings-modal-title');
-        if (!modal) return;
-        if (titleEl) titleEl.textContent = title;
-        modal.style.display = 'flex';
     }
 
     renderAccountsTileConfigList() {
@@ -3297,8 +3288,208 @@ export default class DashboardModule {
     }
 
     openTileSettingsModal(widgetId, category) {
-        // TODO: Phase 3 implementation
-        console.log('Tile settings for', widgetId, category);
+        const modal = document.getElementById('tile-settings-modal');
+        if (!modal) return;
+
+        const widgetDef = this.findWidgetDef(widgetId);
+        const schema = widgetDef?.settingsSchema || {};
+        const configCategory = category === 'hero' ? 'hero' : 'widgets';
+        const currentSettings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
+
+        // Set title
+        const titleEl = document.getElementById('tile-settings-modal-title');
+        if (titleEl) titleEl.textContent = widgetDef?.name || t('budget', 'Tile Settings');
+
+        const commonSection = document.getElementById('tile-settings-common');
+        const specificSection = document.getElementById('tile-settings-specific');
+        const listSection = document.getElementById('tile-settings-modal-list');
+
+        if (commonSection) commonSection.innerHTML = '';
+        if (specificSection) specificSection.innerHTML = '';
+        if (listSection) listSection.innerHTML = '';
+
+        const fields = [];
+
+        // Date range
+        if (schema.dateRange) {
+            const current = currentSettings.dateRange || '90d';
+            fields.push(`
+                <div class="form-group">
+                    <label>${t('budget', 'Date Range')}</label>
+                    <select class="tile-setting-input" data-setting="dateRange">
+                        <option value="30d" ${current === '30d' ? 'selected' : ''}>${t('budget', 'Last 30 days')}</option>
+                        <option value="90d" ${current === '90d' ? 'selected' : ''}>${t('budget', 'Last 90 days')}</option>
+                        <option value="6m" ${current === '6m' ? 'selected' : ''}>${t('budget', 'Last 6 months')}</option>
+                        <option value="1y" ${current === '1y' ? 'selected' : ''}>${t('budget', 'Last year')}</option>
+                    </select>
+                </div>
+            `);
+        }
+
+        // Account selector
+        if (schema.accountSelector) {
+            const currentAccount = currentSettings.accountId || '';
+            let options = `<option value="">${t('budget', 'All Accounts')}</option>`;
+            if (this.accounts) {
+                this.accounts.forEach(acc => {
+                    options += `<option value="${acc.id}" ${currentAccount == acc.id ? 'selected' : ''}>${this.escapeHtml(acc.name)}</option>`;
+                });
+            }
+            fields.push(`
+                <div class="form-group">
+                    <label>${t('budget', 'Account')}</label>
+                    <select class="tile-setting-input" data-setting="accountId">${options}</select>
+                </div>
+            `);
+        }
+
+        // Show legend (checkbox)
+        if (schema.showLegend) {
+            const checked = currentSettings.showLegend !== false;
+            fields.push(`
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" class="tile-setting-input" data-setting="showLegend" ${checked ? 'checked' : ''}>
+                        ${t('budget', 'Show legend')}
+                    </label>
+                </div>
+            `);
+        }
+
+        // Chart type
+        if (schema.chartType && Array.isArray(schema.chartType)) {
+            const current = currentSettings.chartType || schema.chartType[0];
+            let options = schema.chartType.map(type => {
+                const label = type.charAt(0).toUpperCase() + type.slice(1);
+                return `<option value="${type}" ${current === type ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+            fields.push(`
+                <div class="form-group">
+                    <label>${t('budget', 'Chart Type')}</label>
+                    <select class="tile-setting-input" data-setting="chartType">${options}</select>
+                </div>
+            `);
+        }
+
+        // Row count
+        if (schema.rowCount) {
+            const current = currentSettings.rowCount || schema.rowCount.default || 5;
+            fields.push(`
+                <div class="form-group">
+                    <label>${t('budget', 'Rows to show')}</label>
+                    <input type="number" class="tile-setting-input" data-setting="rowCount"
+                        value="${current}" min="${schema.rowCount.min || 3}" max="${schema.rowCount.max || 20}">
+                </div>
+            `);
+        }
+
+        // Display format (hero tiles)
+        if (schema.displayFormat && Array.isArray(schema.displayFormat)) {
+            const current = currentSettings.displayFormat || schema.displayFormat[0];
+            let options = schema.displayFormat.map(fmt => {
+                const label = fmt.charAt(0).toUpperCase() + fmt.slice(1);
+                return `<option value="${fmt}" ${current === fmt ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+            fields.push(`
+                <div class="form-group">
+                    <label>${t('budget', 'Display Format')}</label>
+                    <select class="tile-setting-input" data-setting="displayFormat">${options}</select>
+                </div>
+            `);
+        }
+
+        // Show change indicator (hero tiles)
+        if (schema.showChangeIndicator) {
+            const checked = currentSettings.showChangeIndicator !== false;
+            fields.push(`
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" class="tile-setting-input" data-setting="showChangeIndicator" ${checked ? 'checked' : ''}>
+                        ${t('budget', 'Show change indicator')}
+                    </label>
+                </div>
+            `);
+        }
+
+        // Render fields
+        if (commonSection) {
+            if (fields.length > 0) {
+                commonSection.innerHTML = fields.join('');
+            } else {
+                commonSection.innerHTML = `<p style="color: var(--color-text-maxcontrast); font-size: 13px;">${t('budget', 'No settings available for this tile.')}</p>`;
+            }
+        }
+
+        // Accounts tile: render drag-to-reorder list in the list section
+        if (widgetId === 'accounts') {
+            if (specificSection) {
+                specificSection.innerHTML = `<p class="tile-config-hint">${t('budget', 'Drag to reorder. Toggle visibility for each item.')}</p>`;
+            }
+            this.renderAccountsTileConfigList();
+        }
+
+        // Wire change handlers (save immediately on change)
+        modal.querySelectorAll('.tile-setting-input').forEach(input => {
+            input.onchange = () => {
+                this.saveTileSetting(widgetId, configCategory, input);
+            };
+        });
+
+        // Close button
+        const closeBtn = document.getElementById('tile-settings-close');
+        if (closeBtn) closeBtn.onclick = () => { modal.style.display = 'none'; modal.setAttribute('aria-hidden', 'true'); };
+
+        // Show
+        modal.style.display = '';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    saveTileSetting(widgetId, category, input) {
+        const setting = input.dataset.setting;
+        let value;
+        if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (input.type === 'number') {
+            value = parseInt(input.value) || 0;
+        } else {
+            value = input.value;
+        }
+
+        // Ensure tileSettings exists
+        if (!this.dashboardConfig[category].tileSettings) {
+            this.dashboardConfig[category].tileSettings = {};
+        }
+        if (!this.dashboardConfig[category].tileSettings[widgetId]) {
+            this.dashboardConfig[category].tileSettings[widgetId] = {};
+        }
+
+        this.dashboardConfig[category].tileSettings[widgetId][setting] = value;
+        this.saveDashboardVisibility();
+
+        // Refresh the tile to apply the new setting
+        this.refreshTileAfterSettingsChange(widgetId, category);
+    }
+
+    refreshTileAfterSettingsChange(widgetId, category) {
+        // Self-contained widgets that fetch their own data can be refreshed directly.
+        // Core widgets that received data from loadDashboardData are best-effort —
+        // settings will take effect on the next full dashboard load.
+        const refreshMap = {
+            'accounts': () => this.updateAccountsWidget(this._allDashboardAccounts),
+            'debtChart': () => this.renderDebtChartWidget(),
+            'debtProgress': () => this.renderDebtProgressWidget(),
+            'monthlyComparison': () => this.updateMonthlyComparisonWidget(),
+            'largeTransactions': () => this.updateLargeTransactionsWidget(),
+            'weeklyTrend': () => this.updateWeeklyTrendWidget(),
+            'categoryTrends': () => this.updateCategoryTrendsWidget(),
+            'billsDueSoon': () => this.updateBillsDueSoonWidget(),
+            'incomeTracking': () => this.updateIncomeTrackingWidget(),
+        };
+
+        const refreshFn = refreshMap[widgetId];
+        if (refreshFn) {
+            try { refreshFn(); } catch (e) { console.error('Failed to refresh tile', widgetId, e); }
+        }
     }
 
     resizeAllCharts() {

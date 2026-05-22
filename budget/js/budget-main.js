@@ -32758,15 +32758,8 @@ var DashboardModule = /*#__PURE__*/function () {
       if (!settingsBtn) return;
       settingsBtn.addEventListener('click', function (e) {
         e.stopPropagation();
-        _this3.openTileSettingsModal((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Configure Accounts'));
-        _this3.renderAccountsTileConfigList();
+        _this3.openTileSettingsModal('accounts', 'widget');
       });
-    }
-  }, {
-    key: "openTileSettingsModal",
-    value: function openTileSettingsModal(widgetId, category) {
-      // TODO: Phase 3 implementation
-      console.log('Tile settings for', widgetId, category);
     }
   }, {
     key: "renderAccountsTileConfigList",
@@ -36039,20 +36032,205 @@ var DashboardModule = /*#__PURE__*/function () {
       });
     }
   }, {
+    key: "openTileSettingsModal",
+    value: function openTileSettingsModal(widgetId, category) {
+      var _this$dashboardConfig8,
+        _this33 = this;
+      var modal = document.getElementById('tile-settings-modal');
+      if (!modal) return;
+      var widgetDef = this.findWidgetDef(widgetId);
+      var schema = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.settingsSchema) || {};
+      var configCategory = category === 'hero' ? 'hero' : 'widgets';
+      var currentSettings = ((_this$dashboardConfig8 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig8 === void 0 || (_this$dashboardConfig8 = _this$dashboardConfig8.tileSettings) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8[widgetId]) || {};
+
+      // Set title
+      var titleEl = document.getElementById('tile-settings-modal-title');
+      if (titleEl) titleEl.textContent = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.name) || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Tile Settings');
+      var commonSection = document.getElementById('tile-settings-common');
+      var specificSection = document.getElementById('tile-settings-specific');
+      var listSection = document.getElementById('tile-settings-modal-list');
+      if (commonSection) commonSection.innerHTML = '';
+      if (specificSection) specificSection.innerHTML = '';
+      if (listSection) listSection.innerHTML = '';
+      var fields = [];
+
+      // Date range
+      if (schema.dateRange) {
+        var current = currentSettings.dateRange || '90d';
+        fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Date Range'), "</label>\n                    <select class=\"tile-setting-input\" data-setting=\"dateRange\">\n                        <option value=\"30d\" ").concat(current === '30d' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Last 30 days'), "</option>\n                        <option value=\"90d\" ").concat(current === '90d' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Last 90 days'), "</option>\n                        <option value=\"6m\" ").concat(current === '6m' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Last 6 months'), "</option>\n                        <option value=\"1y\" ").concat(current === '1y' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Last year'), "</option>\n                    </select>\n                </div>\n            "));
+      }
+
+      // Account selector
+      if (schema.accountSelector) {
+        var currentAccount = currentSettings.accountId || '';
+        var options = "<option value=\"\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'All Accounts'), "</option>");
+        if (this.accounts) {
+          this.accounts.forEach(function (acc) {
+            options += "<option value=\"".concat(acc.id, "\" ").concat(currentAccount == acc.id ? 'selected' : '', ">").concat(_this33.escapeHtml(acc.name), "</option>");
+          });
+        }
+        fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Account'), "</label>\n                    <select class=\"tile-setting-input\" data-setting=\"accountId\">").concat(options, "</select>\n                </div>\n            "));
+      }
+
+      // Show legend (checkbox)
+      if (schema.showLegend) {
+        var checked = currentSettings.showLegend !== false;
+        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showLegend\" ".concat(checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show legend'), "\n                    </label>\n                </div>\n            "));
+      }
+
+      // Chart type
+      if (schema.chartType && Array.isArray(schema.chartType)) {
+        var _current = currentSettings.chartType || schema.chartType[0];
+        var _options = schema.chartType.map(function (type) {
+          var label = type.charAt(0).toUpperCase() + type.slice(1);
+          return "<option value=\"".concat(type, "\" ").concat(_current === type ? 'selected' : '', ">").concat(label, "</option>");
+        }).join('');
+        fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Chart Type'), "</label>\n                    <select class=\"tile-setting-input\" data-setting=\"chartType\">").concat(_options, "</select>\n                </div>\n            "));
+      }
+
+      // Row count
+      if (schema.rowCount) {
+        var _current2 = currentSettings.rowCount || schema.rowCount["default"] || 5;
+        fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Rows to show'), "</label>\n                    <input type=\"number\" class=\"tile-setting-input\" data-setting=\"rowCount\"\n                        value=\"").concat(_current2, "\" min=\"").concat(schema.rowCount.min || 3, "\" max=\"").concat(schema.rowCount.max || 20, "\">\n                </div>\n            "));
+      }
+
+      // Display format (hero tiles)
+      if (schema.displayFormat && Array.isArray(schema.displayFormat)) {
+        var _current3 = currentSettings.displayFormat || schema.displayFormat[0];
+        var _options2 = schema.displayFormat.map(function (fmt) {
+          var label = fmt.charAt(0).toUpperCase() + fmt.slice(1);
+          return "<option value=\"".concat(fmt, "\" ").concat(_current3 === fmt ? 'selected' : '', ">").concat(label, "</option>");
+        }).join('');
+        fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Display Format'), "</label>\n                    <select class=\"tile-setting-input\" data-setting=\"displayFormat\">").concat(_options2, "</select>\n                </div>\n            "));
+      }
+
+      // Show change indicator (hero tiles)
+      if (schema.showChangeIndicator) {
+        var _checked = currentSettings.showChangeIndicator !== false;
+        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showChangeIndicator\" ".concat(_checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show change indicator'), "\n                    </label>\n                </div>\n            "));
+      }
+
+      // Render fields
+      if (commonSection) {
+        if (fields.length > 0) {
+          commonSection.innerHTML = fields.join('');
+        } else {
+          commonSection.innerHTML = "<p style=\"color: var(--color-text-maxcontrast); font-size: 13px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No settings available for this tile.'), "</p>");
+        }
+      }
+
+      // Accounts tile: render drag-to-reorder list in the list section
+      if (widgetId === 'accounts') {
+        if (specificSection) {
+          specificSection.innerHTML = "<p class=\"tile-config-hint\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Drag to reorder. Toggle visibility for each item.'), "</p>");
+        }
+        this.renderAccountsTileConfigList();
+      }
+
+      // Wire change handlers (save immediately on change)
+      modal.querySelectorAll('.tile-setting-input').forEach(function (input) {
+        input.onchange = function () {
+          _this33.saveTileSetting(widgetId, configCategory, input);
+        };
+      });
+
+      // Close button
+      var closeBtn = document.getElementById('tile-settings-close');
+      if (closeBtn) closeBtn.onclick = function () {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      };
+
+      // Show
+      modal.style.display = '';
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }, {
+    key: "saveTileSetting",
+    value: function saveTileSetting(widgetId, category, input) {
+      var setting = input.dataset.setting;
+      var value;
+      if (input.type === 'checkbox') {
+        value = input.checked;
+      } else if (input.type === 'number') {
+        value = parseInt(input.value) || 0;
+      } else {
+        value = input.value;
+      }
+
+      // Ensure tileSettings exists
+      if (!this.dashboardConfig[category].tileSettings) {
+        this.dashboardConfig[category].tileSettings = {};
+      }
+      if (!this.dashboardConfig[category].tileSettings[widgetId]) {
+        this.dashboardConfig[category].tileSettings[widgetId] = {};
+      }
+      this.dashboardConfig[category].tileSettings[widgetId][setting] = value;
+      this.saveDashboardVisibility();
+
+      // Refresh the tile to apply the new setting
+      this.refreshTileAfterSettingsChange(widgetId, category);
+    }
+  }, {
+    key: "refreshTileAfterSettingsChange",
+    value: function refreshTileAfterSettingsChange(widgetId, category) {
+      var _this34 = this;
+      // Self-contained widgets that fetch their own data can be refreshed directly.
+      // Core widgets that received data from loadDashboardData are best-effort —
+      // settings will take effect on the next full dashboard load.
+      var refreshMap = {
+        'accounts': function accounts() {
+          return _this34.updateAccountsWidget(_this34._allDashboardAccounts);
+        },
+        'debtChart': function debtChart() {
+          return _this34.renderDebtChartWidget();
+        },
+        'debtProgress': function debtProgress() {
+          return _this34.renderDebtProgressWidget();
+        },
+        'monthlyComparison': function monthlyComparison() {
+          return _this34.updateMonthlyComparisonWidget();
+        },
+        'largeTransactions': function largeTransactions() {
+          return _this34.updateLargeTransactionsWidget();
+        },
+        'weeklyTrend': function weeklyTrend() {
+          return _this34.updateWeeklyTrendWidget();
+        },
+        'categoryTrends': function categoryTrends() {
+          return _this34.updateCategoryTrendsWidget();
+        },
+        'billsDueSoon': function billsDueSoon() {
+          return _this34.updateBillsDueSoonWidget();
+        },
+        'incomeTracking': function incomeTracking() {
+          return _this34.updateIncomeTrackingWidget();
+        }
+      };
+      var refreshFn = refreshMap[widgetId];
+      if (refreshFn) {
+        try {
+          refreshFn();
+        } catch (e) {
+          console.error('Failed to refresh tile', widgetId, e);
+        }
+      }
+    }
+  }, {
     key: "resizeAllCharts",
     value: function resizeAllCharts() {
-      var _this33 = this;
+      var _this35 = this;
       var chartKeys = Object.keys(this.charts || {});
       chartKeys.forEach(function (key) {
-        if (_this33.charts[key] && typeof _this33.charts[key].resize === 'function') {
-          _this33.charts[key].resize();
+        if (_this35.charts[key] && typeof _this35.charts[key].resize === 'function') {
+          _this35.charts[key].resize();
         }
       });
     }
   }, {
     key: "updateAddTilesMenu",
     value: function updateAddTilesMenu() {
-      var _this34 = this;
+      var _this36 = this;
       var menuList = document.getElementById('add-tiles-menu-list');
       if (!menuList) return;
       menuList.innerHTML = '';
@@ -36065,7 +36243,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref21 = _slicedToArray(_ref20, 2),
           key = _ref21[0],
           widget = _ref21[1];
-        if (!_this34.dashboardConfig.hero.visibility[key]) {
+        if (!_this36.dashboardConfig.hero.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -36084,7 +36262,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref23 = _slicedToArray(_ref22, 2),
           key = _ref23[0],
           widget = _ref23[1];
-        if (!_this34.dashboardConfig.widgets.visibility[key]) {
+        if (!_this36.dashboardConfig.widgets.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -36174,7 +36352,7 @@ var DashboardModule = /*#__PURE__*/function () {
           e.stopPropagation();
           var widgetId = btn.dataset.widgetId;
           var category = btn.dataset.category;
-          _this34.showWidget(widgetId, category);
+          _this36.showWidget(widgetId, category);
         });
       });
     }

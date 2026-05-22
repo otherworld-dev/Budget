@@ -6151,15 +6151,16 @@ style('budget', 'budget-main');
 </div>
 
 <!-- Tile Settings Modal -->
-<div id="tile-settings-modal" class="modal" style="display: none;" role="dialog" aria-label="<?php p($l->t('Tile Settings')); ?>">
-    <div class="modal-content" style="max-width: 450px;">
+<div id="tile-settings-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="tile-settings-modal-title" aria-hidden="true">
+    <div class="modal-content">
         <h3 id="tile-settings-modal-title"><?php p($l->t('Tile Settings')); ?></h3>
-        <p class="tile-config-hint"><?php p($l->t('Drag to reorder. Toggle visibility for each item.')); ?></p>
-        <div id="tile-settings-modal-list" class="tile-config-list">
-            <!-- Populated dynamically -->
-        </div>
+        <form id="tile-settings-form">
+            <div id="tile-settings-common" class="form-section"></div>
+            <div id="tile-settings-specific" class="form-section"></div>
+            <div id="tile-settings-modal-list" class="tile-config-list"></div>
+        </form>
         <div class="modal-buttons">
-            <button type="button" class="secondary cancel-btn"><?php p($l->t('Close')); ?></button>
+            <button type="button" id="tile-settings-close" class="secondary cancel-btn"><?php p($l->t('Close')); ?></button>
         </div>
     </div>
 </div>
