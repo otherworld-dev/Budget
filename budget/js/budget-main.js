@@ -35087,6 +35087,9 @@ var DashboardModule = /*#__PURE__*/function () {
               _context27.n = 1;
               return this.applyDashboardVisibility();
             case 1:
+              // Recompute grid positions after visibility change
+              this.computeGridPositions();
+
               // Update Add Tiles menu
               this.app.updateAddTilesMenu();
 
@@ -35118,6 +35121,9 @@ var DashboardModule = /*#__PURE__*/function () {
               _context28.n = 1;
               return this.applyDashboardVisibility();
             case 1:
+              // Recompute grid positions after visibility change
+              this.computeGridPositions();
+
               // Add remove buttons if unlocked
               if (!this.dashboardLocked) {
                 this.app.addTileControls();
@@ -35324,6 +35330,59 @@ var DashboardModule = /*#__PURE__*/function () {
         card.classList.remove('dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l');
         card.classList.add("dashboard-tile-".concat(size));
       });
+      this.computeGridPositions();
+    }
+  }, {
+    key: "computeGridPositions",
+    value: function computeGridPositions() {
+      var _this28 = this;
+      var grid = document.querySelector('.dashboard-grid');
+      if (!grid) return;
+      var cols = this.gridColumns || 3;
+      var cards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]')).filter(function (el) {
+        return el.style.display !== 'none' && el.offsetParent !== null;
+      });
+      var currentRow = 1;
+      var currentCol = 1;
+      cards.forEach(function (card) {
+        var widgetId = card.dataset.widgetId;
+        var size = _this28.getWidgetSize(widgetId, 'widgets');
+        var span;
+        if (size === 'l') {
+          span = cols;
+        } else if (size === 'm') {
+          span = 2;
+        } else {
+          span = 1;
+        }
+
+        // L tiles always start a new row
+        if (size === 'l' && currentCol !== 1) {
+          currentRow++;
+          currentCol = 1;
+        }
+
+        // If this tile won't fit in the current row, move to next row
+        if (currentCol + span - 1 > cols) {
+          currentRow++;
+          currentCol = 1;
+        }
+        card.style.gridRow = currentRow;
+        card.style.gridColumn = "".concat(currentCol, " / span ").concat(span);
+        currentCol += span;
+
+        // If we've filled the row, move to next
+        if (currentCol > cols) {
+          currentRow++;
+          currentCol = 1;
+        }
+
+        // L tiles always end the row
+        if (size === 'l') {
+          currentRow++;
+          currentCol = 1;
+        }
+      });
     }
   }, {
     key: "applyDashboardOrder",
@@ -35365,7 +35424,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardLayout",
     value: function applyDashboardLayout() {
-      var _this28 = this;
+      var _this29 = this;
       // Set grid columns from user preference
       var grid = document.querySelector('.dashboard-grid');
       if (grid) {
@@ -35379,7 +35438,7 @@ var DashboardModule = /*#__PURE__*/function () {
         // Hero cards first
         this.dashboardConfig.hero.order.forEach(function (widgetId) {
           var card = document.querySelector("[data-widget-id=\"".concat(widgetId, "\"][data-widget-category=\"hero\"]"));
-          if (card && _this28.dashboardConfig.hero.visibility[widgetId]) {
+          if (card && _this29.dashboardConfig.hero.visibility[widgetId]) {
             card.style.order = orderIndex++;
           }
         });
@@ -35387,7 +35446,7 @@ var DashboardModule = /*#__PURE__*/function () {
         // Then widget cards
         this.dashboardConfig.widgets.order.forEach(function (widgetId) {
           var card = document.querySelector("[data-widget-id=\"".concat(widgetId, "\"][data-widget-category=\"widget\"]"));
-          if (card && _this28.dashboardConfig.widgets.visibility[widgetId]) {
+          if (card && _this29.dashboardConfig.widgets.visibility[widgetId]) {
             card.style.order = orderIndex++;
           }
         });
@@ -35755,7 +35814,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "setupDashboardCustomization",
     value: function setupDashboardCustomization() {
       var _this$app$settings,
-        _this29 = this;
+        _this30 = this;
       var toggleBtn = document.getElementById('toggle-dashboard-lock-btn');
       if (!toggleBtn) return;
 
@@ -35765,7 +35824,7 @@ var DashboardModule = /*#__PURE__*/function () {
       this.gridColumns = parseInt((_this$app$settings = this.app.settings) === null || _this$app$settings === void 0 ? void 0 : _this$app$settings.dashboard_grid_columns) || 3;
       this.updateDashboardLockUI();
       toggleBtn.addEventListener('click', function () {
-        return _this29.toggleDashboardLock();
+        return _this30.toggleDashboardLock();
       });
 
       // Add Tiles dropdown
@@ -35795,29 +35854,32 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "setupColumnPicker",
     value: function setupColumnPicker() {
-      var _this30 = this;
+      var _this31 = this;
       var picker = document.getElementById('dashboard-columns-picker');
       if (!picker) return;
 
       // Highlight current column count
       picker.querySelectorAll('.columns-btn').forEach(function (btn) {
-        btn.classList.toggle('active', parseInt(btn.dataset.cols) === _this30.gridColumns);
+        btn.classList.toggle('active', parseInt(btn.dataset.cols) === _this31.gridColumns);
         btn.onclick = function () {
           var cols = parseInt(btn.dataset.cols);
-          _this30.gridColumns = cols;
+          _this31.gridColumns = cols;
           var grid = document.querySelector('.dashboard-grid');
           if (grid) grid.style.setProperty('--dashboard-cols', cols);
           picker.querySelectorAll('.columns-btn').forEach(function (b) {
             return b.classList.remove('active');
           });
           btn.classList.add('active');
-          _this30._saveSettings({
+          _this31._saveSettings({
             dashboard_grid_columns: cols.toString()
           });
 
+          // Recompute grid positions after column change
+          _this31.computeGridPositions();
+
           // Resize charts after layout change
           requestAnimationFrame(function () {
-            return _this30.resizeAllCharts();
+            return _this31.resizeAllCharts();
           });
         };
       });
@@ -35920,7 +35982,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "addTileControls",
     value: function addTileControls() {
-      var _this31 = this;
+      var _this32 = this;
       // Remove existing controls first
       document.querySelectorAll('.widget-tile-controls').forEach(function (el) {
         return el.remove();
@@ -35932,11 +35994,11 @@ var DashboardModule = /*#__PURE__*/function () {
         controls.className = 'widget-tile-controls';
 
         // Size picker
-        var widgetDef = _this31.findWidgetDef(widgetId);
+        var widgetDef = _this32.findWidgetDef(widgetId);
         var allowedSizes = widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.allowedSizes;
         if (allowedSizes && allowedSizes.length > 1) {
           var configCategory = category === 'hero' ? 'hero' : 'widgets';
-          var currentSize = _this31.getWidgetSize(widgetId, configCategory);
+          var currentSize = _this32.getWidgetSize(widgetId, configCategory);
           var sizePicker = document.createElement('div');
           sizePicker.className = 'tile-size-picker';
           allowedSizes.forEach(function (size) {
@@ -35952,7 +36014,7 @@ var DashboardModule = /*#__PURE__*/function () {
             }[size];
             btn.onclick = function (e) {
               e.stopPropagation();
-              _this31.changeTileSize(widgetId, size, card);
+              _this32.changeTileSize(widgetId, size, card);
               sizePicker.querySelectorAll('.size-btn').forEach(function (b) {
                 return b.classList.remove('active');
               });
@@ -35976,7 +36038,7 @@ var DashboardModule = /*#__PURE__*/function () {
           gearBtn.title = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Tile Settings');
           gearBtn.onclick = function (e) {
             e.stopPropagation();
-            _this31.openTileSettingsModal(widgetId, category);
+            _this32.openTileSettingsModal(widgetId, category);
           };
           controls.appendChild(gearBtn);
         }
@@ -35993,7 +36055,7 @@ var DashboardModule = /*#__PURE__*/function () {
         removeBtn.title = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Hide tile');
         removeBtn.onclick = function (e) {
           e.stopPropagation();
-          _this31.hideWidget(widgetId, category === 'widget' ? 'widgets' : 'hero');
+          _this32.hideWidget(widgetId, category === 'widget' ? 'widgets' : 'hero');
         };
         controls.appendChild(removeBtn);
         card.style.position = 'relative';
@@ -36023,7 +36085,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "changeTileSize",
     value: function changeTileSize(widgetId, newSize, card) {
-      var _this32 = this;
+      var _this33 = this;
       // Update config
       if (!this.dashboardConfig.widgets.sizes) this.dashboardConfig.widgets.sizes = {};
       this.dashboardConfig.widgets.sizes[widgetId] = newSize;
@@ -36035,16 +36097,19 @@ var DashboardModule = /*#__PURE__*/function () {
       // Save
       this.saveDashboardVisibility('widgets');
 
+      // Recompute grid positions after size change
+      this.computeGridPositions();
+
       // Resize chart if present
       requestAnimationFrame(function () {
         var canvas = card.querySelector('canvas');
         if (canvas) {
-          var chartKeys = Object.keys(_this32.charts || {});
+          var chartKeys = Object.keys(_this33.charts || {});
           for (var _i7 = 0, _chartKeys = chartKeys; _i7 < _chartKeys.length; _i7++) {
-            var _this32$charts$key;
+            var _this33$charts$key;
             var key = _chartKeys[_i7];
-            if (((_this32$charts$key = _this32.charts[key]) === null || _this32$charts$key === void 0 ? void 0 : _this32$charts$key.canvas) === canvas) {
-              _this32.charts[key].resize();
+            if (((_this33$charts$key = _this33.charts[key]) === null || _this33$charts$key === void 0 ? void 0 : _this33$charts$key.canvas) === canvas) {
+              _this33.charts[key].resize();
               break;
             }
           }
@@ -36055,7 +36120,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "openTileSettingsModal",
     value: function openTileSettingsModal(widgetId, category) {
       var _this$dashboardConfig11,
-        _this33 = this;
+        _this34 = this;
       var modal = document.getElementById('tile-settings-modal');
       if (!modal) return;
       var widgetDef = this.findWidgetDef(widgetId);
@@ -36086,7 +36151,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var options = "<option value=\"\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'All Accounts'), "</option>");
         if (this.accounts) {
           this.accounts.forEach(function (acc) {
-            options += "<option value=\"".concat(acc.id, "\" ").concat(currentAccount == acc.id ? 'selected' : '', ">").concat(_this33.escapeHtml(acc.name), "</option>");
+            options += "<option value=\"".concat(acc.id, "\" ").concat(currentAccount == acc.id ? 'selected' : '', ">").concat(_this34.escapeHtml(acc.name), "</option>");
           });
         }
         fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Account'), "</label>\n                    <select class=\"tile-setting-input\" data-setting=\"accountId\">").concat(options, "</select>\n                </div>\n            "));
@@ -36156,7 +36221,7 @@ var DashboardModule = /*#__PURE__*/function () {
       // Wire change handlers (save immediately on change)
       modal.querySelectorAll('.tile-setting-input').forEach(function (input) {
         input.onchange = function () {
-          _this33.saveTileSetting(widgetId, configCategory, input);
+          _this34.saveTileSetting(widgetId, configCategory, input);
         };
       });
 
@@ -36201,7 +36266,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "refreshTileAfterSettingsChange",
     value: function refreshTileAfterSettingsChange(widgetId, category) {
       var _this$dashboardConfig12,
-        _this34 = this;
+        _this35 = this;
       var configCategory = category === 'hero' ? 'hero' : 'widgets';
       var settings = ((_this$dashboardConfig12 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig12 === void 0 || (_this$dashboardConfig12 = _this$dashboardConfig12.tileSettings) === null || _this$dashboardConfig12 === void 0 ? void 0 : _this$dashboardConfig12[widgetId]) || {};
 
@@ -36238,100 +36303,100 @@ var DashboardModule = /*#__PURE__*/function () {
         'trendChart': function trendChart() {
           var periodSel = document.getElementById('trend-period-select');
           var months = periodSel ? parseInt(periodSel.value) : 6;
-          return _this34.refreshTrendChart(months, settings.accountId || null);
+          return _this35.refreshTrendChart(months, settings.accountId || null);
         },
         'spendingChart': function spendingChart() {
           var periodSel = document.getElementById('spending-period-select');
           var period = periodSel ? periodSel.value : 'month';
-          return _this34.refreshSpendingChart(period, settings.accountId || null);
+          return _this35.refreshSpendingChart(period, settings.accountId || null);
         },
         'netWorthHistory': function netWorthHistory() {
           var activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
           var days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
-          return _this34.refreshNetWorthChart(days, settings.accountId || null);
+          return _this35.refreshNetWorthChart(days, settings.accountId || null);
         },
         'assetValueHistory': function assetValueHistory() {
           var activeBtn = document.querySelector('#asset-value-period-selector .period-btn.active');
           var days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
-          return _this34.refreshAssetValueChart(days);
+          return _this35.refreshAssetValueChart(days);
         },
         // List widgets
         'recentTransactions': function recentTransactions() {
-          var _this34$updateRecentT;
-          return (_this34$updateRecentT = _this34.updateRecentTransactionsWidget) === null || _this34$updateRecentT === void 0 ? void 0 : _this34$updateRecentT.call(_this34);
+          var _this35$updateRecentT;
+          return (_this35$updateRecentT = _this35.updateRecentTransactionsWidget) === null || _this35$updateRecentT === void 0 ? void 0 : _this35$updateRecentT.call(_this35);
         },
         'upcomingBills': function upcomingBills() {
-          var _this34$updateUpcomin;
-          return (_this34$updateUpcomin = _this34.updateUpcomingBillsWidget) === null || _this34$updateUpcomin === void 0 ? void 0 : _this34$updateUpcomin.call(_this34);
+          var _this35$updateUpcomin;
+          return (_this35$updateUpcomin = _this35.updateUpcomingBillsWidget) === null || _this35$updateUpcomin === void 0 ? void 0 : _this35$updateUpcomin.call(_this35);
         },
         // Stat widgets
         'accounts': function accounts() {
-          return _this34.updateAccountsWidget(_this34._allDashboardAccounts);
+          return _this35.updateAccountsWidget(_this35._allDashboardAccounts);
         },
         'budgetProgress': function budgetProgress() {
-          var _this34$updateBudgetP;
-          return (_this34$updateBudgetP = _this34.updateBudgetProgressWidget) === null || _this34$updateBudgetP === void 0 ? void 0 : _this34$updateBudgetP.call(_this34);
+          var _this35$updateBudgetP;
+          return (_this35$updateBudgetP = _this35.updateBudgetProgressWidget) === null || _this35$updateBudgetP === void 0 ? void 0 : _this35$updateBudgetP.call(_this35);
         },
         'budgetAlerts': function budgetAlerts() {
-          var _this34$updateBudgetA;
-          return (_this34$updateBudgetA = _this34.updateBudgetAlertsWidget) === null || _this34$updateBudgetA === void 0 ? void 0 : _this34$updateBudgetA.call(_this34);
+          var _this35$updateBudgetA;
+          return (_this35$updateBudgetA = _this35.updateBudgetAlertsWidget) === null || _this35$updateBudgetA === void 0 ? void 0 : _this35$updateBudgetA.call(_this35);
         },
         'savingsGoals': function savingsGoals() {
-          var _this34$updateSavings;
-          return (_this34$updateSavings = _this34.updateSavingsGoalsWidget) === null || _this34$updateSavings === void 0 ? void 0 : _this34$updateSavings.call(_this34);
+          var _this35$updateSavings;
+          return (_this35$updateSavings = _this35.updateSavingsGoalsWidget) === null || _this35$updateSavings === void 0 ? void 0 : _this35$updateSavings.call(_this35);
         },
         // Debt widgets
         'debtPayoff': function debtPayoff() {
-          var _this34$updateDebtPay;
-          return (_this34$updateDebtPay = _this34.updateDebtPayoffWidget) === null || _this34$updateDebtPay === void 0 ? void 0 : _this34$updateDebtPay.call(_this34);
+          var _this35$updateDebtPay;
+          return (_this35$updateDebtPay = _this35.updateDebtPayoffWidget) === null || _this35$updateDebtPay === void 0 ? void 0 : _this35$updateDebtPay.call(_this35);
         },
         'debtChart': function debtChart() {
-          return _this34.renderDebtChartWidget();
+          return _this35.renderDebtChartWidget();
         },
         'debtProgress': function debtProgress() {
-          return _this34.renderDebtProgressWidget();
+          return _this35.renderDebtProgressWidget();
         },
         // Phase 2+ widgets
         'monthlyComparison': function monthlyComparison() {
-          var _this34$updateMonthly;
-          return (_this34$updateMonthly = _this34.updateMonthlyComparisonWidget) === null || _this34$updateMonthly === void 0 ? void 0 : _this34$updateMonthly.call(_this34);
+          var _this35$updateMonthly;
+          return (_this35$updateMonthly = _this35.updateMonthlyComparisonWidget) === null || _this35$updateMonthly === void 0 ? void 0 : _this35$updateMonthly.call(_this35);
         },
         'largeTransactions': function largeTransactions() {
-          var _this34$updateLargeTr;
-          return (_this34$updateLargeTr = _this34.updateLargeTransactionsWidget) === null || _this34$updateLargeTr === void 0 ? void 0 : _this34$updateLargeTr.call(_this34);
+          var _this35$updateLargeTr;
+          return (_this35$updateLargeTr = _this35.updateLargeTransactionsWidget) === null || _this35$updateLargeTr === void 0 ? void 0 : _this35$updateLargeTr.call(_this35);
         },
         'weeklyTrend': function weeklyTrend() {
-          var _this34$updateWeeklyT;
-          return (_this34$updateWeeklyT = _this34.updateWeeklyTrendWidget) === null || _this34$updateWeeklyT === void 0 ? void 0 : _this34$updateWeeklyT.call(_this34);
+          var _this35$updateWeeklyT;
+          return (_this35$updateWeeklyT = _this35.updateWeeklyTrendWidget) === null || _this35$updateWeeklyT === void 0 ? void 0 : _this35$updateWeeklyT.call(_this35);
         },
         'categoryTrends': function categoryTrends() {
-          var _this34$updateCategor;
-          return (_this34$updateCategor = _this34.updateCategoryTrendsWidget) === null || _this34$updateCategor === void 0 ? void 0 : _this34$updateCategor.call(_this34);
+          var _this35$updateCategor;
+          return (_this35$updateCategor = _this35.updateCategoryTrendsWidget) === null || _this35$updateCategor === void 0 ? void 0 : _this35$updateCategor.call(_this35);
         },
         'billsDueSoon': function billsDueSoon() {
-          var _this34$updateBillsDu;
-          return (_this34$updateBillsDu = _this34.updateBillsDueSoonWidget) === null || _this34$updateBillsDu === void 0 ? void 0 : _this34$updateBillsDu.call(_this34);
+          var _this35$updateBillsDu;
+          return (_this35$updateBillsDu = _this35.updateBillsDueSoonWidget) === null || _this35$updateBillsDu === void 0 ? void 0 : _this35$updateBillsDu.call(_this35);
         },
         'incomeTracking': function incomeTracking() {
-          var _this34$updateIncomeT;
-          return (_this34$updateIncomeT = _this34.updateIncomeTrackingWidget) === null || _this34$updateIncomeT === void 0 ? void 0 : _this34$updateIncomeT.call(_this34);
+          var _this35$updateIncomeT;
+          return (_this35$updateIncomeT = _this35.updateIncomeTrackingWidget) === null || _this35$updateIncomeT === void 0 ? void 0 : _this35$updateIncomeT.call(_this35);
         },
         'cashFlowForecast': function cashFlowForecast() {
-          var _this34$updateCashFlo;
-          return (_this34$updateCashFlo = _this34.updateCashFlowForecastWidget) === null || _this34$updateCashFlo === void 0 ? void 0 : _this34$updateCashFlo.call(_this34);
+          var _this35$updateCashFlo;
+          return (_this35$updateCashFlo = _this35.updateCashFlowForecastWidget) === null || _this35$updateCashFlo === void 0 ? void 0 : _this35$updateCashFlo.call(_this35);
         },
         'yoyComparison': function yoyComparison() {
-          var _this34$updateYoyComp;
-          return (_this34$updateYoyComp = _this34.updateYoyComparisonWidget) === null || _this34$updateYoyComp === void 0 ? void 0 : _this34$updateYoyComp.call(_this34);
+          var _this35$updateYoyComp;
+          return (_this35$updateYoyComp = _this35.updateYoyComparisonWidget) === null || _this35$updateYoyComp === void 0 ? void 0 : _this35$updateYoyComp.call(_this35);
         },
         // Hero widgets
         'accountIncome': function accountIncome() {
-          var _this34$updateAccount;
-          return (_this34$updateAccount = _this34.updateAccountIncomeHero) === null || _this34$updateAccount === void 0 ? void 0 : _this34$updateAccount.call(_this34);
+          var _this35$updateAccount;
+          return (_this35$updateAccount = _this35.updateAccountIncomeHero) === null || _this35$updateAccount === void 0 ? void 0 : _this35$updateAccount.call(_this35);
         },
         'accountExpenses': function accountExpenses() {
-          var _this34$updateAccount2;
-          return (_this34$updateAccount2 = _this34.updateAccountExpensesHero) === null || _this34$updateAccount2 === void 0 ? void 0 : _this34$updateAccount2.call(_this34);
+          var _this35$updateAccount2;
+          return (_this35$updateAccount2 = _this35.updateAccountExpensesHero) === null || _this35$updateAccount2 === void 0 ? void 0 : _this35$updateAccount2.call(_this35);
         }
       };
       var refreshFn = refreshMap[widgetId];
@@ -36420,18 +36485,18 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "resizeAllCharts",
     value: function resizeAllCharts() {
-      var _this35 = this;
+      var _this36 = this;
       var chartKeys = Object.keys(this.charts || {});
       chartKeys.forEach(function (key) {
-        if (_this35.charts[key] && typeof _this35.charts[key].resize === 'function') {
-          _this35.charts[key].resize();
+        if (_this36.charts[key] && typeof _this36.charts[key].resize === 'function') {
+          _this36.charts[key].resize();
         }
       });
     }
   }, {
     key: "updateAddTilesMenu",
     value: function updateAddTilesMenu() {
-      var _this36 = this;
+      var _this37 = this;
       var menuList = document.getElementById('add-tiles-menu-list');
       if (!menuList) return;
       menuList.innerHTML = '';
@@ -36444,7 +36509,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref21 = _slicedToArray(_ref20, 2),
           key = _ref21[0],
           widget = _ref21[1];
-        if (!_this36.dashboardConfig.hero.visibility[key]) {
+        if (!_this37.dashboardConfig.hero.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -36463,7 +36528,7 @@ var DashboardModule = /*#__PURE__*/function () {
         var _ref23 = _slicedToArray(_ref22, 2),
           key = _ref23[0],
           widget = _ref23[1];
-        if (!_this36.dashboardConfig.widgets.visibility[key]) {
+        if (!_this37.dashboardConfig.widgets.visibility[key]) {
           var category = widget.category || 'other';
           if (!tilesByCategory[category]) {
             tilesByCategory[category] = [];
@@ -36553,7 +36618,7 @@ var DashboardModule = /*#__PURE__*/function () {
           e.stopPropagation();
           var widgetId = btn.dataset.widgetId;
           var category = btn.dataset.category;
-          _this36.showWidget(widgetId, category);
+          _this37.showWidget(widgetId, category);
         });
       });
     }

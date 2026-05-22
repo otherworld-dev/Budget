@@ -2706,6 +2706,9 @@ export default class DashboardModule {
         // Apply to DOM
         await this.applyDashboardVisibility();
 
+        // Recompute grid positions after visibility change
+        this.computeGridPositions();
+
         // Update Add Tiles menu
         this.app.updateAddTilesMenu();
 
@@ -2721,6 +2724,9 @@ export default class DashboardModule {
 
         // Apply to DOM
         await this.applyDashboardVisibility();
+
+        // Recompute grid positions after visibility change
+        this.computeGridPositions();
 
         // Add remove buttons if unlocked
         if (!this.dashboardLocked) {
@@ -2780,6 +2786,63 @@ export default class DashboardModule {
             const size = sizes[widgetId] || this.getWidgetSize(widgetId, 'widgets');
             card.classList.remove('dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l');
             card.classList.add(`dashboard-tile-${size}`);
+        });
+
+        this.computeGridPositions();
+    }
+
+    computeGridPositions() {
+        const grid = document.querySelector('.dashboard-grid');
+        if (!grid) return;
+
+        const cols = this.gridColumns || 3;
+        const cards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]'))
+            .filter(el => el.style.display !== 'none' && el.offsetParent !== null);
+
+        let currentRow = 1;
+        let currentCol = 1;
+
+        cards.forEach(card => {
+            const widgetId = card.dataset.widgetId;
+            const size = this.getWidgetSize(widgetId, 'widgets');
+
+            let span;
+            if (size === 'l') {
+                span = cols;
+            } else if (size === 'm') {
+                span = 2;
+            } else {
+                span = 1;
+            }
+
+            // L tiles always start a new row
+            if (size === 'l' && currentCol !== 1) {
+                currentRow++;
+                currentCol = 1;
+            }
+
+            // If this tile won't fit in the current row, move to next row
+            if (currentCol + span - 1 > cols) {
+                currentRow++;
+                currentCol = 1;
+            }
+
+            card.style.gridRow = currentRow;
+            card.style.gridColumn = `${currentCol} / span ${span}`;
+
+            currentCol += span;
+
+            // If we've filled the row, move to next
+            if (currentCol > cols) {
+                currentRow++;
+                currentCol = 1;
+            }
+
+            // L tiles always end the row
+            if (size === 'l') {
+                currentRow++;
+                currentCol = 1;
+            }
         });
     }
 
@@ -3138,6 +3201,9 @@ export default class DashboardModule {
 
                 this._saveSettings({ dashboard_grid_columns: cols.toString() });
 
+                // Recompute grid positions after column change
+                this.computeGridPositions();
+
                 // Resize charts after layout change
                 requestAnimationFrame(() => this.resizeAllCharts());
             };
@@ -3311,6 +3377,9 @@ export default class DashboardModule {
 
         // Save
         this.saveDashboardVisibility('widgets');
+
+        // Recompute grid positions after size change
+        this.computeGridPositions();
 
         // Resize chart if present
         requestAnimationFrame(() => {

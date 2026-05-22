@@ -568,7 +568,6 @@
     display: grid;
     grid-template-columns: repeat(var(--dashboard-cols, 3), 1fr);
     gap: 20px;
-    grid-auto-flow: dense;
 }
 
 /* Tile Sizes */
