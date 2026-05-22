@@ -31683,6 +31683,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _config_dashboardWidgets_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../config/dashboardWidgets.js */ "./src/config/dashboardWidgets.js");
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 /* harmony import */ var _nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @nextcloud/l10n */ "./node_modules/@nextcloud/l10n/dist/index.mjs");
+function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
 function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
@@ -35240,8 +35241,12 @@ var DashboardModule = /*#__PURE__*/function () {
       var widgetGrid = document.querySelector('.dashboard-grid');
       [heroContainer, widgetGrid].forEach(function (container) {
         if (!container) return;
+        var lastDragUpdate = 0;
         container.addEventListener('dragover', function (e) {
           e.preventDefault();
+          var now = Date.now();
+          if (now - lastDragUpdate < 50) return;
+          lastDragUpdate = now;
           _this26.showDashboardDropIndicator(e, container);
         });
         container.addEventListener('drop', /*#__PURE__*/function () {
@@ -36359,77 +36364,107 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "showDashboardDropIndicator",
     value: function showDashboardDropIndicator(e, container) {
-      e.preventDefault();
-
-      // Find the card we're hovering over
-      var cards = Array.from(container.children).filter(function (el) {
-        return el.classList.contains('hero-card') || el.classList.contains('dashboard-card');
-      });
       var draggingCard = document.querySelector('.dragging');
-      var afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
-
-      // Remove existing indicators
+      if (!draggingCard) return;
+      var result = this.getDragAfterElement(container, e.clientX, e.clientY);
       this.clearDashboardDropIndicators();
 
-      // Add visual feedback
-      if (afterCard) {
-        afterCard.classList.add('drag-over');
-        var indicator = document.createElement('div');
-        indicator.className = 'drop-indicator';
-        afterCard.parentElement.insertBefore(indicator, afterCard);
-      } else {
-        // Drop at the end
-        var lastCard = cards[cards.length - 1];
-        if (lastCard && lastCard !== draggingCard) {
-          lastCard.classList.add('drag-over');
-          var _indicator = document.createElement('div');
-          _indicator.className = 'drop-indicator';
-          container.appendChild(_indicator);
+      // Create ghost placeholder matching the dragged card's size class
+      var ghost = document.createElement('div');
+      ghost.className = 'drop-ghost';
+
+      // Copy size class from dragging card
+      var sizeClasses = ['dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l'];
+      for (var _i8 = 0, _sizeClasses = sizeClasses; _i8 < _sizeClasses.length; _i8++) {
+        var cls = _sizeClasses[_i8];
+        if (draggingCard.classList.contains(cls)) {
+          ghost.classList.add(cls);
+          break;
         }
+      }
+      if (result && result.element) {
+        if (result.position === 'before') {
+          result.element.parentElement.insertBefore(ghost, result.element);
+        } else {
+          result.element.parentElement.insertBefore(ghost, result.element.nextSibling);
+        }
+        result.element.classList.add('drag-over');
+      } else {
+        // Append at end
+        container.appendChild(ghost);
       }
     }
   }, {
     key: "getDragAfterElement",
     value: function getDragAfterElement(container, x, y) {
       var draggableElements = Array.from(container.children).filter(function (el) {
-        return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('dragging');
+        return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('dragging') && !el.classList.contains('drop-ghost');
       });
-      return draggableElements.reduce(function (closest, child) {
-        var box = child.getBoundingClientRect();
-        var offsetY = y - box.top - box.height / 2;
-        var offsetX = x - box.left - box.width / 2;
-        if (offsetY < 0 && offsetY > closest.offset) {
-          return {
-            offset: offsetY,
-            element: child
-          };
+      if (draggableElements.length === 0) return null;
+
+      // Find which card the cursor is closest to, using visual (bounding rect) position
+      var closest = null;
+      var closestDist = Infinity;
+      var _iterator = _createForOfIteratorHelper(draggableElements),
+        _step;
+      try {
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var el = _step.value;
+          var _box = el.getBoundingClientRect();
+          var _centerX = _box.left + _box.width / 2;
+          var _centerY = _box.top + _box.height / 2;
+          var dist = Math.hypot(x - _centerX, y - _centerY);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closest = el;
+          }
         }
-        return closest;
-      }, {
-        offset: Number.NEGATIVE_INFINITY
-      }).element;
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
+      }
+      if (!closest) return null;
+
+      // Determine if we're before or after the closest card
+      var box = closest.getBoundingClientRect();
+      var centerX = box.left + box.width / 2;
+      var centerY = box.top + box.height / 2;
+
+      // Same row? Check X. Different row? Check Y.
+      var isBeforeInRow = x < centerX;
+      var isAbove = y < centerY;
+
+      // If cursor is in the left half of the card, drop before it.
+      // If in the right half, drop after it.
+      // For vertical: above = before, below = after.
+      var isBefore = Math.abs(y - centerY) < box.height / 2 ? isBeforeInRow : isAbove;
+      return {
+        element: closest,
+        position: isBefore ? 'before' : 'after'
+      };
     }
   }, {
     key: "getDashboardDropTarget",
     value: function getDashboardDropTarget(e, container) {
-      var afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
-      if (afterCard) {
+      var result = this.getDragAfterElement(container, e.clientX, e.clientY);
+      if (result && result.element) {
         return {
-          targetId: afterCard.dataset.widgetId,
-          position: 'before'
+          targetId: result.element.dataset.widgetId,
+          position: result.position
         };
-      } else {
-        // Drop at end - find last card in container
-        var cards = Array.from(container.children).filter(function (el) {
-          return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('dragging');
-        });
-        var lastCard = cards[cards.length - 1];
-        if (lastCard) {
-          return {
-            targetId: lastCard.dataset.widgetId,
-            position: 'after'
-          };
-        }
+      }
+
+      // Fallback: drop at end
+      var cards = Array.from(container.children).filter(function (el) {
+        return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('dragging') && !el.classList.contains('drop-ghost');
+      });
+      var lastCard = cards[cards.length - 1];
+      if (lastCard) {
+        return {
+          targetId: lastCard.dataset.widgetId,
+          position: 'after'
+        };
       }
       return null;
     }
@@ -36437,6 +36472,9 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "clearDashboardDropIndicators",
     value: function clearDashboardDropIndicators() {
       document.querySelectorAll('.drop-indicator').forEach(function (el) {
+        return el.remove();
+      });
+      document.querySelectorAll('.drop-ghost').forEach(function (el) {
         return el.remove();
       });
       document.querySelectorAll('.drag-over').forEach(function (el) {

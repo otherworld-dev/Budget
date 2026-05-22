@@ -3668,8 +3668,12 @@ export default class DashboardModule {
         [heroContainer, widgetGrid].forEach(container => {
             if (!container) return;
 
+            let lastDragUpdate = 0;
             container.addEventListener('dragover', (e) => {
                 e.preventDefault();
+                const now = Date.now();
+                if (now - lastDragUpdate < 50) return;
+                lastDragUpdate = now;
                 this.showDashboardDropIndicator(e, container);
             });
 
@@ -3698,82 +3702,109 @@ export default class DashboardModule {
     }
 
     showDashboardDropIndicator(e, container) {
-        e.preventDefault();
-
-        // Find the card we're hovering over
-        const cards = Array.from(container.children).filter(el =>
-            el.classList.contains('hero-card') || el.classList.contains('dashboard-card')
-        );
-
         const draggingCard = document.querySelector('.dragging');
-        const afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
+        if (!draggingCard) return;
 
-        // Remove existing indicators
+        const result = this.getDragAfterElement(container, e.clientX, e.clientY);
+
         this.clearDashboardDropIndicators();
 
-        // Add visual feedback
-        if (afterCard) {
-            afterCard.classList.add('drag-over');
-            const indicator = document.createElement('div');
-            indicator.className = 'drop-indicator';
-            afterCard.parentElement.insertBefore(indicator, afterCard);
-        } else {
-            // Drop at the end
-            const lastCard = cards[cards.length - 1];
-            if (lastCard && lastCard !== draggingCard) {
-                lastCard.classList.add('drag-over');
-                const indicator = document.createElement('div');
-                indicator.className = 'drop-indicator';
-                container.appendChild(indicator);
+        // Create ghost placeholder matching the dragged card's size class
+        const ghost = document.createElement('div');
+        ghost.className = 'drop-ghost';
+
+        // Copy size class from dragging card
+        const sizeClasses = ['dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l'];
+        for (const cls of sizeClasses) {
+            if (draggingCard.classList.contains(cls)) {
+                ghost.classList.add(cls);
+                break;
             }
+        }
+
+        if (result && result.element) {
+            if (result.position === 'before') {
+                result.element.parentElement.insertBefore(ghost, result.element);
+            } else {
+                result.element.parentElement.insertBefore(ghost, result.element.nextSibling);
+            }
+            result.element.classList.add('drag-over');
+        } else {
+            // Append at end
+            container.appendChild(ghost);
         }
     }
 
     getDragAfterElement(container, x, y) {
         const draggableElements = Array.from(container.children).filter(el =>
             (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
-            !el.classList.contains('dragging')
+            !el.classList.contains('dragging') &&
+            !el.classList.contains('drop-ghost')
         );
 
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offsetY = y - box.top - box.height / 2;
-            const offsetX = x - box.left - box.width / 2;
+        if (draggableElements.length === 0) return null;
 
-            if (offsetY < 0 && offsetY > closest.offset) {
-                return { offset: offsetY, element: child };
+        // Find which card the cursor is closest to, using visual (bounding rect) position
+        let closest = null;
+        let closestDist = Infinity;
+
+        for (const el of draggableElements) {
+            const box = el.getBoundingClientRect();
+            const centerX = box.left + box.width / 2;
+            const centerY = box.top + box.height / 2;
+            const dist = Math.hypot(x - centerX, y - centerY);
+
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = el;
             }
-            return closest;
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        if (!closest) return null;
+
+        // Determine if we're before or after the closest card
+        const box = closest.getBoundingClientRect();
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
+
+        // Same row? Check X. Different row? Check Y.
+        const isBeforeInRow = x < centerX;
+        const isAbove = y < centerY;
+
+        // If cursor is in the left half of the card, drop before it.
+        // If in the right half, drop after it.
+        // For vertical: above = before, below = after.
+        const isBefore = Math.abs(y - centerY) < box.height / 2 ? isBeforeInRow : isAbove;
+
+        return { element: closest, position: isBefore ? 'before' : 'after' };
     }
 
     getDashboardDropTarget(e, container) {
-        const afterCard = this.getDragAfterElement(container, e.clientX, e.clientY);
+        const result = this.getDragAfterElement(container, e.clientX, e.clientY);
 
-        if (afterCard) {
+        if (result && result.element) {
             return {
-                targetId: afterCard.dataset.widgetId,
-                position: 'before'
+                targetId: result.element.dataset.widgetId,
+                position: result.position
             };
-        } else {
-            // Drop at end - find last card in container
-            const cards = Array.from(container.children).filter(el =>
-                (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
-                !el.classList.contains('dragging')
-            );
-            const lastCard = cards[cards.length - 1];
-            if (lastCard) {
-                return {
-                    targetId: lastCard.dataset.widgetId,
-                    position: 'after'
-                };
-            }
+        }
+
+        // Fallback: drop at end
+        const cards = Array.from(container.children).filter(el =>
+            (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
+            !el.classList.contains('dragging') &&
+            !el.classList.contains('drop-ghost')
+        );
+        const lastCard = cards[cards.length - 1];
+        if (lastCard) {
+            return { targetId: lastCard.dataset.widgetId, position: 'after' };
         }
         return null;
     }
 
     clearDashboardDropIndicators() {
         document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        document.querySelectorAll('.drop-ghost').forEach(el => el.remove());
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     }
 

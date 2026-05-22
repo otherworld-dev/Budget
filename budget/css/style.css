@@ -15382,6 +15382,21 @@ tr.scheduled-transaction:hover {
     transition: all 0.2s;
 }
 
+/* Drop Ghost - shows where the tile will land */
+.drop-ghost {
+    border: 2px dashed var(--color-primary-element);
+    border-radius: 8px;
+    background: var(--color-primary-element-light);
+    opacity: 0.3;
+    min-height: 100px;
+    transition: all 0.15s ease;
+    pointer-events: none;
+}
+.drop-ghost.dashboard-tile-xs { min-height: 60px; }
+.drop-ghost.dashboard-tile-s  { min-height: 100px; }
+.drop-ghost.dashboard-tile-m  { min-height: 150px; }
+.drop-ghost.dashboard-tile-l  { min-height: 150px; }
+
 /* Make dashboard cards visually draggable on desktop */
 .hero-card[draggable="true"],
 .dashboard-card[draggable="true"] {
