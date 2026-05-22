@@ -20385,7 +20385,7 @@ var DASHBOARD_WIDGETS = {
       id: 'trend-chart-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Income vs Expenses'),
       defaultSize: 'l',
-      allowedSizes: ['m', 'l'],
+      allowedSizes: ['s', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {
         dateRange: true,
@@ -20451,7 +20451,7 @@ var DASHBOARD_WIDGETS = {
       id: 'accounts-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Accounts'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {}
     },
@@ -20459,7 +20459,7 @@ var DASHBOARD_WIDGETS = {
       id: 'budget-alerts-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Budget Alerts'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {}
     },
@@ -20467,7 +20467,7 @@ var DASHBOARD_WIDGETS = {
       id: 'upcoming-bills-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Upcoming Bills'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['s', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {
         dateRange: true,
@@ -20483,7 +20483,7 @@ var DASHBOARD_WIDGETS = {
       id: 'budget-progress-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Budget Progress'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {}
     },
@@ -20491,7 +20491,7 @@ var DASHBOARD_WIDGETS = {
       id: 'savings-goals-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Savings Goals'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {}
     },
@@ -20499,7 +20499,7 @@ var DASHBOARD_WIDGETS = {
       id: 'debt-payoff-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Debt Payoff'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: true,
       settingsSchema: {}
     },
@@ -20520,7 +20520,7 @@ var DASHBOARD_WIDGETS = {
       id: 'debt-progress-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Debt Progress'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'debts',
       settingsSchema: {}
@@ -20530,7 +20530,7 @@ var DASHBOARD_WIDGETS = {
       id: 'top-categories-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Top Spending Categories'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {}
@@ -20539,7 +20539,7 @@ var DASHBOARD_WIDGETS = {
       id: 'account-performance-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Account Performance'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {}
@@ -20547,8 +20547,7 @@ var DASHBOARD_WIDGETS = {
     budgetBreakdown: {
       id: 'budget-breakdown-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Budget Breakdown'),
-      defaultSize: 'm',
-      allowedSizes: ['s', 'm', 'l'],
+      defaultSize: 'hero',
       defaultVisible: false,
       category: 'budgeting',
       settingsSchema: {}
@@ -20557,7 +20556,7 @@ var DASHBOARD_WIDGETS = {
       id: 'goals-summary-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Savings Goals Summary'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'goals',
       settingsSchema: {}
@@ -20566,7 +20565,7 @@ var DASHBOARD_WIDGETS = {
       id: 'payment-breakdown-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Payment Methods'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {}
@@ -20575,7 +20574,7 @@ var DASHBOARD_WIDGETS = {
       id: 'reconciliation-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Reconciliation Status'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'transactions',
       settingsSchema: {}
@@ -20584,8 +20583,7 @@ var DASHBOARD_WIDGETS = {
     monthlyComparison: {
       id: 'monthly-comparison-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Monthly Comparison'),
-      defaultSize: 'm',
-      allowedSizes: ['s', 'm', 'l'],
+      defaultSize: 'hero',
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {
@@ -20597,8 +20595,7 @@ var DASHBOARD_WIDGETS = {
     largeTransactions: {
       id: 'large-transactions-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Large Transactions'),
-      defaultSize: 'm',
-      allowedSizes: ['s', 'm', 'l'],
+      defaultSize: 'hero',
       defaultVisible: false,
       category: 'transactions',
       settingsSchema: {
@@ -20615,7 +20612,7 @@ var DASHBOARD_WIDGETS = {
       id: 'weekly-trend-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Weekly Spending'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['s', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {
@@ -20628,7 +20625,7 @@ var DASHBOARD_WIDGETS = {
       id: 'unmatched-transfers-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Unmatched Transfers'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'transactions',
       settingsSchema: {}
@@ -20636,8 +20633,7 @@ var DASHBOARD_WIDGETS = {
     categoryTrends: {
       id: 'category-trends-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Category Trends'),
-      defaultSize: 'm',
-      allowedSizes: ['s', 'm', 'l'],
+      defaultSize: 'hero',
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {
@@ -20650,7 +20646,7 @@ var DASHBOARD_WIDGETS = {
       id: 'bills-due-soon-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Bills Due Soon'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['s', 'm', 'l'],
       defaultVisible: false,
       category: 'bills',
       settingsSchema: {
@@ -20668,7 +20664,7 @@ var DASHBOARD_WIDGETS = {
       id: 'cash-flow-forecast-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Cash Flow Forecast'),
       defaultSize: 'l',
-      allowedSizes: ['m', 'l'],
+      allowedSizes: ['s', 'm', 'l'],
       defaultVisible: false,
       category: 'forecasting',
       settingsSchema: {
@@ -20681,7 +20677,7 @@ var DASHBOARD_WIDGETS = {
       id: 'yoy-comparison-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Year-over-Year'),
       defaultSize: 'l',
-      allowedSizes: ['m', 'l'],
+      allowedSizes: ['s', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {
@@ -20693,8 +20689,7 @@ var DASHBOARD_WIDGETS = {
     incomeTracking: {
       id: 'income-tracking-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Income Tracking'),
-      defaultSize: 'm',
-      allowedSizes: ['s', 'm', 'l'],
+      defaultSize: 'hero',
       defaultVisible: false,
       category: 'income',
       settingsSchema: {
@@ -20707,7 +20702,7 @@ var DASHBOARD_WIDGETS = {
       id: 'recent-imports-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Recent Imports'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'transactions',
       settingsSchema: {}
@@ -20716,7 +20711,7 @@ var DASHBOARD_WIDGETS = {
       id: 'rule-effectiveness-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Rule Effectiveness'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {}
@@ -20725,7 +20720,7 @@ var DASHBOARD_WIDGETS = {
       id: 'spending-velocity-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Spending Velocity'),
       defaultSize: 's',
-      allowedSizes: ['xs', 's', 'm'],
+      allowedSizes: ['xs', 's', 'm', 'l'],
       defaultVisible: false,
       category: 'insights',
       settingsSchema: {}
@@ -20734,8 +20729,7 @@ var DASHBOARD_WIDGETS = {
     quickAdd: {
       id: 'quick-add-card',
       name: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Quick Add Transaction'),
-      defaultSize: 'm',
-      allowedSizes: ['s', 'm', 'l'],
+      defaultSize: 'hero',
       defaultVisible: false,
       category: 'interactive',
       settingsSchema: {}
@@ -32223,6 +32217,9 @@ var DashboardModule = /*#__PURE__*/function () {
               // Apply dashboard widget visibility
               this.applyDashboardVisibility();
 
+              // Apply saved hero tile settings (compact mode, change indicator)
+              this.applyAllHeroTileSettings();
+
               // Setup drag-and-drop for dashboard customization
               this.setupDashboardDragAndDrop();
 
@@ -33891,7 +33888,8 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateSpendingChart",
     value: function updateSpendingChart(spending) {
-      var _this20 = this;
+      var _this$dashboardConfig5,
+        _this20 = this;
       var canvas = document.getElementById('spending-chart');
       if (!canvas) return;
 
@@ -33941,21 +33939,28 @@ var DashboardModule = /*#__PURE__*/function () {
         // Use the color directly from the spending item (API includes it)
         return item.color || '#999';
       });
+      var spendingChartType = ((_this$dashboardConfig5 = this.dashboardConfig.widgets) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.tileSettings) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.spendingChart) === null || _this$dashboardConfig5 === void 0 ? void 0 : _this$dashboardConfig5.chartType) || 'doughnut';
+      var isSpendingBar = spendingChartType === 'bar';
       this.charts.spending = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
-        type: 'doughnut',
+        type: isSpendingBar ? 'bar' : 'doughnut',
         data: {
           labels: labels,
-          datasets: [{
+          datasets: [_objectSpread({
             data: data,
             backgroundColor: colors
-          }]
+          }, isSpendingBar ? {
+            borderRadius: 4
+          } : {})]
         },
-        options: {
+        options: _objectSpread(_objectSpread({
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: false
+        }, isSpendingBar ? {
+          indexAxis: 'y'
+        } : {}), {}, {
           plugins: {
             legend: {
-              display: false // Hide built-in legend, we'll use custom one
+              display: false
             },
             tooltip: {
               callbacks: {
@@ -33968,7 +33973,7 @@ var DashboardModule = /*#__PURE__*/function () {
           layout: {
             padding: 10
           }
-        }
+        })
       });
 
       // Populate custom legend with spending breakdown
@@ -33987,7 +33992,8 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateTrendChart",
     value: function updateTrendChart(trends) {
-      var _this21 = this;
+      var _this$dashboardConfig6,
+        _this21 = this;
       var canvas = document.getElementById('trend-chart');
       if (!canvas) {
         return;
@@ -34001,24 +34007,28 @@ var DashboardModule = /*#__PURE__*/function () {
         return;
       }
       var ctx = canvas.getContext('2d');
+      var trendSettings = ((_this$dashboardConfig6 = this.dashboardConfig.widgets) === null || _this$dashboardConfig6 === void 0 || (_this$dashboardConfig6 = _this$dashboardConfig6.tileSettings) === null || _this$dashboardConfig6 === void 0 ? void 0 : _this$dashboardConfig6.trendChart) || {};
+      var trendChartType = trendSettings.chartType || 'line';
+      var isBar = trendChartType === 'bar';
+      var trendShowLegend = trendSettings.showLegend !== false;
       this.charts.trend = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
-        type: 'line',
+        type: isBar ? 'bar' : 'line',
         data: {
           labels: trends.labels,
           datasets: [{
             label: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Income'),
             data: trends.income || [],
             borderColor: '#46ba61',
-            backgroundColor: 'rgba(70, 186, 97, 0.1)',
-            fill: false,
-            tension: 0.3
+            backgroundColor: isBar ? 'rgba(70, 186, 97, 0.6)' : 'rgba(70, 186, 97, 0.1)',
+            fill: !isBar,
+            tension: isBar ? 0 : 0.3
           }, {
             label: (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Expenses'),
             data: trends.expenses || [],
             borderColor: '#e9322d',
-            backgroundColor: 'rgba(233, 50, 45, 0.1)',
-            fill: false,
-            tension: 0.3
+            backgroundColor: isBar ? 'rgba(233, 50, 45, 0.6)' : 'rgba(233, 50, 45, 0.1)',
+            fill: !isBar,
+            tension: isBar ? 0 : 0.3
           }]
         },
         options: {
@@ -34030,7 +34040,7 @@ var DashboardModule = /*#__PURE__*/function () {
           },
           plugins: {
             legend: {
-              display: true,
+              display: trendShowLegend,
               position: 'top'
             },
             tooltip: {
@@ -35212,10 +35222,14 @@ var DashboardModule = /*#__PURE__*/function () {
             category: 'hero'
           }));
           card.classList.add('dragging');
+          _this26._dragOriginalOrder = Array.from(card.parentElement.children).map(function (c) {
+            return c.dataset.widgetId;
+          });
         });
         card.addEventListener('dragend', function (e) {
           card.classList.remove('dragging');
           _this26.clearDashboardDropIndicators();
+          _this26._dragOriginalOrder = null;
         });
       });
 
@@ -35229,10 +35243,16 @@ var DashboardModule = /*#__PURE__*/function () {
             category: 'widget'
           }));
           card.classList.add('dragging');
+          _this26._dragOriginalOrder = Array.from(card.parentElement.children).filter(function (c) {
+            return c.classList.contains('dashboard-card');
+          }).map(function (c) {
+            return c.dataset.widgetId;
+          });
         });
         card.addEventListener('dragend', function (e) {
           card.classList.remove('dragging');
           _this26.clearDashboardDropIndicators();
+          _this26._dragOriginalOrder = null;
         });
       });
 
@@ -35251,32 +35271,29 @@ var DashboardModule = /*#__PURE__*/function () {
         });
         container.addEventListener('drop', /*#__PURE__*/function () {
           var _ref19 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30(e) {
-            var data, dropInfo, _t20;
+            var data, category, selector, newOrder;
             return _regenerator().w(function (_context30) {
-              while (1) switch (_context30.p = _context30.n) {
+              while (1) switch (_context30.n) {
                 case 0:
                   e.preventDefault();
                   _this26.clearDashboardDropIndicators();
-                  _context30.p = 1;
-                  data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                  dropInfo = _this26.getDashboardDropTarget(e, container);
-                  if (!dropInfo) {
-                    _context30.n = 2;
-                    break;
+                  try {
+                    data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    category = data.category === 'hero' ? 'hero' : 'widgets';
+                    selector = category === 'hero' ? '.hero-card' : '.dashboard-card'; // Card is already in position from live preview — save the current DOM order
+                    newOrder = Array.from(container.querySelectorAll(selector)).map(function (c) {
+                      return c.dataset.widgetId;
+                    }).filter(Boolean);
+                    _this26.dashboardConfig[category].order = newOrder;
+                    _this26.saveDashboardVisibility(category);
+                    _this26._dragOriginalOrder = null;
+                  } catch (error) {
+                    console.error('Drop failed:', error);
                   }
-                  _context30.n = 2;
-                  return _this26.reorderDashboardWidget(data.id, dropInfo.targetId, dropInfo.position, data.category);
-                case 2:
-                  _context30.n = 4;
-                  break;
-                case 3:
-                  _context30.p = 3;
-                  _t20 = _context30.v;
-                  console.error('Drop failed:', _t20);
-                case 4:
+                case 1:
                   return _context30.a(2);
               }
-            }, _callee30, null, [[1, 3]]);
+            }, _callee30);
           }));
           return function (_x17) {
             return _ref19.apply(this, arguments);
@@ -35319,11 +35336,11 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyTileSizes",
     value: function applyTileSizes() {
-      var _this$dashboardConfig5,
+      var _this$dashboardConfig7,
         _this27 = this;
       var grid = document.querySelector('.dashboard-grid');
       if (!grid) return;
-      var sizes = ((_this$dashboardConfig5 = this.dashboardConfig.widgets) === null || _this$dashboardConfig5 === void 0 ? void 0 : _this$dashboardConfig5.sizes) || {};
+      var sizes = ((_this$dashboardConfig7 = this.dashboardConfig.widgets) === null || _this$dashboardConfig7 === void 0 ? void 0 : _this$dashboardConfig7.sizes) || {};
       grid.querySelectorAll('[data-widget-category="widget"]').forEach(function (card) {
         var widgetId = card.dataset.widgetId;
         var size = sizes[widgetId] || _this27.getWidgetSize(widgetId, 'widgets');
@@ -35334,12 +35351,12 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardOrder",
     value: function applyDashboardOrder() {
-      var _this$dashboardConfig7;
+      var _this$dashboardConfig9;
       // Hero cards (unchanged logic)
       var heroContainer = document.querySelector('.dashboard-hero');
       if (heroContainer) {
-        var _this$dashboardConfig6;
-        var heroOrder = ((_this$dashboardConfig6 = this.dashboardConfig.hero) === null || _this$dashboardConfig6 === void 0 ? void 0 : _this$dashboardConfig6.order) || [];
+        var _this$dashboardConfig8;
+        var heroOrder = ((_this$dashboardConfig8 = this.dashboardConfig.hero) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8.order) || [];
         var heroCards = Array.from(heroContainer.querySelectorAll('[data-widget-category="hero"]'));
         heroCards.sort(function (a, b) {
           var aIdx = heroOrder.indexOf(a.dataset.widgetId);
@@ -35354,7 +35371,7 @@ var DashboardModule = /*#__PURE__*/function () {
       // Widget cards — flat grid, no column split
       var grid = document.querySelector('.dashboard-grid');
       if (!grid) return;
-      var widgetOrder = ((_this$dashboardConfig7 = this.dashboardConfig.widgets) === null || _this$dashboardConfig7 === void 0 ? void 0 : _this$dashboardConfig7.order) || [];
+      var widgetOrder = ((_this$dashboardConfig9 = this.dashboardConfig.widgets) === null || _this$dashboardConfig9 === void 0 ? void 0 : _this$dashboardConfig9.order) || [];
       var allCards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]'));
       allCards.sort(function (a, b) {
         var aIdx = widgetOrder.indexOf(a.dataset.widgetId);
@@ -35417,7 +35434,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "loadWidgetData",
     value: function () {
       var _loadWidgetData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(widgetKey) {
-        var uncatResp, now, thisMonth, lastMonthDate, lastMonth, _yield$Promise$all5, _yield$Promise$all6, currentResp, previousResp, largeResp, forecastResp, yoyResp, incomeResp, debtResp, importsResp, rulesResp, weekEnd, weekStart, weekResp, weekData, unmatchedResp, unmatchedData, billsResp, allBills, todayStr, ctNow, ctThisMonth, ctLastDate, ctLastMonth, _yield$Promise$all7, _yield$Promise$all8, ctCurrentResp, ctPrevResp, ctCurrent, ctPrev, prevMap, svNow, svMonthStart, svToday, svDayOfMonth, svResp, svData, totalSpent, _t21, _t22, _t23, _t24, _t25;
+        var uncatResp, now, thisMonth, lastMonthDate, lastMonth, _yield$Promise$all5, _yield$Promise$all6, currentResp, previousResp, largeResp, forecastResp, yoyResp, incomeResp, debtResp, importsResp, rulesResp, weekEnd, weekStart, weekResp, weekData, unmatchedResp, unmatchedData, billsResp, allBills, todayStr, ctNow, ctThisMonth, ctLastDate, ctLastMonth, _yield$Promise$all7, _yield$Promise$all8, ctCurrentResp, ctPrevResp, ctCurrent, ctPrev, prevMap, svNow, svMonthStart, svToday, svDayOfMonth, svResp, svData, totalSpent, _t20, _t21, _t22, _t23, _t24;
         return _regenerator().w(function (_context31) {
           while (1) switch (_context31.p = _context31.n) {
             case 0:
@@ -35428,8 +35445,8 @@ var DashboardModule = /*#__PURE__*/function () {
               return _context31.a(2);
             case 1:
               _context31.p = 1;
-              _t21 = widgetKey;
-              _context31.n = _t21 === 'uncategorizedCount' ? 2 : _t21 === 'monthlyComparison' ? 5 : _t21 === 'largeTransactions' ? 9 : _t21 === 'cashFlowForecast' ? 12 : _t21 === 'yoyComparison' ? 15 : _t21 === 'incomeTracking' ? 18 : _t21 === 'daysUntilDebtFree' ? 21 : _t21 === 'debtChart' ? 24 : _t21 === 'debtProgress' ? 26 : _t21 === 'recentImports' ? 28 : _t21 === 'ruleEffectiveness' ? 33 : _t21 === 'weeklyTrend' ? 36 : _t21 === 'unmatchedTransfers' ? 39 : _t21 === 'billsDueSoon' ? 42 : _t21 === 'categoryTrends' ? 45 : _t21 === 'spendingVelocity' ? 49 : 52;
+              _t20 = widgetKey;
+              _context31.n = _t20 === 'uncategorizedCount' ? 2 : _t20 === 'monthlyComparison' ? 5 : _t20 === 'largeTransactions' ? 9 : _t20 === 'cashFlowForecast' ? 12 : _t20 === 'yoyComparison' ? 15 : _t20 === 'incomeTracking' ? 18 : _t20 === 'daysUntilDebtFree' ? 21 : _t20 === 'debtChart' ? 24 : _t20 === 'debtProgress' ? 26 : _t20 === 'recentImports' ? 28 : _t20 === 'ruleEffectiveness' ? 33 : _t20 === 'weeklyTrend' ? 36 : _t20 === 'unmatchedTransfers' ? 39 : _t20 === 'billsDueSoon' ? 42 : _t20 === 'categoryTrends' ? 45 : _t20 === 'spendingVelocity' ? 49 : 52;
               break;
             case 2:
               _context31.n = 3;
@@ -35474,14 +35491,14 @@ var DashboardModule = /*#__PURE__*/function () {
               _context31.n = 7;
               return currentResp.json();
             case 7:
-              _t22 = _context31.v;
+              _t21 = _context31.v;
               _context31.n = 8;
               return previousResp.json();
             case 8:
-              _t23 = _context31.v;
+              _t22 = _context31.v;
               this.widgetData.monthlyComparison = {
-                current: _t22,
-                previous: _t23
+                current: _t21,
+                previous: _t22
               };
               return _context31.a(3, 52);
             case 9:
@@ -35580,13 +35597,13 @@ var DashboardModule = /*#__PURE__*/function () {
               _context31.n = 30;
               return importsResp.json();
             case 30:
-              _t24 = _context31.v;
+              _t23 = _context31.v;
               _context31.n = 32;
               break;
             case 31:
-              _t24 = [];
+              _t23 = [];
             case 32:
-              this.widgetData.recentImports = _t24;
+              this.widgetData.recentImports = _t23;
               return _context31.a(3, 52);
             case 33:
               _context31.n = 34;
@@ -35743,8 +35760,8 @@ var DashboardModule = /*#__PURE__*/function () {
               break;
             case 53:
               _context31.p = 53;
-              _t25 = _context31.v;
-              console.error("Failed to load data for ".concat(widgetKey, ":"), _t25);
+              _t24 = _context31.v;
+              console.error("Failed to load data for ".concat(widgetKey, ":"), _t24);
             case 54:
               return _context31.a(2);
           }
@@ -35832,7 +35849,7 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "toggleDashboardLock",
     value: function () {
       var _toggleDashboardLock = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32() {
-        var _t26;
+        var _t25;
         return _regenerator().w(function (_context32) {
           while (1) switch (_context32.p = _context32.n) {
             case 0:
@@ -35855,8 +35872,8 @@ var DashboardModule = /*#__PURE__*/function () {
               break;
             case 3:
               _context32.p = 3;
-              _t26 = _context32.v;
-              console.error('Failed to save lock state:', _t26);
+              _t25 = _context32.v;
+              console.error('Failed to save lock state:', _t25);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save dashboard lock state'));
             case 4:
               return _context32.a(2);
@@ -35897,6 +35914,10 @@ var DashboardModule = /*#__PURE__*/function () {
         document.querySelectorAll('.widget-tile-controls').forEach(function (el) {
           return el.remove();
         });
+        // Hide inline selectors (account/period) — these are in tile settings when unlocked
+        document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(function (el) {
+          return el.style.display = 'none';
+        });
       } else {
         // Unlocked state
         btnText.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Lock Dashboard');
@@ -35907,6 +35928,10 @@ var DashboardModule = /*#__PURE__*/function () {
         if (columnsPicker) columnsPicker.style.display = 'flex';
         document.querySelectorAll('.tile-settings-btn').forEach(function (b) {
           return b.style.display = '';
+        });
+        // Show inline selectors
+        document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(function (el) {
+          return el.style.display = '';
         });
         // Add tile controls to all visible widgets
         this.addTileControls();
@@ -35929,11 +35954,12 @@ var DashboardModule = /*#__PURE__*/function () {
         var controls = document.createElement('div');
         controls.className = 'widget-tile-controls';
 
-        // Size picker (widgets only, not hero)
-        if (category === 'widget') {
-          var widgetDef = _this31.findWidgetDef(widgetId);
-          var allowedSizes = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.allowedSizes) || ['xs', 's', 'm', 'l'];
-          var currentSize = _this31.getWidgetSize(widgetId, 'widgets');
+        // Size picker
+        var widgetDef = _this31.findWidgetDef(widgetId);
+        var allowedSizes = widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.allowedSizes;
+        if (allowedSizes && allowedSizes.length > 1) {
+          var configCategory = category === 'hero' ? 'hero' : 'widgets';
+          var currentSize = _this31.getWidgetSize(widgetId, configCategory);
           var sizePicker = document.createElement('div');
           sizePicker.className = 'tile-size-picker';
           allowedSizes.forEach(function (size) {
@@ -35958,6 +35984,11 @@ var DashboardModule = /*#__PURE__*/function () {
             sizePicker.appendChild(btn);
           });
           controls.appendChild(sizePicker);
+
+          // Divider after size picker
+          var div1 = document.createElement('div');
+          div1.className = 'tile-controls-divider';
+          controls.appendChild(div1);
         }
 
         // Gear icon
@@ -35970,6 +36001,11 @@ var DashboardModule = /*#__PURE__*/function () {
           _this31.openTileSettingsModal(widgetId, category);
         };
         controls.appendChild(gearBtn);
+
+        // Divider before remove
+        var div2 = document.createElement('div');
+        div2.className = 'tile-controls-divider';
+        controls.appendChild(div2);
 
         // Remove button
         var removeBtn = document.createElement('button');
@@ -36039,14 +36075,14 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "openTileSettingsModal",
     value: function openTileSettingsModal(widgetId, category) {
-      var _this$dashboardConfig8,
+      var _this$dashboardConfig0,
         _this33 = this;
       var modal = document.getElementById('tile-settings-modal');
       if (!modal) return;
       var widgetDef = this.findWidgetDef(widgetId);
       var schema = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.settingsSchema) || {};
       var configCategory = category === 'hero' ? 'hero' : 'widgets';
-      var currentSettings = ((_this$dashboardConfig8 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig8 === void 0 || (_this$dashboardConfig8 = _this$dashboardConfig8.tileSettings) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8[widgetId]) || {};
+      var currentSettings = ((_this$dashboardConfig0 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig0 === void 0 || (_this$dashboardConfig0 = _this$dashboardConfig0.tileSettings) === null || _this$dashboardConfig0 === void 0 ? void 0 : _this$dashboardConfig0[widgetId]) || {};
 
       // Set title
       var titleEl = document.getElementById('tile-settings-modal-title');
@@ -36179,13 +36215,90 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshTileAfterSettingsChange",
     value: function refreshTileAfterSettingsChange(widgetId, category) {
-      var _this34 = this;
-      // Self-contained widgets that fetch their own data can be refreshed directly.
-      // Core widgets that received data from loadDashboardData are best-effort —
-      // settings will take effect on the next full dashboard load.
+      var _this$dashboardConfig1,
+        _this34 = this;
+      var configCategory = category === 'hero' ? 'hero' : 'widgets';
+      var settings = ((_this$dashboardConfig1 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig1 === void 0 || (_this$dashboardConfig1 = _this$dashboardConfig1.tileSettings) === null || _this$dashboardConfig1 === void 0 ? void 0 : _this$dashboardConfig1[widgetId]) || {};
+
+      // Sync tile settings back to HTML selectors so existing refresh methods pick them up
+      var selectorSync = {
+        'trendChart': {
+          account: 'trend-account-select'
+        },
+        'spendingChart': {
+          account: 'spending-account-select'
+        },
+        'netWorthHistory': {
+          account: 'net-worth-account-select'
+        },
+        'recentTransactions': {
+          account: 'recent-transactions-account-select'
+        },
+        'accountIncome': {
+          account: 'hero-account-income-select'
+        },
+        'accountExpenses': {
+          account: 'hero-account-expenses-select'
+        }
+      };
+      var sync = selectorSync[widgetId];
+      if (sync) {
+        if (sync.account && settings.accountId !== undefined) {
+          var sel = document.getElementById(sync.account);
+          if (sel) sel.value = settings.accountId || '';
+        }
+      }
       var refreshMap = {
+        // Core chart widgets
+        'trendChart': function trendChart() {
+          var periodSel = document.getElementById('trend-period-select');
+          var months = periodSel ? parseInt(periodSel.value) : 6;
+          return _this34.refreshTrendChart(months, settings.accountId || null);
+        },
+        'spendingChart': function spendingChart() {
+          var periodSel = document.getElementById('spending-period-select');
+          var period = periodSel ? periodSel.value : 'month';
+          return _this34.refreshSpendingChart(period, settings.accountId || null);
+        },
+        'netWorthHistory': function netWorthHistory() {
+          var activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
+          var days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
+          return _this34.refreshNetWorthChart(days, settings.accountId || null);
+        },
+        'assetValueHistory': function assetValueHistory() {
+          var activeBtn = document.querySelector('#asset-value-period-selector .period-btn.active');
+          var days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
+          return _this34.refreshAssetValueChart(days);
+        },
+        // List widgets
+        'recentTransactions': function recentTransactions() {
+          var _this34$updateRecentT;
+          return (_this34$updateRecentT = _this34.updateRecentTransactionsWidget) === null || _this34$updateRecentT === void 0 ? void 0 : _this34$updateRecentT.call(_this34);
+        },
+        'upcomingBills': function upcomingBills() {
+          var _this34$updateUpcomin;
+          return (_this34$updateUpcomin = _this34.updateUpcomingBillsWidget) === null || _this34$updateUpcomin === void 0 ? void 0 : _this34$updateUpcomin.call(_this34);
+        },
+        // Stat widgets
         'accounts': function accounts() {
           return _this34.updateAccountsWidget(_this34._allDashboardAccounts);
+        },
+        'budgetProgress': function budgetProgress() {
+          var _this34$updateBudgetP;
+          return (_this34$updateBudgetP = _this34.updateBudgetProgressWidget) === null || _this34$updateBudgetP === void 0 ? void 0 : _this34$updateBudgetP.call(_this34);
+        },
+        'budgetAlerts': function budgetAlerts() {
+          var _this34$updateBudgetA;
+          return (_this34$updateBudgetA = _this34.updateBudgetAlertsWidget) === null || _this34$updateBudgetA === void 0 ? void 0 : _this34$updateBudgetA.call(_this34);
+        },
+        'savingsGoals': function savingsGoals() {
+          var _this34$updateSavings;
+          return (_this34$updateSavings = _this34.updateSavingsGoalsWidget) === null || _this34$updateSavings === void 0 ? void 0 : _this34$updateSavings.call(_this34);
+        },
+        // Debt widgets
+        'debtPayoff': function debtPayoff() {
+          var _this34$updateDebtPay;
+          return (_this34$updateDebtPay = _this34.updateDebtPayoffWidget) === null || _this34$updateDebtPay === void 0 ? void 0 : _this34$updateDebtPay.call(_this34);
         },
         'debtChart': function debtChart() {
           return _this34.renderDebtChartWidget();
@@ -36193,23 +36306,47 @@ var DashboardModule = /*#__PURE__*/function () {
         'debtProgress': function debtProgress() {
           return _this34.renderDebtProgressWidget();
         },
+        // Phase 2+ widgets
         'monthlyComparison': function monthlyComparison() {
-          return _this34.updateMonthlyComparisonWidget();
+          var _this34$updateMonthly;
+          return (_this34$updateMonthly = _this34.updateMonthlyComparisonWidget) === null || _this34$updateMonthly === void 0 ? void 0 : _this34$updateMonthly.call(_this34);
         },
         'largeTransactions': function largeTransactions() {
-          return _this34.updateLargeTransactionsWidget();
+          var _this34$updateLargeTr;
+          return (_this34$updateLargeTr = _this34.updateLargeTransactionsWidget) === null || _this34$updateLargeTr === void 0 ? void 0 : _this34$updateLargeTr.call(_this34);
         },
         'weeklyTrend': function weeklyTrend() {
-          return _this34.updateWeeklyTrendWidget();
+          var _this34$updateWeeklyT;
+          return (_this34$updateWeeklyT = _this34.updateWeeklyTrendWidget) === null || _this34$updateWeeklyT === void 0 ? void 0 : _this34$updateWeeklyT.call(_this34);
         },
         'categoryTrends': function categoryTrends() {
-          return _this34.updateCategoryTrendsWidget();
+          var _this34$updateCategor;
+          return (_this34$updateCategor = _this34.updateCategoryTrendsWidget) === null || _this34$updateCategor === void 0 ? void 0 : _this34$updateCategor.call(_this34);
         },
         'billsDueSoon': function billsDueSoon() {
-          return _this34.updateBillsDueSoonWidget();
+          var _this34$updateBillsDu;
+          return (_this34$updateBillsDu = _this34.updateBillsDueSoonWidget) === null || _this34$updateBillsDu === void 0 ? void 0 : _this34$updateBillsDu.call(_this34);
         },
         'incomeTracking': function incomeTracking() {
-          return _this34.updateIncomeTrackingWidget();
+          var _this34$updateIncomeT;
+          return (_this34$updateIncomeT = _this34.updateIncomeTrackingWidget) === null || _this34$updateIncomeT === void 0 ? void 0 : _this34$updateIncomeT.call(_this34);
+        },
+        'cashFlowForecast': function cashFlowForecast() {
+          var _this34$updateCashFlo;
+          return (_this34$updateCashFlo = _this34.updateCashFlowForecastWidget) === null || _this34$updateCashFlo === void 0 ? void 0 : _this34$updateCashFlo.call(_this34);
+        },
+        'yoyComparison': function yoyComparison() {
+          var _this34$updateYoyComp;
+          return (_this34$updateYoyComp = _this34.updateYoyComparisonWidget) === null || _this34$updateYoyComp === void 0 ? void 0 : _this34$updateYoyComp.call(_this34);
+        },
+        // Hero widgets
+        'accountIncome': function accountIncome() {
+          var _this34$updateAccount;
+          return (_this34$updateAccount = _this34.updateAccountIncomeHero) === null || _this34$updateAccount === void 0 ? void 0 : _this34$updateAccount.call(_this34);
+        },
+        'accountExpenses': function accountExpenses() {
+          var _this34$updateAccount2;
+          return (_this34$updateAccount2 = _this34.updateAccountExpensesHero) === null || _this34$updateAccount2 === void 0 ? void 0 : _this34$updateAccount2.call(_this34);
         }
       };
       var refreshFn = refreshMap[widgetId];
@@ -36219,6 +36356,43 @@ var DashboardModule = /*#__PURE__*/function () {
         } catch (e) {
           console.error('Failed to refresh tile', widgetId, e);
         }
+      }
+
+      // Apply hero tile visual settings (displayFormat, showChangeIndicator)
+      if (category === 'hero') {
+        this.applyHeroTileSettings(widgetId, settings);
+      }
+    }
+  }, {
+    key: "applyAllHeroTileSettings",
+    value: function applyAllHeroTileSettings() {
+      var _this$dashboardConfig10;
+      var heroSettings = ((_this$dashboardConfig10 = this.dashboardConfig.hero) === null || _this$dashboardConfig10 === void 0 ? void 0 : _this$dashboardConfig10.tileSettings) || {};
+      for (var _i8 = 0, _Object$entries5 = Object.entries(heroSettings); _i8 < _Object$entries5.length; _i8++) {
+        var _Object$entries5$_i = _slicedToArray(_Object$entries5[_i8], 2),
+          widgetId = _Object$entries5$_i[0],
+          settings = _Object$entries5$_i[1];
+        this.applyHeroTileSettings(widgetId, settings);
+      }
+    }
+  }, {
+    key: "applyHeroTileSettings",
+    value: function applyHeroTileSettings(widgetId, settings) {
+      var card = document.querySelector(".hero-card[data-widget-id=\"".concat(widgetId, "\"]"));
+      if (!card) return;
+
+      // Display format
+      if (settings.displayFormat === 'compact') {
+        card.classList.add('hero-compact');
+      } else {
+        card.classList.remove('hero-compact');
+      }
+
+      // Show/hide change indicator
+      if (settings.showChangeIndicator === false) {
+        card.classList.add('hero-hide-change');
+      } else {
+        card.classList.remove('hero-hide-change');
       }
     }
   }, {
@@ -36365,84 +36539,97 @@ var DashboardModule = /*#__PURE__*/function () {
     key: "showDashboardDropIndicator",
     value: function showDashboardDropIndicator(e, container) {
       var draggingCard = document.querySelector('.dragging');
-      if (!draggingCard) return;
-      var result = this.getDragAfterElement(container, e.clientX, e.clientY);
-      this.clearDashboardDropIndicators();
+      if (!draggingCard || draggingCard.parentElement !== container) return;
+      var cards = Array.from(container.children).filter(function (el) {
+        return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('drop-ghost') && el.offsetParent !== null;
+      } // exclude hidden (display:none) elements
+      );
+      if (cards.length < 2) return;
+      var dragIndex = cards.indexOf(draggingCard);
+      var targetIndex = this.getDragTargetIndex(cards, draggingCard, e.clientX, e.clientY);
 
-      // Create ghost placeholder matching the dragged card's size class
-      var ghost = document.createElement('div');
-      ghost.className = 'drop-ghost';
+      // Don't move if already in the right spot or adjacent (prevents flicker)
+      if (targetIndex === -1 || targetIndex === dragIndex || targetIndex === dragIndex + 1) return;
 
-      // Copy size class from dragging card
-      var sizeClasses = ['dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l'];
-      for (var _i8 = 0, _sizeClasses = sizeClasses; _i8 < _sizeClasses.length; _i8++) {
-        var cls = _sizeClasses[_i8];
-        if (draggingCard.classList.contains(cls)) {
-          ghost.classList.add(cls);
-          break;
-        }
-      }
-      if (result && result.element) {
-        if (result.position === 'before') {
-          result.element.parentElement.insertBefore(ghost, result.element);
-        } else {
-          result.element.parentElement.insertBefore(ghost, result.element.nextSibling);
-        }
-        result.element.classList.add('drag-over');
+      // Move the card in the DOM
+      var refCard = cards[targetIndex];
+      if (refCard) {
+        container.insertBefore(draggingCard, refCard);
       } else {
-        // Append at end
-        container.appendChild(ghost);
+        container.appendChild(draggingCard);
       }
     }
   }, {
-    key: "getDragAfterElement",
-    value: function getDragAfterElement(container, x, y) {
-      var draggableElements = Array.from(container.children).filter(function (el) {
-        return (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) && !el.classList.contains('dragging') && !el.classList.contains('drop-ghost');
-      });
-      if (draggableElements.length === 0) return null;
+    key: "getDragTargetIndex",
+    value: function getDragTargetIndex(cards, draggingCard, x, y) {
+      // Find the index where the dragged card should be inserted.
+      // We look at the visual midpoints of all non-dragging cards
+      // and find where the cursor falls in reading order.
 
-      // Find which card the cursor is closest to, using visual (bounding rect) position
-      var closest = null;
-      var closestDist = Infinity;
-      var _iterator = _createForOfIteratorHelper(draggableElements),
+      var positions = [];
+      for (var i = 0; i < cards.length; i++) {
+        if (cards[i] === draggingCard) continue;
+        var box = cards[i].getBoundingClientRect();
+        positions.push({
+          index: i,
+          left: box.left,
+          top: box.top,
+          centerX: box.left + box.width / 2,
+          centerY: box.top + box.height / 2,
+          bottom: box.bottom
+        });
+      }
+      if (positions.length === 0) return -1;
+
+      // Group cards into visual rows (cards within 20px vertical tolerance are same row)
+      var rows = [];
+      var currentRow = [positions[0]];
+      for (var _i9 = 1; _i9 < positions.length; _i9++) {
+        if (Math.abs(positions[_i9].top - currentRow[0].top) < 20) {
+          currentRow.push(positions[_i9]);
+        } else {
+          rows.push(currentRow.sort(function (a, b) {
+            return a.left - b.left;
+          }));
+          currentRow = [positions[_i9]];
+        }
+      }
+      rows.push(currentRow.sort(function (a, b) {
+        return a.left - b.left;
+      }));
+
+      // Find which row the cursor is in
+      var targetRow = rows[rows.length - 1]; // default to last row
+      for (var _i0 = 0, _rows = rows; _i0 < _rows.length; _i0++) {
+        var row = _rows[_i0];
+        var rowBottom = Math.max.apply(Math, _toConsumableArray(row.map(function (p) {
+          return p.bottom;
+        })));
+        if (y < rowBottom + 10) {
+          targetRow = row;
+          break;
+        }
+      }
+
+      // Within the row, find which card the cursor is to the left of
+      var _iterator = _createForOfIteratorHelper(targetRow),
         _step;
       try {
         for (_iterator.s(); !(_step = _iterator.n()).done;) {
-          var el = _step.value;
-          var _box = el.getBoundingClientRect();
-          var _centerX = _box.left + _box.width / 2;
-          var _centerY = _box.top + _box.height / 2;
-          var dist = Math.hypot(x - _centerX, y - _centerY);
-          if (dist < closestDist) {
-            closestDist = dist;
-            closest = el;
+          var pos = _step.value;
+          if (x < pos.centerX) {
+            return pos.index;
           }
         }
+
+        // Cursor is past all cards in the row — insert after the last card in this row
       } catch (err) {
         _iterator.e(err);
       } finally {
         _iterator.f();
       }
-      if (!closest) return null;
-
-      // Determine if we're before or after the closest card
-      var box = closest.getBoundingClientRect();
-      var centerX = box.left + box.width / 2;
-      var centerY = box.top + box.height / 2;
-
-      // Same row? Check X. Different row? Check Y.
-      var isBeforeInRow = x < centerX;
-      var isAbove = y < centerY;
-
-      // If cursor is in the left half of the card, drop before it.
-      // If in the right half, drop after it.
-      // For vertical: above = before, below = after.
-      var isBefore = Math.abs(y - centerY) < box.height / 2 ? isBeforeInRow : isAbove;
-      return {
-        element: closest,
-        position: isBefore ? 'before' : 'after'
-      };
+      var lastInRow = targetRow[targetRow.length - 1];
+      return lastInRow.index + 1;
     }
   }, {
     key: "getDashboardDropTarget",
@@ -36478,14 +36665,15 @@ var DashboardModule = /*#__PURE__*/function () {
         return el.remove();
       });
       document.querySelectorAll('.drag-over').forEach(function (el) {
-        return el.classList.remove('drag-over');
+        el.classList.remove('drag-over');
+        delete el.dataset.dropPosition;
       });
     }
   }, {
     key: "reorderDashboardWidget",
     value: function () {
       var _reorderDashboardWidget = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(draggedId, targetId, position, category) {
-        var config, order, draggedIndex, targetIndex, settingKey, _t27;
+        var config, order, draggedIndex, targetIndex, settingKey, _t26;
         return _regenerator().w(function (_context33) {
           while (1) switch (_context33.p = _context33.n) {
             case 0:
@@ -36553,8 +36741,8 @@ var DashboardModule = /*#__PURE__*/function () {
               break;
             case 6:
               _context33.p = 6;
-              _t27 = _context33.v;
-              console.error('Failed to save widget order:', _t27);
+              _t26 = _context33.v;
+              console.error('Failed to save widget order:', _t26);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_4__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save widget order'));
             case 7:
               // Reorder DOM elements after config is saved

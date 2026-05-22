@@ -259,6 +259,9 @@ export default class DashboardModule {
             // Apply dashboard widget visibility
             this.applyDashboardVisibility();
 
+            // Apply saved hero tile settings (compact mode, change indicator)
+            this.applyAllHeroTileSettings();
+
             // Setup drag-and-drop for dashboard customization
             this.setupDashboardDragAndDrop();
 
@@ -1905,21 +1908,25 @@ export default class DashboardModule {
             return item.color || '#999';
         });
 
+        const spendingChartType = this.dashboardConfig.widgets?.tileSettings?.spendingChart?.chartType || 'doughnut';
+        const isSpendingBar = spendingChartType === 'bar';
         this.charts.spending = new Chart(ctx, {
-            type: 'doughnut',
+            type: isSpendingBar ? 'bar' : 'doughnut',
             data: {
                 labels,
                 datasets: [{
                     data,
-                    backgroundColor: colors
+                    backgroundColor: colors,
+                    ...(isSpendingBar ? { borderRadius: 4 } : {})
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                ...(isSpendingBar ? { indexAxis: 'y' } : {}),
                 plugins: {
                     legend: {
-                        display: false  // Hide built-in legend, we'll use custom one
+                        display: false
                     },
                     tooltip: {
                         callbacks: {
@@ -1982,8 +1989,12 @@ export default class DashboardModule {
         }
 
         const ctx = canvas.getContext('2d');
+        const trendSettings = this.dashboardConfig.widgets?.tileSettings?.trendChart || {};
+        const trendChartType = trendSettings.chartType || 'line';
+        const isBar = trendChartType === 'bar';
+        const trendShowLegend = trendSettings.showLegend !== false;
         this.charts.trend = new Chart(ctx, {
-            type: 'line',
+            type: isBar ? 'bar' : 'line',
             data: {
                 labels: trends.labels,
                 datasets: [
@@ -1991,17 +2002,17 @@ export default class DashboardModule {
                         label: t('budget', 'Income'),
                         data: trends.income || [],
                         borderColor: '#46ba61',
-                        backgroundColor: 'rgba(70, 186, 97, 0.1)',
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: isBar ? 'rgba(70, 186, 97, 0.6)' : 'rgba(70, 186, 97, 0.1)',
+                        fill: !isBar,
+                        tension: isBar ? 0 : 0.3
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: trends.expenses || [],
                         borderColor: '#e9322d',
-                        backgroundColor: 'rgba(233, 50, 45, 0.1)',
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: isBar ? 'rgba(233, 50, 45, 0.6)' : 'rgba(233, 50, 45, 0.1)',
+                        fill: !isBar,
+                        tension: isBar ? 0 : 0.3
                     }
                 ]
             },
@@ -2014,7 +2025,7 @@ export default class DashboardModule {
                 },
                 plugins: {
                     legend: {
-                        display: true,
+                        display: trendShowLegend,
                         position: 'top'
                     },
                     tooltip: {
@@ -3168,6 +3179,8 @@ export default class DashboardModule {
             if (tileModal) tileModal.style.display = 'none';
             // Remove all tile controls
             document.querySelectorAll('.widget-tile-controls').forEach(el => el.remove());
+            // Hide inline selectors (account/period) — these are in tile settings when unlocked
+            document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(el => el.style.display = 'none');
         } else {
             // Unlocked state
             btnText.textContent = t('budget', 'Lock Dashboard');
@@ -3177,6 +3190,8 @@ export default class DashboardModule {
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
             if (columnsPicker) columnsPicker.style.display = 'flex';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = '');
+            // Show inline selectors
+            document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(el => el.style.display = '');
             // Add tile controls to all visible widgets
             this.addTileControls();
         }
@@ -3196,11 +3211,12 @@ export default class DashboardModule {
             const controls = document.createElement('div');
             controls.className = 'widget-tile-controls';
 
-            // Size picker (widgets only, not hero)
-            if (category === 'widget') {
-                const widgetDef = this.findWidgetDef(widgetId);
-                const allowedSizes = widgetDef?.allowedSizes || ['xs', 's', 'm', 'l'];
-                const currentSize = this.getWidgetSize(widgetId, 'widgets');
+            // Size picker
+            const widgetDef = this.findWidgetDef(widgetId);
+            const allowedSizes = widgetDef?.allowedSizes;
+            if (allowedSizes && allowedSizes.length > 1) {
+                const configCategory = category === 'hero' ? 'hero' : 'widgets';
+                const currentSize = this.getWidgetSize(widgetId, configCategory);
 
                 const sizePicker = document.createElement('div');
                 sizePicker.className = 'tile-size-picker';
@@ -3219,6 +3235,11 @@ export default class DashboardModule {
                     sizePicker.appendChild(btn);
                 });
                 controls.appendChild(sizePicker);
+
+                // Divider after size picker
+                const div1 = document.createElement('div');
+                div1.className = 'tile-controls-divider';
+                controls.appendChild(div1);
             }
 
             // Gear icon
@@ -3231,6 +3252,11 @@ export default class DashboardModule {
                 this.openTileSettingsModal(widgetId, category);
             };
             controls.appendChild(gearBtn);
+
+            // Divider before remove
+            const div2 = document.createElement('div');
+            div2.className = 'tile-controls-divider';
+            controls.appendChild(div2);
 
             // Remove button
             const removeBtn = document.createElement('button');
@@ -3471,24 +3497,109 @@ export default class DashboardModule {
     }
 
     refreshTileAfterSettingsChange(widgetId, category) {
-        // Self-contained widgets that fetch their own data can be refreshed directly.
-        // Core widgets that received data from loadDashboardData are best-effort —
-        // settings will take effect on the next full dashboard load.
+        const configCategory = category === 'hero' ? 'hero' : 'widgets';
+        const settings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
+
+        // Sync tile settings back to HTML selectors so existing refresh methods pick them up
+        const selectorSync = {
+            'trendChart': { account: 'trend-account-select' },
+            'spendingChart': { account: 'spending-account-select' },
+            'netWorthHistory': { account: 'net-worth-account-select' },
+            'recentTransactions': { account: 'recent-transactions-account-select' },
+            'accountIncome': { account: 'hero-account-income-select' },
+            'accountExpenses': { account: 'hero-account-expenses-select' },
+        };
+
+        const sync = selectorSync[widgetId];
+        if (sync) {
+            if (sync.account && settings.accountId !== undefined) {
+                const sel = document.getElementById(sync.account);
+                if (sel) sel.value = settings.accountId || '';
+            }
+        }
+
         const refreshMap = {
+            // Core chart widgets
+            'trendChart': () => {
+                const periodSel = document.getElementById('trend-period-select');
+                const months = periodSel ? parseInt(periodSel.value) : 6;
+                return this.refreshTrendChart(months, settings.accountId || null);
+            },
+            'spendingChart': () => {
+                const periodSel = document.getElementById('spending-period-select');
+                const period = periodSel ? periodSel.value : 'month';
+                return this.refreshSpendingChart(period, settings.accountId || null);
+            },
+            'netWorthHistory': () => {
+                const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
+                const days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
+                return this.refreshNetWorthChart(days, settings.accountId || null);
+            },
+            'assetValueHistory': () => {
+                const activeBtn = document.querySelector('#asset-value-period-selector .period-btn.active');
+                const days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
+                return this.refreshAssetValueChart(days);
+            },
+            // List widgets
+            'recentTransactions': () => this.updateRecentTransactionsWidget?.(),
+            'upcomingBills': () => this.updateUpcomingBillsWidget?.(),
+            // Stat widgets
             'accounts': () => this.updateAccountsWidget(this._allDashboardAccounts),
+            'budgetProgress': () => this.updateBudgetProgressWidget?.(),
+            'budgetAlerts': () => this.updateBudgetAlertsWidget?.(),
+            'savingsGoals': () => this.updateSavingsGoalsWidget?.(),
+            // Debt widgets
+            'debtPayoff': () => this.updateDebtPayoffWidget?.(),
             'debtChart': () => this.renderDebtChartWidget(),
             'debtProgress': () => this.renderDebtProgressWidget(),
-            'monthlyComparison': () => this.updateMonthlyComparisonWidget(),
-            'largeTransactions': () => this.updateLargeTransactionsWidget(),
-            'weeklyTrend': () => this.updateWeeklyTrendWidget(),
-            'categoryTrends': () => this.updateCategoryTrendsWidget(),
-            'billsDueSoon': () => this.updateBillsDueSoonWidget(),
-            'incomeTracking': () => this.updateIncomeTrackingWidget(),
+            // Phase 2+ widgets
+            'monthlyComparison': () => this.updateMonthlyComparisonWidget?.(),
+            'largeTransactions': () => this.updateLargeTransactionsWidget?.(),
+            'weeklyTrend': () => this.updateWeeklyTrendWidget?.(),
+            'categoryTrends': () => this.updateCategoryTrendsWidget?.(),
+            'billsDueSoon': () => this.updateBillsDueSoonWidget?.(),
+            'incomeTracking': () => this.updateIncomeTrackingWidget?.(),
+            'cashFlowForecast': () => this.updateCashFlowForecastWidget?.(),
+            'yoyComparison': () => this.updateYoyComparisonWidget?.(),
+            // Hero widgets
+            'accountIncome': () => this.updateAccountIncomeHero?.(),
+            'accountExpenses': () => this.updateAccountExpensesHero?.(),
         };
 
         const refreshFn = refreshMap[widgetId];
         if (refreshFn) {
             try { refreshFn(); } catch (e) { console.error('Failed to refresh tile', widgetId, e); }
+        }
+
+        // Apply hero tile visual settings (displayFormat, showChangeIndicator)
+        if (category === 'hero') {
+            this.applyHeroTileSettings(widgetId, settings);
+        }
+    }
+
+    applyAllHeroTileSettings() {
+        const heroSettings = this.dashboardConfig.hero?.tileSettings || {};
+        for (const [widgetId, settings] of Object.entries(heroSettings)) {
+            this.applyHeroTileSettings(widgetId, settings);
+        }
+    }
+
+    applyHeroTileSettings(widgetId, settings) {
+        const card = document.querySelector(`.hero-card[data-widget-id="${widgetId}"]`);
+        if (!card) return;
+
+        // Display format
+        if (settings.displayFormat === 'compact') {
+            card.classList.add('hero-compact');
+        } else {
+            card.classList.remove('hero-compact');
+        }
+
+        // Show/hide change indicator
+        if (settings.showChangeIndicator === false) {
+            card.classList.add('hero-hide-change');
+        } else {
+            card.classList.remove('hero-hide-change');
         }
     }
 
@@ -3634,11 +3745,13 @@ export default class DashboardModule {
                     category: 'hero'
                 }));
                 card.classList.add('dragging');
+                this._dragOriginalOrder = Array.from(card.parentElement.children).map(c => c.dataset.widgetId);
             });
 
             card.addEventListener('dragend', (e) => {
                 card.classList.remove('dragging');
                 this.clearDashboardDropIndicators();
+                this._dragOriginalOrder = null;
             });
         });
 
@@ -3653,11 +3766,15 @@ export default class DashboardModule {
                     category: 'widget'
                 }));
                 card.classList.add('dragging');
+                this._dragOriginalOrder = Array.from(card.parentElement.children)
+                    .filter(c => c.classList.contains('dashboard-card'))
+                    .map(c => c.dataset.widgetId);
             });
 
             card.addEventListener('dragend', (e) => {
                 card.classList.remove('dragging');
                 this.clearDashboardDropIndicators();
+                this._dragOriginalOrder = null;
             });
         });
 
@@ -3683,11 +3800,17 @@ export default class DashboardModule {
 
                 try {
                     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                    const dropInfo = this.getDashboardDropTarget(e, container);
+                    const category = data.category === 'hero' ? 'hero' : 'widgets';
+                    const selector = category === 'hero' ? '.hero-card' : '.dashboard-card';
 
-                    if (dropInfo) {
-                        await this.reorderDashboardWidget(data.id, dropInfo.targetId, dropInfo.position, data.category);
-                    }
+                    // Card is already in position from live preview — save the current DOM order
+                    const newOrder = Array.from(container.querySelectorAll(selector))
+                        .map(c => c.dataset.widgetId)
+                        .filter(Boolean);
+
+                    this.dashboardConfig[category].order = newOrder;
+                    this.saveDashboardVisibility(category);
+                    this._dragOriginalOrder = null;
                 } catch (error) {
                     console.error('Drop failed:', error);
                 }
@@ -3703,80 +3826,85 @@ export default class DashboardModule {
 
     showDashboardDropIndicator(e, container) {
         const draggingCard = document.querySelector('.dragging');
-        if (!draggingCard) return;
+        if (!draggingCard || draggingCard.parentElement !== container) return;
 
-        const result = this.getDragAfterElement(container, e.clientX, e.clientY);
+        const cards = Array.from(container.children).filter(el =>
+            (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
+            !el.classList.contains('drop-ghost') &&
+            el.offsetParent !== null  // exclude hidden (display:none) elements
+        );
 
-        this.clearDashboardDropIndicators();
+        if (cards.length < 2) return;
 
-        // Create ghost placeholder matching the dragged card's size class
-        const ghost = document.createElement('div');
-        ghost.className = 'drop-ghost';
+        const dragIndex = cards.indexOf(draggingCard);
+        const targetIndex = this.getDragTargetIndex(cards, draggingCard, e.clientX, e.clientY);
 
-        // Copy size class from dragging card
-        const sizeClasses = ['dashboard-tile-xs', 'dashboard-tile-s', 'dashboard-tile-m', 'dashboard-tile-l'];
-        for (const cls of sizeClasses) {
-            if (draggingCard.classList.contains(cls)) {
-                ghost.classList.add(cls);
+        // Don't move if already in the right spot or adjacent (prevents flicker)
+        if (targetIndex === -1 || targetIndex === dragIndex || targetIndex === dragIndex + 1) return;
+
+        // Move the card in the DOM
+        const refCard = cards[targetIndex];
+        if (refCard) {
+            container.insertBefore(draggingCard, refCard);
+        } else {
+            container.appendChild(draggingCard);
+        }
+    }
+
+    getDragTargetIndex(cards, draggingCard, x, y) {
+        // Find the index where the dragged card should be inserted.
+        // We look at the visual midpoints of all non-dragging cards
+        // and find where the cursor falls in reading order.
+
+        const positions = [];
+        for (let i = 0; i < cards.length; i++) {
+            if (cards[i] === draggingCard) continue;
+            const box = cards[i].getBoundingClientRect();
+            positions.push({
+                index: i,
+                left: box.left,
+                top: box.top,
+                centerX: box.left + box.width / 2,
+                centerY: box.top + box.height / 2,
+                bottom: box.bottom
+            });
+        }
+
+        if (positions.length === 0) return -1;
+
+        // Group cards into visual rows (cards within 20px vertical tolerance are same row)
+        const rows = [];
+        let currentRow = [positions[0]];
+        for (let i = 1; i < positions.length; i++) {
+            if (Math.abs(positions[i].top - currentRow[0].top) < 20) {
+                currentRow.push(positions[i]);
+            } else {
+                rows.push(currentRow.sort((a, b) => a.left - b.left));
+                currentRow = [positions[i]];
+            }
+        }
+        rows.push(currentRow.sort((a, b) => a.left - b.left));
+
+        // Find which row the cursor is in
+        let targetRow = rows[rows.length - 1]; // default to last row
+        for (const row of rows) {
+            const rowBottom = Math.max(...row.map(p => p.bottom));
+            if (y < rowBottom + 10) {
+                targetRow = row;
                 break;
             }
         }
 
-        if (result && result.element) {
-            if (result.position === 'before') {
-                result.element.parentElement.insertBefore(ghost, result.element);
-            } else {
-                result.element.parentElement.insertBefore(ghost, result.element.nextSibling);
-            }
-            result.element.classList.add('drag-over');
-        } else {
-            // Append at end
-            container.appendChild(ghost);
-        }
-    }
-
-    getDragAfterElement(container, x, y) {
-        const draggableElements = Array.from(container.children).filter(el =>
-            (el.classList.contains('hero-card') || el.classList.contains('dashboard-card')) &&
-            !el.classList.contains('dragging') &&
-            !el.classList.contains('drop-ghost')
-        );
-
-        if (draggableElements.length === 0) return null;
-
-        // Find which card the cursor is closest to, using visual (bounding rect) position
-        let closest = null;
-        let closestDist = Infinity;
-
-        for (const el of draggableElements) {
-            const box = el.getBoundingClientRect();
-            const centerX = box.left + box.width / 2;
-            const centerY = box.top + box.height / 2;
-            const dist = Math.hypot(x - centerX, y - centerY);
-
-            if (dist < closestDist) {
-                closestDist = dist;
-                closest = el;
+        // Within the row, find which card the cursor is to the left of
+        for (const pos of targetRow) {
+            if (x < pos.centerX) {
+                return pos.index;
             }
         }
 
-        if (!closest) return null;
-
-        // Determine if we're before or after the closest card
-        const box = closest.getBoundingClientRect();
-        const centerX = box.left + box.width / 2;
-        const centerY = box.top + box.height / 2;
-
-        // Same row? Check X. Different row? Check Y.
-        const isBeforeInRow = x < centerX;
-        const isAbove = y < centerY;
-
-        // If cursor is in the left half of the card, drop before it.
-        // If in the right half, drop after it.
-        // For vertical: above = before, below = after.
-        const isBefore = Math.abs(y - centerY) < box.height / 2 ? isBeforeInRow : isAbove;
-
-        return { element: closest, position: isBefore ? 'before' : 'after' };
+        // Cursor is past all cards in the row — insert after the last card in this row
+        const lastInRow = targetRow[targetRow.length - 1];
+        return lastInRow.index + 1;
     }
 
     getDashboardDropTarget(e, container) {
@@ -3805,7 +3933,10 @@ export default class DashboardModule {
     clearDashboardDropIndicators() {
         document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
         document.querySelectorAll('.drop-ghost').forEach(el => el.remove());
-        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        document.querySelectorAll('.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+            delete el.dataset.dropPosition;
+        });
     }
 
     async reorderDashboardWidget(draggedId, targetId, position, category) {

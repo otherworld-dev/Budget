@@ -407,6 +407,7 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 20px;
+    grid-auto-flow: dense;
 }
 
 .hero-card {
@@ -419,6 +420,37 @@
     gap: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Hero Tile — Compact display format */
+.hero-card.hero-compact {
+    padding: 10px 14px;
+    gap: 10px;
+}
+.hero-card.hero-compact .hero-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+}
+.hero-card.hero-compact .hero-icon svg {
+    width: 16px;
+    height: 16px;
+}
+.hero-card.hero-compact .hero-label {
+    font-size: 10px;
+    margin-bottom: 2px;
+}
+.hero-card.hero-compact .hero-value {
+    font-size: 18px;
+}
+.hero-card.hero-compact .hero-change {
+    font-size: 10px;
+    margin-top: 2px;
+}
+
+/* Hero Tile — Hide change indicator */
+.hero-card.hero-hide-change .hero-change {
+    display: none;
 }
 
 .hero-card:hover {
@@ -15279,14 +15311,20 @@ tr.scheduled-transaction:hover {
 }
 
 /* Widget Tile Controls */
+/* Tile Controls Toolbar */
 .widget-tile-controls {
     position: absolute;
     top: 8px;
     right: 8px;
     display: flex;
-    gap: 4px;
+    gap: 2px;
     align-items: center;
     z-index: 5;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     opacity: 0;
     transition: opacity 0.2s;
 }
@@ -15296,20 +15334,25 @@ tr.scheduled-transaction:hover {
     opacity: 1;
 }
 
+/* Divider between control groups */
+.tile-controls-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--color-border);
+    margin: 0 2px;
+}
+
 .tile-size-picker {
     display: flex;
-    gap: 0;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    overflow: hidden;
+    gap: 1px;
 }
 .tile-size-picker .size-btn {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border: none;
-    border-right: 1px solid var(--color-border);
-    background: var(--color-main-background);
-    color: var(--color-main-text);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-text-maxcontrast);
     cursor: pointer;
     font-size: 10px;
     font-weight: bold;
@@ -15317,43 +15360,45 @@ tr.scheduled-transaction:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-}
-.tile-size-picker .size-btn:last-child {
-    border-right: none;
+    transition: background 0.1s, color 0.1s;
 }
 .tile-size-picker .size-btn:hover {
     background: var(--color-background-hover);
+    color: var(--color-main-text);
 }
 .tile-size-picker .size-btn.active {
     background: var(--color-primary-element);
     color: var(--color-primary-element-text);
+    border-radius: 4px;
 }
 
 .tile-gear-btn {
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--color-border);
+    width: 26px;
+    height: 26px;
+    border: none;
     border-radius: 4px;
-    background: var(--color-main-background);
-    color: var(--color-main-text);
+    background: transparent;
+    color: var(--color-text-maxcontrast);
     cursor: pointer;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.1s, color 0.1s;
 }
 .tile-gear-btn:hover {
     background: var(--color-background-hover);
+    color: var(--color-main-text);
 }
 
 /* Widget Remove Button */
 .widget-remove-btn {
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--color-border);
+    width: 26px;
+    height: 26px;
+    border: none;
     border-radius: 4px;
-    background: var(--color-main-background);
-    color: var(--color-error);
+    background: transparent;
+    color: var(--color-text-maxcontrast);
     cursor: pointer;
     font-size: 16px;
     line-height: 1;
@@ -15361,6 +15406,11 @@ tr.scheduled-transaction:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.1s, color 0.1s;
+}
+.widget-remove-btn:hover {
+    background: var(--color-error);
+    color: white;
 }
 .widget-remove-btn:hover {
     background: var(--color-error);
