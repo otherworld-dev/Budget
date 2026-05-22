@@ -32864,14 +32864,17 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateRecentTransactions",
     value: function updateRecentTransactions(transactions) {
-      var _this5 = this;
+      var _this$dashboardConfig5,
+        _this5 = this;
       var container = document.getElementById('recent-transactions');
       if (!container) return;
       if (!Array.isArray(transactions) || transactions.length === 0) {
         container.innerHTML = "<div class=\"empty-state-small\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No recent transactions'), "</div>");
         return;
       }
-      container.innerHTML = transactions.slice(0, 8).map(function (tx) {
+      var txSettings = ((_this$dashboardConfig5 = this.dashboardConfig.widgets) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.tileSettings) === null || _this$dashboardConfig5 === void 0 ? void 0 : _this$dashboardConfig5.recentTransactions) || {};
+      var rowCount = txSettings.rowCount || 8;
+      container.innerHTML = transactions.slice(0, rowCount).map(function (tx) {
         var isCredit = tx.type === 'credit';
         var amount = parseFloat(tx.amount) || 0;
         var category = _this5.categories.find(function (c) {
@@ -33321,7 +33324,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateBudgetProgressWidget",
     value: function updateBudgetProgressWidget(categories) {
-      var _this$dashboardConfig5,
+      var _this$dashboardConfig6,
         _this8 = this;
       var container = document.getElementById('budget-progress');
       if (!container) return;
@@ -33331,7 +33334,7 @@ var DashboardModule = /*#__PURE__*/function () {
       }
 
       // Aggregate to top-level if setting is enabled
-      var budgetSettings = ((_this$dashboardConfig5 = this.dashboardConfig.widgets) === null || _this$dashboardConfig5 === void 0 || (_this$dashboardConfig5 = _this$dashboardConfig5.tileSettings) === null || _this$dashboardConfig5 === void 0 ? void 0 : _this$dashboardConfig5.budgetProgress) || {};
+      var budgetSettings = ((_this$dashboardConfig6 = this.dashboardConfig.widgets) === null || _this$dashboardConfig6 === void 0 || (_this$dashboardConfig6 = _this$dashboardConfig6.tileSettings) === null || _this$dashboardConfig6 === void 0 ? void 0 : _this$dashboardConfig6.budgetProgress) || {};
       var catData = categories;
       if (budgetSettings.topLevelOnly) {
         catData = this.aggregateToTopLevel(categories);
@@ -33855,8 +33858,8 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateSpendingChart",
     value: function updateSpendingChart(spending) {
-      var _this$dashboardConfig6,
-        _this$dashboardConfig7,
+      var _this$dashboardConfig7,
+        _this$dashboardConfig8,
         _this20 = this;
       var canvas = document.getElementById('spending-chart');
       if (!canvas) return;
@@ -33890,7 +33893,7 @@ var DashboardModule = /*#__PURE__*/function () {
       }
 
       // Aggregate to top-level categories if setting is enabled
-      var spendingSettings = ((_this$dashboardConfig6 = this.dashboardConfig.widgets) === null || _this$dashboardConfig6 === void 0 || (_this$dashboardConfig6 = _this$dashboardConfig6.tileSettings) === null || _this$dashboardConfig6 === void 0 ? void 0 : _this$dashboardConfig6.spendingChart) || {};
+      var spendingSettings = ((_this$dashboardConfig7 = this.dashboardConfig.widgets) === null || _this$dashboardConfig7 === void 0 || (_this$dashboardConfig7 = _this$dashboardConfig7.tileSettings) === null || _this$dashboardConfig7 === void 0 ? void 0 : _this$dashboardConfig7.spendingChart) || {};
       if (spendingSettings.topLevelOnly) {
         spendingData = this.aggregateToTopLevel(spendingData);
       }
@@ -33913,7 +33916,7 @@ var DashboardModule = /*#__PURE__*/function () {
         // Use the color directly from the spending item (API includes it)
         return item.color || '#999';
       });
-      var spendingChartType = ((_this$dashboardConfig7 = this.dashboardConfig.widgets) === null || _this$dashboardConfig7 === void 0 || (_this$dashboardConfig7 = _this$dashboardConfig7.tileSettings) === null || _this$dashboardConfig7 === void 0 || (_this$dashboardConfig7 = _this$dashboardConfig7.spendingChart) === null || _this$dashboardConfig7 === void 0 ? void 0 : _this$dashboardConfig7.chartType) || 'doughnut';
+      var spendingChartType = ((_this$dashboardConfig8 = this.dashboardConfig.widgets) === null || _this$dashboardConfig8 === void 0 || (_this$dashboardConfig8 = _this$dashboardConfig8.tileSettings) === null || _this$dashboardConfig8 === void 0 || (_this$dashboardConfig8 = _this$dashboardConfig8.spendingChart) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8.chartType) || 'doughnut';
       var isSpendingBar = spendingChartType === 'bar';
       this.charts.spending = new chart_js_auto__WEBPACK_IMPORTED_MODULE_2__["default"](ctx, {
         type: isSpendingBar ? 'bar' : 'doughnut',
@@ -33966,7 +33969,7 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "updateTrendChart",
     value: function updateTrendChart(trends) {
-      var _this$dashboardConfig8,
+      var _this$dashboardConfig9,
         _this21 = this;
       var canvas = document.getElementById('trend-chart');
       if (!canvas) {
@@ -33981,7 +33984,7 @@ var DashboardModule = /*#__PURE__*/function () {
         return;
       }
       var ctx = canvas.getContext('2d');
-      var trendSettings = ((_this$dashboardConfig8 = this.dashboardConfig.widgets) === null || _this$dashboardConfig8 === void 0 || (_this$dashboardConfig8 = _this$dashboardConfig8.tileSettings) === null || _this$dashboardConfig8 === void 0 ? void 0 : _this$dashboardConfig8.trendChart) || {};
+      var trendSettings = ((_this$dashboardConfig9 = this.dashboardConfig.widgets) === null || _this$dashboardConfig9 === void 0 || (_this$dashboardConfig9 = _this$dashboardConfig9.tileSettings) === null || _this$dashboardConfig9 === void 0 ? void 0 : _this$dashboardConfig9.trendChart) || {};
       var trendChartType = trendSettings.chartType || 'line';
       var isBar = trendChartType === 'bar';
       var trendShowLegend = trendSettings.showLegend !== false;
@@ -35310,11 +35313,11 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyTileSizes",
     value: function applyTileSizes() {
-      var _this$dashboardConfig9,
+      var _this$dashboardConfig0,
         _this27 = this;
       var grid = document.querySelector('.dashboard-grid');
       if (!grid) return;
-      var sizes = ((_this$dashboardConfig9 = this.dashboardConfig.widgets) === null || _this$dashboardConfig9 === void 0 ? void 0 : _this$dashboardConfig9.sizes) || {};
+      var sizes = ((_this$dashboardConfig0 = this.dashboardConfig.widgets) === null || _this$dashboardConfig0 === void 0 ? void 0 : _this$dashboardConfig0.sizes) || {};
       grid.querySelectorAll('[data-widget-category="widget"]').forEach(function (card) {
         var widgetId = card.dataset.widgetId;
         var size = sizes[widgetId] || _this27.getWidgetSize(widgetId, 'widgets');
@@ -35325,12 +35328,12 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "applyDashboardOrder",
     value: function applyDashboardOrder() {
-      var _this$dashboardConfig1;
+      var _this$dashboardConfig10;
       // Hero cards (unchanged logic)
       var heroContainer = document.querySelector('.dashboard-hero');
       if (heroContainer) {
-        var _this$dashboardConfig0;
-        var heroOrder = ((_this$dashboardConfig0 = this.dashboardConfig.hero) === null || _this$dashboardConfig0 === void 0 ? void 0 : _this$dashboardConfig0.order) || [];
+        var _this$dashboardConfig1;
+        var heroOrder = ((_this$dashboardConfig1 = this.dashboardConfig.hero) === null || _this$dashboardConfig1 === void 0 ? void 0 : _this$dashboardConfig1.order) || [];
         var heroCards = Array.from(heroContainer.querySelectorAll('[data-widget-category="hero"]'));
         heroCards.sort(function (a, b) {
           var aIdx = heroOrder.indexOf(a.dataset.widgetId);
@@ -35345,7 +35348,7 @@ var DashboardModule = /*#__PURE__*/function () {
       // Widget cards — flat grid, no column split
       var grid = document.querySelector('.dashboard-grid');
       if (!grid) return;
-      var widgetOrder = ((_this$dashboardConfig1 = this.dashboardConfig.widgets) === null || _this$dashboardConfig1 === void 0 ? void 0 : _this$dashboardConfig1.order) || [];
+      var widgetOrder = ((_this$dashboardConfig10 = this.dashboardConfig.widgets) === null || _this$dashboardConfig10 === void 0 ? void 0 : _this$dashboardConfig10.order) || [];
       var allCards = Array.from(grid.querySelectorAll('[data-widget-category="widget"]'));
       allCards.sort(function (a, b) {
         var aIdx = widgetOrder.indexOf(a.dataset.widgetId);
@@ -35888,7 +35891,7 @@ var DashboardModule = /*#__PURE__*/function () {
         document.querySelectorAll('.widget-tile-controls').forEach(function (el) {
           return el.remove();
         });
-        // Hide inline selectors (account/period) — these are in tile settings when unlocked
+        // Inline selectors removed — settings are in the tile settings modal
         document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(function (el) {
           return el.style.display = 'none';
         });
@@ -35903,9 +35906,9 @@ var DashboardModule = /*#__PURE__*/function () {
         document.querySelectorAll('.tile-settings-btn').forEach(function (b) {
           return b.style.display = '';
         });
-        // Show inline selectors
+        // Hide inline selectors when unlocked — use gear icon / settings modal instead
         document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(function (el) {
-          return el.style.display = '';
+          return el.style.display = 'none';
         });
         // Add tile controls to all visible widgets
         this.addTileControls();
@@ -36051,14 +36054,14 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "openTileSettingsModal",
     value: function openTileSettingsModal(widgetId, category) {
-      var _this$dashboardConfig10,
+      var _this$dashboardConfig11,
         _this33 = this;
       var modal = document.getElementById('tile-settings-modal');
       if (!modal) return;
       var widgetDef = this.findWidgetDef(widgetId);
       var schema = (widgetDef === null || widgetDef === void 0 ? void 0 : widgetDef.settingsSchema) || {};
       var configCategory = category === 'hero' ? 'hero' : 'widgets';
-      var currentSettings = ((_this$dashboardConfig10 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig10 === void 0 || (_this$dashboardConfig10 = _this$dashboardConfig10.tileSettings) === null || _this$dashboardConfig10 === void 0 ? void 0 : _this$dashboardConfig10[widgetId]) || {};
+      var currentSettings = ((_this$dashboardConfig11 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig11 === void 0 || (_this$dashboardConfig11 = _this$dashboardConfig11.tileSettings) === null || _this$dashboardConfig11 === void 0 ? void 0 : _this$dashboardConfig11[widgetId]) || {};
 
       // Set title
       var titleEl = document.getElementById('tile-settings-modal-title');
@@ -36092,13 +36095,13 @@ var DashboardModule = /*#__PURE__*/function () {
       // Show legend (checkbox)
       if (schema.showLegend) {
         var checked = currentSettings.showLegend !== false;
-        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showLegend\" ".concat(checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show legend'), "\n                    </label>\n                </div>\n            "));
+        fields.push("\n                <div class=\"form-group\">\n                    <label style=\"display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;\">\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"showLegend\"\n                            style=\"width: auto; min-height: auto;\" ".concat(checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show legend'), "\n                    </label>\n                </div>\n            "));
       }
 
       // Top-level categories only
       if (schema.topLevelOnly) {
         var _checked = currentSettings.topLevelOnly || false;
-        fields.push("\n                <div class=\"form-group\">\n                    <label>\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"topLevelOnly\" ".concat(_checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Top-level categories only'), "\n                    </label>\n                </div>\n            "));
+        fields.push("\n                <div class=\"form-group\">\n                    <label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Categories'), "</label>\n                    <label style=\"display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;\">\n                        <input type=\"checkbox\" class=\"tile-setting-input\" data-setting=\"topLevelOnly\"\n                            style=\"width: auto; min-height: auto;\" ").concat(_checked ? 'checked' : '', ">\n                        ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Show top-level categories only'), "\n                    </label>\n                </div>\n            "));
       }
 
       // Chart type
@@ -36197,10 +36200,10 @@ var DashboardModule = /*#__PURE__*/function () {
   }, {
     key: "refreshTileAfterSettingsChange",
     value: function refreshTileAfterSettingsChange(widgetId, category) {
-      var _this$dashboardConfig11,
+      var _this$dashboardConfig12,
         _this34 = this;
       var configCategory = category === 'hero' ? 'hero' : 'widgets';
-      var settings = ((_this$dashboardConfig11 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig11 === void 0 || (_this$dashboardConfig11 = _this$dashboardConfig11.tileSettings) === null || _this$dashboardConfig11 === void 0 ? void 0 : _this$dashboardConfig11[widgetId]) || {};
+      var settings = ((_this$dashboardConfig12 = this.dashboardConfig[configCategory]) === null || _this$dashboardConfig12 === void 0 || (_this$dashboardConfig12 = _this$dashboardConfig12.tileSettings) === null || _this$dashboardConfig12 === void 0 ? void 0 : _this$dashboardConfig12[widgetId]) || {};
 
       // Sync tile settings back to HTML selectors so existing refresh methods pick them up
       var selectorSync = {

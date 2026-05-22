@@ -851,7 +851,9 @@ export default class DashboardModule {
             return;
         }
 
-        container.innerHTML = transactions.slice(0, 8).map(tx => {
+        const txSettings = this.dashboardConfig.widgets?.tileSettings?.recentTransactions || {};
+        const rowCount = txSettings.rowCount || 8;
+        container.innerHTML = transactions.slice(0, rowCount).map(tx => {
             const isCredit = tx.type === 'credit';
             const amount = parseFloat(tx.amount) || 0;
             const category = this.categories.find(c => c.id === tx.categoryId || c.id === tx.category_id);
@@ -3189,7 +3191,7 @@ export default class DashboardModule {
             if (tileModal) tileModal.style.display = 'none';
             // Remove all tile controls
             document.querySelectorAll('.widget-tile-controls').forEach(el => el.remove());
-            // Hide inline selectors (account/period) — these are in tile settings when unlocked
+            // Inline selectors removed — settings are in the tile settings modal
             document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(el => el.style.display = 'none');
         } else {
             // Unlocked state
@@ -3200,8 +3202,8 @@ export default class DashboardModule {
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
             if (columnsPicker) columnsPicker.style.display = 'flex';
             document.querySelectorAll('.tile-settings-btn').forEach(b => b.style.display = '');
-            // Show inline selectors
-            document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(el => el.style.display = '');
+            // Hide inline selectors when unlocked — use gear icon / settings modal instead
+            document.querySelectorAll('.card-select, .card-header-controls .period-selector').forEach(el => el.style.display = 'none');
             // Add tile controls to all visible widgets
             this.addTileControls();
         }
@@ -3386,8 +3388,9 @@ export default class DashboardModule {
             const checked = currentSettings.showLegend !== false;
             fields.push(`
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" class="tile-setting-input" data-setting="showLegend" ${checked ? 'checked' : ''}>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" class="tile-setting-input" data-setting="showLegend"
+                            style="width: auto; min-height: auto;" ${checked ? 'checked' : ''}>
                         ${t('budget', 'Show legend')}
                     </label>
                 </div>
@@ -3399,9 +3402,11 @@ export default class DashboardModule {
             const checked = currentSettings.topLevelOnly || false;
             fields.push(`
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" class="tile-setting-input" data-setting="topLevelOnly" ${checked ? 'checked' : ''}>
-                        ${t('budget', 'Top-level categories only')}
+                    <label>${t('budget', 'Categories')}</label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" class="tile-setting-input" data-setting="topLevelOnly"
+                            style="width: auto; min-height: auto;" ${checked ? 'checked' : ''}>
+                        ${t('budget', 'Show top-level categories only')}
                     </label>
                 </div>
             `);
