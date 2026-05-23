@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.0] - 2026-05-23
+
+### Added
+- **Gridstack.js Dashboard** — Replaced custom drag-and-drop with Gridstack.js for reliable tile positioning, drag, and reflow.
+- **Hero Tile Reordering** — Hero tiles can now be reordered via drag-and-drop when the dashboard is unlocked.
+- **Duplicate Dashboard Tiles** — Add multiple instances of chart and transaction tiles (up to 5 each), each with independent account/period settings. Available for: Income vs Expenses, Spending by Category, Net Worth History, Asset Value History, and Recent Transactions.
+- **Category Details Chart** — Date range picker (3m / 6m / 12m / 2y) and account filter on the category spending chart. Budget vs actuals line overlay when a budget is set.
+- **Account Filtering** — Added account selector to Budget Progress and Top Spending Categories dashboard tiles. Backend support for account filtering on budget report and category details APIs.
+- **Dashboard Tile Sizing** — All chart and list tiles now properly flex-fill their Gridstack cells, with responsive overflow and scroll behavior.
+
+### Fixed
+- Dashboard tiles not dropping where expected — resolved by switching from CSS Grid auto-placement to Gridstack.js absolute positioning.
+- Chart tiles rendering as flat lines or empty — fixed canvas sizing within flex containers and deferred chart rendering until after layout.
+- Shared account transactions failing to load (#207).
+- Top-level category toggle now functional on all applicable tiles (#208).
+
 ## [2.25.0] - 2026-05-21
 
 ### Added

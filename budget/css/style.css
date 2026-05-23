@@ -428,6 +428,14 @@
     transform: translateY(-2px);
 }
 
+.hero-dragging {
+    opacity: 0.4;
+}
+.hero-drag-over {
+    outline: 2px dashed var(--color-primary-element);
+    outline-offset: -2px;
+}
+
 .hero-icon {
     width: 48px;
     height: 48px;
@@ -574,11 +582,14 @@
 
 /* Gridstack overrides */
 .grid-stack-item-content {
-    overflow: visible !important;
+    overflow: hidden !important;
 }
 .grid-stack-item-content .dashboard-card {
     height: 100%;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 .grid-stack > .grid-stack-placeholder > .placeholder-content {
     border: 2px dashed var(--color-primary-element) !important;
@@ -599,12 +610,24 @@
 .dashboard-card-large {
     min-height: 350px;
 }
+.grid-stack-item-content .dashboard-card-large {
+    min-height: 0;
+}
+
+/* Generic card content — fills remaining tile space */
+.dashboard-card .card-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .card-header h3 {
@@ -748,41 +771,42 @@
     text-decoration: underline;
 }
 
-/* Chart Containers */
+/* Chart Containers — flex-fill inside Gridstack tiles */
 .chart-container {
     position: relative;
     width: 100%;
+    flex: 1;
+    min-height: 0;
 }
 
-.chart-container-large {
-    height: 280px;
-}
-
-.chart-container-large canvas {
-    max-height: 280px !important;
-    height: 280px !important;
+.chart-container canvas {
     width: 100% !important;
+    height: 100% !important;
 }
 
 .chart-container-doughnut {
-    height: 250px;
     max-width: 250px;
+    flex-shrink: 0;
 }
 
-.chart-container-doughnut canvas {
-    max-height: 250px !important;
-    height: 250px !important;
+/* Spending tile adapts layout to tile size */
+.dashboard-tile-s .spending-chart-wrapper {
+    flex-direction: column;
+    align-items: center;
+}
+.dashboard-tile-s .chart-container-doughnut {
+    max-width: 100%;
+    width: 100%;
+}
+.dashboard-tile-s .spending-legend {
+    min-width: 0;
+    width: 100%;
 }
 
-.chart-container-medium {
-    height: 220px;
-}
-
-.chart-container-medium canvas {
-    max-height: 220px !important;
-    height: 220px !important;
-    width: 100% !important;
-}
+/* Chart container heights — used by all charts, flex overrides inside Gridstack */
+.chart-container-large { min-height: 280px; }
+.chart-container-medium { min-height: 220px; }
+.chart-container-doughnut { min-height: 200px; max-width: 250px; }
 
 /* Period Selector Buttons */
 .period-selector {
@@ -819,6 +843,7 @@
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
+    flex: 1;
     text-align: center;
     color: var(--color-text-maxcontrast);
 }
@@ -860,6 +885,7 @@
     border-radius: var(--border-radius);
     margin-bottom: 12px;
     font-size: 13px;
+    flex-shrink: 0;
 }
 
 .net-worth-status-content {
@@ -898,12 +924,16 @@
 .spending-chart-wrapper {
     display: flex;
     gap: 24px;
-    align-items: flex-start;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .spending-legend {
     flex: 1;
     min-width: 200px;
+    overflow-y: auto;
 }
 
 .spending-legend-item {
@@ -1028,6 +1058,7 @@
     gap: 20px;
     margin-top: 12px;
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .chart-legend-item {
@@ -1048,6 +1079,9 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .account-widget-item {
@@ -1132,6 +1166,9 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .bill-widget-item {
@@ -1297,6 +1334,9 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .budget-widget-item {
@@ -1366,6 +1406,9 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .savings-goal-item {
@@ -1424,6 +1467,9 @@
 .recent-transactions-list {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .recent-transaction-item {
@@ -5668,11 +5714,6 @@ button.danger:hover {
     letter-spacing: 0.5px;
 }
 
-.recent-transactions-list {
-    max-height: 400px;
-    overflow-y: auto;
-}
-
 .transaction-item {
     display: flex;
     justify-content: space-between;
@@ -5779,6 +5820,23 @@ button.danger:hover {
 }
 
 /* Category Spending Chart */
+.category-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.category-chart-header h5 {
+    margin: 0;
+}
+.category-chart-controls select {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+}
 .category-chart-section h5 {
     margin: 0 0 16px 0;
     font-size: 14px;
@@ -6938,8 +6996,9 @@ button.danger:hover {
     color: var(--color-main-text);
 }
 
-/* Chart Container */
-.chart-container {
+/* Chart Container (non-dashboard pages) */
+.report-section .chart-container,
+.insights-section .chart-container {
     background: var(--color-background-hover);
     border-radius: 12px;
     padding: 20px;
@@ -6947,7 +7006,8 @@ button.danger:hover {
     min-height: 350px;
 }
 
-.chart-container canvas {
+.report-section .chart-container canvas,
+.insights-section .chart-container canvas {
     width: 100% !important;
     height: 300px !important;
 }
@@ -10322,15 +10382,15 @@ button.danger:hover {
     margin-bottom: 24px;
 }
 
-/* Spending Chart Wrapper */
-.spending-chart-wrapper {
+/* Spending Chart Wrapper (reports page) */
+.report-section .spending-chart-wrapper {
     display: flex;
     gap: 32px;
     align-items: stretch;
     min-height: 320px;
 }
 
-.chart-container-doughnut {
+.report-section .chart-container-doughnut {
     width: 320px;
     height: 320px;
     flex-shrink: 0;
@@ -10488,12 +10548,12 @@ button.danger:hover {
         grid-template-columns: 1fr;
     }
 
-    .spending-chart-wrapper {
+    .report-section .spending-chart-wrapper {
         flex-direction: column;
         align-items: center;
     }
 
-    .spending-legend {
+    .report-section .spending-legend {
         width: 100%;
     }
 }
@@ -10532,7 +10592,7 @@ button.danger:hover {
         width: 100%;
     }
 
-    .chart-container-doughnut {
+    .report-section .chart-container-doughnut {
         width: 220px;
         height: 220px;
     }
@@ -13108,6 +13168,9 @@ tr.scheduled-transaction:hover {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .budget-alert-item {
@@ -13232,6 +13295,9 @@ tr.scheduled-transaction:hover {
 /* Dashboard widget */
 .debt-payoff-card .debt-payoff-widget {
     padding: 8px 0;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .debt-summary-stats {
@@ -13262,6 +13328,89 @@ tr.scheduled-transaction:hover {
 .debt-payoff-estimate .debt-hint {
     font-size: 11px;
     color: var(--color-text-maxcontrast);
+}
+
+/* Debt Chart Widget (dashboard tile) */
+.debt-chart-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+.debt-chart-canvas-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+.debt-chart-canvas-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+.debt-chart-timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+/* Debt Progress Widget (dashboard tile) */
+.debt-progress-countdown {
+    text-align: center;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+.debt-progress-months-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--color-success);
+}
+.debt-progress-months-label {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+.debt-progress-bar-section {
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+.debt-progress-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+.debt-progress-bar-track {
+    background: var(--color-background-dark);
+    border-radius: 10px;
+    height: 12px;
+    overflow: hidden;
+}
+.debt-progress-bar-fill {
+    background: linear-gradient(90deg, var(--color-success), #27ae60);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s;
+}
+.debt-progress-details {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.debt-progress-detail-card {
+    flex: 1;
+    background: var(--color-background-dark);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+}
+.debt-progress-detail-label {
+    font-size: 10px;
+    color: var(--color-text-maxcontrast);
+}
+.debt-progress-detail-value {
+    font-size: 12px;
+    font-weight: bold;
 }
 
 /* Debt Payoff View - Summary Cards */
@@ -15883,11 +16032,6 @@ tr.scheduled-transaction:hover {
 
 .velocity-trend.neutral {
     color: var(--color-text-lighter);
-}
-
-/* Phase 3: Chart Container Adjustments */
-.chart-container-large {
-    height: 300px;
 }
 
 /* Phase 4: Quick Add Transaction Form */

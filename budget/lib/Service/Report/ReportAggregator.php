@@ -314,7 +314,7 @@ class ReportAggregator {
      * Generate budget report with category-by-category breakdown.
      * OPTIMIZED: Uses single batch query instead of N queries for N categories.
      */
-    public function getBudgetReport(string $userId, string $startDate, string $endDate): array {
+    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null): array {
         $categories = $this->categoryMapper->findAll($userId);
         $budgetReport = [];
         $totals = [
@@ -345,7 +345,7 @@ class ReportAggregator {
         }
 
         // Single batch query for all category spending (replaces N+1 pattern)
-        $categorySpending = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $startDate, $endDate);
+        $categorySpending = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $startDate, $endDate, 'debit', $accountId);
 
         foreach ($categories as $category) {
             $categoryId = $category->getId();

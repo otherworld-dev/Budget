@@ -13,6 +13,14 @@
  */
 
 /*!
+ * GridStack 12.6.0
+ * https://gridstackjs.com/
+ *
+ * Copyright (c) 2021-2025  Alain Dumesny
+ * see root license https://github.com/gridstack/gridstack.js/tree/master/LICENSE
+ */
+
+/*!
  * SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */

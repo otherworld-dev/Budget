@@ -338,9 +338,9 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function details(int $id): DataResponse {
+    public function details(int $id, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): DataResponse {
         try {
-            $details = $this->service->getCategoryDetails($id, $this->getEffectiveUserId());
+            $details = $this->service->getCategoryDetails($id, $this->getEffectiveUserId(), $startDate, $endDate, $accountId);
             return new DataResponse($details);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);

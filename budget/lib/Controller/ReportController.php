@@ -183,7 +183,8 @@ class ReportController extends Controller {
      */
     public function budget(
         ?string $startDate = null,
-        ?string $endDate = null
+        ?string $endDate = null,
+        ?int $accountId = null
     ): DataResponse {
         try {
             if (!$startDate) {
@@ -196,7 +197,8 @@ class ReportController extends Controller {
             $budget = $this->service->getBudgetReport(
                 $this->getEffectiveUserId(),
                 $startDate,
-                $endDate
+                $endDate,
+                $accountId
             );
             return new DataResponse($budget);
         } catch (\Exception $e) {

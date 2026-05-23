@@ -218,8 +218,8 @@ class CategoryService extends AbstractCrudService {
     /**
      * Get full detail summary for a single category (analytics + monthly chart data)
      */
-    public function getCategoryDetails(int $categoryId, string $userId): array {
-        $this->find($categoryId, $userId); // Verify ownership
+    public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): array {
+        $category = $this->find($categoryId, $userId); // Verify ownership
 
         // Collect this category + all child category IDs for aggregation
         $categoryIds = [$categoryId];
@@ -229,7 +229,11 @@ class CategoryService extends AbstractCrudService {
         }
 
         $summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds);
-        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 6, $categoryIds);
+        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId);
+
+        // Include budget amount for chart overlay
+        $budget = (float)($category->getBudgetAmount() ?? 0);
+        $budgetPeriod = $category->getBudgetPeriod() ?? 'monthly';
 
         $count = $summary['count'];
         $total = $summary['total'];
@@ -276,6 +280,8 @@ class CategoryService extends AbstractCrudService {
             'thisMonth' => $thisMonth,
             'trend' => $trend,
             'monthlySpending' => $monthlySpending,
+            'budget' => $budget,
+            'budgetPeriod' => $budgetPeriod,
         ];
     }
 

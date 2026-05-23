@@ -752,11 +752,11 @@ style('budget', 'budget-main');
                             </div>
                         </div>
                         <div class="card-content" id="debt-chart-widget-content">
-                            <div id="debt-chart-widget-stats" style="display: flex; gap: 16px; margin-bottom: 12px;"></div>
-                            <div style="position: relative; height: 80px;">
+                            <div id="debt-chart-widget-stats" class="debt-chart-stats"></div>
+                            <div class="debt-chart-canvas-wrapper">
                                 <canvas id="debt-chart-widget-canvas"></canvas>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-maxcontrast); margin-top: 4px;">
+                            <div class="debt-chart-timeline-labels">
                                 <span><?php p($l->t('Now')); ?></span>
                                 <span id="debt-chart-widget-end"></span>
                             </div>
@@ -772,28 +772,28 @@ style('budget', 'budget-main');
                             </div>
                         </div>
                         <div class="card-content" id="debt-progress-widget-content">
-                            <div id="debt-progress-countdown" style="text-align: center; margin-bottom: 12px;">
-                                <div id="debt-progress-months" style="font-size: 32px; font-weight: bold; color: var(--color-success);"></div>
-                                <div style="font-size: 12px; color: var(--color-text-maxcontrast);"><?php p($l->t('months until debt free')); ?></div>
+                            <div id="debt-progress-countdown" class="debt-progress-countdown">
+                                <div id="debt-progress-months" class="debt-progress-months-value"></div>
+                                <div class="debt-progress-months-label"><?php p($l->t('months until debt free')); ?></div>
                             </div>
-                            <div id="debt-progress-bar-section" style="margin-bottom: 12px;">
-                                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <div id="debt-progress-bar-section" class="debt-progress-bar-section">
+                                <div class="debt-progress-bar-labels">
                                     <span id="debt-progress-remaining"></span>
                                     <span id="debt-progress-percent"></span>
                                 </div>
-                                <div style="background: var(--color-background-dark); border-radius: 10px; height: 12px; overflow: hidden;">
-                                    <div id="debt-progress-bar" style="background: linear-gradient(90deg, var(--color-success), #27ae60); height: 100%; border-radius: 10px; transition: width 0.3s;"></div>
+                                <div class="debt-progress-bar-track">
+                                    <div id="debt-progress-bar" class="debt-progress-bar-fill"></div>
                                 </div>
                             </div>
-                            <div id="debt-progress-details" style="display: flex; gap: 8px;">
-                                <div style="flex: 1; background: var(--color-background-dark); border-radius: 6px; padding: 8px; text-align: center;">
-                                    <div style="font-size: 10px; color: var(--color-text-maxcontrast);"><?php p($l->t('Next Payoff')); ?></div>
-                                    <div id="debt-progress-next-name" style="font-size: 12px; font-weight: bold;"></div>
-                                    <div id="debt-progress-next-date" style="font-size: 10px; color: var(--color-text-maxcontrast);"></div>
+                            <div id="debt-progress-details" class="debt-progress-details">
+                                <div class="debt-progress-detail-card">
+                                    <div class="debt-progress-detail-label"><?php p($l->t('Next Payoff')); ?></div>
+                                    <div id="debt-progress-next-name" class="debt-progress-detail-value"></div>
+                                    <div id="debt-progress-next-date" class="debt-progress-detail-label"></div>
                                 </div>
-                                <div style="flex: 1; background: var(--color-background-dark); border-radius: 6px; padding: 8px; text-align: center;">
-                                    <div style="font-size: 10px; color: var(--color-text-maxcontrast);"><?php p($l->t('Status')); ?></div>
-                                    <div id="debt-progress-status" style="font-size: 12px; font-weight: bold;"></div>
+                                <div class="debt-progress-detail-card">
+                                    <div class="debt-progress-detail-label"><?php p($l->t('Status')); ?></div>
+                                    <div id="debt-progress-status" class="debt-progress-detail-value"></div>
                                 </div>
                             </div>
                         </div>
@@ -1839,7 +1839,20 @@ style('budget', 'budget-main');
 
                         <!-- Monthly Spending Chart -->
                         <div class="category-chart-section">
-                            <h5><?php p($l->t('Monthly Spending')); ?></h5>
+                            <div class="category-chart-header">
+                                <h5><?php p($l->t('Monthly Spending')); ?></h5>
+                                <div class="category-chart-controls">
+                                    <select id="category-chart-account" class="card-select">
+                                        <option value=""><?php p($l->t('All Accounts')); ?></option>
+                                    </select>
+                                    <select id="category-chart-period" class="card-select">
+                                        <option value="6"><?php p($l->t('Last 6 Months')); ?></option>
+                                        <option value="3"><?php p($l->t('Last 3 Months')); ?></option>
+                                        <option value="12" selected><?php p($l->t('Last 12 Months')); ?></option>
+                                        <option value="24"><?php p($l->t('Last 2 Years')); ?></option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="category-chart-container">
                                 <canvas id="category-spending-chart"></canvas>
                             </div>

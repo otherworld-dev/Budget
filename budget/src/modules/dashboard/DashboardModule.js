@@ -25,6 +25,10 @@ const GRIDSTACK_SIZE_MAP = {
     l: { w: 3, h: 4 },  // w will be set dynamically to match column count
 };
 
+/** Widget types that support multiple instances on the dashboard */
+const DUPLICABLE_WIDGETS = ['trendChart', 'spendingChart', 'netWorthHistory', 'assetValueHistory', 'recentTransactions'];
+const MAX_INSTANCES = 5;
+
 export default class DashboardModule {
     constructor(app) {
         this.app = app;
@@ -88,6 +92,51 @@ export default class DashboardModule {
     get widgetDataLoaded() { return this.app.widgetDataLoaded; }
     get widgetData() { return this.app.widgetData; }
     get savingsGoals() { return this.app.savingsGoals; }
+
+    // ===========================
+    // Instance Helpers
+    // ===========================
+
+    /** Get the base widget type from an instance ID (e.g., 'trendChart__2' → 'trendChart') */
+    getWidgetType(instanceId) {
+        if (instanceId.includes('__')) {
+            return this.dashboardConfig.widgets?.instances?.[instanceId] || instanceId.split('__')[0];
+        }
+        return instanceId;
+    }
+
+    /** Check if an instanceId is a duplicate (not the base) */
+    isDuplicateInstance(instanceId) {
+        return instanceId.includes('__');
+    }
+
+    /** Generate next instance ID for a widget type */
+    generateInstanceId(widgetType) {
+        const instances = this.dashboardConfig.widgets?.instances || {};
+        let max = 1;
+        for (const key of Object.keys(instances)) {
+            if (key.startsWith(widgetType + '__')) {
+                const num = parseInt(key.split('__')[1]);
+                if (num >= max) max = num + 1;
+            }
+        }
+        return `${widgetType}__${max}`;
+    }
+
+    /** Count how many instances exist for a widget type (including the base) */
+    countInstances(widgetType) {
+        let count = 1; // base instance
+        const instances = this.dashboardConfig.widgets?.instances || {};
+        for (const key of Object.keys(instances)) {
+            if (instances[key] === widgetType) count++;
+        }
+        return count;
+    }
+
+    /** Get the card element for an instance */
+    getWidgetCard(instanceId) {
+        return document.querySelector(`[data-widget-id="${instanceId}"]`);
+    }
 
     // Helper proxies
     formatCurrency(amount, currency) {
@@ -259,7 +308,6 @@ export default class DashboardModule {
             this.populateAccountSelector('recent-transactions-account-select');
 
             // Refresh widgets that have a saved account selection
-            // (initial load fetched "All Accounts" data, so we need targeted refreshes)
             await this.refreshSavedWidgetSelections();
 
             // Apply dashboard widget order (must be before visibility)
@@ -268,11 +316,17 @@ export default class DashboardModule {
             // Apply dashboard widget visibility
             this.applyDashboardVisibility();
 
+            // Create DOM for any saved duplicate instances
+            this.createSavedInstances();
+
             // Initialize Gridstack for dashboard layout
             this.initGridstack();
 
             // Apply responsive layout ordering
             this.applyDashboardLayout();
+
+            // Fetch data for duplicate instances (after Gridstack so tiles are sized)
+            setTimeout(() => this.refreshAllInstances(), 50);
 
         } catch (error) {
             console.error('Failed to load dashboard:', error);
@@ -851,8 +905,14 @@ export default class DashboardModule {
         });
     }
 
-    updateRecentTransactions(transactions) {
-        const container = document.getElementById('recent-transactions');
+    updateRecentTransactions(transactions, instanceId = 'recentTransactions') {
+        let container;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            container = card ? card.querySelector('.recent-transactions-list') : null;
+        } else {
+            container = document.getElementById('recent-transactions');
+        }
         if (!container) return;
 
         if (!Array.isArray(transactions) || transactions.length === 0) {
@@ -860,7 +920,7 @@ export default class DashboardModule {
             return;
         }
 
-        const txSettings = this.dashboardConfig.widgets?.tileSettings?.recentTransactions || {};
+        const txSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
         const rowCount = txSettings.rowCount || 8;
         container.innerHTML = transactions.slice(0, rowCount).map(tx => {
             const isCredit = tx.type === 'credit';
@@ -1236,6 +1296,77 @@ export default class DashboardModule {
         }).join('');
     }
 
+    async refreshBudgetProgressWidget(instanceId = 'budgetProgress') {
+        try {
+            const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+            const { startDate, endDate } = this._dateRangeToParams(settings.dateRange);
+
+            let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
+            if (settings.accountId) {
+                url += `&accountId=${settings.accountId}`;
+            }
+            const response = await fetch(
+                OC.generateUrl(url),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) throw new Error('Failed to fetch budget data');
+            const data = await response.json();
+            this.updateBudgetProgressWidget(data.categories || []);
+        } catch (error) {
+            console.error('Failed to refresh budget progress:', error);
+        }
+    }
+
+    async refreshTopCategoriesWidget(instanceId = 'topCategories') {
+        try {
+            const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+            const { startDate, endDate } = this._dateRangeToParams(settings.dateRange);
+
+            let url = `/apps/budget/api/reports/spending?startDate=${startDate}&endDate=${endDate}`;
+            if (settings.accountId) {
+                url += `&accountId=${settings.accountId}`;
+            }
+            const response = await fetch(
+                OC.generateUrl(url),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) throw new Error('Failed to fetch spending data');
+            const data = await response.json();
+            this.updateTopCategoriesWidget(data.data || []);
+        } catch (error) {
+            console.error('Failed to refresh top categories:', error);
+        }
+    }
+
+    /** Convert a dateRange setting to startDate/endDate params */
+    _dateRangeToParams(dateRange) {
+        const now = new Date();
+        let startDate, endDate = formatters.formatDateForAPI(now);
+
+        switch (dateRange) {
+            case '30d':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                break;
+            case '90d':
+                startDate = new Date(now);
+                startDate.setMonth(startDate.getMonth() - 3);
+                break;
+            case '1y':
+                startDate = new Date(now.getFullYear(), 0, 1);
+                break;
+            case '6m':
+            default:
+                startDate = new Date(now);
+                startDate.setMonth(startDate.getMonth() - 6);
+                break;
+        }
+
+        return {
+            startDate: formatters.formatDateForAPI(startDate),
+            endDate,
+        };
+    }
+
     updateSavingsGoalsWidget(goals) {
         const container = document.getElementById('savings-goals-summary');
         if (!container) return;
@@ -1379,6 +1510,12 @@ export default class DashboardModule {
         } else {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data')}</div>`;
             return;
+        }
+
+        // Aggregate to top-level if setting is enabled
+        const topCatSettings = this.dashboardConfig.widgets?.tileSettings?.topCategories || {};
+        if (topCatSettings.topLevelOnly) {
+            spendingData = this.aggregateToTopLevel(spendingData);
         }
 
         const topCategories = spendingData
@@ -1880,23 +2017,27 @@ export default class DashboardModule {
     // Chart Updates
     // ===========================
 
-    updateSpendingChart(spending) {
-        const canvas = document.getElementById('spending-chart');
+    updateSpendingChart(spending, instanceId = 'spendingChart') {
+        let canvas;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+        } else {
+            canvas = document.getElementById('spending-chart');
+        }
         if (!canvas) return;
 
         // Destroy existing chart
-        if (this.charts.spending) {
-            this.charts.spending.destroy();
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
         }
 
         // Handle both object and array formats
         let spendingData;
         if (Array.isArray(spending)) {
-            // If it's an array, check if it's empty
             if (spending.length === 0) return;
             spendingData = spending;
         } else if (typeof spending === 'object') {
-            // If it's an object, convert to array format
             const entries = Object.entries(spending);
             if (entries.length === 0) return;
             spendingData = entries.map(([categoryId, amount]) => ({ categoryId: parseInt(categoryId), amount }));
@@ -1905,7 +2046,7 @@ export default class DashboardModule {
         }
 
         // Aggregate to top-level categories if setting is enabled
-        const spendingSettings = this.dashboardConfig.widgets?.tileSettings?.spendingChart || {};
+        const spendingSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
         if (spendingSettings.topLevelOnly) {
             spendingData = this.aggregateToTopLevel(spendingData);
         }
@@ -1917,21 +2058,13 @@ export default class DashboardModule {
             .sort((a, b) => Math.abs(b.total || b.amount || 0) - Math.abs(a.total || a.amount || 0))
             .slice(0, 10);
 
-        // Extract data - API already returns name and color in each item
-        const labels = sortedData.map(item => {
-            // Use the name directly from the spending item (API includes it)
-            return item.name || t('budget', 'Unknown');
-        });
-
+        const labels = sortedData.map(item => item.name || t('budget', 'Unknown'));
         const data = sortedData.map(item => Math.abs(item.total || item.amount || 0));
-        const colors = sortedData.map(item => {
-            // Use the color directly from the spending item (API includes it)
-            return item.color || '#999';
-        });
+        const colors = sortedData.map(item => item.color || '#999');
 
-        const spendingChartType = this.dashboardConfig.widgets?.tileSettings?.spendingChart?.chartType || 'doughnut';
+        const spendingChartType = spendingSettings.chartType || 'doughnut';
         const isSpendingBar = spendingChartType === 'bar';
-        this.charts.spending = new Chart(ctx, {
+        this.charts[instanceId] = new Chart(ctx, {
             type: isSpendingBar ? 'bar' : 'doughnut',
             data: {
                 labels,
@@ -1946,25 +2079,25 @@ export default class DashboardModule {
                 maintainAspectRatio: false,
                 ...(isSpendingBar ? { indexAxis: 'y' } : {}),
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (context) => {
-                                return `${context.label}: ${this.formatCurrency(context.raw)}`;
-                            }
+                            label: (context) => `${context.label}: ${this.formatCurrency(context.raw)}`
                         }
                     }
                 },
-                layout: {
-                    padding: 10
-                }
+                layout: { padding: 10 }
             }
         });
 
-        // Populate custom legend with spending breakdown
-        const legendContainer = document.getElementById('spending-chart-legend');
+        // Populate custom legend
+        let legendContainer;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            legendContainer = card ? card.querySelector('.spending-legend') : null;
+        } else {
+            legendContainer = document.getElementById('spending-chart-legend');
+        }
         if (legendContainer) {
             const totalSpending = data.reduce((sum, val) => sum + val, 0);
             legendContainer.innerHTML = `
@@ -1994,27 +2127,28 @@ export default class DashboardModule {
         }
     }
 
-    updateTrendChart(trends) {
-        const canvas = document.getElementById('trend-chart');
-        if (!canvas) {
-            return;
+    updateTrendChart(trends, instanceId = 'trendChart') {
+        let canvas;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+        } else {
+            canvas = document.getElementById('trend-chart');
+        }
+        if (!canvas) return;
+
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
         }
 
-        // Destroy existing chart
-        if (this.charts.trend) {
-            this.charts.trend.destroy();
-        }
-
-        if (!trends || !trends.labels || trends.labels.length === 0) {
-            return;
-        }
+        if (!trends || !trends.labels || trends.labels.length === 0) return;
 
         const ctx = canvas.getContext('2d');
-        const trendSettings = this.dashboardConfig.widgets?.tileSettings?.trendChart || {};
+        const trendSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
         const trendChartType = trendSettings.chartType || 'line';
         const isBar = trendChartType === 'bar';
         const trendShowLegend = trendSettings.showLegend !== false;
-        this.charts.trend = new Chart(ctx, {
+        this.charts[instanceId] = new Chart(ctx, {
             type: isBar ? 'bar' : 'line',
             data: {
                 labels: trends.labels,
@@ -2040,46 +2174,40 @@ export default class DashboardModule {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: {
-                        display: trendShowLegend,
-                        position: 'top'
-                    },
+                    legend: { display: trendShowLegend, position: 'top' },
                     tooltip: {
                         callbacks: {
-                            label: (context) => {
-                                return `${context.dataset.label}: ${this.formatCurrency(context.raw)}`;
-                            }
+                            label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.raw)}`
                         }
                     }
                 },
                 scales: {
-                    y: {
-                        ticks: {
-                            callback: (value) => this.formatCurrency(value)
-                        }
-                    }
+                    y: { ticks: { callback: (value) => this.formatCurrency(value) } }
                 }
             }
         });
     }
 
-    updateNetWorthHistoryChart(data, accountId = null) {
-        const canvas = document.getElementById('net-worth-chart');
-        const emptyState = document.getElementById('net-worth-chart-empty');
-        const statusEl = document.getElementById('net-worth-snapshot-status');
+    updateNetWorthHistoryChart(data, accountId = null, instanceId = 'netWorthHistory') {
+        let canvas, emptyState, statusEl;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+            emptyState = card ? card.querySelector('.chart-empty-state') : null;
+            statusEl = card ? card.querySelector('.net-worth-status') : null;
+        } else {
+            canvas = document.getElementById('net-worth-chart');
+            emptyState = document.getElementById('net-worth-chart-empty');
+            statusEl = document.getElementById('net-worth-snapshot-status');
+        }
         if (!canvas) return;
 
-        // Destroy existing chart
-        if (this.charts.netWorth) {
-            this.charts.netWorth.destroy();
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
         }
 
-        // Handle empty state
         if (!data || data.length === 0) {
             canvas.style.display = 'none';
             if (emptyState) emptyState.style.display = 'block';
@@ -2087,7 +2215,6 @@ export default class DashboardModule {
             return;
         }
 
-        // Show canvas, hide empty state
         canvas.style.display = 'block';
         if (emptyState) emptyState.style.display = 'none';
 
@@ -2096,19 +2223,15 @@ export default class DashboardModule {
 
         let datasets;
         if (accountId) {
-            // Single account: balance-history format { date, balance }
             if (statusEl) statusEl.style.display = 'none';
             datasets = [{
                 label: t('budget', 'Balance'),
                 data: data.map(s => s.balance),
                 borderColor: '#0082c9',
                 backgroundColor: 'rgba(0, 130, 201, 0.1)',
-                fill: true,
-                tension: 0.3,
-                borderWidth: 2
+                fill: true, tension: 0.3, borderWidth: 2
             }];
         } else {
-            // All accounts: snapshot format { date, netWorth, totalAssets, totalLiabilities, source }
             this.updateNetWorthStatus(data, statusEl);
             datasets = [
                 {
@@ -2116,32 +2239,26 @@ export default class DashboardModule {
                     data: data.map(s => s.netWorth),
                     borderColor: '#46ba61',
                     backgroundColor: 'rgba(70, 186, 97, 0.1)',
-                    fill: true,
-                    tension: 0.3,
-                    borderWidth: 2
+                    fill: true, tension: 0.3, borderWidth: 2
                 },
                 {
                     label: t('budget', 'Assets'),
                     data: data.map(s => s.totalAssets),
                     borderColor: '#0082c9',
                     borderDash: [5, 5],
-                    fill: false,
-                    tension: 0.3,
-                    borderWidth: 1.5
+                    fill: false, tension: 0.3, borderWidth: 1.5
                 },
                 {
                     label: t('budget', 'Liabilities'),
                     data: data.map(s => s.totalLiabilities),
                     borderColor: '#e9322d',
                     borderDash: [5, 5],
-                    fill: false,
-                    tension: 0.3,
-                    borderWidth: 1.5
+                    fill: false, tension: 0.3, borderWidth: 1.5
                 }
             ];
         }
 
-        this.charts.netWorth = new Chart(canvas, {
+        this.charts[instanceId] = new Chart(canvas, {
             type: 'line',
             data: { labels, datasets },
             options: {
@@ -2184,19 +2301,24 @@ export default class DashboardModule {
         });
     }
 
-    updateAssetValueHistoryChart(data) {
-        const canvas = document.getElementById('asset-value-history-chart');
-        const emptyState = document.getElementById('asset-value-chart-empty');
+    updateAssetValueHistoryChart(data, instanceId = 'assetValueHistory') {
+        let canvas, emptyState;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+            emptyState = card ? card.querySelector('.chart-empty-state') : null;
+        } else {
+            canvas = document.getElementById('asset-value-history-chart');
+            emptyState = document.getElementById('asset-value-chart-empty');
+        }
         if (!canvas) return;
 
-        // Destroy existing chart
-        if (this.charts.assetValueHistory) {
-            this.charts.assetValueHistory.destroy();
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
         }
 
         const history = data?.history || [];
 
-        // Handle empty state
         if (history.length === 0) {
             canvas.style.display = 'none';
             if (emptyState) emptyState.style.display = 'block';
@@ -2210,7 +2332,7 @@ export default class DashboardModule {
         const labels = history.map(p => p.date);
         const values = history.map(p => p.totalValue);
 
-        this.charts.assetValueHistory = new Chart(canvas, {
+        this.charts[instanceId] = new Chart(canvas, {
             type: 'line',
             data: {
                 labels,
@@ -2259,7 +2381,7 @@ export default class DashboardModule {
         });
     }
 
-    async refreshAssetValueChart(days) {
+    async refreshAssetValueChart(days, instanceId = 'assetValueHistory') {
         try {
             const response = await fetch(
                 OC.generateUrl(`/apps/budget/api/assets/value-history?days=${days}`),
@@ -2267,7 +2389,7 @@ export default class DashboardModule {
             );
             if (!response.ok) throw new Error('Failed to fetch asset value history');
             const data = await response.json();
-            this.updateAssetValueHistoryChart(data);
+            this.updateAssetValueHistoryChart(data, instanceId);
         } catch (error) {
             console.error('Failed to refresh asset value chart:', error);
         }
@@ -2461,7 +2583,7 @@ export default class DashboardModule {
         });
     }
 
-    async refreshTrendChart(months, accountId = null) {
+    async refreshTrendChart(months, accountId = null, instanceId = 'trendChart') {
         try {
             const startDate = new Date();
             startDate.setMonth(startDate.getMonth() - months);
@@ -2478,14 +2600,14 @@ export default class DashboardModule {
             const data = await response.json();
 
             if (data.trends) {
-                this.updateTrendChart(data.trends);
+                this.updateTrendChart(data.trends, instanceId);
             }
         } catch (error) {
             console.error('Failed to refresh trend chart:', error);
         }
     }
 
-    async refreshSpendingChart(period, accountId = null) {
+    async refreshSpendingChart(period, accountId = null, instanceId = 'spendingChart') {
         try {
             let startDate = new Date();
             const endDate = new Date();
@@ -2514,40 +2636,38 @@ export default class DashboardModule {
             const data = await response.json();
 
             if (data.data) {
-                this.updateSpendingChart(data.data);
+                this.updateSpendingChart(data.data, instanceId);
             }
         } catch (error) {
             console.error('Failed to refresh spending chart:', error);
         }
     }
 
-    async refreshNetWorthChart(days, accountId = null) {
+    async refreshNetWorthChart(days, accountId = null, instanceId = 'netWorthHistory') {
         try {
             if (accountId) {
-                // Single account: use balance-history endpoint
                 const response = await fetch(
                     OC.generateUrl(`/apps/budget/api/accounts/${accountId}/balance-history?days=${days}`),
                     { headers: { 'requesttoken': OC.requestToken } }
                 );
                 if (!response.ok) throw new Error('Failed to fetch balance history');
                 const history = await response.json();
-                this.updateNetWorthHistoryChart(history, accountId);
+                this.updateNetWorthHistoryChart(history, accountId, instanceId);
             } else {
-                // All accounts: aggregate net worth snapshots
                 const response = await fetch(
                     OC.generateUrl(`/apps/budget/api/net-worth/snapshots?days=${days}`),
                     { headers: { 'requesttoken': OC.requestToken } }
                 );
                 if (!response.ok) throw new Error('Failed to fetch net worth snapshots');
                 const snapshots = await response.json();
-                this.updateNetWorthHistoryChart(snapshots, null);
+                this.updateNetWorthHistoryChart(snapshots, null, instanceId);
             }
         } catch (error) {
             console.error('Failed to refresh net worth chart:', error);
         }
     }
 
-    async refreshRecentTransactions(accountId = null) {
+    async refreshRecentTransactions(accountId = null, instanceId = 'recentTransactions') {
         try {
             let url = '/apps/budget/api/transactions?limit=8';
             if (accountId) {
@@ -2559,9 +2679,37 @@ export default class DashboardModule {
             );
             if (!response.ok) throw new Error('Failed to fetch recent transactions');
             const data = await response.json();
-            this.updateRecentTransactions(data.transactions || data);
+            this.updateRecentTransactions(data.transactions || data, instanceId);
         } catch (error) {
             console.error('Failed to refresh recent transactions:', error);
+        }
+    }
+
+    /** Refresh any duplicable widget instance using its per-instance settings */
+    async refreshWidgetInstance(instanceId) {
+        const baseType = this.getWidgetType(instanceId);
+        const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+        const dateRange = settings.dateRange || '6m';
+
+        // Convert dateRange setting to parameters
+        const dateRangeMap = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 };
+        const days = dateRangeMap[dateRange] || 180;
+        const monthsMap = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 };
+        const months = monthsMap[dateRange] || 6;
+        const periodMap = { '30d': 'month', '90d': '3months', '6m': '3months', '1y': 'year' };
+        const period = periodMap[dateRange] || 'month';
+
+        switch (baseType) {
+            case 'trendChart':
+                return this.refreshTrendChart(months, settings.accountId || null, instanceId);
+            case 'spendingChart':
+                return this.refreshSpendingChart(period, settings.accountId || null, instanceId);
+            case 'netWorthHistory':
+                return this.refreshNetWorthChart(days, settings.accountId || null, instanceId);
+            case 'assetValueHistory':
+                return this.refreshAssetValueChart(days, instanceId);
+            case 'recentTransactions':
+                return this.refreshRecentTransactions(settings.accountId || null, instanceId);
         }
     }
 
@@ -2783,6 +2931,96 @@ export default class DashboardModule {
     }
 
     // ===========================
+    // Widget Instance Templates
+    // ===========================
+
+    /** Create DOM for a widget instance. Returns the card element. */
+    createWidgetDOM(instanceId) {
+        const widgetType = this.getWidgetType(instanceId);
+        const widgetDef = DASHBOARD_WIDGETS.widgets[widgetType];
+        if (!widgetDef) return null;
+
+        const size = this.getWidgetSize(instanceId, 'widgets');
+        const templateFn = this._widgetTemplates[widgetType];
+        if (!templateFn) return null;
+
+        const card = document.createElement('div');
+        card.className = `dashboard-card dashboard-tile-${size}`;
+        card.setAttribute('data-widget-id', instanceId);
+        card.setAttribute('data-widget-category', 'widget');
+        card.innerHTML = templateFn.call(this, instanceId, widgetDef);
+
+        return card;
+    }
+
+    get _widgetTemplates() {
+        return {
+            trendChart: (instanceId, def) => `
+                <div class="card-header">
+                    <h3>${def.name}</h3>
+                    <div class="card-header-controls"></div>
+                </div>
+                <div class="chart-container">
+                    <canvas></canvas>
+                </div>
+                <div class="chart-legend"></div>
+            `,
+            spendingChart: (instanceId, def) => `
+                <div class="card-header">
+                    <h3>${def.name}</h3>
+                    <div class="card-header-controls"></div>
+                </div>
+                <div class="spending-chart-wrapper">
+                    <div class="chart-container chart-container-doughnut">
+                        <canvas></canvas>
+                    </div>
+                    <div class="spending-legend"></div>
+                </div>
+            `,
+            netWorthHistory: (instanceId, def) => `
+                <div class="card-header">
+                    <h3>${def.name}</h3>
+                    <div class="card-header-controls"></div>
+                </div>
+                <div class="net-worth-status" style="display:none;"></div>
+                <div class="chart-container">
+                    <canvas></canvas>
+                </div>
+                <div class="chart-empty-state" style="display: none;">
+                    <div class="empty-state-content">
+                        <p class="empty-state-title">${t('budget', 'No net worth history yet')}</p>
+                        <p class="empty-state-subtitle">${t('budget', 'Snapshots are recorded automatically every day.')}</p>
+                    </div>
+                </div>
+            `,
+            assetValueHistory: (instanceId, def) => `
+                <div class="card-header">
+                    <h3>${def.name}</h3>
+                    <div class="card-header-controls"></div>
+                </div>
+                <div class="chart-container">
+                    <canvas></canvas>
+                </div>
+                <div class="chart-empty-state" style="display: none;">
+                    <div class="empty-state-content">
+                        <p class="empty-state-title">${t('budget', 'No asset value history yet')}</p>
+                        <p class="empty-state-subtitle">${t('budget', 'Add snapshots to your assets to track their combined value over time.')}</p>
+                    </div>
+                </div>
+            `,
+            recentTransactions: (instanceId, def) => `
+                <div class="card-header">
+                    <h3>${def.name}</h3>
+                    <div class="card-header-controls">
+                        <a href="#transactions" class="card-link">${t('budget', 'View All')}</a>
+                    </div>
+                </div>
+                <div class="recent-transactions-list"></div>
+            `,
+        };
+    }
+
+    // ===========================
     // Gridstack Integration
     // ===========================
 
@@ -2842,14 +3080,20 @@ export default class DashboardModule {
 
         this.gridstack = GridStack.init({
             column: this.gridColumns || 3,
-            cellHeight: 80,
+            cellHeight: 100,
             margin: 10,
             float: false,
             animate: true,
             disableOneColumnMode: true,
             disableResize: true,
-            staticGrid: this.dashboardLocked,
+            staticGrid: false,
         }, gridEl);
+
+        // Disable dragging if dashboard is locked (must be done after init
+        // so that drag handlers are created and can be toggled later)
+        if (this.dashboardLocked) {
+            this.gridstack.disable();
+        }
 
         // Apply positions
         const items = [];
@@ -2866,10 +3110,13 @@ export default class DashboardModule {
             this._saveGridstackPositions();
         });
 
-        // Resize charts after any drag
-        this.gridstack.on('dragstop', () => {
+        // Resize charts after any drag or layout change
+        this.gridstack.on('dragstop resizestop change', () => {
             requestAnimationFrame(() => this.resizeAllCharts());
         });
+
+        // Initial chart resize after Gridstack has laid out tiles
+        requestAnimationFrame(() => this.resizeAllCharts());
     }
 
     _saveGridstackPositions() {
@@ -2908,6 +3155,91 @@ export default class DashboardModule {
         });
     }
 
+    // ===========================
+    // Hero Tile Drag-and-Drop
+    // ===========================
+
+    setupHeroDragAndDrop() {
+        const container = document.querySelector('.dashboard-hero');
+        if (!container) return;
+
+        const cards = container.querySelectorAll('[data-widget-category="hero"]');
+        cards.forEach(card => {
+            card.setAttribute('draggable', 'true');
+            card.style.cursor = 'move';
+
+            card.addEventListener('dragstart', (e) => {
+                this._heroDragItem = card;
+                card.classList.add('hero-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', card.dataset.widgetId);
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('hero-dragging');
+                container.querySelectorAll('[data-widget-category="hero"]').forEach(c => {
+                    c.classList.remove('hero-drag-over');
+                });
+                this._heroDragItem = null;
+            });
+
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (this._heroDragItem && this._heroDragItem !== card) {
+                    card.classList.add('hero-drag-over');
+                }
+            });
+
+            card.addEventListener('dragleave', () => {
+                card.classList.remove('hero-drag-over');
+            });
+
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('hero-drag-over');
+                if (!this._heroDragItem || this._heroDragItem === card) return;
+
+                // Determine insertion position
+                const allCards = Array.from(container.querySelectorAll('[data-widget-category="hero"]'));
+                const dragIdx = allCards.indexOf(this._heroDragItem);
+                const dropIdx = allCards.indexOf(card);
+
+                if (dragIdx < dropIdx) {
+                    container.insertBefore(this._heroDragItem, card.nextSibling);
+                } else {
+                    container.insertBefore(this._heroDragItem, card);
+                }
+
+                // Save new order
+                this._saveHeroOrder();
+            });
+        });
+    }
+
+    teardownHeroDragAndDrop() {
+        const container = document.querySelector('.dashboard-hero');
+        if (!container) return;
+
+        container.querySelectorAll('[data-widget-category="hero"]').forEach(card => {
+            card.removeAttribute('draggable');
+            card.style.cursor = '';
+            card.classList.remove('hero-dragging', 'hero-drag-over');
+        });
+    }
+
+    _saveHeroOrder() {
+        const container = document.querySelector('.dashboard-hero');
+        if (!container) return;
+
+        const order = Array.from(container.querySelectorAll('[data-widget-category="hero"]'))
+            .map(card => card.dataset.widgetId);
+
+        if (!this.dashboardConfig.hero) this.dashboardConfig.hero = {};
+        this.dashboardConfig.hero.order = order;
+        this.saveDashboardVisibility('hero');
+    }
+
     getDefaultSize(widgetKey) {
         for (const category of ['hero', 'widgets']) {
             const widget = DASHBOARD_WIDGETS[category]?.[widgetKey];
@@ -2919,10 +3251,11 @@ export default class DashboardModule {
     getWidgetSize(widgetId, category) {
         const config = this.dashboardConfig[category];
         if (config?.sizes?.[widgetId]) return config.sizes[widgetId];
-        // Find widget key from id
+        // Resolve instance ID to base type for default size lookup
+        const baseType = this.getWidgetType(widgetId);
         const widgets = DASHBOARD_WIDGETS[category] || {};
         for (const [key, def] of Object.entries(widgets)) {
-            if (def.id === widgetId || key === widgetId) return def.defaultSize || 's';
+            if (def.id === baseType || key === baseType || def.id === widgetId || key === widgetId) return def.defaultSize || 's';
         }
         return 's';
     }
@@ -3302,6 +3635,13 @@ export default class DashboardModule {
             }
         }
 
+        // Toggle hero tile drag-and-drop
+        if (this.app.dashboardLocked) {
+            this.teardownHeroDragAndDrop();
+        } else {
+            this.setupHeroDragAndDrop();
+        }
+
         // Save state to backend
         try {
             await this._saveSettings({
@@ -3425,10 +3765,14 @@ export default class DashboardModule {
             const removeBtn = document.createElement('button');
             removeBtn.className = 'widget-remove-btn';
             removeBtn.innerHTML = '&times;';
-            removeBtn.title = t('budget', 'Hide tile');
+            removeBtn.title = this.isDuplicateInstance(widgetId) ? t('budget', 'Remove tile') : t('budget', 'Hide tile');
             removeBtn.onclick = (e) => {
                 e.stopPropagation();
-                this.hideWidget(widgetId, category === 'widget' ? 'widgets' : 'hero');
+                if (this.isDuplicateInstance(widgetId)) {
+                    this.removeWidgetInstance(widgetId);
+                } else {
+                    this.hideWidget(widgetId, category === 'widget' ? 'widgets' : 'hero');
+                }
             };
             controls.appendChild(removeBtn);
 
@@ -3441,9 +3785,10 @@ export default class DashboardModule {
     }
 
     findWidgetDef(widgetId) {
+        const baseType = this.getWidgetType(widgetId);
         for (const category of ['hero', 'widgets']) {
             for (const [key, def] of Object.entries(DASHBOARD_WIDGETS[category] || {})) {
-                if (key === widgetId || def.id === widgetId) return def;
+                if (key === baseType || def.id === baseType || key === widgetId || def.id === widgetId) return def;
             }
         }
         return null;
@@ -3492,9 +3837,16 @@ export default class DashboardModule {
         const configCategory = category === 'hero' ? 'hero' : 'widgets';
         const currentSettings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
 
-        // Set title
+        // Set title — append instance number for duplicates
         const titleEl = document.getElementById('tile-settings-modal-title');
-        if (titleEl) titleEl.textContent = widgetDef?.name || t('budget', 'Tile Settings');
+        if (titleEl) {
+            let title = widgetDef?.name || t('budget', 'Tile Settings');
+            if (this.isDuplicateInstance(widgetId)) {
+                const num = widgetId.split('__')[1];
+                title += ` (${num})`;
+            }
+            titleEl.textContent = title;
+        }
 
         const commonSection = document.getElementById('tile-settings-common');
         const specificSection = document.getElementById('tile-settings-specific');
@@ -3685,53 +4037,39 @@ export default class DashboardModule {
     refreshTileAfterSettingsChange(widgetId, category) {
         const configCategory = category === 'hero' ? 'hero' : 'widgets';
         const settings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
+        const baseType = this.getWidgetType(widgetId);
 
-        // Sync tile settings back to HTML selectors so existing refresh methods pick them up
-        const selectorSync = {
-            'trendChart': { account: 'trend-account-select' },
-            'spendingChart': { account: 'spending-account-select' },
-            'netWorthHistory': { account: 'net-worth-account-select' },
-            'recentTransactions': { account: 'recent-transactions-account-select' },
-            'accountIncome': { account: 'hero-account-income-select' },
-            'accountExpenses': { account: 'hero-account-expenses-select' },
-        };
+        // Sync tile settings back to HTML selectors (base instances only)
+        if (!this.isDuplicateInstance(widgetId)) {
+            const selectorSync = {
+                'trendChart': { account: 'trend-account-select' },
+                'spendingChart': { account: 'spending-account-select' },
+                'netWorthHistory': { account: 'net-worth-account-select' },
+                'recentTransactions': { account: 'recent-transactions-account-select' },
+                'accountIncome': { account: 'hero-account-income-select' },
+                'accountExpenses': { account: 'hero-account-expenses-select' },
+            };
 
-        const sync = selectorSync[widgetId];
-        if (sync) {
-            if (sync.account && settings.accountId !== undefined) {
-                const sel = document.getElementById(sync.account);
-                if (sel) sel.value = settings.accountId || '';
+            const sync = selectorSync[widgetId];
+            if (sync) {
+                if (sync.account && settings.accountId !== undefined) {
+                    const sel = document.getElementById(sync.account);
+                    if (sel) sel.value = settings.accountId || '';
+                }
             }
         }
 
+        // Use instance-aware refresh for duplicable widgets
+        if (DUPLICABLE_WIDGETS.includes(baseType)) {
+            return this.refreshWidgetInstance(widgetId);
+        }
+
         const refreshMap = {
-            // Core chart widgets
-            'trendChart': () => {
-                const periodSel = document.getElementById('trend-period-select');
-                const months = periodSel ? parseInt(periodSel.value) : 6;
-                return this.refreshTrendChart(months, settings.accountId || null);
-            },
-            'spendingChart': () => {
-                const periodSel = document.getElementById('spending-period-select');
-                const period = periodSel ? periodSel.value : 'month';
-                return this.refreshSpendingChart(period, settings.accountId || null);
-            },
-            'netWorthHistory': () => {
-                const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
-                const days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
-                return this.refreshNetWorthChart(days, settings.accountId || null);
-            },
-            'assetValueHistory': () => {
-                const activeBtn = document.querySelector('#asset-value-period-selector .period-btn.active');
-                const days = activeBtn ? parseInt(activeBtn.dataset.days) : 90;
-                return this.refreshAssetValueChart(days);
-            },
-            // List widgets
-            'recentTransactions': () => this.updateRecentTransactionsWidget?.(),
             'upcomingBills': () => this.updateUpcomingBillsWidget?.(),
             // Stat widgets
             'accounts': () => this.updateAccountsWidget(this._allDashboardAccounts),
-            'budgetProgress': () => this.updateBudgetProgressWidget?.(),
+            'budgetProgress': () => this.refreshBudgetProgressWidget(widgetId),
+            'topCategories': () => this.refreshTopCategoriesWidget(widgetId),
             'budgetAlerts': () => this.updateBudgetAlertsWidget?.(),
             'savingsGoals': () => this.updateSavingsGoalsWidget?.(),
             // Debt widgets
@@ -3927,8 +4265,41 @@ export default class DashboardModule {
             });
         });
 
+        // "Add another" section for duplicable widgets that are already visible
+        const duplicableItems = [];
+        DUPLICABLE_WIDGETS.forEach(widgetType => {
+            if (this.dashboardConfig.widgets.visibility[widgetType] !== false && this.countInstances(widgetType) < MAX_INSTANCES) {
+                const widgetDef = DASHBOARD_WIDGETS.widgets[widgetType];
+                if (widgetDef) {
+                    duplicableItems.push({ key: widgetType, name: widgetDef.name });
+                }
+            }
+        });
+
+        if (duplicableItems.length > 0) {
+            const dupHeader = document.createElement('div');
+            dupHeader.className = 'add-tiles-category-header';
+            dupHeader.textContent = t('budget', 'Add Another');
+            menuList.appendChild(dupHeader);
+
+            duplicableItems.forEach(tile => {
+                const item = document.createElement('div');
+                item.className = 'add-tiles-menu-item';
+                item.innerHTML = `
+                    <span class="tile-name-wrapper">
+                        <span class="tile-name">${tile.name}</span>
+                        <span class="tile-size-badge">${this.countInstances(tile.key)}/${MAX_INSTANCES}</span>
+                    </span>
+                    <button class="add-tile-btn add-another-btn" data-widget-type="${tile.key}">
+                        <span class="icon-add"></span>
+                    </button>
+                `;
+                menuList.appendChild(item);
+            });
+        }
+
         // Wire up add buttons
-        menuList.querySelectorAll('.add-tile-btn').forEach(btn => {
+        menuList.querySelectorAll('.add-tile-btn:not(.add-another-btn)').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const widgetId = btn.dataset.widgetId;
@@ -3936,6 +4307,156 @@ export default class DashboardModule {
                 this.showWidget(widgetId, category);
             });
         });
+
+        // Wire up "Add another" buttons
+        menuList.querySelectorAll('.add-another-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.addWidgetInstance(btn.dataset.widgetType);
+            });
+        });
+    }
+
+    // ===========================
+    // Widget Instance Lifecycle
+    // ===========================
+
+    /** Create DOM elements for saved duplicate instances (called during load, before Gridstack init) */
+    createSavedInstances() {
+        const instances = this.dashboardConfig.widgets?.instances || {};
+        const gridEl = document.querySelector('.dashboard-grid');
+        if (!gridEl) return;
+
+        for (const [instanceId, widgetType] of Object.entries(instances)) {
+            if (this.dashboardConfig.widgets.visibility[instanceId] === false) continue;
+            if (this.getWidgetCard(instanceId)) continue; // already exists
+
+            const card = this.createWidgetDOM(instanceId);
+            if (card) {
+                gridEl.appendChild(card);
+            }
+        }
+    }
+
+    /** Fetch data for all duplicate instances (called after Gridstack init) */
+    async refreshAllInstances() {
+        const instances = this.dashboardConfig.widgets?.instances || {};
+        const refreshes = [];
+        for (const instanceId of Object.keys(instances)) {
+            if (this.dashboardConfig.widgets.visibility[instanceId] === false) continue;
+            refreshes.push(this.refreshWidgetInstance(instanceId));
+        }
+        await Promise.all(refreshes);
+    }
+
+    async addWidgetInstance(widgetType) {
+        if (!DUPLICABLE_WIDGETS.includes(widgetType)) return;
+        if (this.countInstances(widgetType) >= MAX_INSTANCES) {
+            showError(t('budget', 'Maximum of {max} instances reached', { max: MAX_INSTANCES }));
+            return;
+        }
+
+        const instanceId = this.generateInstanceId(widgetType);
+
+        // Register in config
+        if (!this.dashboardConfig.widgets.instances) this.dashboardConfig.widgets.instances = {};
+        this.dashboardConfig.widgets.instances[instanceId] = widgetType;
+
+        // Set default visibility and size
+        this.dashboardConfig.widgets.visibility[instanceId] = true;
+        const defaultSize = DASHBOARD_WIDGETS.widgets[widgetType]?.defaultSize || 'm';
+        if (!this.dashboardConfig.widgets.sizes) this.dashboardConfig.widgets.sizes = {};
+        this.dashboardConfig.widgets.sizes[instanceId] = defaultSize;
+
+        // Add to order
+        if (!this.dashboardConfig.widgets.order) this.dashboardConfig.widgets.order = [];
+        this.dashboardConfig.widgets.order.push(instanceId);
+
+        // Create DOM
+        const card = this.createWidgetDOM(instanceId);
+        if (!card) return;
+
+        const gridEl = document.querySelector('.dashboard-grid');
+        if (!gridEl) return;
+
+        // Add to Gridstack
+        if (this.gridstack) {
+            const mapped = GRIDSTACK_SIZE_MAP[defaultSize] || { w: 2, h: 4 };
+            const w = defaultSize === 'l' ? (this.gridColumns || 3) : mapped.w;
+
+            // Build the grid-stack-item wrapper and append to grid
+            const wrapper = document.createElement('div');
+            wrapper.className = 'grid-stack-item';
+            wrapper.setAttribute('gs-id', instanceId);
+            wrapper.setAttribute('gs-w', w);
+            wrapper.setAttribute('gs-h', mapped.h);
+            wrapper.setAttribute('gs-auto-position', 'true');
+            const content = document.createElement('div');
+            content.className = 'grid-stack-item-content';
+            content.appendChild(card);
+            wrapper.appendChild(content);
+            gridEl.appendChild(wrapper);
+
+            // v12 API: makeWidget registers an existing DOM element with Gridstack
+            this.gridstack.makeWidget(wrapper);
+        } else {
+            gridEl.appendChild(card);
+        }
+
+        // Save config
+        this._saveGridstackPositions();
+        this.saveDashboardVisibility('widgets');
+
+        // Add tile controls if unlocked
+        if (!this.dashboardLocked) {
+            this.addTileControls();
+        }
+
+        // Fetch and render data
+        await this.refreshWidgetInstance(instanceId);
+
+        // Update menu
+        this.updateAddTilesMenu();
+
+        showSuccess(t('budget', 'Tile added'));
+    }
+
+    removeWidgetInstance(instanceId) {
+        if (!this.isDuplicateInstance(instanceId)) {
+            // Base tiles just get hidden
+            this.hideWidget(instanceId, 'widgets');
+            return;
+        }
+
+        // Remove from Gridstack
+        if (this.gridstack) {
+            const el = document.querySelector(`.grid-stack-item[gs-id="${instanceId}"]`);
+            if (el) this.gridstack.removeWidget(el);
+        } else {
+            const card = this.getWidgetCard(instanceId);
+            if (card) card.remove();
+        }
+
+        // Destroy chart if exists
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
+            delete this.charts[instanceId];
+        }
+
+        // Remove from config
+        delete this.dashboardConfig.widgets.instances?.[instanceId];
+        delete this.dashboardConfig.widgets.visibility?.[instanceId];
+        delete this.dashboardConfig.widgets.sizes?.[instanceId];
+        delete this.dashboardConfig.widgets.positions?.[instanceId];
+        delete this.dashboardConfig.widgets.tileSettings?.[instanceId];
+
+        const orderIdx = this.dashboardConfig.widgets.order?.indexOf(instanceId);
+        if (orderIdx > -1) this.dashboardConfig.widgets.order.splice(orderIdx, 1);
+
+        this.saveDashboardVisibility('widgets');
+        this.updateAddTilesMenu();
+
+        showSuccess(t('budget', 'Tile removed'));
     }
 
 }

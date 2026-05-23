@@ -485,26 +485,80 @@ export default class CategoriesModule {
         // Update category overview
         this.updateCategoryOverview(category);
 
+        // Store current category for refresh
+        this._currentCategory = category;
+
         // Load data from server in parallel
         const [detailsRes, transactionsRes] = await Promise.all([
-            fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/details`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
+            this.fetchCategoryDetails(category.id),
             fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/transactions?limit=5`), {
                 headers: { 'requesttoken': OC.requestToken }
             }),
             this.app.renderCategoryTagSetsList(category.id),
         ]);
 
-        if (detailsRes.ok) {
-            const details = await detailsRes.json();
-            this.updateAnalyticsFromServer(details);
-            this.renderCategorySpendingChartFromServer(details.monthlySpending, category.color);
+        if (detailsRes) {
+            this.updateAnalyticsFromServer(detailsRes);
+            this.renderCategorySpendingChartFromServer(detailsRes.monthlySpending, category.color, detailsRes.budget, detailsRes.budgetPeriod);
         }
 
         if (transactionsRes.ok) {
             const transactions = await transactionsRes.json();
             this.renderRecentTransactions(transactions);
+        }
+
+        // Populate account selector
+        const accountSelect = document.getElementById('category-chart-account');
+        if (accountSelect && this.app.accounts) {
+            const currentVal = accountSelect.value;
+            accountSelect.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
+            this.app.accounts.forEach(acc => {
+                accountSelect.innerHTML += `<option value="${acc.id}">${this.escapeHtml(acc.name)}</option>`;
+            });
+            accountSelect.value = currentVal;
+            accountSelect.onchange = () => this.refreshCategoryChart();
+        }
+
+        // Wire up period selector
+        const periodSelect = document.getElementById('category-chart-period');
+        if (periodSelect) {
+            periodSelect.onchange = () => this.refreshCategoryChart();
+        }
+    }
+
+    async fetchCategoryDetails(categoryId, months = null) {
+        try {
+            const periodSelect = document.getElementById('category-chart-period');
+            const accountSelect = document.getElementById('category-chart-account');
+            const m = months || (periodSelect ? parseInt(periodSelect.value) : 12);
+            const accountId = accountSelect ? accountSelect.value : '';
+            const now = new Date();
+            const startDate = new Date(now.getFullYear(), now.getMonth() - m, 1);
+            const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-01`;
+            const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            let url = `/apps/budget/api/categories/${categoryId}/details?startDate=${startStr}&endDate=${endStr}`;
+            if (accountId) {
+                url += `&accountId=${accountId}`;
+            }
+
+            const response = await fetch(
+                OC.generateUrl(url),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) return null;
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch category details:', error);
+            return null;
+        }
+    }
+
+    async refreshCategoryChart() {
+        if (!this._currentCategory) return;
+        const details = await this.fetchCategoryDetails(this._currentCategory.id);
+        if (details) {
+            this.renderCategorySpendingChartFromServer(details.monthlySpending, this._currentCategory.color, details.budget, details.budgetPeriod);
         }
     }
 
@@ -575,7 +629,7 @@ export default class CategoriesModule {
         `).join('');
     }
 
-    renderCategorySpendingChartFromServer(monthlySpending, categoryColor) {
+    renderCategorySpendingChartFromServer(monthlySpending, categoryColor, budget = 0, budgetPeriod = 'monthly') {
         const canvas = document.getElementById('category-spending-chart');
         if (!canvas) return;
 
@@ -584,37 +638,76 @@ export default class CategoriesModule {
             this.categoryChart = null;
         }
 
+        // Determine how many months to show from the period selector
+        const periodSelect = document.getElementById('category-chart-period');
+        const monthCount = periodSelect ? parseInt(periodSelect.value) : 12;
+
         // Build labels and amounts from server data, filling gaps for missing months
         const now = new Date();
-        const months = [];
+        const labels = [];
         const amounts = [];
         const serverMap = {};
         for (const entry of (monthlySpending || [])) {
             serverMap[entry.month] = entry.total;
         }
-        for (let i = 5; i >= 0; i--) {
+        for (let i = monthCount - 1; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            months.push(d.toLocaleDateString(undefined, { month: 'short' }));
+            const label = monthCount > 12
+                ? d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+                : d.toLocaleDateString(undefined, { month: 'short' });
+            labels.push(label);
             amounts.push(serverMap[key] || 0);
         }
 
         const chartColor = categoryColor || 'rgba(54, 162, 235, 0.7)';
         const ctx = canvas.getContext('2d');
+
+        const datasets = [{
+            label: t('budget', 'Spending'),
+            data: amounts,
+            backgroundColor: chartColor,
+            borderRadius: 4,
+            order: 2,
+        }];
+
+        // Add budget line if a budget is set
+        if (budget > 0) {
+            // Convert budget to monthly equivalent for display
+            let monthlyBudget = budget;
+            switch (budgetPeriod) {
+                case 'weekly': monthlyBudget = budget * 4.33; break;
+                case 'quarterly': monthlyBudget = budget / 3; break;
+                case 'yearly': monthlyBudget = budget / 12; break;
+            }
+
+            datasets.push({
+                label: t('budget', 'Budget'),
+                data: Array(labels.length).fill(monthlyBudget),
+                type: 'line',
+                borderColor: '#e9322d',
+                borderDash: [6, 3],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                order: 1,
+            });
+        }
+
         this.categoryChart = new Chart(ctx, {
             type: 'bar',
-            data: {
-                labels: months,
-                datasets: [{
-                    data: amounts,
-                    backgroundColor: chartColor,
-                    borderRadius: 4,
-                }]
-            },
+            data: { labels, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: budget > 0, position: 'top', labels: { usePointStyle: true, padding: 10 } },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.raw)}`
+                        }
+                    }
+                },
                 scales: {
                     y: {
                         beginAtZero: true,

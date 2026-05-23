@@ -15,6 +15,12 @@ class Version001000065Date20260521 extends SimpleMigrationStep {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
 
+        // Rename old table if it exists from pre-release versions
+        if ($schema->hasTable('budget_debt_scenarios') && !$schema->hasTable('budget_dscn')) {
+            $schema->renameTable('budget_debt_scenarios', 'budget_dscn');
+            return $schema;
+        }
+
         if (!$schema->hasTable('budget_dscn')) {
             $table = $schema->createTable('budget_dscn');
 

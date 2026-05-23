@@ -287,9 +287,13 @@ class TransactionMapper extends QBMapper {
      * Get monthly spending breakdown for a single category
      * @return array<array{month: string, total: float, count: int}>
      */
-    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null): array {
-        $startDate = date('Y-m-01', strtotime("-{$months} months"));
-        $endDate = date('Y-m-d');
+    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): array {
+        if (!$startDate) {
+            $startDate = date('Y-m-01', strtotime("-{$months} months"));
+        }
+        if (!$endDate) {
+            $endDate = date('Y-m-d');
+        }
 
         $ids = $categoryIds ?? [$categoryId];
 
@@ -305,6 +309,10 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
 
         $this->excludeScheduledFuture($qb);
 
@@ -953,7 +961,7 @@ class TransactionMapper extends QBMapper {
      * @param int[] $categoryIds
      * @return array<int, float> categoryId => total spending
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit'): array {
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -967,6 +975,10 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
 
         $this->excludeScheduledFuture($qb);
 
