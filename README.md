@@ -8,14 +8,14 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.25
+## What's New in v2.26
 
-- **Debt Payoff Charts** - Stacked area chart showing each debt declining over time, with toggle to individual line view
-- **Debt Scenarios** - Create, save, and compare named payoff scenarios with different strategies, extra payments, lump sums, debt selection, and rate overrides
-- **Strategy Comparison** - Side-by-side avalanche vs snowball comparison with recommendation
-- **Debt Dashboard Widgets** - Mini sparkline chart, progress/countdown with percentage paid off, and days-until-debt-free hero tile
-- **Running Balance Fix** ([#194](https://github.com/otherworld-dev/Budget/issues/194)) - Rewrote to compute server-side, eliminating page boundary errors
-- **Rules Tag Fix** ([#204](https://github.com/otherworld-dev/Budget/issues/204)) - Import rules now correctly apply tag actions
+- **Gridstack.js Dashboard** - Reliable drag-and-drop tile positioning replacing the custom implementation
+- **Duplicate Dashboard Tiles** - Add multiple instances of chart/transaction tiles with independent account and period settings (up to 5 each)
+- **Hero Tile Reordering** - Drag-and-drop ordering for hero tiles when unlocked
+- **Category Details Enhancement** - Date range picker, account filter, and budget vs actuals chart overlay
+- **Account Filtering** - Added to Budget Progress and Top Spending Categories tiles, plus backend API support
+- **Shared Account Fixes** - R/W users can now edit/delete shared accounts; dashboard summary includes shared accounts ([#215](https://github.com/otherworld-dev/Budget/issues/215), [#216](https://github.com/otherworld-dev/Budget/issues/216))
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
@@ -37,8 +37,9 @@ Popular topics:
 ## Features
 
 ### Dashboard & Visualization
-- **Customizable Dashboard** - Drag-and-drop tile reordering, lock/unlock dashboard editing
-- **28 Dashboard Tiles** - Hero metrics, spending insights, forecasting, budget tracking, and more
+- **Customizable Dashboard** - Gridstack.js-powered drag-and-drop with lock/unlock editing, column picker, and per-tile sizing (S/M/L)
+- **Duplicate Tiles** - Add multiple instances of chart and transaction tiles, each with independent account/period settings
+- **28+ Dashboard Tiles** - Hero metrics, spending insights, forecasting, budget tracking, and more
 - **Interactive Charts** - Cash flow forecasts, year-over-year comparisons, net worth history with Chart.js
 - **Auto-Updating Tiles** - Dashboard refreshes automatically when transactions or budgets change
 
