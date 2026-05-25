@@ -14,11 +14,15 @@ style('budget', 'budget-main');
     <!-- Search Bar -->
     <div class="app-navigation-search">
         <div class="app-navigation-search-wrapper">
-            <input type="text"
+            <input type="search"
                    id="app-navigation-search-input"
                    class="app-navigation-search-input"
                    placeholder="<?php p($l->t('Search here ...')); ?>"
-                   aria-label="<?php p($l->t('Search navigation')); ?>">
+                   aria-label="<?php p($l->t('Search navigation')); ?>"
+                   autocomplete="off"
+                   autocorrect="off"
+                   autocapitalize="off"
+                   spellcheck="false">
             <span class="app-navigation-search-icon icon-search" aria-hidden="true"></span>
             <button type="button"
                     id="app-navigation-search-clear"
@@ -1363,7 +1367,7 @@ style('budget', 'budget-main');
 
                                 <div class="filter-group full-width">
                                     <label for="account-filter-search"><?php p($l->t('Search')); ?></label>
-                                    <input type="text" id="account-filter-search" placeholder="<?php p($l->t('Description, vendor, reference...')); ?>">
+                                    <input type="search" id="account-filter-search" placeholder="<?php p($l->t('Description, vendor, reference...')); ?>" autocomplete="off">
                                 </div>
 
                                 <div class="filter-group">
@@ -1525,7 +1529,7 @@ style('budget', 'budget-main');
 
                         <div class="filter-group full-width">
                             <label for="filter-search"><?php p($l->t('Search')); ?></label>
-                            <input type="text" id="filter-search" placeholder="<?php p($l->t('Description, vendor, reference...')); ?>">
+                            <input type="search" id="filter-search" placeholder="<?php p($l->t('Description, vendor, reference...')); ?>" autocomplete="off">
                         </div>
 
                         <div class="filter-group">
@@ -1718,7 +1722,7 @@ style('budget', 'budget-main');
                 <div class="categories-panel">
                     <div class="categories-toolbar">
                         <div class="search-container">
-                            <input type="text" id="categories-search" placeholder="<?php p($l->t('Search categories...')); ?>" class="search-input">
+                            <input type="search" id="categories-search" placeholder="<?php p($l->t('Search categories...')); ?>" class="search-input" autocomplete="off">
                             <span class="icon-search search-icon" aria-hidden="true"></span>
                         </div>
                         <div class="view-options">
@@ -2517,14 +2521,27 @@ style('budget', 'budget-main');
                 </div>
             </div>
 
+            <!-- Rules Search/Filter -->
+            <div class="rules-filter-bar">
+                <div class="rules-search-wrapper">
+                    <span class="icon-search" aria-hidden="true"></span>
+                    <input type="search" id="rules-search" placeholder="<?php p($l->t('Search rules...')); ?>" aria-label="<?php p($l->t('Search rules')); ?>" autocomplete="off">
+                </div>
+                <div class="rules-filter-chips">
+                    <button class="filter-chip active" data-filter="all"><?php p($l->t('All')); ?></button>
+                    <button class="filter-chip" data-filter="active"><?php p($l->t('Active')); ?></button>
+                    <button class="filter-chip" data-filter="inactive"><?php p($l->t('Inactive')); ?></button>
+                </div>
+            </div>
+
             <!-- Rules Table -->
             <div class="rules-table-wrapper">
                 <table id="rules-table" class="rules-table">
                     <thead>
                         <tr>
-                            <th class="rules-col-priority"><?php p($l->t('Pri')); ?></th>
-                            <th class="rules-col-name"><?php p($l->t('Name')); ?></th>
-                            <th class="rules-col-status"><?php p($l->t('Status')); ?></th>
+                            <th class="rules-col-priority sortable" data-sort="priority"><?php p($l->t('Pri')); ?> <span class="sort-indicator"></span></th>
+                            <th class="rules-col-name sortable" data-sort="name"><?php p($l->t('Name')); ?> <span class="sort-indicator"></span></th>
+                            <th class="rules-col-status sortable" data-sort="status"><?php p($l->t('Status')); ?> <span class="sort-indicator"></span></th>
                             <th class="rules-col-criteria"><?php p($l->t('Criteria')); ?></th>
                             <th class="rules-col-actions"><?php p($l->t('Actions')); ?></th>
                             <th class="rules-col-buttons"></th>
@@ -4925,7 +4942,7 @@ style('budget', 'budget-main');
 
                 <div class="form-group">
                     <label for="account-name"><?php p($l->t('Account Name')); ?> <span class="required">*</span></label>
-                    <input type="text" id="account-name" required aria-describedby="account-name-help" maxlength="255">
+                    <input type="text" id="account-name" required aria-describedby="account-name-help" maxlength="255" autocomplete="off">
                     <small id="account-name-help" class="form-text"><?php p($l->t('Enter a descriptive name for this account')); ?></small>
                 </div>
 
@@ -4980,13 +4997,13 @@ style('budget', 'budget-main');
 
                 <div class="form-group">
                     <label for="account-holder-name"><?php p($l->t('Account Holder Name')); ?></label>
-                    <input type="text" id="account-holder-name" aria-describedby="account-holder-name-help" maxlength="255">
+                    <input type="text" id="account-holder-name" aria-describedby="account-holder-name-help" maxlength="255" autocomplete="off">
                     <small id="account-holder-name-help" class="form-text"><?php p($l->t('Name on the account')); ?></small>
                 </div>
 
                 <div class="form-group">
                     <label for="form-account-number"><?php p($l->t('Account Number')); ?></label>
-                    <input type="text" id="form-account-number" aria-describedby="form-account-number-help" maxlength="100">
+                    <input type="text" id="form-account-number" aria-describedby="form-account-number-help" maxlength="100" autocomplete="off">
                     <small id="form-account-number-help" class="form-text"><?php p($l->t('Your account number')); ?></small>
                 </div>
 
@@ -5003,31 +5020,31 @@ style('budget', 'budget-main');
 
                 <div class="form-group conditional" id="routing-number-group">
                     <label for="form-routing-number"><?php p($l->t('Routing Number')); ?></label>
-                    <input type="text" id="form-routing-number" aria-describedby="form-routing-number-help" maxlength="20">
+                    <input type="text" id="form-routing-number" aria-describedby="form-routing-number-help" maxlength="20" autocomplete="off">
                     <small id="form-routing-number-help" class="form-text"><?php p($l->t('9-digit routing number (US banks)')); ?></small>
                 </div>
 
                 <div class="form-group conditional" id="sort-code-group">
                     <label for="form-sort-code"><?php p($l->t('Sort Code')); ?></label>
-                    <input type="text" id="form-sort-code" aria-describedby="form-sort-code-help" maxlength="10">
+                    <input type="text" id="form-sort-code" aria-describedby="form-sort-code-help" maxlength="10" autocomplete="off">
                     <small id="form-sort-code-help" class="form-text"><?php p($l->t('6-digit sort code (UK banks)')); ?></small>
                 </div>
 
                 <div class="form-group conditional" id="iban-group">
                     <label for="form-iban"><?php p($l->t('IBAN')); ?></label>
-                    <input type="text" id="form-iban" aria-describedby="form-iban-help" maxlength="34">
+                    <input type="text" id="form-iban" aria-describedby="form-iban-help" maxlength="34" autocomplete="off">
                     <small id="form-iban-help" class="form-text"><?php p($l->t('International Bank Account Number')); ?></small>
                 </div>
 
                 <div class="form-group conditional" id="swift-bic-group">
                     <label for="form-swift-bic"><?php p($l->t('SWIFT/BIC Code')); ?></label>
-                    <input type="text" id="form-swift-bic" aria-describedby="form-swift-bic-help" maxlength="11">
+                    <input type="text" id="form-swift-bic" aria-describedby="form-swift-bic-help" maxlength="11" autocomplete="off">
                     <small id="form-swift-bic-help" class="form-text"><?php p($l->t('SWIFT/BIC code for international transfers')); ?></small>
                 </div>
 
                 <div class="form-group conditional" id="wallet-address-group">
                     <label for="form-wallet-address"><?php p($l->t('Wallet Address')); ?></label>
-                    <input type="text" id="form-wallet-address" aria-describedby="form-wallet-address-help" maxlength="255">
+                    <input type="text" id="form-wallet-address" aria-describedby="form-wallet-address-help" maxlength="255" autocomplete="off">
                     <small id="form-wallet-address-help" class="form-text"><?php p($l->t('Your wallet or exchange address (stored encrypted)')); ?></small>
                 </div>
             </div>
@@ -5293,11 +5310,18 @@ style('budget', 'budget-main');
 
             <!-- Basic Info Section -->
             <div class="form-section" style="background: transparent; border: none; padding: 0 0 20px 0;">
-                <div style="display: grid; grid-template-columns: 1fr 80px; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 150px 80px; gap: 16px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="rule-name"><?php p($l->t('Rule Name')); ?> <span class="required">*</span></label>
                         <input type="text" id="rule-name" required maxlength="255" placeholder="<?php p($l->t('e.g., Amazon Purchases, Grocery Stores')); ?>">
                         <small class="form-text"><?php p($l->t('A descriptive name for this rule')); ?></small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="rule-group-name"><?php p($l->t('Group')); ?></label>
+                        <input type="text" id="rule-group-name" list="rule-group-list" maxlength="100" placeholder="<?php p($l->t('None')); ?>">
+                        <datalist id="rule-group-list"></datalist>
+                        <small class="form-text"><?php p($l->t('Optional')); ?></small>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 0;">
@@ -5488,6 +5512,27 @@ style('budget', 'budget-main');
         <div class="modal-buttons">
             <button type="button" id="execute-apply-rules-btn" class="primary"><?php p($l->t('Apply Rules')); ?></button>
             <button type="button" class="secondary cancel-btn"><?php p($l->t('Close')); ?></button>
+        </div>
+    </div>
+</div>
+
+<!-- Run Single Rule Confirmation Modal -->
+<div id="run-rule-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="run-rule-modal-title" aria-hidden="true">
+    <div class="modal-content modal-small">
+        <h3 id="run-rule-modal-title"><?php p($l->t('Run Rule')); ?></h3>
+        <p id="run-rule-modal-text"></p>
+        <input type="hidden" id="run-rule-modal-id">
+
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="run-rule-uncategorized-only">
+                <?php p($l->t('Only apply to uncategorized transactions')); ?>
+            </label>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" id="run-rule-confirm-btn" class="primary"><?php p($l->t('Run')); ?></button>
+            <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
         </div>
     </div>
 </div>
@@ -6196,14 +6241,14 @@ style('budget', 'budget-main');
 
             <div class="form-group">
                 <label for="bank-sync-name"><?php p($l->t('Connection Name')); ?></label>
-                <input type="text" id="bank-sync-name" placeholder="<?php p($l->t('e.g. My Bank')); ?>" maxlength="255">
+                <input type="text" id="bank-sync-name" placeholder="<?php p($l->t('e.g. My Bank')); ?>" maxlength="255" autocomplete="off">
             </div>
 
             <!-- SimpleFIN fields -->
             <div id="simplefin-fields" style="display: none;">
                 <div class="form-group">
                     <label for="bank-sync-setup-token"><?php p($l->t('Setup Token')); ?></label>
-                    <input type="text" id="bank-sync-setup-token" placeholder="<?php p($l->t('Paste your SimpleFIN setup token')); ?>">
+                    <input type="text" id="bank-sync-setup-token" placeholder="<?php p($l->t('Paste your SimpleFIN setup token')); ?>" autocomplete="off">
                     <small class="form-text"><?php p($l->t('Get a token from beta-bridge.simplefin.org')); ?></small>
                 </div>
             </div>
@@ -6212,7 +6257,7 @@ style('budget', 'budget-main');
             <div id="gocardless-fields" style="display: none;">
                 <div class="form-group">
                     <label for="bank-sync-secret-id"><?php p($l->t('Secret ID')); ?></label>
-                    <input type="text" id="bank-sync-secret-id" placeholder="<?php p($l->t('Your GoCardless Secret ID')); ?>">
+                    <input type="text" id="bank-sync-secret-id" placeholder="<?php p($l->t('Your GoCardless Secret ID')); ?>" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label for="bank-sync-secret-key"><?php p($l->t('Secret Key')); ?></label>
@@ -6239,7 +6284,7 @@ style('budget', 'budget-main');
             </div>
 
             <div class="form-group">
-                <input type="text" id="bank-sync-institution-search" placeholder="<?php p($l->t('Search banks...')); ?>">
+                <input type="search" id="bank-sync-institution-search" placeholder="<?php p($l->t('Search banks...')); ?>" autocomplete="off">
             </div>
 
             <div id="bank-sync-institutions-loading" class="bank-sync-loading" style="display: none;">

@@ -2235,16 +2235,11 @@ export default class AccountsModule {
         switch (accountType) {
             case 'checking':
             case 'savings':
-                // Show banking fields based on currency
-                if (requirements.routing_number) {
-                    document.getElementById('routing-number-group').style.display = 'block';
-                }
-                if (requirements.sort_code) {
-                    document.getElementById('sort-code-group').style.display = 'block';
-                }
-                if (requirements.iban) {
-                    document.getElementById('iban-group').style.display = 'block';
-                }
+                // Show all banking fields — users fill in whichever applies to their bank
+                // (e.g., a USD account at a European bank still uses IBAN)
+                document.getElementById('routing-number-group').style.display = 'block';
+                document.getElementById('sort-code-group').style.display = 'block';
+                document.getElementById('iban-group').style.display = 'block';
                 document.getElementById('swift-bic-group').style.display = 'block';
                 document.getElementById('overdraft-limit-group').style.display = 'block';
 
@@ -2277,13 +2272,13 @@ export default class AccountsModule {
             case 'investment':
             case 'money_market':
                 // Show investment account fields
+                document.getElementById('routing-number-group').style.display = 'block';
+                document.getElementById('sort-code-group').style.display = 'block';
+                document.getElementById('iban-group').style.display = 'block';
                 document.getElementById('swift-bic-group').style.display = 'block';
                 document.getElementById('interest-rate-group').style.display = 'block';
                 document.getElementById('interest-enabled-group').style.display = 'block';
                 document.getElementById('compounding-frequency-group').style.display = 'block';
-                if (requirements.iban) {
-                    document.getElementById('iban-group').style.display = 'block';
-                }
                 break;
 
             case 'cash':

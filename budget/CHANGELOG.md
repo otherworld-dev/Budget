@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.1] - 2026-05-25
+
+### Fixed
+- Shared R/W users can now edit and delete shared accounts (#216)
+- Dashboard summary now includes shared accounts in totals (#215)
+- Hero tiles no longer truncate large values — text wraps instead (#214)
+- IBAN, routing number, and sort code fields now shown for all checking/savings accounts regardless of currency (#217)
+- Navigation search field no longer autofilled by Chrome (#213)
+- Help & Docs link now opens in a new tab instead of showing a blank page (#212)
+- Rule group names now saved correctly when creating/editing rules
+
 ## [2.26.0] - 2026-05-23
 
 ### Added

@@ -60,6 +60,29 @@ class ImportRuleMapper extends QBMapper {
     }
 
     /**
+     * Get distinct group names for a user
+     *
+     * @return string[]
+     */
+    public function findGroups(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectDistinct('group_name')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->isNotNull('group_name'))
+            ->andWhere($qb->expr()->neq('group_name', $qb->createNamedParameter('')))
+            ->orderBy('group_name', 'ASC');
+
+        $result = $qb->executeQuery();
+        $groups = [];
+        while ($row = $result->fetch()) {
+            $groups[] = $row['group_name'];
+        }
+        $result->closeCursor();
+        return $groups;
+    }
+
+    /**
      * Delete all import rules for a user
      *
      * @param string $userId

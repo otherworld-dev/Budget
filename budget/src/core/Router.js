@@ -9,8 +9,12 @@ export default class Router {
     setupNavigation() {
         document.querySelectorAll('.app-navigation-entry a').forEach(link => {
             link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                // Let external links open naturally (e.g., Help & Docs)
+                if (!href || !href.startsWith('#')) return;
+
                 e.preventDefault();
-                const view = link.getAttribute('href').substring(1);
+                const view = href.substring(1);
                 this.showView(view);
 
                 // Update active state on parent li

@@ -14,6 +14,12 @@ export default class RulesModule {
         this.criteriaBuilder = null; // Instance of CriteriaBuilder for v2 rules
         this.actionBuilder = null; // Instance of ActionBuilder for v2 actions
         this.currentRule = null; // Currently editing rule
+        this.sortColumn = 'priority'; // Default sort column
+        this.sortDirection = 'asc'; // 'asc' or 'desc'
+        this.searchQuery = '';
+        this.statusFilter = 'all'; // 'all', 'active', 'inactive'
+        this.expandedGroups = new Set(); // Track which groups are expanded
+        this.ruleGroups = []; // Available group names
     }
 
     // Getters for app state
@@ -93,12 +99,53 @@ export default class RulesModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             this.rules = await response.json();
-            this.renderRules(this.rules);
+            this.applyFilterAndSort();
             this.updateRulesSummary();
         } catch (error) {
             console.error('Failed to load rules:', error);
             throw error;
         }
+    }
+
+    renderRuleRow(rule) {
+        const actions = rule.actions || {};
+        const actionBadges = this.getRuleActionBadges(rule, actions);
+
+        // Get criteria display text based on schema version
+        let criteriaText;
+        if (rule.schemaVersion === 2 && rule.criteria) {
+            criteriaText = this.formatCriteriaTreeSummary(rule.criteria);
+        } else {
+            const matchTypeLabels = {
+                'contains': t('budget', 'contains'),
+                'exact': t('budget', 'equals'),
+                'starts_with': t('budget', 'starts with'),
+                'ends_with': t('budget', 'ends with'),
+                'regex': t('budget', 'matches')
+            };
+            criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
+        }
+
+        return `
+            <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
+                <td class="rules-col-priority">${rule.priority}</td>
+                <td class="rules-col-name">${this.escapeHtml(rule.name)}</td>
+                <td class="rules-col-status">
+                    <label class="rule-toggle" title="${rule.active ? t('budget', 'Click to disable') : t('budget', 'Click to enable')}">
+                        <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''}>
+                        <span class="rule-toggle-slider"></span>
+                    </label>
+                    ${rule.applyOnImport ? `<span class="status-badge import">${t('budget', 'Import')}</span>` : ''}
+                </td>
+                <td class="rules-col-criteria"><code>${criteriaText}</code></td>
+                <td class="rules-col-actions">${actionBadges}</td>
+                <td class="rules-col-buttons">
+                    <button class="icon-play rule-run-btn" data-rule-id="${rule.id}" title="${t('budget', 'Run rule')}"></button>
+                    <button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}"></button>
+                    <button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}"></button>
+                </td>
+            </tr>
+        `;
     }
 
     renderRules(rules) {
@@ -115,46 +162,7 @@ export default class RulesModule {
 
         if (emptyRules) emptyRules.style.display = 'none';
 
-        rulesList.innerHTML = rules.map(rule => {
-            const actions = rule.actions || {};
-            const actionBadges = this.getRuleActionBadges(rule, actions);
-
-            // Get criteria display text based on schema version
-            let criteriaText;
-            if (rule.schemaVersion === 2 && rule.criteria) {
-                criteriaText = this.formatCriteriaTreeSummary(rule.criteria);
-            } else {
-                // v1 format fallback
-                const matchTypeLabels = {
-                    'contains': t('budget', 'contains'),
-                    'exact': t('budget', 'equals'),
-                    'starts_with': t('budget', 'starts with'),
-                    'ends_with': t('budget', 'ends with'),
-                    'regex': t('budget', 'matches')
-                };
-                criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
-            }
-
-            return `
-                <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
-                    <td class="rules-col-priority">${rule.priority}</td>
-                    <td class="rules-col-name">${this.escapeHtml(rule.name)}</td>
-                    <td class="rules-col-status">
-                        <label class="rule-toggle" title="${rule.active ? t('budget', 'Click to disable') : t('budget', 'Click to enable')}">
-                            <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''}>
-                            <span class="rule-toggle-slider"></span>
-                        </label>
-                        ${rule.applyOnImport ? `<span class="status-badge import">${t('budget', 'Import')}</span>` : ''}
-                    </td>
-                    <td class="rules-col-criteria"><code>${criteriaText}</code></td>
-                    <td class="rules-col-actions">${actionBadges}</td>
-                    <td class="rules-col-buttons">
-                        <button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}"></button>
-                        <button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}"></button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        rulesList.innerHTML = rules.map(rule => this.renderRuleRow(rule)).join('');
     }
 
     formatCriteriaTreeSummary(criteria) {
@@ -280,6 +288,166 @@ export default class RulesModule {
         }
     }
 
+    applyFilterAndSort() {
+        if (!this.rules) return;
+
+        let filtered = [...this.rules];
+
+        // Apply status filter
+        if (this.statusFilter === 'active') {
+            filtered = filtered.filter(r => r.active);
+        } else if (this.statusFilter === 'inactive') {
+            filtered = filtered.filter(r => !r.active);
+        }
+
+        // Apply search
+        if (this.searchQuery) {
+            filtered = filtered.filter(r => {
+                const name = (r.name || '').toLowerCase();
+                const pattern = (r.pattern || '').toLowerCase();
+                return name.includes(this.searchQuery) || pattern.includes(this.searchQuery);
+            });
+        }
+
+        // Apply sort
+        this.sortRules(filtered);
+
+        // Check if any rules have groups
+        const hasGroups = this.rules.some(r => r.groupName);
+
+        if (hasGroups) {
+            this.renderGroupedRules(filtered);
+        } else {
+            this.renderRules(filtered);
+        }
+        this.updateSortIndicators();
+    }
+
+    sortRules(rules) {
+        rules.sort((a, b) => {
+            let valA, valB;
+            switch (this.sortColumn) {
+                case 'priority':
+                    valA = a.priority || 0;
+                    valB = b.priority || 0;
+                    break;
+                case 'name':
+                    valA = (a.name || '').toLowerCase();
+                    valB = (b.name || '').toLowerCase();
+                    break;
+                case 'status':
+                    valA = a.active ? 1 : 0;
+                    valB = b.active ? 1 : 0;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return this.sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return this.sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    renderGroupedRules(filteredRules) {
+        const rulesList = document.getElementById('rules-list');
+        const emptyRules = document.getElementById('empty-rules');
+
+        if (!rulesList) return;
+
+        if (!filteredRules || filteredRules.length === 0) {
+            rulesList.innerHTML = '';
+            if (emptyRules) emptyRules.style.display = 'flex';
+            return;
+        }
+        if (emptyRules) emptyRules.style.display = 'none';
+
+        // Group rules by groupName
+        const groups = new Map();
+        const ungrouped = [];
+
+        for (const rule of filteredRules) {
+            if (rule.groupName) {
+                if (!groups.has(rule.groupName)) {
+                    groups.set(rule.groupName, []);
+                }
+                groups.get(rule.groupName).push(rule);
+            } else {
+                ungrouped.push(rule);
+            }
+        }
+
+        // On first render, expand all groups
+        if (this.expandedGroups.size === 0) {
+            for (const groupName of groups.keys()) {
+                this.expandedGroups.add(groupName);
+            }
+            if (ungrouped.length > 0) {
+                this.expandedGroups.add('__ungrouped__');
+            }
+        }
+
+        let html = '';
+
+        // Render named groups (sorted alphabetically)
+        const sortedGroupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+        for (const groupName of sortedGroupNames) {
+            const groupRules = groups.get(groupName);
+            const isExpanded = this.expandedGroups.has(groupName);
+            const activeCount = groupRules.filter(r => r.active).length;
+
+            html += `<tr class="rules-group-header" data-group="${this.escapeHtml(groupName)}">
+                <td colspan="6">
+                    <div class="group-header-content">
+                        <span class="group-toggle ${isExpanded ? 'expanded' : ''}">&#9656;</span>
+                        <span class="group-name">${this.escapeHtml(groupName)}</span>
+                        <span class="group-count">${groupRules.length} ${groupRules.length === 1 ? t('budget', 'rule') : t('budget', 'rules')} · ${activeCount} ${t('budget', 'active')}</span>
+                        <button class="group-run-btn" data-group="${this.escapeHtml(groupName)}" title="${t('budget', 'Run all rules in this group')}">${t('budget', 'Run Group')}</button>
+                    </div>
+                </td>
+            </tr>`;
+
+            if (isExpanded) {
+                html += groupRules.map(rule => this.renderRuleRow(rule)).join('');
+            }
+        }
+
+        // Render ungrouped rules
+        if (ungrouped.length > 0) {
+            const isExpanded = this.expandedGroups.has('__ungrouped__');
+            html += `<tr class="rules-group-header" data-group="__ungrouped__">
+                <td colspan="6">
+                    <div class="group-header-content">
+                        <span class="group-toggle ${isExpanded ? 'expanded' : ''}">&#9656;</span>
+                        <span class="group-name">${t('budget', 'Ungrouped')}</span>
+                        <span class="group-count">${ungrouped.length} ${ungrouped.length === 1 ? t('budget', 'rule') : t('budget', 'rules')}</span>
+                    </div>
+                </td>
+            </tr>`;
+
+            if (isExpanded) {
+                html += ungrouped.map(rule => this.renderRuleRow(rule)).join('');
+            }
+        }
+
+        rulesList.innerHTML = html;
+    }
+
+    updateSortIndicators() {
+        const headers = document.querySelectorAll('#rules-table th.sortable');
+        headers.forEach(th => {
+            const indicator = th.querySelector('.sort-indicator');
+            if (!indicator) return;
+            if (th.dataset.sort === this.sortColumn) {
+                indicator.textContent = this.sortDirection === 'asc' ? ' ▲' : ' ▼';
+                th.classList.add('sorted');
+            } else {
+                indicator.textContent = '';
+                th.classList.remove('sorted');
+            }
+        });
+    }
+
     setupRulesEventListeners() {
         // Add Rule button in view header
         const addRuleBtn = document.getElementById('rules-add-btn');
@@ -296,6 +464,48 @@ export default class RulesModule {
             emptyAddBtn.addEventListener('click', () => this.showRuleModal());
             emptyAddBtn.dataset.listenerAttached = 'true';
         }
+
+        // Column sorting
+        const sortableHeaders = document.querySelectorAll('#rules-table th.sortable');
+        sortableHeaders.forEach(th => {
+            if (!th.dataset.listenerAttached) {
+                th.addEventListener('click', () => {
+                    const column = th.dataset.sort;
+                    if (this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+                    this.applyFilterAndSort();
+                });
+                th.dataset.listenerAttached = 'true';
+            }
+        });
+
+        // Search input
+        const searchInput = document.getElementById('rules-search');
+        if (searchInput && !searchInput.dataset.listenerAttached) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.trim().toLowerCase();
+                this.applyFilterAndSort();
+            });
+            searchInput.dataset.listenerAttached = 'true';
+        }
+
+        // Status filter chips
+        const filterChips = document.querySelectorAll('.rules-filter-chips .filter-chip');
+        filterChips.forEach(chip => {
+            if (!chip.dataset.listenerAttached) {
+                chip.addEventListener('click', () => {
+                    filterChips.forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    this.statusFilter = chip.dataset.filter;
+                    this.applyFilterAndSort();
+                });
+                chip.dataset.listenerAttached = 'true';
+            }
+        });
 
         // Apply Rules button
         const applyRulesBtn = document.getElementById('apply-rules-btn');
@@ -355,14 +565,56 @@ export default class RulesModule {
             }
         }
 
+        // Run Rule modal buttons
+        const runRuleModal = document.getElementById('run-rule-modal');
+        if (runRuleModal) {
+            const confirmBtn = document.getElementById('run-rule-confirm-btn');
+            if (confirmBtn && !confirmBtn.dataset.listenerAttached) {
+                confirmBtn.addEventListener('click', () => this.executeSingleRule());
+                confirmBtn.dataset.listenerAttached = 'true';
+            }
+            const cancelBtn = runRuleModal.querySelector('.cancel-btn');
+            if (cancelBtn && !cancelBtn.dataset.listenerAttached) {
+                cancelBtn.addEventListener('click', () => this.hideModals());
+                cancelBtn.dataset.listenerAttached = 'true';
+            }
+        }
+
         // Delegate click events for rule cards
         const rulesList = document.getElementById('rules-list');
         if (rulesList && !rulesList.dataset.listenerAttached) {
             rulesList.addEventListener('click', (e) => {
+                // Group header interactions
+                const groupHeader = e.target.closest('.rules-group-header');
+                const groupRunBtn = e.target.closest('.group-run-btn');
+
+                if (groupRunBtn) {
+                    e.stopPropagation();
+                    const groupName = groupRunBtn.dataset.group;
+                    this.runGroupRules(groupName);
+                    return;
+                }
+
+                if (groupHeader && !e.target.closest('button')) {
+                    const groupName = groupHeader.dataset.group;
+                    if (this.expandedGroups.has(groupName)) {
+                        this.expandedGroups.delete(groupName);
+                    } else {
+                        this.expandedGroups.add(groupName);
+                    }
+                    this.applyFilterAndSort();
+                    return;
+                }
+
+                // Rule row interactions
+                const runBtn = e.target.closest('.rule-run-btn');
                 const editBtn = e.target.closest('.rule-edit-btn');
                 const deleteBtn = e.target.closest('.rule-delete-btn');
 
-                if (editBtn) {
+                if (runBtn) {
+                    const ruleId = parseInt(runBtn.dataset.ruleId);
+                    this.showRunRuleModal(ruleId);
+                } else if (editBtn) {
                     const ruleId = parseInt(editBtn.dataset.ruleId);
                     this.editRule(ruleId);
                 } else if (deleteBtn) {
@@ -395,6 +647,9 @@ export default class RulesModule {
 
         form.reset();
         document.getElementById('rule-id').value = '';
+
+        // Populate group datalist
+        this.populateGroupDatalist();
 
         // Check if criteria has broken structure (root is a condition instead of a group)
         const hasBrokenStructure = rule && rule.schemaVersion === 2 && rule.criteria &&
@@ -443,6 +698,7 @@ export default class RulesModule {
             title.textContent = t('budget', 'Edit Rule');
             document.getElementById('rule-id').value = rule.id;
             document.getElementById('rule-name').value = rule.name || '';
+            document.getElementById('rule-group-name').value = rule.groupName || '';
             document.getElementById('rule-priority').value = rule.priority || 0;
             document.getElementById('rule-active').checked = rule.active !== false;
             document.getElementById('rule-apply-on-import').checked = rule.applyOnImport !== false;
@@ -527,6 +783,23 @@ export default class RulesModule {
             accounts: this.accounts,
             tagSets: tagSetsWithGlobal
         });
+    }
+
+    populateGroupDatalist() {
+        const datalist = document.getElementById('rule-group-list');
+        if (!datalist) return;
+
+        // Derive groups from loaded rules
+        const groups = new Set();
+        if (this.rules) {
+            for (const rule of this.rules) {
+                if (rule.groupName) groups.add(rule.groupName);
+            }
+        }
+
+        datalist.innerHTML = [...groups].sort().map(g =>
+            `<option value="${this.escapeHtml(g)}">`
+        ).join('');
     }
 
     async populateRuleCategoryDropdown() {
@@ -734,6 +1007,7 @@ export default class RulesModule {
 
         // Collect form data
         const name = document.getElementById('rule-name').value.trim();
+        const groupName = document.getElementById('rule-group-name').value.trim();
         const priority = parseInt(document.getElementById('rule-priority').value) || 0;
         const active = document.getElementById('rule-active').checked;
         const applyOnImport = document.getElementById('rule-apply-on-import').checked;
@@ -768,6 +1042,7 @@ export default class RulesModule {
 
         const requestBody = {
             name,
+            groupName,
             priority,
             active,
             applyOnImport,
@@ -872,6 +1147,7 @@ export default class RulesModule {
 
         // Collect form data
         const name = document.getElementById('rule-name').value.trim();
+        const groupName = document.getElementById('rule-group-name').value.trim();
         const priority = parseInt(document.getElementById('rule-priority').value) || 0;
         const active = document.getElementById('rule-active').checked;
         const applyOnImport = document.getElementById('rule-apply-on-import').checked;
@@ -911,6 +1187,7 @@ export default class RulesModule {
 
             const requestBody = {
                 name,
+                groupName,
                 priority,
                 active,
                 applyOnImport,
@@ -1016,6 +1293,120 @@ export default class RulesModule {
             showError(t('budget', 'Failed to update rule: {error}', { error: error.message }));
             // Revert the checkbox
             await this.loadRules();
+        }
+    }
+
+    showRunRuleModal(ruleId) {
+        const rule = this.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        const modal = document.getElementById('run-rule-modal');
+        const text = document.getElementById('run-rule-modal-text');
+        const idInput = document.getElementById('run-rule-modal-id');
+        const checkbox = document.getElementById('run-rule-uncategorized-only');
+
+        if (!modal) return;
+
+        text.textContent = t('budget', 'Run rule "{name}" on matching transactions?', { name: rule.name });
+        idInput.value = ruleId;
+        checkbox.checked = false;
+
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    async executeSingleRule() {
+        const ruleId = parseInt(document.getElementById('run-rule-modal-id').value);
+        const uncategorizedOnly = document.getElementById('run-rule-uncategorized-only').checked;
+        const confirmBtn = document.getElementById('run-rule-confirm-btn');
+
+        if (!ruleId) return;
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = t('budget', 'Running...');
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ruleIds: [ruleId],
+                    uncategorizedOnly
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to run rule');
+            }
+
+            const result = await response.json();
+
+            this.hideModals();
+
+            if (result.success > 0) {
+                showSuccess(n('budget', 'Rule applied: %n transaction updated', 'Rule applied: %n transactions updated', result.success));
+                if (this.currentView === 'transactions') {
+                    await this.loadTransactions();
+                }
+            } else {
+                showInfo(t('budget', 'No transactions were updated'));
+            }
+        } catch (error) {
+            console.error('Failed to run rule:', error);
+            showError(t('budget', 'Failed to run rule: {error}', { error: error.message }));
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = t('budget', 'Run');
+        }
+    }
+
+    async runGroupRules(groupName) {
+        const groupRules = this.rules.filter(r => r.groupName === groupName && r.active);
+        if (groupRules.length === 0) {
+            showWarning(t('budget', 'No active rules in this group'));
+            return;
+        }
+
+        if (!confirm(t('budget', 'Run {count} active rules in group "{name}"?', { count: groupRules.length, name: groupName }))) {
+            return;
+        }
+
+        try {
+            const ruleIds = groupRules.map(r => r.id);
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ruleIds,
+                    uncategorizedOnly: false
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to run group rules');
+            }
+
+            const result = await response.json();
+
+            if (result.success > 0) {
+                showSuccess(n('budget', 'Group applied: %n transaction updated', 'Group applied: %n transactions updated', result.success));
+                if (this.currentView === 'transactions') {
+                    await this.loadTransactions();
+                }
+            } else {
+                showInfo(t('budget', 'No transactions were updated'));
+            }
+        } catch (error) {
+            console.error('Failed to run group rules:', error);
+            showError(t('budget', 'Failed to run group rules: {error}', { error: error.message }));
         }
     }
 

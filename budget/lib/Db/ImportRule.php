@@ -42,6 +42,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  * @method string|null getUpdatedAt()
  * @method void setUpdatedAt(?string $updatedAt)
+ * @method string|null getGroupName()
+ * @method void setGroupName(?string $groupName)
  */
 class ImportRule extends Entity implements JsonSerializable {
     protected $userId;
@@ -60,6 +62,7 @@ class ImportRule extends Entity implements JsonSerializable {
     protected $stopProcessing;
     protected $createdAt;
     protected $updatedAt;
+    protected $groupName;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -94,6 +97,7 @@ class ImportRule extends Entity implements JsonSerializable {
             'stopProcessing' => $this->getStopProcessing() ?? true,
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
+            'groupName' => $this->getGroupName(),
         ];
     }
 

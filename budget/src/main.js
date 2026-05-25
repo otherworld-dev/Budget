@@ -4031,7 +4031,8 @@ class BudgetApp {
             'duplicates-modal',
             'bank-sync-modal',
             'tile-settings-modal',
-            'debt-scenario-modal'
+            'debt-scenario-modal',
+            'run-rule-modal'
         ];
 
         modalIds.forEach(modalId => {

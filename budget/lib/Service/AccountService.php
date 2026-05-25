@@ -93,9 +93,28 @@ class AccountService extends AbstractCrudService {
     }
 
     /**
-     * Override update to recalculate balance when opening_balance changes.
+     * Find an account by ID without user scoping.
+     * Used for shared account access after permission has been verified.
+     */
+    public function findById(int $id): Entity {
+        return $this->mapper->findById($id);
+    }
+
+    /**
+     * Override update to support shared accounts.
+     * If the account doesn't belong to the acting user, look it up by ID
+     * and use the actual owner's userId for the update.
      */
     public function update(int $id, string $userId, array $updates): Entity {
+        // Try owner lookup first; fall back to ID-only for shared accounts
+        try {
+            $this->find($id, $userId);
+        } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+            // Account not owned by this user — resolve the actual owner
+            $account = $this->mapper->findById($id);
+            $userId = $account->getUserId();
+        }
+
         $account = parent::update($id, $userId, $updates);
 
         if (isset($updates['openingBalance'])) {

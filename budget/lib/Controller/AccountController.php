@@ -446,22 +446,26 @@ class AccountController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
+            // Verify write access (covers both own and shared accounts)
+            $this->requireWriteAccess('account', $id);
+
             $account = $this->service->update($id, $this->getEffectiveUserId(), $updates);
+            $ownerId = $account->getUserId();
 
             // Handle interest enable/disable after account update
             if ($interestToggled) {
                 $newEnabled = $updates['interestEnabled'];
                 if ($newEnabled) {
                     $compounding = $data['compoundingFrequency'] ?? $account->getCompoundingFrequency() ?? 'daily';
-                    $this->interestService->enableInterest($id, $this->getEffectiveUserId(), $compounding);
+                    $this->interestService->enableInterest($id, $ownerId, $compounding);
                 } else {
-                    $this->interestService->disableInterest($id, $this->getEffectiveUserId());
+                    $this->interestService->disableInterest($id, $ownerId);
                 }
                 // Reload account after interest state change
-                $account = $this->service->find($id, $this->getEffectiveUserId());
+                $account = $this->service->find($id, $ownerId);
             }
 
-            // Audit log the update
+            // Audit log the update (log the acting user, not necessarily the owner)
             $this->auditService->logAccountUpdated($this->getEffectiveUserId(), $id, $updates);
 
             return new DataResponse($account);
@@ -478,11 +482,20 @@ class AccountController extends Controller {
         try {
             $this->requireWriteAccess('account', $id);
 
-            // Get account name before deletion for audit log
-            $account = $this->service->find($id, $this->getEffectiveUserId());
+            // Get account — try current user first, fall back to ID-only for shared accounts
+            try {
+                $account = $this->service->find($id, $this->getEffectiveUserId());
+            } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+                // May be a shared account — look up by ID only
+                $account = $this->service->findById($id);
+            }
+            $ownerId = $account->getUserId();
+            if ($ownerId === null) {
+                throw new \OCP\AppFramework\Db\DoesNotExistException('Account not found');
+            }
             $accountName = $account->getName();
 
-            $this->service->delete($id, $this->getEffectiveUserId());
+            $this->service->delete($id, $ownerId);
 
             // Audit log the deletion
             $this->auditService->logAccountDeleted($this->getEffectiveUserId(), $id, $accountName);

@@ -50,6 +50,15 @@ class ImportRuleService {
         return $this->mapper->findAll($userId);
     }
 
+    /**
+     * Get distinct group names for a user
+     *
+     * @return string[]
+     */
+    public function getGroups(string $userId): array {
+        return $this->mapper->findGroups($userId);
+    }
+
     public function create(
         string $userId,
         string $name,
@@ -63,7 +72,8 @@ class ImportRuleService {
         int $priority = 0,
         ?array $actions = null,
         bool $applyOnImport = true,
-        bool $stopProcessing = true
+        bool $stopProcessing = true,
+        ?string $groupName = null
     ): ImportRule {
         // Validate based on schema version
         if ($schemaVersion === 2) {
@@ -136,6 +146,11 @@ class ImportRuleService {
         // Set actions JSON if provided
         if ($actions !== null) {
             $rule->setActionsFromArray($actions);
+        }
+
+        // Set group name if provided
+        if ($groupName !== null && $groupName !== '') {
+            $rule->setGroupName(substr(trim($groupName), 0, 100));
         }
 
         return $this->mapper->insert($rule);

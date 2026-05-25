@@ -61,6 +61,18 @@ class ImportRuleController extends Controller {
     /**
      * @NoAdminRequired
      */
+    public function groups(): DataResponse {
+        try {
+            $groups = $this->service->getGroups($this->userId);
+            return new DataResponse($groups);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to retrieve rule groups'));
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
     public function show(int $id): DataResponse {
         try {
             $rule = $this->service->find($id, $this->userId);
@@ -86,7 +98,8 @@ class ImportRuleController extends Controller {
         int $priority = 0,
         ?array $actions = null,
         bool $applyOnImport = true,
-        bool $stopProcessing = true
+        bool $stopProcessing = true,
+        ?string $groupName = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -165,7 +178,8 @@ class ImportRuleController extends Controller {
                 $priority,
                 $actions,
                 $applyOnImport,
-                $stopProcessing
+                $stopProcessing,
+                $groupName
             );
             return new DataResponse($rule, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -191,7 +205,8 @@ class ImportRuleController extends Controller {
         ?bool $active = null,
         ?array $actions = null,
         ?bool $applyOnImport = null,
-        ?bool $stopProcessing = null
+        ?bool $stopProcessing = null,
+        ?string $groupName = null
     ): DataResponse {
         try {
             $updates = [];
@@ -282,6 +297,10 @@ class ImportRuleController extends Controller {
             }
             if ($applyOnImport !== null) {
                 $updates['applyOnImport'] = $applyOnImport;
+            }
+            if ($groupName !== null) {
+                // Empty string means clear the group
+                $updates['groupName'] = $groupName === '' ? null : $groupName;
             }
 
             if (empty($updates)) {
