@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: 2026-04-27 06:09+0000\n"
-"Last-Translator: Shandy <mrshandy@yandex.ru>\n"
+"PO-Revision-Date: 2026-05-25 18:13+0000\n"
+"Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/ru/>\n"
 "Language: ru\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 5.17.1-dev\n"
+"X-Generator: Weblate 2026.6.dev0\n"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:30
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:30
@@ -222,76 +222,78 @@ msgstr "Имущество"
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:167
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:636
 msgid "Invalid JSON data"
-msgstr ""
+msgstr "Недопустимые данные JSON"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:113
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:116
 msgid "Name and type are required"
-msgstr ""
+msgstr "Необходимо указать имя и тип"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:126
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:214
 #, php-format
 msgid "Invalid asset type. Must be one of: %1$s"
-msgstr ""
+msgstr "Недопустимый тип актива. Должен быть один из следующих: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:141
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:229
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:144
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:238
 msgid "Currency must be a 3-letter code"
-msgstr ""
+msgstr "Код валюты должен быть 3-х буквенным"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:146
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:234
 msgid "Current value cannot be negative"
-msgstr ""
+msgstr "Текущее значение не может быть отрицательным"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:149
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:237
 msgid "Purchase price cannot be negative"
-msgstr ""
+msgstr "Цена покупки не может быть отрицательной"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:152
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:240
 #, php-format
 msgid "Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)"
 msgstr ""
+"Укажите годовое изменение в пределах от -100 %% до 100 %%. Например, для 3 "
+"%% введите 0,03"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:157
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:245
 msgid "Purchase date"
-msgstr ""
+msgstr "Дата покупки"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:176
 msgid "Failed to create asset"
-msgstr ""
+msgstr "Не удалось создать актив"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:265
 msgid "Failed to update asset"
-msgstr ""
+msgstr "Обновление данных об активе не удалось"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:276
 msgid "Asset deleted successfully"
-msgstr ""
+msgstr "Актив успешно удален"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:278
 #: /var/www/html/apps-extra/budget/src/modules/assets/AssetsModule.js:414
 msgid "Failed to delete asset"
-msgstr ""
+msgstr "Актив не удалось удалить"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:294
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:306
 msgid "Failed to retrieve snapshots"
-msgstr ""
+msgstr "Не удалось получить снэпшот"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:315
 msgid "Value and date are required"
-msgstr ""
+msgstr "Необходимо указать значение и дату"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:320
 msgid "Value cannot be negative"
-msgstr ""
+msgstr "Значение не может быть отрицательным"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:324
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:337
@@ -317,57 +319,57 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/templates/index.php:5088
 #: /var/www/html/apps-extra/budget/templates/index.php:5716
 msgid "Date"
-msgstr ""
+msgstr "Дата"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:332
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:345
 msgid "Failed to create snapshot"
-msgstr ""
+msgstr "Ошибка при создании снэпшота"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:343
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:356
 msgid "Snapshot deleted successfully"
-msgstr ""
+msgstr "Снэпшот успешно удален"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:345
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:358
 msgid "Failed to delete snapshot"
-msgstr ""
+msgstr "Ошибка при удалении снэпшота"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:361
 msgid "Failed to retrieve asset summary"
-msgstr ""
+msgstr "Не удалось получить сводную информацию об активах"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:373
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Получить прогноз по активам не удалось"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:385
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Сводный прогноз по активам получить не удалось"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:405
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Не удалось загрузить историю изменения стоимости активов"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:71
 msgid "Failed to get auth status"
-msgstr ""
+msgstr "Статус аутентификации определить не удалось"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:85
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:214
 #: /var/www/html/apps-extra/budget/lib/Service/AuthService.php:67
 #: /var/www/html/apps-extra/budget/lib/Service/AuthService.php:285
 msgid "Password must be at least 6 characters long"
-msgstr ""
+msgstr "Пароль должен состоять как минимум из 6 символов"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:107
 msgid "Failed to set up password protection"
-msgstr ""
+msgstr "Не удалось настроить защиту паролем"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:134
 msgid "Failed to verify password"
-msgstr ""
+msgstr "Ошибка проверки пароля"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:148
 msgid "Failed to lock session"
