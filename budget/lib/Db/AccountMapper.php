@@ -115,7 +115,8 @@ class AccountMapper extends QBMapper {
         $qb->update($this->getTableName())
             ->set('balance', $qb->createNamedParameter($balanceStr))
             ->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
         $qb->executeStatement();
 

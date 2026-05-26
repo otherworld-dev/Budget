@@ -193,14 +193,12 @@ class AccountController extends Controller {
             }
 
             // Validate optional banking fields if provided
-            $institution = !empty($data['institution']) ? trim($data['institution']) : null;
             $accountNumber = !empty($data['accountNumber']) ? trim($data['accountNumber']) : null;
             $routingNumber = !empty($data['routingNumber']) ? trim($data['routingNumber']) : null;
             $sortCode = !empty($data['sortCode']) ? trim($data['sortCode']) : null;
             $iban = !empty($data['iban']) ? trim($data['iban']) : null;
             $swiftBic = !empty($data['swiftBic']) ? trim($data['swiftBic']) : null;
             $walletAddress = !empty($data['walletAddress']) ? trim($data['walletAddress']) : null;
-            $accountHolderName = !empty($data['accountHolderName']) ? trim($data['accountHolderName']) : null;
             $openingDate = !empty($data['openingDate']) ? $data['openingDate'] : null;
 
             // Validate banking fields if provided

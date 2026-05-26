@@ -10,7 +10,6 @@ import * as formatters from './utils/formatters.js';
 import * as dom from './utils/dom.js';
 import * as helpers from './utils/helpers.js';
 import * as validators from './utils/validators.js';
-import ApiClient from './utils/api.js';
 import { showSuccess, showError, showWarning, showInfo } from './utils/notifications.js';
 import { initDatePickers } from './utils/datepicker.js';
 
