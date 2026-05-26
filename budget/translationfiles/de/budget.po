@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-26 20:15+0000\n"
+"PO-Revision-Date: 2026-05-26 22:56+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -4311,21 +4311,21 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:983
 msgid "{amount} ({percent}%) vs 30d ago"
-msgstr ""
+msgstr "{amount} ({percent}%) im Vergleich zu vor 30 Tagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1000
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1007
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1012
 #: /tmp/budget-v2.11.0/budget/templates/index.php:719
 msgid "No spending data"
-msgstr ""
+msgstr "Keine Ausgabendaten verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1040
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1146
 #: /tmp/budget-v2.11.0/budget/templates/index.php:728
 #: /tmp/budget-v2.11.0/budget/templates/index.php:755
 msgid "No account data"
-msgstr ""
+msgstr "Keine Kontodaten verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1073
 #: /tmp/budget-v2.11.0/budget/templates/index.php:737
@@ -4453,7 +4453,7 @@ msgstr "Fehler beim Speichern des Dashboard-Layouts"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2320
 msgid "Failed to save dashboard lock state"
-msgstr ""
+msgstr "Fehler beim Speichern des Übersicht-Sperrstatus"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2335
 #: /tmp/budget-v2.11.0/budget/templates/index.php:289
@@ -4469,7 +4469,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2347
 msgid "Lock Dashboard"
-msgstr ""
+msgstr "Übersicht sperren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2348
 msgid "Drag tiles to reorder your dashboard"
