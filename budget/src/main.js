@@ -20,7 +20,6 @@ import { DASHBOARD_WIDGETS } from './config/dashboardWidgets.js';
 import Router from './core/Router.js';
 
 // Modules
-import AuthModule from './modules/auth/AuthModule.js';
 import DashboardModule from './modules/dashboard/DashboardModule.js';
 import TransactionsModule from './modules/transactions/TransactionsModule.js';
 import PensionsModule from './modules/pensions/PensionsModule.js';
@@ -65,9 +64,6 @@ class BudgetApp {
         this.dashboardLocked = true; // Default to locked
         this.widgetDataLoaded = {}; // Track which widgets have loaded data (Phase 2+)
         this.widgetData = {}; // Store widget-specific lazy-loaded data (Phase 2+)
-        this.sessionToken = localStorage.getItem('budget_session_token'); // Session token for auth
-        this.lastActivityTime = Date.now(); // Track last user activity for session timeout
-        this.inactivityTimer = null; // Timer for auto-lock
 
         // Tag sets feature
         this.tagSets = []; // All tag sets with their tags
@@ -97,7 +93,6 @@ class BudgetApp {
         this.router = new Router(this);
 
         // Initialize modules
-        this.authModule = new AuthModule(this);
         this.dashboardModule = new DashboardModule(this);
         this.transactionsModule = new TransactionsModule(this);
         this.pensionsModule = new PensionsModule(this);
@@ -123,32 +118,16 @@ class BudgetApp {
     }
 
     async init() {
-        // Check authentication first
-        const authRequired = await this.authModule.checkAuth();
-
-        if (authRequired) {
-            // Show password prompt modal
-            this.authModule.showPasswordModal();
-            return;
-        }
-
-        // Authentication passed or not required, proceed with normal init
         this.setupNavigation();
         this.setupEventListeners();
-        this.authModule.setupActivityMonitoring();
-        await this.authModule.setupLockButton();
         await this.loadInitialData();
         this.bankSyncModule.init();
         this.showView('dashboard');
     }
 
 
-    // ============================================
-    // Auth Module Delegations
-    // ============================================
-
     getAuthHeaders() {
-        return this.authModule.getAuthHeaders();
+        return { 'requesttoken': OC.requestToken };
     }
 
     // Navigation - delegated to Router
@@ -1553,9 +1532,6 @@ class BudgetApp {
             }
         });
 
-        // Password protection event listeners
-        this.setupPasswordProtectionEventListeners();
-
         // Migration event listeners
         this.setupMigrationEventListeners();
 
@@ -1567,329 +1543,6 @@ class BudgetApp {
 
         // Factory reset event listeners
         this.setupFactoryResetEventListeners();
-    }
-
-    setupPasswordProtectionEventListeners() {
-        const passwordToggle = document.getElementById('setting-password-protection-enabled');
-        const setupPasswordBtn = document.getElementById('setup-password-btn');
-        const changePasswordBtn = document.getElementById('change-password-btn');
-        const disablePasswordBtn = document.getElementById('disable-password-btn');
-        const passwordConfig = document.getElementById('password-protection-config');
-
-        if (passwordToggle) {
-            passwordToggle.addEventListener('change', async () => {
-                if (passwordToggle.checked) {
-                    // Show password setup UI
-                    if (passwordConfig) {
-                        passwordConfig.style.display = 'block';
-                        this.updatePasswordButtons(false);
-                    }
-                } else {
-                    // Hide password config
-                    if (passwordConfig) {
-                        passwordConfig.style.display = 'none';
-                    }
-                }
-            });
-        }
-
-        if (setupPasswordBtn) {
-            setupPasswordBtn.addEventListener('click', () => this.showSetupPasswordModal());
-        }
-
-        if (changePasswordBtn) {
-            changePasswordBtn.addEventListener('click', () => this.showChangePasswordModal());
-        }
-
-        if (disablePasswordBtn) {
-            disablePasswordBtn.addEventListener('click', () => this.showDisablePasswordModal());
-        }
-    }
-
-    updatePasswordButtons(hasPassword) {
-        const setupBtn = document.getElementById('setup-password-btn');
-        const changeBtn = document.getElementById('change-password-btn');
-        const disableBtn = document.getElementById('disable-password-btn');
-
-        if (setupBtn) setupBtn.style.display = hasPassword ? 'none' : 'inline-block';
-        if (changeBtn) changeBtn.style.display = hasPassword ? 'inline-block' : 'none';
-        if (disableBtn) disableBtn.style.display = hasPassword ? 'inline-block' : 'none';
-    }
-
-    showSetupPasswordModal() {
-        const modal = document.createElement('div');
-        modal.id = 'setup-password-modal';
-        modal.className = 'budget-modal-overlay';
-        modal.innerHTML = `
-            <div class="budget-modal">
-                <div class="budget-modal-header">
-                    <h2>${t('budget', 'Set Up Password Protection')}</h2>
-                    <button class="close-btn">×</button>
-                </div>
-                <div class="budget-modal-body">
-                    <p>${t('budget', 'Enter a password to protect your budget app. You will need to enter this password when accessing the app.')}</p>
-                    <form id="setup-password-form">
-                        <div class="form-group">
-                            <label for="new-password">${t('budget', 'New Password')}</label>
-                            <input type="password" id="new-password" class="budget-input" required minlength="6" autocomplete="new-password">
-                            <small>${t('budget', 'Minimum 6 characters')}</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="confirm-password">${t('budget', 'Confirm Password')}</label>
-                            <input type="password" id="confirm-password" class="budget-input" required autocomplete="new-password">
-                        </div>
-                        <div id="setup-password-error" class="error-message" style="display: none;"></div>
-                        <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
-                            <button type="submit" class="budget-btn primary">${t('budget', 'Set Password')}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        const form = document.getElementById('setup-password-form');
-        const newPasswordInput = document.getElementById('new-password');
-        const confirmPasswordInput = document.getElementById('confirm-password');
-        const errorDiv = document.getElementById('setup-password-error');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const newPassword = newPasswordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-
-            if (newPassword !== confirmPassword) {
-                errorDiv.textContent = t('budget', 'Passwords do not match');
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/setup'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...this.getAuthHeaders()
-                    },
-                    body: JSON.stringify({ password: newPassword })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    // Store session token
-                    this.sessionToken = result.sessionToken;
-                    localStorage.setItem('budget_session_token', result.sessionToken);
-
-                    showSuccess(t('budget', 'Password protection enabled'));
-                    modal.remove();
-
-                    // Update UI
-                    this.updatePasswordButtons(true);
-                } else {
-                    errorDiv.textContent = result.error || t('budget', 'Failed to set password');
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Failed to set password:', error);
-                errorDiv.textContent = t('budget', 'Failed to set password. Please try again.');
-                errorDiv.style.display = 'block';
-            }
-        });
-
-        // Close modal handlers
-        modal.querySelectorAll('.close-btn').forEach(btn => {
-            btn.addEventListener('click', () => modal.remove());
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-
-        newPasswordInput.focus();
-    }
-
-    showChangePasswordModal() {
-        const modal = document.createElement('div');
-        modal.id = 'change-password-modal';
-        modal.className = 'budget-modal-overlay';
-        modal.innerHTML = `
-            <div class="budget-modal">
-                <div class="budget-modal-header">
-                    <h2>${t('budget', 'Change Password')}</h2>
-                    <button class="close-btn">×</button>
-                </div>
-                <div class="budget-modal-body">
-                    <form id="change-password-form">
-                        <div class="form-group">
-                            <label for="current-password">${t('budget', 'Current Password')}</label>
-                            <input type="password" id="current-password" class="budget-input" required autocomplete="current-password">
-                        </div>
-                        <div class="form-group">
-                            <label for="new-password-change">${t('budget', 'New Password')}</label>
-                            <input type="password" id="new-password-change" class="budget-input" required minlength="6" autocomplete="new-password">
-                            <small>${t('budget', 'Minimum 6 characters')}</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="confirm-password-change">${t('budget', 'Confirm New Password')}</label>
-                            <input type="password" id="confirm-password-change" class="budget-input" required autocomplete="new-password">
-                        </div>
-                        <div id="change-password-error" class="error-message" style="display: none;"></div>
-                        <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
-                            <button type="submit" class="budget-btn primary">${t('budget', 'Change Password')}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        const form = document.getElementById('change-password-form');
-        const currentPasswordInput = document.getElementById('current-password');
-        const newPasswordInput = document.getElementById('new-password-change');
-        const confirmPasswordInput = document.getElementById('confirm-password-change');
-        const errorDiv = document.getElementById('change-password-error');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const currentPassword = currentPasswordInput.value;
-            const newPassword = newPasswordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-
-            if (newPassword !== confirmPassword) {
-                errorDiv.textContent = t('budget', 'New passwords do not match');
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/password'), {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...this.getAuthHeaders()
-                    },
-                    body: JSON.stringify({
-                        currentPassword: currentPassword,
-                        newPassword: newPassword
-                    })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    showSuccess(t('budget', 'Password changed successfully'));
-                    modal.remove();
-                } else {
-                    errorDiv.textContent = result.error || t('budget', 'Failed to change password');
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Failed to change password:', error);
-                errorDiv.textContent = t('budget', 'Failed to change password. Please try again.');
-                errorDiv.style.display = 'block';
-            }
-        });
-
-        // Close modal handlers
-        modal.querySelectorAll('.close-btn').forEach(btn => {
-            btn.addEventListener('click', () => modal.remove());
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-
-        currentPasswordInput.focus();
-    }
-
-    showDisablePasswordModal() {
-        const modal = document.createElement('div');
-        modal.id = 'disable-password-modal';
-        modal.className = 'budget-modal-overlay';
-        modal.innerHTML = `
-            <div class="budget-modal">
-                <div class="budget-modal-header">
-                    <h2>${t('budget', 'Disable Password Protection')}</h2>
-                    <button class="close-btn">×</button>
-                </div>
-                <div class="budget-modal-body">
-                    <p>${t('budget', 'Enter your current password to disable password protection.')}</p>
-                    <form id="disable-password-form">
-                        <div class="form-group">
-                            <label for="disable-current-password">${t('budget', 'Current Password')}</label>
-                            <input type="password" id="disable-current-password" class="budget-input" required autocomplete="current-password">
-                        </div>
-                        <div id="disable-password-error" class="error-message" style="display: none;"></div>
-                        <div class="form-actions">
-                            <button type="button" class="budget-btn secondary close-btn">${t('budget', 'Cancel')}</button>
-                            <button type="submit" class="budget-btn primary">${t('budget', 'Disable Protection')}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        const form = document.getElementById('disable-password-form');
-        const passwordInput = document.getElementById('disable-current-password');
-        const errorDiv = document.getElementById('disable-password-error');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const password = passwordInput.value;
-
-            try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/auth/disable'), {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...this.getAuthHeaders()
-                    },
-                    body: JSON.stringify({ password: password })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    // Update UI
-                    const passwordToggle = document.getElementById('setting-password-protection-enabled');
-                    if (passwordToggle) passwordToggle.checked = false;
-
-                    const passwordConfig = document.getElementById('password-protection-config');
-                    if (passwordConfig) passwordConfig.style.display = 'none';
-
-                    showSuccess(t('budget', 'Password protection disabled'));
-                    modal.remove();
-                } else {
-                    errorDiv.textContent = result.error || t('budget', 'Failed to disable password protection');
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Failed to disable password protection:', error);
-                errorDiv.textContent = t('budget', 'Failed to disable password protection. Please try again.');
-                errorDiv.style.display = 'block';
-            }
-        });
-
-        // Close modal handlers
-        modal.querySelectorAll('.close-btn').forEach(btn => {
-            btn.addEventListener('click', () => modal.remove());
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-
-        passwordInput.focus();
     }
 
     setupRecalculateBalancesListener() {

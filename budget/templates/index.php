@@ -276,16 +276,6 @@ style('budget', 'budget-main');
                     <?php p($l->t('Help & Docs')); ?>
                 </a>
             </li>
-            <li class="app-navigation-entry" data-id="lock" id="lock-app-btn" style="display: none;">
-                <a href="#" class="nav-icon-lock svg">
-                    <span class="app-navigation-entry-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/>
-                        </svg>
-                    </span>
-                    <?php p($l->t('Lock App')); ?>
-                </a>
-            </li>
         </ul>
     </div>
 </div>
@@ -4610,52 +4600,6 @@ style('budget', 'budget-main');
                                 <option value="json"><?php p($l->t('JSON')); ?></option>
                                 <option value="pdf"><?php p($l->t('PDF')); ?></option>
                             </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Security Settings Section -->
-                <div class="settings-section">
-                    <h3><?php p($l->t('Security')); ?></h3>
-
-                    <div class="settings-group">
-                        <div class="setting-item checkbox-setting">
-                            <label>
-                                <input type="checkbox" id="setting-password-protection-enabled" class="setting-input">
-                                <div>
-                                    <strong><?php p($l->t('Password Protection')); ?></strong>
-                                    <small><?php p($l->t('Require password to access the budget app')); ?></small>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div id="password-protection-config" style="display: none; margin-top: 16px; padding: 16px; background: var(--color-background-dark); border-radius: 3px;">
-                            <div class="setting-item" style="margin-bottom: 12px;">
-                                <label for="setting-session-timeout-minutes">
-                                    <strong><?php p($l->t('Session Timeout')); ?></strong>
-                                    <small><?php p($l->t('Automatically lock after this period of inactivity')); ?></small>
-                                </label>
-                                <select id="setting-session-timeout-minutes" class="setting-input">
-                                    <option value="15"><?php p($l->t('15 minutes')); ?></option>
-                                    <option value="30"><?php p($l->t('30 minutes')); ?></option>
-                                    <option value="60"><?php p($l->t('1 hour')); ?></option>
-                                </select>
-                            </div>
-
-                            <div class="password-management-buttons" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                <button id="setup-password-btn" class="secondary" style="display: none;">
-                                    <span class="icon-password" aria-hidden="true"></span>
-                                    <?php p($l->t('Set Password')); ?>
-                                </button>
-                                <button id="change-password-btn" class="secondary" style="display: none;">
-                                    <span class="icon-password" aria-hidden="true"></span>
-                                    <?php p($l->t('Change Password')); ?>
-                                </button>
-                                <button id="disable-password-btn" class="secondary" style="display: none;">
-                                    <span class="icon-delete" aria-hidden="true"></span>
-                                    <?php p($l->t('Remove Password')); ?>
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>

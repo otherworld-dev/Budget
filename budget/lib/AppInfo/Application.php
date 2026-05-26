@@ -423,7 +423,8 @@ class Application extends App implements IBootstrap {
                 $c->get(\OCA\Budget\Service\Report\ReportCalculator::class),
                 $c->get(\OCA\Budget\Service\Report\ReportAggregator::class),
                 $c->get(\OCA\Budget\Service\Report\ReportExporter::class),
-                $c->get(\OCA\Budget\Service\Report\TagReportService::class)
+                $c->get(\OCA\Budget\Service\Report\TagReportService::class),
+                $c->get(\OCA\Budget\Db\CategoryMapper::class)
             );
         });
         $context->registerServiceAlias('ReportService', \OCA\Budget\Service\ReportService::class);
