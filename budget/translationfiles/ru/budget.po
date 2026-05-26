@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: 2026-05-26 23:14+0000\n"
+"PO-Revision-Date: 2026-05-26 23:49+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/ru/>\n"
@@ -3609,7 +3609,7 @@ msgstr "Определить платежи"
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:670
 #, javascript-format
 msgid "{percent}% confidence"
-msgstr "Уверенность {percent}%"
+msgstr "Надежность: {percent}%"
 
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:807
 msgid "Please select at least one bill to add"
@@ -3794,7 +3794,7 @@ msgstr "Не удалось сохранить категорию"
 
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1048
 msgid "Default categories created successfully"
-msgstr "Набор категорий по умолчанию создан!"
+msgstr "Набор категорий по умолчанию создан"
 
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1052
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1063
@@ -4070,7 +4070,7 @@ msgstr "Активы"
 #: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1453
 #: /var/www/html/apps-extra/budget/templates/index.php:980
 msgid "Liabilities"
-msgstr "Liabilities"
+msgstr "Обязательства"
 
 #: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1538
 msgid "Asset Value"
@@ -4826,7 +4826,7 @@ msgstr "Май"
 #: /var/www/html/apps-extra/budget/templates/index.php:3167
 #: /var/www/html/apps-extra/budget/templates/index.php:4855
 msgid "Jun"
-msgstr "Июнь"
+msgstr "Июн"
 
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1283
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:171
@@ -9345,7 +9345,7 @@ msgstr "Сохранить счет"
 
 #: /var/www/html/apps-extra/budget/templates/index.php:4816
 msgid "Add/Edit Bill"
-msgstr "Добавить/редактировать счет"
+msgstr "Добавить/редактировать счет к оплате"
 
 #: /var/www/html/apps-extra/budget/templates/index.php:4821
 msgid "Bill Name / Vendor"
@@ -9583,7 +9583,7 @@ msgstr "Заканчивается на"
 
 #: /var/www/html/apps-extra/budget/templates/index.php:5035
 msgid "Regex"
-msgstr "Regex"
+msgstr "Регулярное выражение"
 
 #: /var/www/html/apps-extra/budget/templates/index.php:5037
 msgid "How to match the pattern"
