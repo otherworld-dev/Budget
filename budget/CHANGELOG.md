@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.2] - 2026-05-27
+
+### Fixed
+- Transfer counterpart transaction now inherits the selected category instead of being set to Uncategorized (#220)
+- Categories marked "Exclude from reports" now properly excluded from spending and income reports (#219)
+- Dashboard tile settings (account, date range) now persist and load correctly on page reload (#218)
+- Duplicate tile instances now restored from saved config on reload (#218)
+- One-time bills no longer incorrectly shown as "paid" after changing frequency from recurring (#222)
+- Rule group names now included in save request (was silently dropped)
+
+### Added
+- Compiled translations for French, Czech, and Russian (#221, #223)
+
 ## [2.26.1] - 2026-05-25
 
 ### Fixed

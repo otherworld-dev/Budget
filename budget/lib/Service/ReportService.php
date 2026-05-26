@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -17,17 +18,20 @@ class ReportService {
     private ReportAggregator $aggregator;
     private ReportExporter $exporter;
     private TagReportService $tagReportService;
+    private CategoryMapper $categoryMapper;
 
     public function __construct(
         ReportCalculator $calculator,
         ReportAggregator $aggregator,
         ReportExporter $exporter,
-        TagReportService $tagReportService
+        TagReportService $tagReportService,
+        CategoryMapper $categoryMapper
     ) {
         $this->calculator = $calculator;
         $this->aggregator = $aggregator;
         $this->exporter = $exporter;
         $this->tagReportService = $tagReportService;
+        $this->categoryMapper = $categoryMapper;
     }
 
     /**
@@ -122,6 +126,21 @@ class ReportService {
             $report['tagSetId'] = $tagSetId;
         }
 
+        // Filter out categories marked as "excluded from reports"
+        if ($groupBy === 'category') {
+            $excludedIds = [];
+            foreach ($this->categoryMapper->findAll($userId) as $cat) {
+                if ($cat->getExcludedFromReports()) {
+                    $excludedIds[$cat->getId()] = true;
+                }
+            }
+            if (!empty($excludedIds)) {
+                $report['data'] = array_values(array_filter($report['data'], function ($item) use ($excludedIds) {
+                    return !isset($excludedIds[$item['categoryId'] ?? 0]);
+                }));
+            }
+        }
+
         $report['totals'] = $this->calculator->calculateTotals($report['data']);
 
         return $report;
@@ -166,6 +185,21 @@ class ReportService {
 
         if ($groupBy === 'tag' && $tagSetId !== null) {
             $report['tagSetId'] = $tagSetId;
+        }
+
+        // Filter out categories marked as "excluded from reports"
+        if ($groupBy === 'category') {
+            $excludedIds = [];
+            foreach ($this->categoryMapper->findAll($userId) as $cat) {
+                if ($cat->getExcludedFromReports()) {
+                    $excludedIds[$cat->getId()] = true;
+                }
+            }
+            if (!empty($excludedIds)) {
+                $report['data'] = array_values(array_filter($report['data'], function ($item) use ($excludedIds) {
+                    return !isset($excludedIds[$item['categoryId'] ?? 0]);
+                }));
+            }
         }
 
         $report['totals'] = $this->calculator->calculateTotals($report['data']);

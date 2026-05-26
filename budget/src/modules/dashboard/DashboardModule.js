@@ -488,32 +488,36 @@ export default class DashboardModule {
 
     async refreshSavedWidgetSelections() {
         const refreshes = [];
+        const tileSettings = this.dashboardConfig.widgets?.tileSettings || {};
 
-        const trendAcct = document.getElementById('trend-account-select');
-        if (trendAcct?.value) {
-            const periodEl = document.getElementById('trend-period-select');
-            const months = periodEl ? parseInt(periodEl.value) : 6;
-            refreshes.push(this.refreshTrendChart(months, trendAcct.value));
-        }
+        // Refresh base tiles that have saved settings (accountId or dateRange)
+        const widgetRefreshMap = {
+            trendChart: (s) => {
+                const months = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 }[s.dateRange] || 6;
+                return this.refreshTrendChart(months, s.accountId || null);
+            },
+            spendingChart: (s) => {
+                const period = { '30d': 'month', '90d': '3months', '6m': '3months', '1y': 'year' }[s.dateRange] || 'month';
+                return this.refreshSpendingChart(period, s.accountId || null);
+            },
+            netWorthHistory: (s) => {
+                const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
+                return this.refreshNetWorthChart(days, s.accountId || null);
+            },
+            recentTransactions: (s) => {
+                return this.refreshRecentTransactions(s.accountId || null);
+            },
+            assetValueHistory: (s) => {
+                const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
+                return this.refreshAssetValueChart(days);
+            },
+        };
 
-        const spendingAcct = document.getElementById('spending-account-select');
-        {
-            const periodEl = document.getElementById('spending-period-select');
-            const period = periodEl ? periodEl.value : 'month';
-            const accountId = spendingAcct?.value || null;
-            refreshes.push(this.refreshSpendingChart(period, accountId));
-        }
-
-        const netWorthAcct = document.getElementById('net-worth-account-select');
-        if (netWorthAcct?.value) {
-            const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
-            const days = activeBtn ? parseInt(activeBtn.dataset.days) : 30;
-            refreshes.push(this.refreshNetWorthChart(days, netWorthAcct.value));
-        }
-
-        const recentTxAcct = document.getElementById('recent-transactions-account-select');
-        if (recentTxAcct?.value) {
-            refreshes.push(this.refreshRecentTransactions(recentTxAcct.value));
+        for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
+            const settings = tileSettings[widgetId];
+            if (settings && (settings.accountId || settings.dateRange)) {
+                refreshes.push(refreshFn(settings));
+            }
         }
 
         if (refreshes.length > 0) {
@@ -2786,6 +2790,16 @@ export default class DashboardModule {
                 config.tileSettings = saved.tileSettings || {};
             }
 
+            // Restore duplicate tile instances
+            if (!config.instances) {
+                config.instances = saved.instances || {};
+            }
+
+            // Restore positions for Gridstack
+            if (!config.positions) {
+                config.positions = saved.positions || {};
+            }
+
             return config;
         } catch (e) {
             console.error('Failed to parse dashboard config', e);
@@ -4039,27 +4053,7 @@ export default class DashboardModule {
         const settings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
         const baseType = this.getWidgetType(widgetId);
 
-        // Sync tile settings back to HTML selectors (base instances only)
-        if (!this.isDuplicateInstance(widgetId)) {
-            const selectorSync = {
-                'trendChart': { account: 'trend-account-select' },
-                'spendingChart': { account: 'spending-account-select' },
-                'netWorthHistory': { account: 'net-worth-account-select' },
-                'recentTransactions': { account: 'recent-transactions-account-select' },
-                'accountIncome': { account: 'hero-account-income-select' },
-                'accountExpenses': { account: 'hero-account-expenses-select' },
-            };
-
-            const sync = selectorSync[widgetId];
-            if (sync) {
-                if (sync.account && settings.accountId !== undefined) {
-                    const sel = document.getElementById(sync.account);
-                    if (sel) sel.value = settings.accountId || '';
-                }
-            }
-        }
-
-        // Use instance-aware refresh for duplicable widgets
+        // Use instance-aware refresh for duplicable widgets (reads from tileSettings directly)
         if (DUPLICABLE_WIDGETS.includes(baseType)) {
             return this.refreshWidgetInstance(widgetId);
         }

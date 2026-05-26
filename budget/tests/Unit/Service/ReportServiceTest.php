@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -17,18 +18,22 @@ class ReportServiceTest extends TestCase {
     private ReportAggregator $aggregator;
     private ReportExporter $exporter;
     private TagReportService $tagReportService;
+    private CategoryMapper $categoryMapper;
 
     protected function setUp(): void {
         $this->calculator = $this->createMock(ReportCalculator::class);
         $this->aggregator = $this->createMock(ReportAggregator::class);
         $this->exporter = $this->createMock(ReportExporter::class);
         $this->tagReportService = $this->createMock(TagReportService::class);
+        $this->categoryMapper = $this->createMock(CategoryMapper::class);
+        $this->categoryMapper->method('findAll')->willReturn([]);
 
         $this->service = new ReportService(
             $this->calculator,
             $this->aggregator,
             $this->exporter,
-            $this->tagReportService
+            $this->tagReportService,
+            $this->categoryMapper
         );
     }
 

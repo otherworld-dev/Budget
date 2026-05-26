@@ -174,10 +174,18 @@ export default class BillsModule {
     }
 
     isBillPaidThisMonth(bill) {
+        const frequency = bill.frequency || 'monthly';
+
+        // One-time bills are "paid" only when deactivated after payment
+        if (frequency === 'one-time') {
+            const isActive = bill.isActive ?? bill.is_active ?? true;
+            return !isActive;
+        }
+
         const lastPaid = bill.lastPaidDate || bill.last_paid_date;
         if (!lastPaid) return false;
 
-        // Parse as date components to avoid timezone issues with Date constructor
+        // For recurring bills, check if paid in current month
         const [year, month] = lastPaid.split('-').map(Number);
         const now = new Date();
         return month === now.getMonth() + 1 && year === now.getFullYear();
