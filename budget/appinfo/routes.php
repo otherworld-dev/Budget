@@ -156,19 +156,14 @@ return [
         ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
         ['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
 
-        // Goals routes (Savings Goals)
-        ['name' => 'goals#index', 'url' => '/api/goals', 'verb' => 'GET'],
+        // Savings Goals routes
         ['name' => 'goals#index', 'url' => '/api/savings-goals', 'verb' => 'GET'],
-        ['name' => 'goals#show', 'url' => '/api/goals/{id}', 'verb' => 'GET'],
         ['name' => 'goals#show', 'url' => '/api/savings-goals/{id}', 'verb' => 'GET'],
-        ['name' => 'goals#create', 'url' => '/api/goals', 'verb' => 'POST'],
         ['name' => 'goals#create', 'url' => '/api/savings-goals', 'verb' => 'POST'],
-        ['name' => 'goals#update', 'url' => '/api/goals/{id}', 'verb' => 'PUT'],
         ['name' => 'goals#update', 'url' => '/api/savings-goals/{id}', 'verb' => 'PUT'],
-        ['name' => 'goals#destroy', 'url' => '/api/goals/{id}', 'verb' => 'DELETE'],
         ['name' => 'goals#destroy', 'url' => '/api/savings-goals/{id}', 'verb' => 'DELETE'],
-        ['name' => 'goals#progress', 'url' => '/api/goals/{id}/progress', 'verb' => 'GET'],
-        ['name' => 'goals#forecast', 'url' => '/api/goals/{id}/forecast', 'verb' => 'GET'],
+        ['name' => 'goals#progress', 'url' => '/api/savings-goals/{id}/progress', 'verb' => 'GET'],
+        ['name' => 'goals#forecast', 'url' => '/api/savings-goals/{id}/forecast', 'verb' => 'GET'],
 
         // Net Worth routes
         ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],

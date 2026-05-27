@@ -95,8 +95,13 @@ abstract class AbstractCrudService {
      * @param T $entity
      * @param array<string, mixed> $updates
      */
+    private const PROTECTED_FIELDS = ['id', 'userId', 'createdAt'];
+
     protected function applyUpdates(Entity $entity, array $updates): void {
         foreach ($updates as $key => $value) {
+            if (in_array($key, self::PROTECTED_FIELDS, true)) {
+                continue;
+            }
             $setter = 'set' . ucfirst($key);
             // Use is_callable to support magic methods from Entity parent class
             if (is_callable([$entity, $setter])) {

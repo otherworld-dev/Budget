@@ -28,7 +28,6 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class Auth extends Entity implements JsonSerializable {
-    public $id;
     protected $userId;
     protected $passwordHash;
     protected $sessionToken;

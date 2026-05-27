@@ -22,7 +22,6 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class Share extends Entity implements JsonSerializable {
-    public $id;
     protected $ownerUserId;
     protected $sharedWithUserId;
     protected $status;
