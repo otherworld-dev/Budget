@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-26 22:56+0000\n"
+"PO-Revision-Date: 2026-05-28 01:11+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -4486,7 +4486,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2445
 msgid "Insights & Analytics"
-msgstr ""
+msgstr "Einblicke & Analysen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2446
 msgid "Budgeting"
@@ -4533,19 +4533,19 @@ msgstr "Interaktiv"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2476
 msgid "Hero"
-msgstr ""
+msgstr "Hauptübersicht"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2727
 msgid "Failed to save widget order"
-msgstr ""
+msgstr "Widget-Reihenfolge konnte nicht gespeichert werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:113
 msgid "No rate available"
-msgstr ""
+msgstr "Kein Wechselkurs verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:123
 msgid "Edit manual rate"
-msgstr ""
+msgstr "Manuellen Wechselkurs bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:126
 msgid "Remove manual rate"
