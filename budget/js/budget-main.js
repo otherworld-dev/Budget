@@ -27472,6 +27472,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
 function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
 function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
 function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /**
@@ -27583,6 +27584,11 @@ var Router = /*#__PURE__*/function () {
       if (iconOpen) iconOpen.style.display = '';
       if (iconClose) iconClose.style.display = 'none';
     }
+
+    /**
+     * Map of view names to their load methods on the app.
+     * Used by both showView() and reloadCurrentView() to avoid duplication.
+     */
   }, {
     key: "showView",
     value: function showView(viewName) {
@@ -27604,142 +27610,48 @@ var Router = /*#__PURE__*/function () {
         }
 
         // Load view-specific data
-        switch (viewName) {
-          case 'dashboard':
-            this.app.loadDashboard();
-            break;
-          case 'accounts':
-            this.app.loadAccounts();
-            break;
-          case 'transactions':
-            this.app.loadTransactions();
-            break;
-          case 'categories':
-            this.app.loadCategories();
-            break;
-          case 'tags':
-            this.app.loadTagsView();
-            break;
-          case 'budget':
-            this.app.loadBudgetView();
-            break;
-          case 'forecast':
-            this.app.loadForecastView();
-            break;
-          case 'reports':
-            this.app.loadReportsView();
-            break;
-          case 'bills':
-            this.app.loadBillsView();
-            break;
-          case 'transfers':
-            this.app.loadTransfersView();
-            break;
-          case 'rules':
-            this.app.loadRulesView();
-            break;
-          case 'income':
-            this.app.loadIncomeView();
-            break;
-          case 'savings-goals':
-            this.app.loadSavingsGoalsView();
-            break;
-          case 'debt-payoff':
-            this.app.loadDebtPayoffView();
-            break;
-          case 'shared-expenses':
-            this.app.loadSharedExpensesView();
-            break;
-          case 'pensions':
-            this.app.loadPensionsView();
-            break;
-          case 'assets':
-            this.app.loadAssetsView();
-            break;
-          case 'exchange-rates':
-            this.app.loadExchangeRatesView();
-            break;
-          case 'sharing':
-            this.app.loadSharingView();
-            break;
-          case 'bank-sync':
-            this.app.loadBankSyncView();
-            break;
-          case 'settings':
-            this.app.loadSettingsView();
-            break;
+        var loader = Router.VIEW_LOADERS[viewName];
+        if (loader) {
+          this.app[loader]();
         }
       }
     }
   }, {
     key: "reloadCurrentView",
     value: function reloadCurrentView() {
-      // Reload the current view to apply setting changes
-      switch (this.app.currentView) {
-        case 'dashboard':
-          this.app.loadDashboard();
-          break;
-        case 'accounts':
-          this.app.loadAccounts();
-          break;
-        case 'transactions':
-          this.app.loadTransactions();
-          break;
-        case 'categories':
-          this.app.loadCategories();
-          break;
-        case 'tags':
-          this.app.loadTagsView();
-          break;
-        case 'budget':
-          this.app.loadBudgetView();
-          break;
-        case 'forecast':
-          this.app.loadForecastView();
-          break;
-        case 'reports':
-          this.app.loadReportsView();
-          break;
-        case 'bills':
-          this.app.loadBillsView();
-          break;
-        case 'transfers':
-          this.app.loadTransfersView();
-          break;
-        case 'rules':
-          this.app.loadRulesView();
-          break;
-        case 'income':
-          this.app.loadIncomeView();
-          break;
-        case 'savings-goals':
-          this.app.loadSavingsGoalsView();
-          break;
-        case 'debt-payoff':
-          this.app.loadDebtPayoffView();
-          break;
-        case 'shared-expenses':
-          this.app.loadSharedExpensesView();
-          break;
-        case 'pensions':
-          this.app.loadPensionsView();
-          break;
-        case 'assets':
-          this.app.loadAssetsView();
-          break;
-        case 'exchange-rates':
-          this.app.loadExchangeRatesView();
-          break;
-        case 'sharing':
-          this.app.loadSharingView();
-          break;
-        case 'settings':
-          // Don't reload settings view (we're already in it)
-          break;
+      var viewName = this.app.currentView;
+      // Don't reload settings view (we're already in it)
+      if (viewName === 'settings') return;
+      var loader = Router.VIEW_LOADERS[viewName];
+      if (loader) {
+        this.app[loader]();
       }
     }
   }]);
 }();
+_defineProperty(Router, "VIEW_LOADERS", {
+  'dashboard': 'loadDashboard',
+  'accounts': 'loadAccounts',
+  'transactions': 'loadTransactions',
+  'categories': 'loadCategories',
+  'tags': 'loadTagsView',
+  'budget': 'loadBudgetView',
+  'forecast': 'loadForecastView',
+  'reports': 'loadReportsView',
+  'bills': 'loadBillsView',
+  'transfers': 'loadTransfersView',
+  'rules': 'loadRulesView',
+  'income': 'loadIncomeView',
+  'savings-goals': 'loadSavingsGoalsView',
+  'debt-payoff': 'loadDebtPayoffView',
+  'shared-expenses': 'loadSharedExpensesView',
+  'pensions': 'loadPensionsView',
+  'assets': 'loadAssetsView',
+  'exchange-rates': 'loadExchangeRatesView',
+  'sharing': 'loadSharingView',
+  'bank-sync': 'loadBankSyncView',
+  'settings': 'loadSettingsView'
+});
 
 
 /***/ }),

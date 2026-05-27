@@ -106,6 +106,34 @@ export default class Router {
         if (iconClose) iconClose.style.display = 'none';
     }
 
+    /**
+     * Map of view names to their load methods on the app.
+     * Used by both showView() and reloadCurrentView() to avoid duplication.
+     */
+    static VIEW_LOADERS = {
+        'dashboard': 'loadDashboard',
+        'accounts': 'loadAccounts',
+        'transactions': 'loadTransactions',
+        'categories': 'loadCategories',
+        'tags': 'loadTagsView',
+        'budget': 'loadBudgetView',
+        'forecast': 'loadForecastView',
+        'reports': 'loadReportsView',
+        'bills': 'loadBillsView',
+        'transfers': 'loadTransfersView',
+        'rules': 'loadRulesView',
+        'income': 'loadIncomeView',
+        'savings-goals': 'loadSavingsGoalsView',
+        'debt-payoff': 'loadDebtPayoffView',
+        'shared-expenses': 'loadSharedExpensesView',
+        'pensions': 'loadPensionsView',
+        'assets': 'loadAssetsView',
+        'exchange-rates': 'loadExchangeRatesView',
+        'sharing': 'loadSharingView',
+        'bank-sync': 'loadBankSyncView',
+        'settings': 'loadSettingsView',
+    };
+
     showView(viewName) {
         // Hide all views
         document.querySelectorAll('.view').forEach(view => {
@@ -125,137 +153,21 @@ export default class Router {
             }
 
             // Load view-specific data
-            switch (viewName) {
-                case 'dashboard':
-                    this.app.loadDashboard();
-                    break;
-                case 'accounts':
-                    this.app.loadAccounts();
-                    break;
-                case 'transactions':
-                    this.app.loadTransactions();
-                    break;
-                case 'categories':
-                    this.app.loadCategories();
-                    break;
-                case 'tags':
-                    this.app.loadTagsView();
-                    break;
-                case 'budget':
-                    this.app.loadBudgetView();
-                    break;
-                case 'forecast':
-                    this.app.loadForecastView();
-                    break;
-                case 'reports':
-                    this.app.loadReportsView();
-                    break;
-                case 'bills':
-                    this.app.loadBillsView();
-                    break;
-                case 'transfers':
-                    this.app.loadTransfersView();
-                    break;
-                case 'rules':
-                    this.app.loadRulesView();
-                    break;
-                case 'income':
-                    this.app.loadIncomeView();
-                    break;
-                case 'savings-goals':
-                    this.app.loadSavingsGoalsView();
-                    break;
-                case 'debt-payoff':
-                    this.app.loadDebtPayoffView();
-                    break;
-                case 'shared-expenses':
-                    this.app.loadSharedExpensesView();
-                    break;
-                case 'pensions':
-                    this.app.loadPensionsView();
-                    break;
-                case 'assets':
-                    this.app.loadAssetsView();
-                    break;
-                case 'exchange-rates':
-                    this.app.loadExchangeRatesView();
-                    break;
-                case 'sharing':
-                    this.app.loadSharingView();
-                    break;
-                case 'bank-sync':
-                    this.app.loadBankSyncView();
-                    break;
-                case 'settings':
-                    this.app.loadSettingsView();
-                    break;
+            const loader = Router.VIEW_LOADERS[viewName];
+            if (loader) {
+                this.app[loader]();
             }
         }
     }
 
     reloadCurrentView() {
-        // Reload the current view to apply setting changes
-        switch (this.app.currentView) {
-            case 'dashboard':
-                this.app.loadDashboard();
-                break;
-            case 'accounts':
-                this.app.loadAccounts();
-                break;
-            case 'transactions':
-                this.app.loadTransactions();
-                break;
-            case 'categories':
-                this.app.loadCategories();
-                break;
-            case 'tags':
-                this.app.loadTagsView();
-                break;
-            case 'budget':
-                this.app.loadBudgetView();
-                break;
-            case 'forecast':
-                this.app.loadForecastView();
-                break;
-            case 'reports':
-                this.app.loadReportsView();
-                break;
-            case 'bills':
-                this.app.loadBillsView();
-                break;
-            case 'transfers':
-                this.app.loadTransfersView();
-                break;
-            case 'rules':
-                this.app.loadRulesView();
-                break;
-            case 'income':
-                this.app.loadIncomeView();
-                break;
-            case 'savings-goals':
-                this.app.loadSavingsGoalsView();
-                break;
-            case 'debt-payoff':
-                this.app.loadDebtPayoffView();
-                break;
-            case 'shared-expenses':
-                this.app.loadSharedExpensesView();
-                break;
-            case 'pensions':
-                this.app.loadPensionsView();
-                break;
-            case 'assets':
-                this.app.loadAssetsView();
-                break;
-            case 'exchange-rates':
-                this.app.loadExchangeRatesView();
-                break;
-            case 'sharing':
-                this.app.loadSharingView();
-                break;
-            case 'settings':
-                // Don't reload settings view (we're already in it)
-                break;
+        const viewName = this.app.currentView;
+        // Don't reload settings view (we're already in it)
+        if (viewName === 'settings') return;
+
+        const loader = Router.VIEW_LOADERS[viewName];
+        if (loader) {
+            this.app[loader]();
         }
     }
 }

@@ -146,7 +146,7 @@ class AccountServiceTest extends TestCase {
         $this->accountMapper->method('find')->willReturn($account);
 
         $this->transactionMapper->method('findByAccount')
-            ->with(1, 1)
+            ->with(1, 'user1', 1)
             ->willReturn([['id' => 1]]);
 
         $this->expectException(\Exception::class);
@@ -160,7 +160,7 @@ class AccountServiceTest extends TestCase {
         $this->accountMapper->method('find')->willReturn($account);
 
         $this->transactionMapper->method('findByAccount')
-            ->with(1, 1)
+            ->with(1, 'user1', 1)
             ->willReturn([]);
 
         $this->accountMapper->expects($this->once())

@@ -148,16 +148,18 @@ class TransactionMapper extends QBMapper {
     /**
      * @return Transaction[]
      */
-    public function findByAccount(int $accountId, int $limit = 100, int $offset = 0): array {
+    public function findByAccount(int $accountId, string $userId, int $limit = 100, int $offset = 0): array {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->orderBy('date', 'DESC')
-            ->addOrderBy('id', 'DESC')
+        $qb->select('t.*')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->orderBy('t.date', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
             ->setMaxResults($limit)
             ->setFirstResult($offset);
-        
+
         return $this->findEntities($qb);
     }
 

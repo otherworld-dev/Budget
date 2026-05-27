@@ -149,26 +149,12 @@ class TransactionServiceTest extends TestCase {
 
     // ===== findByAccount() =====
 
-    public function testFindByAccountVerifiesOwnership(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->expects($this->once())
-            ->method('find')
-            ->with(10, 'user1')
-            ->willReturn($account);
-
+    public function testFindByAccountDelegatesToMapper(): void {
         $this->mapper->expects($this->once())
             ->method('findByAccount')
-            ->with(10, 100, 0)
+            ->with(10, 'user1', 100, 0)
             ->willReturn([]);
 
-        $this->service->findByAccount('user1', 10);
-    }
-
-    public function testFindByAccountThrowsIfNotOwner(): void {
-        $this->accountMapper->method('find')
-            ->willThrowException(new DoesNotExistException(''));
-
-        $this->expectException(DoesNotExistException::class);
         $this->service->findByAccount('user1', 10);
     }
 

@@ -135,7 +135,7 @@ class TransactionMapperTest extends TestCase {
         $this->result->method('closeCursor');
         $this->qb->method('executeQuery')->willReturn($this->result);
 
-        $txs = $this->mapper->findByAccount(10);
+        $txs = $this->mapper->findByAccount(10, 'user1');
 
         $this->assertCount(2, $txs);
         $this->assertEquals('Coffee Shop', $txs[0]->getDescription());

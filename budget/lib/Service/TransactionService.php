@@ -60,9 +60,7 @@ class TransactionService {
     }
 
     public function findByAccount(string $userId, int $accountId, int $limit = 100, int $offset = 0): array {
-        // Verify account belongs to user
-        $this->accountMapper->find($accountId, $userId);
-        return $this->mapper->findByAccount($accountId, $limit, $offset);
+        return $this->mapper->findByAccount($accountId, $userId, $limit, $offset);
     }
 
     public function findByDateRange(string $userId, int $accountId, string $startDate, string $endDate): array {
