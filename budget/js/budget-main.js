@@ -35479,7 +35479,7 @@ var CategoriesModule = /*#__PURE__*/function () {
   }, {
     key: "formatDate",
     value: function formatDate(date) {
-      return _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(date);
+      return _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(date, this.settings);
     }
   }, {
     key: "escapeHtml",
@@ -44973,7 +44973,7 @@ var ImportModule = /*#__PURE__*/function () {
   }, {
     key: "formatDate",
     value: function formatDate(date) {
-      return _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(date);
+      return _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.formatDate(date, this.settings);
     }
   }, {
     key: "getPrimaryCurrency",
@@ -64343,7 +64343,7 @@ __webpack_require__.r(__webpack_exports__);
  */
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**

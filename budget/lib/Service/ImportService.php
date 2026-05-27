@@ -87,7 +87,7 @@ class ImportService {
 
         // Generate unique file ID with extension
         $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION)) ?: 'dat';
-        $fileId = uniqid('import_' . $userId . '_') . '.' . $extension;
+        $fileId = 'import_' . $userId . '_' . bin2hex(random_bytes(16)) . '.' . $extension;
 
         try {
             // Store file

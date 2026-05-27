@@ -207,7 +207,7 @@ class AuthService {
                 return false;
             }
 
-            $timeoutMinutes = (int) ($this->settingService->get($userId, 'session_timeout_minutes') ?? '30');
+            $timeoutMinutes = min(max((int) ($this->settingService->get($userId, 'session_timeout_minutes') ?? '30'), 5), 1440);
             $expiresAt = (new DateTime())->modify("+{$timeoutMinutes} minutes");
 
             $auth->setSessionExpiresAt($expiresAt->format('Y-m-d H:i:s'));
@@ -353,8 +353,8 @@ class AuthService {
         // Generate session token
         $sessionToken = bin2hex(random_bytes(32));
 
-        // Get timeout from settings
-        $timeoutMinutes = (int) ($this->settingService->get($userId, 'session_timeout_minutes') ?? '30');
+        // Get timeout from settings (clamped to 5-1440 minutes)
+        $timeoutMinutes = min(max((int) ($this->settingService->get($userId, 'session_timeout_minutes') ?? '30'), 5), 1440);
         $expiresAt = (new DateTime())->modify("+{$timeoutMinutes} minutes");
 
         // Reset failed attempts and update session

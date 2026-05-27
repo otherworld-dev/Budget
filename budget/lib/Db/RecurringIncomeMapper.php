@@ -206,6 +206,13 @@ class RecurringIncomeMapper extends QBMapper {
      * @param array $fields Associative array of column_name => value
      * @return void
      */
+    private const UPDATABLE_COLUMNS = [
+        'name', 'description', 'amount', 'frequency', 'expected_day',
+        'expected_month', 'category_id', 'account_id', 'source',
+        'auto_detect_pattern', 'is_active', 'auto_create_enabled',
+        'last_received_date', 'next_expected_date', 'notes',
+    ];
+
     public function updateFields(int $id, string $userId, array $fields): void {
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->getTableName())
@@ -213,6 +220,9 @@ class RecurringIncomeMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
         foreach ($fields as $column => $value) {
+            if (!in_array($column, self::UPDATABLE_COLUMNS, true)) {
+                throw new \InvalidArgumentException("Column '$column' is not updatable");
+            }
             if ($value === null) {
                 $qb->set($column, $qb->createNamedParameter($value, IQueryBuilder::PARAM_NULL));
             } else {

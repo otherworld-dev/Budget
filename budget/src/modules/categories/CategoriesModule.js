@@ -61,7 +61,7 @@ export default class CategoriesModule {
     }
 
     formatDate(date) {
-        return formatters.formatDate(date);
+        return formatters.formatDate(date, this.settings);
     }
 
     escapeHtml(text) {

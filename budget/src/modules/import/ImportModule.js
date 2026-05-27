@@ -47,7 +47,7 @@ export default class ImportModule {
     }
 
     formatDate(date) {
-        return formatters.formatDate(date);
+        return formatters.formatDate(date, this.settings);
     }
 
     getPrimaryCurrency() {

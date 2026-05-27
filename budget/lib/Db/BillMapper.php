@@ -242,6 +242,16 @@ class BillMapper extends QBMapper {
      * @param array $fields Associative array of column_name => value
      * @return void
      */
+    private const UPDATABLE_COLUMNS = [
+        'name', 'description', 'amount', 'frequency', 'due_day', 'due_month',
+        'category_id', 'account_id', 'auto_detect_pattern', 'is_active',
+        'last_paid_date', 'next_due_date', 'notes', 'reminder_days',
+        'last_reminder_sent', 'custom_recurrence_pattern', 'auto_pay_enabled',
+        'auto_pay_failed', 'is_transfer', 'destination_account_id',
+        'transfer_description_pattern', 'tag_ids', 'end_date',
+        'remaining_payments', 'split_template',
+    ];
+
     public function updateFields(int $id, string $userId, array $fields): void {
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->getTableName())
@@ -249,6 +259,9 @@ class BillMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
         foreach ($fields as $column => $value) {
+            if (!in_array($column, self::UPDATABLE_COLUMNS, true)) {
+                throw new \InvalidArgumentException("Column '$column' is not updatable");
+            }
             if ($value === null) {
                 $qb->set($column, $qb->createNamedParameter($value, IQueryBuilder::PARAM_NULL));
             } else {
