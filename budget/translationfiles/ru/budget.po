@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: 2026-05-26 23:49+0000\n"
+"PO-Revision-Date: 2026-05-28 01:11+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/ru/>\n"
@@ -2993,7 +2993,7 @@ msgstr "Нет доступных счетов. Пожалуйста, созда
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1382
 #: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:770
 msgid "Please select an account"
-msgstr "Выберите счёт"
+msgstr "Пожалуйста, выберите счёт"
 
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1263
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1386
@@ -4032,11 +4032,11 @@ msgstr[2] "%n счетов"
 #: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1186
 #: /var/www/html/apps-extra/budget/templates/index.php:753
 msgid "No accounts to reconcile"
-msgstr "No счета to reconcile"
+msgstr "Нет счета для сверки"
 
 #: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1199
 msgid "All accounts reconciled"
-msgstr "все счета reconciled"
+msgstr "все счета сверены"
 
 #: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1207
 msgid "Up to date"
@@ -4585,7 +4585,7 @@ msgstr "Повторяющиеся доходы в ваших транзакци
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:645
 #: /var/www/html/apps-extra/budget/templates/index.php:2370
 msgid "Detect Income"
-msgstr "Detect доход"
+msgstr "Определить доход"
 
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:666
 msgid "%n occurrence"
@@ -4787,7 +4787,7 @@ msgstr "Не удалось создать календарь платежей"
 #: /var/www/html/apps-extra/budget/templates/index.php:3162
 #: /var/www/html/apps-extra/budget/templates/index.php:4850
 msgid "Jan"
-msgstr "Яна"
+msgstr "Янв"
 
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1283
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:171
@@ -4833,7 +4833,7 @@ msgstr "Июн"
 #: /var/www/html/apps-extra/budget/templates/index.php:3168
 #: /var/www/html/apps-extra/budget/templates/index.php:4856
 msgid "Jul"
-msgstr "Июль"
+msgstr "Июл"
 
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1283
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:171
@@ -5767,7 +5767,7 @@ msgstr "Контакт добавлен"
 
 #: /var/www/html/apps-extra/budget/src/modules/shared-expenses/SharedExpensesModule.js:270
 msgid "Failed to save contact"
-msgstr "Не удалось сохранить contact"
+msgstr "Не удалось сохранить контакт"
 
 #: /var/www/html/apps-extra/budget/src/modules/shared-expenses/SharedExpensesModule.js:282
 msgid ""
@@ -5820,7 +5820,7 @@ msgstr "Не удалось закрыть расходы"
 
 #: /var/www/html/apps-extra/budget/src/modules/shared-expenses/SharedExpensesModule.js:498
 msgid "Please add contacts first in Shared Expenses"
-msgstr "Please add contacts first in Shared расходы"
+msgstr "Вначале добавьте контакты в раздел «Совместные расходы»"
 
 #: /var/www/html/apps-extra/budget/src/modules/shared-expenses/SharedExpensesModule.js:509
 #: /var/www/html/apps-extra/budget/templates/index.php:5666
@@ -5933,7 +5933,7 @@ msgstr "Редактировать тег"
 
 #: /var/www/html/apps-extra/budget/src/modules/tagsets/TagSetsModule.js:440
 msgid "Enter tag set name (e.g., \"Priority\", \"Status\"):"
-msgstr "Enter tag set название (e.g., \"Priority\", \"статус\"):"
+msgstr "Введите название тега(e.g., \"Priority\", \"статус\"):"
 
 #: /var/www/html/apps-extra/budget/src/modules/tagsets/TagSetsModule.js:448
 #: /var/www/html/apps-extra/budget/src/modules/tagsets/TagSetsModule.js:908
@@ -6783,7 +6783,7 @@ msgstr "Не удалось отметить transfer as оплачено"
 
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:751
 msgid "Transfer marked as paid"
-msgstr "Transfer отмечен как \"оплачено\""
+msgstr "Перевод помечен как «оплачено»"
 
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:197
 msgid "Mortgage"
@@ -7421,7 +7421,8 @@ msgid ""
 "Choose a category from the tree to view details, budget information, and "
 "analytics."
 msgstr ""
-"Choose a категория из the tree to сведения, бюджет information, и analytics."
+"Выберите категорию в древовидной структуре, чтобы просмотреть подробную "
+"информацию, данные о бюджете и аналитику."
 
 #: /var/www/html/apps-extra/budget/templates/index.php:1739
 msgid "Add new tag"
@@ -7433,8 +7434,9 @@ msgid ""
 "regardless of category. For category-specific tags, use tag sets in the "
 "category detail view."
 msgstr ""
-"Выберите категорию в дереве, чтобы просмотреть сведения, информацию о "
-"бюджете и аналитику."
+"Созданные здесь теги являются глобальными и могут применяться к любой "
+"транзакции независимо от категории. Для тегов, специфичных для категории, "
+"используйте наборы тегов в подробном представлении категории."
 
 #: /var/www/html/apps-extra/budget/templates/index.php:1761
 msgid "Total Tags"
