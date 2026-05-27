@@ -1,9 +1,7 @@
 /**
  * Settings Module - User preferences and configuration
  */
-import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import * as formatters from '../../utils/formatters.js';
-import * as dom from '../../utils/dom.js';
+import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { initDatePickers } from '../../utils/datepicker.js';
 
@@ -119,7 +117,7 @@ export default class SettingsModule {
                 throw new Error(t('budget', 'Failed to save settings'));
             }
 
-            const result = await response.json();
+            await response.json();
             showSuccess(t('budget', 'Settings saved successfully'));
 
             // Update stored settings to apply immediately

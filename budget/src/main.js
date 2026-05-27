@@ -8,14 +8,10 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 // Utilities
 import * as formatters from './utils/formatters.js';
 import * as dom from './utils/dom.js';
-import * as helpers from './utils/helpers.js';
-import * as validators from './utils/validators.js';
-import { showSuccess, showError, showWarning, showInfo } from './utils/notifications.js';
+import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { initDatePickers } from './utils/datepicker.js';
 
 // Configuration
-import { DASHBOARD_WIDGETS } from './config/dashboardWidgets.js';
-
 // Core
 import Router from './core/Router.js';
 
@@ -1041,10 +1037,6 @@ class BudgetApp {
                 : sharedStatus === 'settled'
                 ? `<span class="shared-settled-indicator" title="${t('budget', 'Shared expense - settled')}">&#x2705; ${t('budget', 'Settled')}</span>`
                 : '';
-            const matchOption = !isLinked
-                ? `<option value="match">${t('budget', 'Match Transfer')}</option>`
-                : `<option value="unlink">${t('budget', 'Unlink Transfer')}</option>`;
-
             return `
                 <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}" data-transaction-id="${transaction.id}">
                     <td class="select-column">
@@ -1193,19 +1185,6 @@ class BudgetApp {
 
     async deleteTransaction(id) {
         return this.transactionsModule.deleteTransaction(id);
-    }
-
-    // Transaction matching/splits
-    async findTransactionMatches(transactionId) {
-        return this.transactionsModule.findTransactionMatches(transactionId);
-    }
-
-    async getTransactionSplits(transactionId) {
-        return this.transactionsModule.getTransactionSplits(transactionId);
-    }
-
-    addSplitRow(container, split, isFirst) {
-        return this.transactionsModule.addSplitRow(container, split, isFirst);
     }
 
     async startBulkMatchScan() {
@@ -3422,7 +3401,6 @@ class BudgetApp {
      */
     addSplitRow(container, split = null, isFirst = false) {
         const modal = document.getElementById('split-modal');
-        const currency = modal?.dataset.currency || this.getPrimaryCurrency();
         const rowIndex = container.children.length;
 
         // Get the transaction to determine its type

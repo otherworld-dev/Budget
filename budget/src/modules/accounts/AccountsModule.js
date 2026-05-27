@@ -5,7 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { translate as t } from '@nextcloud/l10n';
 
 export default class AccountsModule {
     constructor(app) {
@@ -736,7 +736,7 @@ export default class AccountsModule {
             'simple': t('budget', 'Simple'),
         };
 
-        tbody.innerHTML = rates.map((rate, index) => `
+        tbody.innerHTML = rates.map((rate, _index) => `
             <tr>
                 <td>${this.formatDate(rate.effectiveDate)}</td>
                 <td>${rate.rate}%</td>
@@ -972,7 +972,6 @@ export default class AccountsModule {
             }
         }
 
-        const today = formatters.getTodayDateString();
         tbody.innerHTML = this.accountTransactions.map(transaction => {
             const amount = parseFloat(transaction.amount) || 0;
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
@@ -1075,7 +1074,7 @@ export default class AccountsModule {
         });
     }
 
-    async loadAccountMetrics(accountId) {
+    async loadAccountMetrics(_accountId) {
         try {
             // Calculate metrics from transactions
             const now = new Date();
@@ -1491,7 +1490,7 @@ export default class AccountsModule {
         }
     }
 
-    toggleTransactionReconciliation(transactionId, reconciled) {
+    toggleTransactionReconciliation(_transactionId, _reconciled) {
         // Reconcile checkboxes are tracked locally; actual save happens on finish.
     }
 
@@ -1681,8 +1680,6 @@ export default class AccountsModule {
         const type = getFormValue('quick-add-type');
         const amount = getFormValue('quick-add-amount', null, true);
         const description = getFormValue('quick-add-description');
-
-        const messageEl = document.getElementById('quick-add-message');
 
         if (!accountId) {
             if (!Array.isArray(this.accounts) || this.accounts.length === 0) {
@@ -1952,12 +1949,11 @@ export default class AccountsModule {
 
             if (response.ok) {
                 // Try to parse response as JSON, but handle empty responses
-                let result = {};
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     const text = await response.text();
                     if (text.trim()) {
-                        result = JSON.parse(text);
+                        JSON.parse(text);
                     }
                 }
 
@@ -2221,12 +2217,11 @@ export default class AccountsModule {
         });
 
         // Get banking field requirements for the selected currency
-        let requirements = {};
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/banking-requirements/${currency}`), {
                 headers: { 'requesttoken': OC.requestToken }
             });
-            requirements = await response.json();
+            await response.json();
         } catch (error) {
             console.warn('Failed to load banking requirements:', error);
         }
@@ -2285,7 +2280,7 @@ export default class AccountsModule {
                 // No additional fields for cash accounts
                 break;
 
-            case 'cryptocurrency':
+            case 'cryptocurrency': {
                 // Show wallet address field only
                 const walletGroup = document.getElementById('wallet-address-group');
                 if (walletGroup) {
@@ -2297,6 +2292,7 @@ export default class AccountsModule {
                     balanceInput.step = '0.00000001';
                 }
                 break;
+            }
         }
 
         // Reset balance step to fiat default for non-crypto types
@@ -2414,7 +2410,6 @@ export default class AccountsModule {
 
     clearValidationFeedback(fieldId) {
         const field = document.getElementById(fieldId);
-        const formGroup = field.closest('.form-group');
 
         field.classList.remove('error', 'success');
 
@@ -2581,7 +2576,6 @@ export default class AccountsModule {
         }
 
         const account = this.currentAccount;
-        const currency = account?.currency || this.settings?.currency || 'USD';
         const categories = this.app.categories || [];
 
         const getCategoryName = (categoryId) => {

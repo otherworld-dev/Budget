@@ -354,7 +354,7 @@ export default class CategoriesModule {
                 item.classList.add('dragging');
             });
 
-            item.addEventListener('dragend', (e) => {
+            item.addEventListener('dragend', (_e) => {
                 item.classList.remove('dragging');
                 document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
@@ -1718,7 +1718,6 @@ export default class CategoriesModule {
             select.addEventListener('change', async (e) => {
                 const categoryId = parseInt(e.target.dataset.categoryId);
                 const newPeriod = e.target.value;
-                const oldPeriod = e.target.dataset.oldPeriod || e.target.querySelector('option[selected]')?.value || 'monthly';
 
                 // Find the category to get current budget amount
                 const category = this.findCategoryById(categoryId);

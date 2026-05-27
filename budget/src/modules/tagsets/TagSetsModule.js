@@ -2,7 +2,6 @@
  * Tag Sets Module - Category tag management and transaction tagging
  */
 import { translate as t } from '@nextcloud/l10n';
-import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
 
@@ -188,7 +187,6 @@ export default class TagSetsModule {
             document.getElementById('global-tag-id').value = '';
             // Random default color
             const hue = Math.floor(Math.random() * 360);
-            const color = `hsl(${hue}, 70%, 60%)`;
             const colorEl = document.getElementById('global-tag-color');
             colorEl.value = this.hslToHex(hue, 70, 60);
             document.getElementById('global-tag-color-hex').value = colorEl.value;

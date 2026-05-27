@@ -1336,8 +1336,6 @@ export default class ReportsModule {
         const currency = this.getPrimaryCurrency();
 
         const calendarYear = parseInt(document.getElementById('bills-calendar-year')?.value) || new Date().getFullYear();
-        const currentYear = new Date().getFullYear();
-        const currentMonth = new Date().getMonth() + 1;
 
         // Render bills rows
         tbody.innerHTML = bills.map(bill => {

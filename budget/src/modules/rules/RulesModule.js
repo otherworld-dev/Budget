@@ -665,9 +665,6 @@ export default class RulesModule {
 
         if (needsMigration) {
             try {
-                const reason = hasBrokenStructure ? 'broken criteria structure' :
-                    (!rule.criteria || Object.keys(rule.criteria).length === 0) ? 'null/empty criteria' :
-                    'v1 rule';
                 const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${rule.id}/migrate`), {
                     method: 'POST',
                     headers: { 'requesttoken': OC.requestToken }

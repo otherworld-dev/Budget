@@ -1,5 +1,5 @@
 import './CriteriaBuilder.css';
-import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { translate as t } from '@nextcloud/l10n';
 
 /**
  * CriteriaBuilder - Visual query builder for complex boolean expression trees

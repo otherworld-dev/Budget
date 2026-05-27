@@ -274,11 +274,6 @@ export default class TransfersModule {
                 statusText = t('budget', 'Upcoming');
             }
 
-            const fromAccount = this.accounts.find(a => a.id === transfer.accountId);
-            const toAccount = this.accounts.find(a => a.id === transfer.destinationAccountId);
-            const fromAccountName = fromAccount ? fromAccount.name : t('budget', 'Unknown Account');
-            const toAccountName = toAccount ? toAccount.name : t('budget', 'Unknown Account');
-
             const frequency = transfer.frequency || 'monthly';
             const frequencyLabels = {
                 'one-time': t('budget', 'One-Time'),

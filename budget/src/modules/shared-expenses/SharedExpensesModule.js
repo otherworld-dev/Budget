@@ -1,7 +1,7 @@
 /**
  * Shared Expenses Module - Split expenses and settlements tracking
  */
-import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
@@ -454,7 +454,7 @@ export default class SharedExpensesModule {
         `).join('');
     }
 
-    async showSettlementModal(contactId, contactName, balance) {
+    async showSettlementModal(contactId, contactName, _balance) {
         this.closeModal(document.getElementById('contact-details-modal'));
 
         const modal = document.getElementById('settlement-modal');

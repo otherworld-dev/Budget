@@ -13,7 +13,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
-import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
+import { setDateValue } from '../../utils/datepicker.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -1199,7 +1199,7 @@ export default class TransactionsModule {
         }
     }
 
-    async toggleTransactionReconciliation(transactionId, checked) {
+    async toggleTransactionReconciliation(_transactionId, _checked) {
         // Reconcile checkboxes are tracked locally during reconciliation mode.
         // The actual API call happens in finishReconciliation() when the user confirms.
         // No immediate backend call needed here.
@@ -1881,7 +1881,6 @@ export default class TransactionsModule {
 
     addSplitRow(container, split = null, isFirst = false) {
         const modal = document.getElementById('split-modal');
-        const currency = modal?.dataset.currency || this.getPrimaryCurrency();
         const rowIndex = container.children.length;
 
         // Get the transaction to determine its type
@@ -2334,7 +2333,7 @@ export default class TransactionsModule {
         `;
     }
 
-    renderReviewSingleMatch(candidate, index) {
+    renderReviewSingleMatch(candidate, _index) {
         const tx = candidate.transaction;
         const match = candidate.matches[0];
 
@@ -2459,7 +2458,6 @@ export default class TransactionsModule {
             showSuccess(message);
 
             // Update UI to show results
-            const resultsEl = document.getElementById('bulk-match-results');
             const autoMatchedSection = document.getElementById('auto-matched-section');
             const autoMatchedList = document.getElementById('auto-matched-list');
             const needsReviewSection = document.getElementById('needs-review-section');
@@ -3135,7 +3133,7 @@ export default class TransactionsModule {
             }
         });
 
-        input.addEventListener('blur', (e) => {
+        input.addEventListener('blur', (_e) => {
             setTimeout(() => {
                 if (cell.classList.contains('editing')) {
                     if (field === 'amount') {

@@ -1384,7 +1384,6 @@ export default class DashboardModule {
             const target = goal.targetAmount || goal.target_amount || 0;
             const current = goal.currentAmount || goal.current_amount || 0;
             const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-            const remaining = Math.max(target - current, 0);
             const safeColor = goal.color && /^#[0-9a-fA-F]{3,6}$/.test(goal.color) ? goal.color : '';
             const fillStyle = safeColor ? `background: ${safeColor};` : '';
 
@@ -1598,7 +1597,6 @@ export default class DashboardModule {
                         const budget = cat.budgeted || cat.budget || 0;
                         const spent = cat.spent || 0;
                         const remaining = budget - spent;
-                        const percentage = budget > 0 ? (spent / budget * 100) : 0;
                         return `
                             <tr>
                                 <td>${this.escapeHtml(cat.name)}</td>
@@ -1704,7 +1702,7 @@ export default class DashboardModule {
             name: acc.name,
             unreconciledCount: 0,  // Would be fetched from API
             lastReconciled: null    // Would be fetched from API
-        })).filter(a => true);  // Would filter to only show accounts needing reconciliation
+        })).filter(_a => true);  // Would filter to only show accounts needing reconciliation
 
         if (accountsToReconcile.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'All accounts reconciled')}</div>`;
@@ -3120,7 +3118,7 @@ export default class DashboardModule {
         this.gridstack.load(items);
 
         // Listen for changes (drag end)
-        this.gridstack.on('change', (event, changedItems) => {
+        this.gridstack.on('change', (_event, _changedItems) => {
             this._saveGridstackPositions();
         });
 
@@ -3354,15 +3352,16 @@ export default class DashboardModule {
 
         try {
             switch(widgetKey) {
-                case 'uncategorizedCount':
+                case 'uncategorizedCount': {
                     const uncatResp = await fetch(
                         OC.generateUrl('/apps/budget/api/transactions/uncategorized?limit=100'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.uncategorizedCount = await uncatResp.json();
                     break;
+                }
 
-                case 'monthlyComparison':
+                case 'monthlyComparison': {
                     const now = new Date();
                     const thisMonth = {
                         start: formatters.getMonthStart(now.getFullYear(), now.getMonth() + 1),
@@ -3390,47 +3389,53 @@ export default class DashboardModule {
                         previous: await previousResp.json()
                     };
                     break;
+                }
 
-                case 'largeTransactions':
+                case 'largeTransactions': {
                     const largeResp = await fetch(
                         OC.generateUrl('/apps/budget/api/transactions?limit=10&sort=amount'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.largeTransactions = await largeResp.json();
                     break;
+                }
 
                 // Phase 3 cases
-                case 'cashFlowForecast':
+                case 'cashFlowForecast': {
                     const forecastResp = await fetch(
                         OC.generateUrl('/apps/budget/api/forecast/live?days=90'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.cashFlowForecast = await forecastResp.json();
                     break;
+                }
 
-                case 'yoyComparison':
+                case 'yoyComparison': {
                     const yoyResp = await fetch(
                         OC.generateUrl('/apps/budget/api/yoy/years?years=2'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.yoyComparison = await yoyResp.json();
                     break;
+                }
 
-                case 'incomeTracking':
+                case 'incomeTracking': {
                     const incomeResp = await fetch(
                         OC.generateUrl('/apps/budget/api/recurring-income/summary'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.incomeTracking = await incomeResp.json();
                     break;
+                }
 
-                case 'daysUntilDebtFree':
+                case 'daysUntilDebtFree': {
                     const debtResp = await fetch(
                         OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.daysUntilDebtFree = await debtResp.json();
                     break;
+                }
 
                 case 'debtChart':
                     // Data is fetched directly inside renderDebtChartWidget
@@ -3451,13 +3456,14 @@ export default class DashboardModule {
                     break;
                 }
 
-                case 'ruleEffectiveness':
+                case 'ruleEffectiveness': {
                     const rulesResp = await fetch(
                         OC.generateUrl('/apps/budget/api/import-rules'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.ruleEffectiveness = await rulesResp.json();
                     break;
+                }
 
                 case 'weeklyTrend': {
                     const weekEnd = new Date();
@@ -4048,9 +4054,7 @@ export default class DashboardModule {
         this.refreshTileAfterSettingsChange(widgetId, category);
     }
 
-    refreshTileAfterSettingsChange(widgetId, category) {
-        const configCategory = category === 'hero' ? 'hero' : 'widgets';
-        const settings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
+    refreshTileAfterSettingsChange(widgetId, _category) {
         const baseType = this.getWidgetType(widgetId);
 
         // Use instance-aware refresh for duplicable widgets (reads from tileSettings directly)
@@ -4321,7 +4325,7 @@ export default class DashboardModule {
         const gridEl = document.querySelector('.dashboard-grid');
         if (!gridEl) return;
 
-        for (const [instanceId, widgetType] of Object.entries(instances)) {
+        for (const [instanceId, _widgetType] of Object.entries(instances)) {
             if (this.dashboardConfig.widgets.visibility[instanceId] === false) continue;
             if (this.getWidgetCard(instanceId)) continue; // already exists
 

@@ -345,7 +345,7 @@ export default class ImportModule {
             select.innerHTML = '';
             if (firstOption) select.appendChild(firstOption);
 
-            columns.forEach((column, index) => {
+            columns.forEach((column, _index) => {
                 const option = document.createElement('option');
                 option.value = column;
                 option.textContent = column;
