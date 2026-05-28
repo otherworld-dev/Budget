@@ -244,4 +244,119 @@ class SetupController extends Controller {
             return $this->handleError($e, $this->l->t('Repair failed'), Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function systemInfo(): DataResponse {
+        try {
+            $appVersion = \OCP\Server::get(\OCP\App\IAppManager::class)->getAppVersion(Application::APP_ID);
+            $ncVersion = \OCP\Server::get(\OCP\IConfig::class)->getSystemValueString('version', 'unknown');
+
+            // Count user data
+            $accounts = $this->accountService->findAll($this->userId);
+            $accountCount = count($accounts);
+
+            $db = \OCP\Server::get(\OCP\IDBConnection::class);
+            $qb = $db->getQueryBuilder();
+            $qb->select($qb->func()->count('t.id'))
+                ->from('budget_transactions', 't')
+                ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+                ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($this->userId)));
+            $txCount = (int) $qb->executeQuery()->fetchOne();
+
+            $categoryCount = count($this->categoryService->findAll($this->userId));
+
+            // Count rules
+            $qbR = $db->getQueryBuilder();
+            $qbR->select($qbR->func()->count('id'))
+                ->from('budget_import_rules')
+                ->where($qbR->expr()->eq('user_id', $qbR->createNamedParameter($this->userId)));
+            $ruleCount = (int) $qbR->executeQuery()->fetchOne();
+
+            $qbRA = $db->getQueryBuilder();
+            $qbRA->select($qbRA->func()->count('id'))
+                ->from('budget_import_rules')
+                ->where($qbRA->expr()->eq('user_id', $qbRA->createNamedParameter($this->userId)))
+                ->andWhere($qbRA->expr()->eq('active', $qbRA->createNamedParameter(true, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL)));
+            $activeRules = (int) $qbRA->executeQuery()->fetchOne();
+
+            // Count bills
+            $qb2 = $db->getQueryBuilder();
+            $qb2->select($qb2->func()->count('id'))
+                ->from('budget_bills')
+                ->where($qb2->expr()->eq('user_id', $qb2->createNamedParameter($this->userId)));
+            $billCount = (int) $qb2->executeQuery()->fetchOne();
+
+            // Bank sync connections
+            $qb3 = $db->getQueryBuilder();
+            $qb3->select($qb3->func()->count('id'))
+                ->from('budget_bc')
+                ->where($qb3->expr()->eq('user_id', $qb3->createNamedParameter($this->userId)));
+            $bankSyncCount = (int) $qb3->executeQuery()->fetchOne();
+
+            // Read recent budget-related log entries (admin only)
+            $logEntries = [];
+            $isAdmin = \OCP\Server::get(\OCP\IGroupManager::class)->isAdmin($this->userId);
+            try {
+                if ($isAdmin) {
+                $logFile = \OCP\Server::get(\OCP\IConfig::class)->getSystemValueString('logfile', '');
+                if (empty($logFile)) {
+                    $dataDir = \OCP\Server::get(\OCP\IConfig::class)->getSystemValueString('datadirectory', '');
+                    $logFile = $dataDir . '/nextcloud.log';
+                }
+                if (file_exists($logFile) && is_readable($logFile)) {
+                    // Read last 200 lines and filter for budget app entries
+                    $lines = array_slice(file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES), -200);
+                    foreach ($lines as $line) {
+                        $entry = json_decode($line, true);
+                        if ($entry && isset($entry['app']) && $entry['app'] === 'budget' && ($entry['level'] ?? 0) >= 2) {
+                            $logEntries[] = [
+                                'time' => $entry['time'] ?? '',
+                                'level' => $entry['level'] ?? 0,
+                                'message' => mb_substr($entry['message'] ?? '', 0, 200),
+                            ];
+                        }
+                    }
+                    // Keep last 10
+                    $logEntries = array_slice($logEntries, -10);
+                }
+            } // end isAdmin
+            } catch (\Exception $e) {
+                // Silently ignore — log may not be accessible
+            }
+
+            // Sharing status
+            $qbShOut = $db->getQueryBuilder();
+            $qbShOut->select($qbShOut->func()->count('id'))
+                ->from('budget_shares')
+                ->where($qbShOut->expr()->eq('owner_id', $qbShOut->createNamedParameter($this->userId)));
+            $sharingOut = (int) $qbShOut->executeQuery()->fetchOne();
+
+            $qbShIn = $db->getQueryBuilder();
+            $qbShIn->select($qbShIn->func()->count('id'))
+                ->from('budget_shares')
+                ->where($qbShIn->expr()->eq('shared_with', $qbShIn->createNamedParameter($this->userId)));
+            $sharingIn = (int) $qbShIn->executeQuery()->fetchOne();
+
+            return new DataResponse([
+                'appVersion' => $appVersion,
+                'nextcloudVersion' => $ncVersion,
+                'phpVersion' => PHP_VERSION,
+                'database' => $db->getDatabaseProvider(),
+                'accounts' => $accountCount,
+                'transactions' => $txCount,
+                'categories' => $categoryCount,
+                'rules' => $ruleCount,
+                'activeRules' => $activeRules,
+                'bills' => $billCount,
+                'bankSyncConnections' => $bankSyncCount,
+                'sharingOut' => $sharingOut,
+                'sharingIn' => $sharingIn,
+                'serverLogs' => $logEntries,
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to get system info'));
+        }
+    }
 }

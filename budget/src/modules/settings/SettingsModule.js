@@ -30,6 +30,7 @@ export default class SettingsModule {
             await this.populateSettings(settings);
             this.updateNumberFormatPreview();
             await this.loadAdminSettings();
+            this.loadSystemInfo();
         } catch (error) {
             console.error('Error loading settings:', error);
             showError(t('budget', 'Failed to load settings'));
@@ -352,6 +353,126 @@ export default class SettingsModule {
             }
 
             showError(error.message || t('budget', 'Failed to perform factory reset'));
+        }
+    }
+
+    async loadSystemInfo() {
+        const container = document.getElementById('system-info-content');
+        if (!container) return;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/system-info'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to load');
+            const info = await response.json();
+
+            const browser = `${navigator.userAgent.match(/(?:Firefox|Chrome|Safari|Edge)\/[\d.]+/)?.[0] || navigator.userAgent.substring(0, 50)}`;
+            const diag = window.budgetDiagnostics || { errors: [], failedRequests: [] };
+
+            const lines = [
+                ['Budget Version', info.appVersion],
+                ['Nextcloud Version', info.nextcloudVersion],
+                ['PHP Version', info.phpVersion],
+                ['Database', info.database],
+                ['Browser', browser],
+                ['Accounts', info.accounts],
+                ['Transactions', info.transactions],
+                ['Categories', info.categories],
+                ['Rules', `${info.activeRules} active / ${info.rules} total`],
+                ['Bills', info.bills],
+                ['Bank Sync', info.bankSyncConnections > 0 ? `${info.bankSyncConnections} connection(s)` : 'None'],
+                ['Sharing', info.sharingOut > 0 || info.sharingIn > 0
+                    ? `${info.sharingOut} outgoing, ${info.sharingIn} incoming`
+                    : 'None'],
+                ['Screen', `${window.screen.width}x${window.screen.height} (viewport: ${window.innerWidth}x${window.innerHeight})`],
+            ];
+
+            let html = `<table class="system-info-table">${lines.map(([label, value]) =>
+                `<tr><td class="system-info-label">${label}</td><td class="system-info-value">${value}</td></tr>`
+            ).join('')}</table>`;
+
+            // Failed API requests
+            if (diag.failedRequests.length > 0) {
+                html += `<h4 style="margin: 16px 0 8px; font-size: 13px;">${t('budget', 'Failed API Requests')} (${diag.failedRequests.length})</h4>`;
+                html += `<div class="system-info-log">${diag.failedRequests.map(r =>
+                    `<div class="log-entry error">${r.time.substring(11, 19)} ${r.method} ${r.url} → ${r.status}</div>`
+                ).join('')}</div>`;
+            }
+
+            // JS Errors
+            if (diag.errors.length > 0) {
+                html += `<h4 style="margin: 16px 0 8px; font-size: 13px;">${t('budget', 'JavaScript Errors')} (${diag.errors.length})</h4>`;
+                html += `<div class="system-info-log">${diag.errors.map(e =>
+                    `<div class="log-entry error">${e.time.substring(11, 19)} ${e.message}${e.source ? ' (' + e.source + ':' + e.line + ')' : ''}</div>`
+                ).join('')}</div>`;
+            }
+
+            if (diag.failedRequests.length === 0) {
+                html += `<p style="margin-top: 12px; color: var(--color-success); font-size: 12px;">&#10004; ${t('budget', 'No failed API requests this session')}</p>`;
+            }
+            if (diag.errors.length === 0) {
+                html += `<p style="color: var(--color-success); font-size: 12px;">&#10004; ${t('budget', 'No JavaScript errors this session')}</p>`;
+            }
+
+            // Server logs (admin only)
+            if (info.serverLogs && info.serverLogs.length > 0) {
+                const levelMap = { 0: 'DEBUG', 1: 'INFO', 2: 'WARN', 3: 'ERROR', 4: 'FATAL' };
+                html += `<h4 style="margin: 16px 0 8px; font-size: 13px;">${t('budget', 'Server Logs (Budget)')} (${info.serverLogs.length})</h4>`;
+                html += `<div class="system-info-log">${info.serverLogs.map(l =>
+                    `<div class="log-entry ${l.level >= 3 ? 'error' : ''}">${l.time.substring(11, 19)} [${levelMap[l.level] || l.level}] ${l.message}</div>`
+                ).join('')}</div>`;
+            } else if (info.serverLogs !== undefined) {
+                html += `<p style="color: var(--color-success); font-size: 12px;">&#10004; ${t('budget', 'No server errors logged')}</p>`;
+            }
+
+            container.innerHTML = html;
+
+            // Build clipboard text
+            let clipText = lines.map(([l, v]) => `${l}: ${v}`).join('\n');
+            clipText += '\n\nFailed API Requests: ' + (diag.failedRequests.length === 0 ? 'None' : diag.failedRequests.length);
+            if (diag.failedRequests.length > 0) {
+                clipText += '\n' + diag.failedRequests.map(r =>
+                    `  ${r.time.substring(11, 19)} ${r.method} ${r.url} → ${r.status}`
+                ).join('\n');
+            }
+            clipText += '\nJavaScript Errors: ' + (diag.errors.length === 0 ? 'None' : diag.errors.length);
+            if (diag.errors.length > 0) {
+                clipText += '\n' + diag.errors.map(e =>
+                    `  ${e.time.substring(11, 19)} ${e.message}${e.source ? ' (' + e.source + ':' + e.line + ')' : ''}`
+                ).join('\n');
+            }
+            if (info.serverLogs !== undefined) {
+                const levelMap = { 0: 'DEBUG', 1: 'INFO', 2: 'WARN', 3: 'ERROR', 4: 'FATAL' };
+                clipText += '\nServer Logs: ' + (info.serverLogs.length === 0 ? 'None' : info.serverLogs.length);
+                if (info.serverLogs.length > 0) {
+                    clipText += '\n' + info.serverLogs.map(l =>
+                        `  ${l.time.substring(11, 19)} [${levelMap[l.level] || l.level}] ${l.message}`
+                    ).join('\n');
+                }
+            }
+            container.dataset.plaintext = clipText;
+
+            // Copy button
+            const copyBtn = document.getElementById('copy-system-info-btn');
+            if (copyBtn) {
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(container.dataset.plaintext).then(() => {
+                        showSuccess(t('budget', 'Copied to clipboard'));
+                    }).catch(() => {
+                        // Fallback
+                        const ta = document.createElement('textarea');
+                        ta.value = container.dataset.plaintext;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        ta.remove();
+                        showSuccess(t('budget', 'Copied to clipboard'));
+                    });
+                };
+            }
+        } catch (error) {
+            container.innerHTML = `<p>${t('budget', 'Failed to load system info')}</p>`;
         }
     }
 }

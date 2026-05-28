@@ -4796,6 +4796,19 @@ style('budget', 'budget-main');
                         <?php p($l->t('Reset All to Defaults')); ?>
                     </button>
                 </div>
+
+                <!-- System Info Section -->
+                <div class="settings-section" style="margin-top: 25px;">
+                    <h3><?php p($l->t('System Info')); ?></h3>
+                    <p class="section-description"><?php p($l->t('Copy this information when reporting issues.')); ?></p>
+                    <div id="system-info-content" class="system-info-box">
+                        <div class="system-info-loading"><?php p($l->t('Loading...')); ?></div>
+                    </div>
+                    <button id="copy-system-info-btn" class="secondary" type="button" style="margin-top: 8px;">
+                        <span class="icon-clippy" aria-hidden="true"></span>
+                        <?php p($l->t('Copy to Clipboard')); ?>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

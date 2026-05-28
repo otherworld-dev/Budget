@@ -2,6 +2,63 @@
  * Budget App - Main JavaScript
  */
 
+// ===========================
+// Diagnostic Tracking (starts immediately)
+// ===========================
+const budgetDiagnostics = {
+    errors: [],
+    failedRequests: [],
+    maxEntries: 20,
+
+    captureError(msg, source, line, col, error) {
+        budgetDiagnostics.errors.push({
+            time: new Date().toISOString(),
+            message: String(msg),
+            source: source ? source.replace(window.location.origin, '') : '',
+            line,
+            stack: error?.stack?.split('\n').slice(0, 3).join('\n') || '',
+        });
+        if (budgetDiagnostics.errors.length > budgetDiagnostics.maxEntries) {
+            budgetDiagnostics.errors.shift();
+        }
+    },
+
+    captureFailedRequest(url, status, method) {
+        budgetDiagnostics.failedRequests.push({
+            time: new Date().toISOString(),
+            method: method || 'GET',
+            url: url.replace(window.location.origin, ''),
+            status,
+        });
+        if (budgetDiagnostics.failedRequests.length > budgetDiagnostics.maxEntries) {
+            budgetDiagnostics.failedRequests.shift();
+        }
+    },
+};
+
+// Capture unhandled JS errors
+window.addEventListener('error', (e) => {
+    budgetDiagnostics.captureError(e.message, e.filename, e.lineno, e.colno, e.error);
+});
+window.addEventListener('unhandledrejection', (e) => {
+    budgetDiagnostics.captureError('Unhandled Promise: ' + (e.reason?.message || e.reason), '', 0, 0, e.reason);
+});
+
+// Intercept fetch to track failed budget API requests
+const _originalFetch = window.fetch;
+window.fetch = function(...args) {
+    return _originalFetch.apply(this, args).then(response => {
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+        if (url.includes('/apps/budget/') && !response.ok) {
+            const method = args[1]?.method || 'GET';
+            budgetDiagnostics.captureFailedRequest(url, response.status, method);
+        }
+        return response;
+    });
+};
+
+window.budgetDiagnostics = budgetDiagnostics;
+
 import Chart from 'chart.js/auto';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 

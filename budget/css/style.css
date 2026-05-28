@@ -7729,6 +7729,51 @@ button.danger:hover {
     margin-bottom: 24px;
 }
 
+/* System Info */
+.system-info-box {
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    font-family: monospace;
+    font-size: 13px;
+}
+.system-info-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.system-info-table td {
+    padding: 4px 8px;
+    border: none;
+}
+.system-info-label {
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+    width: 150px;
+}
+.system-info-value {
+    color: var(--color-main-text);
+    font-weight: 500;
+}
+.system-info-log {
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius);
+    padding: 8px;
+    font-family: monospace;
+    font-size: 11px;
+}
+.log-entry {
+    padding: 2px 0;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.log-entry.error {
+    color: var(--color-error);
+}
+
 .settings-section h3 {
     font-size: 18px;
     font-weight: 600;
