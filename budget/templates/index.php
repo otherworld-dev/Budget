@@ -1,5 +1,5 @@
 <?php
-script('budget', 'budget-main');
+script('budget', 'budget-app');
 style('budget', 'style');
 style('budget', 'budget-main');
 ?>
@@ -1006,6 +1006,8 @@ style('budget', 'budget-main');
                         </div>
                     </div>
             </div>
+            <!-- Hidden container for stashed widgets (hidden tiles moved here by JS) -->
+            <div id="hidden-widgets" style="display: none;"></div>
         </div>
 
         <!-- Accounts View -->
@@ -4849,12 +4851,30 @@ style('budget', 'budget-main');
                 <input type="text" id="transaction-vendor" aria-describedby="transaction-vendor-help" maxlength="255">
                 <small id="transaction-vendor-help" class="form-text"><?php p($l->t('Name of the merchant or person (optional)')); ?></small>
             </div>
-            <div class="form-group">
+            <div id="transaction-category-group" class="form-group">
                 <label for="transaction-category"><?php p($l->t('Category')); ?></label>
                 <select id="transaction-category" aria-describedby="transaction-category-help">
                     <option value=""><?php p($l->t('No category')); ?></option>
                 </select>
                 <small id="transaction-category-help" class="form-text"><?php p($l->t('Organize this transaction by category (optional)')); ?></small>
+            </div>
+
+            <!-- Inline Split Toggle -->
+            <div id="split-toggle-group" class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" id="transaction-split-toggle" style="width: auto; min-height: auto;">
+                    <?php p($l->t('Split across categories')); ?>
+                </label>
+            </div>
+
+            <!-- Inline Split Rows (hidden by default) -->
+            <div id="inline-splits-section" style="display: none;">
+                <div class="inline-splits-header">
+                    <span class="inline-splits-label"><?php p($l->t('Split Details')); ?></span>
+                    <span id="inline-split-remaining" class="inline-splits-remaining"></span>
+                </div>
+                <div id="inline-splits-container"></div>
+                <button type="button" id="inline-add-split-btn" class="btn-small btn-secondary">+ <?php p($l->t('Add Row')); ?></button>
             </div>
 
             <!-- Transaction Tags Container -->

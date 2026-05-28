@@ -64,6 +64,38 @@ class TransactionSplitMapper extends QBMapper {
     }
 
     /**
+     * Find splits for multiple transactions at once (batch).
+     *
+     * @param int[] $transactionIds
+     * @return array<int, array> Map of transactionId => [{categoryName, amount}, ...]
+     */
+    public function findByTransactionIds(array $transactionIds): array {
+        if (empty($transactionIds)) return [];
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('s.transaction_id', 's.amount', 'c.name as category_name')
+            ->from($this->getTableName(), 's')
+            ->leftJoin('s', 'budget_categories', 'c', 'c.id = s.category_id')
+            ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->orderBy('s.transaction_id', 'ASC')
+            ->addOrderBy('s.amount', 'DESC');
+
+        $result = $qb->executeQuery();
+        $grouped = [];
+        while ($row = $result->fetch()) {
+            $txId = (int)$row['transaction_id'];
+            if (!isset($grouped[$txId])) $grouped[$txId] = [];
+            $grouped[$txId][] = [
+                'categoryName' => $row['category_name'] ?? null,
+                'amount' => (float)$row['amount'],
+            ];
+        }
+        $result->closeCursor();
+
+        return $grouped;
+    }
+
+    /**
      * Delete all splits for a transaction.
      */
     public function deleteByTransaction(int $transactionId): void {

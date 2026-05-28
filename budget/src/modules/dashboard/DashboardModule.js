@@ -237,18 +237,23 @@ export default class DashboardModule {
 
             // Update Budget Alerts Widget
             this.updateBudgetAlertsWidget(budgetAlerts);
+            this.widgetDataLoaded.budgetAlerts = true;
 
             // Update Recent Transactions
             this.updateRecentTransactions(transactions.transactions || transactions);
+            this.widgetDataLoaded.recentTransactions = true;
 
             // Update Upcoming Bills Widget
             this.updateUpcomingBillsWidget(bills);
+            this.widgetDataLoaded.upcomingBills = true;
 
             // Update Budget Progress Widget
             this.updateBudgetProgressWidget(budgetData.categories || []);
+            this.widgetDataLoaded.budgetProgress = true;
 
             // Update Savings Goals Widget
             this.updateSavingsGoalsWidget(savingsGoals);
+            this.widgetDataLoaded.savingsGoals = true;
 
             // Update Pension Dashboard Card
             this.updatePensionsSummary(pensionSummary);
@@ -258,6 +263,7 @@ export default class DashboardModule {
 
             // Update Debt Payoff Dashboard Card
             this.updateDebtPayoffWidget(debtSummary);
+            this.widgetDataLoaded.debtPayoff = true;
 
             // Phase 1: Update New Hero Tiles (use existing data)
             this.updateSavingsRateHero(summary);
@@ -273,12 +279,18 @@ export default class DashboardModule {
             // Phase 1: Update New Widget Tiles (use existing data)
             if (trendData.spending) {
                 this.updateTopCategoriesWidget(trendData.spending);
+                this.widgetDataLoaded.topCategories = true;
             }
             this.updateAccountPerformanceWidget(summary.accounts || []);
+            this.widgetDataLoaded.accountPerformance = true;
             this.updateBudgetBreakdownWidget(budgetData.categories || []);
+            this.widgetDataLoaded.budgetBreakdown = true;
             this.updateGoalsSummaryWidget(savingsGoals);
+            this.widgetDataLoaded.goalsSummary = true;
             this.updatePaymentBreakdownWidget(summary.accounts || []);
+            this.widgetDataLoaded.paymentBreakdown = true;
             this.updateReconciliationStatusWidget(summary.accounts || []);
+            this.widgetDataLoaded.reconciliationStatus = true;
 
             // Update Charts (using 6-month trend data)
             if (trendData.spending) {
@@ -313,8 +325,8 @@ export default class DashboardModule {
             // Apply dashboard widget order (must be before visibility)
             this.applyDashboardOrder();
 
-            // Apply dashboard widget visibility
-            this.applyDashboardVisibility();
+            // Apply dashboard widget visibility (must complete before Gridstack init)
+            await this.applyDashboardVisibility();
 
             // Create DOM for any saved duplicate instances
             this.createSavedInstances();
@@ -327,6 +339,10 @@ export default class DashboardModule {
 
             // Fetch data for duplicate instances (after Gridstack so tiles are sized)
             setTimeout(() => this.refreshAllInstances(), 50);
+
+            // Remove tiles that ended up hidden — run after all async data loading settles
+            // (some tiles get display:none set by lazy load callbacks)
+            setTimeout(() => this._removeHiddenTilesFromGrid(), 500);
 
         } catch (error) {
             console.error('Failed to load dashboard:', error);
@@ -2760,10 +2776,14 @@ export default class DashboardModule {
 
         try {
             const saved = JSON.parse(settingValue);
+            if (!saved || typeof saved !== 'object') return defaults;
+
+            const savedOrder = Array.isArray(saved.order) ? saved.order : [];
+            const savedVisibility = saved.visibility || {};
 
             // Merge: preserve user settings, add any new widgets from defaults
-            const allWidgetIds = new Set([...saved.order, ...defaults.order]);
-            const mergedOrder = saved.order.filter(id => allWidgetIds.has(id));
+            const allWidgetIds = new Set([...savedOrder, ...defaults.order]);
+            const mergedOrder = savedOrder.filter(id => allWidgetIds.has(id));
 
             // Append any new widgets that aren't in saved order
             defaults.order.forEach(id => {
@@ -2772,9 +2792,12 @@ export default class DashboardModule {
                 }
             });
 
+            const mergedVisibility = { ...defaults.visibility, ...savedVisibility };
+
+
             const config = {
                 order: mergedOrder,
-                visibility: { ...defaults.visibility, ...saved.visibility },
+                visibility: mergedVisibility,
                 settings: saved.settings || {}
             };
 
@@ -2829,104 +2852,113 @@ export default class DashboardModule {
 
         // Apply widget visibility (with lazy loading for Phase 2+)
         for (const [key, visible] of Object.entries(this.dashboardConfig.widgets.visibility)) {
-            const widget = DASHBOARD_WIDGETS.widgets[key];
-            if (!widget) continue;
+            // Resolve base widget type for instances (e.g., trendChart__2 → trendChart)
+            const baseType = this.getWidgetType(key);
+            const widget = DASHBOARD_WIDGETS.widgets[baseType];
+            if (!widget && !this.isDuplicateInstance(key)) continue;
 
             const element = document.querySelector(`[data-widget-id="${key}"][data-widget-category="widget"]`);
             if (!element) continue;
 
             // Initialize Quick Add form when it becomes visible (Phase 4)
-            // Must be checked before lazy load, which sets widgetDataLoaded
             if (visible && key === 'quickAdd' && !this.widgetDataLoaded[key]) {
                 this.app.initQuickAddForm();
                 this.widgetDataLoaded[key] = true;
             }
 
             // Lazy load data if becoming visible and not yet loaded
-            if (visible && this.app.needsLazyLoad(key) && !this.widgetDataLoaded[key]) {
+            if (visible && !this.isDuplicateInstance(key) && this.app.needsLazyLoad(key) && !this.widgetDataLoaded[key]) {
                 await this.app.loadWidgetData(key);
-                // Call the appropriate update method
                 const updateMethod = `update${key.charAt(0).toUpperCase() + key.slice(1)}Widget`;
                 if (typeof this[updateMethod] === 'function') {
                     this[updateMethod]();
                 }
             }
 
-            // Respect conditional widgets (Budget Alerts, Debt Payoff)
+            // Respect conditional widgets — don't override display:none set by data logic
+            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress'];
             if (visible) {
-                const hasConditionalHide = element.hasAttribute('style') &&
-                                           element.getAttribute('style').includes('display: none') &&
-                                           (key === 'budgetAlerts' || key === 'debtPayoff');
-                if (!hasConditionalHide) {
+                const isConditionallyHidden = conditionalTiles.includes(key) &&
+                    element.style.display === 'none';
+                if (!isConditionallyHidden) {
                     element.style.display = '';
+                    const wrapper = element.closest('.grid-stack-item');
+                    if (wrapper) wrapper.style.display = '';
                 }
             } else {
                 element.style.display = 'none';
+                const wrapper = element.closest('.grid-stack-item');
+                if (wrapper) wrapper.style.display = 'none';
             }
         }
     }
 
     async hideWidget(widgetId, category) {
         const config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
-
-        // Update visibility
         config.visibility[widgetId] = false;
 
-        // Apply to DOM
-        await this.applyDashboardVisibility();
-
-        // Remove from Gridstack if it's a widget tile
         if (category !== 'hero' && this.gridstack) {
-            const gridEl = document.querySelector('.dashboard-grid');
-            const wrapper = gridEl?.querySelector(`[gs-id="${widgetId}"]`);
-            if (wrapper) this.gridstack.removeWidget(wrapper, false);
+            const wrapper = document.querySelector(`[gs-id="${widgetId}"]`);
+            if (wrapper) {
+                this.gridstack.removeWidget(wrapper, false);
+                const stash = document.getElementById('hidden-widgets');
+                if (stash) {
+                    wrapper.style.display = 'none';
+                    stash.appendChild(wrapper);
+                }
+            }
+        } else {
+            const element = document.querySelector(`[data-widget-id="${widgetId}"]`);
+            if (element) element.style.display = 'none';
         }
 
-        // Update Add Tiles menu
-        this.app.updateAddTilesMenu();
-
-        // Save to backend
+        this.updateAddTilesMenu();
         await this.saveDashboardVisibility();
     }
 
     async showWidget(widgetId, category) {
         const config = category === 'hero' ? this.dashboardConfig.hero : this.dashboardConfig.widgets;
-
-        // Update visibility
         config.visibility[widgetId] = true;
 
-        // Apply to DOM
-        await this.applyDashboardVisibility();
-
-        // Add to Gridstack if it's a widget tile
-        if (category !== 'hero' && this.gridstack) {
+        if (category === 'hero') {
+            const element = document.querySelector(`[data-widget-id="${widgetId}"]`);
+            if (element) element.style.display = '';
+        } else if (this.gridstack) {
             const gridEl = document.querySelector('.dashboard-grid');
-            let wrapper = gridEl?.querySelector(`[gs-id="${widgetId}"]`);
-            // If the card isn't wrapped yet, wrap it
-            if (!wrapper) {
-                const card = gridEl?.querySelector(`[data-widget-id="${widgetId}"][data-widget-category="widget"]`);
-                if (card) {
-                    this._wrapCardsForGridstack(gridEl);
-                    wrapper = gridEl?.querySelector(`[gs-id="${widgetId}"]`);
-                }
-            }
+            let wrapper = document.querySelector(`[gs-id="${widgetId}"]`);
+
             if (wrapper) {
                 const size = this.getWidgetSize(widgetId, 'widgets');
                 const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
                 const w = size === 'l' ? (this.gridColumns || 3) : mapped.w;
-                this.gridstack.makeWidget(wrapper, { w, h: mapped.h, autoPosition: true });
+
+                // Clear stale Gridstack data
+                delete wrapper.gridstackNode;
+                wrapper.removeAttribute('gs-x');
+                wrapper.removeAttribute('gs-y');
+                wrapper.removeAttribute('gs-w');
+                wrapper.removeAttribute('gs-h');
+                wrapper.style.display = '';
+
+                // Ensure card inside is visible
+                const card = wrapper.querySelector('.dashboard-card');
+                if (card) card.style.display = '';
+
+                // Remove from stash (don't append to grid — let addWidget handle it)
+                if (wrapper.parentElement) {
+                    wrapper.parentElement.removeChild(wrapper);
+                }
+
+                // Let Gridstack add it to the grid and register it
+                this.gridstack.addWidget({ el: wrapper, w, h: mapped.h, autoPosition: true });
             }
         }
 
-        // Add remove buttons if unlocked
         if (!this.dashboardLocked) {
-            this.app.addTileControls();
+            this.addTileControls();
         }
 
-        // Update Add Tiles menu
-        this.app.updateAddTilesMenu();
-
-        // Save to backend
+        this.updateAddTilesMenu();
         await this.saveDashboardVisibility();
     }
 
@@ -3038,35 +3070,72 @@ export default class DashboardModule {
 
     _wrapCardsForGridstack(gridEl) {
         gridEl.classList.add('grid-stack');
+        const visibility = this.dashboardConfig.widgets?.visibility || {};
+        const stash = document.getElementById('hidden-widgets');
         const cards = Array.from(gridEl.querySelectorAll('[data-widget-category="widget"]'));
         cards.forEach(card => {
             if (card.closest('.grid-stack-item')) return; // already wrapped
+            const widgetId = card.dataset.widgetId;
+            // Use saved visibility config as source of truth, but respect conditional
+            // tiles that are hidden by data logic (e.g., budgetAlerts only shows with alerts)
+            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress'];
+            const isConditional = conditionalTiles.includes(widgetId);
+            const configVisible = visibility[widgetId] === true || (visibility[widgetId] === undefined && card.style.display !== 'none');
+            const isVisible = configVisible && !(isConditional && card.style.display === 'none');
+
             const wrapper = document.createElement('div');
             wrapper.className = 'grid-stack-item';
-            wrapper.setAttribute('gs-id', card.dataset.widgetId);
+            wrapper.setAttribute('gs-id', widgetId);
             const content = document.createElement('div');
             content.className = 'grid-stack-item-content';
             card.parentNode.insertBefore(wrapper, card);
             content.appendChild(card);
             wrapper.appendChild(content);
+
+            if (!isVisible) {
+                // Move hidden tiles to stash immediately — don't leave in grid
+                wrapper.style.display = 'none';
+                if (stash) stash.appendChild(wrapper);
+            }
         });
     }
 
     _computeInitialPositions() {
-        // Use saved positions if available
-        if (this.dashboardConfig.widgets?.positions && Object.keys(this.dashboardConfig.widgets.positions).length > 0) {
-            return this.dashboardConfig.widgets.positions;
+        const visibility = this.dashboardConfig.widgets?.visibility || {};
+        const visibleCount = Object.values(visibility).filter(v => v !== false).length;
+
+        // Use saved positions if available AND they cover the visible tiles
+        const savedPositions = this.dashboardConfig.widgets?.positions;
+        if (savedPositions && Object.keys(savedPositions).length > 0) {
+            // Check that saved positions include most visible tiles
+            const positionedVisible = Object.keys(savedPositions).filter(id => visibility[id] !== false).length;
+            if (positionedVisible >= visibleCount * 0.8) {
+                // Add auto-positions for any visible tiles missing from saved positions
+                let needsUpdate = false;
+                for (const [id, vis] of Object.entries(visibility)) {
+                    if (vis !== false && !savedPositions[id]) {
+                        const size = this.getWidgetSize(id, 'widgets');
+                        const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
+                        savedPositions[id] = { x: 0, y: 0, w: mapped.w, h: mapped.h, autoPosition: true };
+                        needsUpdate = true;
+                    }
+                }
+                return savedPositions;
+            }
         }
 
-        // Derive from legacy order + sizes
+        // Derive from order + sizes (fresh computation)
+        // Only include tiles whose wrappers are actually in the grid (not stashed)
         const cols = this.gridColumns || 3;
+        const gridEl = document.querySelector('.dashboard-grid');
         const order = this.dashboardConfig.widgets?.order || [];
-        const visibility = this.dashboardConfig.widgets?.visibility || {};
         const positions = {};
         let x = 0, y = 0;
 
         for (const widgetId of order) {
             if (visibility[widgetId] === false) continue;
+            // Skip tiles that aren't in the grid (stashed or never wrapped)
+            if (gridEl && !gridEl.querySelector(`[gs-id="${widgetId}"]`)) continue;
             const size = this.getWidgetSize(widgetId, 'widgets');
             const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
             const w = size === 'l' ? cols : mapped.w;
@@ -3107,19 +3176,24 @@ export default class DashboardModule {
             this.gridstack.disable();
         }
 
-        // Apply positions
+        // Apply positions — all tiles in the grid at this point are visible
+        // (hidden tiles were moved to stash during _wrapCardsForGridstack)
         const items = [];
         for (const [widgetId, pos] of Object.entries(positions)) {
             const el = gridEl.querySelector(`[gs-id="${widgetId}"]`);
-            if (el && el.offsetParent !== null) {
+            if (el) {
                 items.push({ el, ...pos });
             }
         }
         this.gridstack.load(items);
 
-        // Listen for changes (drag end)
+        // Listen for changes (drag end) — delay to avoid saving during initial layout
+        this._gridstackReady = false;
+        setTimeout(() => { this._gridstackReady = true; }, 500);
         this.gridstack.on('change', (_event, _changedItems) => {
-            this._saveGridstackPositions();
+            if (this._gridstackReady) {
+                this._saveGridstackPositions();
+            }
         });
 
         // Resize charts after any drag or layout change
@@ -3129,6 +3203,25 @@ export default class DashboardModule {
 
         // Initial chart resize after Gridstack has laid out tiles
         requestAnimationFrame(() => this.resizeAllCharts());
+    }
+
+    _removeHiddenTilesFromGrid() {
+        if (!this.gridstack) return;
+        const stash = document.getElementById('hidden-widgets');
+        const gridEl = document.querySelector('.dashboard-grid');
+        if (!stash || !gridEl) return;
+
+        // After all data has loaded and update methods have run,
+        // remove any tiles whose cards are still display:none
+        // (conditional tiles with no data, or Phase 2+ tiles not yet populated)
+        gridEl.querySelectorAll('.grid-stack-item').forEach(wrapper => {
+            const card = wrapper.querySelector('.dashboard-card');
+            if (card && card.style.display === 'none') {
+                this.gridstack.removeWidget(wrapper, false);
+                wrapper.style.display = 'none';
+                stash.appendChild(wrapper);
+            }
+        });
     }
 
     _saveGridstackPositions() {
@@ -3147,11 +3240,18 @@ export default class DashboardModule {
         if (!this.dashboardConfig.widgets) this.dashboardConfig.widgets = {};
         this.dashboardConfig.widgets.positions = positions;
 
-        // Update legacy order from sorted positions
-        const sorted = Object.entries(positions)
-            .sort(([, a], [, b]) => a.y - b.y || a.x - b.x)
-            .map(([id]) => id);
-        this.dashboardConfig.widgets.order = sorted;
+        // Update order from sorted positions — but don't overwrite with empty
+        // (preserves order for tiles temporarily hidden)
+        if (Object.keys(positions).length > 0) {
+            const sorted = Object.entries(positions)
+                .sort(([, a], [, b]) => a.y - b.y || a.x - b.x)
+                .map(([id]) => id);
+
+            // Merge: keep hidden tiles in order, update visible tile positions
+            const existingOrder = this.dashboardConfig.widgets.order || [];
+            const hiddenInOrder = existingOrder.filter(id => !sorted.includes(id));
+            this.dashboardConfig.widgets.order = [...sorted, ...hiddenInOrder];
+        }
 
         this.saveDashboardVisibility('widgets');
     }

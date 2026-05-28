@@ -45,7 +45,8 @@ class RepairService {
             'stuckBills' => $this->findStuckBills($userId),
             'paidOneTimeBills' => $this->findPaidOneTimeBillsStillActive($userId),
             'futureClearedTransactions' => $this->findFutureClearedTransactions($userId),
-            'transferCreditCategories' => $this->findTransferCreditsWithCategory($userId),
+            // Transfer credits now correctly preserve categories (since v2.26.3)
+            'transferCreditCategories' => [],
             'balanceDrift' => $this->findBalanceDrift($userId),
         ];
     }
@@ -75,9 +76,7 @@ class RepairService {
             $results['futureClearedTransactions'] = $this->repairFutureClearedTransactions($userId);
         }
 
-        if (in_array('transferCreditCategories', $categories)) {
-            $results['transferCreditCategories'] = $this->repairTransferCreditCategories($userId);
-        }
+        // transferCreditCategories repair removed — credits now correctly keep categories
 
         // Balance recalculation should always run last (after tx cleanup)
         if (in_array('balanceDrift', $categories)) {

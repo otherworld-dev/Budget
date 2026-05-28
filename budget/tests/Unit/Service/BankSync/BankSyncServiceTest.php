@@ -52,6 +52,8 @@ class BankSyncServiceTest extends TestCase {
 		$ruleApplicator = $this->createMock(\OCA\Budget\Service\Import\ImportRuleApplicator::class);
 		$ruleApplicator->method('applyRules')->willReturnArgument(1);
 
+		$transactionTagService = $this->createMock(\OCA\Budget\Service\TransactionTagService::class);
+
 		$this->service = new BankSyncService(
 			$this->connectionMapper,
 			$this->mappingMapper,
@@ -61,6 +63,7 @@ class BankSyncServiceTest extends TestCase {
 			$this->adminSettings,
 			$this->accountMapper,
 			$ruleApplicator,
+			$transactionTagService,
 			$this->l,
 			$this->logger
 		);

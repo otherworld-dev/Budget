@@ -1353,6 +1353,9 @@ export default class TransactionsModule {
                 handleTypeChange();
             }
 
+            // Set up inline split toggle
+            this.setupInlineSplitToggle();
+
             modal.style.display = 'flex';
         }
     }
@@ -1567,12 +1570,18 @@ export default class TransactionsModule {
             }
 
             if (response.ok) {
+                const created = !id ? await response.json() : null;
+                const txId = created?.id || parseInt(id);
+
                 // Save tags for newly created transactions
-                if (!id && selectedTagIds.length > 0) {
-                    const created = await response.json();
-                    if (created.id) {
-                        await this.app.tagSetsModule.saveTransactionTags(created.id, selectedTagIds);
-                    }
+                if (!id && selectedTagIds.length > 0 && txId) {
+                    await this.app.tagSetsModule.saveTransactionTags(txId, selectedTagIds);
+                }
+
+                // Save inline splits if enabled
+                const splitToggle = document.getElementById('transaction-split-toggle');
+                if (splitToggle?.checked && txId) {
+                    await this.saveInlineSplits(txId);
                 }
 
                 showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));
@@ -1594,6 +1603,243 @@ export default class TransactionsModule {
         } catch (error) {
             console.error('Failed to save transaction:', error);
             showError(error.message || t('budget', 'Failed to save transaction'));
+        }
+    }
+
+    // ===========================
+    // Inline Split UI
+    // ===========================
+
+    setupInlineSplitToggle() {
+        const toggle = document.getElementById('transaction-split-toggle');
+        const splitsSection = document.getElementById('inline-splits-section');
+        const categoryGroup = document.getElementById('transaction-category-group');
+        const splitToggleGroup = document.getElementById('split-toggle-group');
+
+        if (!toggle || !splitsSection) return;
+
+        // Check if editing an existing split transaction
+        const txId = document.getElementById('transaction-id')?.value;
+        const isEdit = !!txId;
+        const typeSelect = document.getElementById('transaction-type');
+        const isTransfer = typeSelect?.value === 'transfer';
+        const transaction = isEdit ? this.transactions?.find(tx => tx.id === parseInt(txId)) : null;
+        const isSplit = transaction?.isSplit || transaction?.is_split;
+
+        // Reset state
+        toggle.checked = false;
+        splitsSection.style.display = 'none';
+        if (categoryGroup) categoryGroup.style.display = '';
+
+        if (splitToggleGroup) {
+            splitToggleGroup.style.display = isTransfer ? 'none' : '';
+        }
+
+        // If editing a split transaction, auto-enable split UI and load existing splits
+        if (isEdit && isSplit) {
+            toggle.checked = true;
+            splitsSection.style.display = '';
+            if (categoryGroup) categoryGroup.style.display = 'none';
+            this.loadExistingSplits(parseInt(txId));
+        }
+
+        // Update visibility when type changes
+        if (typeSelect) {
+            const origHandler = typeSelect.onchange;
+            typeSelect.onchange = () => {
+                if (origHandler) origHandler();
+                if (splitToggleGroup) {
+                    splitToggleGroup.style.display = typeSelect.value === 'transfer' ? 'none' : '';
+                }
+                if (typeSelect.value === 'transfer' && toggle.checked) {
+                    toggle.checked = false;
+                    toggle.dispatchEvent(new Event('change'));
+                }
+            };
+        }
+
+        toggle.onchange = () => {
+            if (toggle.checked) {
+                splitsSection.style.display = '';
+                if (categoryGroup) categoryGroup.style.display = 'none';
+                this.initInlineSplitRows();
+            } else {
+                splitsSection.style.display = 'none';
+                if (categoryGroup) categoryGroup.style.display = '';
+            }
+        };
+
+        // Update remaining when main amount changes
+        const amountInput = document.getElementById('transaction-amount');
+        if (amountInput) {
+            amountInput.addEventListener('input', () => this.updateInlineSplitRemaining());
+        }
+
+        // Add row button
+        const addBtn = document.getElementById('inline-add-split-btn');
+        if (addBtn) {
+            addBtn.onclick = () => this.addInlineSplitRow();
+        }
+    }
+
+    initInlineSplitRows() {
+        const container = document.getElementById('inline-splits-container');
+        if (!container) return;
+        container.innerHTML = '';
+        this.addInlineSplitRow(true);
+        this.addInlineSplitRow(false);
+        this.updateInlineSplitRemaining();
+    }
+
+    addInlineSplitRow(isFirst = false, existingSplit = null) {
+        const container = document.getElementById('inline-splits-container');
+        if (!container) return;
+
+        const typeSelect = document.getElementById('transaction-type');
+        const transactionType = typeSelect?.value || 'debit';
+
+        const row = document.createElement('div');
+        row.className = 'split-row';
+
+        row.innerHTML = `
+            <div class="split-field split-amount-field">
+                <label>${t('budget', 'Amount')}</label>
+                <input type="number" class="inline-split-amount" step="0.01" min="0.01" placeholder="0.00"
+                       value="${existingSplit ? existingSplit.amount : ''}" required>
+            </div>
+            <div class="split-field split-category-field">
+                <label>${t('budget', 'Category')}</label>
+                <select class="inline-split-category">
+                    <option value="">${t('budget', 'Uncategorized')}</option>
+                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType)}
+                </select>
+            </div>
+            <div class="split-field split-description-field">
+                <label>${t('budget', 'Description')}</label>
+                <input type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
+                       value="${existingSplit?.description || ''}"
+            </div>
+            <div class="split-actions">
+                <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove')}">
+                    &times;
+                </button>
+            </div>
+        `;
+
+        const amountInput = row.querySelector('.inline-split-amount');
+        if (existingSplit) {
+            amountInput.dataset.userEdited = 'true';
+        }
+        amountInput.addEventListener('input', () => {
+            amountInput.dataset.userEdited = 'true';
+            this.autoFillInlineSplitRemaining(amountInput);
+        });
+
+        row.querySelector('.split-remove-btn').addEventListener('click', (e) => {
+            if (!e.currentTarget.classList.contains('disabled')) {
+                row.remove();
+                this.updateInlineSplitRemaining();
+            }
+        });
+
+        container.appendChild(row);
+        this.updateInlineSplitRemaining();
+    }
+
+    updateInlineSplitRemaining() {
+        const totalAmount = parseFloat(document.getElementById('transaction-amount')?.value) || 0;
+        const rows = document.querySelectorAll('#inline-splits-container .split-row');
+        let allocated = 0;
+        rows.forEach(row => {
+            allocated += parseFloat(row.querySelector('.inline-split-amount')?.value) || 0;
+        });
+        const remaining = totalAmount - allocated;
+        const el = document.getElementById('inline-split-remaining');
+        if (el) {
+            el.textContent = remaining === 0
+                ? t('budget', 'Fully allocated')
+                : t('budget', 'Remaining: {amount}', { amount: remaining.toFixed(2) });
+            el.style.color = Math.abs(remaining) < 0.01 ? 'var(--color-success)' : 'var(--color-warning)';
+        }
+    }
+
+    autoFillInlineSplitRemaining(changedInput) {
+        const totalAmount = parseFloat(document.getElementById('transaction-amount')?.value) || 0;
+        const rows = Array.from(document.querySelectorAll('#inline-splits-container .split-row'));
+        let allocated = 0;
+        let autoFillTarget = null;
+
+        rows.forEach(row => {
+            const input = row.querySelector('.inline-split-amount');
+            if (input.dataset.userEdited) {
+                // Sum all manually edited inputs
+                allocated += parseFloat(input.value) || 0;
+            } else {
+                // First non-edited input is the auto-fill target
+                if (!autoFillTarget) autoFillTarget = input;
+            }
+        });
+
+        if (autoFillTarget) {
+            const remaining = totalAmount - allocated;
+            autoFillTarget.value = remaining > 0 ? remaining.toFixed(2) : '';
+        }
+
+        this.updateInlineSplitRemaining();
+    }
+
+    async loadExistingSplits(transactionId) {
+        const container = document.getElementById('inline-splits-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) return;
+            const splits = await response.json();
+
+            if (splits.length > 0) {
+                splits.forEach((split, index) => {
+                    this.addInlineSplitRow(index === 0, split);
+                });
+            } else {
+                this.addInlineSplitRow(true);
+                this.addInlineSplitRow(false);
+            }
+        } catch (error) {
+            console.error('Failed to load splits:', error);
+            this.addInlineSplitRow(true);
+            this.addInlineSplitRow(false);
+        }
+
+        this.updateInlineSplitRemaining();
+    }
+
+    async saveInlineSplits(transactionId) {
+        const rows = document.querySelectorAll('#inline-splits-container .split-row');
+        const splits = Array.from(rows).map(row => ({
+            amount: parseFloat(row.querySelector('.inline-split-amount')?.value) || 0,
+            categoryId: parseInt(row.querySelector('.inline-split-category')?.value) || null,
+            description: row.querySelector('.inline-split-description')?.value?.trim() || null,
+        })).filter(s => s.amount > 0);
+
+        if (splits.length < 2) return;
+
+        try {
+            await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ splits })
+            });
+        } catch (error) {
+            console.error('Failed to save inline splits:', error);
         }
     }
 

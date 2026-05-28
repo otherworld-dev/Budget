@@ -222,7 +222,17 @@ class ImportRuleApplicator {
                     }
                     break;
 
-                // add_tags: skip during import (requires persisted transaction ID)
+                case 'add_tags':
+                    // Store tag actions for deferred application after transaction is persisted
+                    if (!isset($transaction['_deferred_tags'])) {
+                        $transaction['_deferred_tags'] = [];
+                    }
+                    $transaction['_deferred_tags'][] = [
+                        'tagIds' => $value,
+                        'behavior' => $behavior,
+                    ];
+                    break;
+
                 // set_account: skip during import (account is set by the import target)
             }
         }

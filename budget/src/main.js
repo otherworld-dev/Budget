@@ -348,9 +348,6 @@ class BudgetApp {
                     <button class="action-menu-item transaction-duplicate-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Duplicate transaction')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     </button>
-                    <button class="action-menu-item transaction-split-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Split transaction')}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22V8"/><path d="M3 8l9-5 9 5"/></svg>
-                    </button>
                     <button class="action-menu-item transaction-share-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Share expense')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     </button>
@@ -403,10 +400,6 @@ class BudgetApp {
                 const button = e.target.classList.contains('transaction-duplicate-btn') ? e.target : e.target.closest('.transaction-duplicate-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.duplicateTransaction(transactionId);
-            } else if (e.target.classList.contains('transaction-split-btn') || e.target.closest('.transaction-split-btn')) {
-                const button = e.target.classList.contains('transaction-split-btn') ? e.target : e.target.closest('.transaction-split-btn');
-                const transactionId = parseInt(button.getAttribute('data-transaction-id'));
-                this.showSplitModal(transactionId);
             } else if (e.target.classList.contains('transaction-share-btn') || e.target.closest('.transaction-share-btn')) {
                 const button = e.target.classList.contains('transaction-share-btn') ? e.target : e.target.closest('.transaction-share-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
@@ -1066,13 +1059,24 @@ class BudgetApp {
                         data-transaction-id="${transaction.id}">
                         <span class="cell-display">${this.escapeHtml(transaction.vendor) || '-'}</span>
                     </td>
-                    <td class="category-column editable-cell"
+                    <td class="category-column ${isSplit ? '' : 'editable-cell'}"
                         data-field="categoryId"
                         data-value="${transaction.categoryId || ''}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
-                            ${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                        </span>
+                        data-transaction-id="${transaction.id}"
+                        ${isSplit && transaction.splitCategories ? 'title="' + transaction.splitCategories.map(s => (s.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(s.amount, currency)).join('&#10;') + '"' : ''}>
+                        ${isSplit && transaction.splitCategories
+                            ? (() => {
+                                const splitLabel = transaction.splitCategories.map(s =>
+                                    '<span class="split-cat-item">' + this.escapeHtml(s.categoryName || t('budget', 'Uncategorized')) + '</span>'
+                                ).join(' / ');
+                                return '<span class="category-badge cell-display split-category">' + splitLabel + '</span>';
+                            })()
+                            : isSplit
+                            ? `<span class="category-badge cell-display split-category">${t('budget', 'Split')}</span>`
+                            : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
+                                ${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}
+                            </span>`
+                        }
                     </td>
                     <td class="tags-column editable-cell"
                         data-field="tags"
@@ -1602,9 +1606,8 @@ class BudgetApp {
         const stuckCount = findings.stuckBills?.length || 0;
         const paidOneTimeCount = findings.paidOneTimeBills?.length || 0;
         const futureCount = findings.futureClearedTransactions?.length || 0;
-        const transferCatCount = findings.transferCreditCategories?.length || 0;
         const driftCount = findings.balanceDrift?.length || 0;
-        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + transferCatCount + driftCount;
+        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1702,27 +1705,6 @@ class BudgetApp {
                             <span class="repair-category-count">${futureCount}</span>
                         </div>
                         <div class="repair-category-details">${futureItems}${futureCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: futureCount - 20 })}</p>` : ''}</div>
-                    </div>`;
-            }
-
-            // Transfer credits with categories
-            if (transferCatCount > 0) {
-                const transferItems = findings.transferCreditCategories.slice(0, 20).map(tc =>
-                    `<div class="repair-item">
-                        <span>${tc.vendor || t('budget', '(unnamed)')}</span>
-                        <span>${formatCurrency(tc.amount)}</span>
-                        <span>${tc.date}</span>
-                        <span class="repair-item-note">${tc.accountName}</span>
-                    </div>`
-                ).join('');
-
-                findingsHtml += `
-                    <div class="repair-category" data-category="transferCreditCategories">
-                        <div class="repair-category-header">
-                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Transfer Credits with Category Assigned')}</h4>
-                            <span class="repair-category-count">${transferCatCount}</span>
-                        </div>
-                        <div class="repair-category-details">${transferItems}${transferCatCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: transferCatCount - 20 })}</p>` : ''}</div>
                     </div>`;
             }
 
@@ -1834,9 +1816,6 @@ class BudgetApp {
                     }
                     if (result.futureClearedTransactions) {
                         parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
-                    }
-                    if (result.transferCreditCategories) {
-                        parts.push(t('budget', '{count} transfer categories cleared', { count: result.transferCreditCategories.fixed }));
                     }
                     if (result.balanceDrift) {
                         parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));
