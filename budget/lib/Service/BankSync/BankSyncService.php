@@ -29,6 +29,7 @@ class BankSyncService {
         private AdminSettingService $adminSettings,
         private AccountMapper $accountMapper,
         private \OCA\Budget\Service\Import\ImportRuleApplicator $ruleApplicator,
+        private \OCA\Budget\Service\TransactionTagService $transactionTagService,
         private IL10N $l,
         private LoggerInterface $logger
     ) {
@@ -248,7 +249,7 @@ class BankSyncService {
                         $txData = $this->ruleApplicator->applyRules($userId, $txData);
                     }
 
-                    $this->transactionService->create(
+                    $createdTx = $this->transactionService->create(
                         userId: $userId,
                         accountId: $budgetAccountId,
                         date: $txData['date'],
@@ -261,6 +262,23 @@ class BankSyncService {
                         importId: $importId,
                         status: 'cleared'
                     );
+
+                    // Apply deferred tag actions from import rules
+                    if (!empty($txData['_deferred_tags'])) {
+                        $finalTagIds = [];
+                        foreach ($txData['_deferred_tags'] as $tagAction) {
+                            $newTagIds = $tagAction['tagIds'] ?? [];
+                            if (($tagAction['behavior'] ?? 'merge') === 'merge') {
+                                $finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
+                            } else {
+                                $finalTagIds = $newTagIds;
+                            }
+                        }
+                        if (!empty($finalTagIds)) {
+                            $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
+                        }
+                    }
+
                     $imported++;
                 } catch (\Exception $e) {
                     $this->logger->warning("Bank sync: failed to create transaction: " . $e->getMessage(), [

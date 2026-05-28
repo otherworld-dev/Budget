@@ -8,6 +8,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\Bill;
@@ -19,17 +20,20 @@ class TransactionService {
     private TransactionMapper $mapper;
     private AccountMapper $accountMapper;
     private TransactionTagMapper $transactionTagMapper;
+    private TransactionSplitMapper $splitMapper;
     private ExpenseShareMapper $expenseShareMapper;
 
     public function __construct(
         TransactionMapper $mapper,
         AccountMapper $accountMapper,
         TransactionTagMapper $transactionTagMapper,
+        TransactionSplitMapper $splitMapper,
         ExpenseShareMapper $expenseShareMapper
     ) {
         $this->mapper = $mapper;
         $this->accountMapper = $accountMapper;
         $this->transactionTagMapper = $transactionTagMapper;
+        $this->splitMapper = $splitMapper;
         $this->expenseShareMapper = $expenseShareMapper;
     }
 
@@ -573,6 +577,21 @@ class TransactionService {
             }
 
             $result['runningBalances'] = $runningBalances;
+        }
+
+        // Attach split category details for split transactions
+        $splitTxIds = array_filter(
+            array_map(fn($tx) => ($tx['isSplit'] ?? false) ? ($tx['id'] ?? null) : null, $result['transactions']),
+            fn($id) => $id !== null
+        );
+        if (!empty($splitTxIds)) {
+            $splitDetails = $this->splitMapper->findByTransactionIds(array_values($splitTxIds));
+            foreach ($result['transactions'] as &$tx) {
+                if (($tx['isSplit'] ?? false) && isset($splitDetails[$tx['id']])) {
+                    $tx['splitCategories'] = $splitDetails[$tx['id']];
+                }
+            }
+            unset($tx);
         }
 
         return $result;

@@ -3534,7 +3534,7 @@ button.danger:hover {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
     border-radius: 4px;
-    overflow: visible;
+    overflow-x: auto;
 }
 
 .table-header {
@@ -3680,17 +3680,16 @@ button.danger:hover {
     padding: 2px 4px;
     font-weight: 600;
     color: var(--color-main-text);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 2px solid var(--color-border);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 25;
     white-space: nowrap;
 }
 
 .transactions-table.enhanced th.sortable {
     cursor: pointer;
     user-select: none;
-    position: relative;
 }
 
 .transactions-table.enhanced th.sortable:hover {
@@ -3812,6 +3811,17 @@ button.danger:hover {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.category-badge.split-category {
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow: visible;
+}
+.split-cat-item {
+    display: inline;
+    white-space: nowrap;
 }
 
 .transactions-table.enhanced .transaction-description {
@@ -12816,6 +12826,32 @@ tr.scheduled-transaction:hover {
     border-radius: 0 0 6px 6px;
     max-height: 300px;
     overflow-y: auto;
+}
+
+/* Inline split section in transaction modal */
+.inline-splits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.inline-splits-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-main-text);
+}
+.inline-splits-remaining {
+    font-size: 12px;
+    font-weight: 500;
+}
+#inline-add-split-btn {
+    margin-top: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+#inline-splits-section .split-row {
+    grid-template-columns: 80px 1fr 1fr 30px;
 }
 
 .split-row {

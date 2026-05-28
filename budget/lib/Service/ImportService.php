@@ -654,7 +654,7 @@ class ImportService {
                         $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
                     }
 
-                    $this->transactionService->create(
+                    $createdTx = $this->transactionService->create(
                         $userId,
                         (int)$destAccountId,
                         $transaction['date'],
@@ -667,6 +667,22 @@ class ImportService {
                         $transaction['notes'] ?? null,
                         $importId
                     );
+
+                    // Apply deferred tag actions from import rules
+                    if (!empty($transaction['_deferred_tags'])) {
+                        $finalTagIds = [];
+                        foreach ($transaction['_deferred_tags'] as $tagAction) {
+                            $newTagIds = $tagAction['tagIds'] ?? [];
+                            if (($tagAction['behavior'] ?? 'merge') === 'merge') {
+                                $finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
+                            } else {
+                                $finalTagIds = $newTagIds;
+                            }
+                        }
+                        if (!empty($finalTagIds)) {
+                            $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
+                        }
+                    }
 
                     $imported++;
                     $accountResults[$sourceId]['imported']++;
@@ -819,6 +835,24 @@ class ImportService {
                     if (!empty($tagIds)) {
                         $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $tagIds);
                     }
+                }
+
+                // Apply deferred tag actions from import rules
+                if (!empty($transaction['_deferred_tags'])) {
+                    $existingTagIds = array_column(
+                        $this->transactionTagService->getTransactionTags($createdTx->getId(), $userId),
+                        'tagId'
+                    );
+                    $finalTagIds = $existingTagIds;
+                    foreach ($transaction['_deferred_tags'] as $tagAction) {
+                        $newTagIds = $tagAction['tagIds'] ?? [];
+                        if (($tagAction['behavior'] ?? 'merge') === 'merge') {
+                            $finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
+                        } else {
+                            $finalTagIds = $newTagIds;
+                        }
+                    }
+                    $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
                 }
 
                 $imported++;

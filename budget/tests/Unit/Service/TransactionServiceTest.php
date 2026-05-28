@@ -27,12 +27,15 @@ class TransactionServiceTest extends TestCase {
         $this->mapper = $this->createMock(TransactionMapper::class);
         $this->accountMapper = $this->createMock(AccountMapper::class);
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
+        $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
+        $splitMapper->method('findByTransactionIds')->willReturn([]);
         $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
 
         $this->service = new TransactionService(
             $this->mapper,
             $this->accountMapper,
             $this->transactionTagMapper,
+            $splitMapper,
             $this->expenseShareMapper
         );
     }

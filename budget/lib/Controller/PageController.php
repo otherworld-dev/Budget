@@ -21,13 +21,13 @@ class PageController extends Controller {
      */
     public function index(): TemplateResponse {
         // Load scripts and styles
-        Util::addScript(Application::APP_ID, 'budget-main');
+        Util::addScript(Application::APP_ID, 'budget-app');
         Util::addStyle(Application::APP_ID, 'style');
-        
+
         $params = [
             'appName' => Application::APP_ID,
         ];
-        
+
         return new TemplateResponse(Application::APP_ID, 'index', $params);
     }
 }
