@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-28 01:11+0000\n"
+"PO-Revision-Date: 2026-05-29 06:01+0000\n"
 "Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -4237,15 +4237,15 @@ msgstr "Keine letzten Buchungen"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:723
 #, javascript-format
 msgid "{percent}% over"
-msgstr ""
+msgstr "{percent}% überschritten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:724
 msgid "{percent}% used"
-msgstr ""
+msgstr "{percent}% genutzt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:774
 msgid "Highest rate: {rate}% APR"
-msgstr ""
+msgstr "Höchster Zinssatz: {rate}% eff. Jahreszins"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:786
 #: /tmp/budget-v2.11.0/budget/templates/index.php:662
@@ -4260,7 +4260,7 @@ msgstr[1] "Überfällig seit %n Tagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:804
 msgid "Due today"
-msgstr ""
+msgstr "heute fällig"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:807
 msgid "Due in %n day"
@@ -4270,13 +4270,13 @@ msgstr[1] "Fällig in %n Tagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:809
 msgid "Due {date}"
-msgstr ""
+msgstr "Fällig am {date}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:829
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:837
 #: /tmp/budget-v2.11.0/budget/templates/index.php:673
 msgid "No budgets configured"
-msgstr ""
+msgstr "Keine Budgets eingerichtet"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:878
 #: /tmp/budget-v2.11.0/budget/templates/index.php:684
@@ -4286,28 +4286,28 @@ msgstr "Noch keine Sparziele"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:892
 msgid "Target: {amount}"
-msgstr ""
+msgstr "Ziel: {amount}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:898
 msgid "{amount} saved"
-msgstr ""
+msgstr "{amount} gespart"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:934
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:156
 msgid "Pension Income"
-msgstr ""
+msgstr "Renteneinkommen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:941
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:163
 msgid "%n pension"
 msgid_plural "%n pensions"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Rente"
+msgstr[1] "%n Renten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:944
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:166
 msgid "{amount}/yr income"
-msgstr ""
+msgstr "Einkommen: {amount} pro Jahr"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:983
 msgid "{amount} ({percent}%) vs 30d ago"
@@ -4473,16 +4473,16 @@ msgstr "Übersicht sperren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2348
 msgid "Drag tiles to reorder your dashboard"
-msgstr ""
+msgstr "Ziehe die Kacheln, um dein Dashboard neu anzuordnen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2370
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2385
 msgid "Remove tile"
-msgstr ""
+msgstr "Kachel entfernen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2439
 msgid "All tiles are visible"
-msgstr ""
+msgstr "Alle Kacheln sind sichtbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:2445
 msgid "Insights & Analytics"
@@ -4549,11 +4549,11 @@ msgstr "Manuellen Wechselkurs bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:126
 msgid "Remove manual rate"
-msgstr ""
+msgstr "Manuellen Wechselkurs entfernen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:130
 msgid "Set manual rate"
-msgstr ""
+msgstr "manuellen Wechselkurs festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:169
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:119
@@ -4573,20 +4573,20 @@ msgstr "Keine"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:266
 msgid "Edit Manual Rate"
-msgstr ""
+msgstr "manuellen Wechselkurs bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:266
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4133
 msgid "Set Manual Rate"
-msgstr ""
+msgstr "Manuellen Wechselkurs festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:295
 msgid "Please enter a rate value"
-msgstr ""
+msgstr "Bitte gib einen Kurswert ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:317
 msgid "Manual rate set for {currency}"
-msgstr ""
+msgstr "Manueller Wechselkurs für {currency} festgelegt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:322
 msgid "Failed to save manual rate"
