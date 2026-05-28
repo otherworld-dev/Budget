@@ -128,7 +128,8 @@ class SimpleFINProvider implements BankSyncProviderInterface {
                 ];
             }
 
-            $this->logger->info("SimpleFIN account '{$account['name']}': {$rawTxCount} raw transactions, " . count($transactions) . " parsed", ['app' => 'budget']);
+            $accountName = $account['name'] ?? 'Unknown Account';
+            $this->logger->info("SimpleFIN account '{$accountName}': {$rawTxCount} raw transactions, " . count($transactions) . " parsed", ['app' => 'budget']);
 
             $accounts[] = [
                 'id' => $account['id'] ?? '',
