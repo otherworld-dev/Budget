@@ -38322,7 +38322,7 @@ var DashboardModule = /*#__PURE__*/function () {
     value: function () {
       var _loadDashboard = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
         var _this2 = this;
-        var now, startOfMonth, endOfMonth, sixMonthsAgoDate, sixMonthsAgo, cacheBuster, _yield$Promise$all, _yield$Promise$all2, summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse, assetHistoryResponse, summary, trendData, transactions, bills, budgetDataRaw, budgetData, savingsGoals, pensionSummary, assetSummary, netWorthSnapshots, budgetAlerts, debtSummary, assetValueHistory, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t0, _t1;
+        var now, startOfMonth, endOfMonth, sixMonthsAgoDate, sixMonthsAgo, cacheBuster, _yield$Promise$all, _yield$Promise$all2, summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse, assetHistoryResponse, summary, trendData, transactions, bills, budgetDataRaw, budgetData, savingsGoals, pensionSummary, assetSummary, netWorthSnapshots, budgetAlerts, debtSummary, assetValueHistory, heroEl, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t0, _t1;
         return _regenerator().w(function (_context2) {
           while (1) switch (_context2.p = _context2.n) {
             case 0:
@@ -38588,6 +38588,10 @@ var DashboardModule = /*#__PURE__*/function () {
               assetValueHistory = _t0;
               // Update Hero Section (current month data)
               this.updateDashboardHero(summary, pensionSummary, assetSummary);
+
+              // Reveal hero section after data is loaded
+              heroEl = document.querySelector('.dashboard-hero');
+              if (heroEl) heroEl.style.opacity = '1';
 
               // Update Account Widget (current balances from current month summary)
               this.updateAccountsWidget(summary.accounts || []);
@@ -42229,6 +42233,17 @@ var DashboardModule = /*#__PURE__*/function () {
       }
       this.gridstack.load(items);
 
+      // Ensure gs-w/gs-h attributes are set on all items for consistent CSS grid rendering
+      this.gridstack.getGridItems().forEach(function (el) {
+        var node = el.gridstackNode;
+        if (node) {
+          if (!el.getAttribute('gs-w')) el.setAttribute('gs-w', node.w);
+          if (!el.getAttribute('gs-h')) el.setAttribute('gs-h', node.h);
+          if (el.getAttribute('gs-x') === null) el.setAttribute('gs-x', node.x);
+          if (el.getAttribute('gs-y') === null) el.setAttribute('gs-y', node.y);
+        }
+      });
+
       // Listen for changes (drag end) — delay to avoid saving during initial layout
       this._gridstackReady = false;
       setTimeout(function () {
@@ -42247,9 +42262,10 @@ var DashboardModule = /*#__PURE__*/function () {
         });
       });
 
-      // Initial chart resize after Gridstack has laid out tiles
+      // Initial chart resize after Gridstack has laid out tiles, then reveal
       requestAnimationFrame(function () {
-        return _this28.resizeAllCharts();
+        _this28.resizeAllCharts();
+        gridEl.style.opacity = '1';
       });
     }
   }, {

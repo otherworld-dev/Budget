@@ -232,6 +232,10 @@ export default class DashboardModule {
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary, pensionSummary, assetSummary);
 
+            // Reveal hero section after data is loaded
+            const heroEl = document.querySelector('.dashboard-hero');
+            if (heroEl) heroEl.style.opacity = '1';
+
             // Update Account Widget (current balances from current month summary)
             this.updateAccountsWidget(summary.accounts || []);
 
@@ -3187,6 +3191,17 @@ export default class DashboardModule {
         }
         this.gridstack.load(items);
 
+        // Ensure gs-w/gs-h attributes are set on all items for consistent CSS grid rendering
+        this.gridstack.getGridItems().forEach(el => {
+            const node = el.gridstackNode;
+            if (node) {
+                if (!el.getAttribute('gs-w')) el.setAttribute('gs-w', node.w);
+                if (!el.getAttribute('gs-h')) el.setAttribute('gs-h', node.h);
+                if (el.getAttribute('gs-x') === null) el.setAttribute('gs-x', node.x);
+                if (el.getAttribute('gs-y') === null) el.setAttribute('gs-y', node.y);
+            }
+        });
+
         // Listen for changes (drag end) — delay to avoid saving during initial layout
         this._gridstackReady = false;
         setTimeout(() => { this._gridstackReady = true; }, 500);
@@ -3201,8 +3216,11 @@ export default class DashboardModule {
             requestAnimationFrame(() => this.resizeAllCharts());
         });
 
-        // Initial chart resize after Gridstack has laid out tiles
-        requestAnimationFrame(() => this.resizeAllCharts());
+        // Initial chart resize after Gridstack has laid out tiles, then reveal
+        requestAnimationFrame(() => {
+            this.resizeAllCharts();
+            gridEl.style.opacity = '1';
+        });
     }
 
     _removeHiddenTilesFromGrid() {

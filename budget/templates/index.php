@@ -318,7 +318,7 @@ style('budget', 'budget-main');
             </div>
 
             <!-- Hero Section - Key Financial Metrics -->
-            <div class="dashboard-hero">
+            <div class="dashboard-hero" style="opacity: 0; transition: opacity 0.3s ease;">
                 <div class="hero-card hero-net-worth" data-widget-id="netWorth" data-widget-category="hero">
                     <div class="hero-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -542,7 +542,7 @@ style('budget', 'budget-main');
             </div>
 
             <!-- Main Dashboard Grid -->
-            <div class="dashboard-grid">
+            <div class="dashboard-grid" style="opacity: 0; transition: opacity 0.3s ease;">
                     <!-- Income vs Expenses Chart -->
                     <div id="trend-chart-card" class="dashboard-card dashboard-card-large dashboard-tile-l" data-widget-id="trendChart" data-widget-category="widget">
                         <div class="card-header">
