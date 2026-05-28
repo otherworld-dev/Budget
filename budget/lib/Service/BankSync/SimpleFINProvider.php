@@ -105,17 +105,30 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         $accounts = [];
         foreach ($data['accounts'] as $account) {
             $accountId = $account['id'] ?? '';
+            $rawTxCount = count($account['transactions'] ?? []);
             $transactions = [];
             foreach ($account['transactions'] ?? [] as $idx => $tx) {
                 $amount = (string) ($tx['amount'] ?? '0');
+                // Use posted timestamp, but fall back to transacted_at or today for pending (posted=0)
+                $posted = (int) ($tx['posted'] ?? 0);
+                if ($posted > 0) {
+                    $date = date('Y-m-d', $posted);
+                } elseif (!empty($tx['transacted_at'])) {
+                    $date = date('Y-m-d', (int) $tx['transacted_at']);
+                } else {
+                    $date = date('Y-m-d');
+                }
                 $transactions[] = [
                     'id' => $tx['id'] ?? hash('sha256', $accountId . ':' . $idx . ':' . ($tx['posted'] ?? '') . ':' . $amount . ':' . ($tx['description'] ?? '')),
-                    'date' => isset($tx['posted']) ? date('Y-m-d', (int) $tx['posted']) : date('Y-m-d'),
+                    'date' => $date,
                     'amount' => $amount,
                     'description' => $tx['description'] ?? '',
                     'vendor' => null,
+                    'pending' => !empty($tx['pending']) || $posted === 0,
                 ];
             }
+
+            $this->logger->info("SimpleFIN account '{$account['name']}': {$rawTxCount} raw transactions, " . count($transactions) . " parsed", ['app' => 'budget']);
 
             $accounts[] = [
                 'id' => $account['id'] ?? '',

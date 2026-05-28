@@ -196,8 +196,12 @@ class BankSyncService {
         $accountResults = [];
 
         foreach ($data['accounts'] as $externalAccount) {
+            $txCount = count($externalAccount['transactions'] ?? []);
+            $this->logger->info("Bank sync: external account '{$externalAccount['name']}' (id: {$externalAccount['id']}) has {$txCount} transactions", ['app' => 'budget']);
+
             $mapping = $mappingsByExternalId[$externalAccount['id']] ?? null;
             if (!$mapping) {
+                $this->logger->info("Bank sync: no mapping found for external account '{$externalAccount['id']}', skipping", ['app' => 'budget']);
                 continue; // Account not mapped or not enabled
             }
 
@@ -225,6 +229,7 @@ class BankSyncService {
                     $skipped++;
                     continue;
                 }
+
 
                 // Determine type: negative amount = debit (outflow), positive = credit (inflow)
                 $amount = (float) $tx['amount'];
@@ -288,6 +293,8 @@ class BankSyncService {
                     $totalErrors++;
                 }
             }
+
+            $this->logger->info("Bank sync: account '{$externalAccount['name']}' result: {$imported} imported, {$skipped} duplicates skipped, mapped to budget account {$budgetAccountId}", ['app' => 'budget']);
 
             // Update mapping balance
             $mapping->setLastBalance($externalAccount['balance'] ?? null);
