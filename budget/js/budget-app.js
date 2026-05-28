@@ -54191,6 +54191,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/notifications.js */ "./src/utils/notifications.js");
 /* harmony import */ var _utils_datepicker_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/datepicker.js */ "./src/utils/datepicker.js");
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -54255,6 +54261,7 @@ var SettingsModule = /*#__PURE__*/function () {
               _context.n = 5;
               return this.loadAdminSettings();
             case 5:
+              this.loadSystemInfo();
               _context.n = 7;
               break;
             case 6:
@@ -54747,6 +54754,161 @@ var SettingsModule = /*#__PURE__*/function () {
         return _executeFactoryReset.apply(this, arguments);
       }
       return executeFactoryReset;
+    }()
+  }, {
+    key: "loadSystemInfo",
+    value: function () {
+      var _loadSystemInfo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
+        var container, _navigator$userAgent$, response, info, browser, diag, lines, html, levelMap, clipText, _levelMap, copyBtn, _t7;
+        return _regenerator().w(function (_context8) {
+          while (1) switch (_context8.p = _context8.n) {
+            case 0:
+              container = document.getElementById('system-info-content');
+              if (container) {
+                _context8.n = 1;
+                break;
+              }
+              return _context8.a(2);
+            case 1:
+              _context8.p = 1;
+              _context8.n = 2;
+              return fetch(OC.generateUrl('/apps/budget/api/setup/system-info'), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 2:
+              response = _context8.v;
+              if (response.ok) {
+                _context8.n = 3;
+                break;
+              }
+              throw new Error('Failed to load');
+            case 3:
+              _context8.n = 4;
+              return response.json();
+            case 4:
+              info = _context8.v;
+              browser = "".concat(((_navigator$userAgent$ = navigator.userAgent.match(/(?:Firefox|Chrome|Safari|Edge)\/[\d.]+/)) === null || _navigator$userAgent$ === void 0 ? void 0 : _navigator$userAgent$[0]) || navigator.userAgent.substring(0, 50));
+              diag = window.budgetDiagnostics || {
+                errors: [],
+                failedRequests: []
+              };
+              lines = [['Budget Version', info.appVersion], ['Nextcloud Version', info.nextcloudVersion], ['PHP Version', info.phpVersion], ['Database', info.database], ['Browser', browser], ['Accounts', info.accounts], ['Transactions', info.transactions], ['Categories', info.categories], ['Rules', "".concat(info.activeRules, " active / ").concat(info.rules, " total")], ['Bills', info.bills], ['Bank Sync', info.bankSyncConnections > 0 ? "".concat(info.bankSyncConnections, " connection(s)") : 'None'], ['Sharing', info.sharingOut > 0 || info.sharingIn > 0 ? "".concat(info.sharingOut, " outgoing, ").concat(info.sharingIn, " incoming") : 'None'], ['Screen', "".concat(window.screen.width, "x").concat(window.screen.height, " (viewport: ").concat(window.innerWidth, "x").concat(window.innerHeight, ")")]];
+              html = "<table class=\"system-info-table\">".concat(lines.map(function (_ref2) {
+                var _ref3 = _slicedToArray(_ref2, 2),
+                  label = _ref3[0],
+                  value = _ref3[1];
+                return "<tr><td class=\"system-info-label\">".concat(label, "</td><td class=\"system-info-value\">").concat(value, "</td></tr>");
+              }).join(''), "</table>"); // Failed API requests
+              if (diag.failedRequests.length > 0) {
+                html += "<h4 style=\"margin: 16px 0 8px; font-size: 13px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed API Requests'), " (").concat(diag.failedRequests.length, ")</h4>");
+                html += "<div class=\"system-info-log\">".concat(diag.failedRequests.map(function (r) {
+                  return "<div class=\"log-entry error\">".concat(r.time.substring(11, 19), " ").concat(r.method, " ").concat(r.url, " \u2192 ").concat(r.status, "</div>");
+                }).join(''), "</div>");
+              }
+
+              // JS Errors
+              if (diag.errors.length > 0) {
+                html += "<h4 style=\"margin: 16px 0 8px; font-size: 13px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'JavaScript Errors'), " (").concat(diag.errors.length, ")</h4>");
+                html += "<div class=\"system-info-log\">".concat(diag.errors.map(function (e) {
+                  return "<div class=\"log-entry error\">".concat(e.time.substring(11, 19), " ").concat(e.message).concat(e.source ? ' (' + e.source + ':' + e.line + ')' : '', "</div>");
+                }).join(''), "</div>");
+              }
+              if (diag.failedRequests.length === 0) {
+                html += "<p style=\"margin-top: 12px; color: var(--color-success); font-size: 12px;\">&#10004; ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'No failed API requests this session'), "</p>");
+              }
+              if (diag.errors.length === 0) {
+                html += "<p style=\"color: var(--color-success); font-size: 12px;\">&#10004; ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'No JavaScript errors this session'), "</p>");
+              }
+
+              // Server logs (admin only)
+              if (info.serverLogs && info.serverLogs.length > 0) {
+                levelMap = {
+                  0: 'DEBUG',
+                  1: 'INFO',
+                  2: 'WARN',
+                  3: 'ERROR',
+                  4: 'FATAL'
+                };
+                html += "<h4 style=\"margin: 16px 0 8px; font-size: 13px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Server Logs (Budget)'), " (").concat(info.serverLogs.length, ")</h4>");
+                html += "<div class=\"system-info-log\">".concat(info.serverLogs.map(function (l) {
+                  return "<div class=\"log-entry ".concat(l.level >= 3 ? 'error' : '', "\">").concat(l.time.substring(11, 19), " [").concat(levelMap[l.level] || l.level, "] ").concat(l.message, "</div>");
+                }).join(''), "</div>");
+              } else if (info.serverLogs !== undefined) {
+                html += "<p style=\"color: var(--color-success); font-size: 12px;\">&#10004; ".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'No server errors logged'), "</p>");
+              }
+              container.innerHTML = html;
+
+              // Build clipboard text
+              clipText = lines.map(function (_ref4) {
+                var _ref5 = _slicedToArray(_ref4, 2),
+                  l = _ref5[0],
+                  v = _ref5[1];
+                return "".concat(l, ": ").concat(v);
+              }).join('\n');
+              clipText += '\n\nFailed API Requests: ' + (diag.failedRequests.length === 0 ? 'None' : diag.failedRequests.length);
+              if (diag.failedRequests.length > 0) {
+                clipText += '\n' + diag.failedRequests.map(function (r) {
+                  return "  ".concat(r.time.substring(11, 19), " ").concat(r.method, " ").concat(r.url, " \u2192 ").concat(r.status);
+                }).join('\n');
+              }
+              clipText += '\nJavaScript Errors: ' + (diag.errors.length === 0 ? 'None' : diag.errors.length);
+              if (diag.errors.length > 0) {
+                clipText += '\n' + diag.errors.map(function (e) {
+                  return "  ".concat(e.time.substring(11, 19), " ").concat(e.message).concat(e.source ? ' (' + e.source + ':' + e.line + ')' : '');
+                }).join('\n');
+              }
+              if (info.serverLogs !== undefined) {
+                _levelMap = {
+                  0: 'DEBUG',
+                  1: 'INFO',
+                  2: 'WARN',
+                  3: 'ERROR',
+                  4: 'FATAL'
+                };
+                clipText += '\nServer Logs: ' + (info.serverLogs.length === 0 ? 'None' : info.serverLogs.length);
+                if (info.serverLogs.length > 0) {
+                  clipText += '\n' + info.serverLogs.map(function (l) {
+                    return "  ".concat(l.time.substring(11, 19), " [").concat(_levelMap[l.level] || l.level, "] ").concat(l.message);
+                  }).join('\n');
+                }
+              }
+              container.dataset.plaintext = clipText;
+
+              // Copy button
+              copyBtn = document.getElementById('copy-system-info-btn');
+              if (copyBtn) {
+                copyBtn.onclick = function () {
+                  navigator.clipboard.writeText(container.dataset.plaintext).then(function () {
+                    (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Copied to clipboard'));
+                  })["catch"](function () {
+                    // Fallback
+                    var ta = document.createElement('textarea');
+                    ta.value = container.dataset.plaintext;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    ta.remove();
+                    (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Copied to clipboard'));
+                  });
+                };
+              }
+              _context8.n = 6;
+              break;
+            case 5:
+              _context8.p = 5;
+              _t7 = _context8.v;
+              container.innerHTML = "<p>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Failed to load system info'), "</p>");
+            case 6:
+              return _context8.a(2);
+          }
+        }, _callee8, null, [[1, 5]]);
+      }));
+      function loadSystemInfo() {
+        return _loadSystemInfo.apply(this, arguments);
+      }
+      return loadSystemInfo;
     }()
   }]);
 }();
@@ -65720,6 +65882,66 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * Budget App - Main JavaScript
  */
 
+// ===========================
+// Diagnostic Tracking (starts immediately)
+// ===========================
+var budgetDiagnostics = {
+  errors: [],
+  failedRequests: [],
+  maxEntries: 20,
+  captureError: function captureError(msg, source, line, col, error) {
+    var _error$stack;
+    budgetDiagnostics.errors.push({
+      time: new Date().toISOString(),
+      message: String(msg),
+      source: source ? source.replace(window.location.origin, '') : '',
+      line: line,
+      stack: (error === null || error === void 0 || (_error$stack = error.stack) === null || _error$stack === void 0 ? void 0 : _error$stack.split('\n').slice(0, 3).join('\n')) || ''
+    });
+    if (budgetDiagnostics.errors.length > budgetDiagnostics.maxEntries) {
+      budgetDiagnostics.errors.shift();
+    }
+  },
+  captureFailedRequest: function captureFailedRequest(url, status, method) {
+    budgetDiagnostics.failedRequests.push({
+      time: new Date().toISOString(),
+      method: method || 'GET',
+      url: url.replace(window.location.origin, ''),
+      status: status
+    });
+    if (budgetDiagnostics.failedRequests.length > budgetDiagnostics.maxEntries) {
+      budgetDiagnostics.failedRequests.shift();
+    }
+  }
+};
+
+// Capture unhandled JS errors
+window.addEventListener('error', function (e) {
+  budgetDiagnostics.captureError(e.message, e.filename, e.lineno, e.colno, e.error);
+});
+window.addEventListener('unhandledrejection', function (e) {
+  var _e$reason;
+  budgetDiagnostics.captureError('Unhandled Promise: ' + (((_e$reason = e.reason) === null || _e$reason === void 0 ? void 0 : _e$reason.message) || e.reason), '', 0, 0, e.reason);
+});
+
+// Intercept fetch to track failed budget API requests
+var _originalFetch = window.fetch;
+window.fetch = function () {
+  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+  return _originalFetch.apply(this, args).then(function (response) {
+    var _args$;
+    var url = typeof args[0] === 'string' ? args[0] : ((_args$ = args[0]) === null || _args$ === void 0 ? void 0 : _args$.url) || '';
+    if (url.includes('/apps/budget/') && !response.ok) {
+      var _args$2;
+      var method = ((_args$2 = args[1]) === null || _args$2 === void 0 ? void 0 : _args$2.method) || 'GET';
+      budgetDiagnostics.captureFailedRequest(url, response.status, method);
+    }
+    return response;
+  });
+};
+window.budgetDiagnostics = budgetDiagnostics;
 
 
 
