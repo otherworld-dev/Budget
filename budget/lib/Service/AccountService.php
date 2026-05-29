@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
 
@@ -18,6 +19,7 @@ class AccountService extends AbstractCrudService {
     private TransactionMapper $transactionMapper;
     private InterestRateMapper $interestRateMapper;
     private CurrencyConversionService $conversionService;
+    private GranularShareService $granularShareService;
     private IL10N $l;
 
     public function __construct(
@@ -25,12 +27,14 @@ class AccountService extends AbstractCrudService {
         TransactionMapper $transactionMapper,
         InterestRateMapper $interestRateMapper,
         CurrencyConversionService $conversionService,
+        GranularShareService $granularShareService,
         IL10N $l
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
         $this->interestRateMapper = $interestRateMapper;
         $this->conversionService = $conversionService;
+        $this->granularShareService = $granularShareService;
         $this->l = $l;
     }
 
@@ -240,13 +244,27 @@ class AccountService extends AbstractCrudService {
 
     public function getSummary(string $userId): array {
         $accounts = $this->findAll($userId);
+
+        // Include shared accounts
+        $sharedAccountIds = $this->granularShareService->getSharedAccountIds($userId);
+        if (!empty($sharedAccountIds)) {
+            $sharedAccounts = $this->mapper->findByIds($sharedAccountIds);
+            $accounts = array_merge($accounts, $sharedAccounts);
+        }
+
         $totalBalance = '0.00';
         $currencyBreakdown = [];
         $accountsWithAdjustedBalance = [];
 
-        // Get future transaction adjustments for all accounts in one query
+        // Get future transaction adjustments for owned accounts
         $today = date('Y-m-d');
         $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
+        // Get future transaction adjustments for shared accounts
+        if (!empty($sharedAccountIds)) {
+            $sharedFutureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($sharedAccountIds, $today);
+            $futureChanges = $futureChanges + $sharedFutureChanges;
+        }
 
         foreach ($accounts as $account) {
             // Calculate balance as of today (stored balance minus future transactions)
@@ -258,6 +276,9 @@ class AccountService extends AbstractCrudService {
             // Convert account to array and override balance with adjusted value
             $accountData = $account->toArrayMasked();
             $accountData['balance'] = $balanceFloat;
+            if (in_array($account->getId(), $sharedAccountIds ?? [], true)) {
+                $accountData['_shared'] = true;
+            }
             $accountsWithAdjustedBalance[] = $accountData;
 
             $totalBalance = MoneyCalculator::add($totalBalance, $balance);

@@ -1326,6 +1326,48 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Same as getNetChangeAfterDateBatch but scoped by account IDs instead of user.
+     * Used for shared accounts where user_id doesn't match.
+     *
+     * @param int[] $accountIds
+     * @return array<int, float> accountId => netChange
+     */
+    public function getNetChangeAfterDateForAccounts(array $accountIds, string $afterDate): array {
+        if (empty($accountIds)) {
+            return [];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.account_id')
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END)'),
+                'net_change'
+            )
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->in('t.account_id', $qb->createNamedParameter($accountIds, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                    $qb->expr()->isNull('t.status')
+                )
+            )
+            ->groupBy('t.account_id');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        $changes = [];
+        foreach ($data as $row) {
+            $changes[(int)$row['account_id']] = (float)$row['net_change'];
+        }
+
+        return $changes;
+    }
+
+    /**
      * Get daily balance changes for an account (for efficient balance history calculation)
      * @return array<string, float> date => net change (credits positive, debits negative)
      */

@@ -10,6 +10,7 @@ use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
@@ -18,12 +19,15 @@ class AccountServiceTest extends TestCase {
     private AccountService $service;
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
+    private GranularShareService $granularShareService;
     private CurrencyConversionService $conversionService;
 
     protected function setUp(): void {
         $this->accountMapper = $this->createMock(AccountMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->conversionService = $this->createMock(CurrencyConversionService::class);
+        $this->granularShareService = $this->createMock(GranularShareService::class);
+        $this->granularShareService->method('getSharedAccountIds')->willReturn([]);
 
         $l = $this->createMock(IL10N::class);
         $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
@@ -39,6 +43,7 @@ class AccountServiceTest extends TestCase {
             $this->transactionMapper,
             $interestRateMapper,
             $this->conversionService,
+            $this->granularShareService,
             $l
         );
     }
