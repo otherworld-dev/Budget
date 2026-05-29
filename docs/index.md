@@ -63,5 +63,4 @@
 | Document | Description |
 |----------|-------------|
 | [Exchange Rates](exchange-rates.md) | Configure currency conversion rates for multi-currency accounts |
-| [Settings](settings.md) | Customize date formats, default currency, and app behavior |
-| [Password Protection](password-protection.md) | Add an extra layer of security with app-level password lock |
+| [Settings](settings.md) | Customize date formats, default currency, diagnostics, and app behavior |

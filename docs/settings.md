@@ -56,12 +56,17 @@ Configure behavior for transaction imports:
 
 > **Note:** Duplicate detection uses a combination of date, amount, and description to identify potential duplicates.
 
-## Security
+## System Info
 
-Manage app-level security settings:
+The System Info panel provides diagnostic information useful when reporting issues:
 
-- **Password Protection** - Enable or disable an additional password layer on top of your Nextcloud login. See [Password Protection](password-protection.md) for full details.
-- **Session Timeout** - Configure how long your authenticated session lasts before requiring re-entry: 15, 30, or 60 minutes of inactivity.
+- **App & Server Details** — Budget version, Nextcloud version, PHP version, database type
+- **Data Stats** — Account count, transaction count, category count, active rules, bills, bank sync connections, sharing status
+- **Browser & Screen** — Browser version and viewport dimensions
+- **Client Diagnostics** — Failed API requests and JavaScript errors captured during the current session
+- **Server Logs** (admin only) — Recent budget-related entries from the Nextcloud log
+
+Click **Copy to Clipboard** to copy all diagnostic info as plain text for pasting into bug reports.
 
 ## Data Migration
 
@@ -93,7 +98,6 @@ These settings are only visible to Nextcloud administrators:
 
 ## Related Features
 
-- [Password Protection](password-protection.md) - Detailed guide on the secondary password feature
 - [Bank Sync](bank-sync.md) - Automatic transaction imports from external banks
 - [Import](import.md) - Manual transaction import from files
 - [Exchange Rates](exchange-rates.md) - Multi-currency support configuration

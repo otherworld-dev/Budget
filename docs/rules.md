@@ -18,11 +18,13 @@ Each criterion consists of three parts:
 
 | Component | Options |
 |-----------|---------|
-| **Field** | Description, Vendor, Amount, Date, Reference, Notes |
+| **Field** | Description, Vendor, Amount, Date, Reference, Notes, Transaction Type |
 | **Match type** | Contains, Equals, Starts with, Ends with, Regex, Greater than, Less than |
 | **Pattern** | The value to match against |
 
 > **Tip:** Use "Contains" for most text matching. Reserve "Regex" for complex patterns where simpler match types won't suffice.
+
+The **Transaction Type** field lets you filter by Income or Expense. This is useful when the same description appears as both inflow and outflow (e.g., internal transfers between accounts).
 
 ## Boolean Logic
 
@@ -55,8 +57,19 @@ When a rule matches a transaction, one or more actions are applied:
 | Set account | Assign to a specific account |
 | Set type | Mark as expense or income |
 | Set reference | Set the reference field |
+| Auto-Link as Transfer | Find and link a matching opposite transaction as a transfer |
 
 You can configure multiple actions per rule — for example, set the category to "Subscriptions" and add a "streaming" tag simultaneously.
+
+### Auto-Link as Transfer
+
+The **Auto-Link as Transfer** action automatically finds a matching transaction on a different account — same amount, opposite type (income vs expense), within a few days — and links the two as a transfer. This is particularly useful for banks that represent internal movements as separate income/expense entries (e.g., Monzo pot transfers).
+
+Example rule for automatic transfer linking:
+- **Criteria:** Transaction Type is Expense AND Description contains "Pot Transfer"
+- **Action:** Auto-Link as Transfer
+
+This works when applying rules manually, during CSV import, and during bank sync.
 
 ## Priority
 

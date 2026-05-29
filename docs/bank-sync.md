@@ -89,6 +89,8 @@ To connect a US bank account:
 
 > **Note:** SimpleFIN tokens are single-use for claiming. Once claimed by the Budget app, the same token cannot be used elsewhere.
 
+Each sync fetches the last 90 days of transactions. This includes credit card accounts, which require a date range parameter to return transaction data.
+
 ## Account Mapping
 
 After connecting a bank, you must map external accounts to local Budget accounts:
@@ -157,7 +159,7 @@ Common issues and solutions:
 | OAuth redirect fails | Ensure your Nextcloud instance URL is publicly accessible and HTTPS is configured correctly |
 | GoCardless bank not found | Try searching by the bank's official name rather than a nickname. Not all institutions are supported |
 | SimpleFIN token rejected | Tokens are single-use. Generate a new token from simplefin.org if the previous one was already claimed |
-| Sync shows no new transactions | Check that the account is mapped. Unmapped accounts are skipped during sync |
+| Sync shows no new transactions | Check that the account is mapped. Unmapped accounts are skipped during sync. For SimpleFIN credit cards, ensure you are running v2.27.1+ which includes the required date range parameter |
 | Transactions appear duplicated | This should not happen due to import ID tracking. File a bug report with details |
 | Connection expired | GoCardless connections expire after ~90 days. Click **Re-authorize** on the expired connection and complete the 3-step wizard |
 | Connection stuck on "Awaiting Authorization" | Complete the bank authorization step. Open the connection and follow the wizard from where you left off |
