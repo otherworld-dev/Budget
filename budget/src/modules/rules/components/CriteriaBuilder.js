@@ -116,6 +116,7 @@ export class CriteriaBuilder {
 						<option value="description" ${node.field === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
 						<option value="vendor" ${node.field === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
 						<option value="amount" ${node.field === 'amount' ? 'selected' : ''}>${t('budget', 'Amount')}</option>
+						<option value="type" ${node.field === 'type' ? 'selected' : ''}>${t('budget', 'Transaction Type')}</option>
 						<option value="reference" ${node.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
 						<option value="notes" ${node.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
 						<option value="date" ${node.field === 'date' ? 'selected' : ''}>${t('budget', 'Date')}</option>
@@ -124,9 +125,15 @@ export class CriteriaBuilder {
 					<select class="condition-match-type" data-path="${pathStr}">
 						${this.renderMatchTypeOptions(node.field, node.matchType)}
 					</select>
-					<input type="text" class="condition-pattern" data-path="${pathStr}"
-						value="${this.escapeHtml(node.pattern || '')}"
-						placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">
+					${node.field === 'type'
+						? `<select class="condition-pattern" data-path="${pathStr}">
+							<option value="debit" ${node.pattern === 'debit' ? 'selected' : ''}>${t('budget', 'Expense')}</option>
+							<option value="credit" ${node.pattern === 'credit' ? 'selected' : ''}>${t('budget', 'Income')}</option>
+						</select>`
+						: `<input type="text" class="condition-pattern" data-path="${pathStr}"
+							value="${this.escapeHtml(node.pattern || '')}"
+							placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">`
+					}
 					<button class="btn-remove-condition" type="button" data-path="${pathStr}" title="${t('budget', 'Remove this condition')}">✕</button>
 				</div>
 			</div>
@@ -161,6 +168,8 @@ export class CriteriaBuilder {
 			types = numericTypes;
 		} else if (field === 'date') {
 			types = dateTypes;
+		} else if (field === 'type') {
+			types = { 'equals': t('budget', 'is') };
 		}
 
 		return Object.entries(types).map(([value, label]) =>
@@ -226,9 +235,10 @@ export class CriteriaBuilder {
 			select.addEventListener('change', (e) => this.updateConditionMatchType(e.target.dataset.path, e.target.value));
 		});
 
-		// Pattern change
-		this.container.querySelectorAll('.condition-pattern').forEach(input => {
-			input.addEventListener('input', (e) => this.updateConditionPattern(e.target.dataset.path, e.target.value));
+		// Pattern change (input for text, change for select)
+		this.container.querySelectorAll('.condition-pattern').forEach(el => {
+			el.addEventListener('input', (e) => this.updateConditionPattern(e.target.dataset.path, e.target.value));
+			el.addEventListener('change', (e) => this.updateConditionPattern(e.target.dataset.path, e.target.value));
 		});
 
 		// Negate checkbox change
@@ -318,6 +328,9 @@ export class CriteriaBuilder {
 				node.matchType = 'equals';
 			} else if (value === 'date') {
 				node.matchType = 'equals';
+			} else if (value === 'type') {
+				node.matchType = 'equals';
+				node.pattern = 'debit';
 			} else {
 				node.matchType = 'contains';
 			}

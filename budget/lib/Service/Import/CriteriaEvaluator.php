@@ -33,7 +33,7 @@ class CriteriaEvaluator {
 	private const DATE_MATCH_TYPES = ['equals', 'before', 'after', 'between'];
 
 	/** Valid fields for matching */
-	private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount', 'date', 'account_type', 'source'];
+	private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount', 'date', 'type', 'account_type', 'source'];
 
 	public function __construct(LoggerInterface $logger) {
 		$this->logger = $logger;

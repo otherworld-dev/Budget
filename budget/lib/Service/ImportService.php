@@ -622,6 +622,7 @@ class ImportService {
         $imported = 0;
         $skipped = 0;
         $errors = [];
+        $transferLinkIds = [];
         $accountResults = [];
 
         foreach ($parsedData['accounts'] as $sourceAccount) {
@@ -684,11 +685,29 @@ class ImportService {
                         }
                     }
 
+                    if (!empty($transaction['_deferred_link_transfer'])) {
+                        $transferLinkIds[] = $createdTx->getId();
+                    }
+
                     $imported++;
                     $accountResults[$sourceId]['imported']++;
                 } catch (\Exception $e) {
                     $errors[] = ['row' => $index + 1, 'sourceAccountId' => $sourceId, 'error' => $e->getMessage()];
                 }
+            }
+        }
+
+        // Process deferred transfer linking
+        $transfersLinked = 0;
+        foreach ($transferLinkIds as $txId) {
+            try {
+                $matches = $this->transactionService->findPotentialMatches($txId, $userId, 3);
+                if (!empty($matches)) {
+                    $this->transactionService->linkTransactions($txId, $matches[0]->getId(), $userId);
+                    $transfersLinked++;
+                }
+            } catch (\Exception $e) {
+                // Silently skip
             }
         }
 
@@ -700,6 +719,7 @@ class ImportService {
             'errors' => $errors,
             'totalProcessed' => $totalProcessed,
             'accountResults' => array_values($accountResults),
+            'transfersLinked' => $transfersLinked,
         ];
     }
 
@@ -741,6 +761,7 @@ class ImportService {
         $skipped = 0;
         $errors = [];
         $categoriesCreated = 0;
+        $transferLinkIds = [];
 
         // Detect date format from all rows before processing individually (unless preset set it)
         if (!$preset) {
@@ -855,6 +876,11 @@ class ImportService {
                     $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
                 }
 
+                // Collect transactions flagged for transfer linking
+                if (!empty($transaction['_deferred_link_transfer'])) {
+                    $transferLinkIds[] = $createdTx->getId();
+                }
+
                 $imported++;
 
                 // Track per-account stats
@@ -876,6 +902,24 @@ class ImportService {
         }
 
         $this->normalizer->resetDateFormat();
+
+        // Process deferred transfer linking after all transactions are persisted
+        $transfersLinked = 0;
+        if (!empty($transferLinkIds)) {
+            foreach ($transferLinkIds as $txId) {
+                try {
+                    $matches = $this->transactionService->findPotentialMatches($txId, $userId, 3);
+                    if (!empty($matches)) {
+                        // Auto-link the best match (first one — highest confidence)
+                        $bestMatch = $matches[0];
+                        $this->transactionService->linkTransactions($txId, $bestMatch['id'], $userId);
+                        $transfersLinked++;
+                    }
+                } catch (\Exception $e) {
+                    // Silently skip — match may not exist or already linked
+                }
+            }
+        }
 
         if ($hasAccountColumn) {
             $result = [

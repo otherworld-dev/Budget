@@ -236,7 +236,6 @@ class RuleActionApplicator {
 
 			case 'add_tags':
 				// Tags use transaction ID, so we need it to be persisted first
-				// This will be called after transaction is saved
 				// Store tag action for deferred execution
 				if (!isset($appliedActions['_deferred_tags'])) {
 					$appliedActions['_deferred_tags'] = [];
@@ -245,6 +244,13 @@ class RuleActionApplicator {
 					'tagIds' => $value,
 					'behavior' => $behavior
 				];
+				break;
+
+			case 'link_transfer':
+				// Transfer linking requires both transactions to be persisted
+				// Store for deferred execution after batch import
+				$appliedActions['_deferred_link_transfer'] = true;
+				$changes['_deferred_link_transfer'] = true;
 				break;
 
 			case 'set_account':
@@ -438,6 +444,10 @@ class RuleActionApplicator {
 				case 'set_notes':
 				case 'set_reference':
 					// String values - no specific validation
+					break;
+
+				case 'link_transfer':
+					// No value needed — auto-links after import
 					break;
 
 				default:

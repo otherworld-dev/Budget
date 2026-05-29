@@ -233,6 +233,11 @@ class ImportRuleApplicator {
                     ];
                     break;
 
+                case 'link_transfer':
+                    // Flag for deferred transfer linking after all transactions are persisted
+                    $transaction['_deferred_link_transfer'] = true;
+                    break;
+
                 // set_account: skip during import (account is set by the import target)
             }
         }

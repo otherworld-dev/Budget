@@ -93,6 +93,7 @@ export class ActionBuilder {
 						<option value="set_account">${t('budget', 'Set Account')}</option>
 						<option value="set_type">${t('budget', 'Set Transaction Type')}</option>
 						<option value="set_reference">${t('budget', 'Set Reference')}</option>
+						<option value="link_transfer">${t('budget', 'Auto-Link as Transfer')}</option>
 					</select>
 					<label class="stop-processing-label">
 						<input type="checkbox" id="stop-processing-check" ${this.stopProcessing ? 'checked' : ''}>
@@ -122,7 +123,8 @@ export class ActionBuilder {
 			'add_tags': t('budget', 'Add Tags'),
 			'set_account': t('budget', 'Set Account'),
 			'set_type': t('budget', 'Set Transaction Type'),
-			'set_reference': t('budget', 'Set Reference')
+			'set_reference': t('budget', 'Set Reference'),
+			'link_transfer': t('budget', 'Auto-Link as Transfer')
 		};
 
 		const canMoveUp = index > 0;
@@ -161,6 +163,8 @@ export class ActionBuilder {
 				return this.renderTypeAction(action, index);
 			case 'set_reference':
 				return this.renderReferenceAction(action, index);
+			case 'link_transfer':
+				return this.renderLinkTransferAction(action, index);
 			default:
 				return `<p class="error">${t('budget', 'Unknown action type')}</p>`;
 		}
@@ -311,6 +315,14 @@ export class ActionBuilder {
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
+			</div>
+		`;
+	}
+
+	renderLinkTransferAction() {
+		return `
+			<div class="form-row">
+				<p class="action-description">${t('budget', 'After import, automatically find and link a matching transaction from another account as a transfer pair. Matches by amount, opposite type, and date proximity (within 3 days).')}</p>
 			</div>
 		`;
 	}

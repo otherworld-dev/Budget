@@ -219,6 +219,7 @@ class BankSyncService {
             }
 
             $imported = 0;
+            $transferLinkIds = [];
             $skipped = 0;
 
             foreach ($externalAccount['transactions'] as $tx) {
@@ -284,6 +285,10 @@ class BankSyncService {
                         }
                     }
 
+                    if (!empty($txData['_deferred_link_transfer'])) {
+                        $transferLinkIds[] = $createdTx->getId();
+                    }
+
                     $imported++;
                 } catch (\Exception $e) {
                     $this->logger->warning("Bank sync: failed to create transaction: " . $e->getMessage(), [
@@ -291,6 +296,18 @@ class BankSyncService {
                         'importId' => $importId,
                     ]);
                     $totalErrors++;
+                }
+            }
+
+            // Process deferred transfer linking for this account's batch
+            foreach ($transferLinkIds as $txId) {
+                try {
+                    $matches = $this->transactionService->findPotentialMatches($txId, $userId, 3);
+                    if (!empty($matches)) {
+                        $this->transactionService->linkTransactions($txId, $matches[0]->getId(), $userId);
+                    }
+                } catch (\Exception $e) {
+                    // Silently skip
                 }
             }
 

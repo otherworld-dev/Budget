@@ -27,6 +27,7 @@ class ImportRuleServiceTest extends TestCase {
         $this->mapper = $this->createMock(ImportRuleMapper::class);
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
+        $transactionService = $this->createMock(\OCA\Budget\Service\TransactionService::class);
         $this->db = $this->createMock(IDBConnection::class);
         $this->criteriaEvaluator = $this->createMock(CriteriaEvaluator::class);
         $this->actionApplicator = $this->createMock(RuleActionApplicator::class);
@@ -35,6 +36,7 @@ class ImportRuleServiceTest extends TestCase {
             $this->mapper,
             $this->categoryMapper,
             $this->transactionMapper,
+            $transactionService,
             $this->db,
             $this->criteriaEvaluator,
             $this->actionApplicator

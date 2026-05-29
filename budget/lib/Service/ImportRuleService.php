@@ -21,6 +21,7 @@ use OCP\IDBConnection;
 class ImportRuleService extends AbstractCrudService {
     private CategoryMapper $categoryMapper;
     private TransactionMapper $transactionMapper;
+    private TransactionService $transactionService;
     private IDBConnection $db;
     private CriteriaEvaluator $criteriaEvaluator;
     private RuleActionApplicator $actionApplicator;
@@ -29,6 +30,7 @@ class ImportRuleService extends AbstractCrudService {
         ImportRuleMapper $mapper,
         CategoryMapper $categoryMapper,
         TransactionMapper $transactionMapper,
+        TransactionService $transactionService,
         IDBConnection $db,
         CriteriaEvaluator $criteriaEvaluator,
         RuleActionApplicator $actionApplicator
@@ -36,6 +38,7 @@ class ImportRuleService extends AbstractCrudService {
         $this->mapper = $mapper;
         $this->categoryMapper = $categoryMapper;
         $this->transactionMapper = $transactionMapper;
+        $this->transactionService = $transactionService;
         $this->db = $db;
         $this->criteriaEvaluator = $criteriaEvaluator;
         $this->actionApplicator = $actionApplicator;
@@ -525,6 +528,19 @@ class ImportRuleService extends AbstractCrudService {
                     // Apply deferred tag actions after transaction is persisted
                     $this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
 
+                    // Apply deferred transfer linking
+                    if (!empty($changes['_deferred_link_transfer'])) {
+                        try {
+                            $matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
+                            if (!empty($matches)) {
+                                $this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
+                                $changes['transferLinked'] = $matches[0]->getId();
+                            }
+                        } catch (\Exception $e) {
+                            // Silently skip — no match found or already linked
+                        }
+                    }
+
                     $success++;
                     $applied[] = [
                         'transactionId' => $updatedTransaction->getId(),
@@ -563,6 +579,7 @@ class ImportRuleService extends AbstractCrudService {
             'description' => $transaction->getDescription(),
             'vendor' => $transaction->getVendor() ?? '',
             'amount' => $transaction->getAmount(),
+            'type' => $transaction->getType(),
             'reference' => $transaction->getReference() ?? '',
             'notes' => $transaction->getNotes() ?? '',
             'date' => $transaction->getDate(),

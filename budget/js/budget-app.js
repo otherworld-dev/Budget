@@ -52617,7 +52617,7 @@ var ActionBuilder = /*#__PURE__*/function () {
   }, {
     key: "render",
     value: function render() {
-      this.container.innerHTML = "\n\t\t\t<div class=\"action-builder\">\n\t\t\t\t<div class=\"actions-list\" id=\"actions-list\">\n\t\t\t\t\t".concat(this.renderActions(), "\n\t\t\t\t</div>\n\t\t\t\t<div class=\"actions-controls\">\n\t\t\t\t\t<select id=\"add-action-type\" class=\"add-action-select\">\n\t\t\t\t\t\t<option value=\"\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', '+ Add Action'), "</option>\n\t\t\t\t\t\t<option value=\"set_category\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Category'), "</option>\n\t\t\t\t\t\t<option value=\"set_vendor\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Vendor'), "</option>\n\t\t\t\t\t\t<option value=\"set_notes\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Notes'), "</option>\n\t\t\t\t\t\t<option value=\"add_tags\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Add Tags'), "</option>\n\t\t\t\t\t\t<option value=\"set_account\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Account'), "</option>\n\t\t\t\t\t\t<option value=\"set_type\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Transaction Type'), "</option>\n\t\t\t\t\t\t<option value=\"set_reference\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Reference'), "</option>\n\t\t\t\t\t</select>\n\t\t\t\t\t<label class=\"stop-processing-label\">\n\t\t\t\t\t\t<input type=\"checkbox\" id=\"stop-processing-check\" ").concat(this.stopProcessing ? 'checked' : '', ">\n\t\t\t\t\t\t<span>").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Stop processing after this rule'), "</span>\n\t\t\t\t\t\t<small class=\"help-text\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'If checked, no rules with lower priority will run if this rule matches'), "</small>\n\t\t\t\t\t</label>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t");
+      this.container.innerHTML = "\n\t\t\t<div class=\"action-builder\">\n\t\t\t\t<div class=\"actions-list\" id=\"actions-list\">\n\t\t\t\t\t".concat(this.renderActions(), "\n\t\t\t\t</div>\n\t\t\t\t<div class=\"actions-controls\">\n\t\t\t\t\t<select id=\"add-action-type\" class=\"add-action-select\">\n\t\t\t\t\t\t<option value=\"\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', '+ Add Action'), "</option>\n\t\t\t\t\t\t<option value=\"set_category\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Category'), "</option>\n\t\t\t\t\t\t<option value=\"set_vendor\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Vendor'), "</option>\n\t\t\t\t\t\t<option value=\"set_notes\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Notes'), "</option>\n\t\t\t\t\t\t<option value=\"add_tags\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Add Tags'), "</option>\n\t\t\t\t\t\t<option value=\"set_account\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Account'), "</option>\n\t\t\t\t\t\t<option value=\"set_type\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Transaction Type'), "</option>\n\t\t\t\t\t\t<option value=\"set_reference\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Reference'), "</option>\n\t\t\t\t\t\t<option value=\"link_transfer\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Auto-Link as Transfer'), "</option>\n\t\t\t\t\t</select>\n\t\t\t\t\t<label class=\"stop-processing-label\">\n\t\t\t\t\t\t<input type=\"checkbox\" id=\"stop-processing-check\" ").concat(this.stopProcessing ? 'checked' : '', ">\n\t\t\t\t\t\t<span>").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Stop processing after this rule'), "</span>\n\t\t\t\t\t\t<small class=\"help-text\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'If checked, no rules with lower priority will run if this rule matches'), "</small>\n\t\t\t\t\t</label>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t");
       this.attachEventListeners();
     }
   }, {
@@ -52641,7 +52641,8 @@ var ActionBuilder = /*#__PURE__*/function () {
         'add_tags': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Add Tags'),
         'set_account': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Account'),
         'set_type': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Transaction Type'),
-        'set_reference': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Reference')
+        'set_reference': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Set Reference'),
+        'link_transfer': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Auto-Link as Transfer')
       };
       var canMoveUp = index > 0;
       var canMoveDown = index < this.actions.length - 1;
@@ -52665,6 +52666,8 @@ var ActionBuilder = /*#__PURE__*/function () {
           return this.renderTypeAction(action, index);
         case 'set_reference':
           return this.renderReferenceAction(action, index);
+        case 'link_transfer':
+          return this.renderLinkTransferAction(action, index);
         default:
           return "<p class=\"error\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Unknown action type'), "</p>");
       }
@@ -52717,6 +52720,11 @@ var ActionBuilder = /*#__PURE__*/function () {
     key: "renderReferenceAction",
     value: function renderReferenceAction(action, index) {
       return "\n\t\t\t<div class=\"form-row\">\n\t\t\t\t<label>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Reference Value:'), "</label>\n\t\t\t\t<input type=\"text\" class=\"action-value\" data-index=\"").concat(index, "\" data-field=\"value\"\n\t\t\t\t\tvalue=\"").concat(this.escapeHtml(action.value || ''), "\" placeholder=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'e.g., CHECK-1234, AUTO'), "\">\n\t\t\t</div>\n\t\t\t<div class=\"form-row\">\n\t\t\t\t<label>").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Behavior:'), "</label>\n\t\t\t\t<select class=\"action-behavior\" data-index=\"").concat(index, "\" data-field=\"behavior\">\n\t\t\t\t\t<option value=\"always\" ").concat(action.behavior === 'always' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Always set'), "</option>\n\t\t\t\t\t<option value=\"if_empty\" ").concat(action.behavior === 'if_empty' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'Only if empty'), "</option>\n\t\t\t\t</select>\n\t\t\t</div>\n\t\t");
+    }
+  }, {
+    key: "renderLinkTransferAction",
+    value: function renderLinkTransferAction() {
+      return "\n\t\t\t<div class=\"form-row\">\n\t\t\t\t<p class=\"action-description\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_2__.translate)('budget', 'After import, automatically find and link a matching transaction from another account as a transfer pair. Matches by amount, opposite type, and date proximity (within 3 days).'), "</p>\n\t\t\t</div>\n\t\t");
     }
   }, {
     key: "attachEventListeners",
@@ -53086,7 +53094,7 @@ var CriteriaBuilder = /*#__PURE__*/function () {
     key: "renderCondition",
     value: function renderCondition(node, path) {
       var pathStr = path.join('.');
-      return "\n\t\t\t<div class=\"criteria-condition\" data-path=\"".concat(pathStr, "\">\n\t\t\t\t<div class=\"condition-row\">\n\t\t\t\t\t<label class=\"negate-checkbox\">\n\t\t\t\t\t\t<input type=\"checkbox\" class=\"condition-negate\" data-path=\"").concat(pathStr, "\" ").concat(node.negate ? 'checked' : '', ">\n\t\t\t\t\t\t<span class=\"negate-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'NOT'), "</span>\n\t\t\t\t\t</label>\n\t\t\t\t\t<select class=\"condition-field\" data-path=\"").concat(pathStr, "\">\n\t\t\t\t\t\t<option value=\"description\" ").concat(node.field === 'description' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Description'), "</option>\n\t\t\t\t\t\t<option value=\"vendor\" ").concat(node.field === 'vendor' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Vendor'), "</option>\n\t\t\t\t\t\t<option value=\"amount\" ").concat(node.field === 'amount' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Amount'), "</option>\n\t\t\t\t\t\t<option value=\"reference\" ").concat(node.field === 'reference' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Reference'), "</option>\n\t\t\t\t\t\t<option value=\"notes\" ").concat(node.field === 'notes' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Notes'), "</option>\n\t\t\t\t\t\t<option value=\"date\" ").concat(node.field === 'date' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Date'), "</option>\n\t\t\t\t\t\t<option value=\"source\" ").concat(node.field === 'source' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Import Source'), "</option>\n\t\t\t\t\t</select>\n\t\t\t\t\t<select class=\"condition-match-type\" data-path=\"").concat(pathStr, "\">\n\t\t\t\t\t\t").concat(this.renderMatchTypeOptions(node.field, node.matchType), "\n\t\t\t\t\t</select>\n\t\t\t\t\t<input type=\"text\" class=\"condition-pattern\" data-path=\"").concat(pathStr, "\"\n\t\t\t\t\t\tvalue=\"").concat(this.escapeHtml(node.pattern || ''), "\"\n\t\t\t\t\t\tplaceholder=\"").concat(this.getPatternPlaceholder(node.field, node.matchType), "\">\n\t\t\t\t\t<button class=\"btn-remove-condition\" type=\"button\" data-path=\"").concat(pathStr, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Remove this condition'), "\">\u2715</button>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t");
+      return "\n\t\t\t<div class=\"criteria-condition\" data-path=\"".concat(pathStr, "\">\n\t\t\t\t<div class=\"condition-row\">\n\t\t\t\t\t<label class=\"negate-checkbox\">\n\t\t\t\t\t\t<input type=\"checkbox\" class=\"condition-negate\" data-path=\"").concat(pathStr, "\" ").concat(node.negate ? 'checked' : '', ">\n\t\t\t\t\t\t<span class=\"negate-label\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'NOT'), "</span>\n\t\t\t\t\t</label>\n\t\t\t\t\t<select class=\"condition-field\" data-path=\"").concat(pathStr, "\">\n\t\t\t\t\t\t<option value=\"description\" ").concat(node.field === 'description' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Description'), "</option>\n\t\t\t\t\t\t<option value=\"vendor\" ").concat(node.field === 'vendor' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Vendor'), "</option>\n\t\t\t\t\t\t<option value=\"amount\" ").concat(node.field === 'amount' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Amount'), "</option>\n\t\t\t\t\t\t<option value=\"type\" ").concat(node.field === 'type' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Transaction Type'), "</option>\n\t\t\t\t\t\t<option value=\"reference\" ").concat(node.field === 'reference' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Reference'), "</option>\n\t\t\t\t\t\t<option value=\"notes\" ").concat(node.field === 'notes' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Notes'), "</option>\n\t\t\t\t\t\t<option value=\"date\" ").concat(node.field === 'date' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Date'), "</option>\n\t\t\t\t\t\t<option value=\"source\" ").concat(node.field === 'source' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Import Source'), "</option>\n\t\t\t\t\t</select>\n\t\t\t\t\t<select class=\"condition-match-type\" data-path=\"").concat(pathStr, "\">\n\t\t\t\t\t\t").concat(this.renderMatchTypeOptions(node.field, node.matchType), "\n\t\t\t\t\t</select>\n\t\t\t\t\t").concat(node.field === 'type' ? "<select class=\"condition-pattern\" data-path=\"".concat(pathStr, "\">\n\t\t\t\t\t\t\t<option value=\"debit\" ").concat(node.pattern === 'debit' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Expense'), "</option>\n\t\t\t\t\t\t\t<option value=\"credit\" ").concat(node.pattern === 'credit' ? 'selected' : '', ">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Income'), "</option>\n\t\t\t\t\t\t</select>") : "<input type=\"text\" class=\"condition-pattern\" data-path=\"".concat(pathStr, "\"\n\t\t\t\t\t\t\tvalue=\"").concat(this.escapeHtml(node.pattern || ''), "\"\n\t\t\t\t\t\t\tplaceholder=\"").concat(this.getPatternPlaceholder(node.field, node.matchType), "\">"), "\n\t\t\t\t\t<button class=\"btn-remove-condition\" type=\"button\" data-path=\"").concat(pathStr, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Remove this condition'), "\">\u2715</button>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t");
     }
   }, {
     key: "renderMatchTypeOptions",
@@ -53115,6 +53123,10 @@ var CriteriaBuilder = /*#__PURE__*/function () {
         types = numericTypes;
       } else if (field === 'date') {
         types = dateTypes;
+      } else if (field === 'type') {
+        types = {
+          'equals': (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'is')
+        };
       }
       return Object.entries(types).map(function (_ref) {
         var _ref2 = _slicedToArray(_ref, 2),
@@ -53196,9 +53208,12 @@ var CriteriaBuilder = /*#__PURE__*/function () {
         });
       });
 
-      // Pattern change
-      this.container.querySelectorAll('.condition-pattern').forEach(function (input) {
-        input.addEventListener('input', function (e) {
+      // Pattern change (input for text, change for select)
+      this.container.querySelectorAll('.condition-pattern').forEach(function (el) {
+        el.addEventListener('input', function (e) {
+          return _this2.updateConditionPattern(e.target.dataset.path, e.target.value);
+        });
+        el.addEventListener('change', function (e) {
           return _this2.updateConditionPattern(e.target.dataset.path, e.target.value);
         });
       });
@@ -53290,6 +53305,9 @@ var CriteriaBuilder = /*#__PURE__*/function () {
           node.matchType = 'equals';
         } else if (value === 'date') {
           node.matchType = 'equals';
+        } else if (value === 'type') {
+          node.matchType = 'equals';
+          node.pattern = 'debit';
         } else {
           node.matchType = 'contains';
         }
