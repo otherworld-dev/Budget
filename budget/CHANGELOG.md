@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.0] - 2026-05-29
+
+### Added
+- **Transaction Type Rule Criteria** — Rules can now filter by Income or Expense transaction type ([#229](https://github.com/otherworld-dev/Budget/issues/229))
+- **Auto-Link as Transfer Action** — New rule action that automatically finds a matching opposite transaction and links them as a transfer. Works in manual rule application, CSV import, and bank sync ([#229](https://github.com/otherworld-dev/Budget/issues/229))
+- **System Info Diagnostics** — Settings panel showing data stats, server info, and recent logs for troubleshooting ([#228](https://github.com/otherworld-dev/Budget/issues/228))
+- **Inline Split Transactions** — View and edit transaction splits directly in the transaction modal
+- **GitHub Actions CI** — Automated linting and test pipeline on push
+- **149 New Tests** — Comprehensive unit tests for previously untested services and controllers
+- Compiled translations for Polish, Russian, and German
+
+### Fixed
+- Dashboard rendering polish and cross-browser consistency
+- Bank sync diagnostic logging and SimpleFIN pending transaction date fix (posted=0 → correct date)
+- Undefined `transferCatCount` variable in repair findings
+- JS lint errors and warnings cleaned up across entire codebase
+
+### Changed
+- Replaced 830-line manual dependency injection with Nextcloud autowiring
+- Extended `AbstractCrudService` in 3 more services (Goals, Pensions, Assets)
+- Removed password protection backend entirely (non-functional legacy feature)
+- Improved security: user scoping on `findByAccount`, input validation, deduplicated router switches
+
 ## [2.26.3] - 2026-05-27
 
 ### Changed
