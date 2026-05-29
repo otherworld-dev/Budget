@@ -330,13 +330,13 @@ class SetupController extends Controller {
             $qbShOut = $db->getQueryBuilder();
             $qbShOut->select($qbShOut->func()->count('id'))
                 ->from('budget_shares')
-                ->where($qbShOut->expr()->eq('owner_id', $qbShOut->createNamedParameter($this->userId)));
+                ->where($qbShOut->expr()->eq('owner_user_id', $qbShOut->createNamedParameter($this->userId)));
             $sharingOut = (int) $qbShOut->executeQuery()->fetchOne();
 
             $qbShIn = $db->getQueryBuilder();
             $qbShIn->select($qbShIn->func()->count('id'))
                 ->from('budget_shares')
-                ->where($qbShIn->expr()->eq('shared_with', $qbShIn->createNamedParameter($this->userId)));
+                ->where($qbShIn->expr()->eq('shared_with_user_id', $qbShIn->createNamedParameter($this->userId)));
             $sharingIn = (int) $qbShIn->executeQuery()->fetchOne();
 
             return new DataResponse([
