@@ -87,7 +87,11 @@ class SimpleFINProvider implements BankSyncProviderInterface {
 
         $client = $this->clientService->newClient();
         try {
-            $response = $client->get($baseUrl . '/accounts', [
+            // Request transactions from the last 90 days.
+            // Without start-date, some providers (especially credit cards)
+            // return zero transactions.
+            $startDate = (new \DateTime('-90 days'))->getTimestamp();
+            $response = $client->get($baseUrl . '/accounts?start-date=' . $startDate, [
                 'auth' => [$username, $password],
                 'timeout' => 30,
             ]);
@@ -100,6 +104,8 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         if (!is_array($data) || !isset($data['accounts'])) {
             throw new \Exception('Unexpected response format from SimpleFIN');
         }
+
+        $this->logger->info('SimpleFIN returned ' . count($data['accounts']) . ' accounts (start-date: ' . date('Y-m-d', $startDate) . ')', ['app' => 'budget']);
 
         // Normalize to common format
         $accounts = [];
