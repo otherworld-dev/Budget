@@ -65953,6 +65953,10 @@ window.fetch = function () {
     var url = typeof args[0] === 'string' ? args[0] : ((_args$ = args[0]) === null || _args$ === void 0 ? void 0 : _args$.url) || '';
     if (url.includes('/apps/budget/') && !response.ok) {
       var _args$2;
+      // 403 on admin endpoints is expected for non-admin users
+      if (response.status === 403 && url.includes('/api/admin/')) {
+        return response;
+      }
       var method = ((_args$2 = args[1]) === null || _args$2 === void 0 ? void 0 : _args$2.method) || 'GET';
       budgetDiagnostics.captureFailedRequest(url, response.status, method);
     }

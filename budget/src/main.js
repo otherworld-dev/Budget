@@ -50,6 +50,10 @@ window.fetch = function(...args) {
     return _originalFetch.apply(this, args).then(response => {
         const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
         if (url.includes('/apps/budget/') && !response.ok) {
+            // 403 on admin endpoints is expected for non-admin users
+            if (response.status === 403 && url.includes('/api/admin/')) {
+                return response;
+            }
             const method = args[1]?.method || 'GET';
             budgetDiagnostics.captureFailedRequest(url, response.status, method);
         }
