@@ -8,14 +8,15 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.26
+## What's New in v2.27
 
-- **Gridstack.js Dashboard** - Reliable drag-and-drop tile positioning replacing the custom implementation
-- **Duplicate Dashboard Tiles** - Add multiple instances of chart/transaction tiles with independent account and period settings (up to 5 each)
-- **Hero Tile Reordering** - Drag-and-drop ordering for hero tiles when unlocked
-- **Category Details Enhancement** - Date range picker, account filter, and budget vs actuals chart overlay
-- **Account Filtering** - Added to Budget Progress and Top Spending Categories tiles, plus backend API support
-- **Shared Account Fixes** - R/W users can now edit/delete shared accounts; dashboard summary includes shared accounts ([#215](https://github.com/otherworld-dev/Budget/issues/215), [#216](https://github.com/otherworld-dev/Budget/issues/216))
+- **Transaction Type Rule Criteria** - Rules can now filter by Income or Expense, solving the Monzo pot transfer problem ([#229](https://github.com/otherworld-dev/Budget/issues/229))
+- **Auto-Link as Transfer Action** - New rule action that automatically matches and links opposite transactions as transfers ([#229](https://github.com/otherworld-dev/Budget/issues/229))
+- **System Info Diagnostics** - Settings panel with data stats, server info, and logs for easier troubleshooting ([#228](https://github.com/otherworld-dev/Budget/issues/228))
+- **Inline Split Transactions** - View and edit splits directly in the transaction modal
+- **CI Pipeline** - GitHub Actions for automated linting and tests
+- **149 New Tests** - Comprehensive unit test coverage for services and controllers
+- **Codebase Modernization** - Autowiring, service abstractions, security hardening, and password protection removal
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
