@@ -28,6 +28,7 @@ class BankSyncService {
         private AuditService $auditService,
         private AdminSettingService $adminSettings,
         private AccountMapper $accountMapper,
+        private \OCA\Budget\Db\DismissedImportMapper $dismissedImportMapper,
         private \OCA\Budget\Service\Import\ImportRuleApplicator $ruleApplicator,
         private \OCA\Budget\Service\TransactionTagService $transactionTagService,
         private IL10N $l,
@@ -225,8 +226,9 @@ class BankSyncService {
             foreach ($externalAccount['transactions'] as $tx) {
                 $importId = $connection->getProvider() . ':' . $tx['id'];
 
-                // Check for duplicate via import ID
-                if ($this->transactionService->existsByImportId($budgetAccountId, $importId)) {
+                // Check for duplicate via import ID or dismissed import
+                if ($this->transactionService->existsByImportId($budgetAccountId, $importId)
+                    || $this->dismissedImportMapper->isDismissed($budgetAccountId, $importId)) {
                     $skipped++;
                     continue;
                 }

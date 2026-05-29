@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Db\DismissedImportMapper;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
@@ -30,13 +31,15 @@ class TransactionServiceTest extends TestCase {
         $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
         $splitMapper->method('findByTransactionIds')->willReturn([]);
         $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
+        $dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
 
         $this->service = new TransactionService(
             $this->mapper,
             $this->accountMapper,
             $this->transactionTagMapper,
             $splitMapper,
-            $this->expenseShareMapper
+            $this->expenseShareMapper,
+            $dismissedImportMapper
         );
     }
 

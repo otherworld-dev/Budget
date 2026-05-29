@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\DismissedImportMapper;
 use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\RecurringIncome;
@@ -22,19 +23,22 @@ class TransactionService {
     private TransactionTagMapper $transactionTagMapper;
     private TransactionSplitMapper $splitMapper;
     private ExpenseShareMapper $expenseShareMapper;
+    private DismissedImportMapper $dismissedImportMapper;
 
     public function __construct(
         TransactionMapper $mapper,
         AccountMapper $accountMapper,
         TransactionTagMapper $transactionTagMapper,
         TransactionSplitMapper $splitMapper,
-        ExpenseShareMapper $expenseShareMapper
+        ExpenseShareMapper $expenseShareMapper,
+        DismissedImportMapper $dismissedImportMapper
     ) {
         $this->mapper = $mapper;
         $this->accountMapper = $accountMapper;
         $this->transactionTagMapper = $transactionTagMapper;
         $this->splitMapper = $splitMapper;
         $this->expenseShareMapper = $expenseShareMapper;
+        $this->dismissedImportMapper = $dismissedImportMapper;
     }
 
     /**
@@ -515,6 +519,18 @@ class TransactionService {
         if ($status !== 'scheduled') {
             $reverseType = $transaction->getType() === 'credit' ? 'debit' : 'credit';
             $this->updateAccountBalance($account, $transaction->getAmount(), $reverseType, $userId);
+        }
+
+        // Record dismissed import ID for bank-synced transactions so they
+        // don't get re-imported on the next sync. Only applies to provider-
+        // prefixed IDs (e.g. "simplefin:xxx", "gocardless:xxx"), not CSV imports.
+        $importId = $transaction->getImportId();
+        if ($importId !== null && $importId !== '' && str_contains($importId, ':')) {
+            try {
+                $this->dismissedImportMapper->dismiss($transaction->getAccountId(), $importId);
+            } catch (\Exception $e) {
+                // Ignore duplicates — already dismissed
+            }
         }
 
         // Cascade delete: Delete transaction tags and expense shares

@@ -49,6 +49,8 @@ class BankSyncServiceTest extends TestCase {
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$this->provider = $this->createMock(BankSyncProviderInterface::class);
 
+		$dismissedImportMapper = $this->createMock(\OCA\Budget\Db\DismissedImportMapper::class);
+
 		$ruleApplicator = $this->createMock(\OCA\Budget\Service\Import\ImportRuleApplicator::class);
 		$ruleApplicator->method('applyRules')->willReturnArgument(1);
 
@@ -62,6 +64,7 @@ class BankSyncServiceTest extends TestCase {
 			$this->auditService,
 			$this->adminSettings,
 			$this->accountMapper,
+			$dismissedImportMapper,
 			$ruleApplicator,
 			$transactionTagService,
 			$this->l,
