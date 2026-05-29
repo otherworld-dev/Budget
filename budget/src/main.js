@@ -1681,7 +1681,7 @@ class BudgetApp {
         if (totalIssues === 0) {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
         } else {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (transferCatCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) })}</p></div>`;
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) })}</p></div>`;
 
             // Duplicate transactions
             if (dupCount > 0) {

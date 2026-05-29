@@ -68100,7 +68100,7 @@ var BudgetApp = /*#__PURE__*/function () {
       } else {
         findingsHtml = "<div class=\"repair-summary\"><p>".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_1__.translate)('budget', 'Found {count} issue(s) across {categories} categories.', {
           count: totalIssues,
-          categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (transferCatCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0)
+          categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0)
         }), "</p></div>");
 
         // Duplicate transactions
