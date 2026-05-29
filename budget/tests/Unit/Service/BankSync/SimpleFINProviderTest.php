@@ -180,7 +180,7 @@ class SimpleFINProviderTest extends TestCase {
 		$this->client->expects($this->once())
 			->method('get')
 			->with(
-				'https://bridge.simplefin.org/simplefin/accounts',
+				$this->stringStartsWith('https://bridge.simplefin.org/simplefin/accounts?start-date='),
 				$this->callback(function ($opts) {
 					return $opts['auth'] === ['user', 'pass'] && $opts['timeout'] === 30;
 				})
@@ -296,7 +296,7 @@ class SimpleFINProviderTest extends TestCase {
 		$this->client->expects($this->once())
 			->method('get')
 			->with(
-				'https://bridge.simplefin.org:8443/simplefin/accounts',
+				$this->stringStartsWith('https://bridge.simplefin.org:8443/simplefin/accounts?start-date='),
 				$this->anything()
 			)
 			->willReturn($response);
