@@ -113,7 +113,7 @@ class BankSyncService {
      *
      * @return array{imported: int, skipped: int, errors: int, accounts: array}
      */
-    public function sync(string $userId, int $connectionId): array {
+    public function sync(string $userId, int $connectionId, bool $force = false): array {
         $this->requireEnabled();
 
         $connection = $this->connectionMapper->find($connectionId, $userId);
@@ -226,9 +226,14 @@ class BankSyncService {
             foreach ($externalAccount['transactions'] as $tx) {
                 $importId = $connection->getProvider() . ':' . $tx['id'];
 
-                // Check for duplicate via import ID or dismissed import
-                if ($this->transactionService->existsByImportId($budgetAccountId, $importId)
-                    || $this->dismissedImportMapper->isDismissed($budgetAccountId, $importId)) {
+                // Check for duplicate via import ID
+                if ($this->transactionService->existsByImportId($budgetAccountId, $importId)) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Check dismissed imports (skip check when force re-sync)
+                if (!$force && $this->dismissedImportMapper->isDismissed($budgetAccountId, $importId)) {
                     $skipped++;
                     continue;
                 }
@@ -395,12 +400,19 @@ class BankSyncService {
             throw new \Exception('Mapping does not belong to this connection');
         }
 
+        $oldBudgetAccountId = $mapping->getBudgetAccountId();
+
         if ($clearBudgetAccount) {
             $mapping->setBudgetAccountId(null);
         } elseif ($budgetAccountId !== null) {
             // Verify the budget account belongs to this user
             $this->accountMapper->find($budgetAccountId, $userId);
             $mapping->setBudgetAccountId($budgetAccountId);
+        }
+
+        // Clear dismissed imports when mapping changes so re-sync can re-import
+        if ($oldBudgetAccountId !== null && $mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
+            $this->dismissedImportMapper->deleteByAccount($oldBudgetAccountId);
         }
 
         if ($enabled !== null) {

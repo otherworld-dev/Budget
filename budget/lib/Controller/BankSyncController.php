@@ -210,11 +210,11 @@ class BankSyncController extends Controller {
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 10, period: 60)]
-    public function sync(int $id): DataResponse {
+    public function sync(int $id, bool $force = false): DataResponse {
         if ($r = $this->requireBankSync()) return $r;
 
         try {
-            $result = $this->syncService->sync($this->userId, $id);
+            $result = $this->syncService->sync($this->userId, $id, $force);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to sync bank data'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);

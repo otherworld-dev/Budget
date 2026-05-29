@@ -32238,7 +32238,7 @@ var BankSyncModule = /*#__PURE__*/function () {
         }).length;
         var isExpired = connection.status === 'expired';
         var isGoCardless = connection.provider === 'gocardless';
-        var actionBtn = isExpired && isGoCardless ? "<button class=\"btn btn-sm btn-warning bank-reauth-btn\" data-connection-id=\"".concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Re-authorize'), "\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Re-authorize'), "</button>") : "<button class=\"btn btn-sm bank-sync-btn\" data-connection-id=\"".concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Sync now'), "\">\n                    <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z\"/></svg>\n                </button>");
+        var actionBtn = isExpired && isGoCardless ? "<button class=\"btn btn-sm btn-warning bank-reauth-btn\" data-connection-id=\"".concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Re-authorize'), "\">").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Re-authorize'), "</button>") : "<button class=\"btn btn-sm bank-sync-btn\" data-connection-id=\"".concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Sync now'), "\">\n                    <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z\"/></svg>\n                </button>\n                <button class=\"btn btn-sm bank-force-sync-btn\" data-connection-id=\"").concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Re-import previously deleted transactions'), "\" style=\"font-size: 11px; padding: 2px 8px; opacity: 0.7;\">\n                    ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Force'), "\n                </button>");
         return "\n                <div class=\"bank-connection-card\" data-connection-id=\"".concat(connection.id, "\">\n                    <div class=\"bank-connection-header\">\n                        <div class=\"bank-connection-info\">\n                            <strong>").concat(_this2.escapeHtml(connection.name), "</strong>\n                            <span class=\"bank-connection-provider\">").concat(providerLabel, "</span>\n                            <span class=\"bank-connection-status ").concat(statusClass, "\">").concat(statusLabel, "</span>\n                        </div>\n                        <div class=\"bank-connection-actions\">\n                            ").concat(actionBtn, "\n                            <button class=\"btn btn-sm bank-mappings-btn\" data-connection-id=\"").concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Account mappings'), "\">\n                                <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z\"/></svg>\n                            </button>\n                            <button class=\"btn btn-sm btn-danger bank-disconnect-btn\" data-connection-id=\"").concat(connection.id, "\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Disconnect'), "\">\n                                <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z\"/></svg>\n                            </button>\n                        </div>\n                    </div>\n                    <div class=\"bank-connection-meta\">\n                        <span>").concat(lastSync, "</span>\n                        <span>").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', '{count} account(s) mapped', {
           count: mappedCount
         }), "</span>\n                        <label class=\"bank-connection-toggle\" title=\"").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Auto-apply import rules to synced transactions'), "\">\n                            <input type=\"checkbox\" class=\"apply-rules-checkbox\" data-connection-id=\"").concat(connection.id, "\" ").concat(connection.applyRules ? 'checked' : '', ">\n                            <span>").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Apply rules'), "</span>\n                        </label>\n                        ").concat(connection.lastError ? "<span class=\"bank-connection-error\">".concat(_this2.escapeHtml(connection.lastError), "</span>") : '', "\n                    </div>\n                </div>\n            ");
@@ -32246,6 +32246,11 @@ var BankSyncModule = /*#__PURE__*/function () {
       container.querySelectorAll('.bank-sync-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           return _this2.syncConnection(parseInt(btn.dataset.connectionId));
+        });
+      });
+      container.querySelectorAll('.bank-force-sync-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          return _this2.syncConnection(parseInt(btn.dataset.connectionId), true);
         });
       });
       container.querySelectorAll('.bank-reauth-btn').forEach(function (btn) {
@@ -32924,36 +32929,48 @@ var BankSyncModule = /*#__PURE__*/function () {
     key: "syncConnection",
     value: function () {
       var _syncConnection = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(connectionId) {
-        var response, error, result, _t8;
+        var force,
+          url,
+          response,
+          error,
+          result,
+          _args0 = arguments,
+          _t8;
         return _regenerator().w(function (_context0) {
           while (1) switch (_context0.p = _context0.n) {
             case 0:
-              _context0.p = 0;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Syncing...'));
-              _context0.n = 1;
-              return fetch(OC.generateUrl("/apps/budget/api/bank-sync/connections/".concat(connectionId, "/sync")), {
+              force = _args0.length > 1 && _args0[1] !== undefined ? _args0[1] : false;
+              _context0.p = 1;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', force ? 'Force syncing...' : 'Syncing...'));
+              url = OC.generateUrl("/apps/budget/api/bank-sync/connections/".concat(connectionId, "/sync"));
+              _context0.n = 2;
+              return fetch(url, {
                 method: 'POST',
                 headers: {
+                  'Content-Type': 'application/json',
                   'requesttoken': OC.requestToken
-                }
+                },
+                body: JSON.stringify({
+                  force: force
+                })
               });
-            case 1:
+            case 2:
               response = _context0.v;
               if (response.ok) {
-                _context0.n = 3;
+                _context0.n = 4;
                 break;
               }
-              _context0.n = 2;
+              _context0.n = 3;
               return response.json()["catch"](function () {
                 return {};
               });
-            case 2:
+            case 3:
               error = _context0.v;
               throw new Error(error.error || "HTTP ".concat(response.status));
-            case 3:
-              _context0.n = 4;
-              return response.json();
             case 4:
+              _context0.n = 5;
+              return response.json();
+            case 5:
               result = _context0.v;
               if (result.message) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)(result.message);
@@ -32964,24 +32981,24 @@ var BankSyncModule = /*#__PURE__*/function () {
                   skipped: result.skipped
                 }));
               }
-              _context0.n = 5;
+              _context0.n = 6;
               return this.loadConnections();
-            case 5:
-              _context0.n = 7;
-              break;
             case 6:
-              _context0.p = 6;
+              _context0.n = 8;
+              break;
+            case 7:
+              _context0.p = 7;
               _t8 = _context0.v;
               console.error('Failed to sync:', _t8);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'Sync failed: {error}', {
                 error: _t8.message
               }));
-              _context0.n = 7;
+              _context0.n = 8;
               return this.loadConnections();
-            case 7:
+            case 8:
               return _context0.a(2);
           }
-        }, _callee0, this, [[0, 6]]);
+        }, _callee0, this, [[1, 7]]);
       }));
       function syncConnection(_x3) {
         return _syncConnection.apply(this, arguments);

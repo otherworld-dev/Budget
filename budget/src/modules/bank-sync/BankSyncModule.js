@@ -167,6 +167,9 @@ export default class BankSyncModule {
                 ? `<button class="btn btn-sm btn-warning bank-reauth-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-authorize')}">${t('budget', 'Re-authorize')}</button>`
                 : `<button class="btn btn-sm bank-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Sync now')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
+                </button>
+                <button class="btn btn-sm bank-force-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-import previously deleted transactions')}" style="font-size: 11px; padding: 2px 8px; opacity: 0.7;">
+                    ${t('budget', 'Force')}
                 </button>`;
 
             return `
@@ -202,6 +205,9 @@ export default class BankSyncModule {
 
         container.querySelectorAll('.bank-sync-btn').forEach(btn => {
             btn.addEventListener('click', () => this.syncConnection(parseInt(btn.dataset.connectionId)));
+        });
+        container.querySelectorAll('.bank-force-sync-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.syncConnection(parseInt(btn.dataset.connectionId), true));
         });
         container.querySelectorAll('.bank-reauth-btn').forEach(btn => {
             btn.addEventListener('click', () => this.startReauthorize(parseInt(btn.dataset.connectionId)));
@@ -644,12 +650,17 @@ export default class BankSyncModule {
 
     // ── Sync ────────────────────────────────────────────────────
 
-    async syncConnection(connectionId) {
+    async syncConnection(connectionId, force = false) {
         try {
-            showSuccess(t('budget', 'Syncing...'));
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/sync`), {
+            showSuccess(t('budget', force ? 'Force syncing...' : 'Syncing...'));
+            const url = OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/sync`);
+            const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ force })
             });
 
             if (!response.ok) {
