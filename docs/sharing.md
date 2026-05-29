@@ -45,6 +45,17 @@ When you remove a share, the user loses access immediately. No data is deleted f
 
 > **Warning:** Removing a share cannot be undone from the shared user's perspective. They will lose access to all your budget data instantly.
 
+## Dashboard Integration
+
+When you receive shared access to another user's accounts, those accounts are automatically included in your [Dashboard](dashboard.md) summary. This means:
+
+- **Net Worth** includes balances from shared accounts
+- **Income/Expenses This Month** includes transactions from shared accounts
+- **Currency breakdowns** reflect shared account currencies
+- **Account count** includes shared accounts
+
+The **Recent Transactions** widget also displays transactions from shared accounts.
+
 ## Related Features
 
 - [Shared Expenses](shared-expenses.md) - Track and split expenses with contacts

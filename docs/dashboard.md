@@ -69,6 +69,8 @@ Hero tiles occupy the top section of the dashboard. Each displays a large metric
 | **Account Income** | Income for the currently selected account |
 | **Account Expenses** | Expenses for the currently selected account |
 
+> **Shared accounts:** If other users have shared their accounts with you, those accounts are included in all dashboard summary calculations — Net Worth, Income/Expenses This Month, currency breakdowns, and account counts. Shared accounts are marked with a sharing indicator.
+
 ## Widget Tiles
 
 Widget tiles provide detailed views, lists, charts, and actionable information:
