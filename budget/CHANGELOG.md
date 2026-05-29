@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.1] - 2026-05-29
+
+### Fixed
+- Dashboard summary now includes shared accounts in balance totals, currency breakdown, and account count ([#215](https://github.com/otherworld-dev/Budget/issues/215))
+- SimpleFIN sync now passes `start-date` parameter — fixes credit card accounts returning zero transactions ([#230](https://github.com/otherworld-dev/Budget/issues/230))
+- System Info panel no longer fails with DbalException due to wrong column names in sharing query ([#236](https://github.com/otherworld-dev/Budget/issues/236))
+- Recompiled all l10n files — Russian translation now fully available, Polish language added ([#237](https://github.com/otherworld-dev/Budget/issues/237))
+
 ## [2.27.0] - 2026-05-29
 
 ### Added
