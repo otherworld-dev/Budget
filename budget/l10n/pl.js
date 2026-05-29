@@ -1,0 +1,15 @@
+OC.L10N.register(
+    "budget",
+    {
+    "Failed to retrieve accounts" : "Nie udało się pobrać kont",
+    "Account not found" : "Nie znaleziono konta",
+    "Account" : "Konto",
+    "Invalid JSON data or empty request" : "Nieprawidłowe dane JSON lub puste żądanie",
+    "Account type is required and cannot be empty" : "Pole „Typ konta” jest obowiązkowe i nie może pozostać puste",
+    "Invalid account type: %1$s" : "Nieprawidłowy typ konta: %1$s",
+    "Invalid currency: %1$s" : "Nieprawidłowa kwota: %1$s",
+    "Institution" : "Instytucja",
+    "Account holder name" : "Nazwa właściciela konta",
+    "Invalid routing number: %1$s" : "Nieprawidłowy numer routingu: %1$s"
+},
+"nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);");
