@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.3] - 2026-05-29
+
+### Fixed
+- **Shared accounts now included across all features** — Reports (spending, income, cashflow, tags), forecasts, net worth, and category transaction counts now include data from shared accounts ([#215](https://github.com/otherworld-dev/Budget/issues/215))
+- Quick-add page dropdowns now show shared accounts and categories
+- 18 TransactionMapper query methods updated to support shared account filtering via `visibleAccountIds`
+
 ## [2.27.2] - 2026-05-29
 
 ### Added
