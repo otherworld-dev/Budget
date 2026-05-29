@@ -96,7 +96,8 @@ class ReportService {
         ?int $accountId = null,
         string $groupBy = 'category',
         ?int $tagSetId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         $report = [
             'period' => [
@@ -112,12 +113,12 @@ class ReportService {
         ];
 
         $report['data'] = match ($groupBy) {
-            'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate),
-            'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate),
-            'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate),
-            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate),
+            'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate, $visibleAccountIds),
             'tag' => $tagSetId !== null
-                ? $this->calculator->getSpendingByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId)
+                ? $this->calculator->getSpendingByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
                 : [],
             default => [],
         };
@@ -159,7 +160,8 @@ class ReportService {
         ?int $accountId = null,
         string $groupBy = 'month',
         ?int $tagSetId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         $report = [
             'period' => [
@@ -175,11 +177,11 @@ class ReportService {
         ];
 
         $report['data'] = match ($groupBy) {
-            'category' => $this->calculator->getIncomeByCategory($userId, $accountId, $startDate, $endDate),
-            'month' => $this->calculator->getIncomeByMonth($userId, $accountId, $startDate, $endDate),
-            'source' => $this->calculator->getIncomeBySource($userId, $accountId, $startDate, $endDate),
+            'category' => $this->calculator->getIncomeByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'month' => $this->calculator->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'source' => $this->calculator->getIncomeBySource($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
             'tag' => $tagSetId !== null
-                ? $this->calculator->getIncomeByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId)
+                ? $this->calculator->getIncomeByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
                 : [],
             default => [],
         };
@@ -227,7 +229,8 @@ class ReportService {
         string $endDate,
         ?int $accountId = null,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->aggregator->getCashFlowReport(
             $userId,
@@ -235,7 +238,8 @@ class ReportService {
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $visibleAccountIds
         );
     }
 
@@ -247,14 +251,16 @@ class ReportService {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->aggregator->getTagDimensions(
             $userId,
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
     }
 
@@ -268,7 +274,8 @@ class ReportService {
         ?int $accountId = null,
         ?int $categoryId = null,
         int $minCombinationSize = 2,
-        int $limit = 50
+        int $limit = 50,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->tagReportService->getTagCombinationReport(
             $userId,
@@ -277,7 +284,8 @@ class ReportService {
             $accountId,
             $categoryId,
             $minCombinationSize,
-            $limit
+            $limit,
+            $visibleAccountIds
         );
     }
 
@@ -361,14 +369,15 @@ class ReportService {
         string $format,
         string $startDate,
         string $endDate,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
     ): array {
         // Generate the report data
         $data = match ($type) {
-            'summary' => $this->generateSummaryWithComparison($userId, $startDate, $endDate, $accountId),
-            'spending' => $this->getSpendingReport($userId, $startDate, $endDate, $accountId),
-            'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId),
-            'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId),
+            'summary' => $this->generateSummaryWithComparison($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds ?? []),
+            'spending' => $this->getSpendingReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
+            'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
+            'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
             'budget' => $this->getBudgetReport($userId, $startDate, $endDate),
             default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
         };

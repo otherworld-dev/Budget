@@ -72,11 +72,16 @@ class ForecastService {
         string $userId,
         ?int $accountId = null,
         int $basedOnMonths = 3,
-        int $forecastMonths = 6
+        int $forecastMonths = 6,
+        ?array $visibleAccountIds = null
     ): array {
-        $accounts = $accountId
-            ? [$this->accountMapper->find($accountId, $userId)]
-            : $this->accountMapper->findAll($userId);
+        if ($accountId) {
+            $accounts = [$this->accountMapper->find($accountId, $userId)];
+        } else {
+            $accounts = !empty($visibleAccountIds)
+                ? $this->accountMapper->findByIds($visibleAccountIds)
+                : $this->accountMapper->findAll($userId);
+        }
 
         // Get future transaction adjustments to calculate balance as of today
         $today = date('Y-m-d');
@@ -127,7 +132,7 @@ class ForecastService {
      * Get live forecast data for dashboard display.
      * OPTIMIZED: Results are cached for 5 minutes.
      */
-    public function getLiveForecast(string $userId, int $forecastMonths = 6): array {
+    public function getLiveForecast(string $userId, int $forecastMonths = 6, ?array $visibleAccountIds = null): array {
         $cacheKey = "live_{$userId}_{$forecastMonths}";
 
         // Try to get from cache
@@ -138,7 +143,9 @@ class ForecastService {
             }
         }
 
-        $accounts = $this->accountMapper->findAll($userId);
+        $accounts = !empty($visibleAccountIds)
+            ? $this->accountMapper->findByIds($visibleAccountIds)
+            : $this->accountMapper->findAll($userId);
 
         // Get future transaction adjustments to calculate balance as of today
         $today = date('Y-m-d');
@@ -168,7 +175,7 @@ class ForecastService {
         // Get historical transactions
         $endDate = date('Y-m-d');
         $startDate = date('Y-m-d', strtotime('-12 months'));
-        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
+        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
 
         // Analyze patterns
         $monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);
@@ -305,7 +312,8 @@ class ForecastService {
         string $userId,
         string $startDate,
         string $endDate,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return [
             'periods' => [],
@@ -320,7 +328,8 @@ class ForecastService {
     public function getSpendingTrends(
         string $userId,
         ?int $accountId = null,
-        int $months = 12
+        int $months = 12,
+        ?array $visibleAccountIds = null
     ): array {
         return [
             'monthlyTrends' => [],
@@ -335,7 +344,8 @@ class ForecastService {
     public function runScenarios(
         string $userId,
         ?int $accountId = null,
-        array $scenarios = []
+        array $scenarios = [],
+        ?array $visibleAccountIds = null
     ): array {
         return $this->scenarioBuilder->runScenarios($userId, $accountId, $scenarios);
     }
@@ -348,9 +358,10 @@ class ForecastService {
         ?int $accountId = null,
         int $historicalPeriod = 6,
         int $forecastHorizon = 6,
-        int $confidenceLevel = 90
+        int $confidenceLevel = 90,
+        ?array $visibleAccountIds = null
     ): array {
-        $baseForecast = $this->generateForecast($userId, $accountId, $historicalPeriod, $forecastHorizon);
+        $baseForecast = $this->generateForecast($userId, $accountId, $historicalPeriod, $forecastHorizon, $visibleAccountIds);
 
         $intelligence = [
             'confidence' => $confidenceLevel,

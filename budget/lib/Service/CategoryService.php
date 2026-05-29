@@ -298,8 +298,8 @@ class CategoryService extends AbstractCrudService {
      * Get transaction counts per category for tree display
      * @return array<int, int> categoryId => count
      */
-    public function getCategoryTransactionCounts(string $userId): array {
-        return $this->transactionMapper->getCategoryTransactionCounts($userId);
+    public function getCategoryTransactionCounts(string $userId, ?array $visibleAccountIds = null): array {
+        return $this->transactionMapper->getCategoryTransactionCounts($userId, $visibleAccountIds);
     }
 
     public function getCategorySpending(int $categoryId, string $userId, string $startDate, string $endDate): float {

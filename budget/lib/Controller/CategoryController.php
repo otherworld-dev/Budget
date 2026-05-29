@@ -119,7 +119,7 @@ class CategoryController extends Controller {
      */
     public function transactionCounts(): DataResponse {
         try {
-            $counts = $this->service->getCategoryTransactionCounts($this->getEffectiveUserId());
+            $counts = $this->service->getCategoryTransactionCounts($this->getEffectiveUserId(), $this->getVisibleAccountIds());
             return new DataResponse($counts);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve transaction counts'));

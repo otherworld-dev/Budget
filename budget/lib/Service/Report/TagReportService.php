@@ -46,7 +46,8 @@ class TagReportService {
         ?int $accountId = null,
         ?int $categoryId = null,
         int $minCombinationSize = 2,
-        int $limit = 50
+        int $limit = 50,
+        ?array $visibleAccountIds = null
     ): array {
         $combinations = $this->transactionMapper->getSpendingByTagCombination(
             $userId,
@@ -55,7 +56,8 @@ class TagReportService {
             $accountId,
             $categoryId,
             $minCombinationSize,
-            $limit
+            $limit,
+            $visibleAccountIds
         );
 
         return [

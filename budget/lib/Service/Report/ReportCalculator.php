@@ -29,9 +29,10 @@ class ReportCalculator {
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, $accountId);
+        return $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds);
     }
 
     /**
@@ -41,9 +42,10 @@ class ReportCalculator {
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
-        $data = $this->transactionMapper->getSpendingByMonth($userId, $accountId, $startDate, $endDate);
+        $data = $this->transactionMapper->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
         return array_map(fn($row) => [
             'name' => $this->formatMonthLabel($row['month']),
             'month' => $row['month'],
@@ -59,9 +61,10 @@ class ReportCalculator {
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingByVendor($userId, $accountId, $startDate, $endDate);
+        return $this->transactionMapper->getSpendingByVendor($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
     }
 
     /**
@@ -71,9 +74,10 @@ class ReportCalculator {
     public function getSpendingByAccount(
         string $userId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingByAccountAggregated($userId, $startDate, $endDate);
+        return $this->transactionMapper->getSpendingByAccountAggregated($userId, $startDate, $endDate, $visibleAccountIds);
     }
 
     /**
@@ -83,10 +87,11 @@ class ReportCalculator {
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
         // For income by category, use income by source as a proxy
-        return $this->getIncomeBySource($userId, $accountId, $startDate, $endDate);
+        return $this->getIncomeBySource($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
     }
 
     /**
@@ -96,9 +101,10 @@ class ReportCalculator {
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
-        $data = $this->transactionMapper->getIncomeByMonth($userId, $accountId, $startDate, $endDate);
+        $data = $this->transactionMapper->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
         return array_map(fn($row) => [
             'name' => $this->formatMonthLabel($row['month']),
             'month' => $row['month'],
@@ -114,9 +120,10 @@ class ReportCalculator {
         string $userId,
         ?int $accountId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getIncomeBySource($userId, $accountId, $startDate, $endDate);
+        return $this->transactionMapper->getIncomeBySource($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
     }
 
     /**
@@ -189,7 +196,8 @@ class ReportCalculator {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->transactionMapper->getSpendingByTag(
             $userId,
@@ -197,7 +205,8 @@ class ReportCalculator {
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
     }
 
@@ -210,7 +219,8 @@ class ReportCalculator {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->transactionMapper->getIncomeByTag(
             $userId,
@@ -218,7 +228,8 @@ class ReportCalculator {
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
     }
 }
