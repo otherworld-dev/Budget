@@ -136,7 +136,8 @@ class ReportService {
             }
             if (!empty($excludedIds)) {
                 $report['data'] = array_values(array_filter($report['data'], function ($item) use ($excludedIds) {
-                    return !isset($excludedIds[$item['categoryId'] ?? 0]);
+                    $catId = $item['categoryId'] ?? $item['id'] ?? 0;
+                    return !isset($excludedIds[$catId]);
                 }));
             }
         }
@@ -197,7 +198,8 @@ class ReportService {
             }
             if (!empty($excludedIds)) {
                 $report['data'] = array_values(array_filter($report['data'], function ($item) use ($excludedIds) {
-                    return !isset($excludedIds[$item['categoryId'] ?? 0]);
+                    $catId = $item['categoryId'] ?? $item['id'] ?? 0;
+                    return !isset($excludedIds[$catId]);
                 }));
             }
         }
