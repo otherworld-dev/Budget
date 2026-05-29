@@ -49,8 +49,10 @@ class NetWorthService {
      *
      * @return array{totalAssets: float, totalLiabilities: float, netWorth: float, baseCurrency: string, unconvertedCurrencies: string[]}
      */
-    public function calculateNetWorth(string $userId): array {
-        $accounts = $this->accountMapper->findAll($userId);
+    public function calculateNetWorth(string $userId, ?array $visibleAccountIds = null): array {
+        $accounts = !empty($visibleAccountIds)
+            ? $this->accountMapper->findByIds($visibleAccountIds)
+            : $this->accountMapper->findAll($userId);
 
         // Get future transaction adjustments for all accounts in one query
         $today = date('Y-m-d');
@@ -161,10 +163,11 @@ class NetWorthService {
     public function createSnapshot(
         string $userId,
         string $source = NetWorthSnapshot::SOURCE_MANUAL,
-        ?string $date = null
+        ?string $date = null,
+        ?array $visibleAccountIds = null
     ): NetWorthSnapshot {
         $date = $date ?? date('Y-m-d');
-        $netWorthData = $this->calculateNetWorth($userId);
+        $netWorthData = $this->calculateNetWorth($userId, $visibleAccountIds);
 
         // Check if snapshot already exists for this date (upsert logic)
         $existing = $this->snapshotMapper->findByDate($userId, $date);

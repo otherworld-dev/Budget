@@ -58,7 +58,7 @@ class NetWorthController extends Controller {
      */
     public function current(): DataResponse {
         try {
-            $data = $this->service->calculateNetWorth($this->getEffectiveUserId());
+            $data = $this->service->calculateNetWorth($this->getEffectiveUserId(), $this->getVisibleAccountIds());
             return new DataResponse($data);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to calculate net worth'));
@@ -90,7 +90,9 @@ class NetWorthController extends Controller {
         try {
             $snapshot = $this->service->createSnapshot(
                 $this->getEffectiveUserId(),
-                \OCA\Budget\Db\NetWorthSnapshot::SOURCE_MANUAL
+                \OCA\Budget\Db\NetWorthSnapshot::SOURCE_MANUAL,
+                null,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($snapshot, Http::STATUS_CREATED);
         } catch (\Exception $e) {

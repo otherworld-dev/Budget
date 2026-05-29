@@ -100,7 +100,8 @@ class ReportController extends Controller {
                 $accountId,
                 $groupBy,
                 $tagSetId,
-                $categoryId
+                $categoryId,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($spending);
         } catch (\Exception $e) {
@@ -134,7 +135,8 @@ class ReportController extends Controller {
                 $accountId,
                 $groupBy,
                 $tagSetId,
-                $categoryId
+                $categoryId,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($income);
         } catch (\Exception $e) {
@@ -166,7 +168,8 @@ class ReportController extends Controller {
                 $format,
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                $this->getVisibleAccountIds()
             );
 
             return new DataDownloadResponse(
@@ -264,7 +267,8 @@ class ReportController extends Controller {
                 $endDate,
                 $accountId,
                 $tagIds ?? [],
-                $includeUntagged ?? true
+                $includeUntagged ?? true,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
@@ -295,7 +299,8 @@ class ReportController extends Controller {
                 $startDate,
                 $endDate,
                 $accountId,
-                $categoryId
+                $categoryId,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($dimensions);
         } catch (\Exception $e) {
@@ -330,7 +335,8 @@ class ReportController extends Controller {
                 $accountId,
                 $categoryId,
                 $minCombinationSize,
-                $limit
+                $limit,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($combinations);
         } catch (\Exception $e) {

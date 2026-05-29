@@ -53,7 +53,8 @@ class ForecastController extends Controller {
                 $this->getEffectiveUserId(),
                 $accountId,
                 $basedOnMonths,
-                $forecastMonths
+                $forecastMonths,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($forecast);
         } catch (\Exception $e) {
@@ -81,7 +82,8 @@ class ForecastController extends Controller {
                 $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($cashflow);
         } catch (\Exception $e) {
@@ -100,7 +102,8 @@ class ForecastController extends Controller {
             $trends = $this->service->getSpendingTrends(
                 $this->getEffectiveUserId(),
                 $accountId,
-                $months
+                $months,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($trends);
         } catch (\Exception $e) {
@@ -119,7 +122,8 @@ class ForecastController extends Controller {
             $results = $this->service->runScenarios(
                 $this->getEffectiveUserId(),
                 $accountId,
-                $scenarios
+                $scenarios,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($results);
         } catch (\Exception $e) {
@@ -142,7 +146,8 @@ class ForecastController extends Controller {
                 $accountId,
                 $historicalPeriod,
                 $forecastHorizon,
-                $confidenceLevel
+                $confidenceLevel,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($enhancedForecast);
         } catch (\Exception $e) {
@@ -158,7 +163,8 @@ class ForecastController extends Controller {
         try {
             $forecast = $this->service->getLiveForecast(
                 $this->getEffectiveUserId(),
-                $forecastMonths
+                $forecastMonths,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($forecast);
         } catch (\Exception $e) {

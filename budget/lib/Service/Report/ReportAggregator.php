@@ -102,7 +102,8 @@ class ReportAggregator {
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            !empty($visibleAccountIds) ? $visibleAccountIds : null
         );
 
         // Build excluded category ID set (used for totals and spending breakdown)
@@ -186,7 +187,8 @@ class ReportAggregator {
             if ($needsConversion) {
                 // Per-account transfer totals so we can convert each account's transfers
                 $transfersByAccount = $this->transactionMapper->getTransferTotalsByAccount(
-                    $userId, $startDate, $endDate, $tagIds, $includeUntagged
+                    $userId, $startDate, $endDate, $tagIds, $includeUntagged,
+                    !empty($visibleAccountIds) ? $visibleAccountIds : null
                 );
                 $transferIncome = 0;
                 $transferExpenses = 0;
@@ -199,7 +201,8 @@ class ReportAggregator {
                 $totalExpenses -= $transferExpenses;
             } else {
                 $transferTotals = $this->transactionMapper->getTransferTotals(
-                    $userId, $startDate, $endDate, $tagIds, $includeUntagged
+                    $userId, $startDate, $endDate, $tagIds, $includeUntagged,
+                    !empty($visibleAccountIds) ? $visibleAccountIds : null
                 );
                 $totalIncome -= $transferTotals['income'];
                 $totalExpenses -= $transferTotals['expenses'];
@@ -238,7 +241,8 @@ class ReportAggregator {
             $accountId,
             $tagIds,
             $includeUntagged,
-            $excludeTransfers
+            $excludeTransfers,
+            !empty($visibleAccountIds) ? $visibleAccountIds : null
         );
 
         if (!empty($excludedCategoryIds)) {
@@ -249,7 +253,7 @@ class ReportAggregator {
         $summary['spending'] = $spending;
 
         // Generate trend data (with currency conversion for multi-account view)
-        $summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged);
+        $summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, !empty($visibleAccountIds) ? $visibleAccountIds : null);
 
         return $summary;
     }
@@ -405,23 +409,26 @@ class ReportAggregator {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null
     ): array {
         $excludeTransfers = $accountId === null;
 
         // Check if multi-currency conversion is needed
         if ($accountId === null) {
-            $accounts = $this->accountMapper->findAll($userId);
+            $accounts = !empty($visibleAccountIds)
+                ? $this->accountMapper->findByIds($visibleAccountIds)
+                : $this->accountMapper->findAll($userId);
             $needsConversion = $this->conversionService->needsConversion($accounts);
 
             if ($needsConversion) {
                 $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
                 $cashFlow = $this->convertCashFlowByAccount(
-                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers
+                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             } else {
                 $cashFlow = $this->transactionMapper->getCashFlowByMonth(
-                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             }
         } else {
@@ -463,10 +470,11 @@ class ReportAggregator {
         array $currencyMap,
         array $tagIds,
         bool $includeUntagged,
-        bool $excludeTransfers
+        bool $excludeTransfers,
+        ?array $visibleAccountIds = null
     ): array {
         $perAccountData = $this->transactionMapper->getCashFlowByMonthByAccount(
-            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
         );
 
         $baseCurrency = $this->conversionService->getBaseCurrency($userId);
@@ -508,23 +516,26 @@ class ReportAggregator {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null
     ): array {
         $excludeTransfers = $accountId === null;
 
         // Check if multi-currency conversion is needed
         if ($accountId === null) {
-            $accounts = $this->accountMapper->findAll($userId);
+            $accounts = !empty($visibleAccountIds)
+                ? $this->accountMapper->findByIds($visibleAccountIds)
+                : $this->accountMapper->findAll($userId);
             $needsConversion = $this->conversionService->needsConversion($accounts);
 
             if ($needsConversion) {
                 $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
                 $dataByMonth = $this->convertTrendDataByAccount(
-                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers
+                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             } else {
                 $monthlyData = $this->transactionMapper->getMonthlyTrendData(
-                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
                 $dataByMonth = [];
                 foreach ($monthlyData as $row) {
@@ -579,10 +590,11 @@ class ReportAggregator {
         array $currencyMap,
         array $tagIds,
         bool $includeUntagged,
-        bool $excludeTransfers
+        bool $excludeTransfers,
+        ?array $visibleAccountIds = null
     ): array {
         $perAccountData = $this->transactionMapper->getMonthlyTrendDataByAccount(
-            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
         );
 
         $baseCurrency = $this->conversionService->getBaseCurrency($userId);
@@ -621,7 +633,8 @@ class ReportAggregator {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         if ($categoryId !== null) {
             // Single category
@@ -630,7 +643,8 @@ class ReportAggregator {
                 $categoryId,
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                $visibleAccountIds
             );
 
             $category = $this->categoryMapper->find($categoryId, $userId);
@@ -646,7 +660,7 @@ class ReportAggregator {
         }
 
         // All categories with spending
-        $spending = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate);
+        $spending = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
         $result = [];
 
         foreach ($spending as $categoryData) {
@@ -656,7 +670,8 @@ class ReportAggregator {
                 $catId,
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                $visibleAccountIds
             );
 
             if (!empty($dimensions)) {
