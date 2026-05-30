@@ -930,7 +930,7 @@ export default class BillsModule {
             if (existing) existing.remove();
 
             const currency = bill.currency || this.app.settings?.default_currency || '';
-            const formatAmount = (amount) => formatters.formatCurrency(amount, currency);
+            const formatAmount = (amount) => formatters.formatCurrency(amount, currency, this.settings);
 
             const candidateRows = candidates.map((c, i) => {
                 const tx = c.transaction;
