@@ -111,6 +111,7 @@ export default class BillsModule {
             const frequencyLabels = {
                 'weekly': t('budget', 'Weekly'),
                 'biweekly': t('budget', 'Bi-Weekly'),
+                'semi-monthly': t('budget', 'Semi-Monthly'),
                 'monthly': t('budget', 'Monthly'),
                 'quarterly': t('budget', 'Quarterly'),
                 'semi-annually': t('budget', 'Semi-Annually'),

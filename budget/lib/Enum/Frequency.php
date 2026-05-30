@@ -11,6 +11,7 @@ enum Frequency: string {
     case DAILY = 'daily';
     case WEEKLY = 'weekly';
     case BIWEEKLY = 'biweekly';
+    case SEMI_MONTHLY = 'semi-monthly';
     case MONTHLY = 'monthly';
     case QUARTERLY = 'quarterly';
     case SEMI_ANNUALLY = 'semi-annually';
@@ -27,6 +28,7 @@ enum Frequency: string {
             self::DAILY => 365,
             self::WEEKLY => 52,
             self::BIWEEKLY => 26,
+            self::SEMI_MONTHLY => 24,
             self::MONTHLY => 12,
             self::QUARTERLY => 4,
             self::SEMI_ANNUALLY => 2,
@@ -46,6 +48,7 @@ enum Frequency: string {
             self::DAILY => 365 / 12,
             self::WEEKLY => 52 / 12,
             self::BIWEEKLY => 26 / 12,
+            self::SEMI_MONTHLY => 2,
             self::MONTHLY => 1,
             self::QUARTERLY => 1 / 3,
             self::SEMI_ANNUALLY => 1 / 6,
@@ -70,6 +73,7 @@ enum Frequency: string {
             self::DAILY => 'Daily',
             self::WEEKLY => 'Weekly',
             self::BIWEEKLY => 'Bi-weekly',
+            self::SEMI_MONTHLY => 'Semi-Monthly',
             self::MONTHLY => 'Monthly',
             self::QUARTERLY => 'Quarterly',
             self::SEMI_ANNUALLY => 'Semi-Annually',

@@ -279,6 +279,7 @@ export default class TransfersModule {
                 'one-time': t('budget', 'One-Time'),
                 'weekly': t('budget', 'Weekly'),
                 'biweekly': t('budget', 'Bi-Weekly'),
+                'semi-monthly': t('budget', 'Semi-Monthly'),
                 'monthly': t('budget', 'Monthly'),
                 'quarterly': t('budget', 'Quarterly'),
                 'semi-annually': t('budget', 'Semi-Annually'),
@@ -423,6 +424,7 @@ export default class TransfersModule {
                                     <option value="one-time" ${isEdit && transfer.frequency === 'one-time' ? 'selected' : ''}>${t('budget', 'One-Time')}</option>
                                     <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                                     <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
+                                    <option value="semi-monthly" ${isEdit && transfer.frequency === 'semi-monthly' ? 'selected' : ''}>${t('budget', 'Semi-Monthly')}</option>
                                     <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                                     <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
                                     <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
@@ -776,6 +778,7 @@ export default class TransfersModule {
         const map = {
             'weekly': t('budget', 'Weekly'),
             'biweekly': t('budget', 'Bi-Weekly'),
+            'semi-monthly': t('budget', 'Semi-Monthly'),
             'monthly': t('budget', 'Monthly'),
             'quarterly': t('budget', 'Quarterly'),
             'semi-annually': t('budget', 'Semi-Annually'),
