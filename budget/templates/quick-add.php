@@ -79,6 +79,12 @@ $categories = json_decode($_['categories'], true);
 (function() {
     'use strict';
 
+    // Ensure the Nextcloud content wrapper is scrollable
+    var content = document.getElementById('content');
+    if (content) {
+        content.style.overflowY = 'auto';
+    }
+
     var form = document.getElementById('quick-add-form');
     var statusEl = document.getElementById('qa-status');
     var typeSelect = document.getElementById('qa-type');

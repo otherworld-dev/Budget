@@ -7775,13 +7775,16 @@ button.danger:hover {
 }
 
 /* Quick Add Standalone Page */
+/* Override Nextcloud's #content overflow:clip for the quick-add page */
+#content:has(#quick-add-page) {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
 #quick-add-page {
     max-width: 480px;
     margin: 0 auto;
     padding: 24px 16px;
-    overflow-y: auto;
-    max-height: calc(100vh - 50px);
-    -webkit-overflow-scrolling: touch;
+    padding-bottom: 40px;
 }
 .quick-add-header {
     display: flex;
