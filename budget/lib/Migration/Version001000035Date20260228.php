@@ -57,7 +57,7 @@ class Version001000035Date20260228 extends SimpleMigrationStep {
 
             $table->setPrimaryKey(['id']);
             $table->addUniqueIndex(['currency', 'date'], 'budget_exrate_curr_date_idx');
-            $table->addIndex(['currency'], 'budget_exrate_currency_idx');
+            $table->addIndex(['currency'], 'bdgt_exrate_cur_idx');
         }
 
         return $schema;

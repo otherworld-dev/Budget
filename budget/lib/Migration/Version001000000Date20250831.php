@@ -114,7 +114,7 @@ class Version001000000Date20250831 extends SimpleMigrationStep {
             
             $table->setPrimaryKey(['id']);
             $table->addIndex(['user_id'], 'budget_categories_user');
-            $table->addIndex(['parent_id'], 'budget_categories_parent');
+            $table->addIndex(['parent_id'], 'bdgt_cat_parent_idx');
         }
 
         // Create transactions table
@@ -277,7 +277,7 @@ class Version001000000Date20250831 extends SimpleMigrationStep {
             
             $table->setPrimaryKey(['id']);
             $table->addIndex(['user_id'], 'budget_forecasts_user');
-            $table->addIndex(['account_id'], 'budget_forecasts_account');
+            $table->addIndex(['account_id'], 'bdgt_fcast_acct_idx');
         }
 
         return $schema;

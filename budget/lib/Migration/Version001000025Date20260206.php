@@ -39,8 +39,8 @@ class Version001000025Date20260206 extends SimpleMigrationStep {
 			}
 
 			// Add index for efficient queries (find all transactions for a bill)
-			if (!$table->hasIndex('budget_transactions_bill_id')) {
-				$table->addIndex(['bill_id'], 'budget_transactions_bill_id');
+			if (!$table->hasIndex('bdgt_tx_bill_idx') && !$table->hasIndex('budget_transactions_bill_id')) {
+				$table->addIndex(['bill_id'], 'bdgt_tx_bill_idx');
 			}
 		}
 
