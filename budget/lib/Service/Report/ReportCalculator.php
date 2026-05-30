@@ -150,7 +150,7 @@ class ReportCalculator {
      * Format a YYYY-MM string as a human-readable month label.
      */
     public function formatMonthLabel(string $yearMonth): string {
-        $date = \DateTime::createFromFormat('Y-m', $yearMonth);
+        $date = \DateTime::createFromFormat('Y-m-d', $yearMonth . '-01');
         return $date ? $date->format('M Y') : $yearMonth;
     }
 
