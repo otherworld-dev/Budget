@@ -12,7 +12,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
 use OCA\Budget\Service\Import\RuleActionApplicator;
 use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\DB\IQueryBuilder;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**
