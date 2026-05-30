@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.6] - 2026-05-30
+
+### Fixed
+- Hero tiles double-subtracting categorized transfers — transfers with an "exclude from reports" category had their amount deducted twice ([#243](https://github.com/otherworld-dev/Budget/issues/243))
+- "Mark bill as paid" crashes with TypeError when matching transactions are found — missing settings parameter in currency formatter ([#222](https://github.com/otherworld-dev/Budget/issues/222))
+- Quick Add standalone page not scrollable on mobile — Nextcloud's `#content` overflow:clip now overridden ([#235](https://github.com/otherworld-dev/Budget/issues/235))
+
 ## [2.27.5] - 2026-05-30
 
 ### Fixed
