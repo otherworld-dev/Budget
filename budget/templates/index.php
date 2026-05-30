@@ -5130,6 +5130,7 @@ style('budget', 'budget-main');
                 <select id="bill-frequency" required aria-describedby="bill-frequency-help">
                     <option value="weekly"><?php p($l->t('Weekly')); ?></option>
                     <option value="biweekly"><?php p($l->t('Bi-Weekly')); ?></option>
+                    <option value="semi-monthly"><?php p($l->t('Semi-Monthly')); ?></option>
                     <option value="monthly" selected><?php p($l->t('Monthly')); ?></option>
                     <option value="quarterly"><?php p($l->t('Quarterly')); ?></option>
                     <option value="semi-annually"><?php p($l->t('Semi-Annually')); ?></option>
@@ -5567,6 +5568,7 @@ style('budget', 'budget-main');
                 <select id="income-frequency" required aria-describedby="income-frequency-help">
                     <option value="weekly"><?php p($l->t('Weekly')); ?></option>
                     <option value="biweekly"><?php p($l->t('Bi-Weekly')); ?></option>
+                    <option value="semi-monthly"><?php p($l->t('Semi-Monthly')); ?></option>
                     <option value="monthly" selected><?php p($l->t('Monthly')); ?></option>
                     <option value="quarterly"><?php p($l->t('Quarterly')); ?></option>
                     <option value="semi-annually"><?php p($l->t('Semi-Annually')); ?></option>

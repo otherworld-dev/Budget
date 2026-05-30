@@ -77,9 +77,10 @@ class FrequencyTest extends TestCase {
     public function testValuesReturnsAllStringValues(): void {
         $values = Frequency::values();
 
-        $this->assertCount(9, $values);
+        $this->assertCount(10, $values);
         $this->assertContains('daily', $values);
         $this->assertContains('biweekly', $values);
+        $this->assertContains('semi-monthly', $values);
         $this->assertContains('semi-annually', $values);
         $this->assertContains('one-time', $values);
         $this->assertContains('custom', $values);

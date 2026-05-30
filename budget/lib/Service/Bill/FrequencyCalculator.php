@@ -82,6 +82,21 @@ class FrequencyCalculator {
                 }
                 return $next->format('Y-m-d');
 
+            case 'semi-monthly':
+                // Twice per month: on dueDay and dueDay+15 (e.g., 1st & 16th)
+                $day1 = $dueDay ?? 1;
+                $day2 = min($day1 + 15, 28); // Second date ~15 days later, capped at 28
+                $next = clone $baseDate;
+                // Try both dates in the current month, then advance
+                while (true) {
+                    $maxDay = (int)$next->format('t');
+                    $d1 = (clone $next)->setDate((int)$next->format('Y'), (int)$next->format('m'), min($day1, $maxDay));
+                    $d2 = (clone $next)->setDate((int)$next->format('Y'), (int)$next->format('m'), min($day2, $maxDay));
+                    if ($d1 > $today) return $d1->format('Y-m-d');
+                    if ($d2 > $today) return $d2->format('Y-m-d');
+                    $next->modify('+1 month');
+                }
+
             case 'monthly':
                 $day = $dueDay ?? 1;
                 $next = clone $baseDate;
