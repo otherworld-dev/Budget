@@ -967,7 +967,7 @@ class TransactionMapper extends QBMapper {
      * @param int[] $categoryIds
      * @return array<int, float> categoryId => total spending
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null): array {
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeTransfers = false): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -984,6 +984,10 @@ class TransactionMapper extends QBMapper {
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
         $this->excludeScheduledFuture($qb);
