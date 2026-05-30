@@ -962,6 +962,9 @@ style('budget', 'budget-main');
                     <div id="quick-add-card" class="dashboard-card dashboard-tile-m" data-widget-id="quickAdd" data-widget-category="widget" style="display: none;">
                         <div class="card-header">
                             <h3><?php p($l->t('Quick Add Transaction')); ?></h3>
+                            <a href="<?php echo \OCP\Server::get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.quickAdd'); ?>" target="_blank" class="quick-add-standalone-link" title="<?php p($l->t('Open standalone page (for mobile bookmarks)')); ?>" style="font-size: 12px; margin-left: auto; color: var(--color-text-maxcontrast);">
+                                <?php p($l->t('Standalone')); ?> ↗
+                            </a>
                         </div>
                         <div class="widget-content">
                             <form id="quick-add-form" class="quick-add-form">
@@ -4795,6 +4798,20 @@ style('budget', 'budget-main');
                         <span class="icon-history" aria-hidden="true"></span>
                         <?php p($l->t('Reset All to Defaults')); ?>
                     </button>
+                </div>
+
+                <!-- Quick Add URL Section -->
+                <div class="settings-section" style="margin-top: 25px;">
+                    <h3><?php p($l->t('Quick Add Page')); ?></h3>
+                    <p class="section-description"><?php p($l->t('A minimal page for adding transactions on mobile. Bookmark this URL or add it to your home screen.')); ?></p>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="quick-add-url" readonly
+                            value="<?php echo \OCP\Server::get(\OCP\IURLGenerator::class)->getAbsoluteURL(\OCP\Server::get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.quickAdd')); ?>"
+                            style="flex: 1; font-size: 13px; padding: 6px 10px; background: var(--color-background-dark); border: 1px solid var(--color-border); border-radius: 4px; cursor: text;">
+                        <button type="button" id="copy-quick-add-url" class="secondary" style="white-space: nowrap;">
+                            <?php p($l->t('Copy URL')); ?>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- System Info Section -->

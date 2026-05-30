@@ -54297,6 +54297,7 @@ var SettingsModule = /*#__PURE__*/function () {
               return this.loadAdminSettings();
             case 5:
               this.loadSystemInfo();
+              this.setupQuickAddUrlCopy();
               _context.n = 7;
               break;
             case 6:
@@ -54790,6 +54791,23 @@ var SettingsModule = /*#__PURE__*/function () {
       }
       return executeFactoryReset;
     }()
+  }, {
+    key: "setupQuickAddUrlCopy",
+    value: function setupQuickAddUrlCopy() {
+      var copyBtn = document.getElementById('copy-quick-add-url');
+      var urlInput = document.getElementById('quick-add-url');
+      if (copyBtn && urlInput) {
+        copyBtn.addEventListener('click', function () {
+          navigator.clipboard.writeText(urlInput.value).then(function () {
+            (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'URL copied to clipboard'));
+          })["catch"](function () {
+            urlInput.select();
+            document.execCommand('copy');
+            (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_1__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_0__.translate)('budget', 'URL copied to clipboard'));
+          });
+        });
+      }
+    }
   }, {
     key: "loadSystemInfo",
     value: function () {

@@ -6,6 +6,7 @@ return [
     'routes' => [
         // Page routes
         ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
+        ['name' => 'page#quickAdd', 'url' => '/quick-add', 'verb' => 'GET'],
         
         // Account routes
         ['name' => 'account#index', 'url' => '/api/accounts', 'verb' => 'GET'],

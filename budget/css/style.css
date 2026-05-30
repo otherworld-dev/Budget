@@ -7774,6 +7774,95 @@ button.danger:hover {
     color: var(--color-error);
 }
 
+/* Quick Add Standalone Page */
+#quick-add-page {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+.quick-add-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.quick-add-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+.quick-add-back {
+    font-size: 13px;
+    color: var(--color-primary-element);
+    text-decoration: none;
+}
+.quick-add-back:hover {
+    text-decoration: underline;
+}
+.quick-add-standalone-form {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+.qa-form-group {
+    margin-bottom: 14px;
+}
+.qa-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-main-text);
+    margin-bottom: 4px;
+}
+.qa-form-group input,
+.qa-form-group select,
+.qa-form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+.qa-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+.qa-buttons button {
+    flex: 1;
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.qa-submit-btn {
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    border: none;
+    font-weight: 600;
+}
+.qa-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+.qa-reset-btn {
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+    border: 1px solid var(--color-border);
+}
+.qa-status {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+}
+.qa-success {
+    background: rgba(70, 186, 97, 0.15);
+    color: var(--color-success);
+}
+.qa-error {
+    background: rgba(233, 50, 45, 0.15);
+    color: var(--color-error);
+}
+
 .settings-section h3 {
     font-size: 18px;
     font-weight: 600;

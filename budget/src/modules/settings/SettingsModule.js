@@ -31,6 +31,7 @@ export default class SettingsModule {
             this.updateNumberFormatPreview();
             await this.loadAdminSettings();
             this.loadSystemInfo();
+            this.setupQuickAddUrlCopy();
         } catch (error) {
             console.error('Error loading settings:', error);
             showError(t('budget', 'Failed to load settings'));
@@ -353,6 +354,22 @@ export default class SettingsModule {
             }
 
             showError(error.message || t('budget', 'Failed to perform factory reset'));
+        }
+    }
+
+    setupQuickAddUrlCopy() {
+        const copyBtn = document.getElementById('copy-quick-add-url');
+        const urlInput = document.getElementById('quick-add-url');
+        if (copyBtn && urlInput) {
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(urlInput.value).then(() => {
+                    showSuccess(t('budget', 'URL copied to clipboard'));
+                }).catch(() => {
+                    urlInput.select();
+                    document.execCommand('copy');
+                    showSuccess(t('budget', 'URL copied to clipboard'));
+                });
+            });
         }
     }
 
