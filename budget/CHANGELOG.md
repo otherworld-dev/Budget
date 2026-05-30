@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.4] - 2026-05-30
+
+### Added
+- **Semi-Monthly frequency** — Twice-per-month option (e.g., 1st and 16th) for bills, income, and transfers. Distinct from bi-weekly (every 14 days) ([Discussion #239](https://github.com/otherworld-dev/Budget/discussions/239))
+- **Quick Add standalone page** — Minimal transaction entry page at `/apps/budget/quick-add` for mobile use. Discoverable via Settings (copyable URL) and dashboard tile link ([#235](https://github.com/otherworld-dev/Budget/issues/235))
+
+### Fixed
+- Fatal error when applying import rules with account filter — wrong `IQueryBuilder` namespace ([#240](https://github.com/otherworld-dev/Budget/issues/240))
+- Month labels showing wrong month on the 30th/31st of the month (DateTime overflow from Feb/Apr/Jun etc.)
+- Database migration error on MariaDB — `budget_dismissed_imports` table name too long with `oc_` prefix ([#241](https://github.com/otherworld-dev/Budget/issues/241))
+- CI workflow now validates migration table/index name lengths automatically
+
 ## [2.27.3] - 2026-05-29
 
 ### Fixed

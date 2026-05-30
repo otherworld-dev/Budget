@@ -34,6 +34,25 @@ jobs:
       - name: PHP syntax check
         run: composer lint
 
+      - name: Validate migration names
+        run: |
+          FAIL=0
+          # Table names: oc_ prefix + name must be ≤ 27 chars, so name ≤ 23
+          for name in $(grep -ohP "createTable\('\K[^']+" lib/Migration/*.php 2>/dev/null); do
+            if [ ${#name} -gt 23 ]; then
+              echo "::error::Table '$name' is ${#name} chars (max 23, becomes oc_$name = $((${#name}+3)))"
+              FAIL=1
+            fi
+          done
+          # Index names: same limit
+          for name in $(grep -ohP "(?:addIndex|addUniqueIndex)\([^,]+,\s*'\K[^']+" lib/Migration/*.php 2>/dev/null); do
+            if [ ${#name} -gt 23 ]; then
+              echo "::error::Index '$name' is ${#name} chars (max 23, becomes oc_$name = $((${#name}+3)))"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
+
       - name: Run tests
         run: composer test:unit
 

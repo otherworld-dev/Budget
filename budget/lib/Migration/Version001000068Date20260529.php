@@ -20,8 +20,8 @@ class Version001000068Date20260529 extends SimpleMigrationStep {
         /** @var ISchemaWrapper $schema */
         $schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_dismissed_imports')) {
-            $table = $schema->createTable('budget_dismissed_imports');
+        if (!$schema->hasTable('budget_dismiss_imp')) {
+            $table = $schema->createTable('budget_dismiss_imp');
 
             $table->addColumn('id', Types::BIGINT, [
                 'autoincrement' => true,
@@ -44,8 +44,8 @@ class Version001000068Date20260529 extends SimpleMigrationStep {
             ]);
 
             $table->setPrimaryKey(['id']);
-            $table->addUniqueIndex(['account_id', 'import_id'], 'budget_dismiss_acct_imp');
-            $table->addIndex(['account_id'], 'budget_dismiss_acct_idx');
+            $table->addUniqueIndex(['account_id', 'import_id'], 'bdgt_dismiss_acct_imp');
+            $table->addIndex(['account_id'], 'bdgt_dismiss_acct_idx');
         }
 
         return $schema;

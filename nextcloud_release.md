@@ -27,9 +27,14 @@ Check for common cross-database issues:
 # Boolean columns must use 'notnull' => false for cross-DB compatibility
 docker exec nc bash -c "grep -rn 'BOOLEAN' /var/www/html/apps-extra/budget/lib/Migration/ | grep 'notnull.*true'"
 
-# Index names must be under 27 characters
-docker exec nc bash -c "grep -rn 'addIndex\|addUniqueIndex' /var/www/html/apps-extra/budget/lib/Migration/"
+# Table names must be under 24 chars (oc_ prefix + name ≤ 27)
+docker exec nc bash -c "grep -oP \"createTable\('\K[^']+\" /var/www/html/apps-extra/budget/lib/Migration/*.php | while read -r line; do f=\${line%%:*}; n=\${line#*:}; len=\${#n}; if [ \$len -gt 23 ]; then echo \"FAIL: \$f — table '\$n' is \$len chars (max 23, becomes oc_\$n = \$((len+3)))\"; fi; done"
+
+# Index names must be under 24 chars (oc_ prefix + name ≤ 27)
+docker exec nc bash -c "grep -oP \"(?:addIndex|addUniqueIndex|setPrimaryKey).*?'\\K[^']+\" /var/www/html/apps-extra/budget/lib/Migration/*.php 2>/dev/null | while read -r line; do f=\${line%%:*}; n=\${line#*:}; len=\${#n}; if [ \$len -gt 23 ]; then echo \"FAIL: \$f — index '\$n' is \$len chars (max 23)\"; fi; done"
 ```
+
+Should produce no FAIL output. If it does, shorten the table or index name.
 
 ### 3. Compile translations
 

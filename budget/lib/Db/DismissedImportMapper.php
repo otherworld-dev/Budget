@@ -13,7 +13,7 @@ use OCP\IDBConnection;
  */
 class DismissedImportMapper extends QBMapper {
     public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_dismissed_imports', DismissedImport::class);
+        parent::__construct($db, 'budget_dismiss_imp', DismissedImport::class);
     }
 
     /**
