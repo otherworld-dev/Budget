@@ -7779,6 +7779,9 @@ button.danger:hover {
     max-width: 480px;
     margin: 0 auto;
     padding: 24px 16px;
+    overflow-y: auto;
+    max-height: calc(100vh - 50px);
+    -webkit-overflow-scrolling: touch;
 }
 .quick-add-header {
     display: flex;
@@ -7806,6 +7809,23 @@ button.danger:hover {
 }
 .qa-form-group {
     margin-bottom: 14px;
+}
+@media (max-height: 700px) {
+    #quick-add-page {
+        padding: 12px 12px;
+    }
+    .quick-add-header {
+        margin-bottom: 12px;
+    }
+    .qa-form-group {
+        margin-bottom: 8px;
+    }
+    .quick-add-standalone-form {
+        padding: 12px;
+    }
+    .qa-buttons {
+        margin-top: 12px;
+    }
 }
 .qa-form-group label {
     display: block;
