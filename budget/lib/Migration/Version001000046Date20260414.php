@@ -53,7 +53,7 @@ class Version001000046Date20260414 extends SimpleMigrationStep {
             // Each owner can share with a given user only once
             $table->addUniqueIndex(['owner_user_id', 'shared_with_user_id'], 'budget_share_unique');
             $table->addIndex(['owner_user_id'], 'budget_share_owner_idx');
-            $table->addIndex(['shared_with_user_id'], 'budget_share_recipient_idx');
+            $table->addIndex(['shared_with_user_id'], 'bdgt_share_rcpt_idx');
             $table->addIndex(['status'], 'budget_share_status_idx');
         }
 

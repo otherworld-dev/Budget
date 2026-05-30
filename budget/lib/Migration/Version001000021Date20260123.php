@@ -73,8 +73,8 @@ class Version001000021Date20260123 extends SimpleMigrationStep {
             ]);
 
             // Make user_id unique
-            $table->addUniqueIndex(['user_id'], 'budget_auth_user_id_unique');
-            $table->addIndex(['session_token'], 'budget_auth_session_token');
+            $table->addUniqueIndex(['user_id'], 'bdgt_auth_user_unq');
+            $table->addIndex(['session_token'], 'bdgt_auth_sess_idx');
         }
 
         return $schema;

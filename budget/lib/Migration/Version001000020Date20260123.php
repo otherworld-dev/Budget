@@ -62,7 +62,7 @@ class Version001000020Date20260123 extends SimpleMigrationStep {
             ]);
 
             $table->setPrimaryKey(['user_id']);
-            $table->addIndex(['session_token'], 'budget_auth_session_token');
+            $table->addIndex(['session_token'], 'bdgt_auth_sess_idx');
         }
 
         return $schema;
