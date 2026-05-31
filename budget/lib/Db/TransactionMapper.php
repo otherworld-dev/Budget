@@ -967,7 +967,15 @@ class TransactionMapper extends QBMapper {
      * @param int[] $categoryIds
      * @return array<int, float> categoryId => total spending
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeTransfers = false): array {
+    /**
+     * Get spending totals per category for a set of category IDs.
+     *
+     * When $excludeDeductedTransfers is true, excludes linked transfers that
+     * were already deducted by getTransferTotals() — i.e., transfers between
+     * non-liability accounts. Transfers involving liability accounts (credit
+     * cards, loans) are kept because they represent real expense flows.
+     */
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -986,8 +994,21 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
 
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        if ($excludeDeductedTransfers) {
+            // Exclude transfers that getTransferTotals() already deducted:
+            // those between two non-liability accounts. Keep transfers
+            // involving liability accounts (credit cards, loans, etc.)
+            // because those are NOT deducted by getTransferTotals().
+            $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
+            $qb->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
+                ->leftJoin('t', 'budget_accounts', 'ta', $qb->expr()->eq('t.account_id', 'ta.id'))
+                ->leftJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
+            // Keep the transaction if: not linked, OR this account is liability, OR linked account is liability
+            $qb->andWhere($qb->expr()->orX(
+                $qb->expr()->isNull('t.linked_transaction_id'),
+                $qb->expr()->in('ta.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)),
+                $qb->expr()->in('la.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY))
+            ));
         }
 
         $this->excludeScheduledFuture($qb);
