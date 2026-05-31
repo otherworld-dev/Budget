@@ -10,13 +10,13 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ## What's New in v2.27
 
-- **Transaction Type Rule Criteria** - Rules can now filter by Income or Expense, solving the Monzo pot transfer problem ([#229](https://github.com/otherworld-dev/Budget/issues/229))
-- **Auto-Link as Transfer Action** - New rule action that automatically matches and links opposite transactions as transfers ([#229](https://github.com/otherworld-dev/Budget/issues/229))
-- **System Info Diagnostics** - Settings panel with data stats, server info, and logs for easier troubleshooting ([#228](https://github.com/otherworld-dev/Budget/issues/228))
-- **Inline Split Transactions** - View and edit splits directly in the transaction modal
-- **CI Pipeline** - GitHub Actions for automated linting and tests
-- **149 New Tests** - Comprehensive unit test coverage for services and controllers
-- **Codebase Modernization** - Autowiring, service abstractions, security hardening, and password protection removal
+- **Quick Add Standalone Page** - Minimal mobile page for adding transactions without exposing balances. Bookmark it or add to your home screen ([#235](https://github.com/otherworld-dev/Budget/issues/235))
+- **Shared Account Support** - Reports, forecasts, net worth, and dashboard now include data from shared accounts. Shared users can delete, update, and split transactions ([#215](https://github.com/otherworld-dev/Budget/issues/215), [#245](https://github.com/otherworld-dev/Budget/issues/245))
+- **Dismissed Imports** - Deleted bank sync transactions won't be re-imported. Force re-sync button available when needed ([#230](https://github.com/otherworld-dev/Budget/issues/230))
+- **Transaction Type Rule Criteria** - Rules can now filter by Income or Expense, with Auto-Link as Transfer action ([#229](https://github.com/otherworld-dev/Budget/issues/229))
+- **Semi-Monthly Frequency** - Twice-per-month option for bills, income, and transfers ([Discussion #239](https://github.com/otherworld-dev/Budget/discussions/239))
+- **System Info Diagnostics** - Settings panel with data stats, server info, and logs for troubleshooting ([#228](https://github.com/otherworld-dev/Budget/issues/228))
+- **CI Pipeline** - Automated linting, tests, and migration name validation on every push
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
