@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.7] - 2026-05-31
+
+### Fixed
+- Shared account users can now delete, update, and split transactions on shared accounts ([#245](https://github.com/otherworld-dev/Budget/issues/245))
+- Categorized transfers involving credit cards now correctly handled in hero tile totals — liability transfers are no longer skipped by the excluded-category deduction ([#243](https://github.com/otherworld-dev/Budget/issues/243))
+- Quick Add page: improved link contrast, consistent date field sizing on iOS, added web app meta tags ([#235](https://github.com/otherworld-dev/Budget/issues/235))
+
 ## [2.27.6] - 2026-05-30
 
 ### Fixed
