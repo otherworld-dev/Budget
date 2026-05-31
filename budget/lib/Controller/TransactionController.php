@@ -322,7 +322,20 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $transaction = $this->service->update($id, $this->getEffectiveUserId(), $updates);
+            // Resolve account owner for shared accounts
+            $effectiveUserId = $this->userId;
+            try {
+                $this->service->find($id, $this->userId);
+            } catch (\Exception $e) {
+                $existing = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+                if ($existing->getAccountId() !== null) {
+                    $this->requireWriteAccess('account', $existing->getAccountId());
+                    $account = $this->service->findAccountById($existing->getAccountId());
+                    $effectiveUserId = $account->getUserId();
+                }
+            }
+
+            $transaction = $this->service->update($id, $effectiveUserId, $updates);
             return new DataResponse($transaction);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update transaction'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
@@ -335,7 +348,19 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->getEffectiveUserId());
+            // Try own accounts first
+            $effectiveUserId = $this->userId;
+            try {
+                $this->service->find($id, $this->userId);
+            } catch (\Exception $e) {
+                // Fall back to shared accounts — verify write access
+                $transaction = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+                $this->requireWriteAccess('account', $transaction->getAccountId());
+                $account = $this->service->findAccountById($transaction->getAccountId());
+                $effectiveUserId = $account->getUserId();
+            }
+
+            $this->service->delete($id, $effectiveUserId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);

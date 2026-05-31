@@ -287,7 +287,8 @@ class SharedExpenseController extends Controller {
                 $transactionId,
                 $contactId,
                 $amount,
-                $notes
+                $notes,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
@@ -315,7 +316,7 @@ class SharedExpenseController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function splitFiftyFifty(int $transactionId, int $contactId, ?string $notes = null): DataResponse {
         try {
-            $share = $this->service->splitFiftyFifty($this->getEffectiveUserId(), $transactionId, $contactId, $notes);
+            $share = $this->service->splitFiftyFifty($this->getEffectiveUserId(), $transactionId, $contactId, $notes, $this->getVisibleAccountIds());
             return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(

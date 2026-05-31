@@ -129,10 +129,19 @@ class SharedExpenseService {
         int $transactionId,
         int $contactId,
         float $amount,
-        ?string $notes = null
+        ?string $notes = null,
+        ?array $visibleAccountIds = null
     ): ExpenseShare {
-        // Verify the transaction exists and belongs to user
-        $this->transactionMapper->find($transactionId, $userId);
+        // Verify the transaction exists and is accessible to user
+        try {
+            $this->transactionMapper->find($transactionId, $userId);
+        } catch (DoesNotExistException $e) {
+            if (!empty($visibleAccountIds)) {
+                $this->transactionMapper->findForAccounts($transactionId, $visibleAccountIds);
+            } else {
+                throw $e;
+            }
+        }
         // Verify the contact exists and belongs to user
         $this->contactMapper->find($contactId, $userId);
 
@@ -166,17 +175,28 @@ class SharedExpenseService {
         string $userId,
         int $transactionId,
         int $contactId,
-        ?string $notes = null
+        ?string $notes = null,
+        ?array $visibleAccountIds = null
     ): ExpenseShare {
-        $transaction = $this->transactionMapper->find($transactionId, $userId);
+        // Try own accounts first, fall back to shared accounts
+        try {
+            $transaction = $this->transactionMapper->find($transactionId, $userId);
+        } catch (DoesNotExistException $e) {
+            if (!empty($visibleAccountIds)) {
+                $transaction = $this->transactionMapper->findForAccounts($transactionId, $visibleAccountIds);
+            } else {
+                throw $e;
+            }
+        }
+
         $amount = abs((float) $transaction->getAmount()) / 2;
 
         // Debit = you paid (expense), so they owe you half (positive share)
         // Credit = you received (income), so you owe them half (negative share)
         if ($transaction->getType() === 'debit') {
-            return $this->shareExpense($userId, $transactionId, $contactId, $amount, $notes);
+            return $this->shareExpense($userId, $transactionId, $contactId, $amount, $notes, $visibleAccountIds);
         } else {
-            return $this->shareExpense($userId, $transactionId, $contactId, -$amount, $notes);
+            return $this->shareExpense($userId, $transactionId, $contactId, -$amount, $notes, $visibleAccountIds);
         }
     }
 
