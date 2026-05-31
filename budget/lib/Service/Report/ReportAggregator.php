@@ -210,13 +210,15 @@ class ReportAggregator {
         }
 
         // Exclude transactions in excluded-from-reports categories from totals.
-        // When in all-accounts view, transfers were already subtracted above,
-        // so exclude only non-transfer transactions to avoid double-subtraction.
+        // In all-accounts view, non-liability transfers were already subtracted
+        // above, so skip those to avoid double-subtraction. Liability transfers
+        // (credit card payments etc.) are NOT deducted as transfers, so they
+        // must still be subtracted here if their category is excluded.
         if (!empty($excludedCategoryIds)) {
             $excludedIds = array_keys($excludedCategoryIds);
-            $skipTransfers = ($accountId === null); // transfers already deducted in all-accounts view
-            $excludedExpenses = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'debit', null, $skipTransfers);
-            $excludedIncome = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'credit', null, $skipTransfers);
+            $skipDeducted = ($accountId === null);
+            $excludedExpenses = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'debit', null, $skipDeducted);
+            $excludedIncome = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'credit', null, $skipDeducted);
             $totalExpenses -= array_sum($excludedExpenses);
             $totalIncome -= array_sum($excludedIncome);
         }
