@@ -2,6 +2,11 @@
 style('budget', 'style');
 $accounts = json_decode($_['accounts'], true);
 $categories = json_decode($_['categories'], true);
+
+// iOS web app meta tags for home screen shortcuts
+\OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-capable', 'content' => 'yes']);
+\OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-title', 'content' => $l->t('Quick Add')]);
+\OCP\Util::addHeader('meta', ['name' => 'mobile-web-app-capable', 'content' => 'yes']);
 ?>
 
 <div id="quick-add-page">

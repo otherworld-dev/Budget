@@ -7797,12 +7797,17 @@ button.danger:hover {
     font-size: 20px;
 }
 .quick-add-back {
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--color-primary-element);
     text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.1));
 }
 .quick-add-back:hover {
     text-decoration: underline;
+    background: var(--color-primary-element-hover, rgba(0, 130, 201, 0.2));
 }
 .quick-add-standalone-form {
     background: var(--color-main-background);
@@ -7842,6 +7847,9 @@ button.danger:hover {
 .qa-form-group textarea {
     width: 100%;
     box-sizing: border-box;
+    font-size: 16px;
+    padding: 8px 10px;
+    -webkit-appearance: none;
 }
 .qa-buttons {
     display: flex;
