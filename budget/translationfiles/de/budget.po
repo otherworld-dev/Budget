@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-29 06:01+0000\n"
-"Last-Translator: SGiersch <Stephan@sgiersch.de>\n"
+"PO-Revision-Date: 2026-05-31 06:01+0000\n"
+"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -4590,16 +4590,18 @@ msgstr "Manueller Wechselkurs für {currency} festgelegt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:322
 msgid "Failed to save manual rate"
-msgstr ""
+msgstr "Fehler beim Speichern des manuellen Wechselkurses"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:327
 msgid ""
 "Remove manual rate for {currency}? It will revert to the automatic rate."
 msgstr ""
+"Manuellen Wechselkurs für {currency} entfernen? Es wird wieder der "
+"automatische Wechselkurs verwendet."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:339
 msgid "Manual rate removed for {currency}"
-msgstr ""
+msgstr "Manueller Wechselkurs für {currency} entfernt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:351
 msgid "Refreshing…"
@@ -4653,46 +4655,47 @@ msgstr "{amount}/mo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:379
 msgid "Based on {months} month(s) of data ({count} transactions)"
-msgstr ""
+msgstr "Basierend auf Daten aus {months} Monat(en) ({count} Transaktion(en))"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:62
 msgid "Rule: {name}"
-msgstr ""
+msgstr "Regel: {name}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:89
 msgid "Upload failed"
-msgstr ""
+msgstr "Upload fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:196
 msgid "%n record"
 msgid_plural "%n records"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Eintrag"
+msgstr[1] "%n Einträge"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:233
 msgid "Delimiter changed. File will be re-parsed in the next step."
 msgstr ""
+"Trennzeichen geändert. Die Datei wird im nächsten Schritt erneut eingelesen."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:377
 msgid "Please select a file first"
-msgstr ""
+msgstr "Bitte wähle zuerst eine Datei aus"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:495
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:763
 msgid "Please map at least one account"
-msgstr ""
+msgstr "Bitte ordne mindestens ein Konto zu"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:502
 msgid "Please select an account first"
-msgstr ""
+msgstr "Bitte wähle zuerst ein Konto aus"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:526
 msgid "Processing failed"
-msgstr ""
+msgstr "Verarbeitung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:530
 msgid "Failed to process import data: {message}"
-msgstr ""
+msgstr "Fehler bei der Verarbeitung der Importdaten: {message}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:551
 msgid "No transactions to import"
@@ -4718,15 +4721,15 @@ msgstr "Konto auswählen…"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:686
 msgid "Balance: {balance}"
-msgstr ""
+msgstr "Kontostand: {balance}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:691
 msgid "Skip this account"
-msgstr ""
+msgstr "Konto überspringen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:744
 msgid "No file data available"
-msgstr ""
+msgstr "Keine Dateidaten verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:780
 msgid "Importing…"
@@ -4734,15 +4737,16 @@ msgstr "Importiere…"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:798
 msgid "Server error ({status}): Invalid response"
-msgstr ""
+msgstr "Serverfehler ({status}): Ungültige Antwort"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:802
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgstr ""
+"Erfolgreich importiert: {imported} Transaktionen ({skipped} übersprungen)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:811
 msgid "Failed to import transactions: {message}"
-msgstr ""
+msgstr "Fehler beim Importieren der Transaktionen: {message}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:887
 msgid "Download"
@@ -4774,11 +4778,11 @@ msgstr "GB"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:935
 msgid "Download failed"
-msgstr ""
+msgstr "Download fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:939
 msgid "Failed to download import file"
-msgstr ""
+msgstr "Importdatei konnte nicht heruntergeladen werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:944
 msgid ""
