@@ -157,13 +157,25 @@ class TransactionSplitMapper extends QBMapper {
      * @return int Number of deleted rows
      */
     public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->delete('s')
+        // DELETE doesn't support JOINs — use subquery to find IDs first
+        $sub = $this->db->getQueryBuilder();
+        $sub->select('s.id')
             ->from($this->getTableName(), 's')
-            ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+            ->innerJoin('s', 'budget_transactions', 't', $sub->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $sub->expr()->eq('t.account_id', 'a.id'))
+            ->where($sub->expr()->eq('a.user_id', $sub->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+        $result = $sub->executeQuery();
+        $ids = array_column($result->fetchAll(), 'id');
+        $result->closeCursor();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
 
         return $qb->executeStatement();
     }
