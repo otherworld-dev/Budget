@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-06-01 22:01+0000\n"
-"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
+"Last-Translator: St0rml <n.f@mailbox.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -4845,7 +4845,7 @@ msgstr "Einnahme bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:153
 msgid "Delete income"
-msgstr ""
+msgstr "Einnahme löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:312
 msgid "Edit Recurring Income"
@@ -4942,7 +4942,7 @@ msgstr "Fehler beim Auswählen der laufenden Einnahmen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:31
 msgid "Failed to load pensions"
-msgstr ""
+msgstr "Fehler beim Laden der Renten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:87
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:447
@@ -4958,7 +4958,7 @@ msgstr "Persönlich"
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:449
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3400
 msgid "SIPP"
-msgstr ""
+msgstr "Privat finanzierte Rente"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:90
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:450
@@ -5029,7 +5029,7 @@ msgstr "Prognostizierter Wert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:597
 msgid "No activity yet"
-msgstr ""
+msgstr "Noch keine Aktivitäten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:605
 msgid "Balance Update"
@@ -5099,7 +5099,7 @@ msgstr "Jährliche Einnahmen & Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1007
 msgid "Change"
-msgstr ""
+msgstr "Ändern"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1054
 msgid "Report exported as {format}"
@@ -5505,11 +5505,11 @@ msgstr "Regel jetzt anwenden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:732
 msgid "CriteriaBuilder not initialized"
-msgstr ""
+msgstr "CriteriaBuilder ist nicht initialisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:744
 msgid "ActionBuilder not initialized"
-msgstr ""
+msgstr "ActionBuilder ist nicht initialisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:749
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:890
@@ -5929,10 +5929,14 @@ msgstr "Für die Bedingung unter {path} ist das Regex-Muster ungültig: {error}"
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
 msgstr ""
+"Bedingung bei {path}: 'zwischen'-Muster muss 'min'- und 'max'-Eigenschaften "
+"enthalten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:421
 msgid "Condition at {path} 'between' pattern must be valid JSON with min/max"
 msgstr ""
+"Bedingung bei {path}: 'zwischen'-Muster muss validen JSON-Syntax mit 'min'/"
+"'max' enthalten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/savings/SavingsModule.js:46
 msgid "Failed to load savings goals"
