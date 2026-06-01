@@ -3502,6 +3502,18 @@ style('budget', 'budget-main');
                 <div class="panel-content">
                     <div class="pension-detail-summary">
                         <div class="detail-item">
+                            <span class="detail-label"><?php p($l->t('Type')); ?></span>
+                            <span class="detail-value" id="pension-detail-type">--</span>
+                        </div>
+                        <div class="detail-item" id="pension-detail-provider-row">
+                            <span class="detail-label"><?php p($l->t('Provider')); ?></span>
+                            <span class="detail-value" id="pension-detail-provider">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><?php p($l->t('Current Value')); ?></span>
+                            <span class="detail-value" id="pension-detail-value">--</span>
+                        </div>
+                        <div class="detail-item">
                             <span class="detail-label"><?php p($l->t('Current Balance')); ?></span>
                             <span class="detail-value" id="pension-detail-balance">--</span>
                         </div>

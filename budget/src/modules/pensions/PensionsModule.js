@@ -462,11 +462,12 @@ export default class PensionsModule {
             state: t('budget', 'State Pension')
         }[pension.type] || pension.type;
 
+        const providerRow = document.getElementById('pension-detail-provider-row');
         if (pension.provider) {
             providerEl.textContent = pension.provider;
-            providerEl.style.display = 'block';
+            if (providerRow) providerRow.style.display = '';
         } else {
-            providerEl.style.display = 'none';
+            if (providerRow) providerRow.style.display = 'none';
         }
 
         const currency = pension.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
