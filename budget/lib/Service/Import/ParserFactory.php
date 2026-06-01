@@ -106,7 +106,7 @@ class ParserFactory {
                 continue;
             }
 
-            $row = str_getcsv($line, $delimiter);
+            $row = str_getcsv($line, $delimiter, '"', '');
 
             // Skip rows that don't match the expected data width (metadata/preamble)
             if (count($row) !== $dataWidth) {
@@ -155,7 +155,7 @@ class ParserFactory {
             if (empty(trim($line))) {
                 continue;
             }
-            $colCount = count(str_getcsv($line, $delimiter));
+            $colCount = count(str_getcsv($line, $delimiter, '"', ''));
             if ($colCount <= 1) {
                 continue;
             }
@@ -199,7 +199,7 @@ class ParserFactory {
                 if (empty(trim($line))) {
                     continue;
                 }
-                if (count(str_getcsv($line, $delimiter)) === $dataWidth) {
+                if (count(str_getcsv($line, $delimiter, '"', '')) === $dataWidth) {
                     $count++;
                 }
             }
