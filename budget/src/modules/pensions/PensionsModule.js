@@ -479,6 +479,7 @@ export default class PensionsModule {
             valueEl.textContent = '--';
         }
 
+        panel.style.display = 'block';
         panel.classList.add('active');
 
         // Load charts and activity
@@ -488,7 +489,9 @@ export default class PensionsModule {
     }
 
     closePensionDetails() {
-        document.getElementById('pension-detail-panel').classList.remove('active');
+        const panel = document.getElementById('pension-detail-panel');
+        panel.style.display = 'none';
+        panel.classList.remove('active');
         this.currentPension = null;
     }
 
