@@ -521,6 +521,12 @@ class TransactionService {
             $this->updateAccountBalance($account, $transaction->getAmount(), $reverseType, $userId);
         }
 
+        // Unlink counterpart transfer before deleting — prevents dangling
+        // linked_transaction_id references that break dashboard/tag queries
+        if ($transaction->getLinkedTransactionId() !== null) {
+            $this->mapper->unlinkTransaction($id);
+        }
+
         // Record dismissed import ID for bank-synced transactions so they
         // don't get re-imported on the next sync. Only applies to provider-
         // prefixed IDs (e.g. "simplefin:xxx", "gocardless:xxx"), not CSV imports.
