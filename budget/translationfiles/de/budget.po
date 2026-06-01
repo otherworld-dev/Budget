@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-05-31 06:01+0000\n"
-"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
+"PO-Revision-Date: 2026-06-01 22:01+0000\n"
+"Last-Translator: St0rml <n.f@mailbox.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.6.dev0\n"
+"X-Generator: Weblate 2026.6\n"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/AccountController.php:73
 msgid "Failed to retrieve accounts"
@@ -4564,7 +4564,7 @@ msgstr "Referenz"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:170
 msgid "Manual"
-msgstr ""
+msgstr "Manuell"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:171
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4288
@@ -4609,37 +4609,37 @@ msgstr "Aktualisiere…"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:360
 msgid "Exchange rates refreshed"
-msgstr ""
+msgstr "Wechselkurse aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:368
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4052
 msgid "Refresh Rates"
-msgstr ""
+msgstr "Wechselkurse"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:99
 msgid "Failed to load forecast data"
-msgstr ""
+msgstr "Fehler beim Laden der Prognosedaten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:212
 msgid "Cumulative Savings"
-msgstr ""
+msgstr "Kumulierte Ersparnisse"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:235
 msgid "Savings: {amount}"
-msgstr ""
+msgstr "Ersparnisse: {amount}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:265
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2683
 msgid "Projected Balance"
-msgstr ""
+msgstr "Prognostizierter Saldo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:274
 msgid "Projected Income"
-msgstr ""
+msgstr "Prognostiziertes Einkommen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:283
 msgid "Projected Expenses"
-msgstr ""
+msgstr "Prognostizierte Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:314
 msgid "Income/Expenses"
@@ -4647,7 +4647,7 @@ msgstr "Einnahmen/Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:341
 msgid "No category data available"
-msgstr ""
+msgstr "Keine Kategoriedaten verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:353
 msgid "{amount}/mo"
@@ -4699,12 +4699,12 @@ msgstr "Fehler bei der Verarbeitung der Importdaten: {message}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:551
 msgid "No transactions to import"
-msgstr ""
+msgstr "Keine Transaktionen zum Importieren vorhanden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:562
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:601
 msgid "Duplicate"
-msgstr ""
+msgstr "Duplikat"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:563
 msgid "New"
@@ -4713,7 +4713,7 @@ msgstr "Neu"
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:584
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:625
 msgid "Showing {shown} of {total}"
-msgstr ""
+msgstr "Zeige {shown} von {total}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:654
 msgid "Select account…"
@@ -4758,7 +4758,7 @@ msgstr "Zurücksetzen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:911
 msgid "0 Bytes"
-msgstr ""
+msgstr "0 Bytes"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:913
 msgid "Bytes"
@@ -4789,24 +4789,26 @@ msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
 msgstr ""
+"Willst du diesen Import rückgängig machen? Alle importierten Transaktionen "
+"werden dadurch gelöscht."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:959
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine Transaktion wurde zurückgesetzt"
+msgstr[1] "%n Transaktionen wurden zurückgesetzt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:964
 msgid "Rollback failed"
-msgstr ""
+msgstr "Zurücksetzen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:968
 msgid "Failed to rollback import: {message}"
-msgstr ""
+msgstr "Zurücksetzen des Imports fehlgeschlagen: {message}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:51
 msgid "Failed to load recurring income"
-msgstr ""
+msgstr "Fehler beim Laden der laufenden Einnahmen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:99
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:112
@@ -4823,23 +4825,23 @@ msgstr "Empfangen"
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:105
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2433
 msgid "Expected Soon"
-msgstr ""
+msgstr "In Kürze"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:137
 msgid "No date set"
-msgstr ""
+msgstr "Kein Datum gesetzt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:145
 msgid "Mark as received"
-msgstr ""
+msgstr "Als erhalten markieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:147
 msgid "Mark Received"
-msgstr ""
+msgstr "Als erhalten markieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:150
 msgid "Edit income"
-msgstr ""
+msgstr "Einnahme bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:153
 msgid "Delete income"
@@ -4847,94 +4849,96 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:312
 msgid "Edit Recurring Income"
-msgstr ""
+msgstr "Laufende Einnahme bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:325
 msgid "Add Recurring Income"
-msgstr ""
+msgstr "Laufende Einnahme hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:366
 msgid "Expected Day (1-7)"
-msgstr ""
+msgstr "Erwarteter Wochentag (1-7)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:370
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5238
 msgid "Expected Day"
-msgstr ""
+msgstr "Erwarteter Tag"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:371
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5240
 msgid "Day of the month when income is expected"
-msgstr ""
+msgstr "Tag des Monats, an dem die Einnahme erwartet wird"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:435
 msgid "Income source created successfully"
-msgstr ""
+msgstr "Einnahme erfolgreich erstellt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:435
 msgid "Income source updated successfully"
-msgstr ""
+msgstr "Einnahme erfolgreich aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:439
 msgid "Failed to save income"
-msgstr ""
+msgstr "Fehler beim Speichern der Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:444
 msgid "Are you sure you want to delete this recurring income?"
-msgstr ""
+msgstr "Möchtest du diese laufende Einnahme wirklich löschen?"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:456
 msgid "Income source deleted successfully"
-msgstr ""
+msgstr "Einnahme wurde gelöscht"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:460
 msgid "Failed to delete income"
-msgstr ""
+msgstr "Fehler beim Löschen der Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:504
 msgid "Income marked as received. Transaction created."
-msgstr ""
+msgstr "Einnahme als erhalten markiert. Transaktion erstellt."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:505
 msgid "Income marked as received."
-msgstr ""
+msgstr "Einnahme als erhalten markiert."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:516
 msgid "Failed to mark income as received"
-msgstr ""
+msgstr "Fehler beim Markieren der Einnahme als erhalten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:633
 msgid "No recurring income patterns found in your transactions"
 msgstr ""
+"In deinen Transaktionen wurden keine wiederkehrenden Einnahmemuster "
+"festgestellt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:645
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2381
 msgid "Detect Income"
-msgstr ""
+msgstr "Einnahme erkennen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:666
 msgid "%n occurrence"
 msgid_plural "%n occurrences"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Ein Vorkommen"
+msgstr[1] "%n Vorkommen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:667
 msgid "Source: {source}"
-msgstr ""
+msgstr "Einnahmequelle: {source}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:684
 msgid "Please select at least one income source to add"
-msgstr ""
+msgstr "Bitte wähle mindestens eine Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:705
 msgid "%n income source added successfully"
 msgid_plural "%n income sources added successfully"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine laufende Einnahme wurde hinzugefügt"
+msgstr[1] "%n laufende Einnahmen wurden hinzugefügt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:709
 msgid "Failed to add selected income sources"
-msgstr ""
+msgstr "Fehler beim Auswählen der laufenden Einnahmen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:31
 msgid "Failed to load pensions"
@@ -4979,7 +4983,7 @@ msgstr "{amount}/Monat"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:114
 msgid "View details"
-msgstr ""
+msgstr "Details anzeigen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:155
 msgid "{amount}/yr"
@@ -4987,39 +4991,41 @@ msgstr "{amount}/Jr"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:319
 msgid "Edit Pension"
-msgstr ""
+msgstr "Rente bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:339
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3214
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3378
 msgid "Add Pension"
-msgstr ""
+msgstr "Rente hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:396
 msgid "Failed to save pension"
-msgstr ""
+msgstr "Fehler beim Speichern der Rente"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:402
 msgid "Pension updated"
-msgstr ""
+msgstr "Rente aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:402
 msgid "Pension added"
-msgstr ""
+msgstr "Rente hinzugefügt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:409
 msgid ""
 "Are you sure you want to delete this pension? This action cannot be undone."
 msgstr ""
+"Möchtest du diese Rente wirklich löschen? Diese Aktion kann nicht rückgängig "
+"gemacht werden."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:427
 msgid "Pension deleted"
-msgstr ""
+msgstr "Rente gelöscht"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:556
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3720
 msgid "Projected Value"
-msgstr ""
+msgstr "Prognostizierter Wert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:597
 msgid "No activity yet"
@@ -5027,27 +5033,27 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:605
 msgid "Balance Update"
-msgstr ""
+msgstr "Saldo-Aktualisierung"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:606
 msgid "Contribution"
-msgstr ""
+msgstr "Beitrag"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:667
 msgid "Failed to update balance"
-msgstr ""
+msgstr "Fehler beim Aktualisieren des Saldos"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:674
 msgid "Balance updated"
-msgstr ""
+msgstr "Saldo aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:716
 msgid "Failed to log contribution"
-msgstr ""
+msgstr "Beitrag konnte nicht protokolliert werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:721
 msgid "Contribution logged"
-msgstr ""
+msgstr "Beitrag protokolliert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:151
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1157
@@ -5065,31 +5071,32 @@ msgstr "Alle Konten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:389
 msgid "Failed to generate report"
-msgstr ""
+msgstr "Fehler beim Erstellen des Berichts"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:442
 msgid "{percentage}% vs prior period"
-msgstr ""
+msgstr "{percentage}% im Vergleich zum Vorzeitraum"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:721
 msgid "Net Cash Flow"
-msgstr ""
+msgstr "Netto Cash Flow"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:870
 msgid "Failed to generate comparison"
-msgstr ""
+msgstr "Fehler beim Erstellen des Vergleichs"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:904
+#, fuzzy
 msgid "YTD"
-msgstr ""
+msgstr "YTD"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:929
 msgid "{monthName} - Year over Year Comparison"
-msgstr ""
+msgstr "{monthName} - Jahresvergleich"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:930
 msgid "Annual Income & Expenses"
-msgstr ""
+msgstr "Jährliche Einnahmen & Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1007
 msgid "Change"
@@ -5097,11 +5104,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1054
 msgid "Report exported as {format}"
-msgstr ""
+msgstr "Bericht als {format} exportiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1273
 msgid "Failed to generate bills calendar"
-msgstr ""
+msgstr "Fehler beim Erstellen des Rechnungskalenders"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1290
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:171
@@ -5193,7 +5200,7 @@ msgstr "Dez"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1301
 msgid "Total Bills"
-msgstr ""
+msgstr "Anzahl der Rechnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1315
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5725
@@ -5285,12 +5292,12 @@ msgstr "Dezember"
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1396
 msgid "%n bill"
 msgid_plural "%n bills"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine Rechnung"
+msgstr[1] "%n Rechnungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:83
 msgid "Failed to load rules"
-msgstr ""
+msgstr "Fehler beim Laden der Regeln"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:129
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:182
@@ -5308,13 +5315,13 @@ msgstr "gleich"
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:183
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:138
 msgid "starts with"
-msgstr ""
+msgstr "beginnt mit"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:132
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:184
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:139
 msgid "ends with"
-msgstr ""
+msgstr "endet auf"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:133
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:186
@@ -5323,11 +5330,11 @@ msgstr "stimmt überein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:143
 msgid "Click to disable"
-msgstr ""
+msgstr "Klicke zum Deaktivieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:143
 msgid "Click to enable"
-msgstr ""
+msgstr "Klicke zum Aktivieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:147
 #: /tmp/budget-v2.11.0/budget/templates/index.php:206
@@ -5338,16 +5345,16 @@ msgstr "Importieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:152
 msgid "Edit rule"
-msgstr ""
+msgstr "Regel bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:153
 msgid "Delete rule"
-msgstr ""
+msgstr "Regel löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:161
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:177
 msgid "Complex criteria"
-msgstr ""
+msgstr "Komplexe Kriterien"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:173
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1193
@@ -5362,7 +5369,7 @@ msgstr "Alle"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:174
 msgid "{operator} of {count} conditions"
-msgstr ""
+msgstr "{operator} von {count} Bedingungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:189
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:148
@@ -5386,7 +5393,7 @@ msgstr "NICHT"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:223
 msgid "Category #{id}"
-msgstr ""
+msgstr "Kategorie #{id}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:230
 msgid "Vendor:"
@@ -5394,39 +5401,40 @@ msgstr "Anbieter:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:235
 msgid "Set notes"
-msgstr ""
+msgstr "Notiz festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:238
 msgid "No actions"
-msgstr ""
+msgstr "Keine Aktionen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:404
 msgid "This rule has been upgraded to the new format with advanced features"
 msgstr ""
+"Diese Regel wurde auf das neue Format mit erweiterten Funktionen aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:407
 msgid "Failed to upgrade rule format"
-msgstr ""
+msgstr "Fehler beim Aktualisieren auf das neue Regelformat"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:423
 msgid "Edit Rule"
-msgstr ""
+msgstr "Regel bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:459
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2315
 msgid "Add Rule"
-msgstr ""
+msgstr "Regel hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:544
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:870
 msgid "Error: CriteriaBuilder not initialized"
-msgstr ""
+msgstr "Fehler: \"CriteriaBuilder\" wurde nicht initialisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:550
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:737
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:876
 msgid "Invalid criteria: {errors}"
-msgstr ""
+msgstr "Fehlerhafte Kriterien: {errors}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:565
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:391
@@ -5447,22 +5455,22 @@ msgstr "Lädt..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:594
 msgid "Failed to preview rule: {error}"
-msgstr ""
+msgstr "Fehler bei der Vorschau der Regel: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:598
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5123
 msgid "Preview Matches"
-msgstr ""
+msgstr "Vorschau der Übereinstimmungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:618
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:822
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5096
 msgid "Current Category"
-msgstr ""
+msgstr "Aktuelle Kategorie"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:636
 msgid "No matching transactions found"
-msgstr ""
+msgstr "Keine übereinstimmenden Buchungen gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:666
 msgid "Saving..."
@@ -5470,7 +5478,7 @@ msgstr "Speichern..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:674
 msgid "Failed to save rule"
-msgstr ""
+msgstr "Fehler beim Speichern der Regel"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:678
 msgid "Running..."
@@ -5479,22 +5487,22 @@ msgstr "Läuft..."
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:702
 msgid "Rule applied: %n transaction updated"
 msgid_plural "Rule applied: %n transactions updated"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Regel angewendet: Eine Buchung wurde aktualisiert"
+msgstr[1] "Regel angewendet: %n Buchungen wurden aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:708
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:834
 msgid "No transactions were updated"
-msgstr ""
+msgstr "Keine Buchungen wurden aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:713
 msgid "Failed to run rule: {error}"
-msgstr ""
+msgstr "Fehler bei der Anwendung der Regel: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:716
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5124
 msgid "Run Rule Now"
-msgstr ""
+msgstr "Regel jetzt anwenden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:732
 msgid "CriteriaBuilder not initialized"
@@ -5507,61 +5515,63 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:749
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:890
 msgid "Invalid actions: {errors}"
-msgstr ""
+msgstr "Ungültige Aktionen: {errors}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:827
 msgid "{count} updated"
-msgstr ""
+msgstr "{count} aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:884
 msgid "Error: ActionBuilder not initialized"
-msgstr ""
+msgstr "Fehler: \"ActionBuilder\" wurde nicht initialisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:926
 msgid "Rule updated successfully"
-msgstr ""
+msgstr "Regel aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:926
 msgid "Rule created successfully"
-msgstr ""
+msgstr "Regel erstellt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:931
 msgid "Failed to save rule: {error}"
-msgstr ""
+msgstr "Fehler beim Speichern der Regel: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:947
 msgid "Failed to load rule"
-msgstr ""
+msgstr "Fehler beim Laden der Regel"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:952
 msgid "Are you sure you want to delete this rule?"
-msgstr ""
+msgstr "Möchtest du diese Regel wirklich löschen?"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:962
 msgid "Rule deleted successfully"
-msgstr ""
+msgstr "Regel gelöscht"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:966
 msgid "Failed to delete rule"
-msgstr ""
+msgstr "Fehler beim Löschen der Regel"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1002
 msgid "Rule enabled"
-msgstr ""
+msgstr "Regel aktiviert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1002
 msgid "Rule disabled"
-msgstr ""
+msgstr "Regel deaktiviert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1005
 msgid "Failed to update rule: {error}"
-msgstr ""
+msgstr "Fehler beim Aktualisieren der Regel: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1069
 msgid ""
 "Apply rules to matching transactions? This will modify the selected "
 "transactions."
 msgstr ""
+"Regeln auf übereinstimmende Buchungen anwenden? Die Buchungen werden dadurch "
+"verändert."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1078
 msgid "Applying..."
@@ -5570,83 +5580,89 @@ msgstr "Übernehme..."
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1104
 msgid "Rules applied: {success} updated, {skipped} skipped, {failed} failed"
 msgstr ""
+"Regeln angewendet: {success} aktualisiert, {skipped} übersprungen, {failed} "
+"fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1113
 msgid "Failed to apply rules"
-msgstr ""
+msgstr "Fehler beim Anwenden der Regeln"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/RulesModule.js:1116
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2311
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5192
 msgid "Apply Rules"
-msgstr ""
+msgstr "Regeln anwenden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:88
 msgid "+ Add Action"
-msgstr ""
+msgstr "+ Aktion hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:89
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:119
 msgid "Set Category"
-msgstr ""
+msgstr "Kategorie festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:90
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:120
 msgid "Set Vendor"
-msgstr ""
+msgstr "Empfänger festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:91
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:121
 msgid "Set Notes"
-msgstr ""
+msgstr "Notizen festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:92
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:122
 msgid "Add Tags"
-msgstr ""
+msgstr "Stichworte hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:93
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:123
 msgid "Set Account"
-msgstr ""
+msgstr "Konto festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:94
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:124
 msgid "Set Transaction Type"
-msgstr ""
+msgstr "Buchungstyp festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:95
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:125
 msgid "Set Reference"
-msgstr ""
+msgstr "Referenz festlegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:99
 msgid "Stop processing after this rule"
-msgstr ""
+msgstr "Verarbeitung nach dieser Regel beenden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:100
 msgid "If checked, no rules with lower priority will run if this rule matches"
 msgstr ""
+"Wenn aktiviert und diese Regel zutrifft, werden keine Regeln mit niedrigerer "
+"Priorität ausgeführt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:111
 msgid "No actions yet. Use the dropdown below to add actions."
 msgstr ""
+"Noch keine Aktionen. Verwende das Dropdown-Menü unten, um Aktionen "
+"hinzuzufügen."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:136
 msgid "Move up"
-msgstr ""
+msgstr "Nach oben bewegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:137
 msgid "Move down"
-msgstr ""
+msgstr "Nach unten bewegen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:138
 msgid "Remove action"
-msgstr ""
+msgstr "Aktion löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:165
 msgid "Unknown action type"
-msgstr ""
+msgstr "Unbekannter Aktionstyp"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:173
 msgid "Category:"
@@ -5668,37 +5684,37 @@ msgstr "Verhalten:"
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:199
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:311
 msgid "Always set"
-msgstr ""
+msgstr "Überschreiben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:183
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:200
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:312
 msgid "Only if empty"
-msgstr ""
+msgstr "Nur wenn leer"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:192
 msgid "Vendor Name:"
-msgstr ""
+msgstr "Name des Empfängers:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:194
 msgid "e.g., Amazon, Starbucks"
-msgstr ""
+msgstr "z.B. Lidl, Netflix"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:209
 msgid "Notes Text:"
-msgstr ""
+msgstr "Text:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:211
 msgid "Text to add to transaction notes"
-msgstr ""
+msgstr "Hinzugefügte Buchungsnotiz"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:216
 msgid "Replace notes"
-msgstr ""
+msgstr "Notizen ersetzen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:217
 msgid "Append to notes"
-msgstr ""
+msgstr "An Notizen anhängen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:222
 msgid "Separator:"
@@ -5706,23 +5722,23 @@ msgstr "Trennzeichen:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:224
 msgid "e.g., | or -"
-msgstr ""
+msgstr "z.B. | oder -"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:236
 msgid "Tags to Add:"
-msgstr ""
+msgstr "Stichwörter:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:238
 msgid "No tag sets available"
-msgstr ""
+msgstr "Keine Stichwörter verfügbar"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:256
 msgid "Merge with existing tags"
-msgstr ""
+msgstr "Bestehenden hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:257
 msgid "Replace all tags"
-msgstr ""
+msgstr "Bestehende ersetzen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:267
 msgid "Account:"
@@ -5734,71 +5750,71 @@ msgstr "-- Konto auswählen --"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:276
 msgid "This will reassign the transaction to a different account"
-msgstr ""
+msgstr "Dies wird die Buchung einem anderen Konto zuweisen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:284
 msgid "Transaction Type:"
-msgstr ""
+msgstr "Buchungstyp:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:304
 msgid "Reference Value:"
-msgstr ""
+msgstr "Referenz:"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:306
 msgid "e.g., CHECK-1234, AUTO"
-msgstr ""
+msgstr "z.B. CHECK-1234, AUTO"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:469
 msgid "Action {number}: Missing type"
-msgstr ""
+msgstr "Aktion {number}: Typ fehlt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:476
 msgid "Action {number}: Category not selected"
-msgstr ""
+msgstr "Aktion {number}: Kategorie nicht ausgewählt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:481
 msgid "Action {number}: Vendor name is empty"
-msgstr ""
+msgstr "Aktion {number}: Empfängername ist leer"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:486
 msgid "Action {number}: Notes text is empty"
-msgstr ""
+msgstr "Aktion {number}: Notiztext ist leer"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:491
 msgid "Action {number}: No tags selected"
-msgstr ""
+msgstr "Aktion {number}: Keine Stichwörter ausgewählt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:496
 msgid "Action {number}: Account not selected"
-msgstr ""
+msgstr "Aktion {number}: Kein Konto ausgewählt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:501
 msgid "Action {number}: Invalid transaction type"
-msgstr ""
+msgstr "Aktion {number}: Ungültiger Buchungstyp"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/ActionBuilder.js:506
 msgid "Action {number}: Reference value is empty"
-msgstr ""
+msgstr "Action {number}: Referenz ist leer"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:84
 msgid "All conditions must match (AND)"
-msgstr ""
+msgstr "Alle Bedingungen müssen zutreffen (UND)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:85
 msgid "Any condition can match (OR)"
-msgstr ""
+msgstr "Jede Bedingung kann zutreffen (ODER)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:87
 msgid "Remove this group"
-msgstr ""
+msgstr "Diese Gruppe entfernen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:96
 msgid "+ Add Condition"
-msgstr ""
+msgstr "+ Bedinung hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:97
 msgid "+ Add Group"
-msgstr ""
+msgstr "+ Gruppe hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:117
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1463
@@ -5825,55 +5841,55 @@ msgstr "Notizen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:129
 msgid "Remove this condition"
-msgstr ""
+msgstr "Diese Bedingung entfernen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:140
 msgid "equals (exact match)"
-msgstr ""
+msgstr "ist gleich (genaue Übereinstimmung)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:141
 msgid "matches regex"
-msgstr ""
+msgstr "passt zu regulären Ausdruck (regex)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:146
 msgid "greater than"
-msgstr ""
+msgstr "größer als"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:147
 msgid "less than"
-msgstr ""
+msgstr "kleiner als"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:152
 msgid "on date"
-msgstr ""
+msgstr "am Datum"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:155
 msgid "between dates"
-msgstr ""
+msgstr "im Zeitraum"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:173
 msgid "e.g., {\"min\": 10, \"max\": 100}"
-msgstr ""
+msgstr "z.B. {\"min\": 10, \"max\": 100}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:175
 msgid "e.g., 50.00"
-msgstr ""
+msgstr "z.B. 50.00"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:180
 msgid "e.g., {\"min\": \"2024-01-01\", \"max\": \"2024-12-31\"}"
-msgstr ""
+msgstr "z.B. {\"min\": \"2024-01-01\", \"max\": \"2024-12-31\"}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:182
 msgid "e.g., 2024-01-15"
-msgstr ""
+msgstr "z.B. 2024-01-15"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:186
 msgid "e.g., ^ORDER-\\d+"
-msgstr ""
+msgstr "z.B. ^ORDER-\\d+"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:189
 msgid "e.g., amazon"
-msgstr ""
+msgstr "z.B. amazon"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:286
 msgid ""
@@ -5888,11 +5904,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:385
 msgid "Group at {path} has no conditions"
-msgstr ""
+msgstr "Gruppe bei {path} hat keine Bedingungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:388
 msgid "condition {number}"
-msgstr ""
+msgstr "Bedingung {number}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:395
 msgid "Condition at {path} has no field selected"
@@ -7021,7 +7037,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:58
 msgid "Recurring Transfers"
-msgstr ""
+msgstr "Wiederkehrende Umbuchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:60
 msgid "Add new transfer"
@@ -7058,7 +7074,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:124
 msgid "No recurring transfers yet"
-msgstr "Noch keine wiederkehrenden Überweisungen"
+msgstr "Noch keine wiederkehrenden Umbuchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transfers/TransfersModule.js:125
 msgid ""
