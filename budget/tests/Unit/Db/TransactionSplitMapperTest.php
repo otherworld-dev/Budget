@@ -188,6 +188,12 @@ class TransactionSplitMapperTest extends TestCase {
     // ===== deleteAll =====
 
     public function testDeleteAllReturnsAffectedRows(): void {
+        // First call: select IDs returns rows
+        $this->result->method('fetchAll')->willReturn(
+            array_map(fn($i) => ['id' => $i], range(1, 5))
+        );
+        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Second call: delete by IDs
         $this->qb->method('executeStatement')->willReturn(5);
 
         $count = $this->mapper->deleteAll('user1');
