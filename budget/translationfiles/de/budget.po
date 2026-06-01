@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-06-01 22:01+0000\n"
-"Last-Translator: St0rml <n.f@mailbox.org>\n"
+"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -2449,7 +2449,7 @@ msgstr "Kostenteilung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:362
 msgid "Unlink transfer"
-msgstr "Transfer aufheben"
+msgstr "transfer aufheben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:365
 msgid "Match transfer"
@@ -4221,7 +4221,7 @@ msgstr "Noch keine Konten"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1162
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:191
 msgid "Checking"
-msgstr "Girokonto"
+msgstr "Prüfen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:622
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1163
@@ -4635,7 +4635,7 @@ msgstr "Prognostizierter Saldo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:274
 msgid "Projected Income"
-msgstr "Prognostiziertes Einkommen"
+msgstr "Voraussichtliches Einkommen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:283
 msgid "Projected Expenses"
@@ -4833,7 +4833,7 @@ msgstr "Kein Datum gesetzt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:145
 msgid "Mark as received"
-msgstr "Als erhalten markieren"
+msgstr "Als eingegangen markieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:147
 msgid "Mark Received"
@@ -4964,13 +4964,13 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:450
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3401
 msgid "Defined Benefit"
-msgstr ""
+msgstr "Leistungsorientierte Rente"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:91
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:451
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3402
 msgid "State Pension"
-msgstr ""
+msgstr "Gesetzliche Rente"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:99
 #: /tmp/budget-v2.11.0/budget/src/modules/pensions/PensionsModule.js:465
@@ -5086,9 +5086,8 @@ msgid "Failed to generate comparison"
 msgstr "Fehler beim Erstellen des Vergleichs"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:904
-#, fuzzy
 msgid "YTD"
-msgstr "YTD"
+msgstr "Seit Jahresbeginn"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:929
 msgid "{monthName} - Year over Year Comparison"
@@ -5209,7 +5208,7 @@ msgstr "Summe"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1365
 msgid "Monthly Totals"
-msgstr ""
+msgstr "Monatssummen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:1376
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3060
@@ -5912,19 +5911,19 @@ msgstr "Bedingung {number}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:395
 msgid "Condition at {path} has no field selected"
-msgstr ""
+msgstr "Für die Bedingung unter {path} wurde kein Feld ausgewählt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:398
 msgid "Condition at {path} has no match type selected"
-msgstr ""
+msgstr "Für die Bedingung unter {path} wurde kein Vergleichstyp ausgewählt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:401
 msgid "Condition at {path} has no pattern value"
-msgstr ""
+msgstr "Für die Bedingung unter {path} wurde kein Suchmuster angegeben"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:409
 msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
+msgstr "Für die Bedingung unter {path} ist das Regex-Muster ungültig: {error}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:418
 msgid ""
@@ -5937,15 +5936,15 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/savings/SavingsModule.js:46
 msgid "Failed to load savings goals"
-msgstr ""
+msgstr "Sparziele konnten nicht geladen werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/savings/SavingsModule.js:92
 msgid "Target date passed"
-msgstr ""
+msgstr "Zieldatum überschritten"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/savings/SavingsModule.js:94
 msgid "Target date: Today"
-msgstr ""
+msgstr "Zieldatum: Heute"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/savings/SavingsModule.js:96
 msgid "%n day left"
