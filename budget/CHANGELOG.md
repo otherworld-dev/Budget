@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.8] - 2026-06-02
+
+### Added
+- **Cross-currency transfer support** — Transfers between accounts with different currencies now show a destination amount field, auto-filled from exchange rate data and user-editable. New `/api/exchange-rates/convert` endpoint for rate lookups ([#254](https://github.com/otherworld-dev/Budget/issues/254))
+
+### Fixed
+- Factory reset fails on PostgreSQL — DELETE with JOIN not supported, replaced with select-then-delete pattern ([#253](https://github.com/otherworld-dev/Budget/issues/253))
+- CSV import `str_getcsv` deprecation warning on PHP 8.4 — added explicit escape parameter ([#252](https://github.com/otherworld-dev/Budget/issues/252))
+- Deleting a linked transfer now unlinks the counterpart first, preventing dangling references that break the dashboard ([#254](https://github.com/otherworld-dev/Budget/issues/254))
+- Pension detail panel crash — missing DOM elements for type/provider/value fields
+- Pension detail panel not showing — `display:none` not being overridden
+- Compiled German translations from Weblate
+
 ## [2.27.7] - 2026-05-31
 
 ### Fixed
