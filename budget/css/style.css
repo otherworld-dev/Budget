@@ -18154,3 +18154,54 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 .repair-summary p {
     margin: 4px 0;
 }
+
+/* Import template selector & management */
+.import-template-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.import-templates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.import-template-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius);
+}
+
+.import-template-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.import-template-name {
+    font-weight: 600;
+}
+
+.import-template-meta {
+    font-size: 0.85em;
+    color: var(--color-text-maxcontrast);
+}
+
+.import-template-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.import-template-row-actions .button-danger {
+    color: var(--color-error);
+}

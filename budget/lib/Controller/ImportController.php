@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
+use OCA\Budget\Service\ImportTemplateService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -21,6 +22,7 @@ class ImportController extends Controller {
     use ApiErrorHandlerTrait;
 
     private ImportService $service;
+    private ImportTemplateService $templateService;
     private AuditService $auditService;
     private IAppData $appData;
     private IL10N $l;
@@ -29,6 +31,7 @@ class ImportController extends Controller {
     public function __construct(
         IRequest $request,
         ImportService $service,
+        ImportTemplateService $templateService,
         AuditService $auditService,
         IAppData $appData,
         IL10N $l,
@@ -37,11 +40,30 @@ class ImportController extends Controller {
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
+        $this->templateService = $templateService;
         $this->auditService = $auditService;
         $this->appData = $appData;
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
+    }
+
+    /**
+     * Resolve a saved import template into concrete import parameters.
+     * The template's stored mapping/delimiter take precedence; its default
+     * account is used only when the request did not specify one.
+     *
+     * @param array{mapping: array, accountId: ?int, delimiter: string} $params
+     * @return array{mapping: array, accountId: ?int, delimiter: string}
+     */
+    private function applyTemplate(int $templateId, array $params): array {
+        $template = $this->templateService->find($templateId, $this->userId);
+        $params['mapping'] = $template->getParsedMapping();
+        $params['delimiter'] = $template->getDelimiter() ?: $params['delimiter'];
+        if ($params['accountId'] === null) {
+            $params['accountId'] = $template->getAccountId();
+        }
+        return $params;
     }
 
     /**
@@ -89,9 +111,15 @@ class ImportController extends Controller {
         ?array $accountMapping = null,
         bool $skipDuplicates = true,
         string $delimiter = ',',
-        ?string $presetId = null
+        ?string $presetId = null,
+        ?int $templateId = null
     ): DataResponse {
         try {
+            if ($templateId !== null) {
+                ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter] =
+                    $this->applyTemplate($templateId, ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter]);
+            }
+
             $preview = $this->service->previewImport(
                 $this->userId,
                 $fileId,
@@ -120,9 +148,15 @@ class ImportController extends Controller {
         bool $skipDuplicates = true,
         bool $applyRules = true,
         string $delimiter = ',',
-        ?string $presetId = null
+        ?string $presetId = null,
+        ?int $templateId = null
     ): DataResponse {
         try {
+            if ($templateId !== null) {
+                ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter] =
+                    $this->applyTemplate($templateId, ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter]);
+            }
+
             $result = $this->service->processImport(
                 $this->userId,
                 $fileId,

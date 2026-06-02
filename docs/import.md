@@ -126,6 +126,30 @@ To import from Toshl Finance, export your data as CSV from Toshl and upload the 
 - **Transfer handling** — Rows where Toshl's Category is "transaction" (inter-account transfers) are skipped automatically since transfers are not regular transactions.
 - **Full preview** — Before executing, the preview shows accounts to create, categories to create, tags to import, and transfer rows that will be skipped.
 
+## Saved Import Templates
+
+If you import CSV exports from the same bank regularly, you can save your column mapping as a reusable template instead of re-mapping the columns on every import.
+
+**Saving a template:**
+
+1. Upload a CSV file and map the columns as usual (see [Column Mapping](#3-column-mapping)).
+2. Click **Save mapping as template…** in the column mapping step.
+3. Give the template a name (for example, *My Bank Checking*) and save it.
+
+A template stores the column mapping, the CSV delimiter, and the "skip first row" option. If an account is selected, it is also remembered as the template's default destination account.
+
+**Using a template:**
+
+Upload a CSV file, then pick your saved template from the **My Templates** group in the **Import Format** dropdown. The column mapping is filled in automatically. You can still tweak any column before previewing — adjusting a mapping switches the import back to a custom mapping for that run, leaving the saved template unchanged.
+
+**Flow:** Upload CSV → Select a saved template from the **Import Format** dropdown → Preview → Execute Import.
+
+**Managing templates:**
+
+Click **Manage templates** in the column mapping step to rename or delete your saved templates. Templates are private to your account.
+
+> **Note:** A template stores column *names*, so it works on any future export from the same bank as long as the column headers stay the same. If your bank changes its export format, save a new template.
+
 ## Duplicate Detection
 
 The app automatically checks for duplicate transactions during import. A transaction is considered a duplicate when it matches an existing transaction in the same account on all of the following:

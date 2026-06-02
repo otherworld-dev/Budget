@@ -2732,6 +2732,43 @@ style('budget', 'budget-app');
             </div>
         </div>
 
+        <!-- Save Import Template Modal -->
+        <div id="import-save-template-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="import-save-template-title" aria-hidden="true">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h3 id="import-save-template-title"><?php p($l->t('Save Import Template')); ?></h3>
+                    <button type="button" class="modal-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+                </div>
+                <form id="import-save-template-form" class="modal-form">
+                    <div class="form-group">
+                        <label for="import-template-name"><?php p($l->t('Template Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="import-template-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., My Bank Checking')); ?>">
+                        <p class="hint"><?php p($l->t('Saves the current column mapping and delimiter so you can reuse it for future imports.')); ?></p>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                        <button type="submit" class="primary" id="import-template-save-btn"><?php p($l->t('Save')); ?></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Manage Import Templates Modal -->
+        <div id="import-templates-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="import-templates-title" aria-hidden="true">
+            <div class="modal-content modal-medium">
+                <div class="modal-header">
+                    <h3 id="import-templates-title"><?php p($l->t('Manage Import Templates')); ?></h3>
+                    <button type="button" class="modal-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="import-templates-list" class="import-templates-list"></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn"><?php p($l->t('Close')); ?></button>
+                </div>
+            </div>
+        </div>
+
         <!-- Goal Modal -->
         <div id="goal-modal" class="modal" style="display: none;">
             <div class="modal-content modal-medium">

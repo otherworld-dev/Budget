@@ -113,7 +113,14 @@ return [
         ['name' => 'import#rollback', 'url' => '/api/import/rollback/{importId}', 'verb' => 'POST'],
         ['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
         ['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
-        
+
+        // User-saved import template routes (reusable CSV column mappings)
+        ['name' => 'importTemplate#index', 'url' => '/api/import-templates', 'verb' => 'GET'],
+        ['name' => 'importTemplate#show', 'url' => '/api/import-templates/{id}', 'verb' => 'GET'],
+        ['name' => 'importTemplate#create', 'url' => '/api/import-templates', 'verb' => 'POST'],
+        ['name' => 'importTemplate#update', 'url' => '/api/import-templates/{id}', 'verb' => 'PUT'],
+        ['name' => 'importTemplate#destroy', 'url' => '/api/import-templates/{id}', 'verb' => 'DELETE'],
+
         // Import rules routes (also used as general categorization rules)
         ['name' => 'importRule#index', 'url' => '/api/import-rules', 'verb' => 'GET'],
         ['name' => 'importRule#show', 'url' => '/api/import-rules/{id}', 'verb' => 'GET'],

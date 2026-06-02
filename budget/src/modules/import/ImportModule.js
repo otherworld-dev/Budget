@@ -25,6 +25,10 @@ export default class ImportModule {
         this.presets = [];
         this.selectedPreset = null;
         this.previewTotalValid = 0;
+
+        // User-saved import template state
+        this.userTemplates = [];
+        this.selectedTemplate = null;
     }
 
     // ============================================
@@ -113,67 +117,307 @@ export default class ImportModule {
         }
     }
 
-    showPresetSelector() {
-        const container = document.getElementById('import-preset-group');
-        if (container) {
-            // Already rendered
-            return;
+    async loadUserTemplates() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (response.ok) {
+                this.userTemplates = await response.json();
+            }
+        } catch (error) {
+            console.error('Failed to load import templates:', error);
         }
+    }
 
-        // Insert preset selector after file details in step 1 area or before step 2 mapping
+    showPresetSelector() {
         const step2 = document.getElementById('import-step-2');
         if (!step2) return;
 
-        const presetGroup = document.createElement('div');
-        presetGroup.className = 'form-group';
-        presetGroup.id = 'import-preset-group';
+        let presetGroup = document.getElementById('import-preset-group');
+        if (!presetGroup) {
+            presetGroup = document.createElement('div');
+            presetGroup.className = 'form-group';
+            presetGroup.id = 'import-preset-group';
+            // Insert at the top of step 2
+            step2.insertBefore(presetGroup, step2.firstChild);
+            presetGroup.addEventListener('change', (e) => {
+                if (e.target.id === 'import-preset') this.onImportFormatChange(e.target.value);
+            });
+            presetGroup.addEventListener('click', (e) => {
+                if (e.target.closest('#save-template-btn')) this.openSaveTemplateModal();
+                if (e.target.closest('#manage-templates-btn')) this.openManageTemplatesModal();
+            });
+        }
+
+        this.renderPresetSelector();
+    }
+
+    renderPresetSelector() {
+        const presetGroup = document.getElementById('import-preset-group');
+        if (!presetGroup) return;
+
+        // Preserve the current selection across re-renders
+        const current = document.getElementById('import-preset')?.value
+            ?? (this.selectedTemplate ? `template:${this.selectedTemplate}` : (this.selectedPreset ? `preset:${this.selectedPreset}` : ''));
+
+        const presetOptions = this.presets
+            .map(p => `<option value="preset:${dom.escapeHtml(String(p.id))}">${dom.escapeHtml(p.name)}</option>`)
+            .join('');
+        const templateOptions = this.userTemplates
+            .map(tpl => `<option value="template:${tpl.id}">${dom.escapeHtml(tpl.name)}</option>`)
+            .join('');
+
         presetGroup.innerHTML = `
             <label for="import-preset">${t('budget', 'Import Format')}</label>
             <select id="import-preset">
                 <option value="">${t('budget', 'Custom CSV (manual mapping)')}</option>
-                ${this.presets.map(p => `<option value="${dom.escapeHtml(String(p.id))}">${dom.escapeHtml(p.name)}</option>`).join('')}
+                ${this.userTemplates.length ? `<optgroup label="${t('budget', 'My Templates')}">${templateOptions}</optgroup>` : ''}
+                ${this.presets.length ? `<optgroup label="${t('budget', 'Bank Presets')}">${presetOptions}</optgroup>` : ''}
             </select>
+            <div class="import-template-actions">
+                <button type="button" class="button" id="save-template-btn">${t('budget', 'Save mapping as template…')}</button>
+                <button type="button" class="button" id="manage-templates-btn">${t('budget', 'Manage templates')}</button>
+            </div>
             <p class="preset-description" id="preset-description" style="display:none;"></p>
         `;
 
-        // Insert at the top of step 2
-        step2.insertBefore(presetGroup, step2.firstChild);
-
-        // Add change listener
         const select = document.getElementById('import-preset');
-        select.addEventListener('change', () => {
-            this.selectedPreset = select.value || null;
-            const desc = document.getElementById('preset-description');
-            const mappingSection = document.getElementById('column-mapping-section');
+        if (select) select.value = current;
+    }
 
-            if (this.selectedPreset) {
-                const preset = this.presets.find(p => p.id === this.selectedPreset);
-                if (preset && desc) {
-                    desc.textContent = preset.description;
+    /**
+     * Handle a change of the "Import Format" dropdown. Values are prefixed:
+     * "preset:<id>" for built-in bank presets, "template:<id>" for user templates.
+     */
+    onImportFormatChange(value) {
+        this.selectedPreset = null;
+        this.selectedTemplate = null;
+
+        const desc = document.getElementById('preset-description');
+        const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
+        const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
+        const setManualMappingVisible = (visible) => {
+            if (mappingContainer) mappingContainer.style.display = visible ? '' : 'none';
+            if (mappingOptions) mappingOptions.style.display = visible ? '' : 'none';
+        };
+
+        if (value.startsWith('preset:')) {
+            // Built-in preset: server applies a fixed mapping, hide manual controls.
+            this.selectedPreset = value.slice('preset:'.length);
+            const preset = this.presets.find(p => String(p.id) === this.selectedPreset);
+            if (preset && desc) {
+                desc.textContent = preset.description || '';
+                desc.style.display = preset.description ? 'block' : 'none';
+            }
+            setManualMappingVisible(false);
+        } else if (value.startsWith('template:')) {
+            // User template: prefill the manual controls so they can be reviewed/tweaked.
+            this.selectedTemplate = parseInt(value.slice('template:'.length), 10);
+            const template = this.userTemplates.find(tpl => tpl.id === this.selectedTemplate);
+            if (template) {
+                this.applyTemplateToForm(template);
+                if (desc) {
+                    desc.textContent = t('budget', 'Using saved template. Adjust any column to switch back to a custom mapping.');
                     desc.style.display = 'block';
                 }
-                // Hide manual mapping when preset is selected
-                if (mappingSection) mappingSection.style.display = 'none';
-                const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
-                if (mappingContainer) mappingContainer.style.display = 'none';
-                const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
-                if (mappingOptions) mappingOptions.style.display = 'none';
-            } else {
-                if (desc) desc.style.display = 'none';
-                // Show manual mapping
-                if (mappingSection) mappingSection.style.display = '';
-                const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
-                if (mappingContainer) mappingContainer.style.display = '';
-                const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
-                if (mappingOptions) mappingOptions.style.display = '';
             }
+            setManualMappingVisible(true);
+        } else {
+            if (desc) desc.style.display = 'none';
+            setManualMappingVisible(true);
+        }
 
-            // Update next button state
-            const nextBtn = document.getElementById('next-step-btn');
-            if (nextBtn) {
-                nextBtn.disabled = !this.canProceedToNextStep();
+        const nextBtn = document.getElementById('next-step-btn');
+        if (nextBtn) nextBtn.disabled = !this.canProceedToNextStep();
+    }
+
+    /**
+     * Populate the manual mapping controls from a saved template.
+     * Setting values programmatically does not fire change events, so the
+     * template stays "selected" until the user edits a control.
+     */
+    applyTemplateToForm(template) {
+        const mapping = template.mapping || {};
+        const setSelect = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value ?? '';
+        };
+        setSelect('map-date', mapping.date);
+        setSelect('map-amount', mapping.amount);
+        setSelect('map-income', mapping.incomeColumn);
+        setSelect('map-expense', mapping.expenseColumn);
+        setSelect('map-description', mapping.description);
+        setSelect('map-type', mapping.type);
+        setSelect('map-vendor', mapping.vendor);
+        setSelect('map-reference', mapping.reference);
+        setSelect('map-category', mapping.category);
+        setSelect('map-account', mapping.account);
+        setSelect('map-currency', mapping.currency);
+
+        const skipFirstRow = document.getElementById('skip-first-row');
+        if (skipFirstRow) skipFirstRow.checked = !!mapping.skipFirstRow;
+        const applyRules = document.getElementById('apply-rules');
+        if (applyRules && mapping.applyRules !== undefined) applyRules.checked = !!mapping.applyRules;
+
+        const delimiterSelect = document.getElementById('csv-delimiter');
+        if (delimiterSelect && template.delimiter) delimiterSelect.value = template.delimiter;
+
+        this.highlightMappedColumns(this.getCurrentMapping());
+        this.validateMappingStep();
+    }
+
+    // ============================================
+    // Import Template Management (save / manage modals)
+    // ============================================
+
+    closeTemplateModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.style.display = 'none';
+    }
+
+    openSaveTemplateModal() {
+        if (!this.validateMappingStep()) {
+            showWarning(t('budget', 'Map the required columns before saving a template'));
+            return;
+        }
+        const modal = document.getElementById('import-save-template-modal');
+        if (!modal) return;
+        const nameInput = document.getElementById('import-template-name');
+        if (nameInput) nameInput.value = '';
+        modal.style.display = 'flex';
+        nameInput?.focus();
+    }
+
+    async saveCurrentTemplate() {
+        const nameInput = document.getElementById('import-template-name');
+        const name = (nameInput?.value || '').trim();
+        if (!name) {
+            showWarning(t('budget', 'Please enter a template name'));
+            return;
+        }
+
+        const mapping = this.getCurrentMapping();
+        const requestBody = {
+            name,
+            mapping,
+            delimiter: document.getElementById('csv-delimiter')?.value || ',',
+            skipFirstRow: !!mapping.skipFirstRow
+        };
+        const accountId = parseInt(document.getElementById('import-account')?.value, 10);
+        if (accountId) requestBody.accountId = accountId;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify(requestBody)
+            });
+            const data = await response.json();
+            if (response.ok) {
+                showSuccess(t('budget', 'Import template saved'));
+                this.closeTemplateModal('import-save-template-modal');
+                await this.loadUserTemplates();
+                this.renderPresetSelector();
+                // Select the newly saved template
+                this.selectedTemplate = data.id;
+                this.selectedPreset = null;
+                const select = document.getElementById('import-preset');
+                if (select) select.value = `template:${data.id}`;
+            } else {
+                showError(data.error || t('budget', 'Failed to save import template'));
             }
-        });
+        } catch (error) {
+            console.error('Failed to save import template:', error);
+            showError(t('budget', 'Failed to save import template'));
+        }
+    }
+
+    openManageTemplatesModal() {
+        const modal = document.getElementById('import-templates-modal');
+        if (!modal) return;
+        this.renderManageTemplatesList();
+        modal.style.display = 'flex';
+    }
+
+    renderManageTemplatesList() {
+        const list = document.getElementById('import-templates-list');
+        if (!list) return;
+
+        if (!this.userTemplates.length) {
+            list.innerHTML = `<p class="empty-state">${t('budget', 'No saved templates yet. Map your columns, then use “Save mapping as template”.')}</p>`;
+            return;
+        }
+
+        list.innerHTML = this.userTemplates.map(tpl => {
+            const columnCount = Object.keys(tpl.mapping || {})
+                .filter(k => !['skipFirstRow', 'applyRules'].includes(k)).length;
+            return `
+                <div class="import-template-row" data-id="${tpl.id}">
+                    <div class="import-template-info">
+                        <span class="import-template-name">${dom.escapeHtml(tpl.name)}</span>
+                        <span class="import-template-meta">${n('budget', '%n column mapped', '%n columns mapped', columnCount)}</span>
+                    </div>
+                    <div class="import-template-row-actions">
+                        <button type="button" class="button" data-action="rename">${t('budget', 'Rename')}</button>
+                        <button type="button" class="button button-danger" data-action="delete">${t('budget', 'Delete')}</button>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    async renameTemplate(id) {
+        const template = this.userTemplates.find(tpl => tpl.id === id);
+        if (!template) return;
+        const newName = window.prompt(t('budget', 'New template name'), template.name);
+        if (newName === null) return;
+        const name = newName.trim();
+        if (!name || name === template.name) return;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ name })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                showSuccess(t('budget', 'Import template renamed'));
+                await this.loadUserTemplates();
+                this.renderManageTemplatesList();
+                this.renderPresetSelector();
+            } else {
+                showError(data.error || t('budget', 'Failed to rename import template'));
+            }
+        } catch (error) {
+            console.error('Failed to rename import template:', error);
+            showError(t('budget', 'Failed to rename import template'));
+        }
+    }
+
+    async deleteTemplate(id) {
+        if (!confirm(t('budget', 'Are you sure you want to delete this import template?'))) return;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (response.ok) {
+                showSuccess(t('budget', 'Import template deleted'));
+                if (this.selectedTemplate === id) {
+                    this.selectedTemplate = null;
+                }
+                await this.loadUserTemplates();
+                this.renderManageTemplatesList();
+                this.renderPresetSelector();
+            } else {
+                showError(t('budget', 'Failed to delete import template'));
+            }
+        } catch (error) {
+            console.error('Failed to delete import template:', error);
+            showError(t('budget', 'Failed to delete import template'));
+        }
     }
 
     // ============================================
@@ -234,6 +478,33 @@ export default class ImportModule {
         if (showUncategorized) {
             showUncategorized.addEventListener('change', () => this.filterPreviewTransactions());
         }
+
+        // Save-template modal
+        const saveTemplateForm = document.getElementById('import-save-template-form');
+        if (saveTemplateForm) {
+            saveTemplateForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCurrentTemplate();
+            });
+        }
+        document.querySelectorAll('#import-save-template-modal .modal-close, #import-save-template-modal .cancel-btn')
+            .forEach(btn => btn.addEventListener('click', () => this.closeTemplateModal('import-save-template-modal')));
+
+        // Manage-templates modal (event delegation for rename/delete)
+        const templatesList = document.getElementById('import-templates-list');
+        if (templatesList) {
+            templatesList.addEventListener('click', (e) => {
+                const action = e.target.dataset?.action;
+                if (!action) return;
+                const row = e.target.closest('.import-template-row');
+                if (!row) return;
+                const id = parseInt(row.dataset.id, 10);
+                if (action === 'rename') this.renameTemplate(id);
+                if (action === 'delete') this.deleteTemplate(id);
+            });
+        }
+        document.querySelectorAll('#import-templates-modal .modal-close, #import-templates-modal .cancel-btn')
+            .forEach(btn => btn.addEventListener('click', () => this.closeTemplateModal('import-templates-modal')));
 
         // Initialize import state
         this.currentImportStep = 1;
@@ -303,11 +574,12 @@ export default class ImportModule {
         // Show preview data
         this.showMappingPreview(uploadResult.preview);
 
-        // Load and show preset selector for CSV files
-        if (uploadResult.format === 'csv' && this.presets.length === 0) {
-            await this.loadPresets();
-        }
-        if (uploadResult.format === 'csv' && this.presets.length > 0) {
+        // Load and show the import format selector (presets + saved templates) for CSV files
+        if (uploadResult.format === 'csv') {
+            if (this.presets.length === 0) {
+                await this.loadPresets();
+            }
+            await this.loadUserTemplates();
             this.showPresetSelector();
         }
 
@@ -428,6 +700,16 @@ export default class ImportModule {
     }
 
     updatePreviewMapping() {
+        // A manual column change means the mapping has diverged from any saved
+        // template, so fall back to a custom mapping for this import.
+        if (this.selectedTemplate) {
+            this.selectedTemplate = null;
+            const select = document.getElementById('import-preset');
+            if (select) select.value = '';
+            const desc = document.getElementById('preset-description');
+            if (desc) desc.style.display = 'none';
+        }
+
         // Update the mapping preview when selections change
         const mapping = this.getCurrentMapping();
         // Update mapping indicators in preview table
@@ -608,6 +890,11 @@ export default class ImportModule {
         // Include preset ID if selected
         if (this.selectedPreset) {
             requestBody.presetId = this.selectedPreset;
+        }
+
+        // Include saved template ID if selected (server resolves the mapping)
+        if (this.selectedTemplate) {
+            requestBody.templateId = this.selectedTemplate;
         }
 
         // Check if preset has accountColumn or manual mapping has account column
@@ -962,6 +1249,11 @@ export default class ImportModule {
             requestBody.presetId = this.selectedPreset;
         }
 
+        // Include saved template ID if selected (server resolves the mapping)
+        if (this.selectedTemplate) {
+            requestBody.templateId = this.selectedTemplate;
+        }
+
         // Check if preset has accountColumn or manual mapping has account column
         const presetHasAccountColumn = this.selectedPreset && this.presets.find(p => p.id === this.selectedPreset)?.options?.accountColumn;
         const mappingHasAccountColumn = !!(mapping.account);
@@ -1068,6 +1360,7 @@ export default class ImportModule {
         this.sourceAccounts = [];
         this.importFormat = null;
         this.selectedPreset = null;
+        this.selectedTemplate = null;
         this.previewTotalValid = 0;
 
         this.setImportStep(1);

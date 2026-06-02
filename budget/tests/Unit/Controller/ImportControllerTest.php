@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\ImportController;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
+use OCA\Budget\Service\ImportTemplateService;
 use OCP\AppFramework\Http;
 use OCP\Files\IAppData;
 use OCP\IL10N;
@@ -17,6 +18,7 @@ use Psr\Log\LoggerInterface;
 class ImportControllerTest extends TestCase {
 	private ImportController $controller;
 	private ImportService $service;
+	private ImportTemplateService $templateService;
 	private AuditService $auditService;
 	private IAppData $appData;
 	private IRequest $request;
@@ -25,6 +27,7 @@ class ImportControllerTest extends TestCase {
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(ImportService::class);
+		$this->templateService = $this->createMock(ImportTemplateService::class);
 		$this->auditService = $this->createMock(AuditService::class);
 		$this->appData = $this->createMock(IAppData::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
@@ -36,6 +39,7 @@ class ImportControllerTest extends TestCase {
 		$this->controller = new ImportController(
 			$this->request,
 			$this->service,
+			$this->templateService,
 			$this->auditService,
 			$this->appData,
 			$l,
