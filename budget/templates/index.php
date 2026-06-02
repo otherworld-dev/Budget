@@ -4879,9 +4879,14 @@ style('budget', 'budget-main');
                 <small id="transfer-to-account-help" class="form-text"><?php p($l->t('Select the account to transfer money to')); ?></small>
             </div>
             <div class="form-group">
-                <label for="transaction-amount"><?php p($l->t('Amount')); ?></label>
+                <label for="transaction-amount"><span id="transaction-amount-label"><?php p($l->t('Amount')); ?></span></label>
                 <input type="number" id="transaction-amount" step="0.01" required aria-describedby="transaction-amount-help" min="0">
                 <small id="transaction-amount-help" class="form-text"><?php p($l->t('Enter the transaction amount (positive number)')); ?></small>
+            </div>
+            <div id="transfer-dest-amount-wrapper" class="form-group" style="display: none;">
+                <label for="transfer-dest-amount"><span id="transfer-dest-amount-label"><?php p($l->t('Destination Amount')); ?></span></label>
+                <input type="number" id="transfer-dest-amount" step="0.01" min="0" aria-describedby="transfer-dest-amount-help">
+                <small id="transfer-dest-amount-help" class="form-text"><?php p($l->t('Amount in destination currency (auto-filled from exchange rate, editable)')); ?></small>
             </div>
             <div class="form-group">
                 <label for="transaction-description"><?php p($l->t('Description')); ?></label>

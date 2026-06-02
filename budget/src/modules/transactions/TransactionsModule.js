@@ -1313,6 +1313,14 @@ export default class TransactionsModule {
                 document.getElementById('transaction-id').value = '';
                 setDateValue('transaction-date', formatters.getTodayDateString());
 
+                // Reset cross-currency transfer fields
+                const destWrapper = document.getElementById('transfer-dest-amount-wrapper');
+                if (destWrapper) destWrapper.style.display = 'none';
+                const destInput = document.getElementById('transfer-dest-amount');
+                if (destInput) { destInput.value = ''; destInput.dataset.userEdited = ''; }
+                const amtLabel = document.getElementById('transaction-amount-label');
+                if (amtLabel) amtLabel.textContent = t('budget', 'Amount');
+
                 // Pre-select account if provided
                 if (preSelectedAccountId) {
                     document.getElementById('transaction-account').value = preSelectedAccountId;
@@ -1337,20 +1345,49 @@ export default class TransactionsModule {
             // Set up transaction type change listener to show/hide transfer fields
             const typeSelect = document.getElementById('transaction-type');
             const toAccountWrapper = document.getElementById('transfer-to-account-wrapper');
+            const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
             if (typeSelect && toAccountWrapper) {
                 const handleTypeChange = () => {
-                    if (typeSelect.value === 'transfer') {
-                        toAccountWrapper.style.display = 'block';
-                    } else {
-                        toAccountWrapper.style.display = 'none';
+                    const isTransfer = typeSelect.value === 'transfer';
+                    toAccountWrapper.style.display = isTransfer ? 'block' : 'none';
+                    if (!isTransfer && destAmountWrapper) {
+                        destAmountWrapper.style.display = 'none';
                     }
+                    if (isTransfer) this._checkCrossCurrencyTransfer();
                 };
 
-                // Set up listener
                 typeSelect.onchange = handleTypeChange;
-
-                // Initialize visibility based on current value
                 handleTypeChange();
+            }
+
+            // Source or destination account change — check for cross-currency
+            const sourceAccountSelect = document.getElementById('transaction-account');
+            if (sourceAccountSelect) {
+                sourceAccountSelect.addEventListener('change', () => this._checkCrossCurrencyTransfer());
+            }
+            const toAccountSelect2 = document.getElementById('transfer-to-account');
+            if (toAccountSelect2) {
+                toAccountSelect2.addEventListener('change', () => this._checkCrossCurrencyTransfer());
+            }
+
+            // Source amount change — update destination amount if cross-currency
+            // Source amount change — update destination amount if cross-currency
+            const amountInput = document.getElementById('transaction-amount');
+            if (amountInput) {
+                amountInput.addEventListener('input', () => {
+                    // Reset user-edited flag when source amount changes
+                    const destInput = document.getElementById('transfer-dest-amount');
+                    if (destInput) destInput.dataset.userEdited = '';
+                    this._updateDestAmountFromRate();
+                });
+            }
+
+            // Track manual edits to destination amount
+            const destAmountInput = document.getElementById('transfer-dest-amount');
+            if (destAmountInput) {
+                destAmountInput.addEventListener('input', () => {
+                    destAmountInput.dataset.userEdited = 'true';
+                });
             }
 
             // Set up inline split toggle
@@ -1465,6 +1502,13 @@ export default class TransactionsModule {
                 const debitTransactionId = debitData.id;
 
                 // Step 2: Create credit transaction in TO account
+                // For cross-currency transfers, use the destination amount
+                const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
+                const destAmountInput = document.getElementById('transfer-dest-amount');
+                const creditAmount = (destAmountWrapper?.style.display !== 'none' && destAmountInput?.value)
+                    ? parseFloat(destAmountInput.value)
+                    : amount;
+
                 const creditResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
                     method: 'POST',
                     headers: {
@@ -1475,7 +1519,7 @@ export default class TransactionsModule {
                         date,
                         accountId: toAccountId,
                         type: 'credit',
-                        amount,
+                        amount: creditAmount,
                         description,
                         vendor: vendor || null,
                         categoryId: categoryId ? parseInt(categoryId) : null,
@@ -1952,6 +1996,85 @@ export default class TransactionsModule {
         } catch (error) {
             console.error('Failed to unlink transaction:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Check if source and destination accounts have different currencies.
+     * Shows/hides the destination amount field and auto-fills via exchange rate.
+     */
+    _checkCrossCurrencyTransfer() {
+        const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
+        if (!destAmountWrapper) return;
+
+        const sourceAccountId = parseInt(document.getElementById('transaction-account')?.value);
+        const destAccountId = parseInt(document.getElementById('transfer-to-account')?.value);
+
+        if (!sourceAccountId || !destAccountId) {
+            destAmountWrapper.style.display = 'none';
+            return;
+        }
+
+        const sourceAccount = this.accounts?.find(a => a.id === sourceAccountId);
+        const destAccount = this.accounts?.find(a => a.id === destAccountId);
+
+        if (!sourceAccount || !destAccount) {
+            destAmountWrapper.style.display = 'none';
+            return;
+        }
+
+        const sourceCurrency = sourceAccount.currency || '';
+        const destCurrency = destAccount.currency || '';
+
+        if (sourceCurrency && destCurrency && sourceCurrency !== destCurrency) {
+            destAmountWrapper.style.display = 'block';
+            // Update labels with currency codes
+            const amountLabel = document.getElementById('transaction-amount-label');
+            const destLabel = document.getElementById('transfer-dest-amount-label');
+            if (amountLabel) amountLabel.textContent = t('budget', 'Amount ({currency})', { currency: sourceCurrency });
+            if (destLabel) destLabel.textContent = t('budget', 'Destination Amount ({currency})', { currency: destCurrency });
+            // Auto-fill destination amount
+            this._updateDestAmountFromRate();
+        } else {
+            destAmountWrapper.style.display = 'none';
+            // Reset label
+            const amountLabel = document.getElementById('transaction-amount-label');
+            if (amountLabel) amountLabel.textContent = t('budget', 'Amount');
+        }
+    }
+
+    /**
+     * Fetch exchange rate and update destination amount field.
+     */
+    async _updateDestAmountFromRate() {
+        const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
+        if (!destAmountWrapper || destAmountWrapper.style.display === 'none') return;
+
+        const sourceAmount = parseFloat(document.getElementById('transaction-amount')?.value);
+        if (!sourceAmount || sourceAmount <= 0) return;
+
+        const sourceAccountId = parseInt(document.getElementById('transaction-account')?.value);
+        const destAccountId = parseInt(document.getElementById('transfer-to-account')?.value);
+        const sourceAccount = this.accounts?.find(a => a.id === sourceAccountId);
+        const destAccount = this.accounts?.find(a => a.id === destAccountId);
+
+        if (!sourceAccount?.currency || !destAccount?.currency) return;
+
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/exchange-rates/convert?from=${sourceAccount.currency}&to=${destAccount.currency}&amount=${sourceAmount}`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (response.ok) {
+                const data = await response.json();
+                const destInput = document.getElementById('transfer-dest-amount');
+                // Only auto-fill if user hasn't manually edited it
+                if (destInput && !destInput.dataset.userEdited) {
+                    destInput.value = data.convertedAmount;
+                }
+            }
+        } catch (e) {
+            // Silently fail — user can enter amount manually
         }
     }
 

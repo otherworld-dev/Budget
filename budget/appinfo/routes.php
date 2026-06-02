@@ -323,6 +323,7 @@ return [
 
         // Exchange rate routes
         ['name' => 'exchangeRate#index', 'url' => '/api/exchange-rates', 'verb' => 'GET'],
+        ['name' => 'exchangeRate#convert', 'url' => '/api/exchange-rates/convert', 'verb' => 'GET'],
         ['name' => 'exchangeRate#latest', 'url' => '/api/exchange-rates/latest', 'verb' => 'GET'],
         ['name' => 'exchangeRate#refresh', 'url' => '/api/exchange-rates/refresh', 'verb' => 'POST'],
         ['name' => 'exchangeRate#setManualRate', 'url' => '/api/exchange-rates/manual', 'verb' => 'POST'],

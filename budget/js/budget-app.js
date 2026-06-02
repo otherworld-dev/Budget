@@ -60521,6 +60521,17 @@ var TransactionsModule = /*#__PURE__*/function () {
           document.getElementById('transaction-id').value = '';
           (0,_utils_datepicker_js__WEBPACK_IMPORTED_MODULE_3__.setDateValue)('transaction-date', _utils_formatters_js__WEBPACK_IMPORTED_MODULE_0__.getTodayDateString());
 
+          // Reset cross-currency transfer fields
+          var destWrapper = document.getElementById('transfer-dest-amount-wrapper');
+          if (destWrapper) destWrapper.style.display = 'none';
+          var destInput = document.getElementById('transfer-dest-amount');
+          if (destInput) {
+            destInput.value = '';
+            destInput.dataset.userEdited = '';
+          }
+          var amtLabel = document.getElementById('transaction-amount-label');
+          if (amtLabel) amtLabel.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Amount');
+
           // Pre-select account if provided
           if (preSelectedAccountId) {
             document.getElementById('transaction-account').value = preSelectedAccountId;
@@ -60545,20 +60556,52 @@ var TransactionsModule = /*#__PURE__*/function () {
         // Set up transaction type change listener to show/hide transfer fields
         var typeSelect = document.getElementById('transaction-type');
         var toAccountWrapper = document.getElementById('transfer-to-account-wrapper');
+        var destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
         if (typeSelect && toAccountWrapper) {
           var handleTypeChange = function handleTypeChange() {
-            if (typeSelect.value === 'transfer') {
-              toAccountWrapper.style.display = 'block';
-            } else {
-              toAccountWrapper.style.display = 'none';
+            var isTransfer = typeSelect.value === 'transfer';
+            toAccountWrapper.style.display = isTransfer ? 'block' : 'none';
+            if (!isTransfer && destAmountWrapper) {
+              destAmountWrapper.style.display = 'none';
             }
+            if (isTransfer) _this9._checkCrossCurrencyTransfer();
           };
-
-          // Set up listener
           typeSelect.onchange = handleTypeChange;
-
-          // Initialize visibility based on current value
           handleTypeChange();
+        }
+
+        // Source or destination account change — check for cross-currency
+        var sourceAccountSelect = document.getElementById('transaction-account');
+        if (sourceAccountSelect) {
+          sourceAccountSelect.addEventListener('change', function () {
+            return _this9._checkCrossCurrencyTransfer();
+          });
+        }
+        var toAccountSelect2 = document.getElementById('transfer-to-account');
+        if (toAccountSelect2) {
+          toAccountSelect2.addEventListener('change', function () {
+            return _this9._checkCrossCurrencyTransfer();
+          });
+        }
+
+        // Source amount change — update destination amount if cross-currency
+        // Source amount change — update destination amount if cross-currency
+        var amountInput = document.getElementById('transaction-amount');
+        if (amountInput) {
+          amountInput.addEventListener('input', function () {
+            // Reset user-edited flag when source amount changes
+            var destInput = document.getElementById('transfer-dest-amount');
+            if (destInput) destInput.dataset.userEdited = '';
+            _this9._updateDestAmountFromRate();
+          });
+        }
+
+        // Track manual edits to destination amount
+        var destAmountInput = document.getElementById('transfer-dest-amount');
+        if (destAmountInput) {
+          destAmountInput.addEventListener('input', function () {
+            destAmountInput.dataset.userEdited = 'true';
+          });
         }
 
         // Set up inline split toggle
@@ -60675,7 +60718,7 @@ var TransactionsModule = /*#__PURE__*/function () {
     key: "saveTransaction",
     value: function () {
       var _saveTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
-        var id, date, accountId, type, amount, description, vendor, categoryId, notes, toAccountId, debitResponse, error, debitData, debitTransactionId, creditResponse, _error, creditData, creditTransactionId, linkResponse, _error2, data, selectedTagIds, response, created, txId, splitToggle, _error3, _t10, _t11, _t12;
+        var id, date, accountId, type, amount, description, vendor, categoryId, notes, toAccountId, debitResponse, error, debitData, debitTransactionId, destAmountWrapper, destAmountInput, creditAmount, creditResponse, _error, creditData, creditTransactionId, linkResponse, _error2, data, selectedTagIds, response, created, txId, splitToggle, _error3, _t10, _t11, _t12;
         return _regenerator().w(function (_context10) {
           while (1) switch (_context10.p = _context10.n) {
             case 0:
@@ -60744,6 +60787,10 @@ var TransactionsModule = /*#__PURE__*/function () {
             case 6:
               debitData = _context10.v;
               debitTransactionId = debitData.id; // Step 2: Create credit transaction in TO account
+              // For cross-currency transfers, use the destination amount
+              destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
+              destAmountInput = document.getElementById('transfer-dest-amount');
+              creditAmount = (destAmountWrapper === null || destAmountWrapper === void 0 ? void 0 : destAmountWrapper.style.display) !== 'none' && destAmountInput !== null && destAmountInput !== void 0 && destAmountInput.value ? parseFloat(destAmountInput.value) : amount;
               _context10.n = 7;
               return fetch(OC.generateUrl('/apps/budget/api/transactions'), {
                 method: 'POST',
@@ -60755,7 +60802,7 @@ var TransactionsModule = /*#__PURE__*/function () {
                   date: date,
                   accountId: toAccountId,
                   type: 'credit',
-                  amount: amount,
+                  amount: creditAmount,
                   description: description,
                   vendor: vendor || null,
                   categoryId: categoryId ? parseInt(categoryId) : null,
@@ -61461,33 +61508,159 @@ var TransactionsModule = /*#__PURE__*/function () {
       }
       return unlinkTransaction;
     }()
+    /**
+     * Check if source and destination accounts have different currencies.
+     * Shows/hides the destination amount field and auto-fills via exchange rate.
+     */
+  }, {
+    key: "_checkCrossCurrencyTransfer",
+    value: function _checkCrossCurrencyTransfer() {
+      var _document$getElementB17, _document$getElementB18, _this$accounts2, _this$accounts3;
+      var destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
+      if (!destAmountWrapper) return;
+      var sourceAccountId = parseInt((_document$getElementB17 = document.getElementById('transaction-account')) === null || _document$getElementB17 === void 0 ? void 0 : _document$getElementB17.value);
+      var destAccountId = parseInt((_document$getElementB18 = document.getElementById('transfer-to-account')) === null || _document$getElementB18 === void 0 ? void 0 : _document$getElementB18.value);
+      if (!sourceAccountId || !destAccountId) {
+        destAmountWrapper.style.display = 'none';
+        return;
+      }
+      var sourceAccount = (_this$accounts2 = this.accounts) === null || _this$accounts2 === void 0 ? void 0 : _this$accounts2.find(function (a) {
+        return a.id === sourceAccountId;
+      });
+      var destAccount = (_this$accounts3 = this.accounts) === null || _this$accounts3 === void 0 ? void 0 : _this$accounts3.find(function (a) {
+        return a.id === destAccountId;
+      });
+      if (!sourceAccount || !destAccount) {
+        destAmountWrapper.style.display = 'none';
+        return;
+      }
+      var sourceCurrency = sourceAccount.currency || '';
+      var destCurrency = destAccount.currency || '';
+      if (sourceCurrency && destCurrency && sourceCurrency !== destCurrency) {
+        destAmountWrapper.style.display = 'block';
+        // Update labels with currency codes
+        var amountLabel = document.getElementById('transaction-amount-label');
+        var destLabel = document.getElementById('transfer-dest-amount-label');
+        if (amountLabel) amountLabel.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Amount ({currency})', {
+          currency: sourceCurrency
+        });
+        if (destLabel) destLabel.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Destination Amount ({currency})', {
+          currency: destCurrency
+        });
+        // Auto-fill destination amount
+        this._updateDestAmountFromRate();
+      } else {
+        destAmountWrapper.style.display = 'none';
+        // Reset label
+        var _amountLabel = document.getElementById('transaction-amount-label');
+        if (_amountLabel) _amountLabel.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Amount');
+      }
+    }
+
+    /**
+     * Fetch exchange rate and update destination amount field.
+     */
+  }, {
+    key: "_updateDestAmountFromRate",
+    value: (function () {
+      var _updateDestAmountFromRate2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
+        var _document$getElementB19, _document$getElementB20, _document$getElementB21, _this$accounts4, _this$accounts5;
+        var destAmountWrapper, sourceAmount, sourceAccountId, destAccountId, sourceAccount, destAccount, response, data, destInput, _t19;
+        return _regenerator().w(function (_context17) {
+          while (1) switch (_context17.p = _context17.n) {
+            case 0:
+              destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
+              if (!(!destAmountWrapper || destAmountWrapper.style.display === 'none')) {
+                _context17.n = 1;
+                break;
+              }
+              return _context17.a(2);
+            case 1:
+              sourceAmount = parseFloat((_document$getElementB19 = document.getElementById('transaction-amount')) === null || _document$getElementB19 === void 0 ? void 0 : _document$getElementB19.value);
+              if (!(!sourceAmount || sourceAmount <= 0)) {
+                _context17.n = 2;
+                break;
+              }
+              return _context17.a(2);
+            case 2:
+              sourceAccountId = parseInt((_document$getElementB20 = document.getElementById('transaction-account')) === null || _document$getElementB20 === void 0 ? void 0 : _document$getElementB20.value);
+              destAccountId = parseInt((_document$getElementB21 = document.getElementById('transfer-to-account')) === null || _document$getElementB21 === void 0 ? void 0 : _document$getElementB21.value);
+              sourceAccount = (_this$accounts4 = this.accounts) === null || _this$accounts4 === void 0 ? void 0 : _this$accounts4.find(function (a) {
+                return a.id === sourceAccountId;
+              });
+              destAccount = (_this$accounts5 = this.accounts) === null || _this$accounts5 === void 0 ? void 0 : _this$accounts5.find(function (a) {
+                return a.id === destAccountId;
+              });
+              if (!(!(sourceAccount !== null && sourceAccount !== void 0 && sourceAccount.currency) || !(destAccount !== null && destAccount !== void 0 && destAccount.currency))) {
+                _context17.n = 3;
+                break;
+              }
+              return _context17.a(2);
+            case 3:
+              _context17.p = 3;
+              _context17.n = 4;
+              return fetch(OC.generateUrl("/apps/budget/api/exchange-rates/convert?from=".concat(sourceAccount.currency, "&to=").concat(destAccount.currency, "&amount=").concat(sourceAmount)), {
+                headers: {
+                  'requesttoken': OC.requestToken
+                }
+              });
+            case 4:
+              response = _context17.v;
+              if (!response.ok) {
+                _context17.n = 6;
+                break;
+              }
+              _context17.n = 5;
+              return response.json();
+            case 5:
+              data = _context17.v;
+              destInput = document.getElementById('transfer-dest-amount'); // Only auto-fill if user hasn't manually edited it
+              if (destInput && !destInput.dataset.userEdited) {
+                destInput.value = data.convertedAmount;
+              }
+            case 6:
+              _context17.n = 8;
+              break;
+            case 7:
+              _context17.p = 7;
+              _t19 = _context17.v;
+            case 8:
+              return _context17.a(2);
+          }
+        }, _callee17, this, [[3, 7]]);
+      }));
+      function _updateDestAmountFromRate() {
+        return _updateDestAmountFromRate2.apply(this, arguments);
+      }
+      return _updateDestAmountFromRate;
+    }())
   }, {
     key: "showMatchingModal",
     value: function () {
-      var _showMatchingModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(transactionId) {
+      var _showMatchingModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(transactionId) {
         var _this$transactions2,
-          _this$accounts2,
+          _this$accounts6,
           _this11 = this;
-        var transaction, modal, sourceDetails, loadingEl, emptyEl, listEl, account, currency, typeClass, result, _t19;
-        return _regenerator().w(function (_context17) {
-          while (1) switch (_context17.p = _context17.n) {
+        var transaction, modal, sourceDetails, loadingEl, emptyEl, listEl, account, currency, typeClass, result, _t20;
+        return _regenerator().w(function (_context18) {
+          while (1) switch (_context18.p = _context18.n) {
             case 0:
               transaction = (_this$transactions2 = this.transactions) === null || _this$transactions2 === void 0 ? void 0 : _this$transactions2.find(function (tx) {
                 return tx.id === transactionId;
               });
               if (transaction) {
-                _context17.n = 1;
+                _context18.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transaction not found'));
-              return _context17.a(2);
+              return _context18.a(2);
             case 1:
               modal = document.getElementById('matching-modal');
               sourceDetails = modal.querySelector('.source-details');
               loadingEl = document.getElementById('matching-loading');
               emptyEl = document.getElementById('matching-empty');
               listEl = document.getElementById('matching-list'); // Populate source transaction info
-              account = (_this$accounts2 = this.accounts) === null || _this$accounts2 === void 0 ? void 0 : _this$accounts2.find(function (a) {
+              account = (_this$accounts6 = this.accounts) === null || _this$accounts6 === void 0 ? void 0 : _this$accounts6.find(function (a) {
                 return a.id === transaction.accountId;
               });
               currency = transaction.accountCurrency || (account === null || account === void 0 ? void 0 : account.currency) || this.getPrimaryCurrency();
@@ -61503,18 +61676,18 @@ var TransactionsModule = /*#__PURE__*/function () {
               loadingEl.style.display = 'flex';
               emptyEl.style.display = 'none';
               listEl.innerHTML = '';
-              _context17.p = 2;
-              _context17.n = 3;
+              _context18.p = 2;
+              _context18.n = 3;
               return this.findTransactionMatches(transactionId);
             case 3:
-              result = _context17.v;
+              result = _context18.v;
               loadingEl.style.display = 'none';
               if (!(!result.matches || result.matches.length === 0)) {
-                _context17.n = 4;
+                _context18.n = 4;
                 break;
               }
               emptyEl.style.display = 'flex';
-              return _context17.a(2);
+              return _context18.a(2);
             case 4:
               // Render matches
               listEl.innerHTML = result.matches.map(function (match) {
@@ -61526,18 +61699,18 @@ var TransactionsModule = /*#__PURE__*/function () {
                 var matchTypeClass = match.type === 'credit' ? 'positive' : 'negative';
                 return "\n                    <div class=\"match-item\" data-match-id=\"".concat(match.id, "\">\n                        <span class=\"match-date\">").concat(_this11.formatDate(match.date), "</span>\n                        <span class=\"match-description\">").concat(_this11.escapeHtml(match.description), "</span>\n                        <span class=\"match-amount ").concat(matchTypeClass, "\">").concat(_this11.formatCurrency(match.amount, matchCurrency), "</span>\n                        <span class=\"match-account\">").concat((matchAccount === null || matchAccount === void 0 ? void 0 : matchAccount.name) || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Unknown'), "</span>\n                        <button class=\"link-match-btn\" data-source-id=\"").concat(transactionId, "\" data-target-id=\"").concat(match.id, "\">\n                            ").concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Link as Transfer'), "\n                        </button>\n                    </div>\n                ");
               }).join('');
-              _context17.n = 6;
+              _context18.n = 6;
               break;
             case 5:
-              _context17.p = 5;
-              _t19 = _context17.v;
+              _context18.p = 5;
+              _t20 = _context18.v;
               loadingEl.style.display = 'none';
               emptyEl.style.display = 'flex';
               emptyEl.querySelector('p').textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to search for matches. Please try again.');
             case 6:
-              return _context17.a(2);
+              return _context18.a(2);
           }
-        }, _callee17, this, [[2, 5]]);
+        }, _callee18, this, [[2, 5]]);
       }));
       function showMatchingModal(_x13) {
         return _showMatchingModal.apply(this, arguments);
@@ -61547,32 +61720,32 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleLinkMatch",
     value: function () {
-      var _handleLinkMatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(sourceId, targetId) {
-        var _t20;
-        return _regenerator().w(function (_context18) {
-          while (1) switch (_context18.p = _context18.n) {
+      var _handleLinkMatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(sourceId, targetId) {
+        var _t21;
+        return _regenerator().w(function (_context19) {
+          while (1) switch (_context19.p = _context19.n) {
             case 0:
-              _context18.p = 0;
-              _context18.n = 1;
+              _context19.p = 0;
+              _context19.n = 1;
               return this.linkTransactions(sourceId, targetId);
             case 1:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transactions linked as transfer'));
 
               // Close modal and refresh transactions
               document.getElementById('matching-modal').style.display = 'none';
-              _context18.n = 2;
+              _context19.n = 2;
               return this.app.loadTransactions();
             case 2:
-              _context18.n = 4;
+              _context19.n = 4;
               break;
             case 3:
-              _context18.p = 3;
-              _t20 = _context18.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t20.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to link transactions'));
+              _context19.p = 3;
+              _t21 = _context19.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t21.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to link transactions'));
             case 4:
-              return _context18.a(2);
+              return _context19.a(2);
           }
-        }, _callee18, this, [[0, 3]]);
+        }, _callee19, this, [[0, 3]]);
       }));
       function handleLinkMatch(_x14, _x15) {
         return _handleLinkMatch.apply(this, arguments);
@@ -61582,35 +61755,35 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleUnlinkTransaction",
     value: function () {
-      var _handleUnlinkTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(transactionId) {
-        var _t21;
-        return _regenerator().w(function (_context19) {
-          while (1) switch (_context19.p = _context19.n) {
+      var _handleUnlinkTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(transactionId) {
+        var _t22;
+        return _regenerator().w(function (_context20) {
+          while (1) switch (_context20.p = _context20.n) {
             case 0:
               if (confirm((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
-                _context19.n = 1;
+                _context20.n = 1;
                 break;
               }
-              return _context19.a(2);
+              return _context20.a(2);
             case 1:
-              _context19.p = 1;
-              _context19.n = 2;
+              _context20.p = 1;
+              _context20.n = 2;
               return this.unlinkTransaction(transactionId);
             case 2:
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transaction unlinked'));
-              _context19.n = 3;
+              _context20.n = 3;
               return this.app.loadTransactions();
             case 3:
-              _context19.n = 5;
+              _context20.n = 5;
               break;
             case 4:
-              _context19.p = 4;
-              _t21 = _context19.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t21.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to unlink transaction'));
+              _context20.p = 4;
+              _t22 = _context20.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t22.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to unlink transaction'));
             case 5:
-              return _context19.a(2);
+              return _context20.a(2);
           }
-        }, _callee19, this, [[1, 4]]);
+        }, _callee20, this, [[1, 4]]);
       }));
       function handleUnlinkTransaction(_x16) {
         return _handleUnlinkTransaction.apply(this, arguments);
@@ -61620,31 +61793,31 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "showSplitModal",
     value: function () {
-      var _showSplitModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(transactionId) {
+      var _showSplitModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(transactionId) {
         var _this$transactions3,
-          _this$accounts3,
+          _this$accounts7,
           _this12 = this;
-        var transaction, modal, isSplit, titleEl, transactionInfoEl, splitsContainer, account, currency, splits, unsplitBtn, _t22;
-        return _regenerator().w(function (_context20) {
-          while (1) switch (_context20.p = _context20.n) {
+        var transaction, modal, isSplit, titleEl, transactionInfoEl, splitsContainer, account, currency, splits, unsplitBtn, _t23;
+        return _regenerator().w(function (_context21) {
+          while (1) switch (_context21.p = _context21.n) {
             case 0:
               transaction = (_this$transactions3 = this.transactions) === null || _this$transactions3 === void 0 ? void 0 : _this$transactions3.find(function (tx) {
                 return tx.id === transactionId;
               });
               if (transaction) {
-                _context20.n = 1;
+                _context21.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transaction not found'));
-              return _context20.a(2);
+              return _context21.a(2);
             case 1:
               modal = document.getElementById('split-modal');
               if (modal) {
-                _context20.n = 2;
+                _context21.n = 2;
                 break;
               }
               console.error('Split modal not found');
-              return _context20.a(2);
+              return _context21.a(2);
             case 2:
               isSplit = transaction.isSplit || transaction.is_split;
               titleEl = document.getElementById('split-modal-title');
@@ -61654,7 +61827,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               modal.dataset.transactionId = transactionId;
 
               // Display transaction info
-              account = (_this$accounts3 = this.accounts) === null || _this$accounts3 === void 0 ? void 0 : _this$accounts3.find(function (a) {
+              account = (_this$accounts7 = this.accounts) === null || _this$accounts7 === void 0 ? void 0 : _this$accounts7.find(function (a) {
                 return a.id === transaction.accountId;
               });
               currency = transaction.accountCurrency || (account === null || account === void 0 ? void 0 : account.currency) || this.getPrimaryCurrency();
@@ -61667,28 +61840,28 @@ var TransactionsModule = /*#__PURE__*/function () {
               // Clear and set up splits container
               splitsContainer.innerHTML = '';
               if (!isSplit) {
-                _context20.n = 7;
+                _context21.n = 7;
                 break;
               }
-              _context20.p = 3;
-              _context20.n = 4;
+              _context21.p = 3;
+              _context21.n = 4;
               return this.getTransactionSplits(transactionId);
             case 4:
-              splits = _context20.v;
+              splits = _context21.v;
               splits.forEach(function (split, index) {
                 _this12.addSplitRow(splitsContainer, split, index === 0);
               });
-              _context20.n = 6;
+              _context21.n = 6;
               break;
             case 5:
-              _context20.p = 5;
-              _t22 = _context20.v;
-              console.error('Failed to load splits:', _t22);
+              _context21.p = 5;
+              _t23 = _context21.v;
+              console.error('Failed to load splits:', _t23);
               // Add two empty rows as fallback
               this.addSplitRow(splitsContainer, null, true);
               this.addSplitRow(splitsContainer, null, false);
             case 6:
-              _context20.n = 8;
+              _context21.n = 8;
               break;
             case 7:
               // Start with two empty split rows
@@ -61706,9 +61879,9 @@ var TransactionsModule = /*#__PURE__*/function () {
               this.updateSplitRemaining();
               modal.style.display = 'flex';
             case 9:
-              return _context20.a(2);
+              return _context21.a(2);
           }
-        }, _callee20, this, [[3, 5]]);
+        }, _callee21, this, [[3, 5]]);
       }));
       function showSplitModal(_x17) {
         return _showSplitModal.apply(this, arguments);
@@ -61786,31 +61959,31 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "getTransactionSplits",
     value: function () {
-      var _getTransactionSplits = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(transactionId) {
+      var _getTransactionSplits = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(transactionId) {
         var response;
-        return _regenerator().w(function (_context21) {
-          while (1) switch (_context21.n) {
+        return _regenerator().w(function (_context22) {
+          while (1) switch (_context22.n) {
             case 0:
-              _context21.n = 1;
+              _context22.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/splits")), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context21.v;
+              response = _context22.v;
               if (response.ok) {
-                _context21.n = 2;
+                _context22.n = 2;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 2:
-              _context21.n = 3;
+              _context22.n = 3;
               return response.json();
             case 3:
-              return _context21.a(2, _context21.v);
+              return _context22.a(2, _context22.v);
           }
-        }, _callee21);
+        }, _callee22);
       }));
       function getTransactionSplits(_x18) {
         return _getTransactionSplits.apply(this, arguments);
@@ -61820,10 +61993,10 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "saveSplits",
     value: function () {
-      var _saveSplits = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
-        var modal, transactionId, totalAmount, splits, splitTotal, response, error, _t23;
-        return _regenerator().w(function (_context22) {
-          while (1) switch (_context22.p = _context22.n) {
+      var _saveSplits = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23() {
+        var modal, transactionId, totalAmount, splits, splitTotal, response, error, _t24;
+        return _regenerator().w(function (_context23) {
+          while (1) switch (_context23.p = _context23.n) {
             case 0:
               modal = document.getElementById('split-modal');
               transactionId = parseInt(modal === null || modal === void 0 ? void 0 : modal.dataset.transactionId);
@@ -61838,27 +62011,27 @@ var TransactionsModule = /*#__PURE__*/function () {
                 return split.amount > 0;
               }); // Validate
               if (!(splits.length < 2)) {
-                _context22.n = 1;
+                _context23.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'A split transaction must have at least 2 parts'));
-              return _context22.a(2);
+              return _context23.a(2);
             case 1:
               splitTotal = splits.reduce(function (sum, s) {
                 return sum + s.amount;
               }, 0);
               if (!(Math.abs(splitTotal - totalAmount) > 0.01)) {
-                _context22.n = 2;
+                _context23.n = 2;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})', {
                 splitTotal: splitTotal.toFixed(2),
                 totalAmount: totalAmount.toFixed(2)
               }));
-              return _context22.a(2);
+              return _context23.a(2);
             case 2:
-              _context22.p = 2;
-              _context22.n = 3;
+              _context23.p = 2;
+              _context23.n = 3;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/splits")), {
                 method: 'POST',
                 headers: {
@@ -61870,33 +62043,33 @@ var TransactionsModule = /*#__PURE__*/function () {
                 })
               });
             case 3:
-              response = _context22.v;
+              response = _context23.v;
               if (response.ok) {
-                _context22.n = 5;
+                _context23.n = 5;
                 break;
               }
-              _context22.n = 4;
+              _context23.n = 4;
               return response.json();
             case 4:
-              error = _context22.v;
+              error = _context23.v;
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 5:
               this.hideSplitModal();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transaction split successfully'));
-              _context22.n = 6;
+              _context23.n = 6;
               return this.app.loadTransactions();
             case 6:
-              _context22.n = 8;
+              _context23.n = 8;
               break;
             case 7:
-              _context22.p = 7;
-              _t23 = _context22.v;
-              console.error('Failed to save splits:', _t23);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t23.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save splits'));
+              _context23.p = 7;
+              _t24 = _context23.v;
+              console.error('Failed to save splits:', _t24);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t24.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to save splits'));
             case 8:
-              return _context22.a(2);
+              return _context23.a(2);
           }
-        }, _callee22, this, [[2, 7]]);
+        }, _callee23, this, [[2, 7]]);
       }));
       function saveSplits() {
         return _saveSplits.apply(this, arguments);
@@ -61906,21 +62079,21 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "unsplitTransaction",
     value: function () {
-      var _unsplitTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23() {
-        var modal, transactionId, response, error, _t24;
-        return _regenerator().w(function (_context23) {
-          while (1) switch (_context23.p = _context23.n) {
+      var _unsplitTransaction = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
+        var modal, transactionId, response, error, _t25;
+        return _regenerator().w(function (_context24) {
+          while (1) switch (_context24.p = _context24.n) {
             case 0:
               modal = document.getElementById('split-modal');
               transactionId = parseInt(modal === null || modal === void 0 ? void 0 : modal.dataset.transactionId);
               if (confirm((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
-                _context23.n = 1;
+                _context24.n = 1;
                 break;
               }
-              return _context23.a(2);
+              return _context24.a(2);
             case 1:
-              _context23.p = 1;
-              _context23.n = 2;
+              _context24.p = 1;
+              _context24.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/splits")), {
                 method: 'DELETE',
                 headers: {
@@ -61928,33 +62101,33 @@ var TransactionsModule = /*#__PURE__*/function () {
                 }
               });
             case 2:
-              response = _context23.v;
+              response = _context24.v;
               if (response.ok) {
-                _context23.n = 4;
+                _context24.n = 4;
                 break;
               }
-              _context23.n = 3;
+              _context24.n = 3;
               return response.json();
             case 3:
-              error = _context23.v;
+              error = _context24.v;
               throw new Error(error.error || "HTTP ".concat(response.status));
             case 4:
               this.hideSplitModal();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transaction unsplit successfully'));
-              _context23.n = 5;
+              _context24.n = 5;
               return this.app.loadTransactions();
             case 5:
-              _context23.n = 7;
+              _context24.n = 7;
               break;
             case 6:
-              _context23.p = 6;
-              _t24 = _context23.v;
-              console.error('Failed to unsplit transaction:', _t24);
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t24.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to unsplit transaction'));
+              _context24.p = 6;
+              _t25 = _context24.v;
+              console.error('Failed to unsplit transaction:', _t25);
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t25.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to unsplit transaction'));
             case 7:
-              return _context23.a(2);
+              return _context24.a(2);
           }
-        }, _callee23, this, [[1, 6]]);
+        }, _callee24, this, [[1, 6]]);
       }));
       function unsplitTransaction() {
         return _unsplitTransaction.apply(this, arguments);
@@ -61974,64 +62147,21 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "scanForMatches",
     value: function () {
-      var _scanForMatches = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24() {
+      var _scanForMatches = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25() {
         var dateWindow,
           response,
           error,
-          _args24 = arguments;
-        return _regenerator().w(function (_context24) {
-          while (1) switch (_context24.n) {
+          _args25 = arguments;
+        return _regenerator().w(function (_context25) {
+          while (1) switch (_context25.n) {
             case 0:
-              dateWindow = _args24.length > 0 && _args24[0] !== undefined ? _args24[0] : 3;
-              _context24.n = 1;
+              dateWindow = _args25.length > 0 && _args25[0] !== undefined ? _args25[0] : 3;
+              _context25.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/scan-matches?dateWindow=".concat(dateWindow)), {
                 method: 'GET',
                 headers: {
                   'requesttoken': OC.requestToken
                 }
-              });
-            case 1:
-              response = _context24.v;
-              if (response.ok) {
-                _context24.n = 3;
-                break;
-              }
-              _context24.n = 2;
-              return response.json();
-            case 2:
-              error = _context24.v;
-              throw new Error(error.error || "HTTP ".concat(response.status));
-            case 3:
-              _context24.n = 4;
-              return response.json();
-            case 4:
-              return _context24.a(2, _context24.v);
-          }
-        }, _callee24);
-      }));
-      function scanForMatches() {
-        return _scanForMatches.apply(this, arguments);
-      }
-      return scanForMatches;
-    }()
-  }, {
-    key: "bulkLinkPairs",
-    value: function () {
-      var _bulkLinkPairs = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(pairs) {
-        var response, error;
-        return _regenerator().w(function (_context25) {
-          while (1) switch (_context25.n) {
-            case 0:
-              _context25.n = 1;
-              return fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-link'), {
-                method: 'POST',
-                headers: {
-                  'requesttoken': OC.requestToken,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  pairs: pairs
-                })
               });
             case 1:
               response = _context25.v;
@@ -62051,6 +62181,49 @@ var TransactionsModule = /*#__PURE__*/function () {
               return _context25.a(2, _context25.v);
           }
         }, _callee25);
+      }));
+      function scanForMatches() {
+        return _scanForMatches.apply(this, arguments);
+      }
+      return scanForMatches;
+    }()
+  }, {
+    key: "bulkLinkPairs",
+    value: function () {
+      var _bulkLinkPairs = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(pairs) {
+        var response, error;
+        return _regenerator().w(function (_context26) {
+          while (1) switch (_context26.n) {
+            case 0:
+              _context26.n = 1;
+              return fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-link'), {
+                method: 'POST',
+                headers: {
+                  'requesttoken': OC.requestToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  pairs: pairs
+                })
+              });
+            case 1:
+              response = _context26.v;
+              if (response.ok) {
+                _context26.n = 3;
+                break;
+              }
+              _context26.n = 2;
+              return response.json();
+            case 2:
+              error = _context26.v;
+              throw new Error(error.error || "HTTP ".concat(response.status));
+            case 3:
+              _context26.n = 4;
+              return response.json();
+            case 4:
+              return _context26.a(2, _context26.v);
+          }
+        }, _callee26);
       }));
       function bulkLinkPairs(_x19) {
         return _bulkLinkPairs.apply(this, arguments);
@@ -62095,11 +62268,11 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "startScan",
     value: function () {
-      var _startScan = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26() {
+      var _startScan = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
         var _document$querySelect;
-        var configEl, loadingEl, dateWindow, mode, scanBtn, result, resultsEl, emptyEl, _resultsEl, _emptyEl, _t25;
-        return _regenerator().w(function (_context26) {
-          while (1) switch (_context26.p = _context26.n) {
+        var configEl, loadingEl, dateWindow, mode, scanBtn, result, resultsEl, emptyEl, _resultsEl, _emptyEl, _t26;
+        return _regenerator().w(function (_context27) {
+          while (1) switch (_context27.p = _context27.n) {
             case 0:
               configEl = document.getElementById('bulk-match-config');
               loadingEl = document.getElementById('bulk-match-loading');
@@ -62110,14 +62283,14 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (scanBtn) scanBtn.style.display = 'none';
               loadingEl.style.display = 'flex';
               loadingEl.querySelector('p').textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Scanning for matching transactions...');
-              _context26.p = 1;
-              _context26.n = 2;
+              _context27.p = 1;
+              _context27.n = 2;
               return this.scanForMatches(dateWindow);
             case 2:
-              result = _context26.v;
+              result = _context27.v;
               loadingEl.style.display = 'none';
               if (!(result.stats.totalCandidates === 0)) {
-                _context26.n = 3;
+                _context27.n = 3;
                 break;
               }
               resultsEl = document.getElementById('bulk-match-results');
@@ -62125,35 +62298,35 @@ var TransactionsModule = /*#__PURE__*/function () {
               resultsEl.style.display = 'block';
               emptyEl.style.display = 'flex';
               emptyEl.querySelector('p').textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No matching transactions found.');
-              return _context26.a(2);
+              return _context27.a(2);
             case 3:
               if (!(mode === 'auto')) {
-                _context26.n = 5;
+                _context27.n = 5;
                 break;
               }
-              _context26.n = 4;
+              _context27.n = 4;
               return this.handleAutoMode(result);
             case 4:
-              _context26.n = 6;
+              _context27.n = 6;
               break;
             case 5:
               this.handleReviewMode(result);
             case 6:
-              _context26.n = 8;
+              _context27.n = 8;
               break;
             case 7:
-              _context26.p = 7;
-              _t25 = _context26.v;
+              _context27.p = 7;
+              _t26 = _context27.v;
               loadingEl.style.display = 'none';
               _resultsEl = document.getElementById('bulk-match-results');
               _emptyEl = document.getElementById('bulk-match-empty');
               _resultsEl.style.display = 'block';
               _emptyEl.style.display = 'flex';
-              _emptyEl.querySelector('p').textContent = _t25.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to scan for matches. Please try again.');
+              _emptyEl.querySelector('p').textContent = _t26.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to scan for matches. Please try again.');
             case 8:
-              return _context26.a(2);
+              return _context27.a(2);
           }
-        }, _callee26, this, [[1, 7]]);
+        }, _callee27, this, [[1, 7]]);
       }));
       function startScan() {
         return _startScan.apply(this, arguments);
@@ -62163,11 +62336,11 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleAutoMode",
     value: function () {
-      var _handleAutoMode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(scanResult) {
+      var _handleAutoMode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(scanResult) {
         var _this15 = this;
-        var loadingEl, resultsEl, autoMatchedSection, needsReviewSection, autoMatchedList, needsReviewList, singleMatches, multiMatches, autoLinkedCount, pairs, linkResult, _t26;
-        return _regenerator().w(function (_context27) {
-          while (1) switch (_context27.p = _context27.n) {
+        var loadingEl, resultsEl, autoMatchedSection, needsReviewSection, autoMatchedList, needsReviewList, singleMatches, multiMatches, autoLinkedCount, pairs, linkResult, _t27;
+        return _regenerator().w(function (_context28) {
+          while (1) switch (_context28.p = _context28.n) {
             case 0:
               loadingEl = document.getElementById('bulk-match-loading');
               resultsEl = document.getElementById('bulk-match-results');
@@ -62183,7 +62356,7 @@ var TransactionsModule = /*#__PURE__*/function () {
               });
               autoLinkedCount = 0; // Auto-link single-match pairs
               if (!(singleMatches.length > 0)) {
-                _context27.n = 5;
+                _context28.n = 5;
                 break;
               }
               loadingEl.style.display = 'flex';
@@ -62194,22 +62367,22 @@ var TransactionsModule = /*#__PURE__*/function () {
                   targetId: parseInt(c.matches[0].id)
                 };
               });
-              _context27.p = 1;
-              _context27.n = 2;
+              _context28.p = 1;
+              _context28.n = 2;
               return this.bulkLinkPairs(pairs);
             case 2:
-              linkResult = _context27.v;
+              linkResult = _context28.v;
               autoLinkedCount = linkResult.stats.linkedCount;
               this._bulkMatchDirty = true;
-              _context27.n = 4;
+              _context28.n = 4;
               break;
             case 3:
-              _context27.p = 3;
-              _t26 = _context27.v;
+              _context28.p = 3;
+              _t27 = _context28.v;
               // If bulk link fails entirely, show all as review instead
               loadingEl.style.display = 'none';
               this.handleReviewMode(scanResult);
-              return _context27.a(2);
+              return _context28.a(2);
             case 4:
               loadingEl.style.display = 'none';
             case 5:
@@ -62240,9 +62413,9 @@ var TransactionsModule = /*#__PURE__*/function () {
                 document.getElementById('bulk-match-empty').style.display = 'flex';
               }
             case 6:
-              return _context27.a(2);
+              return _context28.a(2);
           }
-        }, _callee27, this, [[1, 3]]);
+        }, _callee28, this, [[1, 3]]);
       }));
       function handleAutoMode(_x20) {
         return _handleAutoMode.apply(this, arguments);
@@ -62333,10 +62506,10 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleConfirmSelected",
     value: function () {
-      var _handleConfirmSelected = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28() {
-        var pairs, confirmBtn, result, message, autoMatchedSection, autoMatchedList, needsReviewSection, linkedHtml, _t27;
-        return _regenerator().w(function (_context28) {
-          while (1) switch (_context28.p = _context28.n) {
+      var _handleConfirmSelected = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29() {
+        var pairs, confirmBtn, result, message, autoMatchedSection, autoMatchedList, needsReviewSection, linkedHtml, _t28;
+        return _regenerator().w(function (_context29) {
+          while (1) switch (_context29.p = _context29.n) {
             case 0:
               pairs = []; // Collect checked single-match pairs
               document.querySelectorAll('.review-single-check:checked').forEach(function (cb) {
@@ -62357,22 +62530,22 @@ var TransactionsModule = /*#__PURE__*/function () {
                 }
               });
               if (!(pairs.length === 0)) {
-                _context28.n = 1;
+                _context29.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No matches selected'));
-              return _context28.a(2);
+              return _context29.a(2);
             case 1:
               confirmBtn = document.getElementById('confirm-selected-btn');
               if (confirmBtn) {
                 confirmBtn.disabled = true;
                 confirmBtn.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Linking...');
               }
-              _context28.p = 2;
-              _context28.n = 3;
+              _context29.p = 2;
+              _context29.n = 3;
               return this.bulkLinkPairs(pairs);
             case 3:
-              result = _context28.v;
+              result = _context29.v;
               this._bulkMatchDirty = true;
               message = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translatePlural)('budget', 'Linked %n pair', 'Linked %n pairs', result.stats.linkedCount);
               if (result.stats.failedCount > 0) {
@@ -62413,23 +62586,23 @@ var TransactionsModule = /*#__PURE__*/function () {
               needsReviewSection.style.display = 'none';
               if (confirmBtn) confirmBtn.style.display = 'none';
               document.getElementById('needs-review-count').textContent = '0';
-              _context28.n = 5;
+              _context29.n = 5;
               break;
             case 4:
-              _context28.p = 4;
-              _t27 = _context28.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t27.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to link transactions'));
+              _context29.p = 4;
+              _t28 = _context29.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t28.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to link transactions'));
             case 5:
-              _context28.p = 5;
+              _context29.p = 5;
               if (confirmBtn) {
                 confirmBtn.disabled = false;
                 confirmBtn.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Confirm Selected');
               }
-              return _context28.f(5);
+              return _context29.f(5);
             case 6:
-              return _context28.a(2);
+              return _context29.a(2);
           }
-        }, _callee28, this, [[2, 4, 5, 6]]);
+        }, _callee29, this, [[2, 4, 5, 6]]);
       }));
       function handleConfirmSelected() {
         return _handleConfirmSelected.apply(this, arguments);
@@ -62439,13 +62612,13 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleBulkMatchUndo",
     value: function () {
-      var _handleBulkMatchUndo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(transactionId) {
-        var pairEl, countEl, currentCount, autoMatchedList, _t28;
-        return _regenerator().w(function (_context29) {
-          while (1) switch (_context29.p = _context29.n) {
+      var _handleBulkMatchUndo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30(transactionId) {
+        var pairEl, countEl, currentCount, autoMatchedList, _t29;
+        return _regenerator().w(function (_context30) {
+          while (1) switch (_context30.p = _context30.n) {
             case 0:
-              _context29.p = 0;
-              _context29.n = 1;
+              _context30.p = 0;
+              _context30.n = 1;
               return this.unlinkTransaction(transactionId);
             case 1:
               this._bulkMatchDirty = true;
@@ -62467,16 +62640,16 @@ var TransactionsModule = /*#__PURE__*/function () {
                 document.getElementById('auto-matched-section').style.display = 'none';
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Match undone'));
-              _context29.n = 3;
+              _context30.n = 3;
               break;
             case 2:
-              _context29.p = 2;
-              _t28 = _context29.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t28.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to undo match'));
+              _context30.p = 2;
+              _t29 = _context30.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t29.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to undo match'));
             case 3:
-              return _context29.a(2);
+              return _context30.a(2);
           }
-        }, _callee29, this, [[0, 2]]);
+        }, _callee30, this, [[0, 2]]);
       }));
       function handleBulkMatchUndo(_x21) {
         return _handleBulkMatchUndo.apply(this, arguments);
@@ -62486,23 +62659,23 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "handleBulkMatchLink",
     value: function () {
-      var _handleBulkMatchLink = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30(transactionId, index) {
-        var reviewItem, selectedRadio, targetId, reviewCountEl, autoCountEl, currentReviewCount, currentAutoCount, needsReviewList, _t29;
-        return _regenerator().w(function (_context30) {
-          while (1) switch (_context30.p = _context30.n) {
+      var _handleBulkMatchLink = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(transactionId, index) {
+        var reviewItem, selectedRadio, targetId, reviewCountEl, autoCountEl, currentReviewCount, currentAutoCount, needsReviewList, _t30;
+        return _regenerator().w(function (_context31) {
+          while (1) switch (_context31.p = _context31.n) {
             case 0:
               reviewItem = document.querySelector(".bulk-review-item[data-index=\"".concat(index, "\"]"));
               selectedRadio = reviewItem.querySelector("input[name=\"review-match-".concat(index, "\"]:checked"));
               if (selectedRadio) {
-                _context30.n = 1;
+                _context31.n = 1;
                 break;
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showWarning)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Please select a match first'));
-              return _context30.a(2);
+              return _context31.a(2);
             case 1:
               targetId = parseInt(selectedRadio.value);
-              _context30.p = 2;
-              _context30.n = 3;
+              _context31.p = 2;
+              _context31.n = 3;
               return this.linkTransactions(transactionId, targetId);
             case 3:
               this._bulkMatchDirty = true;
@@ -62524,16 +62697,16 @@ var TransactionsModule = /*#__PURE__*/function () {
                 document.getElementById('needs-review-section').style.display = 'none';
               }
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transactions linked'));
-              _context30.n = 5;
+              _context31.n = 5;
               break;
             case 4:
-              _context30.p = 4;
-              _t29 = _context30.v;
-              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t29.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to link transactions'));
+              _context31.p = 4;
+              _t30 = _context31.v;
+              (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)(_t30.message || (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to link transactions'));
             case 5:
-              return _context30.a(2);
+              return _context31.a(2);
           }
-        }, _callee30, this, [[2, 4]]);
+        }, _callee31, this, [[2, 4]]);
       }));
       function handleBulkMatchLink(_x22, _x23) {
         return _handleBulkMatchLink.apply(this, arguments);
@@ -62811,11 +62984,11 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "createAccountEditor",
     value: function createAccountEditor(cell, currentAccountId) {
-      var _this$accounts4,
+      var _this$accounts8,
         _this21 = this;
       var select = document.createElement('select');
       select.className = 'inline-edit-select';
-      (_this$accounts4 = this.accounts) === null || _this$accounts4 === void 0 || _this$accounts4.forEach(function (account) {
+      (_this$accounts8 = this.accounts) === null || _this$accounts8 === void 0 || _this$accounts8.forEach(function (account) {
         var option = document.createElement('option');
         option.value = account.id;
         option.textContent = account.name;
@@ -62847,16 +63020,16 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "createTagsEditor",
     value: function () {
-      var _createTagsEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(cell, transaction) {
+      var _createTagsEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32(cell, transaction) {
         var _this22 = this;
-        var categoryId, _yield$Promise$all3, _yield$Promise$all4, globalTagsResponse, tagSets, globalTags, currentTagIds, selectedTags, container, input, dropdown, allTags, renderDropdown, _t30;
-        return _regenerator().w(function (_context31) {
-          while (1) switch (_context31.p = _context31.n) {
+        var categoryId, _yield$Promise$all3, _yield$Promise$all4, globalTagsResponse, tagSets, globalTags, currentTagIds, selectedTags, container, input, dropdown, allTags, renderDropdown, _t31;
+        return _regenerator().w(function (_context32) {
+          while (1) switch (_context32.p = _context32.n) {
             case 0:
               categoryId = transaction.categoryId;
               cell.innerHTML = "<span style=\"color: var(--color-text-maxcontrast); font-size: 11px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Loading...'), "</span>");
-              _context31.p = 1;
-              _context31.n = 2;
+              _context32.p = 1;
+              _context32.n = 2;
               return Promise.all([fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
                 headers: {
                   'requesttoken': OC.requestToken
@@ -62867,20 +63040,20 @@ var TransactionsModule = /*#__PURE__*/function () {
                 return [];
               }), categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])]);
             case 2:
-              _yield$Promise$all3 = _context31.v;
+              _yield$Promise$all3 = _context32.v;
               _yield$Promise$all4 = _slicedToArray(_yield$Promise$all3, 2);
               globalTagsResponse = _yield$Promise$all4[0];
               tagSets = _yield$Promise$all4[1];
               globalTags = globalTagsResponse || [];
               if (!(globalTags.length === 0 && tagSets.length === 0)) {
-                _context31.n = 3;
+                _context32.n = 3;
                 break;
               }
               cell.innerHTML = "<span style=\"color: var(--color-text-maxcontrast); font-size: 11px; font-style: italic;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No tags'), "</span>");
               setTimeout(function () {
                 return _this22.cancelInlineEdit(cell);
               }, 1500);
-              return _context31.a(2);
+              return _context32.a(2);
             case 3:
               currentTagIds = this.app.getTransactionTagIds(transaction.id);
               selectedTags = new Set(currentTagIds);
@@ -63008,20 +63181,20 @@ var TransactionsModule = /*#__PURE__*/function () {
               cell.appendChild(container);
               input.focus();
               renderDropdown();
-              _context31.n = 5;
+              _context32.n = 5;
               break;
             case 4:
-              _context31.p = 4;
-              _t30 = _context31.v;
-              console.error('Failed to load tag sets:', _t30);
+              _context32.p = 4;
+              _t31 = _context32.v;
+              console.error('Failed to load tag sets:', _t31);
               cell.innerHTML = "<span style=\"color: var(--color-error); font-size: 11px;\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Error loading tags'), "</span>");
               setTimeout(function () {
                 return _this22.cancelInlineEdit(cell);
               }, 1500);
             case 5:
-              return _context31.a(2);
+              return _context32.a(2);
           }
-        }, _callee31, this, [[1, 4]]);
+        }, _callee32, this, [[1, 4]]);
       }));
       function createTagsEditor(_x24, _x25) {
         return _createTagsEditor.apply(this, arguments);
@@ -63031,14 +63204,14 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "saveTagsFromEditor",
     value: function () {
-      var _saveTagsFromEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32(cell, selectedTags, transactionId) {
-        var tagIds, response, cellDisplay, _t31;
-        return _regenerator().w(function (_context32) {
-          while (1) switch (_context32.p = _context32.n) {
+      var _saveTagsFromEditor = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(cell, selectedTags, transactionId) {
+        var tagIds, response, cellDisplay, _t32;
+        return _regenerator().w(function (_context33) {
+          while (1) switch (_context33.p = _context33.n) {
             case 0:
               tagIds = Array.from(selectedTags);
-              _context32.p = 1;
-              _context32.n = 2;
+              _context33.p = 1;
+              _context33.n = 2;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId, "/tags")), {
                 method: 'PUT',
                 headers: {
@@ -63050,12 +63223,12 @@ var TransactionsModule = /*#__PURE__*/function () {
                 })
               });
             case 2:
-              response = _context32.v;
+              response = _context33.v;
               if (!response.ok) {
-                _context32.n = 4;
+                _context33.n = 4;
                 break;
               }
-              _context32.n = 3;
+              _context33.n = 3;
               return this.app.loadTransactionTags(transactionId);
             case 3:
               this.cancelInlineEdit(cell);
@@ -63063,23 +63236,23 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (cellDisplay) {
                 cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
               }
-              _context32.n = 5;
+              _context33.n = 5;
               break;
             case 4:
               console.error('Failed to save tags');
               this.cancelInlineEdit(cell);
             case 5:
-              _context32.n = 7;
+              _context33.n = 7;
               break;
             case 6:
-              _context32.p = 6;
-              _t31 = _context32.v;
-              console.error('Failed to save tags:', _t31);
+              _context33.p = 6;
+              _t32 = _context33.v;
+              console.error('Failed to save tags:', _t32);
               this.cancelInlineEdit(cell);
             case 7:
-              return _context32.a(2);
+              return _context33.a(2);
           }
-        }, _callee32, this, [[1, 6]]);
+        }, _callee33, this, [[1, 6]]);
       }));
       function saveTagsFromEditor(_x26, _x27, _x28) {
         return _saveTagsFromEditor.apply(this, arguments);
@@ -63089,37 +63262,37 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "loadTagSetsForCategory",
     value: function () {
-      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(categoryId) {
-        var response, _t32;
-        return _regenerator().w(function (_context33) {
-          while (1) switch (_context33.p = _context33.n) {
+      var _loadTagSetsForCategory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34(categoryId) {
+        var response, _t33;
+        return _regenerator().w(function (_context34) {
+          while (1) switch (_context34.p = _context34.n) {
             case 0:
-              _context33.p = 0;
-              _context33.n = 1;
+              _context34.p = 0;
+              _context34.n = 1;
               return fetch(OC.generateUrl("/apps/budget/api/tag-sets?categoryId=".concat(categoryId)), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 1:
-              response = _context33.v;
+              response = _context34.v;
               if (response.ok) {
-                _context33.n = 2;
+                _context34.n = 2;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 2:
-              _context33.n = 3;
+              _context34.n = 3;
               return response.json();
             case 3:
-              return _context33.a(2, _context33.v);
+              return _context34.a(2, _context34.v);
             case 4:
-              _context33.p = 4;
-              _t32 = _context33.v;
-              console.error('Failed to load tag sets:', _t32);
-              return _context33.a(2, []);
+              _context34.p = 4;
+              _t33 = _context34.v;
+              console.error('Failed to load tag sets:', _t33);
+              return _context34.a(2, []);
           }
-        }, _callee33, null, [[0, 4]]);
+        }, _callee34, null, [[0, 4]]);
       }));
       function loadTagSetsForCategory(_x29) {
         return _loadTagSetsForCategory.apply(this, arguments);
@@ -63165,7 +63338,7 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "saveInlineEdit",
     value: function () {
-      var _saveInlineEdit = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34(cell, field, value) {
+      var _saveInlineEdit = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(cell, field, value) {
         var extra,
           transactionId,
           transaction,
@@ -63176,22 +63349,22 @@ var TransactionsModule = /*#__PURE__*/function () {
           updateData,
           response,
           result,
-          _args34 = arguments,
-          _t33;
-        return _regenerator().w(function (_context34) {
-          while (1) switch (_context34.p = _context34.n) {
+          _args35 = arguments,
+          _t34;
+        return _regenerator().w(function (_context35) {
+          while (1) switch (_context35.p = _context35.n) {
             case 0:
-              extra = _args34.length > 3 && _args34[3] !== undefined ? _args34[3] : {};
+              extra = _args35.length > 3 && _args35[3] !== undefined ? _args35[3] : {};
               transactionId = parseInt(cell.dataset.transactionId);
               transaction = this.transactions.find(function (tx) {
                 return tx.id === transactionId;
               });
               if (transaction) {
-                _context34.n = 1;
+                _context35.n = 1;
                 break;
               }
               this.cancelInlineEdit(cell);
-              return _context34.a(2);
+              return _context35.a(2);
             case 1:
               // Check if value actually changed
               hasChanged = false;
@@ -63208,11 +63381,11 @@ var TransactionsModule = /*#__PURE__*/function () {
                 hasChanged = value !== (transaction[field] || '');
               }
               if (hasChanged) {
-                _context34.n = 2;
+                _context35.n = 2;
                 break;
               }
               this.cancelInlineEdit(cell);
-              return _context34.a(2);
+              return _context35.a(2);
             case 2:
               cell.classList.add('cell-saving');
               updateData = {};
@@ -63228,8 +63401,8 @@ var TransactionsModule = /*#__PURE__*/function () {
               } else {
                 updateData[field] = value;
               }
-              _context34.p = 3;
-              _context34.n = 4;
+              _context35.p = 3;
+              _context35.n = 4;
               return fetch(OC.generateUrl("/apps/budget/api/transactions/".concat(transactionId)), {
                 method: 'PUT',
                 headers: {
@@ -63239,43 +63412,43 @@ var TransactionsModule = /*#__PURE__*/function () {
                 body: JSON.stringify(updateData)
               });
             case 4:
-              response = _context34.v;
+              response = _context35.v;
               if (!response.ok) {
-                _context34.n = 7;
+                _context35.n = 7;
                 break;
               }
-              _context34.n = 5;
+              _context35.n = 5;
               return response.json();
             case 5:
-              result = _context34.v;
+              result = _context35.v;
               Object.assign(transaction, result);
               if (!(field === 'accountId')) {
-                _context34.n = 6;
+                _context35.n = 6;
                 break;
               }
-              _context34.n = 6;
+              _context35.n = 6;
               return this.app.loadAccounts();
             case 6:
               this.app.renderEnhancedTransactionsTable();
               this.app.applyColumnVisibility();
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Transaction updated'));
-              _context34.n = 8;
+              _context35.n = 8;
               break;
             case 7:
               throw new Error('Update failed');
             case 8:
-              _context34.n = 10;
+              _context35.n = 10;
               break;
             case 9:
-              _context34.p = 9;
-              _t33 = _context34.v;
-              console.error('Failed to save inline edit:', _t33);
+              _context35.p = 9;
+              _t34 = _context35.v;
+              console.error('Failed to save inline edit:', _t34);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to update transaction'));
               this.cancelInlineEdit(cell);
             case 10:
-              return _context34.a(2);
+              return _context35.a(2);
           }
-        }, _callee34, this, [[3, 9]]);
+        }, _callee35, this, [[3, 9]]);
       }));
       function saveInlineEdit(_x30, _x31, _x32) {
         return _saveInlineEdit.apply(this, arguments);
@@ -63337,11 +63510,11 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "showDuplicatesModal",
     value: function () {
-      var _showDuplicatesModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
+      var _showDuplicatesModal = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36() {
         var _this25 = this;
-        var existing, modal, response, data, content, _content, _t34;
-        return _regenerator().w(function (_context35) {
-          while (1) switch (_context35.p = _context35.n) {
+        var existing, modal, response, data, content, _content, _t35;
+        return _regenerator().w(function (_context36) {
+          while (1) switch (_context36.p = _context36.n) {
             case 0:
               // Remove any existing modal
               existing = document.getElementById('duplicates-modal');
@@ -63370,50 +63543,50 @@ var TransactionsModule = /*#__PURE__*/function () {
                 }
               });
               this._duplicatesDirty = false;
-              _context35.p = 1;
-              _context35.n = 2;
+              _context36.p = 1;
+              _context36.n = 2;
               return fetch(OC.generateUrl('/apps/budget/api/transactions/duplicates'), {
                 headers: {
                   'requesttoken': OC.requestToken
                 }
               });
             case 2:
-              response = _context35.v;
+              response = _context36.v;
               if (response.ok) {
-                _context35.n = 3;
+                _context36.n = 3;
                 break;
               }
               throw new Error('Failed to fetch duplicates');
             case 3:
-              _context35.n = 4;
+              _context36.n = 4;
               return response.json();
             case 4:
-              data = _context35.v;
+              data = _context36.v;
               document.getElementById('duplicates-loading').style.display = 'none';
               content = document.getElementById('duplicates-content');
               content.style.display = 'block';
               if (!(!data.groups || data.groups.length === 0)) {
-                _context35.n = 5;
+                _context36.n = 5;
                 break;
               }
               content.innerHTML = "<p class=\"empty-message\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'No duplicate transactions found.'), "</p>");
-              return _context35.a(2);
+              return _context36.a(2);
             case 5:
               this.renderDuplicateGroups(content, data.groups);
-              _context35.n = 7;
+              _context36.n = 7;
               break;
             case 6:
-              _context35.p = 6;
-              _t34 = _context35.v;
-              console.error('Failed to find duplicates:', _t34);
+              _context36.p = 6;
+              _t35 = _context36.v;
+              console.error('Failed to find duplicates:', _t35);
               document.getElementById('duplicates-loading').style.display = 'none';
               _content = document.getElementById('duplicates-content');
               _content.style.display = 'block';
               _content.innerHTML = "<p class=\"error-message\">".concat((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to scan for duplicates. Please try again.'), "</p>");
             case 7:
-              return _context35.a(2);
+              return _context36.a(2);
           }
-        }, _callee35, this, [[1, 6]]);
+        }, _callee36, this, [[1, 6]]);
       }));
       function showDuplicatesModal() {
         return _showDuplicatesModal.apply(this, arguments);
@@ -63481,20 +63654,20 @@ var TransactionsModule = /*#__PURE__*/function () {
   }, {
     key: "deleteDuplicates",
     value: function () {
-      var _deleteDuplicates = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36() {
-        var checked, ids, billCount, message, deleteBtn, response, result, remainingGroups, content, _t35;
-        return _regenerator().w(function (_context36) {
-          while (1) switch (_context36.p = _context36.n) {
+      var _deleteDuplicates = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
+        var checked, ids, billCount, message, deleteBtn, response, result, remainingGroups, content, _t36;
+        return _regenerator().w(function (_context37) {
+          while (1) switch (_context37.p = _context37.n) {
             case 0:
               checked = document.querySelectorAll('.duplicate-checkbox:checked');
               ids = Array.from(checked).map(function (cb) {
                 return parseInt(cb.dataset.txId);
               });
               if (!(ids.length === 0)) {
-                _context36.n = 1;
+                _context37.n = 1;
                 break;
               }
-              return _context36.a(2);
+              return _context37.a(2);
             case 1:
               billCount = Array.from(checked).filter(function (cb) {
                 var item = cb.closest('.duplicate-item');
@@ -63505,16 +63678,16 @@ var TransactionsModule = /*#__PURE__*/function () {
                 message += '\n\n' + (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translatePlural)('budget', '%n of these was generated from bill payments. Make sure they are truly duplicates before deleting.', '%n of these were generated from bill payments. Make sure they are truly duplicates before deleting.', billCount);
               }
               if (confirm(message)) {
-                _context36.n = 2;
+                _context37.n = 2;
                 break;
               }
-              return _context36.a(2);
+              return _context37.a(2);
             case 2:
               deleteBtn = document.getElementById('duplicates-delete-btn');
               deleteBtn.disabled = true;
               deleteBtn.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Deleting...');
-              _context36.p = 3;
-              _context36.n = 4;
+              _context37.p = 3;
+              _context37.n = 4;
               return fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
                 method: 'POST',
                 headers: {
@@ -63526,17 +63699,17 @@ var TransactionsModule = /*#__PURE__*/function () {
                 })
               });
             case 4:
-              response = _context36.v;
+              response = _context37.v;
               if (response.ok) {
-                _context36.n = 5;
+                _context37.n = 5;
                 break;
               }
               throw new Error("HTTP ".concat(response.status));
             case 5:
-              _context36.n = 6;
+              _context37.n = 6;
               return response.json();
             case 6:
-              result = _context36.v;
+              result = _context37.v;
               if (result.success > 0) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showSuccess)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translatePlural)('budget', 'Deleted %n duplicate transaction', 'Deleted %n duplicate transactions', result.success));
                 this._duplicatesDirty = true;
@@ -63566,24 +63739,24 @@ var TransactionsModule = /*#__PURE__*/function () {
               if (result.failed > 0) {
                 (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translatePlural)('budget', 'Failed to delete %n transaction', 'Failed to delete %n transactions', result.failed));
               }
-              _context36.n = 8;
+              _context37.n = 8;
               break;
             case 7:
-              _context36.p = 7;
-              _t35 = _context36.v;
-              console.error('Failed to delete duplicates:', _t35);
+              _context37.p = 7;
+              _t36 = _context37.v;
+              console.error('Failed to delete duplicates:', _t36);
               (0,_utils_notifications_js__WEBPACK_IMPORTED_MODULE_2__.showError)((0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Failed to delete duplicates'));
             case 8:
-              _context36.p = 8;
+              _context37.p = 8;
               if (deleteBtn && document.body.contains(deleteBtn)) {
                 deleteBtn.disabled = false;
                 deleteBtn.textContent = (0,_nextcloud_l10n__WEBPACK_IMPORTED_MODULE_5__.translate)('budget', 'Delete Selected') + " (".concat(document.querySelectorAll('.duplicate-checkbox:checked').length, ")");
               }
-              return _context36.f(8);
+              return _context37.f(8);
             case 9:
-              return _context36.a(2);
+              return _context37.a(2);
           }
-        }, _callee36, this, [[3, 7, 8, 9]]);
+        }, _callee37, this, [[3, 7, 8, 9]]);
       }));
       function deleteDuplicates() {
         return _deleteDuplicates.apply(this, arguments);

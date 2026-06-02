@@ -742,9 +742,12 @@ class TransactionService {
             throw new \Exception('Cannot link transactions from the same account');
         }
 
-        // Validation: must be same amount
-        if ($transaction->getAmount() !== $target->getAmount()) {
-            throw new \Exception('Cannot link transactions with different amounts');
+        // Validation: must be same amount (unless cross-currency transfer)
+        $sourceAccount = $this->accountMapper->find($transaction->getAccountId(), $userId);
+        $targetAccount = $this->accountMapper->find($target->getAccountId(), $userId);
+        if ($sourceAccount->getCurrency() === $targetAccount->getCurrency()
+            && $transaction->getAmount() !== $target->getAmount()) {
+            throw new \Exception('Cannot link same-currency transactions with different amounts');
         }
 
         // Validation: must be opposite types

@@ -129,6 +129,41 @@ class ExchangeRateController extends Controller {
     }
 
     /**
+     * Convert an amount between two currencies.
+     *
+     * @NoAdminRequired
+     */
+    public function convert(string $from, string $to, float $amount): DataResponse {
+        try {
+            $from = strtoupper($from);
+            $to = strtoupper($to);
+
+            if ($from === $to) {
+                return new DataResponse([
+                    'from' => $from,
+                    'to' => $to,
+                    'sourceAmount' => $amount,
+                    'convertedAmount' => $amount,
+                    'rate' => 1.0,
+                ]);
+            }
+
+            $converted = $this->conversionService->convert($amount, $from, $to);
+            $rate = $amount > 0 ? (float) $converted / $amount : 0;
+
+            return new DataResponse([
+                'from' => $from,
+                'to' => $to,
+                'sourceAmount' => $amount,
+                'convertedAmount' => round((float) $converted, 2),
+                'rate' => round($rate, 6),
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to convert currency'));
+        }
+    }
+
+    /**
      * Trigger a manual refresh of exchange rates.
      *
      * @NoAdminRequired
