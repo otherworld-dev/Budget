@@ -28,7 +28,11 @@ import.qif
 
 # Claude
 .claude/
+claude-memory/
 CLAUDE.md
+
+# Release process (private)
+nextcloud_release.md
 
 # Sample data (for testing/screenshots)
 sample_data/
@@ -36,3 +40,21 @@ budget_sample_data*.zip
 import_supplemental_data.js
 SAMPLE_DATA_README.md
 docs/superpowers/
+
+# Release process (private)
+nextcloud_release.md
+
+# Dev/test artifacts
+.playwright-mcp/
+.superpowers/
+*.png
+*.tar.gz
+*.zip
+export2/
+export3/
+seed-data.php
+seed-extra.php
+test-categories-chart.csv
+update-production.sh
+budget/js/budget-app.js.map
+budget/js/budget-app.js.LICENSE.txt
