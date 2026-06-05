@@ -28,11 +28,8 @@ import.qif
 
 # Claude
 .claude/
-claude-memory/
 CLAUDE.md
-
-# Release process (private)
-nextcloud_release.md
+.claudeignore
 
 # Sample data (for testing/screenshots)
 sample_data/
@@ -40,9 +37,6 @@ budget_sample_data*.zip
 import_supplemental_data.js
 SAMPLE_DATA_README.md
 docs/superpowers/
-
-# Release process (private)
-nextcloud_release.md
 
 # Dev/test artifacts
 .playwright-mcp/
