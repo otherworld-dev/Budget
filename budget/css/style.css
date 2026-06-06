@@ -648,6 +648,16 @@
     align-items: center;
 }
 
+/* Read-only indicator of the period a tile is displaying (set via gear settings) */
+.tile-period-indicator {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    background: var(--color-background-hover);
+    border-radius: 12px;
+    padding: 2px 10px;
+    white-space: nowrap;
+}
+
 /* Tile Settings Button */
 .tile-settings-btn {
     background: none;

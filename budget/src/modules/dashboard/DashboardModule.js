@@ -29,6 +29,13 @@ const GRIDSTACK_SIZE_MAP = {
 const DUPLICABLE_WIDGETS = ['trendChart', 'spendingChart', 'netWorthHistory', 'assetValueHistory', 'recentTransactions'];
 const MAX_INSTANCES = 5;
 
+/**
+ * Time-series chart tiles that display a date range and get a read-only period
+ * indicator. These all default to a 6-month view and are driven by the unified
+ * `dateRange` tile setting, so the indicator is always accurate for them.
+ */
+const PERIOD_INDICATOR_WIDGETS = ['trendChart', 'spendingChart', 'netWorthHistory', 'assetValueHistory'];
+
 export default class DashboardModule {
     constructor(app) {
         this.app = app;
@@ -341,6 +348,9 @@ export default class DashboardModule {
             // Apply responsive layout ordering
             this.applyDashboardLayout();
 
+            // Show the read-only period indicator on date-range tiles
+            this.updateTilePeriodIndicators();
+
             // Fetch data for duplicate instances (after Gridstack so tiles are sized)
             setTimeout(() => this.refreshAllInstances(), 50);
 
@@ -517,7 +527,7 @@ export default class DashboardModule {
                 return this.refreshTrendChart(months, s.accountId || null);
             },
             spendingChart: (s) => {
-                const period = { '30d': 'month', '90d': '3months', '6m': '3months', '1y': 'year' }[s.dateRange] || 'month';
+                const period = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' }[s.dateRange] || '6months';
                 return this.refreshSpendingChart(period, s.accountId || null);
             },
             netWorthHistory: (s) => {
@@ -543,6 +553,63 @@ export default class DashboardModule {
         if (refreshes.length > 0) {
             await Promise.all(refreshes);
         }
+    }
+
+    /**
+     * The date range a tile shows when the user hasn't chosen one. Net worth and
+     * asset history default to 30 days (their initial render); the trend and
+     * spending charts default to 6 months.
+     */
+    _defaultDateRange(baseType) {
+        return (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') ? '30d' : '6m';
+    }
+
+    /** Human-readable label for a tile's date-range setting (per-widget default). */
+    _dateRangeLabel(dateRange, baseType) {
+        const labels = {
+            '30d': t('budget', 'Last 30 days'),
+            '90d': t('budget', 'Last 90 days'),
+            '6m': t('budget', 'Last 6 months'),
+            '1y': t('budget', 'Last year'),
+        };
+        return labels[dateRange] || labels[this._defaultDateRange(baseType)];
+    }
+
+    /**
+     * Show a read-only indicator in each date-range tile's header reflecting the
+     * period it is currently displaying. The period itself is changed via the
+     * tile's gear settings (issue #250) — this is display-only.
+     */
+    updateTilePeriodIndicators() {
+        const tileSettings = this.dashboardConfig?.widgets?.tileSettings || {};
+        document.querySelectorAll('.dashboard-card[data-widget-id]').forEach(card => {
+            const instanceId = card.getAttribute('data-widget-id');
+            const baseType = this.getWidgetType(instanceId);
+            const header = card.querySelector('.card-header');
+            if (!header) return;
+
+            let indicator = header.querySelector('.tile-period-indicator');
+
+            // Only the time-series chart tiles get an indicator (their displayed
+            // period reliably tracks the dateRange setting and per-widget default).
+            if (!PERIOD_INDICATOR_WIDGETS.includes(baseType)) {
+                if (indicator) indicator.remove();
+                return;
+            }
+
+            const label = this._dateRangeLabel(tileSettings[instanceId]?.dateRange, baseType);
+            if (!indicator) {
+                indicator = document.createElement('span');
+                indicator.className = 'tile-period-indicator';
+                const controls = header.querySelector('.card-header-controls');
+                if (controls) {
+                    controls.insertBefore(indicator, controls.firstChild);
+                } else {
+                    header.appendChild(indicator);
+                }
+            }
+            indicator.textContent = label;
+        });
     }
 
     updateAccountIncomeHero(summary) {
@@ -2641,6 +2708,9 @@ export default class DashboardModule {
                 case '3months':
                     startDate.setMonth(startDate.getMonth() - 3);
                     break;
+                case '6months':
+                    startDate.setMonth(startDate.getMonth() - 6);
+                    break;
                 case 'year':
                     startDate = new Date(endDate.getFullYear(), 0, 1);
                     break;
@@ -2711,15 +2781,15 @@ export default class DashboardModule {
     async refreshWidgetInstance(instanceId) {
         const baseType = this.getWidgetType(instanceId);
         const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-        const dateRange = settings.dateRange || '6m';
+        const dateRange = settings.dateRange || this._defaultDateRange(baseType);
 
         // Convert dateRange setting to parameters
         const dateRangeMap = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 };
         const days = dateRangeMap[dateRange] || 180;
         const monthsMap = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 };
         const months = monthsMap[dateRange] || 6;
-        const periodMap = { '30d': 'month', '90d': '3months', '6m': '3months', '1y': 'year' };
-        const period = periodMap[dateRange] || 'month';
+        const periodMap = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' };
+        const period = periodMap[dateRange] || '6months';
 
         switch (baseType) {
             case 'trendChart':
@@ -3998,7 +4068,8 @@ export default class DashboardModule {
 
         // Date range
         if (schema.dateRange) {
-            const current = currentSettings.dateRange || '90d';
+            // Default to the same value the tile actually displays / the indicator shows
+            const current = currentSettings.dateRange || this._defaultDateRange(this.getWidgetType(widgetId));
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Date Range')}</label>
@@ -4170,6 +4241,11 @@ export default class DashboardModule {
 
         // Refresh the tile to apply the new setting
         this.refreshTileAfterSettingsChange(widgetId, category);
+
+        // Keep the period indicator in sync with the new setting
+        if (setting === 'dateRange') {
+            this.updateTilePeriodIndicators();
+        }
     }
 
     refreshTileAfterSettingsChange(widgetId, _category) {
@@ -4530,6 +4606,9 @@ export default class DashboardModule {
 
         // Fetch and render data
         await this.refreshWidgetInstance(instanceId);
+
+        // Show the period indicator on the new tile (if it supports a date range)
+        this.updateTilePeriodIndicators();
 
         // Update menu
         this.updateAddTilesMenu();
