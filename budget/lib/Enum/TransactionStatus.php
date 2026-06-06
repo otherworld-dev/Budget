@@ -10,6 +10,7 @@ namespace OCA\Budget\Enum;
 enum TransactionStatus: string {
     case CLEARED = 'cleared';
     case SCHEDULED = 'scheduled';
+    case PENDING = 'pending';
 
     /**
      * Get human-readable label.
@@ -18,15 +19,17 @@ enum TransactionStatus: string {
         return match ($this) {
             self::CLEARED => 'Cleared',
             self::SCHEDULED => 'Scheduled',
+            self::PENDING => 'Pending',
         };
     }
 
     /**
      * Check if this transaction should be included in reports.
-     * Scheduled transactions with future dates should be excluded.
+     * Scheduled transactions with future dates should be excluded; pending
+     * transactions (e.g. not-yet-posted bank-sync holds) count like cleared.
      */
     public function isReportable(): bool {
-        return $this === self::CLEARED;
+        return $this === self::CLEARED || $this === self::PENDING;
     }
 
     /**

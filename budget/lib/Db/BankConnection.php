@@ -27,6 +27,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setLastError(?string $lastError)
  * @method bool|null getApplyRules()
  * @method void setApplyRules(?bool $applyRules)
+ * @method bool|null getIncludePending()
+ * @method void setIncludePending(?bool $includePending)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  * @method string getUpdatedAt()
@@ -44,12 +46,14 @@ class BankConnection extends Entity implements JsonSerializable {
     protected $lastSyncAt;
     protected $lastError;
     protected $applyRules;
+    protected $includePending;
     protected $createdAt;
     protected $updatedAt;
 
     public function __construct() {
         $this->addType('id', 'integer');
         $this->addType('applyRules', 'boolean');
+        $this->addType('includePending', 'boolean');
     }
 
     public function jsonSerialize(): array {
@@ -62,6 +66,7 @@ class BankConnection extends Entity implements JsonSerializable {
             'lastSyncAt' => $this->getLastSyncAt(),
             'lastError' => $this->getLastError(),
             'applyRules' => $this->getApplyRules(),
+            'includePending' => $this->getIncludePending(),
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
         ];

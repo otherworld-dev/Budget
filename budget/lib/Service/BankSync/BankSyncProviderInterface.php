@@ -26,6 +26,7 @@ namespace OCA\Budget\Service\BankSync;
  *                     'amount' => string,      // signed decimal (negative = outflow)
  *                     'description' => string,
  *                     'vendor' => ?string,
+ *                     'pending' => bool,       // true if not yet posted
  *                 ],
  *             ],
  *         ],
@@ -56,10 +57,13 @@ interface BankSyncProviderInterface {
      * Fetch accounts and their recent transactions.
      *
      * @param string $credentials Provider-specific stored credentials (decrypted)
+     * @param array $options Provider-specific fetch options. Recognized keys:
+     *                       - includePending (bool): also fetch not-yet-posted
+     *                         transactions (SimpleFIN). Providers ignore unknown options.
      * @return array Normalized account data (see interface docblock)
      * @throws \Exception on API failure
      */
-    public function fetchAccounts(string $credentials): array;
+    public function fetchAccounts(string $credentials, array $options = []): array;
 
     /**
      * Fetch account metadata only (no transactions). Used by refreshAccounts
@@ -67,9 +71,10 @@ interface BankSyncProviderInterface {
      * Default implementation calls fetchAccounts — providers can override for efficiency.
      *
      * @param string $credentials Provider-specific stored credentials
+     * @param array $options Provider-specific fetch options (see fetchAccounts)
      * @return array Same format as fetchAccounts but transactions arrays may be empty
      */
-    public function fetchAccountList(string $credentials): array;
+    public function fetchAccountList(string $credentials, array $options = []): array;
 
     /**
      * Check if the connection needs re-authorization (e.g. GoCardless 90-day consent).

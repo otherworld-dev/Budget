@@ -197,6 +197,11 @@ export default class BankSyncModule {
                             <input type="checkbox" class="apply-rules-checkbox" data-connection-id="${connection.id}" ${connection.applyRules ? 'checked' : ''}>
                             <span>${t('budget', 'Apply rules')}</span>
                         </label>
+                        ${connection.provider === 'simplefin' ? `
+                        <label class="bank-connection-toggle" title="${t('budget', 'Also pull pending (not yet posted) transactions. They are marked Pending and reconciled when they post.')}">
+                            <input type="checkbox" class="include-pending-checkbox" data-connection-id="${connection.id}" ${connection.includePending ? 'checked' : ''}>
+                            <span>${t('budget', 'Include pending')}</span>
+                        </label>` : ''}
                         ${connection.lastError ? `<span class="bank-connection-error">${this.escapeHtml(connection.lastError)}</span>` : ''}
                     </div>
                 </div>
@@ -217,6 +222,9 @@ export default class BankSyncModule {
         });
         container.querySelectorAll('.apply-rules-checkbox').forEach(cb => {
             cb.addEventListener('change', () => this.updateConnectionApplyRules(parseInt(cb.dataset.connectionId), cb.checked));
+        });
+        container.querySelectorAll('.include-pending-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => this.updateConnectionIncludePending(parseInt(cb.dataset.connectionId), cb.checked));
         });
         container.querySelectorAll('.bank-disconnect-btn').forEach(btn => {
             btn.addEventListener('click', () => this.disconnect(parseInt(btn.dataset.connectionId)));
@@ -909,6 +917,20 @@ export default class BankSyncModule {
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             showSuccess(t('budget', applyRules ? 'Import rules will be applied during sync' : 'Import rules disabled for this connection'));
+        } catch (error) {
+            showError(t('budget', 'Failed to update connection settings'));
+        }
+    }
+
+    async updateConnectionIncludePending(connectionId, includePending) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ includePending })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            showSuccess(t('budget', includePending ? 'Pending transactions will be included during sync' : 'Pending transactions excluded for this connection'));
         } catch (error) {
             showError(t('budget', 'Failed to update connection settings'));
         }

@@ -68,7 +68,7 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         ];
     }
 
-    public function fetchAccounts(string $credentials): array {
+    public function fetchAccounts(string $credentials, array $options = []): array {
         $accessUrl = $credentials;
 
         // Parse the access URL to extract Basic Auth credentials
@@ -91,7 +91,12 @@ class SimpleFINProvider implements BankSyncProviderInterface {
             // Without start-date, some providers (especially credit cards)
             // return zero transactions.
             $startDate = (new \DateTime('-90 days'))->getTimestamp();
-            $response = $client->get($baseUrl . '/accounts?start-date=' . $startDate, [
+            $url = $baseUrl . '/accounts?start-date=' . $startDate;
+            // SimpleFIN returns only posted transactions unless pending=1 is set.
+            if (!empty($options['includePending'])) {
+                $url .= '&pending=1';
+            }
+            $response = $client->get($url, [
                 'auth' => [$username, $password],
                 'timeout' => 30,
             ]);
@@ -149,9 +154,9 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         return ['accounts' => $accounts];
     }
 
-    public function fetchAccountList(string $credentials): array {
+    public function fetchAccountList(string $credentials, array $options = []): array {
         // SimpleFIN doesn't have a separate metadata endpoint
-        return $this->fetchAccounts($credentials);
+        return $this->fetchAccounts($credentials, $options);
     }
 
     public function requiresReauthorization(string $credentials): bool {

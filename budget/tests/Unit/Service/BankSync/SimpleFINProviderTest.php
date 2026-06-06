@@ -305,6 +305,40 @@ class SimpleFINProviderTest extends TestCase {
 		$this->assertSame([], $result['accounts']);
 	}
 
+	public function testFetchAccountsOmitsPendingParamByDefault(): void {
+		$accessUrl = 'https://user:pass@bridge.simplefin.org/simplefin';
+
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn(json_encode(['accounts' => []]));
+
+		$this->client->expects($this->once())
+			->method('get')
+			->with(
+				$this->callback(fn($url) => !str_contains($url, 'pending=1')),
+				$this->anything()
+			)
+			->willReturn($response);
+
+		$this->provider->fetchAccounts($accessUrl);
+	}
+
+	public function testFetchAccountsRequestsPendingWhenOptionSet(): void {
+		$accessUrl = 'https://user:pass@bridge.simplefin.org/simplefin';
+
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn(json_encode(['accounts' => []]));
+
+		$this->client->expects($this->once())
+			->method('get')
+			->with(
+				$this->stringContains('pending=1'),
+				$this->anything()
+			)
+			->willReturn($response);
+
+		$this->provider->fetchAccounts($accessUrl, ['includePending' => true]);
+	}
+
 	// ── fetchAccountList ────────────────────────────────────────────
 
 	public function testFetchAccountListDelegatesToFetchAccounts(): void {

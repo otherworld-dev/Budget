@@ -196,6 +196,10 @@ class BankSyncController extends Controller {
                 $connection->setApplyRules((bool) $params['applyRules']);
             }
 
+            if (isset($params['includePending'])) {
+                $connection->setIncludePending((bool) $params['includePending']);
+            }
+
             $connection->setUpdatedAt(date('Y-m-d H:i:s'));
             $this->syncService->updateConnectionEntity($connection);
 

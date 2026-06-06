@@ -11408,6 +11408,29 @@ tr.scheduled-transaction:hover {
     opacity: 0.85;
 }
 
+/* Pending bank-sync holds: distinct (blue) badge. Unlike scheduled, pending
+   transactions count toward the balance, so rows are NOT faded — just a
+   subtle left accent to mark them as not-yet-posted. */
+.pending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.15));
+    color: var(--color-primary-element, #0082c9);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-style: normal;
+    margin-left: 6px;
+}
+
+tr.pending-transaction td:first-child {
+    box-shadow: inset 3px 0 0 var(--color-primary-element, #0082c9);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .source-details {

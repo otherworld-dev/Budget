@@ -291,10 +291,13 @@ class BankSyncServiceTest extends TestCase {
 		$account->setUserId(self::USER_ID);
 		$this->accountMapper->method('find')->with(100, self::USER_ID)->willReturn($account);
 
-		$this->transactionService->method('existsByImportId')
+		$existingDup = new \OCA\Budget\Db\Transaction();
+		$existingDup->setId(500);
+		$existingDup->setStatus('cleared');
+		$this->transactionService->method('findByImportId')
 			->willReturnMap([
-				[100, 'simplefin:tx-new', false],
-				[100, 'simplefin:tx-dup', true],
+				[100, 'simplefin:tx-new', null],
+				[100, 'simplefin:tx-dup', $existingDup],
 			]);
 
 		$tx = new \OCA\Budget\Db\Transaction();
@@ -758,6 +761,137 @@ class BankSyncServiceTest extends TestCase {
 			});
 
 		$this->service->refreshAccounts(self::USER_ID, 1);
+	}
+
+	// ===== pending transactions (issue #257) =====
+
+	/** Build a one-account sync fixture with the given incoming transactions. */
+	private function setUpPendingSync(BankConnection $connection, array $transactions): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn([
+			'accounts' => [[
+				'id' => 'ext-1', 'name' => 'Checking', 'balance' => '100', 'currency' => 'USD',
+				'transactions' => $transactions,
+			]],
+		]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$this->accountMapper->method('find')->willReturn($account);
+	}
+
+	public function testSyncImportsPendingTransactionWithPendingStatus(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'tx-p', 'date' => '2026-05-20', 'amount' => '-12.00', 'description' => 'Hold', 'pending' => true],
+		]);
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([]);
+
+		$captured = [];
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(1);
+		$this->transactionService->method('create')->willReturnCallback(function (...$args) use (&$captured, $tx) {
+			$captured = $args;
+			return $tx;
+		});
+
+		$result = $this->service->sync(self::USER_ID, 1);
+
+		$this->assertContains('pending', $captured, 'Pending tx should be created with status=pending');
+		$this->assertEquals(1, $result['imported']);
+	}
+
+	public function testSyncReconcilesPendingToPostedSameId(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		// Same provider id, now posted (pending flag absent)
+		$this->setUpPendingSync($connection, [
+			['id' => 'tx-1', 'date' => '2026-05-21', 'amount' => '-12.00', 'description' => 'Coffee'],
+		]);
+
+		$existing = new \OCA\Budget\Db\Transaction();
+		$existing->setId(7);
+		$existing->setStatus('pending');
+		$existing->setImportId('simplefin:tx-1');
+		$this->transactionService->method('findByImportId')
+			->with(100, 'simplefin:tx-1')->willReturn($existing);
+		$this->transactionService->method('findPendingImported')->willReturn([$existing]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($existing, null, '2026-05-21');
+		$this->transactionService->expects($this->never())->method('create');
+		$this->transactionService->expects($this->never())->method('delete');
+
+		$result = $this->service->sync(self::USER_ID, 1);
+		$this->assertEquals(0, $result['imported']);
+	}
+
+	public function testSyncReconcilesPendingToPostedWhenIdChanged(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		// New provider id; matches the pending hold by amount + nearby date
+		$this->setUpPendingSync($connection, [
+			['id' => 'NEW', 'date' => '2026-05-19', 'amount' => '-30.00', 'description' => 'Store'],
+		]);
+
+		$pending = new \OCA\Budget\Db\Transaction();
+		$pending->setId(8);
+		$pending->setStatus('pending');
+		$pending->setImportId('simplefin:OLD');
+		$pending->setType('debit');
+		$pending->setAmount(30.0);
+		$pending->setDate('2026-05-18');
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$pending]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($pending, 'simplefin:NEW', '2026-05-19');
+		$this->transactionService->expects($this->never())->method('create');
+		$this->transactionService->expects($this->never())->method('delete');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testSyncCleansUpStalePendingHolds(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		// Feed returns no transactions this time
+		$this->setUpPendingSync($connection, []);
+
+		$stale = new \OCA\Budget\Db\Transaction();
+		$stale->setId(9);
+		$stale->setStatus('pending');
+		$stale->setImportId('simplefin:GONE');
+		$stale->setType('debit');
+		$stale->setAmount(5.0);
+		$stale->setDate('2020-01-01'); // well past the staleness cutoff
+
+		$recent = new \OCA\Budget\Db\Transaction();
+		$recent->setId(11);
+		$recent->setStatus('pending');
+		$recent->setImportId('simplefin:RECENT');
+		$recent->setType('debit');
+		$recent->setAmount(7.0);
+		$recent->setDate(date('Y-m-d')); // too recent to clean up
+
+		$this->transactionService->method('findPendingImported')->willReturn([$stale, $recent]);
+
+		// Only the stale hold is removed, and without dismissing it.
+		$this->transactionService->expects($this->once())
+			->method('delete')
+			->with(9, self::USER_ID, false);
+
+		$this->service->sync(self::USER_ID, 1);
 	}
 
 	// ===== Helpers =====

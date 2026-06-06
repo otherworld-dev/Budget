@@ -510,7 +510,7 @@ class TransactionService {
         return $transaction;
     }
 
-    public function delete(int $id, string $userId): void {
+    public function delete(int $id, string $userId, bool $dismiss = true): void {
         $transaction = $this->find($id, $userId);
         $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
 
@@ -531,7 +531,7 @@ class TransactionService {
         // don't get re-imported on the next sync. Only applies to provider-
         // prefixed IDs (e.g. "simplefin:xxx", "gocardless:xxx"), not CSV imports.
         $importId = $transaction->getImportId();
-        if ($importId !== null && $importId !== '' && str_contains($importId, ':')) {
+        if ($dismiss && $importId !== null && $importId !== '' && str_contains($importId, ':')) {
             try {
                 $this->dismissedImportMapper->dismiss($transaction->getAccountId(), $importId);
             } catch (\Exception $e) {
@@ -698,6 +698,41 @@ class TransactionService {
 
     public function existsByImportId(int $accountId, string $importId): bool {
         return $this->mapper->existsByImportId($accountId, $importId);
+    }
+
+    /**
+     * Find a transaction by account + import ID (or null).
+     */
+    public function findByImportId(int $accountId, string $importId): ?\OCA\Budget\Db\Transaction {
+        return $this->mapper->findByImportId($accountId, $importId);
+    }
+
+    /**
+     * Find pending transactions on an account imported by a given provider.
+     *
+     * @return \OCA\Budget\Db\Transaction[]
+     */
+    public function findPendingImported(int $accountId, string $importPrefix): array {
+        return $this->mapper->findPendingImported($accountId, $importPrefix);
+    }
+
+    /**
+     * Mark an existing pending bank-sync transaction as posted (cleared),
+     * optionally re-pointing it at the posted version's import ID and date.
+     *
+     * Balance is unaffected: pending and cleared both count toward the balance,
+     * and the amount/type are unchanged — so we update fields directly.
+     */
+    public function reconcilePendingToPosted(\OCA\Budget\Db\Transaction $transaction, ?string $newImportId = null, ?string $newDate = null): \OCA\Budget\Db\Transaction {
+        $transaction->setStatus('cleared');
+        if ($newImportId !== null) {
+            $transaction->setImportId($newImportId);
+        }
+        if ($newDate !== null) {
+            $transaction->setDate($newDate);
+        }
+        $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+        return $this->mapper->update($transaction);
     }
 
     /**

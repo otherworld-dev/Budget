@@ -179,7 +179,12 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.status', $qb->createNamedParameter('cleared')))
+            // "Cleared" here means balance-affecting: everything except scheduled.
+            // Pending bank-sync holds count toward the balance like cleared ones.
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                $qb->expr()->isNull('t.status')
+            ))
             ->orderBy('t.date', 'ASC')
             ->addOrderBy('t.id', 'ASC');
 
@@ -373,8 +378,47 @@ class TransactionMapper extends QBMapper {
         $result = $qb->executeQuery();
         $count = $result->fetchOne();
         $result->closeCursor();
-        
+
         return $count > 0;
+    }
+
+    /**
+     * Find a single transaction by account + import ID, or null if none.
+     */
+    public function findByImportId(int $accountId, string $importId): ?Transaction {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('import_id', $qb->createNamedParameter($importId)))
+            ->setMaxResults(1);
+
+        try {
+            return $this->findEntity($qb);
+        } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Find pending transactions on an account that were imported by a given
+     * provider (import_id prefixed with "provider:"). Used to reconcile
+     * pending bank-sync holds against their later posted versions.
+     *
+     * @return Transaction[]
+     */
+    public function findPendingImported(int $accountId, string $importPrefix): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('pending')))
+            ->andWhere($qb->expr()->like('import_id', $qb->createNamedParameter(
+                $this->db->escapeLikeParameter($importPrefix) . '%'
+            )))
+            ->orderBy('date', 'ASC');
+
+        return $this->findEntities($qb);
     }
 
     /**

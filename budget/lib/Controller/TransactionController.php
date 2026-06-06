@@ -312,8 +312,8 @@ class TransactionController extends Controller {
                 $updates['reconciled'] = $reconciled;
             }
             if ($status !== null) {
-                if (!in_array($status, ['cleared', 'scheduled'], true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid status. Must be cleared or scheduled')], Http::STATUS_BAD_REQUEST);
+                if (!in_array($status, ['cleared', 'scheduled', 'pending'], true)) {
+                    return new DataResponse(['error' => $this->l->t('Invalid status. Must be cleared, scheduled or pending')], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['status'] = $status;
             }

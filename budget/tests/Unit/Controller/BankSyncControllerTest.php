@@ -420,4 +420,25 @@ class BankSyncControllerTest extends TestCase {
 		$response = $this->controller->institutions('simplefin');
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
+
+	// ── updateConnection ────────────────────────────────────────────
+
+	public function testUpdateConnectionSetsIncludePending(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['includePending' => true]);
+
+		$connection = new BankConnection();
+		$connection->setId(5);
+		$connection->setProvider('simplefin');
+		$this->syncService->method('getConnection')->with('user1', 5)->willReturn($connection);
+
+		$this->syncService->expects($this->once())
+			->method('updateConnectionEntity')
+			->with($this->callback(fn(BankConnection $c) => $c->getIncludePending() === true));
+
+		$response = $this->controller->updateConnection(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertTrue($connection->getIncludePending());
+	}
 }

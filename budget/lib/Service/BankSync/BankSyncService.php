@@ -133,8 +133,11 @@ class BankSyncService {
         }
 
         // Fetch accounts and transactions from provider
+        $includePending = (bool) $connection->getIncludePending();
         try {
-            $data = $provider->fetchAccounts($connection->getCredentials());
+            $data = $provider->fetchAccounts($connection->getCredentials(), [
+                'includePending' => $includePending,
+            ]);
         } catch (\Exception $e) {
             $connection->setStatus('error');
             $connection->setLastError($e->getMessage());
@@ -223,11 +226,26 @@ class BankSyncService {
             $transferLinkIds = [];
             $skipped = 0;
 
+            // Load existing pending bank-sync holds on this account so we can
+            // reconcile them against their posted versions (issue #257).
+            $importPrefix = $connection->getProvider() . ':';
+            $existingPending = $includePending
+                ? $this->transactionService->findPendingImported($budgetAccountId, $importPrefix)
+                : [];
+            $seenPendingIds = [];
+
             foreach ($externalAccount['transactions'] as $tx) {
                 $importId = $connection->getProvider() . ':' . $tx['id'];
+                $isPending = !empty($tx['pending']);
 
-                // Check for duplicate via import ID
-                if ($this->transactionService->existsByImportId($budgetAccountId, $importId)) {
+                // Already imported under this exact import ID?
+                $existing = $this->transactionService->findByImportId($budgetAccountId, $importId);
+                if ($existing !== null) {
+                    // A previously-pending hold has now posted (same ID): clear it.
+                    if (!$isPending && ($existing->getStatus() ?? 'cleared') === 'pending') {
+                        $this->transactionService->reconcilePendingToPosted($existing, null, $tx['date']);
+                    }
+                    $seenPendingIds[$existing->getId()] = true;
                     $skipped++;
                     continue;
                 }
@@ -238,6 +256,17 @@ class BankSyncService {
                     continue;
                 }
 
+                // A posted transaction with a NEW id may be the posted version of a
+                // pending hold whose id changed. Reconcile it instead of duplicating.
+                if (!$isPending && $includePending) {
+                    $match = $this->matchPendingHold($existingPending, $seenPendingIds, $tx);
+                    if ($match !== null) {
+                        $this->transactionService->reconcilePendingToPosted($match, $importId, $tx['date']);
+                        $seenPendingIds[$match->getId()] = true;
+                        $imported++;
+                        continue;
+                    }
+                }
 
                 // Determine type: negative amount = debit (outflow), positive = credit (inflow)
                 $amount = (float) $tx['amount'];
@@ -273,7 +302,7 @@ class BankSyncService {
                         vendor: $txData['vendor'] ?? null,
                         notes: $txData['notes'] ?? null,
                         importId: $importId,
-                        status: 'cleared'
+                        status: $isPending ? 'pending' : 'cleared'
                     );
 
                     // Apply deferred tag actions from import rules
@@ -315,6 +344,28 @@ class BankSyncService {
                     }
                 } catch (\Exception $e) {
                     // Silently skip
+                }
+            }
+
+            // Clean up pending holds that dropped off the feed without posting
+            // (e.g. a canceled authorization). Only remove ones not seen this
+            // sync and older than a few days, to avoid deleting a hold the
+            // provider momentarily omitted. Non-dismissing so a re-appearing
+            // hold can still be re-imported.
+            if ($includePending) {
+                $staleCutoff = date('Y-m-d', strtotime('-5 days'));
+                foreach ($existingPending as $pendingTx) {
+                    if (isset($seenPendingIds[$pendingTx->getId()])) {
+                        continue;
+                    }
+                    if ($pendingTx->getDate() > $staleCutoff) {
+                        continue;
+                    }
+                    try {
+                        $this->transactionService->delete($pendingTx->getId(), $userId, false);
+                    } catch (\Exception $e) {
+                        // Best-effort cleanup; ignore failures
+                    }
                 }
             }
 
@@ -520,6 +571,51 @@ class BankSyncService {
         return [
             'authorizationUrl' => $result['authorizationUrl'] ?? null,
         ];
+    }
+
+    /**
+     * Find an existing pending hold that matches a newly-posted transaction whose
+     * provider id changed when it posted. Matches on type + amount and a date
+     * within a few days. Returns the matched (still-pending, not-yet-seen)
+     * transaction, or null.
+     *
+     * @param \OCA\Budget\Db\Transaction[] $existingPending
+     * @param array<int,bool> $seenPendingIds
+     * @param array $tx Normalized incoming transaction
+     */
+    private function matchPendingHold(array $existingPending, array $seenPendingIds, array $tx): ?\OCA\Budget\Db\Transaction {
+        $amount = (float) $tx['amount'];
+        $incomingType = $amount < 0 ? 'debit' : 'credit';
+        $incomingAbs = abs($amount);
+        $incomingTs = strtotime($tx['date']);
+
+        $best = null;
+        $bestDiff = null;
+        foreach ($existingPending as $pendingTx) {
+            if (isset($seenPendingIds[$pendingTx->getId()])) {
+                continue;
+            }
+            if (($pendingTx->getStatus() ?? '') !== 'pending') {
+                continue; // already reconciled this sync
+            }
+            if ($pendingTx->getType() !== $incomingType) {
+                continue;
+            }
+            if (abs((float) $pendingTx->getAmount() - $incomingAbs) > 0.001) {
+                continue;
+            }
+            $dayDiff = abs(($incomingTs - strtotime($pendingTx->getDate())) / 86400);
+            if ($dayDiff > 5) {
+                continue;
+            }
+            // Prefer the closest date among candidates.
+            if ($bestDiff === null || $dayDiff < $bestDiff) {
+                $best = $pendingTx;
+                $bestDiff = $dayDiff;
+            }
+        }
+
+        return $best;
     }
 
     private function requireEnabled(): void {

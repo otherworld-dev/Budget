@@ -1336,6 +1336,7 @@ style('budget', 'budget-app');
                                     <select id="account-filter-status">
                                         <option value=""><?php p($l->t('All')); ?></option>
                                         <option value="cleared"><?php p($l->t('Cleared')); ?></option>
+                                        <option value="pending"><?php p($l->t('Pending')); ?></option>
                                         <option value="scheduled"><?php p($l->t('Scheduled')); ?></option>
                                     </select>
                                 </div>
@@ -1488,6 +1489,7 @@ style('budget', 'budget-app');
                             <select id="filter-status">
                                 <option value=""><?php p($l->t('All')); ?></option>
                                 <option value="cleared"><?php p($l->t('Cleared')); ?></option>
+                                <option value="pending"><?php p($l->t('Pending')); ?></option>
                                 <option value="scheduled"><?php p($l->t('Scheduled')); ?></option>
                             </select>
                         </div>

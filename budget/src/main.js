@@ -1091,8 +1091,11 @@ class BudgetApp {
                 : sharedStatus === 'settled'
                 ? `<span class="shared-settled-indicator" title="${t('budget', 'Shared expense - settled')}">&#x2705; ${t('budget', 'Settled')}</span>`
                 : '';
+            const pendingBadge = transaction.status === 'pending'
+                ? `<span class="pending-badge" title="${t('budget', 'Not yet posted by your bank')}">${t('budget', 'Pending')}</span>`
+                : '';
             return `
-                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}" data-transaction-id="${transaction.id}">
+                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}${transaction.status === 'pending' ? ' pending-transaction' : ''}" data-transaction-id="${transaction.id}">
                     <td class="select-column">
                         <input type="checkbox" class="transaction-checkbox"
                                data-transaction-id="${transaction.id}"
@@ -1111,7 +1114,7 @@ class BudgetApp {
                         <div class="transaction-description">
                             <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
                             ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
-                            ${(linkedBadge || splitBadge || sharedBadge) ? `<div class="transaction-badges">${linkedBadge}${splitBadge}${sharedBadge}</div>` : ''}
+                            ${(linkedBadge || splitBadge || sharedBadge || pendingBadge) ? `<div class="transaction-badges">${pendingBadge}${linkedBadge}${splitBadge}${sharedBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="vendor-column editable-cell"

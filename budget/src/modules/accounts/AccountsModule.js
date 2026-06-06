@@ -978,6 +978,7 @@ export default class AccountsModule {
             const category = this.categories?.find(c => c.id === transaction.categoryId);
             const isScheduled = transaction.status === 'scheduled';
             const scheduledBadge = isScheduled ? '<span class="scheduled-badge">' + t('budget', 'Scheduled') + '</span>' : '';
+            const pendingBadge = transaction.status === 'pending' ? '<span class="pending-badge" title="' + t('budget', 'Not yet posted by your bank') + '">' + t('budget', 'Pending') + '</span>' : '';
 
             // Transfer badge
             const isLinked = transaction.linkedTransactionId != null;
@@ -1003,7 +1004,7 @@ export default class AccountsModule {
                     <td class="description-column">
                         <div class="transaction-description">
                             <span class="description-main">${dom.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
-                            ${(linkedBadge || splitBadge) ? `<div class="transaction-badges">${linkedBadge}${splitBadge}</div>` : ''}
+                            ${(linkedBadge || splitBadge || pendingBadge) ? `<div class="transaction-badges">${pendingBadge}${linkedBadge}${splitBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="vendor-column">${dom.escapeHtml(transaction.vendor || '')}</td>

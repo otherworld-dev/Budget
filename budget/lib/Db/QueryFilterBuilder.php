@@ -127,12 +127,17 @@ class QueryFilterBuilder {
             ));
         }
 
-        // Status filter (cleared/scheduled)
+        // Status filter (cleared/scheduled/pending)
         if (!empty($filters['status'])) {
             if ($filters['status'] === 'scheduled') {
                 $qb->andWhere($qb->expr()->eq(
                     "{$alias}.status",
                     $qb->createNamedParameter('scheduled')
+                ));
+            } elseif ($filters['status'] === 'pending') {
+                $qb->andWhere($qb->expr()->eq(
+                    "{$alias}.status",
+                    $qb->createNamedParameter('pending')
                 ));
             } elseif ($filters['status'] === 'cleared') {
                 $qb->andWhere(

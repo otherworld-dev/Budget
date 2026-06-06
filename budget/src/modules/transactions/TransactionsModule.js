@@ -3735,7 +3735,9 @@ export default class TransactionsModule {
                 const checked = isExtra ? 'checked' : '';
                 const keepLabel = !isExtra ? `<span class="keep-badge">${t('budget', 'keep')}</span>` : '';
                 const billLabel = tx.billId ? `<span class="bill-badge">${t('budget', 'bill')}</span>` : '';
-                const statusLabel = tx.status === 'scheduled' ? `<span class="scheduled-badge">${t('budget', 'scheduled')}</span>` : '';
+                const statusLabel = tx.status === 'scheduled'
+                    ? `<span class="scheduled-badge">${t('budget', 'scheduled')}</span>`
+                    : (tx.status === 'pending' ? `<span class="pending-badge">${t('budget', 'pending')}</span>` : '');
 
                 html += `
                     <label class="duplicate-item ${isExtra ? 'pre-selected' : 'keep-item'}">

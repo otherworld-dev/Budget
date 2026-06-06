@@ -82,7 +82,8 @@ class GoCardlessProvider implements BankSyncProviderInterface {
         ];
     }
 
-    public function fetchAccounts(string $credentials): array {
+    public function fetchAccounts(string $credentials, array $options = []): array {
+        // GoCardless has no pending-transaction option; $options is ignored.
         $creds = json_decode($credentials, true);
         if (!$creds) {
             throw new \Exception('Invalid credentials format');
@@ -170,7 +171,7 @@ class GoCardlessProvider implements BankSyncProviderInterface {
         return $result;
     }
 
-    public function fetchAccountList(string $credentials): array {
+    public function fetchAccountList(string $credentials, array $options = []): array {
         $creds = json_decode($credentials, true);
         if (!$creds) {
             throw new \Exception('Invalid credentials format');
