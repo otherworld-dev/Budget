@@ -48,3 +48,9 @@ test-categories-chart.csv
 update-production.sh
 budget/js/budget-app.js.map
 budget/js/budget-app.js.LICENSE.txt
+
+# Claude Code (kept off public GitHub; the pre-push hook enforces this, and the
+# /commit skill temporarily un-ignores these to back them up to self-hosted origin)
+.claude/
+CLAUDE.md
+.claudeignore
