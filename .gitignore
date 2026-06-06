@@ -44,6 +44,7 @@ export2/
 export3/
 seed-data.php
 seed-extra.php
+test-data/
 test-categories-chart.csv
 update-production.sh
 budget/js/budget-app.js.map
