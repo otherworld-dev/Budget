@@ -50,17 +50,34 @@ class ImportController extends Controller {
 
     /**
      * Resolve a saved import template into concrete import parameters.
-     * The template's stored mapping/delimiter take precedence; its default
-     * account is used only when the request did not specify one.
      *
-     * @param array{mapping: array, accountId: ?int, delimiter: string} $params
-     * @return array{mapping: array, accountId: ?int, delimiter: string}
+     * For CSV templates the stored column mapping + delimiter take precedence.
+     * For OFX/QIF templates the stored account routing is used, with any routing
+     * supplied in the request taking precedence per source account (so a user can
+     * tweak one destination this run without losing the rest). The template's
+     * default account fills in only when the request did not specify one.
+     *
+     * Import options (skip-duplicates, apply-rules) are intentionally NOT forced
+     * here — the frontend applies them to the controls on select so the user's
+     * final toggle still wins; the request value is authoritative.
+     *
+     * @param array{mapping: array, accountId: ?int, delimiter: string, accountMapping: array} $params
+     * @return array{mapping: array, accountId: ?int, delimiter: string, accountMapping: array}
      */
     private function applyTemplate(int $templateId, array $params): array {
         $template = $this->templateService->find($templateId, $this->userId);
-        $params['mapping'] = $template->getParsedMapping();
-        $params['delimiter'] = $template->getDelimiter() ?: $params['delimiter'];
-        if ($params['accountId'] === null) {
+        $format = $template->getFormat() ?? 'csv';
+
+        if ($format === 'csv') {
+            $params['mapping'] = $template->getParsedMapping();
+            $params['delimiter'] = $template->getDelimiter() ?: $params['delimiter'];
+        } else {
+            // Union (+) not array_merge: numeric account-number keys must be preserved.
+            $requested = is_array($params['accountMapping'] ?? null) ? $params['accountMapping'] : [];
+            $params['accountMapping'] = $requested + $template->getParsedAccountMapping();
+        }
+
+        if (($params['accountId'] ?? null) === null) {
             $params['accountId'] = $template->getAccountId();
         }
         return $params;
@@ -116,8 +133,13 @@ class ImportController extends Controller {
     ): DataResponse {
         try {
             if ($templateId !== null) {
-                ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter] =
-                    $this->applyTemplate($templateId, ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter]);
+                ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter, 'accountMapping' => $accountMapping] =
+                    $this->applyTemplate($templateId, [
+                        'mapping' => $mapping,
+                        'accountId' => $accountId,
+                        'delimiter' => $delimiter,
+                        'accountMapping' => $accountMapping ?? [],
+                    ]);
             }
 
             $preview = $this->service->previewImport(
@@ -153,8 +175,13 @@ class ImportController extends Controller {
     ): DataResponse {
         try {
             if ($templateId !== null) {
-                ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter] =
-                    $this->applyTemplate($templateId, ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter]);
+                ['mapping' => $mapping, 'accountId' => $accountId, 'delimiter' => $delimiter, 'accountMapping' => $accountMapping] =
+                    $this->applyTemplate($templateId, [
+                        'mapping' => $mapping,
+                        'accountId' => $accountId,
+                        'delimiter' => $delimiter,
+                        'accountMapping' => $accountMapping ?? [],
+                    ]);
             }
 
             $result = $this->service->processImport(

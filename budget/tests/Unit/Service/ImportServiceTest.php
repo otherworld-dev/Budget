@@ -15,6 +15,7 @@ use OCA\Budget\Service\Import\ImportRuleApplicator;
 use OCA\Budget\Service\Import\ParserFactory;
 use OCA\Budget\Service\Import\Preset\PresetRegistry;
 use OCA\Budget\Service\Import\TransactionNormalizer;
+use OCA\Budget\Service\ImportAccountLinkService;
 use OCA\Budget\Service\ImportService;
 use OCA\Budget\Service\TagSetService;
 use OCA\Budget\Service\TransactionService;
@@ -60,6 +61,7 @@ class ImportServiceTest extends TestCase {
         $tagSetService = $this->createMock(TagSetService::class);
         $transactionTagService = $this->createMock(TransactionTagService::class);
         $accountService = $this->createMock(AccountService::class);
+        $accountLinkService = $this->createMock(ImportAccountLinkService::class);
 
         $this->service = new ImportService(
             $this->appData,
@@ -76,6 +78,7 @@ class ImportServiceTest extends TestCase {
             $categoryService,
             $tagSetService,
             $transactionTagService,
+            $accountLinkService,
             $l
         );
     }

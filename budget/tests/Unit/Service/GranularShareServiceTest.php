@@ -517,4 +517,42 @@ class GranularShareServiceTest extends TestCase {
 
         $this->assertSame([1, 2], $result);
     }
+
+    // =============================================
+    // resolveOwner
+    // =============================================
+
+    private function makeSavingsGoal(int $id, string $owner): \OCA\Budget\Db\SavingsGoal {
+        $goal = new \OCA\Budget\Db\SavingsGoal();
+        $goal->setId($id);
+        $goal->setUserId($owner);
+        return $goal;
+    }
+
+    public function testResolveOwnerReturnsUserForOwnEntity(): void {
+        $this->savingsGoalMapper->method('findAll')
+            ->with('alice')
+            ->willReturn([$this->makeSavingsGoal(1, 'alice')]);
+        $this->shareMapper->method('findByRecipient')->with('alice')->willReturn([]);
+
+        $this->assertSame('alice', $this->service->resolveOwner('alice', ShareItem::TYPE_SAVINGS_GOAL, 1));
+    }
+
+    public function testResolveOwnerReturnsShareOwnerForSharedEntity(): void {
+        $this->savingsGoalMapper->method('findAll')->with('alice')->willReturn([]);
+        $share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+        $this->shareMapper->method('findByRecipient')->with('alice')->willReturn([$share]);
+        $this->shareItemMapper->method('findSharedEntityIds')
+            ->with(100, ShareItem::TYPE_SAVINGS_GOAL)
+            ->willReturn([5]);
+
+        $this->assertSame('bob', $this->service->resolveOwner('alice', ShareItem::TYPE_SAVINGS_GOAL, 5));
+    }
+
+    public function testResolveOwnerReturnsNullForInaccessibleEntity(): void {
+        $this->savingsGoalMapper->method('findAll')->with('alice')->willReturn([]);
+        $this->shareMapper->method('findByRecipient')->with('alice')->willReturn([]);
+
+        $this->assertNull($this->service->resolveOwner('alice', ShareItem::TYPE_SAVINGS_GOAL, 999));
+    }
 }

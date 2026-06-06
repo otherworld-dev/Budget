@@ -9510,6 +9510,19 @@ button.danger:hover {
     font-weight: 500;
 }
 
+.goal-shared-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
 .empty-goals {
     text-align: center;
     padding: 60px 40px;
@@ -18204,4 +18217,21 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .import-template-row-actions .button-danger {
     color: var(--color-error);
+}
+
+.import-template-format {
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    margin-right: 6px;
+    border-radius: var(--border-radius);
+    background: var(--color-primary-element-light, var(--color-background-dark));
+    color: var(--color-primary-element, var(--color-main-text));
+    vertical-align: middle;
+}
+
+#import-routing-template-bar {
+    margin-bottom: 12px;
 }

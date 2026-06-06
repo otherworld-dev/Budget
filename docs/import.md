@@ -128,27 +128,42 @@ To import from Toshl Finance, export your data as CSV from Toshl and upload the 
 
 ## Saved Import Templates
 
-If you import CSV exports from the same bank regularly, you can save your column mapping as a reusable template instead of re-mapping the columns on every import.
+If you import from the same bank regularly, you can save your import configuration as a reusable template instead of repeating the setup on every import. Templates are private to your account, and what a template stores depends on the file format:
 
-**Saving a template:**
+- **CSV** — the **column mapping**, the CSV delimiter, and the "skip first row" option (plus an optional default destination account).
+- **OFX / QIF** — the **account routing**, i.e. which destination account each source account in the file maps to.
+
+All templates also remember the import options (skip duplicates, apply rules). When you upload a file, only templates matching that file's format are offered.
+
+### CSV: saving a column mapping
 
 1. Upload a CSV file and map the columns as usual (see [Column Mapping](#3-column-mapping)).
 2. Click **Save mapping as template…** in the column mapping step.
 3. Give the template a name (for example, *My Bank Checking*) and save it.
 
-A template stores the column mapping, the CSV delimiter, and the "skip first row" option. If an account is selected, it is also remembered as the template's default destination account.
+To reuse it, upload a CSV file and pick your template from the **My Templates** group in the **Import Format** dropdown. The column mapping is filled in automatically. You can still tweak any column before previewing — adjusting a mapping switches the import back to a custom mapping for that run, leaving the saved template unchanged.
 
-**Using a template:**
+> **Note:** A CSV template stores column *names*, so it works on any future export from the same bank as long as the column headers stay the same. If your bank changes its export format, save a new template.
 
-Upload a CSV file, then pick your saved template from the **My Templates** group in the **Import Format** dropdown. The column mapping is filled in automatically. You can still tweak any column before previewing — adjusting a mapping switches the import back to a custom mapping for that run, leaving the saved template unchanged.
+### OFX / QIF: saving account routing
 
-**Flow:** Upload CSV → Select a saved template from the **Import Format** dropdown → Preview → Execute Import.
+OFX and QIF files have no columns to map — their fields are standardized. What is repetitive is **routing**: a single file can contain several accounts, and each import you re-pick which of your accounts each one maps to.
 
-**Managing templates:**
+1. Upload an OFX or QIF file and reach the **Review & Import** step.
+2. In **Map Source Accounts to Destination Accounts**, set each source account's destination.
+3. Click **Save routing as template…** above the list and name it.
 
-Click **Manage templates** in the column mapping step to rename or delete your saved templates. Templates are private to your account.
+To reuse it, upload a file of the same format and pick your template from the **Saved Account Routing** dropdown; the destinations are filled in automatically. You can still change any destination before importing.
 
-> **Note:** A template stores column *names*, so it works on any future export from the same bank as long as the column headers stay the same. If your bank changes its export format, save a new template.
+> **Note:** OFX already auto-matches source accounts to your accounts by account number; a saved routing template is most useful for QIF (which has no auto-match) or when the auto-match is wrong or incomplete.
+
+#### Automatic routing memory
+
+You don't have to save a named template to benefit from routing memory. After any OFX/QIF import, the app quietly remembers which destination account each source account was routed to. The next time you import a file of the same format, those destinations are **pre-filled automatically** — including for QIF, which has no other auto-matching. If you route a source account somewhere different, the new choice is remembered instead. This works alongside named templates: selecting a template still takes precedence, and you can always change any destination before importing.
+
+### Managing templates
+
+Click **Manage templates** (in the column-mapping step for CSV, or above the account-routing list for OFX/QIF) to rename or delete your saved templates. Each is labelled with its format.
 
 ## Duplicate Detection
 

@@ -113,6 +113,13 @@ class GranularShareService {
         return $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
     }
 
+    /**
+     * @return int[]
+     */
+    public function getSharedSavingsGoalIds(string $userId): array {
+        return $this->getSharedIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
+    }
+
     // ==========================================
     // Permissions
     // ==========================================
@@ -159,6 +166,29 @@ class GranularShareService {
         if (!$this->canWrite($userId, $entityType, $entityId)) {
             throw new ReadOnlyShareException();
         }
+    }
+
+    /**
+     * Resolve the owner of an entity the user can access.
+     *
+     * Returns the user's own ID when they own the entity, the share owner's ID
+     * when it has been shared with them via an accepted share, or null when the
+     * entity is not accessible to the user. Used to perform owner-scoped lookups
+     * on behalf of a recipient.
+     */
+    public function resolveOwner(string $userId, string $entityType, int $entityId): ?string {
+        if (in_array($entityId, $this->getOwnIds($userId, $entityType), true)) {
+            return $userId;
+        }
+
+        foreach ($this->getAcceptedIncomingShares($userId) as $share) {
+            $ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), $entityType);
+            if (in_array($entityId, $ids, true)) {
+                return $share->getOwnerUserId();
+            }
+        }
+
+        return null;
     }
 
     // ==========================================

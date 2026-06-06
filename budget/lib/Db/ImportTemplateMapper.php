@@ -44,6 +44,20 @@ class ImportTemplateMapper extends QBMapper {
     }
 
     /**
+     * @return ImportTemplate[]
+     */
+    public function findAllByFormat(string $userId, string $format): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('format', $qb->createNamedParameter($format)))
+            ->orderBy('name', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Find a template by its (case-sensitive) name for a user.
      *
      * @throws DoesNotExistException

@@ -164,7 +164,9 @@ export default class ImportModule {
         const presetOptions = this.presets
             .map(p => `<option value="preset:${dom.escapeHtml(String(p.id))}">${dom.escapeHtml(p.name)}</option>`)
             .join('');
-        const templateOptions = this.userTemplates
+        // Only CSV-format templates apply to the column-mapping step.
+        const csvTemplates = this.userTemplates.filter(tpl => (tpl.format || 'csv') === 'csv');
+        const templateOptions = csvTemplates
             .map(tpl => `<option value="template:${tpl.id}">${dom.escapeHtml(tpl.name)}</option>`)
             .join('');
 
@@ -172,7 +174,7 @@ export default class ImportModule {
             <label for="import-preset">${t('budget', 'Import Format')}</label>
             <select id="import-preset">
                 <option value="">${t('budget', 'Custom CSV (manual mapping)')}</option>
-                ${this.userTemplates.length ? `<optgroup label="${t('budget', 'My Templates')}">${templateOptions}</optgroup>` : ''}
+                ${csvTemplates.length ? `<optgroup label="${t('budget', 'My Templates')}">${templateOptions}</optgroup>` : ''}
                 ${this.presets.length ? `<optgroup label="${t('budget', 'Bank Presets')}">${presetOptions}</optgroup>` : ''}
             </select>
             <div class="import-template-actions">
@@ -263,8 +265,26 @@ export default class ImportModule {
         const delimiterSelect = document.getElementById('csv-delimiter');
         if (delimiterSelect && template.delimiter) delimiterSelect.value = template.delimiter;
 
+        this.applyTemplateOptions(template);
+
         this.highlightMappedColumns(this.getCurrentMapping());
         this.validateMappingStep();
+    }
+
+    /**
+     * Apply a template's cross-format options to the shared controls.
+     * The user can still re-toggle them before importing (their value wins).
+     */
+    applyTemplateOptions(template) {
+        const showDuplicates = document.getElementById('show-duplicates');
+        if (showDuplicates && typeof template.skipDuplicates === 'boolean') {
+            // The control is "show duplicates" — the inverse of "skip duplicates".
+            showDuplicates.checked = !template.skipDuplicates;
+        }
+        const applyRules = document.getElementById('apply-rules');
+        if (applyRules && typeof template.applyRules === 'boolean') {
+            applyRules.checked = template.applyRules;
+        }
     }
 
     // ============================================
@@ -277,8 +297,14 @@ export default class ImportModule {
     }
 
     openSaveTemplateModal() {
-        if (!this.validateMappingStep()) {
-            showWarning(t('budget', 'Map the required columns before saving a template'));
+        const format = this.importFormat || 'csv';
+        if (format === 'csv') {
+            if (!this.validateMappingStep()) {
+                showWarning(t('budget', 'Map the required columns before saving a template'));
+                return;
+            }
+        } else if (!this.hasAnyAccountMapping()) {
+            showWarning(t('budget', 'Map at least one account before saving a template'));
             return;
         }
         const modal = document.getElementById('import-save-template-modal');
@@ -297,15 +323,23 @@ export default class ImportModule {
             return;
         }
 
-        const mapping = this.getCurrentMapping();
-        const requestBody = {
-            name,
-            mapping,
-            delimiter: document.getElementById('csv-delimiter')?.value || ',',
-            skipFirstRow: !!mapping.skipFirstRow
-        };
-        const accountId = parseInt(document.getElementById('import-account')?.value, 10);
-        if (accountId) requestBody.accountId = accountId;
+        const format = this.importFormat || 'csv';
+        const skipDuplicates = !(document.getElementById('show-duplicates')?.checked ?? true);
+        const requestBody = { name, format, skipDuplicates };
+
+        if (format === 'csv') {
+            const mapping = this.getCurrentMapping();
+            requestBody.mapping = mapping;
+            requestBody.delimiter = document.getElementById('csv-delimiter')?.value || ',';
+            requestBody.skipFirstRow = !!mapping.skipFirstRow;
+            requestBody.applyRules = !!mapping.applyRules;
+            const accountId = parseInt(document.getElementById('import-account')?.value, 10);
+            if (accountId) requestBody.accountId = accountId;
+        } else {
+            // OFX/QIF: the reusable payload is the source->destination account routing.
+            requestBody.accountMapping = this.getAccountMapping();
+            requestBody.applyRules = true;
+        }
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
@@ -318,12 +352,18 @@ export default class ImportModule {
                 showSuccess(t('budget', 'Import template saved'));
                 this.closeTemplateModal('import-save-template-modal');
                 await this.loadUserTemplates();
-                this.renderPresetSelector();
-                // Select the newly saved template
+                // Select the newly saved template in whichever selector is active.
                 this.selectedTemplate = data.id;
                 this.selectedPreset = null;
-                const select = document.getElementById('import-preset');
-                if (select) select.value = `template:${data.id}`;
+                if (format === 'csv') {
+                    this.renderPresetSelector();
+                    const select = document.getElementById('import-preset');
+                    if (select) select.value = `template:${data.id}`;
+                } else {
+                    this.renderRoutingTemplateBar();
+                    const select = document.getElementById('import-routing-template');
+                    if (select) select.value = `template:${data.id}`;
+                }
             } else {
                 showError(data.error || t('budget', 'Failed to save import template'));
             }
@@ -350,13 +390,24 @@ export default class ImportModule {
         }
 
         list.innerHTML = this.userTemplates.map(tpl => {
-            const columnCount = Object.keys(tpl.mapping || {})
-                .filter(k => !['skipFirstRow', 'applyRules'].includes(k)).length;
+            const format = (tpl.format || 'csv').toUpperCase();
+            let meta;
+            if ((tpl.format || 'csv') === 'csv') {
+                const columnCount = Object.keys(tpl.mapping || {})
+                    .filter(k => !['skipFirstRow', 'applyRules'].includes(k)).length;
+                meta = n('budget', '%n column mapped', '%n columns mapped', columnCount);
+            } else {
+                const accountCount = Object.keys(tpl.accountMapping || {}).length;
+                meta = n('budget', '%n account routed', '%n accounts routed', accountCount);
+            }
             return `
                 <div class="import-template-row" data-id="${tpl.id}">
                     <div class="import-template-info">
-                        <span class="import-template-name">${dom.escapeHtml(tpl.name)}</span>
-                        <span class="import-template-meta">${n('budget', '%n column mapped', '%n columns mapped', columnCount)}</span>
+                        <span class="import-template-name">
+                            <span class="import-template-format">${dom.escapeHtml(format)}</span>
+                            ${dom.escapeHtml(tpl.name)}
+                        </span>
+                        <span class="import-template-meta">${meta}</span>
                     </div>
                     <div class="import-template-row-actions">
                         <button type="button" class="button" data-action="rename">${t('budget', 'Rename')}</button>
@@ -385,7 +436,7 @@ export default class ImportModule {
                 showSuccess(t('budget', 'Import template renamed'));
                 await this.loadUserTemplates();
                 this.renderManageTemplatesList();
-                this.renderPresetSelector();
+                this.refreshTemplateSelectors();
             } else {
                 showError(data.error || t('budget', 'Failed to rename import template'));
             }
@@ -410,13 +461,100 @@ export default class ImportModule {
                 }
                 await this.loadUserTemplates();
                 this.renderManageTemplatesList();
-                this.renderPresetSelector();
+                this.refreshTemplateSelectors();
             } else {
                 showError(t('budget', 'Failed to delete import template'));
             }
         } catch (error) {
             console.error('Failed to delete import template:', error);
             showError(t('budget', 'Failed to delete import template'));
+        }
+    }
+
+    /** Refresh whichever template selector(s) are currently on screen. */
+    refreshTemplateSelectors() {
+        if (document.getElementById('import-preset-group')) this.renderPresetSelector();
+        if (document.getElementById('multi-account-mapping')) this.renderRoutingTemplateBar();
+    }
+
+    // ============================================
+    // OFX/QIF account-routing templates (step 3)
+    // ============================================
+
+    /**
+     * Render the "Saved routing" bar above the source→destination account list,
+     * populated with templates matching the uploaded file's format.
+     */
+    renderRoutingTemplateBar() {
+        const container = document.getElementById('multi-account-mapping');
+        if (!container) return;
+        const format = this.importFormat || 'ofx';
+        if (format === 'csv') return; // routing templates are OFX/QIF only
+
+        let bar = document.getElementById('import-routing-template-bar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.className = 'form-group';
+            bar.id = 'import-routing-template-bar';
+            container.insertBefore(bar, container.firstChild);
+        }
+
+        const templates = this.userTemplates.filter(tpl => (tpl.format || 'csv') === format);
+        const current = document.getElementById('import-routing-template')?.value
+            ?? (this.selectedTemplate ? `template:${this.selectedTemplate}` : '');
+        const options = templates
+            .map(tpl => `<option value="template:${tpl.id}">${dom.escapeHtml(tpl.name)}</option>`)
+            .join('');
+
+        bar.innerHTML = `
+            <label for="import-routing-template">${t('budget', 'Saved Account Routing')}</label>
+            <select id="import-routing-template">
+                <option value="">${t('budget', 'Manual (set below)')}</option>
+                ${templates.length ? `<optgroup label="${t('budget', 'My Templates')}">${options}</optgroup>` : ''}
+            </select>
+            <div class="import-template-actions">
+                <button type="button" class="button" id="save-routing-template-btn">${t('budget', 'Save routing as template…')}</button>
+                <button type="button" class="button" id="manage-routing-templates-btn">${t('budget', 'Manage templates')}</button>
+            </div>
+        `;
+
+        const select = document.getElementById('import-routing-template');
+        if (select) select.value = current;
+    }
+
+    onRoutingTemplateChange(value) {
+        this.selectedTemplate = null;
+        if (!value.startsWith('template:')) return;
+
+        const id = parseInt(value.slice('template:'.length), 10);
+        const template = this.userTemplates.find(tpl => tpl.id === id);
+        if (!template) return;
+
+        this.selectedTemplate = id;
+        this.applyRoutingTemplate(template);
+    }
+
+    /**
+     * Fill the destination-account selects from a saved routing template,
+     * apply its options, and trigger a preview.
+     */
+    applyRoutingTemplate(template) {
+        const mapping = template.accountMapping || {};
+        let appliedAny = false;
+        document.querySelectorAll('.destination-account-select').forEach(select => {
+            const sourceKey = select.dataset.sourceId;
+            if (Object.prototype.hasOwnProperty.call(mapping, sourceKey)) {
+                select.value = String(mapping[sourceKey]);
+                if (select.value === String(mapping[sourceKey])) appliedAny = true;
+            }
+        });
+
+        this.applyTemplateOptions(template);
+
+        if (appliedAny && this.hasAnyAccountMapping()) {
+            this.processImportData();
+        } else if (!appliedAny) {
+            showWarning(t('budget', 'This template’s accounts don’t match the uploaded file'));
         }
     }
 
@@ -506,6 +644,18 @@ export default class ImportModule {
         document.querySelectorAll('#import-templates-modal .modal-close, #import-templates-modal .cancel-btn')
             .forEach(btn => btn.addEventListener('click', () => this.closeTemplateModal('import-templates-modal')));
 
+        // OFX/QIF routing-template bar (delegated; the bar is rendered dynamically)
+        const multiAccount = document.getElementById('multi-account-mapping');
+        if (multiAccount) {
+            multiAccount.addEventListener('change', (e) => {
+                if (e.target.id === 'import-routing-template') this.onRoutingTemplateChange(e.target.value);
+            });
+            multiAccount.addEventListener('click', (e) => {
+                if (e.target.closest('#save-routing-template-btn')) this.openSaveTemplateModal();
+                if (e.target.closest('#manage-routing-templates-btn')) this.openManageTemplatesModal();
+            });
+        }
+
         // Initialize import state
         this.currentImportStep = 1;
         this.currentImportData = null;
@@ -574,12 +724,16 @@ export default class ImportModule {
         // Show preview data
         this.showMappingPreview(uploadResult.preview);
 
-        // Load and show the import format selector (presets + saved templates) for CSV files
+        // Saved templates are available for every format (CSV column mappings,
+        // OFX/QIF account routing), so load them regardless of format.
+        await this.loadUserTemplates();
+
+        // The Import Format selector (presets + CSV templates) is CSV-only;
+        // OFX/QIF get their routing-template bar later, on the account step.
         if (uploadResult.format === 'csv') {
             if (this.presets.length === 0) {
                 await this.loadPresets();
             }
-            await this.loadUserTemplates();
             this.showPresetSelector();
         }
 
@@ -1157,6 +1311,9 @@ export default class ImportModule {
         const container = document.getElementById('account-mapping-list');
         if (!container) return;
 
+        // Show the saved-routing template bar for OFX/QIF.
+        this.renderRoutingTemplateBar();
+
         container.innerHTML = '';
 
         this.sourceAccounts.forEach(sourceAccount => {
@@ -1249,9 +1406,14 @@ export default class ImportModule {
             requestBody.presetId = this.selectedPreset;
         }
 
-        // Include saved template ID if selected (server resolves the mapping)
+        // Include saved template ID if selected (server resolves the mapping/routing)
         if (this.selectedTemplate) {
             requestBody.templateId = this.selectedTemplate;
+            // OFX/QIF routing templates carry their own apply-rules option (no UI control).
+            const tpl = this.userTemplates.find(t => t.id === this.selectedTemplate);
+            if (tpl && typeof tpl.applyRules === 'boolean') {
+                requestBody.applyRules = tpl.applyRules;
+            }
         }
 
         // Check if preset has accountColumn or manual mapping has account column

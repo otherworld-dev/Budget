@@ -20,6 +20,17 @@ class GoalsControllerTest extends TestCase {
 	private GoalsService $service;
 	private IRequest $request;
 
+	/** Owner returned by resolveOwner per goal id (defaults to 'user1'). */
+	private array $ownerMap = [];
+	/** Goal ids that resolveOwner should treat as inaccessible (returns null). */
+	private array $inaccessibleIds = [];
+	/** Goal ids that canWrite should return false for. */
+	private array $readOnlyWriteIds = [];
+	/** Goal ids that requireWriteAccess should reject with ReadOnlyShareException. */
+	private array $readOnlyIds = [];
+	/** Ids returned by getSharedSavingsGoalIds. */
+	private array $sharedIds = [];
+
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(GoalsService::class);
@@ -35,6 +46,22 @@ class GoalsControllerTest extends TestCase {
 
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturnCallback(
+			fn($u, $t, $id) => in_array($id, $this->inaccessibleIds, true)
+				? null
+				: ($this->ownerMap[$id] ?? 'user1')
+		);
+		$granularShareService->method('canWrite')->willReturnCallback(
+			fn($u, $t, $id) => !in_array($id, $this->readOnlyWriteIds, true)
+		);
+		$granularShareService->method('requireWriteAccess')->willReturnCallback(function ($u, $t, $id): void {
+			if (in_array($id, $this->readOnlyIds, true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		$granularShareService->method('getSharedSavingsGoalIds')->willReturnCallback(
+			fn($u) => $this->sharedIds
+		);
 
 		$this->controller = new GoalsController(
 			$this->request,
@@ -301,5 +328,112 @@ class GoalsControllerTest extends TestCase {
 		$response = $this->controller->forecast(999);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	// ── sharing: read access ─────────────────────────────────────────
+
+	public function testIndexMergesSharedGoals(): void {
+		$this->service->method('findAll')->with('user1')->willReturn([$this->makeGoal()]);
+		$this->sharedIds = [20];
+		$this->readOnlyWriteIds = []; // goal 20 is writable
+		$this->service->method('findShared')->with([20])->willReturn([
+			['id' => 20, 'name' => 'Shared Goal', '_shared' => true],
+		]);
+
+		$response = $this->controller->index();
+		$data = $response->getData();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertCount(2, $data);
+		$this->assertTrue($data[1]['_shared']);
+		$this->assertTrue($data[1]['_canWrite']);
+	}
+
+	public function testShowSharedGoalAddsFlags(): void {
+		$this->ownerMap = [5 => 'owner2'];
+		$this->readOnlyWriteIds = [5]; // read-only share
+		$goal = $this->makeGoal(['id' => 5, 'userId' => 'owner2']);
+		$this->service->method('find')->with(5, 'owner2')->willReturn($goal);
+
+		$response = $this->controller->show(5);
+		$data = $response->getData();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertTrue($data['_shared']);
+		$this->assertFalse($data['_canWrite']);
+	}
+
+	public function testShowInaccessibleGoalReturns404(): void {
+		$this->inaccessibleIds = [7];
+		$this->service->expects($this->never())->method('find');
+
+		$response = $this->controller->show(7);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testProgressSharedGoalUsesOwner(): void {
+		$this->ownerMap = [3 => 'owner2'];
+		$this->service->method('getProgress')->with(3, 'owner2')->willReturn(['percentage' => 10.0]);
+
+		$response = $this->controller->progress(3);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testProgressInaccessibleGoalReturns404(): void {
+		$this->inaccessibleIds = [3];
+		$this->service->expects($this->never())->method('getProgress');
+
+		$response = $this->controller->progress(3);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	// ── sharing: write access ────────────────────────────────────────
+
+	public function testUpdateSharedGoalUsesOwner(): void {
+		$this->ownerMap = [8 => 'owner2'];
+		$this->request->method('getParams')->willReturn([]);
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function (...$args) use (&$captured) {
+			$captured = $args;
+			return $this->makeGoal(['id' => 8, 'userId' => 'owner2']);
+		});
+
+		$response = $this->controller->update(8, 'New Name');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(8, $captured[0]);
+		$this->assertSame('owner2', $captured[1]); // owner, not the recipient
+	}
+
+	public function testUpdateReadOnlyShareReturns403(): void {
+		$this->ownerMap = [9 => 'owner2'];
+		$this->readOnlyIds = [9];
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(9, 'New Name');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testDestroyForbiddenForNonOwner(): void {
+		$this->ownerMap = [10 => 'owner2'];
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controller->destroy(10);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testDestroyInaccessibleGoalReturns404(): void {
+		$this->inaccessibleIds = [11];
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controller->destroy(11);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 }

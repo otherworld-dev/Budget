@@ -31,7 +31,28 @@ class GoalsService {
      */
     public function find(int $id, string $userId): SavingsGoal {
         $goal = $this->mapper->find($id, $userId);
-        return $this->enrichGoalWithTagAmount($goal, $userId);
+        return $this->enrichGoalWithTagAmount($goal);
+    }
+
+    /**
+     * Fetch goals shared with a user by their pre-authorized IDs.
+     *
+     * IDs must already be authorized (e.g. via GranularShareService). Each goal
+     * is tag-enriched against its own owner and flagged with `_shared`.
+     *
+     * @param int[] $ids
+     * @return array[]
+     */
+    public function findShared(array $ids): array {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $goals = $this->mapper->findByIds($ids);
+        return array_map(function (SavingsGoal $goal) {
+            $this->enrichGoalWithTagAmount($goal);
+            return array_merge($goal->jsonSerialize(), ['_shared' => true]);
+        }, $goals);
     }
 
     public function create(
@@ -60,7 +81,7 @@ class GoalsService {
         $goal->setCreatedAt(date('Y-m-d H:i:s'));
 
         $inserted = $this->mapper->insert($goal);
-        return $this->enrichGoalWithTagAmount($inserted, $userId);
+        return $this->enrichGoalWithTagAmount($inserted);
     }
 
     /**
@@ -117,7 +138,7 @@ class GoalsService {
         }
 
         $updated = $this->mapper->update($goal);
-        return $this->enrichGoalWithTagAmount($updated, $userId);
+        return $this->enrichGoalWithTagAmount($updated);
     }
 
     /**
@@ -227,9 +248,11 @@ class GoalsService {
         return $goals;
     }
 
-    private function enrichGoalWithTagAmount(SavingsGoal $goal, string $userId): SavingsGoal {
+    private function enrichGoalWithTagAmount(SavingsGoal $goal): SavingsGoal {
         if ($goal->getTagId() !== null) {
-            $sum = $this->transactionTagMapper->sumTransactionAmountsByTag($goal->getTagId(), $userId);
+            // Tag sums are always scoped to the goal's owner so that shared
+            // goals reflect the owner's tagged transactions, not the viewer's.
+            $sum = $this->transactionTagMapper->sumTransactionAmountsByTag($goal->getTagId(), $goal->getUserId());
             $goal->setCurrentAmount($sum);
         }
         return $goal;

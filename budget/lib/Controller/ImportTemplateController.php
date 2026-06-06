@@ -39,10 +39,14 @@ class ImportTemplateController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function index(): DataResponse {
+    public function index(?string $format = null): DataResponse {
         try {
-            $templates = $this->service->findAll($this->userId);
+            $templates = $format !== null
+                ? $this->service->findAllByFormat($this->userId, $format)
+                : $this->service->findAll($this->userId);
             return new DataResponse($templates);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve import templates'));
         }
@@ -66,18 +70,26 @@ class ImportTemplateController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function create(
         string $name,
-        array $mapping,
+        string $format = 'csv',
+        array $mapping = [],
+        array $accountMapping = [],
         string $delimiter = ',',
         bool $skipFirstRow = false,
+        bool $skipDuplicates = true,
+        bool $applyRules = false,
         ?int $accountId = null
     ): DataResponse {
         try {
             $template = $this->service->create(
                 $this->userId,
                 $name,
+                $format,
                 $mapping,
+                $accountMapping,
                 $delimiter,
                 $skipFirstRow,
+                $skipDuplicates,
+                $applyRules,
                 $accountId
             );
             return new DataResponse($template, Http::STATUS_CREATED);
@@ -96,8 +108,11 @@ class ImportTemplateController extends Controller {
         int $id,
         ?string $name = null,
         ?array $mapping = null,
+        ?array $accountMapping = null,
         ?string $delimiter = null,
         ?bool $skipFirstRow = null,
+        ?bool $skipDuplicates = null,
+        ?bool $applyRules = null,
         ?int $accountId = null
     ): DataResponse {
         try {
@@ -108,11 +123,20 @@ class ImportTemplateController extends Controller {
             if ($mapping !== null) {
                 $updates['mapping'] = $mapping;
             }
+            if ($accountMapping !== null) {
+                $updates['accountMapping'] = $accountMapping;
+            }
             if ($delimiter !== null) {
                 $updates['delimiter'] = $delimiter;
             }
             if ($skipFirstRow !== null) {
                 $updates['skipFirstRow'] = $skipFirstRow;
+            }
+            if ($skipDuplicates !== null) {
+                $updates['skipDuplicates'] = $skipDuplicates;
+            }
+            if ($applyRules !== null) {
+                $updates['applyRules'] = $applyRules;
             }
             if ($accountId !== null) {
                 $updates['accountId'] = $accountId;

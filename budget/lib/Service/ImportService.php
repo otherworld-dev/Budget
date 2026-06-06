@@ -35,6 +35,7 @@ class ImportService {
     private CategoryService $categoryService;
     private TagSetService $tagSetService;
     private TransactionTagService $transactionTagService;
+    private ImportAccountLinkService $accountLinkService;
     private IL10N $l;
 
     public function __construct(
@@ -52,6 +53,7 @@ class ImportService {
         CategoryService $categoryService,
         TagSetService $tagSetService,
         TransactionTagService $transactionTagService,
+        ImportAccountLinkService $accountLinkService,
         IL10N $l
     ) {
         $this->appData = $appData;
@@ -68,6 +70,7 @@ class ImportService {
         $this->categoryService = $categoryService;
         $this->tagSetService = $tagSetService;
         $this->transactionTagService = $transactionTagService;
+        $this->accountLinkService = $accountLinkService;
         $this->l = $l;
     }
 
@@ -370,6 +373,10 @@ class ImportService {
                 $rawPreview[] = array_values($row);
             }
         }
+
+        // Pre-fill destinations from previously remembered routings (gives QIF
+        // auto-fill, and OFX a fallback where its account-number match missed).
+        $sourceAccounts = $this->applyRememberedAccountLinks($userId, $format, $sourceAccounts);
 
         return [
             'fileId' => $fileId,
@@ -712,6 +719,14 @@ class ImportService {
         }
 
         $totalProcessed = array_sum(array_map(fn($a) => count($a['transactions']), $parsedData['accounts']));
+
+        // Remember the routing so the next same-format import can pre-fill it.
+        // Best-effort: never let this break a completed import.
+        try {
+            $this->accountLinkService->remember($userId, $format, $accountMapping);
+        } catch (\Exception $e) {
+            // ignore
+        }
 
         return [
             'imported' => $imported,
@@ -1179,6 +1194,45 @@ class ImportService {
      * @param array $sourceAccounts Source accounts from the import file
      * @return array Map of sourceAccountId => destinationAccountId
      */
+    /**
+     * Fill each source account's suggestedMatch from previously remembered
+     * routings, without overriding an existing (e.g. OFX account-number) match.
+     * Remembered destinations that no longer exist for the user are ignored.
+     *
+     * @param array<int, array> $sourceAccounts
+     * @return array<int, array>
+     */
+    private function applyRememberedAccountLinks(string $userId, string $format, array $sourceAccounts): array {
+        if (($format !== 'ofx' && $format !== 'qif') || empty($sourceAccounts)) {
+            return $sourceAccounts;
+        }
+
+        $links = $this->accountLinkService->recall($userId, $format);
+        if (empty($links)) {
+            return $sourceAccounts;
+        }
+
+        // Only suggest accounts that still exist for the user.
+        $validIds = [];
+        foreach ($this->accountMapper->findAll($userId) as $account) {
+            $validIds[$account->getId()] = true;
+        }
+
+        foreach ($sourceAccounts as &$source) {
+            if (!empty($source['suggestedMatch'])) {
+                continue;
+            }
+            $key = $source['accountId'] ?? null;
+            $remembered = $key !== null ? ($links[$key] ?? null) : null;
+            if ($remembered !== null && isset($validIds[$remembered])) {
+                $source['suggestedMatch'] = $remembered;
+            }
+        }
+        unset($source);
+
+        return $sourceAccounts;
+    }
+
     private function matchSourceAccounts(string $userId, array $sourceAccounts): array {
         $userAccounts = $this->accountMapper->findAll($userId);
         $matches = [];

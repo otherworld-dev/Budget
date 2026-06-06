@@ -43,9 +43,13 @@ class ImportTemplateMapperTest extends TestCase {
             'id' => 1,
             'user_id' => 'user1',
             'name' => 'My Bank',
+            'format' => 'csv',
             'mapping' => json_encode(['date' => 'Date', 'amount' => 'Amount', 'description' => 'Memo']),
+            'account_mapping' => null,
             'delimiter' => ',',
             'skip_first_row' => 0,
+            'skip_duplicates' => 1,
+            'apply_rules' => 0,
             'account_id' => null,
             'created_at' => '2026-01-01 00:00:00',
             'updated_at' => null,
@@ -93,6 +97,23 @@ class ImportTemplateMapperTest extends TestCase {
 
         $this->assertCount(2, $templates);
         $this->assertEquals('Alpha', $templates[0]->getName());
+    }
+
+    public function testFindAllByFormatReturnsTemplates(): void {
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls(
+                $this->makeRow(['id' => 1, 'name' => 'OFX Bank', 'format' => 'ofx',
+                    'mapping' => null, 'account_mapping' => json_encode(['1234' => 5])]),
+                false
+            );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $templates = $this->mapper->findAllByFormat('user1', 'ofx');
+
+        $this->assertCount(1, $templates);
+        $this->assertEquals('ofx', $templates[0]->getFormat());
+        $this->assertEquals(['1234' => 5], $templates[0]->getParsedAccountMapping());
     }
 
     public function testFindByNameReturnsTemplate(): void {

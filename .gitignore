@@ -26,10 +26,6 @@ import.qif
 .env
 .env.local
 
-# Claude
-.claude/
-CLAUDE.md
-.claudeignore
 
 # Sample data (for testing/screenshots)
 sample_data/

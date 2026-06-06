@@ -102,6 +102,40 @@ class GoalsServiceTest extends TestCase {
 		$this->service->find(999, 'user1');
 	}
 
+	// ── findShared ──────────────────────────────────────────────────
+
+	public function testFindSharedReturnsEmptyForNoIds(): void {
+		$this->mapper->expects($this->never())->method('findByIds');
+
+		$this->assertSame([], $this->service->findShared([]));
+	}
+
+	public function testFindSharedFlagsAndSerializes(): void {
+		$goal = $this->makeGoal(['id' => 9, 'userId' => 'owner2', 'name' => 'Shared']);
+		$this->mapper->method('findByIds')->with([9])->willReturn([$goal]);
+
+		$result = $this->service->findShared([9]);
+
+		$this->assertCount(1, $result);
+		$this->assertTrue($result[0]['_shared']);
+		$this->assertSame('Shared', $result[0]['name']);
+		$this->assertSame('owner2', $result[0]['userId']);
+	}
+
+	public function testFindSharedEnrichesTagGoalAgainstOwner(): void {
+		$goal = $this->makeGoal(['id' => 9, 'userId' => 'owner2', 'tagId' => 5, 'currentAmount' => 0]);
+		$this->mapper->method('findByIds')->willReturn([$goal]);
+		// Tag sum must be scoped to the goal's OWNER, not the viewer.
+		$this->transactionTagMapper->expects($this->once())
+			->method('sumTransactionAmountsByTag')
+			->with(5, 'owner2')
+			->willReturn(321.0);
+
+		$result = $this->service->findShared([9]);
+
+		$this->assertEquals(321.0, $result[0]['currentAmount']);
+	}
+
 	// ── create ──────────────────────────────────────────────────────
 
 	public function testCreateBasicGoal(): void {

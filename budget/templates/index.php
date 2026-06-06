@@ -2743,7 +2743,7 @@ style('budget', 'budget-app');
                     <div class="form-group">
                         <label for="import-template-name"><?php p($l->t('Template Name')); ?> <span class="required">*</span></label>
                         <input type="text" id="import-template-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., My Bank Checking')); ?>">
-                        <p class="hint"><?php p($l->t('Saves the current column mapping and delimiter so you can reuse it for future imports.')); ?></p>
+                        <p class="hint"><?php p($l->t('Saves the current import settings (column mapping or account routing, plus options) so you can reuse them for future imports.')); ?></p>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>

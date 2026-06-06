@@ -71,10 +71,21 @@ class ImportTemplateControllerTest extends TestCase {
         $this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
     }
 
-    public function testCreateReturnsCreated(): void {
+    public function testCreateCsvReturnsCreated(): void {
         $this->service->method('create')->willReturn($this->makeTemplate());
 
-        $response = $this->controller->create('My Bank', ['date' => 'Date', 'amount' => 'Amount', 'description' => 'Memo']);
+        $response = $this->controller->create('My Bank', 'csv', ['date' => 'Date', 'amount' => 'Amount', 'description' => 'Memo']);
+
+        $this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+    }
+
+    public function testCreateOfxRoutingReturnsCreated(): void {
+        $this->service->expects($this->once())
+            ->method('create')
+            ->with('user1', 'OFX Bank', 'ofx', [], ['1234' => 5], ',', false, true, false, null)
+            ->willReturn($this->makeTemplate());
+
+        $response = $this->controller->create('OFX Bank', 'ofx', [], ['1234' => 5]);
 
         $this->assertSame(Http::STATUS_CREATED, $response->getStatus());
     }
@@ -83,10 +94,21 @@ class ImportTemplateControllerTest extends TestCase {
         $this->service->method('create')
             ->willThrowException(new \InvalidArgumentException('A date column mapping is required'));
 
-        $response = $this->controller->create('Bank', ['amount' => 'Amount']);
+        $response = $this->controller->create('Bank', 'csv', ['amount' => 'Amount']);
 
         $this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
         $this->assertSame('A date column mapping is required', $response->getData()['error']);
+    }
+
+    public function testIndexFiltersByFormat(): void {
+        $this->service->expects($this->once())
+            ->method('findAllByFormat')
+            ->with('user1', 'ofx')
+            ->willReturn([$this->makeTemplate()]);
+
+        $response = $this->controller->index('ofx');
+
+        $this->assertSame(Http::STATUS_OK, $response->getStatus());
     }
 
     public function testUpdateReturnsUpdated(): void {

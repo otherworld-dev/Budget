@@ -82,6 +82,12 @@ export default class SavingsModule {
             const color = goal.color || '#0082c9';
             const targetDate = goal.targetDate || goal.target_date;
 
+            // Sharing: own goals are always editable; shared goals depend on
+            // the permission flag from the API. Only owners may delete.
+            const isShared = goal._shared === true;
+            const canWrite = !isShared || goal._canWrite === true;
+            const owner = goal.userId || goal.user_id || '';
+
             let targetDateText = '';
             if (targetDate) {
                 const date = new Date(targetDate);
@@ -104,9 +110,15 @@ export default class SavingsModule {
                 footerAction = `<span class="goal-completed-badge"><span class="icon-checkmark"></span> ${t('budget', 'Goal reached!')}</span>`;
             } else if (isTagLinked) {
                 footerAction = `<span class="goal-auto-tracked"><span class="icon-tag"></span> ${t('budget', 'Auto-tracked')}</span>`;
-            } else {
+            } else if (canWrite) {
                 footerAction = `<button class="goal-add-money-btn" data-goal-id="${goal.id}">${t('budget', '+ Add money')}</button>`;
+            } else {
+                footerAction = '<span></span>';
             }
+
+            const sharedBadge = isShared
+                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
+                : '';
 
             return `
                 <div class="goal-card ${isCompleted ? 'completed' : ''}" data-goal-id="${goal.id}">
@@ -114,14 +126,15 @@ export default class SavingsModule {
                         <div class="goal-card-title">
                             <span class="goal-color-indicator" style="background: ${color}"></span>
                             <h3 class="goal-name">${dom.escapeHtml(goal.name)}</h3>
+                            ${sharedBadge}
                         </div>
                         <div class="goal-card-actions">
-                            <button class="edit-goal-btn" title="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
+                            ${canWrite ? `<button class="edit-goal-btn" title="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
                                 <span class="icon-rename"></span>
-                            </button>
-                            <button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
+                            </button>` : ''}
+                            ${!isShared ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
                                 <span class="icon-delete"></span>
-                            </button>
+                            </button>` : ''}
                         </div>
                     </div>
 

@@ -53,19 +53,24 @@ class GoalsController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $goals = $this->service->findAll($this->userId);
+            $goals = array_map(
+                fn($g) => $g->jsonSerialize(),
+                $this->service->findAll($this->userId)
+            );
 
-            // Merge shared savings goals
-            $shared = $this->granularShareService->getSharedSavingsGoals($this->userId);
-            if (!empty($shared)) {
-                $goals = array_merge(
-                    array_map(fn($g) => $g->jsonSerialize(), $goals),
-                    $shared
+            // Merge in goals shared with this user, flagging write permission
+            $sharedIds = $this->granularShareService->getSharedSavingsGoalIds($this->userId);
+            $shared = $this->service->findShared($sharedIds);
+            foreach ($shared as &$goal) {
+                $goal['_canWrite'] = $this->granularShareService->canWrite(
+                    $this->userId,
+                    'savings_goal',
+                    (int) $goal['id']
                 );
-                return new DataResponse($goals);
             }
+            unset($goal);
 
-            return new DataResponse($goals);
+            return new DataResponse(array_merge($goals, $shared));
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve goals'));
         }
@@ -76,7 +81,19 @@ class GoalsController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $goal = $this->service->find($id, $this->getEffectiveUserId());
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Goal')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+
+            $goal = $this->service->find($id, $owner)->jsonSerialize();
+            if ($owner !== $this->userId) {
+                $goal['_shared'] = true;
+                $goal['_canWrite'] = $this->granularShareService->canWrite($this->userId, 'savings_goal', $id);
+            }
             return new DataResponse($goal);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Goal'), ['goalId' => $id]);
@@ -261,9 +278,14 @@ class GoalsController extends Controller {
             $updateTagId = array_key_exists('tagId', $params);
             $updateAccountId = array_key_exists('accountId', $params);
 
+            // Write access confirmed above; resolve the owner so the
+            // owner-scoped service lookup succeeds for shared goals too.
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id)
+                ?? $this->userId;
+
             $goal = $this->service->update(
                 $id,
-                $this->getEffectiveUserId(),
+                $owner,
                 $name,
                 $targetAmount,
                 $targetMonths,
@@ -288,8 +310,23 @@ class GoalsController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->requireWriteAccess('savings_goal', $id);
-            $this->service->delete($id, $this->getEffectiveUserId());
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Goal')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+            // Only the owner may delete a goal — recipients (even with write
+            // access) can edit and contribute but not remove it.
+            if ($owner !== $this->userId) {
+                return new DataResponse(
+                    ['error' => $this->l->t('Only the goal owner can delete it')],
+                    Http::STATUS_FORBIDDEN
+                );
+            }
+
+            $this->service->delete($id, $this->userId);
             return new DataResponse(['message' => $this->l->t('Goal deleted successfully')]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete goal'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
@@ -301,7 +338,14 @@ class GoalsController extends Controller {
      */
     public function progress(int $id): DataResponse {
         try {
-            $progress = $this->service->getProgress($id, $this->getEffectiveUserId());
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Goal')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+            $progress = $this->service->getProgress($id, $owner);
             return new DataResponse($progress);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve goal progress'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
@@ -313,7 +357,14 @@ class GoalsController extends Controller {
      */
     public function forecast(int $id): DataResponse {
         try {
-            $forecast = $this->service->getForecast($id, $this->getEffectiveUserId());
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Goal')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+            $forecast = $this->service->getForecast($id, $owner);
             return new DataResponse($forecast);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve goal forecast'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
