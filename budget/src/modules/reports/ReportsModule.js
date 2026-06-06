@@ -505,15 +505,20 @@ export default class ReportsModule {
         const tbody = document.querySelector('#report-accounts-table tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = accounts.map(account => `
+        tbody.innerHTML = accounts.map(account => {
+            // Each account reports its amounts in its own currency (the backend
+            // keeps native values per account); fall back to the report currency.
+            const accountCurrency = account.currency || currency;
+            return `
             <tr>
-                <td>${account.name}</td>
-                <td class="text-right positive">${this.formatCurrency(account.income || 0, currency)}</td>
-                <td class="text-right negative">${this.formatCurrency(account.expenses || 0, currency)}</td>
-                <td class="text-right ${(account.net || 0) >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(account.net || 0, currency)}</td>
-                <td class="text-right">${this.formatCurrency(account.balance || 0, currency)}</td>
+                <td>${this.escapeHtml(account.name)}</td>
+                <td class="text-right positive">${this.formatCurrency(account.income || 0, accountCurrency)}</td>
+                <td class="text-right negative">${this.formatCurrency(account.expenses || 0, accountCurrency)}</td>
+                <td class="text-right ${(account.net || 0) >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(account.net || 0, accountCurrency)}</td>
+                <td class="text-right">${this.formatCurrency(account.balance || 0, accountCurrency)}</td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
     }
 
     async generateSpendingReport(params) {
