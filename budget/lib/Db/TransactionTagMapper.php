@@ -170,12 +170,20 @@ class TransactionTagMapper extends QBMapper {
      */
     public function sumTransactionAmountsByTag(int $tagId, string $userId): float {
         $qb = $this->db->getQueryBuilder();
-        $qb->select($qb->createFunction('COALESCE(SUM(t.amount), 0)'))
+        // Net contribution: credits add, debits subtract. Amounts are stored as
+        // absolute values + a type, so summing raw amounts counts deposits and
+        // withdrawals both as positive and over-states the total (#264).
+        $qb->select($qb->createFunction("COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0)"))
             ->from($this->getTableName(), 'tt')
             ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('tt.tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            // Only count realized money — exclude not-yet-happened scheduled items.
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                $qb->expr()->isNull('t.status')
+            ));
 
         $result = $qb->executeQuery();
         $sum = $result->fetchOne();
@@ -197,13 +205,19 @@ class TransactionTagMapper extends QBMapper {
         }
 
         $qb = $this->db->getQueryBuilder();
+        // Net contribution per tag (credits add, debits subtract) — see
+        // sumTransactionAmountsByTag for rationale (#264).
         $qb->select('tt.tag_id')
-            ->selectAlias($qb->createFunction('COALESCE(SUM(t.amount), 0)'), 'amount_sum')
+            ->selectAlias($qb->createFunction("COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0)"), 'amount_sum')
             ->from($this->getTableName(), 'tt')
             ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                $qb->expr()->isNull('t.status')
+            ))
             ->groupBy('tt.tag_id');
 
         $result = $qb->executeQuery();
