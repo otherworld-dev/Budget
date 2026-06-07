@@ -105,7 +105,8 @@ class RecurringIncomeController extends Controller {
         ?string $source = null,
         ?string $autoDetectPattern = null,
         ?string $notes = null,
-        bool $autoCreateEnabled = false
+        bool $autoCreateEnabled = false,
+        ?string $description = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -114,6 +115,17 @@ class RecurringIncomeController extends Controller {
                 return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
             }
             $name = $nameValidation['sanitized'];
+
+            // Validate description if provided
+            if ($description !== null && $description !== '') {
+                $descriptionValidation = $this->validationService->validateDescription($description, false);
+                if (!$descriptionValidation['valid']) {
+                    return new DataResponse(['error' => $descriptionValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $description = $descriptionValidation['sanitized'];
+            } else {
+                $description = null;
+            }
 
             // Validate frequency
             $frequencyValidation = $this->validationService->validateFrequency($frequency);
@@ -162,7 +174,8 @@ class RecurringIncomeController extends Controller {
                 $source,
                 $autoDetectPattern,
                 $notes,
-                $autoCreateEnabled
+                $autoCreateEnabled,
+                $description
             );
 
             return new DataResponse($income, Http::STATUS_CREATED);
@@ -197,6 +210,15 @@ class RecurringIncomeController extends Controller {
                     return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
                 $data['name'] = $nameValidation['sanitized'];
+            }
+
+            // Validate description if provided (non-null)
+            if (isset($data['description']) && $data['description'] !== null && $data['description'] !== '') {
+                $descriptionValidation = $this->validationService->validateDescription($data['description'], false);
+                if (!$descriptionValidation['valid']) {
+                    return new DataResponse(['error' => $descriptionValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+                $data['description'] = $descriptionValidation['sanitized'];
             }
 
             // Validate frequency if provided

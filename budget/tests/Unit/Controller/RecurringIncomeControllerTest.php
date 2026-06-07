@@ -127,6 +127,42 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	public function testCreatePersistsDescription(): void {
+		// Regression for #263: description was dropped on create.
+		$this->validationService->method('validateDescription')
+			->willReturn(['valid' => true, 'sanitized' => 'Monthly paycheck']);
+		$income = $this->createMock(RecurringIncome::class);
+		$captured = null;
+		$this->service->method('create')->willReturnCallback(function (...$args) use (&$captured, $income) {
+			$captured = $args;
+			return $income;
+		});
+
+		$response = $this->controller->create(
+			'Salary', 3000.0, 'monthly', null, null, null, null, null, null, null, false, 'Monthly paycheck'
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('Monthly paycheck', end($captured), 'description must be passed to service::create');
+	}
+
+	public function testUpdatePersistsDescription(): void {
+		$this->validationService->method('validateDescription')
+			->willReturn(['valid' => true, 'sanitized' => 'Updated note']);
+		$this->request->method('getParams')->willReturn(['description' => 'Updated note']);
+		$income = $this->createMock(RecurringIncome::class);
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function ($id, $userId, $data) use (&$captured, $income) {
+			$captured = $data;
+			return $income;
+		});
+
+		$response = $this->controller->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Updated note', $captured['description']);
+	}
+
 	public function testCreateRejectsInvalidExpectedDay(): void {
 		$response = $this->controller->create('Salary', 3000.00, 'monthly', 32);
 

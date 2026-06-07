@@ -107,6 +107,23 @@ class RecurringIncomeServiceTest extends TestCase {
         $this->assertEquals('Salary', $result->getName());
     }
 
+    public function testCreatePersistsDescription(): void {
+        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+        $this->mapper->expects($this->once())->method('insert')
+            ->willReturnCallback(function (RecurringIncome $i) {
+                // Description must be persisted on create (#263)
+                $this->assertEquals('Monthly paycheck', $i->getDescription());
+                $i->setId(1);
+                return $i;
+            });
+
+        $this->service->create(
+            'user1', 'Salary', 3000.0, 'monthly', 25,
+            null, null, null, null, null, null, false, 'Monthly paycheck'
+        );
+    }
+
     public function testDeleteRemovesIncome(): void {
         $income = $this->makeIncome();
         $this->mapper->method('find')->willReturn($income);

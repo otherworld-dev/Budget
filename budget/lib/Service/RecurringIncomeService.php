@@ -66,11 +66,13 @@ class RecurringIncomeService extends AbstractCrudService {
         ?string $source = null,
         ?string $autoDetectPattern = null,
         ?string $notes = null,
-        bool $autoCreateEnabled = false
+        bool $autoCreateEnabled = false,
+        ?string $description = null
     ): RecurringIncome {
         $income = new RecurringIncome();
         $income->setUserId($userId);
         $income->setName($name);
+        $income->setDescription($description);
         $income->setAmount($amount);
         $income->setFrequency($frequency);
         $income->setExpectedDay($expectedDay);
