@@ -229,7 +229,7 @@ class CategoryService extends AbstractCrudService {
         }
 
         $summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds);
-        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId);
+        $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType());
 
         // Include budget amount for chart overlay
         $budget = (float)($category->getBudgetAmount() ?? 0);

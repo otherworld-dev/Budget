@@ -294,7 +294,7 @@ class TransactionMapper extends QBMapper {
      * Get monthly spending breakdown for a single category
      * @return array<array{month: string, total: float, count: int}>
      */
-    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): array {
+    public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, string $categoryType = 'expense'): array {
         if (!$startDate) {
             $startDate = date('Y-m-01', strtotime("-{$months} months"));
         }
@@ -304,10 +304,15 @@ class TransactionMapper extends QBMapper {
 
         $ids = $categoryIds ?? [$categoryId];
 
+        // Report the magnitude in the category's natural direction as positive:
+        // expense categories sum debits, income categories sum credits (#265).
+        // ($primaryType is strictly 'credit' or 'debit' — safe to interpolate.)
+        $primaryType = $categoryType === 'income' ? 'credit' : 'debit';
+
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
             ->selectAlias($qb->createFunction(
-                "SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE -t.amount END)"
+                "SUM(CASE WHEN t.type = '{$primaryType}' THEN t.amount ELSE -t.amount END)"
             ), 'total')
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')

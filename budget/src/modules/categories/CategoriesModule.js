@@ -663,8 +663,11 @@ export default class CategoriesModule {
         const chartColor = categoryColor || 'rgba(54, 162, 235, 0.7)';
         const ctx = canvas.getContext('2d');
 
+        const seriesLabel = this._currentCategory?.type === 'income'
+            ? t('budget', 'Income')
+            : t('budget', 'Spending');
         const datasets = [{
-            label: t('budget', 'Spending'),
+            label: seriesLabel,
             data: amounts,
             backgroundColor: chartColor,
             borderRadius: 4,
