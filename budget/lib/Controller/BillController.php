@@ -144,6 +144,7 @@ class BillController extends Controller {
             $destinationAccountId = isset($data['destinationAccountId']) ? (int) $data['destinationAccountId'] : null;
             $transferDescriptionPattern = $data['transferDescriptionPattern'] ?? null;
             $tagIds = isset($data['tagIds']) && is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
+            $startDate = $data['startDate'] ?? null;
             $endDate = $data['endDate'] ?? null;
             $remainingPayments = isset($data['remainingPayments']) ? (int) $data['remainingPayments'] : null;
             $splitTemplate = isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : null;
@@ -243,6 +244,16 @@ class BillController extends Controller {
                 }
             }
 
+            // Validate startDate if provided
+            if ($startDate !== null && $startDate !== '') {
+                $startDateValidation = $this->validationService->validateDate($startDate, $this->l->t('Start date'), false);
+                if (!$startDateValidation['valid']) {
+                    return new DataResponse(['error' => $startDateValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+            } else {
+                $startDate = null;
+            }
+
             // Validate endDate if provided
             if ($endDate !== null && $endDate !== '') {
                 $endDateValidation = $this->validationService->validateDate($endDate, $this->l->t('End date'), false);
@@ -251,6 +262,11 @@ class BillController extends Controller {
                 }
             } else {
                 $endDate = null;
+            }
+
+            // Start date must not be after end date
+            if ($startDate !== null && $endDate !== null && $startDate > $endDate) {
+                return new DataResponse(['error' => $this->l->t('Start date must be before the end date')], Http::STATUS_BAD_REQUEST);
             }
 
             // Validate remainingPayments if provided
@@ -281,7 +297,8 @@ class BillController extends Controller {
                 $tagIds,
                 $endDate,
                 $remainingPayments,
-                $splitTemplate
+                $splitTemplate,
+                $startDate
             );
 
             return new DataResponse($bill, Http::STATUS_CREATED);
@@ -429,6 +446,17 @@ class BillController extends Controller {
             if (array_key_exists('tagIds', $data)) {
                 $tagIds = is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
                 $updates['tagIds'] = empty($tagIds) ? null : json_encode(array_values($tagIds));
+            }
+            if (array_key_exists('startDate', $data)) {
+                if ($data['startDate'] !== null && $data['startDate'] !== '') {
+                    $startDateValidation = $this->validationService->validateDate($data['startDate'], $this->l->t('Start date'), false);
+                    if (!$startDateValidation['valid']) {
+                        return new DataResponse(['error' => $startDateValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                    $updates['startDate'] = $data['startDate'];
+                } else {
+                    $updates['startDate'] = null;
+                }
             }
             if (array_key_exists('endDate', $data)) {
                 if ($data['endDate'] !== null && $data['endDate'] !== '') {

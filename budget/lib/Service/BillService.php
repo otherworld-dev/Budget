@@ -189,7 +189,8 @@ class BillService {
         array $tagIds = [],
         ?string $endDate = null,
         ?int $remainingPayments = null,
-        ?array $splitTemplate = null
+        ?array $splitTemplate = null,
+        ?string $startDate = null
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
@@ -227,6 +228,7 @@ class BillService {
         $bill->setDestinationAccountId($destinationAccountId);
         $bill->setTransferDescriptionPattern($transferDescriptionPattern);
         $bill->setTagIdsArray($tagIds);
+        $bill->setStartDate($startDate);
         $bill->setEndDate($endDate);
         $bill->setRemainingPayments($remainingPayments);
         if ($splitTemplate !== null) {
@@ -237,6 +239,7 @@ class BillService {
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);
+        $nextDue = $this->applyStartDateFloor($nextDue, $startDate, $frequency, $dueDay, $dueMonth, $customRecurrencePattern);
         $bill->setNextDueDate($nextDue);
 
         $bill = $this->mapper->insert($bill);
@@ -280,7 +283,7 @@ class BillService {
 
         foreach ($updates as $key => $value) {
             // Track if schedule-related fields actually changed (not just present)
-            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern'])) {
+            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'])) {
                 $getter = 'get' . ucfirst($key);
                 if (method_exists($bill, $getter) && $bill->$getter() != $value) {
                     $needsRecalculation = true;
@@ -324,6 +327,14 @@ class BillService {
                 $bill->getDueDay(),
                 $bill->getDueMonth(),
                 null, // recalculate from today
+                $bill->getCustomRecurrencePattern()
+            );
+            $nextDue = $this->applyStartDateFloor(
+                $nextDue,
+                $bill->getStartDate(),
+                $bill->getFrequency(),
+                $bill->getDueDay(),
+                $bill->getDueMonth(),
                 $bill->getCustomRecurrencePattern()
             );
             $dbUpdates['next_due_date'] = $nextDue;
@@ -980,6 +991,19 @@ class BillService {
     }
 
     /**
+     * Ensure the next due date is no earlier than the bill's start date. When a
+     * bill starts in the future, its first occurrence should fall on/after the
+     * start date rather than the next calendar occurrence from today (#268).
+     */
+    private function applyStartDateFloor(string $nextDue, ?string $startDate, string $frequency, ?int $dueDay, ?int $dueMonth, ?string $customPattern): string {
+        if ($startDate === null || $startDate === '' || $startDate <= $nextDue) {
+            return $nextDue;
+        }
+        $fromStart = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, $startDate, $customPattern);
+        return max($fromStart, $startDate);
+    }
+
+    /**
      * Calculate which months a bill occurs in for a given year
      *
      * @param Bill $bill The bill entity
@@ -1054,6 +1078,19 @@ class BillService {
                     }
                 }
                 break;
+        }
+
+        // Apply start date constraint: remove occurrences before the start date
+        $startDate = $bill->getStartDate();
+        if ($startDate !== null && $startDate !== '') {
+            $startYear = (int) date('Y', strtotime($startDate));
+            $startMonth = (int) date('n', strtotime($startDate));
+
+            for ($month = 1; $month <= 12; $month++) {
+                if ($year < $startYear || ($year === $startYear && $month < $startMonth)) {
+                    $occurrences[$month] = false;
+                }
+            }
         }
 
         // Apply end date constraint: remove occurrences after end date

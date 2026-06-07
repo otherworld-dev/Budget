@@ -97,6 +97,44 @@ class BillServiceTest extends TestCase {
 		$this->assertTrue($bill->getIsActive());
 	}
 
+	public function testCreatePersistsStartDateAndFloorsNextDue(): void {
+		// First call = next due from today (before start); second = from start date.
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnOnConsecutiveCalls('2099-07-01', '2099-09-01');
+		$this->mapper->expects($this->once())->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+
+		$bill = $this->service->create(
+			'user1', 'Rent', 1000.0, 'monthly', 1,
+			null, null, null, null, null,
+			null, null, null, false, null,
+			false, false, null, null, [],
+			null, null, null, '2099-09-01' // startDate (last arg)
+		);
+
+		$this->assertSame('2099-09-01', $bill->getStartDate());
+		// next due is floored to the start date rather than the earlier 2099-07-01
+		$this->assertSame('2099-09-01', $bill->getNextDueDate());
+	}
+
+	public function testMonthlyOccurrencesRespectStartDate(): void {
+		$bill = new Bill();
+		$bill->setFrequency('monthly');
+		$bill->setDueDay(1);
+		$bill->setStartDate('2026-06-01');
+
+		$method = new \ReflectionMethod($this->service, 'calculateMonthlyOccurrences');
+		$method->setAccessible(true);
+		$occ = $method->invoke($this->service, $bill, 2026);
+
+		// Months before June are excluded; June onward occur.
+		for ($m = 1; $m <= 5; $m++) {
+			$this->assertFalse($occ[$m], "month $m should be excluded (before start date)");
+		}
+		for ($m = 6; $m <= 12; $m++) {
+			$this->assertTrue($occ[$m], "month $m should occur (on/after start date)");
+		}
+	}
+
 	public function testCreateAutoPayRequiresAccount(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Auto-pay requires an account');

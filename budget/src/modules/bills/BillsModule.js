@@ -434,7 +434,8 @@ export default class BillsModule {
                 document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
 
-            // Set end date / remaining payments
+            // Set start / end date / remaining payments
+            setDateValue('bill-start-date', bill.startDate || bill.start_date || '');
             setDateValue('bill-end-date', bill.endDate || bill.end_date || '');
             const remainingPayments = bill.remainingPayments ?? bill.remaining_payments;
             document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
@@ -482,7 +483,8 @@ export default class BillsModule {
             // Clear all month checkboxes for new bill
             document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
 
-            // Clear end date / remaining payments
+            // Clear start / end date / remaining payments
+            clearDateValue('bill-start-date');
             clearDateValue('bill-end-date');
             document.getElementById('bill-remaining-payments').value = '';
 
@@ -527,6 +529,7 @@ export default class BillsModule {
         const dueDayGroup = document.getElementById('due-day-group');
         const dueMonthGroup = document.getElementById('due-month-group');
         const customMonthsGroup = document.getElementById('custom-months-group');
+        const startDateGroup = document.getElementById('start-date-group');
         const endDateGroup = document.getElementById('end-date-group');
         const remainingPaymentsGroup = document.getElementById('remaining-payments-group');
 
@@ -545,8 +548,9 @@ export default class BillsModule {
             dueMonthGroup.style.display = 'none';
         }
 
-        // Hide end date/remaining payments for one-time (already auto-deactivates)
+        // Hide start/end date/remaining payments for one-time (a single dated occurrence)
         const isOneTime = frequency === 'one-time';
+        if (startDateGroup) startDateGroup.style.display = isOneTime ? 'none' : 'block';
         if (endDateGroup) endDateGroup.style.display = isOneTime ? 'none' : 'block';
         if (remainingPaymentsGroup) remainingPaymentsGroup.style.display = isOneTime ? 'none' : 'block';
 
@@ -736,6 +740,7 @@ export default class BillsModule {
             transactionDate: document.getElementById('bill-transaction-date')?.value || null,
             autoPayEnabled: document.getElementById('bill-auto-pay')?.checked || false,
             tagIds: this.getSelectedBillTagIds(),
+            startDate: document.getElementById('bill-start-date').value || null,
             endDate: document.getElementById('bill-end-date').value || null,
             remainingPayments: document.getElementById('bill-remaining-payments').value ? parseInt(document.getElementById('bill-remaining-payments').value) : null,
             splitTemplate: this.getBillSplitTemplate()

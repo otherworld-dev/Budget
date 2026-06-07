@@ -5289,6 +5289,12 @@ style('budget', 'budget-app');
                 <small id="bill-notes-help" class="form-text"><?php p($l->t('Any additional notes (optional)')); ?></small>
             </div>
 
+            <div class="form-group" id="start-date-group">
+                <label for="bill-start-date"><?php p($l->t('Start Date')); ?></label>
+                <input type="date" id="bill-start-date" aria-describedby="bill-start-date-help">
+                <small id="bill-start-date-help" class="form-text"><?php p($l->t('Bill only occurs on or after this date (optional)')); ?></small>
+            </div>
+
             <div class="form-group" id="end-date-group">
                 <label for="bill-end-date"><?php p($l->t('End Date')); ?></label>
                 <input type="date" id="bill-end-date" aria-describedby="bill-end-date-help">
