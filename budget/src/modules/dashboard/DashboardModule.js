@@ -3233,8 +3233,11 @@ export default class DashboardModule {
         this._wrapCardsForGridstack(gridEl);
         const positions = this._computeInitialPositions();
 
+        // Effective column count: collapse to 1 on narrow screens (#249).
+        const initialColumns = this._responsiveColumnCount();
+
         this.gridstack = GridStack.init({
-            column: this.gridColumns || 3,
+            column: initialColumns,
             cellHeight: 100,
             margin: 10,
             float: false,
@@ -3243,6 +3246,9 @@ export default class DashboardModule {
             disableResize: true,
             staticGrid: false,
         }, gridEl);
+
+        // Re-flow to a single full-width column on phones and back on resize.
+        this._setupResponsiveColumns();
 
         // Disable dragging if dashboard is locked (must be done after init
         // so that drag handlers are created and can be toggled later)
@@ -3290,6 +3296,36 @@ export default class DashboardModule {
         requestAnimationFrame(() => {
             this.resizeAllCharts();
             gridEl.style.opacity = '1';
+        });
+    }
+
+    /** Column count for the current viewport: 1 on phones, configured count otherwise (#249). */
+    _responsiveColumnCount() {
+        return window.innerWidth < 768 ? 1 : (this.gridColumns || 3);
+    }
+
+    /** Switch the grid to the viewport-appropriate column count (keeps layouts per column). */
+    _applyResponsiveColumns() {
+        if (!this.gridstack) return;
+        const target = this._responsiveColumnCount();
+        if (this.gridstack.getColumn() !== target) {
+            this.gridstack.column(target, 'moveScale');
+            this._updateFullWidthTiles(target);
+        }
+    }
+
+    /** Apply responsive columns now and on viewport resize (debounced, bound once). */
+    _setupResponsiveColumns() {
+        this._updateFullWidthTiles(this._responsiveColumnCount());
+        if (this._responsiveColumnsBound) return;
+        this._responsiveColumnsBound = true;
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                this._applyResponsiveColumns();
+                this.resizeAllCharts();
+            }, 150);
         });
     }
 
@@ -3816,10 +3852,9 @@ export default class DashboardModule {
 
                 this._saveSettings({ dashboard_grid_columns: cols.toString() });
 
-                // Update Gridstack column count
+                // Update Gridstack column count (respects the mobile 1-column override)
                 if (this.gridstack) {
-                    this.gridstack.column(cols, 'moveScale');
-                    this._updateFullWidthTiles(cols);
+                    this._applyResponsiveColumns();
                 }
 
                 // Resize charts after layout change
