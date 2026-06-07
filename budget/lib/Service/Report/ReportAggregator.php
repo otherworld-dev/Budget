@@ -210,10 +210,8 @@ class ReportAggregator {
         }
 
         // Exclude transactions in excluded-from-reports categories from totals.
-        // In all-accounts view, non-liability transfers were already subtracted
-        // above, so skip those to avoid double-subtraction. Liability transfers
-        // (credit card payments etc.) are NOT deducted as transfers, so they
-        // must still be subtracted here if their category is excluded.
+        // In all-accounts view, transfers were already subtracted above, so skip
+        // all linked transfers here to avoid double-subtraction.
         if (!empty($excludedCategoryIds)) {
             $excludedIds = array_keys($excludedCategoryIds);
             $skipDeducted = ($accountId === null);

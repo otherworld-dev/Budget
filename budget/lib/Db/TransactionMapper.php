@@ -907,11 +907,10 @@ class TransactionMapper extends QBMapper {
         ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
-        $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 
-        // Only count transfers between non-liability accounts (true internal moves).
-        // Transfers involving a liability account (debt payments) are real expenses
-        // and should remain in the income/expense totals.
+        // Count ALL linked transfers. A transfer between accounts (including a
+        // debt payment to a credit card/loan) is an internal money movement, not
+        // income or expense, so both sides are deducted from the totals (#262).
         $qb->selectAlias(
                 $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
                 'income'
@@ -922,16 +921,12 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            // Join to the linked transaction's account to check its type
-            ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
-            ->innerJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
+            // Require the linked counterpart to exist (excludes dangling links)
+            ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
         $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'))
-            // Exclude if either this account or the linked account is a liability
-            ->andWhere($qb->expr()->notIn('a.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)))
-            ->andWhere($qb->expr()->notIn('la.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)));
+            ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
 
         $this->excludeScheduledFuture($qb);
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
@@ -963,9 +958,9 @@ class TransactionMapper extends QBMapper {
         ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
-        $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 
-        // Only count transfers between non-liability accounts (see getTransferTotals)
+        // Count ALL linked transfers (see getTransferTotals) — transfers are never
+        // income or expense, regardless of the account types involved (#262).
         $qb->select('t.account_id')
             ->selectAlias(
                 $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
@@ -977,14 +972,11 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
-            ->innerJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
+            ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
         $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'))
-            ->andWhere($qb->expr()->notIn('a.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)))
-            ->andWhere($qb->expr()->notIn('la.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)));
+            ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
 
         $this->excludeScheduledFuture($qb);
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
@@ -1014,10 +1006,9 @@ class TransactionMapper extends QBMapper {
     /**
      * Get spending totals per category for a set of category IDs.
      *
-     * When $excludeDeductedTransfers is true, excludes linked transfers that
-     * were already deducted by getTransferTotals() — i.e., transfers between
-     * non-liability accounts. Transfers involving liability accounts (credit
-     * cards, loans) are kept because they represent real expense flows.
+     * When $excludeDeductedTransfers is true, excludes ALL linked transfers
+     * (which getTransferTotals() also fully deducts), since a transfer is never
+     * income or expense — including debt payments to a credit card/loan (#262).
      */
     public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false): array {
         if (empty($categoryIds)) {
@@ -1039,20 +1030,9 @@ class TransactionMapper extends QBMapper {
         }
 
         if ($excludeDeductedTransfers) {
-            // Exclude transfers that getTransferTotals() already deducted:
-            // those between two non-liability accounts. Keep transfers
-            // involving liability accounts (credit cards, loans, etc.)
-            // because those are NOT deducted by getTransferTotals().
-            $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
-            $qb->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
-                ->leftJoin('t', 'budget_accounts', 'ta', $qb->expr()->eq('t.account_id', 'ta.id'))
-                ->leftJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
-            // Keep the transaction if: not linked, OR this account is liability, OR linked account is liability
-            $qb->andWhere($qb->expr()->orX(
-                $qb->expr()->isNull('t.linked_transaction_id'),
-                $qb->expr()->in('ta.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)),
-                $qb->expr()->in('la.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY))
-            ));
+            // All linked transfers are deducted by getTransferTotals(), so keep
+            // only non-transfer transactions here to avoid double-counting (#262).
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
         $this->excludeScheduledFuture($qb);
