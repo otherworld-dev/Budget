@@ -1,6 +1,6 @@
 {
   "name": "budget",
-  "version": "2.25.0",
+  "version": "2.28.0",
   "description": "Nextcloud Budget App",
   "main": "js/budget-main.js",
   "scripts": {

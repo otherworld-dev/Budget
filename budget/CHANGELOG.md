@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.28.0] - 2026-06-07
+
+### Added
+- **Shared savings goals** — share a savings goal with another Nextcloud user. Recipients see a "Shared" badge and can view progress; with write permission they can edit the goal and add money, while only the owner can delete it ([#255](https://github.com/otherworld-dev/Budget/issues/255))
+- **Auto-derived budgets from recurring items** — a (sub-)category with no manually-set budget now shows its committed recurring total (active recurring bills + recurring income, normalized to the budget period) as an automatic budget limit, marked "auto". Typing a value always overrides it ([#269](https://github.com/otherworld-dev/Budget/issues/269))
+- **Exclude extraordinary/one-time items from the forecast** — a per-transaction "exclude from forecast" flag (with a "No forecast" list badge), the same flag on recurring bills/income (propagated to generated transactions), and a matching import-rule action. Flagged amounts still affect your balance but are kept out of the projection averages ([#270](https://github.com/otherworld-dev/Budget/issues/270))
+- **Reusable CSV import templates** — save column mappings and import options and reapply them to future imports ([#247](https://github.com/otherworld-dev/Budget/issues/247))
+- **OFX/QIF import account routing** — route multi-account OFX/QIF files to the right Budget accounts, remembered across subsequent imports
+- **Bank sync: pending transactions** — option to import not-yet-posted (pending) transactions, automatically reconciled when they clear ([#257](https://github.com/otherworld-dev/Budget/issues/257))
+- **Bill start dates** — a bill only occurs on or after its start date, making it easy to change a recurring cost mid-year by ending one bill and starting another ([#268](https://github.com/otherworld-dev/Budget/issues/268))
+- **"Shared with me" expenses view** — recipients can now see expenses that have been shared with them ([#248](https://github.com/otherworld-dev/Budget/issues/248))
+- **Dashboard period indicator** — chart tiles now show a read-only indicator of the period they cover ([#250](https://github.com/otherworld-dev/Budget/issues/250))
+
+### Fixed
+- Dashboard now collapses to a single full-width column on phones, independent of your configured desktop column count ([#249](https://github.com/otherworld-dev/Budget/issues/249))
+- "Excluded from reports" categories no longer appear in the Budget view ([#266](https://github.com/otherworld-dev/Budget/issues/266), [#267](https://github.com/otherworld-dev/Budget/issues/267))
+- Category spending chart shows income as positive with the correct label ([#265](https://github.com/otherworld-dev/Budget/issues/265))
+- Tag-linked savings goals now sum net realized contributions (credits minus debits, excluding scheduled) ([#264](https://github.com/otherworld-dev/Budget/issues/264))
+- Recurring income description is now persisted on create ([#263](https://github.com/otherworld-dev/Budget/issues/263))
+- Transfers are now excluded from dashboard income/expense totals ([#262](https://github.com/otherworld-dev/Budget/issues/262))
+- Account Breakdown report now uses each account's own currency instead of a single assumed one ([#256](https://github.com/otherworld-dev/Budget/issues/256))
+- Fixed a PageController crash (TypeError) on unauthenticated requests ([#259](https://github.com/otherworld-dev/Budget/issues/259))
+- Quick Add date field normalization on iOS ([#235](https://github.com/otherworld-dev/Budget/issues/235))
+
+### Docs
+- Documented the standalone Quick Add page and the iOS home-screen workaround
+- Noted that GoCardless no longer accepts new bank-sync sign-ups; EU/UK self-hosters without an existing account are pointed to manual import ([#271](https://github.com/otherworld-dev/Budget/issues/271))
+
 ## [2.27.8] - 2026-06-02
 
 ### Added

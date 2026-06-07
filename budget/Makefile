@@ -5,7 +5,7 @@ project_dir=$(CURDIR)/../$(app_name)
 build_dir=$(CURDIR)/build
 sign_dir=$(build_dir)/sign
 package_name=$(app_name)
-cert_dir=$(HOME)/.nextcloud/certificates
+cert_dir=$(HOME)/.certificates
 
 # Development
 .PHONY: dev
