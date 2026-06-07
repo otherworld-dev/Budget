@@ -211,6 +211,7 @@ class RecurringIncomeMapper extends QBMapper {
         'expected_month', 'category_id', 'account_id', 'source',
         'auto_detect_pattern', 'is_active', 'auto_create_enabled',
         'last_received_date', 'next_expected_date', 'notes',
+        'excluded_from_forecast',
     ];
 
     public function updateFields(int $id, string $userId, array $fields): void {

@@ -177,6 +177,11 @@ class ForecastService {
         $startDate = date('Y-m-d', strtotime('-12 months'));
         $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
 
+        // Drop extraordinary/one-time transactions so they don't skew the
+        // projection averages. They still affect the real (current) balance
+        // above — we only exclude them from the historical pattern (#270).
+        $transactions = $this->filterForecastTransactions($transactions);
+
         // Analyze patterns
         $monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);
         $months = count($monthlyData);
@@ -263,6 +268,20 @@ class ForecastService {
     }
 
     /**
+     * Remove transactions flagged as excluded-from-forecast (#270).
+     * Re-indexes the array so downstream consumers can rely on sequential keys.
+     *
+     * @param array $transactions Transaction entities
+     * @return array Filtered transactions
+     */
+    private function filterForecastTransactions(array $transactions): array {
+        return array_values(array_filter(
+            $transactions,
+            fn($t) => !($t->getExcludedFromForecast() ?? false)
+        ));
+    }
+
+    /**
      * Generate forecast for a single account.
      */
     private function generateAccountForecast(
@@ -278,6 +297,9 @@ class ForecastService {
         $endDate = date('Y-m-d');
         $startDate = date('Y-m-d', strtotime("-{$basedOnMonths} months"));
         $transactions = $this->transactionMapper->findByDateRange($accountId, $startDate, $endDate);
+
+        // Exclude extraordinary/one-time transactions from the pattern (#270).
+        $transactions = $this->filterForecastTransactions($transactions);
 
         // Analyze patterns
         $patterns = $this->patternAnalyzer->analyzeTransactionPatterns($transactions, $basedOnMonths);

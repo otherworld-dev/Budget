@@ -1304,6 +1304,8 @@ export default class TransactionsModule {
                 document.getElementById('transaction-vendor').value = transaction.vendor || '';
                 document.getElementById('transaction-category').value = transaction.categoryId || '';
                 document.getElementById('transaction-notes').value = transaction.notes || '';
+                const excludeForecastEl = document.getElementById('transaction-excluded-from-forecast');
+                if (excludeForecastEl) excludeForecastEl.checked = !!transaction.excludedFromForecast;
 
                 // Load tag selectors for this transaction
                 this.app.renderTransactionTagSelectors(transaction.categoryId, transaction.id);
@@ -1459,6 +1461,7 @@ export default class TransactionsModule {
         const vendor = document.getElementById('transaction-vendor').value;
         const categoryId = document.getElementById('transaction-category').value;
         const notes = document.getElementById('transaction-notes').value;
+        const excludedFromForecast = document.getElementById('transaction-excluded-from-forecast')?.checked || false;
 
         // Handle transfer creation (new transfers only, not editing)
         if (type === 'transfer' && !id) {
@@ -1581,7 +1584,8 @@ export default class TransactionsModule {
             description,
             vendor: vendor || null,
             categoryId: categoryId ? parseInt(categoryId) : null,
-            notes: notes || null
+            notes: notes || null,
+            excludedFromForecast
         };
 
         // Collect selected tags before the modal is closed

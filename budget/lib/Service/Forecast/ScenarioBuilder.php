@@ -80,10 +80,14 @@ class ScenarioBuilder {
             $currentBalance += ($storedBalance - $futureChange);
         }
 
-        // Get historical averages
+        // Get historical averages (excluding extraordinary/one-time items so
+        // scenario projections stay consistent with the main forecast, #270).
         $endDate = date('Y-m-d');
         $startDate = date('Y-m-d', strtotime('-6 months'));
-        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
+        $transactions = array_filter(
+            $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate),
+            fn($t) => !($t->getExcludedFromForecast() ?? false)
+        );
 
         $monthlyIncome = 0.0;
         $monthlyExpenses = 0.0;

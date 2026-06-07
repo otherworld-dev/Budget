@@ -190,7 +190,8 @@ class BillService {
         ?string $endDate = null,
         ?int $remainingPayments = null,
         ?array $splitTemplate = null,
-        ?string $startDate = null
+        ?string $startDate = null,
+        bool $excludedFromForecast = false
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
@@ -231,6 +232,7 @@ class BillService {
         $bill->setStartDate($startDate);
         $bill->setEndDate($endDate);
         $bill->setRemainingPayments($remainingPayments);
+        $bill->setExcludedFromForecast($excludedFromForecast);
         if ($splitTemplate !== null) {
             $bill->setSplitTemplateArray($splitTemplate);
             // When splits define the categories, clear the bill-level category

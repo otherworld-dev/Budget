@@ -115,6 +115,38 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertEquals(5, $transaction->getCategoryId());
 	}
 
+	public function testSetForecastExclude(): void {
+		$transaction = $this->createTransaction([]);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_forecast_exclude', 'value' => 'true', 'priority' => 50],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('excludedFromForecast', $changes);
+		$this->assertTrue($transaction->getExcludedFromForecast());
+	}
+
+	public function testSetForecastExcludeCanInclude(): void {
+		$transaction = $this->createTransaction([]);
+		$transaction->setExcludedFromForecast(true);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_forecast_exclude', 'value' => 'false', 'priority' => 50],
+			],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertFalse($transaction->getExcludedFromForecast());
+	}
+
 	public function testSetCategoryIfEmpty(): void {
 		// Should set when empty
 		$transaction1 = $this->createTransaction(['categoryId' => null]);

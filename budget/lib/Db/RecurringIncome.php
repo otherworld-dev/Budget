@@ -44,6 +44,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setAutoCreateEnabled(bool $autoCreateEnabled)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
+ * @method bool getExcludedFromForecast()
+ * @method void setExcludedFromForecast(bool $excludedFromForecast)
  */
 class RecurringIncome extends Entity implements JsonSerializable {
     protected $userId;
@@ -63,6 +65,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
     protected $nextExpectedDate;
     protected $notes;
     protected $createdAt;
+    protected $excludedFromForecast;   // Extraordinary recurring item: keep its transactions out of the forecast
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -73,6 +76,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
         $this->addType('accountId', 'integer');
         $this->addType('isActive', 'boolean');
         $this->addType('autoCreateEnabled', 'boolean');
+        $this->addType('excludedFromForecast', 'boolean');
     }
 
     public function jsonSerialize(): array {
@@ -95,6 +99,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
             'nextExpectedDate' => $this->getNextExpectedDate(),
             'notes' => $this->getNotes(),
             'createdAt' => $this->getCreatedAt(),
+            'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
         ];
     }
 }

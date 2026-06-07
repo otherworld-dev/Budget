@@ -102,6 +102,51 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame('Existing note | tagged', $result['notes']);
 	}
 
+	public function testApplyRulesSetForecastExclude(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [['type' => 'set_forecast_exclude', 'value' => 'true']],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Car sale']);
+
+		$this->assertTrue($result['excludedFromForecast']);
+	}
+
+	public function testApplyRulesSetForecastExcludeDefaultsTrueWhenNoValue(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [['type' => 'set_forecast_exclude']],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Bonus']);
+
+		$this->assertTrue($result['excludedFromForecast']);
+	}
+
+	public function testApplyRulesSetForecastExcludeCanInclude(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [['type' => 'set_forecast_exclude', 'value' => 'false']],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Normal']);
+
+		$this->assertFalse($result['excludedFromForecast']);
+	}
+
 	public function testApplyRulesSetType(): void {
 		$rule = $this->makeRule([
 			'actions' => [

@@ -66,6 +66,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setRemainingPayments(?int $remainingPayments)
  * @method string|null getSplitTemplate()
  * @method void setSplitTemplate(?string $splitTemplate)
+ * @method bool getExcludedFromForecast()
+ * @method void setExcludedFromForecast(bool $excludedFromForecast)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
@@ -96,6 +98,7 @@ class Bill extends Entity implements JsonSerializable {
     protected $endDate;                    // Optional end date for auto-deactivation
     protected $remainingPayments;          // Optional countdown of payments before auto-deactivation
     protected $splitTemplate;              // JSON array of split definitions for auto-splitting transactions
+    protected $excludedFromForecast;       // Extraordinary recurring item: keep its transactions out of the forecast
 
     // Non-persisted: set by BillService when enriching API responses
     protected ?string $currency = null;
@@ -114,6 +117,7 @@ class Bill extends Entity implements JsonSerializable {
         $this->addType('isTransfer', 'boolean');
         $this->addType('destinationAccountId', 'integer');
         $this->addType('remainingPayments', 'integer');
+        $this->addType('excludedFromForecast', 'boolean');
     }
 
     public function getCurrency(): ?string {
@@ -197,6 +201,7 @@ class Bill extends Entity implements JsonSerializable {
             'endDate' => $this->getEndDate(),
             'remainingPayments' => $this->getRemainingPayments(),
             'splitTemplate' => $this->getSplitTemplateArray(),
+            'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
             'currency' => $this->getCurrency(),
         ];
     }

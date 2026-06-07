@@ -1094,6 +1094,9 @@ class BudgetApp {
             const pendingBadge = transaction.status === 'pending'
                 ? `<span class="pending-badge" title="${t('budget', 'Not yet posted by your bank')}">${t('budget', 'Pending')}</span>`
                 : '';
+            const forecastExcludedBadge = transaction.excludedFromForecast
+                ? `<span class="forecast-excluded-badge" title="${t('budget', 'Excluded from forecast (extraordinary / one-time)')}">${t('budget', 'No forecast')}</span>`
+                : '';
             return `
                 <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}${transaction.status === 'pending' ? ' pending-transaction' : ''}" data-transaction-id="${transaction.id}">
                     <td class="select-column">
@@ -1114,7 +1117,7 @@ class BudgetApp {
                         <div class="transaction-description">
                             <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
                             ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
-                            ${(linkedBadge || splitBadge || sharedBadge || pendingBadge) ? `<div class="transaction-badges">${pendingBadge}${linkedBadge}${splitBadge}${sharedBadge}</div>` : ''}
+                            ${(linkedBadge || splitBadge || sharedBadge || pendingBadge || forecastExcludedBadge) ? `<div class="transaction-badges">${pendingBadge}${forecastExcludedBadge}${linkedBadge}${splitBadge}${sharedBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="vendor-column editable-cell"

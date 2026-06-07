@@ -93,6 +93,7 @@ export class ActionBuilder {
 						<option value="set_account">${t('budget', 'Set Account')}</option>
 						<option value="set_type">${t('budget', 'Set Transaction Type')}</option>
 						<option value="set_reference">${t('budget', 'Set Reference')}</option>
+						<option value="set_forecast_exclude">${t('budget', 'Exclude from Forecast')}</option>
 						<option value="link_transfer">${t('budget', 'Auto-Link as Transfer')}</option>
 					</select>
 					<label class="stop-processing-label">
@@ -124,6 +125,7 @@ export class ActionBuilder {
 			'set_account': t('budget', 'Set Account'),
 			'set_type': t('budget', 'Set Transaction Type'),
 			'set_reference': t('budget', 'Set Reference'),
+			'set_forecast_exclude': t('budget', 'Exclude from Forecast'),
 			'link_transfer': t('budget', 'Auto-Link as Transfer')
 		};
 
@@ -163,6 +165,8 @@ export class ActionBuilder {
 				return this.renderTypeAction(action, index);
 			case 'set_reference':
 				return this.renderReferenceAction(action, index);
+			case 'set_forecast_exclude':
+				return this.renderForecastExcludeAction(action, index);
 			case 'link_transfer':
 				return this.renderLinkTransferAction(action, index);
 			default:
@@ -319,6 +323,22 @@ export class ActionBuilder {
 		`;
 	}
 
+	renderForecastExcludeAction(action, index) {
+		const excluded = !(action.value === false || action.value === 'false');
+		return `
+			<div class="form-row">
+				<label>${t('budget', 'Forecast:')}</label>
+				<select class="action-value" data-index="${index}" data-field="value">
+					<option value="true" ${excluded ? 'selected' : ''}>${t('budget', 'Exclude from forecast')}</option>
+					<option value="false" ${!excluded ? 'selected' : ''}>${t('budget', 'Include in forecast')}</option>
+				</select>
+			</div>
+			<div class="form-row">
+				<small class="help-text">${t('budget', 'Extraordinary one-time amounts are left out of the forecast averages (they still affect your real balance).')}</small>
+			</div>
+		`;
+	}
+
 	renderLinkTransferAction() {
 		return `
 			<div class="form-row">
@@ -411,6 +431,8 @@ export class ActionBuilder {
 				return [];
 			case 'set_type':
 				return 'expense';
+			case 'set_forecast_exclude':
+				return 'true';
 			default:
 				return '';
 		}

@@ -348,9 +348,13 @@ export default class IncomeModule {
             // Set auto-create checkbox
             const autoCreateEnabled = income.autoCreateEnabled ?? income.auto_create_enabled ?? false;
             document.getElementById('income-auto-create').checked = autoCreateEnabled;
+            const incomeExcludeEl = document.getElementById('income-excluded-from-forecast');
+            if (incomeExcludeEl) incomeExcludeEl.checked = income.excludedFromForecast ?? income.excluded_from_forecast ?? false;
         } else {
             title.textContent = t('budget', 'Add Recurring Income');
             document.getElementById('income-auto-create').checked = false;
+            const incomeExcludeNewEl = document.getElementById('income-excluded-from-forecast');
+            if (incomeExcludeNewEl) incomeExcludeNewEl.checked = false;
         }
 
         this.updateIncomeFormFields();
@@ -452,7 +456,8 @@ export default class IncomeModule {
                 accountId: parseInt(document.getElementById('income-account').value) || null,
                 autoDetectPattern: document.getElementById('income-auto-pattern').value.trim() || null,
                 notes: document.getElementById('income-notes').value.trim() || null,
-                autoCreateEnabled: document.getElementById('income-auto-create')?.checked || false
+                autoCreateEnabled: document.getElementById('income-auto-create')?.checked || false,
+                excludedFromForecast: document.getElementById('income-excluded-from-forecast')?.checked || false
             };
 
             const url = isNew

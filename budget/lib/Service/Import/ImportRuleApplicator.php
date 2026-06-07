@@ -238,6 +238,14 @@ class ImportRuleApplicator {
                     $transaction['_deferred_link_transfer'] = true;
                     break;
 
+                case 'set_forecast_exclude':
+                    // Mark extraordinary/one-time items so they don't skew the
+                    // forecast (#270). Value defaults to true when omitted.
+                    $transaction['excludedFromForecast'] = ($value === null)
+                        ? true
+                        : filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                    break;
+
                 // set_account: skip during import (account is set by the import target)
             }
         }

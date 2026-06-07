@@ -98,7 +98,8 @@ class TransactionService {
         ?string $notes = null,
         ?string $importId = null,
         ?int $billId = null,
-        ?string $status = null
+        ?string $status = null,
+        bool $excludedFromForecast = false
     ): Transaction {
         // Verify account belongs to user
         $account = $this->accountMapper->find($accountId, $userId);
@@ -123,6 +124,7 @@ class TransactionService {
         // Auto-set status based on date: future transactions are scheduled
         $effectiveStatus = $status ?? (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
         $transaction->setStatus($effectiveStatus);
+        $transaction->setExcludedFromForecast($excludedFromForecast);
         $transaction->setReconciled(false);
         $transaction->setCreatedAt(date('Y-m-d H:i:s'));
         $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
@@ -179,7 +181,8 @@ class TransactionService {
                 notes: "Auto-generated transfer: {$bill->getName()}",
                 importId: null,
                 billId: $bill->getId(),
-                status: $status
+                status: $status,
+                excludedFromForecast: $bill->getExcludedFromForecast() ?? false
             );
 
             // Create deposit to destination account (same category as source for consistency)
@@ -196,7 +199,8 @@ class TransactionService {
                 notes: "Auto-generated transfer: {$bill->getName()}",
                 importId: null,
                 billId: $bill->getId(),
-                status: $status
+                status: $status,
+                excludedFromForecast: $bill->getExcludedFromForecast() ?? false
             );
 
             // Link the two transactions
@@ -227,7 +231,8 @@ class TransactionService {
             notes: "Auto-generated from bill: {$bill->getName()}",
             importId: null,
             billId: $bill->getId(),
-            status: $status
+            status: $status,
+            excludedFromForecast: $bill->getExcludedFromForecast() ?? false
         );
 
         // Apply bill's tags to the transaction
@@ -272,7 +277,8 @@ class TransactionService {
             categoryId: $income->getCategoryId(),
             vendor: $income->getName(),
             notes: "Auto-generated from income: {$income->getName()}",
-            status: $status
+            status: $status,
+            excludedFromForecast: $income->getExcludedFromForecast() ?? false
         );
     }
 

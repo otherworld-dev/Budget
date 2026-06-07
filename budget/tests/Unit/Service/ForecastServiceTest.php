@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Forecast\ForecastProjector;
 use OCA\Budget\Service\Forecast\PatternAnalyzer;
@@ -56,6 +57,15 @@ class ForecastServiceTest extends TestCase {
         $account->setBalance($balance);
         $account->setCurrency($currency);
         return $account;
+    }
+
+    private function makeTransaction(bool $excludedFromForecast = false, string $type = 'debit', float $amount = 100.0): Transaction {
+        $transaction = new Transaction();
+        $transaction->setDate('2026-01-01');
+        $transaction->setAmount($amount);
+        $transaction->setType($type);
+        $transaction->setExcludedFromForecast($excludedFromForecast);
+        return $transaction;
     }
 
     // ===== invalidateCache =====
@@ -144,7 +154,7 @@ class ForecastServiceTest extends TestCase {
             ['income' => 4800, 'expenses' => 2900],
             ['income' => 5100, 'expenses' => 3200],
         ];
-        $transactions = array_fill(0, 15, null); // 15 dummy transactions
+        $transactions = array_map(fn() => $this->makeTransaction(), range(1, 15)); // 15 dummy transactions
 
         $this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($transactions);
         $this->patternAnalyzer->method('aggregateMonthlyData')->willReturn($monthlyData);
@@ -158,6 +168,36 @@ class ForecastServiceTest extends TestCase {
         $this->assertEquals(4, $result['dataQuality']['monthsOfData']);
         $this->assertEquals(15, $result['dataQuality']['transactionCount']);
         $this->assertTrue($result['dataQuality']['isReliable']); // >= 3 months && >= 10 txns
+    }
+
+    public function testGetLiveForecastExcludesFlaggedTransactions(): void {
+        // #270: transactions flagged excludedFromForecast are dropped from the
+        // pattern analysis (so extraordinary one-offs don't skew projections).
+        $this->cache->method('get')->willReturn(null);
+
+        $account = $this->makeAccount(1, 5000.0);
+        $this->accountMapper->method('findAll')->willReturn([$account]);
+        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+        $transactions = array_merge(
+            array_map(fn() => $this->makeTransaction(false), range(1, 7)),
+            array_map(fn() => $this->makeTransaction(true), range(1, 3)) // 3 excluded
+        );
+        $this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($transactions);
+
+        // Only the 7 non-excluded transactions should reach pattern analysis.
+        $this->patternAnalyzer->expects($this->once())
+            ->method('aggregateMonthlyData')
+            ->with($this->callback(fn($txns) => count($txns) === 7))
+            ->willReturn([]);
+        $this->patternAnalyzer->method('getCategoryBreakdown')->willReturn([]);
+        $this->trendCalculator->method('calculateTrend')->willReturn(0.0);
+        $this->trendCalculator->method('getTrendDirection')->willReturn('stable');
+        $this->projector->method('calculateDataConfidence')->willReturn(50.0);
+
+        $result = $this->service->getLiveForecast('user1');
+
+        $this->assertEquals(7, $result['dataQuality']['transactionCount']);
     }
 
     // ===== generateForecast =====

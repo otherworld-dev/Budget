@@ -143,7 +143,8 @@ class RecurringIncomeControllerTest extends TestCase {
 		);
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
-		$this->assertSame('Monthly paycheck', end($captured), 'description must be passed to service::create');
+		// description is the 13th positional arg (index 12); excludedFromForecast follows it.
+		$this->assertSame('Monthly paycheck', $captured[12], 'description must be passed to service::create');
 	}
 
 	public function testUpdatePersistsDescription(): void {

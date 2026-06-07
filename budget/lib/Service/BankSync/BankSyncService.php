@@ -302,7 +302,8 @@ class BankSyncService {
                         vendor: $txData['vendor'] ?? null,
                         notes: $txData['notes'] ?? null,
                         importId: $importId,
-                        status: $isPending ? 'pending' : 'cleared'
+                        status: $isPending ? 'pending' : 'cleared',
+                        excludedFromForecast: !empty($txData['excludedFromForecast'])
                     );
 
                     // Apply deferred tag actions from import rules

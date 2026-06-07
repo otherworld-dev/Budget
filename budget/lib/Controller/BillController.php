@@ -148,6 +148,7 @@ class BillController extends Controller {
             $endDate = $data['endDate'] ?? null;
             $remainingPayments = isset($data['remainingPayments']) ? (int) $data['remainingPayments'] : null;
             $splitTemplate = isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : null;
+            $excludedFromForecast = filter_var($data['excludedFromForecast'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
             // Validate split template if provided
             if ($splitTemplate !== null) {
@@ -298,7 +299,8 @@ class BillController extends Controller {
                 $endDate,
                 $remainingPayments,
                 $splitTemplate,
-                $startDate
+                $startDate,
+                $excludedFromForecast
             );
 
             return new DataResponse($bill, Http::STATUS_CREATED);
@@ -498,6 +500,11 @@ class BillController extends Controller {
                 } else {
                     $updates['splitTemplate'] = null;
                 }
+            }
+
+            // Handle exclude-from-forecast flag (#270)
+            if (array_key_exists('excludedFromForecast', $data)) {
+                $updates['excludedFromForecast'] = filter_var($data['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
             }
 
             // Validate transfer constraints if being updated

@@ -296,6 +296,15 @@ class RuleActionApplicator {
 				}
 				break;
 
+			case 'set_forecast_exclude':
+				// Mark/unmark as extraordinary so it's left out of the forecast (#270).
+				$newValue = ($value === null) ? true : filter_var($value, FILTER_VALIDATE_BOOLEAN);
+				$oldValue = $transaction->getExcludedFromForecast() ?? false;
+				$transaction->setExcludedFromForecast($newValue);
+				$appliedActions[$type] = ['priority' => $priority, 'value' => $newValue];
+				$changes['excludedFromForecast'] = ['old' => $oldValue, 'new' => $newValue];
+				break;
+
 			default:
 				$this->logger->warning('Unknown action type', ['type' => $type]);
 		}
@@ -448,6 +457,10 @@ class RuleActionApplicator {
 
 				case 'link_transfer':
 					// No value needed — auto-links after import
+					break;
+
+				case 'set_forecast_exclude':
+					// Boolean flag — no specific validation
 					break;
 
 				default:

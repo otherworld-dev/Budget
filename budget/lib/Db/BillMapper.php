@@ -249,7 +249,7 @@ class BillMapper extends QBMapper {
         'last_reminder_sent', 'custom_recurrence_pattern', 'auto_pay_enabled',
         'auto_pay_failed', 'is_transfer', 'destination_account_id',
         'transfer_description_pattern', 'tag_ids', 'end_date',
-        'remaining_payments', 'split_template',
+        'remaining_payments', 'split_template', 'excluded_from_forecast',
     ];
 
     public function updateFields(int $id, string $userId, array $fields): void {

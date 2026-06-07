@@ -673,7 +673,8 @@ class ImportService {
                         $transaction['vendor'] ?? null,
                         $transaction['reference'] ?? null,
                         $transaction['notes'] ?? null,
-                        $importId
+                        $importId,
+                        excludedFromForecast: !empty($transaction['excludedFromForecast'])
                     );
 
                     // Apply deferred tag actions from import rules
@@ -856,7 +857,8 @@ class ImportService {
                     $transaction['vendor'] ?? null,
                     $transaction['reference'] ?? null,
                     $transaction['notes'] ?? null,
-                    $importId
+                    $importId,
+                    excludedFromForecast: !empty($transaction['excludedFromForecast'])
                 );
 
                 // Apply tags from preset (e.g., Toshl Tags)

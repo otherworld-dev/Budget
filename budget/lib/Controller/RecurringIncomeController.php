@@ -106,7 +106,8 @@ class RecurringIncomeController extends Controller {
         ?string $autoDetectPattern = null,
         ?string $notes = null,
         bool $autoCreateEnabled = false,
-        ?string $description = null
+        ?string $description = null,
+        bool $excludedFromForecast = false
     ): DataResponse {
         try {
             // Validate name (required)
@@ -175,7 +176,8 @@ class RecurringIncomeController extends Controller {
                 $autoDetectPattern,
                 $notes,
                 $autoCreateEnabled,
-                $description
+                $description,
+                $excludedFromForecast
             );
 
             return new DataResponse($income, Http::STATUS_CREATED);
@@ -242,6 +244,11 @@ class RecurringIncomeController extends Controller {
                 if ($data['expectedMonth'] < 1 || $data['expectedMonth'] > 12) {
                     return new DataResponse(['error' => $this->l->t('Expected month must be between 1 and 12')], Http::STATUS_BAD_REQUEST);
                 }
+            }
+
+            // Coerce the forecast-exclude flag to a real boolean (#270)
+            if (array_key_exists('excludedFromForecast', $data)) {
+                $data['excludedFromForecast'] = filter_var($data['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
             }
 
             $income = $this->service->update($id, $this->getEffectiveUserId(), $data);

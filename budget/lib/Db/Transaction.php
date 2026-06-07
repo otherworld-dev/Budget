@@ -44,6 +44,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setBillId(?int $billId)
  * @method string|null getStatus()
  * @method void setStatus(?string $status)
+ * @method bool getExcludedFromForecast()
+ * @method void setExcludedFromForecast(bool $excludedFromForecast)
  */
 class Transaction extends Entity implements JsonSerializable {
     protected $accountId;
@@ -63,6 +65,7 @@ class Transaction extends Entity implements JsonSerializable {
     protected $isSplit;
     protected $billId;
     protected $status;
+    protected $excludedFromForecast;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -73,6 +76,7 @@ class Transaction extends Entity implements JsonSerializable {
         $this->addType('linkedTransactionId', 'integer');
         $this->addType('isSplit', 'boolean');
         $this->addType('billId', 'integer');
+        $this->addType('excludedFromForecast', 'boolean');
     }
 
     /**
@@ -99,6 +103,7 @@ class Transaction extends Entity implements JsonSerializable {
             'isSplit' => $this->getIsSplit() ?? false,
             'billId' => $this->getBillId(),
             'status' => $this->getStatus() ?? 'cleared',
+            'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
         ];
     }
 }

@@ -450,6 +450,8 @@ export default class BillsModule {
             const autoPayFailed = bill.autoPayFailed ?? bill.auto_pay_failed ?? false;
             document.getElementById('bill-auto-pay').checked = autoPayEnabled;
             document.getElementById('auto-pay-failed-warning').style.display = autoPayFailed ? 'block' : 'none';
+            const billExcludeEl = document.getElementById('bill-excluded-from-forecast');
+            if (billExcludeEl) billExcludeEl.checked = bill.excludedFromForecast ?? bill.excluded_from_forecast ?? false;
 
             // Load tag sets for bill's category
             const categoryId = bill.categoryId || bill.category_id;
@@ -496,6 +498,8 @@ export default class BillsModule {
             // Reset auto-pay fields for new bill
             document.getElementById('bill-auto-pay').checked = false;
             document.getElementById('auto-pay-failed-warning').style.display = 'none';
+            const billExcludeNewEl = document.getElementById('bill-excluded-from-forecast');
+            if (billExcludeNewEl) billExcludeNewEl.checked = false;
 
             // Clear tag sets
             const tagsContainer = document.getElementById('bill-tags-container');
@@ -739,6 +743,7 @@ export default class BillsModule {
             createTransaction: document.getElementById('bill-create-transaction')?.checked || false,
             transactionDate: document.getElementById('bill-transaction-date')?.value || null,
             autoPayEnabled: document.getElementById('bill-auto-pay')?.checked || false,
+            excludedFromForecast: document.getElementById('bill-excluded-from-forecast')?.checked || false,
             tagIds: this.getSelectedBillTagIds(),
             startDate: document.getElementById('bill-start-date').value || null,
             endDate: document.getElementById('bill-end-date').value || null,

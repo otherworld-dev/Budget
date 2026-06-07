@@ -147,7 +147,8 @@ class TransactionController extends Controller {
         ?int $categoryId = null,
         ?string $vendor = null,
         ?string $reference = null,
-        ?string $notes = null
+        ?string $notes = null,
+        bool $excludedFromForecast = false
     ): DataResponse {
         try {
             // Validate description (required)
@@ -213,7 +214,8 @@ class TransactionController extends Controller {
                 $categoryId,
                 $vendor,
                 $reference,
-                $notes
+                $notes,
+                excludedFromForecast: $excludedFromForecast
             );
             return new DataResponse($transaction, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -237,7 +239,8 @@ class TransactionController extends Controller {
         ?string $reference = null,
         ?string $notes = null,
         ?bool $reconciled = null,
-        ?string $status = null
+        ?string $status = null,
+        ?bool $excludedFromForecast = null
     ): DataResponse {
         try {
             $updates = [];
@@ -310,6 +313,9 @@ class TransactionController extends Controller {
             }
             if ($reconciled !== null) {
                 $updates['reconciled'] = $reconciled;
+            }
+            if ($excludedFromForecast !== null) {
+                $updates['excludedFromForecast'] = $excludedFromForecast;
             }
             if ($status !== null) {
                 if (!in_array($status, ['cleared', 'scheduled', 'pending'], true)) {

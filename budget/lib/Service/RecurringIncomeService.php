@@ -67,7 +67,8 @@ class RecurringIncomeService extends AbstractCrudService {
         ?string $autoDetectPattern = null,
         ?string $notes = null,
         bool $autoCreateEnabled = false,
-        ?string $description = null
+        ?string $description = null,
+        bool $excludedFromForecast = false
     ): RecurringIncome {
         $income = new RecurringIncome();
         $income->setUserId($userId);
@@ -84,6 +85,7 @@ class RecurringIncomeService extends AbstractCrudService {
         $income->setIsActive(true);
         $income->setAutoCreateEnabled($autoCreateEnabled);
         $income->setNotes($notes);
+        $income->setExcludedFromForecast($excludedFromForecast);
         $income->setCreatedAt(date('Y-m-d H:i:s'));
 
         $nextExpected = $this->frequencyCalculator->calculateNextDueDate($frequency, $expectedDay, $expectedMonth);
