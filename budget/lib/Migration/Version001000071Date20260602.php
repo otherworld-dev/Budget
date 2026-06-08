@@ -59,7 +59,14 @@ class Version001000071Date20260602 extends SimpleMigrationStep {
                 'notnull' => false,
             ]);
 
-            $table->setPrimaryKey(['id']);
+            // Use an explicit primary key name. Without one, Nextcloud derives a
+            // default name from the table and rejects it on installs where the
+            // table name (minus prefix) is >= 23 chars, which is the case here:
+            // "budget_import_templates" is exactly 23. The check in
+            // MigrationService::ensureOracleConstraints() then throws
+            // "Primary index name on oc_budget_import_templates is too long."
+            // This limit applies on Nextcloud <= 32 (raised to 63 only on master).
+            $table->setPrimaryKey(['id'], 'bdgt_imptpl_pk');
             $table->addIndex(['user_id'], 'bdgt_imptpl_user_idx');
             $table->addUniqueIndex(['user_id', 'name'], 'bdgt_imptpl_name_unq');
         }
