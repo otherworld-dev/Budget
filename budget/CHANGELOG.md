@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.28.2] - 2026-06-11
 
 ### Fixed
 - **Account balances are now derived from the ledger instead of running deltas** — the root cause behind every historical balance-discrepancy report (#3, #89, #124, #163, #187, #194, #274). The stored balance was a running total that each transaction code path adjusted by hand; any missed or mis-signed delta corrupted it permanently. Every transaction create/update/delete (and retroactive rule run, repair action, import and bank sync) now recomputes `balance = opening balance + net of non-scheduled transactions`, making drift impossible and self-healing past inconsistencies on the next write. A one-time migration backfills the opening balance so **displayed balances do not change on upgrade** ([#274](https://github.com/otherworld-dev/Budget/issues/274))
