@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-06-07 20:26+0000\n"
+"POT-Creation-Date: 2026-06-11 14:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -515,7 +515,7 @@ msgid "Failed to undo mark as paid"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:660
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1129
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1136
 msgid "Failed to skip bill payment"
 msgstr ""
 
@@ -548,7 +548,7 @@ msgid "Failed to retrieve bill status"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:763
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1250
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1257
 msgid "Failed to detect recurring bills"
 msgstr ""
 
@@ -2012,28 +2012,28 @@ msgid ""
 "then sync again."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BankSync/BankSyncService.php:393
+#: /var/www/html/apps-extra/budget/lib/Service/BankSync/BankSyncService.php:399
 #, php-format
 msgid "Sync completed with %1$s error(s)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:554
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:562
 msgid "Cannot skip a one-time bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:558
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:566
 msgid "Cannot skip an inactive bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:854
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:862
 msgid "Auto-pay is not enabled for this bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:867
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:875
 msgid "Bill has no account associated"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:877
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:885
 msgid "Bill auto-paid successfully"
 msgstr ""
 
@@ -2137,16 +2137,16 @@ msgstr ""
 msgid "Import file not found"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:469
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:748
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:515
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:816
 msgid "Account ID is required for single-account imports"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:543
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:590
 msgid "Missing account name"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:819
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:889
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr ""
@@ -2722,7 +2722,7 @@ msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:844
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1263
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1368
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1375
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:176
 #: /var/www/html/apps-extra/budget/src/modules/rules/RulesModule.js:773
 #: /var/www/html/apps-extra/budget/src/modules/savings/SavingsModule.js:283
@@ -3195,7 +3195,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/src/main.js:1804
 #: /var/www/html/apps-extra/budget/src/main.js:1811
 #: /var/www/html/apps-extra/budget/src/main.js:1815
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:990
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:997
 #: /var/www/html/apps-extra/budget/src/modules/sharing/SharingModule.js:133
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:3646
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:141
@@ -4726,87 +4726,97 @@ msgstr ""
 msgid "Bill marked as paid. No transaction created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:925
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:927
+msgid ""
+"No transaction was recorded for this payment — your account balance will not "
+"reflect it. Assign an account to the bill, or add the transaction manually."
+msgstr ""
+
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:928
+msgid "Bill marked as paid — without a transaction."
+msgstr ""
+
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:932
 msgid "Bill marked as paid. Transaction created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:926
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:933
 msgid "Bill marked as paid. Future transaction created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:949
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:956
 msgid "Exact amount"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:950
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:957
 msgid "Similar amount (±5%)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:951
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:958
 msgid "Approximate amount (±20%)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:952
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:959
 msgid "Vendor matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:953
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:960
 msgid "Vendor partially matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:954
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:961
 msgid "Description matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:955
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:962
 msgid "Description partially matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:956
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:963
 msgid "Same day"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:957
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:964
 msgid "±1 day"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:958
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:965
 msgid "±3 days"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:959
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:966
 msgid "±7 days"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:964
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:971
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:3729
 msgid "(no description)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:977
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:984
 msgid "Strong match"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:989
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:996
 msgid "Existing Transaction Found"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:993
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1000
 msgid ""
 "We found existing transactions that may already represent this bill payment "
 "({billName}, {amount}). Would you like to link one instead of creating a new "
 "transaction?"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1000
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1007
 msgid "Create a new transaction instead"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1006
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1013
 msgid "Don't create any transaction (just mark as paid)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1011
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1018
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1358
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:1069
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:147
@@ -4850,32 +4860,32 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1012
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1019
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1357
 msgid "Confirm"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1082
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1158
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1089
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1165
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:603
 msgid "Action undone"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1085
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1161
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1092
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1168
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:606
 msgid "Failed to undo action: {message}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1096
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1103
 msgid "Skip this payment and advance to the next due date?"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1122
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1129
 msgid "Payment skipped. Advanced to next due date."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1171
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1178
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1409
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:616
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:2704
@@ -4883,44 +4893,44 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1230
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1237
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:668
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:917
 msgid "Detecting..."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1242
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1249
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:929
 msgid "No recurring transactions detected"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1253
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1260
 #: /var/www/html/apps-extra/budget/templates/index.php:2383
 msgid "Detect Bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1274
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1281
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:717
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:968
 #, javascript-format
 msgid "{percent}% confidence"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1290
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1297
 msgid "Please select at least one bill to add"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1310
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1317
 msgid "%n bill added successfully"
 msgid_plural "%n bills added successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1314
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1321
 msgid "Failed to add selected bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1404
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1411
 #: /var/www/html/apps-extra/budget/src/modules/tagsets/TagSetsModule.js:687
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:855
 msgid "No tags defined"

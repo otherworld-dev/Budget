@@ -303,7 +303,8 @@ class BankSyncService {
                         notes: $txData['notes'] ?? null,
                         importId: $importId,
                         status: $isPending ? 'pending' : 'cleared',
-                        excludedFromForecast: !empty($txData['excludedFromForecast'])
+                        excludedFromForecast: !empty($txData['excludedFromForecast']),
+                        deferBalanceUpdate: true
                     );
 
                     // Apply deferred tag actions from import rules
@@ -334,6 +335,11 @@ class BankSyncService {
                     ]);
                     $totalErrors++;
                 }
+            }
+
+            // Balance updates were deferred per-row; recompute once for this account
+            if ($imported > 0) {
+                $this->transactionService->recalculateAccountBalance($budgetAccountId, $userId);
             }
 
             // Process deferred transfer linking for this account's batch

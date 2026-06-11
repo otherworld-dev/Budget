@@ -382,6 +382,7 @@ class BillService {
         $createdTransactionIds = [];
         $hadScheduledTransaction = false;
         $linkedExistingTransaction = false;
+        $paymentTransactionRecorded = false;
 
         // Reset auto-pay failed flag on successful manual payment
         if ($bill->getAutoPayFailed()) {
@@ -418,6 +419,7 @@ class BillService {
                     $transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
                 }
                 $createdTransactionIds[] = $transaction->getId();
+                $paymentTransactionRecorded = true;
                 // For transfers, also track the linked deposit transaction
                 if ($transaction->getLinkedTransactionId()) {
                     $createdTransactionIds[] = $transaction->getLinkedTransactionId();
@@ -488,6 +490,12 @@ class BillService {
             'createdTransactionIds' => $createdTransactionIds,
             'hadScheduledTransaction' => $hadScheduledTransaction,
             'linkedExistingTransaction' => $linkedExistingTransaction,
+            // False = the bill was marked paid but NO money movement was
+            // recorded (no account on the bill, creation failed, or the user
+            // neither created nor linked a transaction). The UI must surface
+            // this — silently recording nothing made app balances drift from
+            // real bank balances (#89, #274).
+            'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction,
         ];
     }
 

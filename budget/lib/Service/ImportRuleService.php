@@ -525,6 +525,15 @@ class ImportRuleService extends AbstractCrudService {
                     $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
                     $updatedTransaction = $this->transactionMapper->update($transaction);
 
+                    // Rules can change type (set_type) or account (set_account) —
+                    // both affect balances, so recompute from the ledger
+                    if (isset($changes['type']) || isset($changes['account'])) {
+                        $this->transactionService->recalculateAccountBalance($updatedTransaction->getAccountId(), $userId);
+                        if (isset($changes['account']) && !empty($changes['account']['old'])) {
+                            $this->transactionService->recalculateAccountBalance((int)$changes['account']['old'], $userId);
+                        }
+                    }
+
                     // Apply deferred tag actions after transaction is persisted
                     $this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
 

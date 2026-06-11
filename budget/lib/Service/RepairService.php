@@ -378,20 +378,15 @@ class RepairService {
                 $tx->setUpdatedAt(date('Y-m-d H:i:s'));
                 $this->transactionMapper->update($tx);
 
-                // Reverse balance impact (cleared debit subtracted from balance, so add it back;
-                // cleared credit added to balance, so subtract it)
-                $account = $this->accountMapper->findById($tx->getAccountId());
-                $currentBalance = (string) $account->getBalance();
-                $amount = (string) $tx->getAmount();
-                $newBalance = $tx->getType() === 'credit'
-                    ? MoneyCalculator::subtract($currentBalance, $amount)
-                    : MoneyCalculator::add($currentBalance, $amount);
-                $this->accountMapper->updateBalance($account->getId(), $newBalance, $account->getUserId());
-
                 $fixed++;
             } catch (\Exception $e) {
                 // Skip on error
             }
+        }
+
+        // Recompute balances from the ledger (scheduled rows no longer count)
+        if ($fixed > 0) {
+            $this->accountService->recalculateAllBalances($userId);
         }
 
         return ['fixed' => $fixed, 'found' => count($found)];
@@ -502,6 +497,11 @@ class RepairService {
             } catch (\Exception $e) {
                 // Transaction may already be deleted, skip
             }
+        }
+
+        // Recompute balances from the ledger after removing cleared duplicates
+        if ($deleted > 0) {
+            $this->accountService->recalculateAllBalances($userId);
         }
 
         return ['deleted' => $deleted, 'found' => count($seen)];

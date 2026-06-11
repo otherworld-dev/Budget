@@ -289,6 +289,50 @@ class BillServiceTest extends TestCase {
 		$this->assertFalse($result['bill']->getIsActive());
 	}
 
+	public function testMarkPaidReportsPaymentTransactionRecorded(): void {
+		$bill = $this->makeBill(['frequency' => 'one-time']);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$this->assertTrue($result['paymentTransactionRecorded']);
+	}
+
+	public function testMarkPaidReportsNoTransactionWhenBillHasNoAccount(): void {
+		// The #89/#274 silent leak: a bill without an account is marked paid
+		// but no money movement is recorded — the result must say so, loudly.
+		$bill = new Bill();
+		$bill->setId(1);
+		$bill->setUserId('user1');
+		$bill->setName('Mortgage');
+		$bill->setAmount(2912.0);
+		$bill->setFrequency('monthly');
+		$bill->setIsActive(true);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-28');
+
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$this->assertFalse($result['paymentTransactionRecorded']);
+		$this->assertNotNull($result['bill']->getLastPaidDate());
+	}
+
+	public function testMarkPaidReportsNoTransactionWhenCreationFails(): void {
+		$bill = $this->makeBill(['frequency' => 'one-time']);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->transactionService->method('createFromBill')
+			->willThrowException(new \Exception('account gone'));
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$this->assertFalse($result['paymentTransactionRecorded']);
+	}
+
 	// ── processAutoPay ──────────────────────────────────────────────
 
 	public function testProcessAutoPaySuccess(): void {

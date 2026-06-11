@@ -650,9 +650,11 @@ class RepairServiceTest extends TestCase {
                     && $tx->getUpdatedAt() !== null;
             }));
 
-        // Debit reversal: balance should increase (add back the debit amount)
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance');
+        // Balances are recomputed from the ledger after the status change —
+        // no hand-computed reversal (#274 root cause)
+        $this->accountService->expects($this->once())
+            ->method('recalculateAllBalances')
+            ->with(self::USER_ID);
 
         $result = $this->service->repair(self::USER_ID, ['futureClearedTransactions']);
 

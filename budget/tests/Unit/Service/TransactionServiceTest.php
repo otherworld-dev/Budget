@@ -90,6 +90,7 @@ class TransactionServiceTest extends TestCase {
             'name' => 'Checking',
             'type' => 'checking',
             'balance' => 1000.00,
+            'openingBalance' => null,
             'currency' => 'USD',
         ];
         $data = array_merge($defaults, $overrides);
@@ -99,6 +100,7 @@ class TransactionServiceTest extends TestCase {
         $account->setName($data['name']);
         $account->setType($data['type']);
         $account->setBalance($data['balance']);
+        $account->setOpeningBalance($data['openingBalance']);
         $account->setCurrency($data['currency']);
         return $account;
     }
@@ -166,10 +168,13 @@ class TransactionServiceTest extends TestCase {
 
     // ===== create() =====
 
-    public function testCreateDebitSubtractsFromBalance(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
+    public function testCreateRecalculatesBalanceFromLedger(): void {
+        // Balance is recomputed as opening_balance + ledger net after insert —
+        // not adjusted by a hand-computed delta (#274 root cause).
+        $account = $this->makeAccount(['openingBalance' => 100.00]);
         $this->accountMapper->method('find')->willReturn($account);
         $this->mapper->method('existsByImportId')->willReturn(false);
+        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(850.00);
 
         $this->mapper->expects($this->once())
             ->method('insert')
@@ -184,6 +189,7 @@ class TransactionServiceTest extends TestCase {
                 return $tx;
             });
 
+        // opening 100 + net 850 = 950
         $this->accountMapper->expects($this->once())
             ->method('updateBalance')
             ->with(10, '950.00', 'user1');
@@ -195,23 +201,36 @@ class TransactionServiceTest extends TestCase {
         $this->assertEquals(1, $result->getId());
     }
 
-    public function testCreateCreditAddsToBalance(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
+    public function testCreateWithDeferSkipsBalanceUpdate(): void {
+        // Bulk callers (imports, bank sync) defer the recompute and run it
+        // once per account after their loop.
+        $account = $this->makeAccount();
         $this->accountMapper->method('find')->willReturn($account);
         $this->mapper->method('existsByImportId')->willReturn(false);
-
         $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
             $tx->setId(2);
             return $tx;
         });
 
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '1050.00', 'user1');
+        $this->accountMapper->expects($this->never())->method('updateBalance');
 
         $this->service->create(
-            'user1', 10, '2026-01-15', 'Salary', 50.00, 'credit'
+            'user1', 10, '2026-01-15', 'Salary', 50.00, 'credit',
+            deferBalanceUpdate: true
         );
+    }
+
+    public function testRecalculateAccountBalanceUsesOpeningPlusNet(): void {
+        $account = $this->makeAccount(['openingBalance' => -2905.79]);
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(2393.37);
+
+        // -2905.79 + 2393.37 = -512.42
+        $this->accountMapper->expects($this->once())
+            ->method('updateBalance')
+            ->with(10, '-512.42', 'user1');
+
+        $this->service->recalculateAccountBalance(10, 'user1');
     }
 
     public function testCreateRejectsDuplicateImportId(): void {
@@ -270,16 +289,18 @@ class TransactionServiceTest extends TestCase {
         $this->assertEquals('Updated', $result->getDescription());
     }
 
-    public function testUpdateRecalculatesBalanceOnAmountChange(): void {
+    public function testUpdateRecalculatesBalanceFromLedger(): void {
+        // Any update recomputes from the ledger — amount/type/status edits all
+        // flow through the same recompute instead of separate delta branches.
         $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
         $this->mapper->method('find')->willReturn($tx);
         $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(-75.00);
 
-        $account = $this->makeAccount(['balance' => 950.00]);
+        $account = $this->makeAccount(['openingBalance' => 1000.00]);
         $this->accountMapper->method('find')->willReturn($account);
 
-        // Old effect: -50, new effect: -75, net change: -25
-        // New balance: 950 + (-25) = 925
+        // opening 1000 + net -75 = 925
         $this->accountMapper->expects($this->once())
             ->method('updateBalance')
             ->with(10, '925.00', 'user1');
@@ -287,43 +308,46 @@ class TransactionServiceTest extends TestCase {
         $this->service->update(1, 'user1', ['amount' => 75.00]);
     }
 
-    public function testUpdateRecalculatesBalanceOnTypeChange(): void {
-        $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
+    public function testUpdateAccountMoveRecalculatesBothAccounts(): void {
+        $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit', 'accountId' => 10]);
         $this->mapper->method('find')->willReturn($tx);
         $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->method('getNetChangeAll')->willReturnMap([
+            [11, 100.00],
+            [10, -25.00],
+        ]);
 
-        $account = $this->makeAccount(['balance' => 950.00]);
-        $this->accountMapper->method('find')->willReturn($account);
+        $oldAccount = $this->makeAccount(['id' => 10, 'openingBalance' => 0.0]);
+        $newAccount = $this->makeAccount(['id' => 11, 'openingBalance' => 0.0]);
+        $this->accountMapper->method('find')->willReturnCallback(
+            fn($id) => $id === 11 ? $newAccount : $oldAccount
+        );
 
-        // Old effect: -50, new effect: +50, net change: +100
-        // New balance: 950 + 100 = 1050
-        $this->accountMapper->expects($this->once())
+        $updatedBalances = [];
+        $this->accountMapper->expects($this->exactly(2))
             ->method('updateBalance')
-            ->with(10, '1050.00', 'user1');
+            ->willReturnCallback(function ($accountId, $balance) use (&$updatedBalances, $oldAccount, $newAccount) {
+                $updatedBalances[$accountId] = $balance;
+                return $accountId === 11 ? $newAccount : $oldAccount;
+            });
 
-        $this->service->update(1, 'user1', ['type' => 'credit']);
-    }
+        $this->service->update(1, 'user1', ['accountId' => 11]);
 
-    public function testUpdateSkipsBalanceRecalcWhenAmountUnchanged(): void {
-        $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->accountMapper->expects($this->never())->method('updateBalance');
-
-        $this->service->update(1, 'user1', ['description' => 'Just a note change']);
+        $this->assertSame('100.00', $updatedBalances[11]);
+        $this->assertSame('-25.00', $updatedBalances[10]);
     }
 
     // ===== delete() =====
 
-    public function testDeleteReversesDebitBalance(): void {
+    public function testDeleteRecalculatesBalanceFromLedger(): void {
         $tx = $this->makeTransaction(['amount' => 100.00, 'type' => 'debit']);
         $this->mapper->method('find')->willReturn($tx);
+        // Ledger net after the row is gone
+        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(1000.00);
 
-        $account = $this->makeAccount(['balance' => 900.00]);
+        $account = $this->makeAccount(['openingBalance' => 0.0]);
         $this->accountMapper->method('find')->willReturn($account);
 
-        // Reversing a debit means crediting: 900 + 100 = 1000
         $this->accountMapper->expects($this->once())
             ->method('updateBalance')
             ->with(10, '1000.00', 'user1');
@@ -332,26 +356,17 @@ class TransactionServiceTest extends TestCase {
             ->method('deleteByTransaction')
             ->with(1);
 
+        $deleteHappenedBeforeRecalc = false;
         $this->mapper->expects($this->once())
             ->method('delete')
-            ->with($tx);
+            ->willReturnCallback(function ($arg) use (&$deleteHappenedBeforeRecalc) {
+                $deleteHappenedBeforeRecalc = true;
+                return $arg;
+            });
 
         $this->service->delete(1, 'user1');
-    }
 
-    public function testDeleteReversesCreditBalance(): void {
-        $tx = $this->makeTransaction(['amount' => 200.00, 'type' => 'credit']);
-        $this->mapper->method('find')->willReturn($tx);
-
-        $account = $this->makeAccount(['balance' => 1200.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        // Reversing a credit means debiting: 1200 - 200 = 1000
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '1000.00', 'user1');
-
-        $this->service->delete(1, 'user1');
+        $this->assertTrue($deleteHappenedBeforeRecalc);
     }
 
     // ===== createFromBill() =====

@@ -99,7 +99,8 @@ class TransactionService {
         ?string $importId = null,
         ?int $billId = null,
         ?string $status = null,
-        bool $excludedFromForecast = false
+        bool $excludedFromForecast = false,
+        bool $deferBalanceUpdate = false
     ): Transaction {
         // Verify account belongs to user
         $account = $this->accountMapper->find($accountId, $userId);
@@ -131,9 +132,11 @@ class TransactionService {
 
         $transaction = $this->mapper->insert($transaction);
 
-        // Update account balance (scheduled transactions don't affect balance until cleared)
-        if ($effectiveStatus !== 'scheduled') {
-            $this->updateAccountBalance($account, $amount, $type, $userId);
+        // Recompute the account balance from the ledger (scheduled transactions
+        // are excluded by the recompute itself). Bulk callers (imports, bank
+        // sync) defer this and recalculate once per account after their loop.
+        if (!$deferBalanceUpdate) {
+            $this->recalculateAccountBalance($accountId, $userId);
         }
 
         return $transaction;
@@ -462,70 +465,19 @@ class TransactionService {
         $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
         $transaction = $this->mapper->update($transaction);
 
-        $newAmount = $updates['amount'] ?? $oldAmount;
-        $newType = $updates['type'] ?? $oldType;
-        $newStatus = $updates['status'] ?? $oldStatus;
-
-        // Scheduled transactions don't affect balance — only apply balance changes
-        // when the transaction is or becomes cleared
-        $wasAffectingBalance = ($oldStatus !== 'scheduled');
-        $nowAffectsBalance = ($newStatus !== 'scheduled');
-
+        // Recompute affected account balances from the ledger. This replaces the
+        // old hand-computed delta branches (account move / status flips / amount
+        // or type edits), every one of which was a historical drift source.
+        $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
         if ($accountChanging) {
-            // Moving to a different account: reverse on old (if it was affecting balance), apply on new (if it now affects balance)
-            if ($wasAffectingBalance) {
-                $oldAccount = $this->accountMapper->find($oldAccountId, $userId);
-                $reverseType = $oldType === 'credit' ? 'debit' : 'credit';
-                $this->updateAccountBalance($oldAccount, $oldAmount, $reverseType, $userId);
-            }
-            if ($nowAffectsBalance) {
-                $newAccount = $this->accountMapper->find($updates['accountId'], $userId);
-                $this->updateAccountBalance($newAccount, $newAmount, $newType, $userId);
-            }
-        } elseif (!$wasAffectingBalance && $nowAffectsBalance) {
-            // Status changed from scheduled → cleared: apply full balance effect
-            $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-            $this->updateAccountBalance($account, $newAmount, $newType, $userId);
-        } elseif ($wasAffectingBalance && !$nowAffectsBalance) {
-            // Status changed from cleared → scheduled: reverse the balance effect
-            $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-            $reverseType = $oldType === 'credit' ? 'debit' : 'credit';
-            $this->updateAccountBalance($account, $oldAmount, $reverseType, $userId);
-        } elseif ($wasAffectingBalance && $nowAffectsBalance && ($newAmount != $oldAmount || $newType != $oldType)) {
-            // Both cleared, but amount or type changed — adjust the difference
-            $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-            $currentBalance = (string) $account->getBalance();
-
-            $oldAmountStr = (string) $oldAmount;
-            $oldEffect = $oldType === 'credit'
-                ? $oldAmountStr
-                : MoneyCalculator::multiply($oldAmountStr, '-1');
-
-            $newAmountStr = (string) $newAmount;
-            $newEffect = $newType === 'credit'
-                ? $newAmountStr
-                : MoneyCalculator::multiply($newAmountStr, '-1');
-
-            $netChange = MoneyCalculator::subtract($newEffect, $oldEffect);
-            $newBalance = MoneyCalculator::add($currentBalance, $netChange);
-
-            $this->accountMapper->updateBalance($account->getId(), $newBalance, $userId);
+            $this->recalculateAccountBalance($oldAccountId, $userId);
         }
-        // If both scheduled (wasAffectingBalance=false, nowAffectsBalance=false): no balance changes
 
         return $transaction;
     }
 
     public function delete(int $id, string $userId, bool $dismiss = true): void {
         $transaction = $this->find($id, $userId);
-        $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-
-        // Reverse transaction effect on balance (scheduled transactions never affected balance)
-        $status = $transaction->getStatus() ?? 'cleared';
-        if ($status !== 'scheduled') {
-            $reverseType = $transaction->getType() === 'credit' ? 'debit' : 'credit';
-            $this->updateAccountBalance($account, $transaction->getAmount(), $reverseType, $userId);
-        }
 
         // Unlink counterpart transfer before deleting — prevents dangling
         // linked_transaction_id references that break dashboard/tag queries
@@ -550,6 +502,9 @@ class TransactionService {
         $this->expenseShareMapper->deleteByTransaction($id, $userId);
 
         $this->mapper->delete($transaction);
+
+        // Recompute from the ledger now that the row is gone
+        $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
     }
 
     /**
@@ -831,15 +786,24 @@ class TransactionService {
         ];
     }
 
-    private function updateAccountBalance($account, float $amount, string $type, string $userId): void {
-        $currentBalance = (string) $account->getBalance();
-        $amountStr = (string) $amount;
+    /**
+     * Recompute an account's stored balance from the ledger:
+     * balance = opening_balance + net of all non-scheduled transactions.
+     *
+     * This is the single source of truth for account balances. Historically the
+     * balance was a running total adjusted by hand-computed deltas on every
+     * create/update/delete path; any missed or mis-signed delta corrupted the
+     * stored balance permanently (#3, #89, #124, #163, #187, #194, #274).
+     * Recomputing from the ledger after each mutation makes drift impossible
+     * and self-heals any past inconsistency on the next write.
+     */
+    public function recalculateAccountBalance(int $accountId, string $userId): void {
+        $account = $this->accountMapper->find($accountId, $userId);
+        $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
+        $transactionNet = (string) $this->mapper->getNetChangeAll($accountId);
+        $newBalance = MoneyCalculator::add($openingBalance, $transactionNet);
 
-        $newBalance = $type === 'credit'
-            ? MoneyCalculator::add($currentBalance, $amountStr)
-            : MoneyCalculator::subtract($currentBalance, $amountStr);
-
-        $this->accountMapper->updateBalance($account->getId(), $newBalance, $userId);
+        $this->accountMapper->updateBalance($accountId, $newBalance, $userId);
     }
 
     /**

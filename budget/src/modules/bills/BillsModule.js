@@ -919,6 +919,13 @@ export default class BillsModule {
             message = t('budget', 'Bill marked as paid. Linked to existing transaction.');
         } else if (choice.action === 'skip') {
             message = t('budget', 'Bill marked as paid. No transaction created.');
+        } else if (result.paymentTransactionRecorded === false) {
+            // The server marked the bill paid but recorded NO money movement
+            // (e.g. the bill has no account, or transaction creation failed).
+            // Without this warning the account balance silently drifts from
+            // the real bank balance (#89, #274).
+            showWarning(t('budget', 'No transaction was recorded for this payment — your account balance will not reflect it. Assign an account to the bill, or add the transaction manually.'));
+            message = t('budget', 'Bill marked as paid — without a transaction.');
         } else {
             const isOneTime = (bill.frequency === 'one-time');
             message = isOneTime

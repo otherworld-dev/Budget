@@ -683,6 +683,7 @@ class ImportService {
         $transferLinkIds = [];
         $accountResults = [];
         $hashCounts = [];
+        $touchedAccounts = [];
 
         foreach ($parsedData['accounts'] as $sourceAccount) {
             $sourceId = $sourceAccount['accountId'];
@@ -734,8 +735,10 @@ class ImportService {
                         $transaction['reference'] ?? null,
                         $transaction['notes'] ?? null,
                         $importId,
-                        excludedFromForecast: !empty($transaction['excludedFromForecast'])
+                        excludedFromForecast: !empty($transaction['excludedFromForecast']),
+                        deferBalanceUpdate: true
                     );
+                    $touchedAccounts[(int)$destAccountId] = true;
 
                     // Apply deferred tag actions from import rules
                     if (!empty($transaction['_deferred_tags'])) {
@@ -763,6 +766,11 @@ class ImportService {
                     $errors[] = ['row' => $index + 1, 'sourceAccountId' => $sourceId, 'error' => $e->getMessage()];
                 }
             }
+        }
+
+        // Balance updates were deferred per-row; recompute once per account
+        foreach (array_keys($touchedAccounts) as $touchedAccountId) {
+            $this->transactionService->recalculateAccountBalance($touchedAccountId, $userId);
         }
 
         // Process deferred transfer linking
@@ -839,6 +847,7 @@ class ImportService {
         $categoriesCreated = 0;
         $transferLinkIds = [];
         $hashCounts = [];
+        $touchedAccounts = [];
 
         // Detect date format from all rows before processing individually (unless preset set it)
         if (!$preset) {
@@ -927,8 +936,10 @@ class ImportService {
                     $transaction['reference'] ?? null,
                     $transaction['notes'] ?? null,
                     $importId,
-                    excludedFromForecast: !empty($transaction['excludedFromForecast'])
+                    excludedFromForecast: !empty($transaction['excludedFromForecast']),
+                    deferBalanceUpdate: true
                 );
+                $touchedAccounts[$txAccountId] = true;
 
                 // Apply tags from preset (e.g., Toshl Tags)
                 if ($preset && !empty($transaction['_tagNames']) && !empty($transaction['categoryId'])) {
@@ -988,6 +999,11 @@ class ImportService {
         }
 
         $this->normalizer->resetDateFormat();
+
+        // Balance updates were deferred per-row; recompute once per account
+        foreach (array_keys($touchedAccounts) as $touchedAccountId) {
+            $this->transactionService->recalculateAccountBalance($touchedAccountId, $userId);
+        }
 
         // Process deferred transfer linking after all transactions are persisted
         $transfersLinked = 0;

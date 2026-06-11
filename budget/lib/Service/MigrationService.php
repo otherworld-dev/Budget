@@ -74,6 +74,17 @@ class MigrationService {
             // Import in dependency order with ID remapping
             $idMaps = $this->importData($userId, $importData);
 
+            // Restore the ledger invariant for imported accounts:
+            // opening_balance := exported balance − net(imported transactions).
+            // This preserves the displayed balance exactly (even for exports
+            // from drifted instances) while keeping future recalculation sound.
+            foreach (($idMaps['accounts'] ?? []) as $newAccountId) {
+                $account = $this->accountMapper->findById($newAccountId);
+                $net = $this->transactionMapper->getNetChangeAll($newAccountId);
+                $account->setOpeningBalance(round(((float)$account->getBalance()) - $net, 2));
+                $this->accountMapper->update($account);
+            }
+
             $this->db->commit();
 
             return [
@@ -525,6 +536,10 @@ class MigrationService {
             $transaction->setNotes($txnData['notes'] ?? null);
             $transaction->setImportId($txnData['importId'] ?? null);
             $transaction->setReconciled($txnData['reconciled'] ?? false);
+            // Restore status — dropping it turned scheduled transactions into
+            // cleared ones, silently corrupting balances after a migration (#274)
+            $transaction->setStatus($txnData['status'] ?? null);
+            $transaction->setExcludedFromForecast(!empty($txnData['excludedFromForecast']));
             $transaction->setCreatedAt($txnData['createdAt'] ?? date('Y-m-d H:i:s'));
             $transaction->setUpdatedAt($txnData['updatedAt'] ?? date('Y-m-d H:i:s'));
 
