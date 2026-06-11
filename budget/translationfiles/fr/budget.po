@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: 2026-06-06 22:43+0000\n"
+"PO-Revision-Date: 2026-06-10 10:01+0000\n"
 "Last-Translator: Matyu9 <mathieu.degueurce@icloud.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -1030,90 +1030,91 @@ msgstr "Impossible de supprimer la contribution"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:452
 msgid "Failed to retrieve pension summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé de la pension"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:464
 msgid "Failed to retrieve pension projection"
-msgstr ""
+msgstr "Impossible de récupérer les prévisions de la pension"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/PensionController.php:476
 msgid "Failed to retrieve combined pension projection"
-msgstr ""
+msgstr "Impossible de récupérer les prévisions combinées des pensions"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:59
 msgid "Failed to retrieve recurring income"
-msgstr ""
+msgstr "Impossible de récupérer les revenus récurrents"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:72
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:205
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:219
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:275
 msgid "Recurring income"
-msgstr ""
+msgstr "Revenus récurrents"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:110
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:191
 msgid "Expected day must be between 1 and 31"
-msgstr ""
+msgstr "Le jour prévu doit être compris entre 1 et 31"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:115
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:198
 msgid "Expected month must be between 1 and 12"
-msgstr ""
+msgstr "Le mois prévu doit être compris entre 1 et 12"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:152
 msgid "Failed to create recurring income"
-msgstr ""
+msgstr "Impossible de créer le revenu récurrent"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:217
 msgid "Recurring income deleted"
-msgstr ""
+msgstr "Revenu récurrent supprimé"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:232
 msgid "Failed to retrieve upcoming income"
-msgstr ""
+msgstr "Impossible de récupérer les revenus à venir"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:245
 msgid "Failed to retrieve expected income"
-msgstr ""
+msgstr "Impossible de récupérer les revenus attendus"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:258
 msgid "Failed to retrieve income summary"
-msgstr ""
+msgstr "Impossible de récupérer le résumé des revenus"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:288
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:642
 msgid "Failed to detect recurring income"
-msgstr ""
+msgstr "Impossible de détecter les revenus récurrents"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:310
 msgid "Failed to create recurring income from detected patterns"
 msgstr ""
+"Impossible de créer des revenus récurrents à partir des modèles détectés"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:67
 msgid "Failed to generate summary report"
-msgstr ""
+msgstr "Impossible de générer le rapport de synthèse"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:101
 msgid "Failed to generate spending report"
-msgstr ""
+msgstr "Impossible de générer le rapport de dépenses"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:135
 msgid "Failed to generate income report"
-msgstr ""
+msgstr "Impossible de générer le rapport de revenus"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:172
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1050
 msgid "Failed to export report"
-msgstr ""
+msgstr "Impossible d’exporter le rapport"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:198
 msgid "Failed to generate budget report"
-msgstr ""
+msgstr "Impossible de générer le rapport budgétaire"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:230
 msgid "Failed to generate comparison report"
-msgstr ""
+msgstr "Impossible de générer le rapport comparatif"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ReportController.php:262
 msgid "Failed to generate cash flow report"
@@ -1447,7 +1448,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:658
 #: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:682
 msgid "Transaction"
-msgstr ""
+msgstr "Transaction"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:158
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:248
@@ -1782,7 +1783,7 @@ msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Service/ValidationService.php:229
 msgid "IBAN must be 15-34 characters long"
-msgstr ""
+msgstr "L’IBAN doit contenir entre 15 et 34 caractères"
 
 #: /var/www/html/apps-extra/budget/lib/Service/ValidationService.php:233
 msgid "Invalid IBAN format"

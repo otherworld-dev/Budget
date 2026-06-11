@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-06-06 22:45+0000\n"
-"Last-Translator: Dayflare <hiazu@hotmail.de>\n"
+"PO-Revision-Date: 2026-06-10 10:01+0000\n"
+"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -4220,7 +4220,7 @@ msgstr "Noch keine Konten"
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1162
 #: /tmp/budget-v2.11.0/budget/src/utils/formatters.js:191
 msgid "Checking"
-msgstr "Prüfen"
+msgstr "Girokonto"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:622
 #: /tmp/budget-v2.11.0/budget/src/modules/dashboard/DashboardModule.js:1163
@@ -7413,7 +7413,7 @@ msgstr "App sperren"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:276
 msgid "Add tiles"
-msgstr ""
+msgstr "Kacheln hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:278
 msgid "Add Tiles"
@@ -7607,7 +7607,7 @@ msgstr "Kontonummer"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1113
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4734
 msgid "Routing Number"
-msgstr ""
+msgstr "Bankleitzahl"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1117
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4746
@@ -7632,7 +7632,7 @@ msgstr "Währung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1133
 msgid "Opened Date"
-msgstr ""
+msgstr "Eröffnungsdatum"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1137
 msgid "Last Reconciled"
@@ -7783,7 +7783,7 @@ msgstr "Erstellt aus"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1366
 msgid "Created To"
-msgstr ""
+msgstr "Erstellt bis"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1405
 msgid "Reconciled"
@@ -8125,23 +8125,23 @@ msgstr "Oder verwende geteilte Einnahme/Ausgabe-Spalten mit den Feldern unten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2018
 msgid "Income Column"
-msgstr ""
+msgstr "Einname-Spalte"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2024
 msgid "Expense Column"
-msgstr ""
+msgstr "Ausgabe-Spalte"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2029
 msgid "For files with separate income and expense columns"
-msgstr ""
+msgstr "Für Dateien mit geteilten Einnahme- und Ausgabe-Spalten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2038
 msgid "Transaction Type"
-msgstr ""
+msgstr "Buchungstyp"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2040
 msgid "Auto-detect from amount"
-msgstr ""
+msgstr "Auto-Erkennung über Betrag"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2044
 msgid "Vendor/Payee"
@@ -8149,27 +8149,27 @@ msgstr "Anbieter/Zahlungsempfänger"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2050
 msgid "Reference/Check Number"
-msgstr ""
+msgstr "Referenznummer"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2058
 msgid "Data Preview"
-msgstr ""
+msgstr "Datenvorschau"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2071
 msgid "Skip first row (headers)"
-msgstr ""
+msgstr "Erste Zeile (Kopfzeile) überspringen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2075
 msgid "Apply import rules for categorization"
-msgstr ""
+msgstr "Regeln für Kategorisierung bei Import anwenden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2083
 msgid "Step 3: Review & Import"
-msgstr ""
+msgstr "Schritt 3: Überprüfen & Importieren"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2084
 msgid "Review mapped transactions before importing"
-msgstr ""
+msgstr "Zugeordnete Buchungen vor Import überprüfen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2090
 msgid "Total Transactions:"
@@ -8177,57 +8177,59 @@ msgstr "Anzahl der Buchungen:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2094
 msgid "New Transactions:"
-msgstr ""
+msgstr "Neue Buchungen:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2098
 msgid "Duplicates Found:"
-msgstr ""
+msgstr "Gefundene Duplikate:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2102
 msgid "Auto-categorized:"
-msgstr ""
+msgstr "Automatisch kategorisiert:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2109
 msgid "Import to Account:"
-msgstr ""
+msgstr "Importieren in Konto:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2117
 msgid "Map Source Accounts to Destination Accounts"
-msgstr ""
+msgstr "Quellkonten den Zielkonten zuordnen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2118
 msgid ""
 "Your file contains multiple accounts. Map each source account to a "
 "destination account in your budget."
 msgstr ""
+"Deine Datei enthält mehrere Konten. Ordne jedes Quellkonto einem Zielkonto "
+"in deinem Budget zu."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2130
 msgid "Show duplicates"
-msgstr ""
+msgstr "Duplikate anzeigen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2134
 msgid "Show uncategorized"
-msgstr ""
+msgstr "Ohne Kategorie anzeigen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2138
 msgid "Showing 0 of 0"
-msgstr ""
+msgstr "Angezeigt 0 von 0"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2174
 msgid "View and manage previous imports"
-msgstr ""
+msgstr "Frühere Importe anzeigen und verwalten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2183
 msgid "File Name"
-msgstr ""
+msgstr "Dateiname"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2202
 msgid "Auto-detect recurring bills from transactions"
-msgstr ""
+msgstr "Wiederkehrende Rechnungen anhand von Transaktionen automatisch erkennen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2206
 msgid "Add new bill"
-msgstr ""
+msgstr "Neue Rechnung hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2248
 msgid "Paid This Month"
