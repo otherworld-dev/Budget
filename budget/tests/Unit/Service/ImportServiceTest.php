@@ -353,6 +353,46 @@ class ImportServiceTest extends TestCase {
         $this->assertEquals(2, $result['skipped']);
     }
 
+    public function testProcessImportWithSkipDuplicatesDisabledImportsEverything(): void {
+        // With "skip duplicates" off, a row whose import ID already exists in
+        // the DB must still import — its ID gets a _dupN suffix so neither the
+        // create() guard nor the unique index rejects it (#275).
+        $file = $this->createMock(ISimpleFile::class);
+        $file->method('getContent')->willReturn('csv data');
+        $folder = $this->createMock(ISimpleFolder::class);
+        $folder->method('getFile')->willReturn($file);
+        $this->appData->method('getFolder')->willReturn($folder);
+
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['date' => '2025-01-01', 'amount' => '3.50', 'description' => 'Coffee'],
+        ]);
+
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2025-01-01', 'amount' => 3.50, 'description' => 'Coffee', 'type' => 'debit',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('hash_abc');
+
+        // hash_abc is taken (previous import); hash_abc_dup2 is free
+        $checkedIds = [];
+        $this->duplicateDetector->method('isDuplicateByImportId')
+            ->willReturnCallback(function ($accountId, $importId) use (&$checkedIds) {
+                $checkedIds[] = $importId;
+                return $importId === 'hash_abc';
+            });
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+        $this->transactionService->expects($this->once())->method('create');
+
+        $result = $this->service->processImport(
+            'user1', 'file.csv', ['date' => 'date'], 1, null, false /* skipDuplicates */
+        );
+
+        $this->assertEquals(1, $result['imported']);
+        $this->assertEquals(0, $result['skipped']);
+        $this->assertSame(['hash_abc', 'hash_abc_dup2'], $checkedIds);
+    }
+
     public function testProcessImportLeavesFitidImportIdsUntouched(): void {
         // Bank-issued FITIDs are unique per transaction: a repeat genuinely is
         // the same transaction, so no occurrence suffix may be applied.

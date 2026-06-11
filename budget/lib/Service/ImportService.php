@@ -414,6 +414,24 @@ class ImportService {
         return $counts[$key] === 1 ? $baseId : $baseId . '_occ' . $counts[$key];
     }
 
+    /**
+     * With "skip duplicates" disabled the whole batch must import, but a
+     * row whose import ID is already taken would still be rejected — by
+     * TransactionService::create() and by the unique (account_id, import_id)
+     * index. Suffix the ID until it is free so intentional duplicates can be
+     * inserted (#275). Future skip-duplicates imports of the same statement
+     * still match the original unsuffixed IDs.
+     */
+    private function ensureUniqueImportId(int $accountId, string $importId): string {
+        $candidate = $importId;
+        $n = 1;
+        while ($this->duplicateDetector->isDuplicateByImportId($accountId, $candidate)) {
+            $n++;
+            $candidate = $importId . '_dup' . $n;
+        }
+        return $candidate;
+    }
+
     private function previewMultiAccountImport(string $userId, string $content, string $format, array $accountMapping, bool $skipDuplicates): array {
         $parsedData = $this->parserFactory->parseFull($content, $format);
         $transactions = [];
@@ -695,6 +713,10 @@ class ImportService {
                         $accountResults[$sourceId]['skipped']++;
                         continue;
                     }
+                    if (!$skipDuplicates) {
+                        // Import everything: free up the ID if it's already taken (#275)
+                        $importId = $this->ensureUniqueImportId((int)$destAccountId, $importId);
+                    }
 
                     if ($applyRules) {
                         $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
@@ -870,6 +892,10 @@ class ImportService {
                 if ($skipDuplicates && $this->duplicateDetector->isDuplicateByImportId($txAccountId, $importId)) {
                     $skipped++;
                     continue;
+                }
+                if (!$skipDuplicates) {
+                    // Import everything: free up the ID if it's already taken (#275)
+                    $importId = $this->ensureUniqueImportId($txAccountId, $importId);
                 }
 
                 if ($applyRules) {

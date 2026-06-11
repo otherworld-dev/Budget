@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- "Skip Duplicate Transactions" off is now honored: previously rows whose import ID already existed were still rejected deeper in the stack (duplicate-ID guard + unique index), so parts of the batch silently failed to import. Intentional duplicates now get a uniquified import ID and the entire batch imports ([#275](https://github.com/otherworld-dev/Budget/issues/275))
 - Import duplicate detection no longer gives false positives for legitimately identical rows — e.g. two same-priced purchases on the same day with the same description. Identical rows within one file now import as distinct transactions (occurrence-aware import IDs), while re-importing the same statement still skips everything it already imported. Re-importing an older statement also recovers transactions the previous logic wrongly skipped ([#276](https://github.com/otherworld-dev/Budget/issues/276))
 
 ## [2.28.1] - 2026-06-07
