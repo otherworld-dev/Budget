@@ -516,6 +516,17 @@ export default class DashboardModule {
         }
     }
 
+    /**
+     * A saved account selection is only usable if that account still exists.
+     * Imported configs and factory resets leave stale ids behind, which caused
+     * 404s and permanently empty tiles — fall back to all accounts instead.
+     */
+    _validAccountId(accountId) {
+        if (!accountId) return null;
+        const accounts = this.accounts || [];
+        return accounts.some(a => String(a.id) === String(accountId)) ? accountId : null;
+    }
+
     async refreshSavedWidgetSelections() {
         const refreshes = [];
         const tileSettings = this.dashboardConfig.widgets?.tileSettings || {};
@@ -524,18 +535,18 @@ export default class DashboardModule {
         const widgetRefreshMap = {
             trendChart: (s) => {
                 const months = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 }[s.dateRange] || 6;
-                return this.refreshTrendChart(months, s.accountId || null);
+                return this.refreshTrendChart(months, this._validAccountId(s.accountId));
             },
             spendingChart: (s) => {
                 const period = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' }[s.dateRange] || '6months';
-                return this.refreshSpendingChart(period, s.accountId || null);
+                return this.refreshSpendingChart(period, this._validAccountId(s.accountId));
             },
             netWorthHistory: (s) => {
                 const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
-                return this.refreshNetWorthChart(days, s.accountId || null);
+                return this.refreshNetWorthChart(days, this._validAccountId(s.accountId));
             },
             recentTransactions: (s) => {
-                return this.refreshRecentTransactions(s.accountId || null);
+                return this.refreshRecentTransactions(this._validAccountId(s.accountId));
             },
             assetValueHistory: (s) => {
                 const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
@@ -2742,6 +2753,10 @@ export default class DashboardModule {
                     OC.generateUrl(`/apps/budget/api/accounts/${accountId}/balance-history?days=${days}`),
                     { headers: { 'requesttoken': OC.requestToken } }
                 );
+                if (response.status === 404) {
+                    // Saved account no longer exists — fall back to all accounts
+                    return this.refreshNetWorthChart(days, null, instanceId);
+                }
                 if (!response.ok) throw new Error('Failed to fetch balance history');
                 const history = await response.json();
                 this.updateNetWorthHistoryChart(history, accountId, instanceId);
@@ -2793,15 +2808,15 @@ export default class DashboardModule {
 
         switch (baseType) {
             case 'trendChart':
-                return this.refreshTrendChart(months, settings.accountId || null, instanceId);
+                return this.refreshTrendChart(months, this._validAccountId(settings.accountId), instanceId);
             case 'spendingChart':
-                return this.refreshSpendingChart(period, settings.accountId || null, instanceId);
+                return this.refreshSpendingChart(period, this._validAccountId(settings.accountId), instanceId);
             case 'netWorthHistory':
-                return this.refreshNetWorthChart(days, settings.accountId || null, instanceId);
+                return this.refreshNetWorthChart(days, this._validAccountId(settings.accountId), instanceId);
             case 'assetValueHistory':
                 return this.refreshAssetValueChart(days, instanceId);
             case 'recentTransactions':
-                return this.refreshRecentTransactions(settings.accountId || null, instanceId);
+                return this.refreshRecentTransactions(this._validAccountId(settings.accountId), instanceId);
         }
     }
 
@@ -3292,10 +3307,12 @@ export default class DashboardModule {
             requestAnimationFrame(() => this.resizeAllCharts());
         });
 
-        // Initial chart resize after Gridstack has laid out tiles, then reveal
+        // Initial chart resize after Gridstack has laid out tiles, then reveal.
+        // Reveal FIRST — the grid must never stay invisible because a chart
+        // resize threw (that exact failure blanked the dashboard, see #273/#274 data).
         requestAnimationFrame(() => {
-            this.resizeAllCharts();
             gridEl.style.opacity = '1';
+            this.resizeAllCharts();
         });
     }
 
@@ -4389,8 +4406,17 @@ export default class DashboardModule {
     resizeAllCharts() {
         const chartKeys = Object.keys(this.charts || {});
         chartKeys.forEach(key => {
-            if (this.charts[key] && typeof this.charts[key].resize === 'function') {
-                this.charts[key].resize();
+            const chart = this.charts[key];
+            if (!chart || typeof chart.resize !== 'function') return;
+            // Skip charts whose canvas is no longer in the DOM (e.g. the tile
+            // was stashed as hidden) — Chart.js resize() throws on detached
+            // canvases, and one uncaught throw here left the whole widget grid
+            // at opacity 0 ("dashboard only half loads", same class as #273).
+            if (!chart.canvas || !chart.canvas.isConnected) return;
+            try {
+                chart.resize();
+            } catch (e) {
+                console.warn(`Chart resize failed for ${key}:`, e);
             }
         });
     }
