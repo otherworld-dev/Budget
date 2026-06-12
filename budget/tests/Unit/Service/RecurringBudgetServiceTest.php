@@ -139,6 +139,30 @@ class RecurringBudgetServiceTest extends TestCase {
         $this->assertSame(50.0, $result[5]);
     }
 
+    public function testFutureStartAndEndedBillsExcluded(): void {
+        $future = $this->makeBill(100.0, 'monthly', 5);
+        $future->setStartDate(date('Y-m-d', strtotime('+2 months')));
+        $ended = $this->makeBill(100.0, 'monthly', 6);
+        $ended->setEndDate(date('Y-m-d', strtotime('-1 month')));
+        $current = $this->makeBill(100.0, 'monthly', 7);
+
+        $this->billService->method('findActive')->willReturn([$future, $ended, $current]);
+        $this->recurringIncomeService->method('findActive')->willReturn([]);
+
+        $result = $this->service->getMonthlyBudgetsByCategory('user1');
+
+        $this->assertArrayNotHasKey(5, $result);
+        $this->assertArrayNotHasKey(6, $result);
+        $this->assertSame(100.0, $result[7]);
+    }
+
+    public function testConvertMonthlyToPeriod(): void {
+        $this->assertSame(100.0, $this->service->convertMonthlyToPeriod(100.0, 'monthly'));
+        $this->assertEqualsWithDelta(23.08, $this->service->convertMonthlyToPeriod(100.0, 'weekly'), 0.01);
+        $this->assertSame(300.0, $this->service->convertMonthlyToPeriod(100.0, 'quarterly'));
+        $this->assertSame(1200.0, $this->service->convertMonthlyToPeriod(100.0, 'yearly'));
+    }
+
     public function testBillWithoutCategoryIgnored(): void {
         $this->billService->method('findActive')->willReturn([
             $this->makeBill(100.0, 'monthly', null),

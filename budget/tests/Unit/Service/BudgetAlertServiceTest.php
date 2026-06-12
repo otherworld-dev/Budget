@@ -34,6 +34,8 @@ class BudgetAlertServiceTest extends TestCase {
     private TransactionMapper $transactionMapper;
     private TransactionSplitMapper $splitMapper;
     private SettingService $settingService;
+    /** @var array<int, float> Recurring budgets returned by the mock */
+    private array $recurringBudgets = [];
 
     private const USER_ID = 'testuser';
 
@@ -45,12 +47,26 @@ class BudgetAlertServiceTest extends TestCase {
 
         $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
 
+        // Per-test recurring budgets via $this->recurringBudgets; conversion
+        // uses the real (pure) math
+        $recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+        $recurringBudgetService->method('getMonthlyBudgetsByCategory')
+            ->willReturnCallback(fn() => $this->recurringBudgets);
+        $recurringBudgetService->method('convertMonthlyToPeriod')
+            ->willReturnCallback(fn(float $monthly, string $period) => match ($period) {
+                'weekly' => $monthly * 12 / 52,
+                'quarterly' => $monthly * 3,
+                'yearly' => $monthly * 12,
+                default => $monthly,
+            });
+
         $this->service = new TestableBudgetAlertService(
             $this->categoryMapper,
             $budgetSnapshotMapper,
             $this->transactionMapper,
             $this->splitMapper,
-            $this->settingService
+            $this->settingService,
+            $recurringBudgetService
         );
     }
 
@@ -105,6 +121,36 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertCount(1, $statuses);
 
         return $statuses[0];
+    }
+
+    // ===== Auto-derived recurring budgets (#269) =====
+
+    public function testBudgetStatusFallsBackToRecurringBudget(): void {
+        // A category with no manual budget but a recurring commitment must be
+        // tracked, so alerts agree with the Budget view's auto-derived limits
+        $this->service->setNow(new \DateTime('2026-03-15'));
+        $this->settingService->method('get')->willReturn('1');
+
+        $category = $this->makeCategory(['budgetAmount' => 0.0]);
+        $this->recurringBudgets = [1 => 100.0];
+        $this->setupMocksForBudgetStatus([$category], 90.0);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertEquals(100.0, $statuses[0]['budgetAmount']);
+        $this->assertEquals('warning', $statuses[0]['status']); // 90%
+    }
+
+    public function testBudgetStatusIgnoresCategoryWithoutAnyBudget(): void {
+        $this->service->setNow(new \DateTime('2026-03-15'));
+        $this->settingService->method('get')->willReturn('1');
+
+        $category = $this->makeCategory(['budgetAmount' => 0.0]);
+        $this->recurringBudgets = []; // no recurring commitment either
+        $this->setupMocksForBudgetStatus([$category], 90.0);
+
+        $this->assertCount(0, $this->service->getBudgetStatus(self::USER_ID));
     }
 
     // ===== Default behavior (start_day=1) =====

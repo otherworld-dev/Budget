@@ -924,7 +924,13 @@ export default class BillsModule {
             // (e.g. the bill has no account, or transaction creation failed).
             // Without this warning the account balance silently drifts from
             // the real bank balance (#89, #274).
-            showWarning(t('budget', 'No transaction was recorded for this payment — your account balance will not reflect it. Assign an account to the bill, or add the transaction manually.'));
+            if (choice.action === 'link') {
+                // The transaction exists (balance is fine) — only the bill
+                // linkage failed, so say that instead of the balance warning.
+                showWarning(t('budget', 'The bill was marked as paid, but linking the selected transaction failed. You can link it manually from the transaction.'));
+            } else {
+                showWarning(t('budget', 'No transaction was recorded for this payment — your account balance will not reflect it. Assign an account to the bill, or add the transaction manually.'));
+            }
             message = t('budget', 'Bill marked as paid — without a transaction.');
         } else {
             const isOneTime = (bill.frequency === 'one-time');

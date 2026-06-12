@@ -71,7 +71,10 @@ class ForecastServiceTest extends TestCase {
     // ===== invalidateCache =====
 
     public function testInvalidateCacheRemovesEntries(): void {
-        $this->cache->expects($this->exactly(2))->method('remove');
+        // Live keys carry horizon/visibility suffixes — invalidation must
+        // prefix-clear them (a bare remove() never matched any stored key)
+        $this->cache->expects($this->once())->method('clear')->with('live_user1_');
+        $this->cache->expects($this->once())->method('remove')->with('forecast_user1_all');
 
         $this->service->invalidateCache('user1');
     }

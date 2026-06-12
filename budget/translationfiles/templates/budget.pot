@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-06-11 14:58+0000\n"
+"POT-Creation-Date: 2026-06-12 01:05+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,7 +42,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:667
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:681
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:745
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4132
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4149
 #: /var/www/html/apps-extra/budget/templates/index.php:976
 #: /var/www/html/apps-extra/budget/templates/index.php:1463
 #: /var/www/html/apps-extra/budget/templates/index.php:1566
@@ -117,13 +117,13 @@ msgid "Failed to create account"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:281
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:776
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:355
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:794
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:363
 msgid "Invalid request data"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AccountController.php:444
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:559
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:577
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:288
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:307
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportTemplateController.php:146
@@ -421,7 +421,7 @@ msgid "Failed to retrieve bills"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:110
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:580
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:598
 #: /var/www/html/apps-extra/budget/templates/index.php:3401
 msgid "Bill"
 msgstr ""
@@ -437,13 +437,13 @@ msgid "Auto-pay requires an account to be set"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:172
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:524
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:542
 #: /var/www/html/apps-extra/budget/lib/Service/BillService.php:203
 msgid "Transfer requires a destination account"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:180
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:552
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:570
 #: /var/www/html/apps-extra/budget/lib/Service/BillService.php:208
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:618
 msgid "Cannot transfer to the same account"
@@ -493,135 +493,141 @@ msgstr ""
 msgid "Failed to create bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:565
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:517
+msgid ""
+"The new amount does not match the bill's split template. Update the splits "
+"together with the amount."
+msgstr ""
+
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:583
 msgid "Failed to update bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:593
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:611
 msgid "Failed to find matching transactions"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:612
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:630
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:871
 msgid "Failed to mark bill as paid"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:629
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:647
 msgid "Missing previous state"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:643
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:661
 msgid "Failed to undo mark as paid"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:660
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1136
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:678
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1142
 msgid "Failed to skip bill payment"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:676
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:694
 msgid "Missing previous due date"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:682
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:700
 msgid "Failed to undo skip"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:696
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:714
 msgid "Failed to retrieve upcoming bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:710
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:728
 msgid "Failed to retrieve bills due this month"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:724
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:742
 msgid "Failed to retrieve overdue bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:737
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:755
 msgid "Failed to retrieve bill summary"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:750
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:768
 msgid "Failed to retrieve bill status"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:763
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1257
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:781
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1263
 msgid "Failed to detect recurring bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:785
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:803
 msgid "Failed to create bills from detected patterns"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:800
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:833
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:818
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:851
 msgid "Invalid year"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:815
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:833
 msgid "Failed to generate annual overview"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:856
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:874
 msgid "Failed to export bills calendar"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:998
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1016
 msgid "Split template must have at least 2 splits"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1004
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1022
 msgid "Each split must have a positive amount"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1010
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1028
 msgid "Split amounts must equal the bill amount"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1022
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1040
 msgid "Invalid JSON in custom recurrence pattern"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1029
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1047
 msgid "Custom recurrence pattern must be a JSON object"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1038
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1056
 msgid "Months must be an array"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1045
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1063
 msgid "At least one month must be specified"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1053
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1071
 msgid "Each month must be a number between 1 and 12"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1066
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1084
 msgid "Dates must be an array"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1073
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1091
 msgid "At least one date must be specified"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1081
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1099
 msgid "Each date must have \"month\" and \"day\" fields"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1088
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1106
 msgid "Month must be a number between 1 and 12"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1095
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1113
 msgid "Day must be a number between 1 and 31"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1105
+#: /var/www/html/apps-extra/budget/lib/Controller/BillController.php:1123
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
 
@@ -642,7 +648,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/CategoryController.php:362
 #: /var/www/html/apps-extra/budget/src/main.js:3468
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:2587
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1676
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1687
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1010
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:1759
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:2275
@@ -1224,19 +1230,19 @@ msgid "Failed to retrieve recurring income"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:88
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:257
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:272
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:328
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:265
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:280
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:336
 msgid "Recurring income"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:140
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:238
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:246
 msgid "Expected day must be between 1 and 31"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:145
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:245
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:253
 msgid "Expected month must be between 1 and 12"
 msgstr ""
 
@@ -1244,32 +1250,32 @@ msgstr ""
 msgid "Failed to create recurring income"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:205
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:213
 msgid "No data provided"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:270
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:278
 msgid "Recurring income deleted"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:285
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:293
 msgid "Failed to retrieve upcoming income"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:298
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:306
 msgid "Failed to retrieve expected income"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:311
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:319
 msgid "Failed to retrieve income summary"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:341
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:349
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:689
 msgid "Failed to detect recurring income"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:364
+#: /var/www/html/apps-extra/budget/lib/Controller/RecurringIncomeController.php:372
 msgid "Failed to create recurring income from detected patterns"
 msgstr ""
 
@@ -1385,7 +1391,7 @@ msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:288
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:112
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1763
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1769
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:113
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:280
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:425
@@ -1399,7 +1405,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:289
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:734
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:115
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1762
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1768
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:116
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:283
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:428
@@ -1413,7 +1419,7 @@ msgstr ""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:290
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:116
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1764
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1770
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:117
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:284
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:429
@@ -1427,7 +1433,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/SettingController.php:291
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:735
 #: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:118
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1765
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1771
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:119
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:286
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:430
@@ -1756,7 +1762,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:653
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:670
 #: /var/www/html/apps-extra/budget/lib/Controller/TransactionController.php:715
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1034
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1045
 msgid "Transaction"
 msgstr ""
 
@@ -1900,8 +1906,8 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/specialAppInfoFakeDummyForL10nScript.php:2
 #: /var/www/html/apps-extra/budget/src/main.js:845
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:688
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1749
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1677
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1755
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1688
 #: /var/www/html/apps-extra/budget/templates/index.php:93
 #: /var/www/html/apps-extra/budget/templates/index.php:1987
 #: /var/www/html/apps-extra/budget/templates/index.php:2058
@@ -2012,7 +2018,7 @@ msgid ""
 "then sync again."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BankSync/BankSyncService.php:399
+#: /var/www/html/apps-extra/budget/lib/Service/BankSync/BankSyncService.php:404
 #, php-format
 msgid "Sync completed with %1$s error(s)"
 msgstr ""
@@ -2025,15 +2031,15 @@ msgstr ""
 msgid "Cannot skip an inactive bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:862
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:865
 msgid "Auto-pay is not enabled for this bill"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:875
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:878
 msgid "Bill has no account associated"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:885
+#: /var/www/html/apps-extra/budget/lib/Service/BillService.php:888
 msgid "Bill auto-paid successfully"
 msgstr ""
 
@@ -2137,16 +2143,26 @@ msgstr ""
 msgid "Import file not found"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:515
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:816
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:524
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:872
 msgid "Account ID is required for single-account imports"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:590
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:600
 msgid "Missing account name"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:889
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:738
+#, php-format
+msgid "Destination account %1$s not found"
+msgstr ""
+
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:827
+#, php-format
+msgid "Failed to recalculate balance for account %1$s"
+msgstr ""
+
+#: /var/www/html/apps-extra/budget/lib/Service/ImportService.php:945
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr ""
@@ -2362,7 +2378,7 @@ msgid ""
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/config/dashboardWidgets.js:8
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2327
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2338
 #: /var/www/html/apps-extra/budget/templates/index.php:329
 #: /var/www/html/apps-extra/budget/templates/index.php:1067
 msgid "Net Worth"
@@ -2384,8 +2400,8 @@ msgid "Net Savings"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/config/dashboardWidgets.js:12
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1520
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1526
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1531
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1537
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:153
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:159
 #: /var/www/html/apps-extra/budget/templates/index.php:381
@@ -2437,7 +2453,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/src/main.js:3470
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1013
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1225
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1020
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1031
 #: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:73
 #: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1233
 #: /var/www/html/apps-extra/budget/src/modules/rules/RulesModule.js:924
@@ -2688,7 +2704,7 @@ msgid ""
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:842
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4451
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4477
 #: /var/www/html/apps-extra/budget/templates/index.php:63
 #: /var/www/html/apps-extra/budget/templates/index.php:1428
 #: /var/www/html/apps-extra/budget/templates/index.php:1817
@@ -2706,7 +2722,7 @@ msgid ""
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:843
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4157
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4174
 #: /var/www/html/apps-extra/budget/src/modules/sharing/SharingModule.js:242
 #: /var/www/html/apps-extra/budget/templates/index.php:73
 #: /var/www/html/apps-extra/budget/templates/index.php:1696
@@ -2722,7 +2738,7 @@ msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:844
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:1263
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1375
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1381
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:176
 #: /var/www/html/apps-extra/budget/src/modules/rules/RulesModule.js:773
 #: /var/www/html/apps-extra/budget/src/modules/savings/SavingsModule.js:283
@@ -2754,9 +2770,9 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/src/main.js:846
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:577
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:667
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1836
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2246
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4452
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1847
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2257
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4478
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:466
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:710
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:898
@@ -2785,7 +2801,7 @@ msgid ""
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:847
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4455
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4481
 #: /var/www/html/apps-extra/budget/src/modules/sharing/SharingModule.js:243
 #: /var/www/html/apps-extra/budget/templates/index.php:113
 #: /var/www/html/apps-extra/budget/templates/index.php:2379
@@ -2833,7 +2849,7 @@ msgid "Track retirement accounts with contributions and growth projections."
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:852
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2334
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2345
 #: /var/www/html/apps-extra/budget/templates/index.php:163
 #: /var/www/html/apps-extra/budget/templates/index.php:1079
 #: /var/www/html/apps-extra/budget/templates/index.php:3781
@@ -3081,7 +3097,7 @@ msgid "{displayed} of {total} transactions"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:1431
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2035
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2046
 #: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1328
 msgid "%n transaction"
 msgid_plural "%n transactions"
@@ -3195,7 +3211,7 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/src/main.js:1804
 #: /var/www/html/apps-extra/budget/src/main.js:1811
 #: /var/www/html/apps-extra/budget/src/main.js:1815
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:997
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1003
 #: /var/www/html/apps-extra/budget/src/modules/sharing/SharingModule.js:133
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:3646
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:141
@@ -3310,13 +3326,13 @@ msgstr ""
 #: /var/www/html/apps-extra/budget/src/main.js:2180
 #: /var/www/html/apps-extra/budget/src/main.js:3253
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:2508
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1864
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1910
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2027
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2150
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1875
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1921
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2038
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2161
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:173
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:2135
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:956
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:960
 msgid "Unknown"
 msgstr ""
 
@@ -3343,7 +3359,7 @@ msgid "Importing data... This may take a moment."
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:2251
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1476
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1487
 msgid "Import failed"
 msgstr ""
 
@@ -3396,7 +3412,7 @@ msgid "Failed to calculate scenario"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/main.js:2563
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:736
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:747
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1018
 msgid "N/A"
 msgstr ""
@@ -3744,7 +3760,7 @@ msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:295
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:296
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2317
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2328
 #: /var/www/html/apps-extra/budget/src/modules/forecast/ForecastModule.js:305
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:520
 #: /var/www/html/apps-extra/budget/templates/index.php:1399
@@ -4064,26 +4080,26 @@ msgid "Savings Account"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:2481
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:825
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:836
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:193
 #: /var/www/html/apps-extra/budget/templates/index.php:5019
 msgid "Credit Card"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:2486
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:826
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:837
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:194
 msgid "Investment"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:2491
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:828
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:839
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:196
 msgid "Loan"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/accounts/AccountsModule.js:2496
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:827
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:838
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:195
 #: /var/www/html/apps-extra/budget/templates/index.php:5024
 msgid "Cash"
@@ -4156,8 +4172,8 @@ msgid "Collectibles"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/assets/AssetsModule.js:107
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1763
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4458
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1774
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4484
 #: /var/www/html/apps-extra/budget/templates/index.php:4006
 msgid "Other"
 msgstr ""
@@ -4179,7 +4195,7 @@ msgid "View Details"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/assets/AssetsModule.js:211
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1563
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1574
 msgid "%n asset"
 msgid_plural "%n assets"
 msgstr[0] ""
@@ -4726,98 +4742,104 @@ msgstr ""
 msgid "Bill marked as paid. No transaction created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:927
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:930
+msgid ""
+"The bill was marked as paid, but linking the selected transaction failed. "
+"You can link it manually from the transaction."
+msgstr ""
+
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:932
 msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it. Assign an account to the bill, or add the transaction manually."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:928
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:934
 msgid "Bill marked as paid — without a transaction."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:932
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:938
 msgid "Bill marked as paid. Transaction created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:933
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:939
 msgid "Bill marked as paid. Future transaction created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:956
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:962
 msgid "Exact amount"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:957
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:963
 msgid "Similar amount (±5%)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:958
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:964
 msgid "Approximate amount (±20%)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:959
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:965
 msgid "Vendor matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:960
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:966
 msgid "Vendor partially matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:961
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:967
 msgid "Description matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:962
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:968
 msgid "Description partially matches"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:963
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:969
 msgid "Same day"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:964
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:970
 msgid "±1 day"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:965
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:971
 msgid "±3 days"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:966
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:972
 msgid "±7 days"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:971
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:977
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:3729
 msgid "(no description)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:984
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:990
 msgid "Strong match"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:996
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1002
 msgid "Existing Transaction Found"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1000
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1006
 msgid ""
 "We found existing transactions that may already represent this bill payment "
 "({billName}, {amount}). Would you like to link one instead of creating a new "
 "transaction?"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1007
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1013
 msgid "Create a new transaction instead"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1013
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1019
 msgid "Don't create any transaction (just mark as paid)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1018
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1358
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1024
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1364
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:1069
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:147
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:517
@@ -4860,77 +4882,77 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1019
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1357
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1025
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1363
 msgid "Confirm"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1089
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1165
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1095
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1171
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:603
 msgid "Action undone"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1092
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1168
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1098
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1174
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:606
 msgid "Failed to undo action: {message}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1103
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1109
 msgid "Skip this payment and advance to the next due date?"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1129
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1135
 msgid "Payment skipped. Advanced to next due date."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1178
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1409
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1184
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1415
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:616
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:2704
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:2859
 msgid "Undo"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1237
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1243
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:668
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:917
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:921
 msgid "Detecting..."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1249
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:929
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1255
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:933
 msgid "No recurring transactions detected"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1260
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1266
 #: /var/www/html/apps-extra/budget/templates/index.php:2383
 msgid "Detect Bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1281
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1287
 #: /var/www/html/apps-extra/budget/src/modules/income/IncomeModule.js:717
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:968
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:972
 #, javascript-format
 msgid "{percent}% confidence"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1297
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1303
 msgid "Please select at least one bill to add"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1317
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1323
 msgid "%n bill added successfully"
 msgid_plural "%n bills added successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1321
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1327
 msgid "Failed to add selected bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1411
+#: /var/www/html/apps-extra/budget/src/modules/bills/BillsModule.js:1417
 #: /var/www/html/apps-extra/budget/src/modules/tagsets/TagSetsModule.js:687
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:855
 msgid "No tags defined"
@@ -4954,7 +4976,7 @@ msgid "Failed to reorder category"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:514
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4124
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4141
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:151
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1162
 #: /var/www/html/apps-extra/budget/src/modules/transactions/TransactionsModule.js:331
@@ -5103,103 +5125,103 @@ msgstr ""
 msgid "Failed to create default categories"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1326
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1332
 msgid "Budgets adjusted from {month}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1327
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1333
 msgid "Remove adjustment"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1340
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1346
 msgid "Adjust budgets from this month"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1353
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1359
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
 "new values after confirming."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1354
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1360
 msgid "Adjust budgets from {month}?"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1389
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1395
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1395
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1399
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1401
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1405
 msgid "Failed to create budget adjustment"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1408
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1414
 msgid "Budget adjustment created."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1447
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1453
 msgid "Budget adjustment removed"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1449
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1453
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1455
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1459
 msgid "Failed to remove budget adjustment"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1757
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1763
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1757
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1763
 msgid "auto"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1758
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1764
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:1320
 #: /var/www/html/apps-extra/budget/templates/index.php:6186
 msgid "Total"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1760
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1766
 #: /var/www/html/apps-extra/budget/templates/index.php:2059
 #: /var/www/html/apps-extra/budget/templates/index.php:3019
 msgid "Period"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1768
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1678
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1774
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1689
 #: /var/www/html/apps-extra/budget/templates/index.php:2060
 msgid "Spent"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1771
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1679
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1777
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1690
 #: /var/www/html/apps-extra/budget/templates/index.php:2028
 #: /var/www/html/apps-extra/budget/templates/index.php:2061
 msgid "Remaining"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1774
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1780
 #: /var/www/html/apps-extra/budget/templates/index.php:2062
 msgid "Progress"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1780
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1786
 msgid "No budget set"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1938
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1944
 msgid "Budget updated"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1941
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1947
 msgid "Failed to update budget"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1954
+#: /var/www/html/apps-extra/budget/src/modules/categories/CategoriesModule.js:1960
 msgid "Failed to update budget: {message}"
 msgstr ""
 
@@ -5226,250 +5248,250 @@ msgstr ""
 msgid "Low"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:570
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4112
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:581
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4129
 msgid "Last 30 days"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:571
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4113
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:582
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4130
 msgid "Last 90 days"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:572
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4114
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:583
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4131
 msgid "Last 6 months"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:573
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4115
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:584
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4132
 msgid "Last year"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:693
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:704
 msgid "%n category under budget"
 msgid_plural "%n categories under budget"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:719
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:730
 msgid "{onTrack}/{total} on track"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:750
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:761
 msgid "Debt free by {date}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:776
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:787
 msgid "Rates unavailable for {currencies}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:778
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:789
 msgid "Converted to {currency} at current rates"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:806
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:817
 msgid "No accounts yet"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:823
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1758
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:834
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1769
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:191
 msgid "Checking"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:824
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1759
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:835
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1770
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:922
 #: /var/www/html/apps-extra/budget/src/utils/formatters.js:192
 msgid "Savings"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:853
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:864
 msgid "All accounts hidden"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:899
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:910
 msgid "No accounts"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1010
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1021
 msgid "No recent transactions"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1075
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1086
 #, javascript-format
 msgid "{percent}% over"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1076
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1087
 msgid "{percent}% used"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1126
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1137
 msgid "Highest rate: {rate}% APR"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1166
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1177
 #: /var/www/html/apps-extra/budget/templates/index.php:724
 #: /var/www/html/apps-extra/budget/templates/index.php:4112
 msgid "Total Debt"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1167
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1178
 msgid "Debt Free"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1244
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1255
 msgid "remaining"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1247
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1258
 msgid "paid off"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1277
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1288
 msgid "Ahead of schedule"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1278
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1289
 msgid "Behind schedule"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1279
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1290
 msgid "On track"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1296
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1307
 #: /var/www/html/apps-extra/budget/templates/index.php:689
 msgid "No upcoming bills"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1311
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1968
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1322
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1979
 msgid "Overdue by %n day"
 msgid_plural "Overdue by %n days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1314
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1971
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1325
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1982
 msgid "Due today"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1317
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1974
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1328
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1985
 msgid "Due in %n day"
 msgid_plural "Due in %n days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1319
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1330
 msgid "Due {date}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1339
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1354
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1350
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1365
 #: /var/www/html/apps-extra/budget/templates/index.php:700
 msgid "No budgets configured"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1466
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1477
 #: /var/www/html/apps-extra/budget/templates/index.php:711
 #: /var/www/html/apps-extra/budget/templates/index.php:2726
 msgid "No savings goals yet"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1481
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1492
 msgid "Target: {amount}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1487
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1498
 msgid "{amount} saved"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1523
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1534
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:156
 msgid "Pension Income"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1530
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1541
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:163
 msgid "%n pension"
 msgid_plural "%n pensions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1533
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1544
 #: /var/www/html/apps-extra/budget/src/modules/pensions/PensionsModule.js:166
 msgid "{amount}/yr income"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1572
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1583
 msgid "{amount} ({percent}%) vs 30d ago"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1589
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1596
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1601
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1600
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1607
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1612
 #: /var/www/html/apps-extra/budget/templates/index.php:802
 msgid "No spending data"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1635
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1742
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1646
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1753
 #: /var/www/html/apps-extra/budget/templates/index.php:811
 #: /var/www/html/apps-extra/budget/templates/index.php:838
 msgid "No account data"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1668
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1679
 #: /var/www/html/apps-extra/budget/templates/index.php:820
 msgid "No budget data"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1708
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1719
 #: /var/www/html/apps-extra/budget/templates/index.php:829
 msgid "No savings goals"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1760
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1771
 msgid "Credit Cards"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1761
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1772
 msgid "Investments"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1762
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1773
 msgid "Loans"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1770
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1781
 msgid "%n account"
 msgid_plural "%n accounts"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1782
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1793
 #: /var/www/html/apps-extra/budget/templates/index.php:847
 msgid "No accounts to reconcile"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1795
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1806
 msgid "All accounts reconciled"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1803
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1814
 msgid "Up to date"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1819
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1830
 msgid "No data available"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1841
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2254
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1852
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2265
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:473
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:718
 #: /var/www/html/apps-extra/budget/src/modules/reports/ReportsModule.js:901
@@ -5482,280 +5504,280 @@ msgstr ""
 msgid "Expenses"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1854
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1865
 msgid "No large transactions"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1878
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1889
 msgid "No spending data this week"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1888
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1899
 msgid "This week"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1892
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1903
 msgid "Daily average"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1903
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1914
 msgid "No unmatched transfers"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1923
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1934
 msgid "No category trends available"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1954
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1965
 msgid "No bills due soon"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:1995
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2001
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2006
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2012
 msgid "No recurring income set up"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2022
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2033
 msgid "No recent imports"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2048
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2059
 msgid "No import rules configured"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2056
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2067
 msgid "Active rules"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2060
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2071
 msgid "Total rules"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2071
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2082
 msgid "No spending data available"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2081
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2092
 msgid "Per day"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2085
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2096
 msgid "Projected monthly"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2100
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2111
 msgid "Uncategorized transactions"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2195
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2206
 msgid "Total Spending"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2341
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2352
 #: /var/www/html/apps-extra/budget/templates/index.php:1088
 msgid "Liabilities"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2429
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2440
 msgid "Asset Value"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2452
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2463
 msgid "Portfolio"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2507
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2518
 msgid "just now"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2509
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2520
 msgid "%n hour ago"
 msgid_plural "%n hours ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2512
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2523
 msgid "yesterday"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2514
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2525
 msgid "%n day ago"
 msgid_plural "%n days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2517
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2519
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2528
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2530
 msgid "Snapshots recorded automatically daily"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2517
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2528
 msgid "Last: {time}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2522
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2533
 msgid "Record now"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2822
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2837
 msgid "Net worth snapshot recorded"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2830
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:2845
 msgid "Failed to record snapshot"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3047
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3062
 msgid "Failed to save dashboard layout"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3109
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3124
 #: /var/www/html/apps-extra/budget/templates/index.php:612
 msgid "No net worth history yet"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3110
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3125
 msgid "Snapshots are recorded automatically every day."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3124
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3139
 #: /var/www/html/apps-extra/budget/templates/index.php:636
 msgid "No asset value history yet"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3125
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3140
 #: /var/www/html/apps-extra/budget/templates/index.php:637
 msgid "Add snapshots to your assets to track their combined value over time."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3133
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3148
 #: /var/www/html/apps-extra/budget/templates/index.php:650
 #: /var/www/html/apps-extra/budget/templates/index.php:686
 msgid "View All"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3895
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3912
 msgid "Failed to save dashboard lock state"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3915
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3932
 #: /var/www/html/apps-extra/budget/templates/index.php:315
 msgid "Unlock Dashboard"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3916
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3933
 #: /var/www/html/apps-extra/budget/templates/index.php:292
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3930
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3947
 msgid "Lock Dashboard"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3931
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3948
 msgid "Drag tiles to reorder your dashboard"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:3994
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4086
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4011
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4103
 #: /var/www/html/apps-extra/budget/templates/index.php:6302
 msgid "Tile Settings"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4011
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4028
 msgid "Remove tile"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4011
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4028
 msgid "Hide tile"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4110
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4127
 msgid "Date Range"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4146
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4163
 msgid "Show legend"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4161
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4178
 msgid "Show top-level categories only"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4176
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4193
 msgid "Chart Type"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4187
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4204
 msgid "Rows to show"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4203
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4220
 msgid "Display Format"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4216
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4233
 msgid "Show change indicator"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4227
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4244
 msgid "No settings available for this tile."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4234
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4251
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4442
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4468
 msgid "All tiles are visible"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4448
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4474
 msgid "Insights & Analytics"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4449
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4475
 msgid "Budgeting"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4450
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4476
 msgid "Forecasting"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4453
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4479
 #: /var/www/html/apps-extra/budget/templates/index.php:4221
 msgid "Debts"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4454
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4480
 msgid "Goals"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4456
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4482
 msgid "Alerts"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4457
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4483
 msgid "Interactive"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4479
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4505
 msgid "Hero"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4509
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4535
 msgid "Add Another"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4582
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4608
 msgid "Maximum of {max} instances reached"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4651
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4677
 msgid "Tile added"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4689
+#: /var/www/html/apps-extra/budget/src/modules/dashboard/DashboardModule.js:4715
 msgid "Tile removed"
 msgstr ""
 
@@ -6098,74 +6120,81 @@ msgstr ""
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1467
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1471
+msgid "%n row could not be imported — check the server log for details."
+msgid_plural ""
+"%n rows could not be imported — check the server log for details."
+msgstr[0] ""
+msgstr[1] ""
+
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1478
 msgid "Import complete. %n category created — it may take a moment to appear."
 msgid_plural ""
 "Import complete. %n categories created — they may take a moment to appear."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1480
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1491
 msgid "Failed to import transactions: {message}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1503
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1514
 msgid "Auto-linked {count} transfer pairs"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1593
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1604
 msgid "Download"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1594
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1605
 msgid "Rollback"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1617
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1628
 msgid "0 Bytes"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1619
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1630
 msgid "Bytes"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1619
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1630
 msgid "KB"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1619
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1630
 msgid "MB"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1619
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1630
 msgid "GB"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1641
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1652
 msgid "Download failed"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1645
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1656
 msgid "Failed to download import file"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1650
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1661
 msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1665
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1676
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1670
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1681
 msgid "Rollback failed"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1674
+#: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:1685
 msgid "Failed to rollback import: {message}"
 msgstr ""
 
@@ -8565,7 +8594,7 @@ msgid "Detect recurring transfers"
 msgstr ""
 
 #: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:62
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:939
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:943
 msgid "Find Transfers"
 msgstr ""
 
@@ -8782,41 +8811,41 @@ msgstr ""
 msgid "Transfer marked as paid"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:936
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:940
 msgid "Failed to detect recurring transfers"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:969
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:973
 msgid "From: {account}"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:972
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:976
 msgid "To:"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:974
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:978
 msgid "— Select destination —"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:991
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:995
 msgid "Please select at least one transfer to add"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1002
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1006
 msgid "Please select a destination account for all selected transfers"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1008
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1012
 msgid "Source and destination accounts must be different"
 msgstr ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1033
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1037
 msgid "%n transfer added successfully"
 msgid_plural "%n transfers added successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1036
+#: /var/www/html/apps-extra/budget/src/modules/transfers/TransfersModule.js:1040
 msgid "Failed to add selected transfers"
 msgstr ""
 

@@ -148,37 +148,6 @@ class RecurringIncomeMapper extends QBMapper {
     }
 
     /**
-     * Get total monthly income amount (normalized from all frequencies)
-     */
-    public function getMonthlyTotal(string $userId): float {
-        $incomes = $this->findActive($userId);
-        $total = 0.0;
-
-        foreach ($incomes as $income) {
-            $total += $this->getMonthlyEquivalent($income);
-        }
-
-        return $total;
-    }
-
-    /**
-     * Convert any income frequency to monthly equivalent
-     */
-    private function getMonthlyEquivalent(RecurringIncome $income): float {
-        $amount = $income->getAmount();
-
-        return match ($income->getFrequency()) {
-            'daily' => $amount * 30,
-            'weekly' => $amount * 52 / 12,
-            'biweekly' => $amount * 26 / 12,
-            'monthly' => $amount,
-            'quarterly' => $amount / 3,
-            'yearly' => $amount / 12,
-            default => $amount,
-        };
-    }
-
-    /**
      * Find active income entries with auto-create enabled that are due today or earlier.
      *
      * @return RecurringIncome[]

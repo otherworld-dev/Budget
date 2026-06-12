@@ -1463,6 +1463,17 @@ export default class ImportModule {
 
             if (response.ok) {
                 showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
+                if (result.errors && result.errors.length > 0) {
+                    // Partial failure (e.g. a mapped destination account was
+                    // deleted) — must not masquerade as a full success
+                    showWarning(n(
+                        'budget',
+                        '%n row could not be imported — check the server log for details.',
+                        '%n rows could not be imported — check the server log for details.',
+                        result.errors.length
+                    ));
+                    console.warn('Import errors:', result.errors);
+                }
                 if (result.categoriesCreated && result.categoriesCreated > 0) {
                     showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
                 }

@@ -302,22 +302,20 @@ class RecurringIncomeService extends AbstractCrudService {
     }
 
     /**
-     * Convert any income frequency to monthly equivalent.
+     * Convert any income frequency to monthly equivalent. Delegates to the
+     * shared FrequencyCalculator (this map previously halved semi-monthly
+     * income and counted one-time income at full value every month).
      */
     private function getMonthlyEquivalent(RecurringIncome $income): float {
-        $amount = $income->getAmount();
-
-        return match ($income->getFrequency()) {
-            'daily' => $amount * 30,
-            'weekly' => $amount * 52 / 12,
-            'biweekly' => $amount * 26 / 12,
-            'monthly' => $amount,
-            'quarterly' => $amount / 3,
-            'semi-annually' => $amount / 6,
-            'yearly' => $amount / 12,
-            'one-time' => $amount,
-            default => $amount,
-        };
+        if ($income->getFrequency() === 'one-time') {
+            // Not a recurring monthly commitment — counting it monthly until
+            // received inflated the summary (matches RecurringBudgetService)
+            return 0.0;
+        }
+        return $this->frequencyCalculator->getMonthlyEquivalentFromValues(
+            $income->getAmount(),
+            $income->getFrequency()
+        );
     }
 
     /**

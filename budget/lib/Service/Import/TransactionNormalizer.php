@@ -281,9 +281,12 @@ class TransactionNormalizer {
         if (!empty($transaction['id'])) {
             // FITID is globally unique per bank, so we can use it directly.
             // The OFX spec allows FITIDs up to 255 chars but import_id is
-            // VARCHAR(255) and may gain _occN/_dupN suffixes — hash long ones.
+            // VARCHAR(255) and may gain _dupN suffixes — hash overly long
+            // ones. Threshold 245: 'ofx_fitid_' + 245 = 255, so every FITID
+            // that previously imported successfully keeps its exact legacy ID
+            // (re-import dedup continuity); only previously-failing ones change.
             $fitid = (string) $transaction['id'];
-            return strlen($fitid) > 200
+            return strlen($fitid) > 245
                 ? 'ofx_fitid_h_' . md5($fitid)
                 : 'ofx_fitid_' . $fitid;
         }

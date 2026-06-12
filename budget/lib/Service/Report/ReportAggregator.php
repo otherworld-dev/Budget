@@ -9,6 +9,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\RecurringBudgetService;
 
 /**
  * Aggregates data to generate summary reports.
@@ -28,7 +29,8 @@ class ReportAggregator {
         CategoryMapper $categoryMapper,
         BudgetSnapshotMapper $budgetSnapshotMapper,
         ReportCalculator $calculator,
-        CurrencyConversionService $conversionService
+        CurrencyConversionService $conversionService,
+        private RecurringBudgetService $recurringBudgetService
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
@@ -341,6 +343,13 @@ class ReportAggregator {
         $reportMonth = substr($startDate, 0, 7); // YYYY-MM from startDate
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $reportMonth);
 
+        // Auto-derived recurring budgets (#269) apply to current/future months
+        // only — they reflect today's bills and must not rewrite history.
+        // Mirrors the Budget view's rule so both surfaces agree.
+        $recurringBudgets = $reportMonth >= date('Y-m')
+            ? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
+            : [];
+
         // Collect category IDs that have budgets (considering snapshots, excluding excluded)
         $categoryIds = [];
         $resolvedBudgets = [];
@@ -352,6 +361,12 @@ class ReportAggregator {
             $budgeted = isset($snapshotOverrides[$catId])
                 ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
                 : (float) ($category->getBudgetAmount() ?? 0);
+            if ($budgeted <= 0 && isset($recurringBudgets[$catId])) {
+                $budgeted = $this->recurringBudgetService->convertMonthlyToPeriod(
+                    (float) $recurringBudgets[$catId],
+                    $category->getBudgetPeriod() ?? 'monthly'
+                );
+            }
             if ($budgeted > 0) {
                 $categoryIds[] = $catId;
                 $resolvedBudgets[$catId] = $budgeted;

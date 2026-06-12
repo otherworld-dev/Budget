@@ -43,7 +43,17 @@ class RecurringBudgetService {
     public function getMonthlyBudgetsByCategory(string $userId): array {
         $totals = [];
 
+        $today = date('Y-m-d');
         foreach ($this->billService->findActive($userId) as $bill) {
+            // A bill that hasn't started yet (or has already ended) is not a
+            // current commitment — counting it would double up during #268's
+            // "end bill A, start replacement B later" overlap window.
+            if ($bill->getStartDate() !== null && $bill->getStartDate() > $today) {
+                continue;
+            }
+            if ($bill->getEndDate() !== null && $bill->getEndDate() < $today) {
+                continue;
+            }
             $factor = $this->monthlyFactor($bill->getFrequency(), $bill->getCustomRecurrencePattern());
             if ($factor == 0.0) {
                 continue; // e.g. one-time bills: not a recurring commitment
@@ -80,6 +90,20 @@ class RecurringBudgetService {
         }
 
         return $totals;
+    }
+
+    /**
+     * Convert a monthly amount into the equivalent for a budget period.
+     * Mirrors the Budget view's conversion so every surface that applies the
+     * recurring fallback (alerts, budget report, frontend) agrees.
+     */
+    public function convertMonthlyToPeriod(float $monthly, string $period): float {
+        return match ($period) {
+            'weekly' => $monthly * 12 / 52,
+            'quarterly' => $monthly * 3,
+            'yearly' => $monthly * 12,
+            default => $monthly,
+        };
     }
 
     /**

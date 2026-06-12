@@ -633,12 +633,34 @@ class ImportService {
                         $duplicates++;
                     }
                 } else {
-                    // Account doesn't exist yet — treat as new (not duplicate)
+                    // Account doesn't exist yet — nothing in the DB to dedup
+                    // against, but a repeated non-hash ID (e.g. duplicate OFX
+                    // FITID) within this same file is still a duplicate that
+                    // execute will skip after creating the account.
+                    $newAccountKey = 'new:' . ($transaction['_accountName'] ?? '');
+                    $importId = $this->occurrenceAwareImportId(
+                        $this->normalizer->generateImportId('preview', $index, $transaction),
+                        $newAccountKey,
+                        $hashCounts
+                    );
+                    $seenKey = $newAccountKey . '|' . $importId;
+                    $isDuplicate = isset($seenImportIds[$seenKey]);
+                    $seenImportIds[$seenKey] = true;
+
+                    if ($skipDuplicates && $isDuplicate) {
+                        $duplicates++;
+                        continue;
+                    }
+
                     $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
                     $transactions[] = array_merge($transaction, [
                         'rowIndex' => $index,
-                        'isDuplicate' => false,
+                        'isDuplicate' => $isDuplicate,
                     ]);
+
+                    if ($isDuplicate) {
+                        $duplicates++;
+                    }
                 }
             } catch (\Exception $e) {
                 $errors[] = ['row' => $index, 'error' => $e->getMessage(), 'data' => $row];
@@ -713,7 +735,7 @@ class ImportService {
             try {
                 $destAccount = $this->accountMapper->find((int)$destAccountId, $userId);
             } catch (\Exception $e) {
-                $errors[] = ['sourceAccountId' => $sourceId, 'error' => "Destination account {$destAccountId} not found"];
+                $errors[] = ['sourceAccountId' => $sourceId, 'error' => $this->l->t('Destination account %1$s not found', [(string)$destAccountId])];
                 continue;
             }
             $accountResults[$sourceId] = [
@@ -795,9 +817,15 @@ class ImportService {
         } finally {
             // Balance updates were deferred per-row; recompute once per
             // account — in a finally so persisted rows can never be left
-            // with a stale balance even if the import aborts mid-way.
+            // with a stale balance even if the import aborts mid-way. Each
+            // recompute is guarded: one failing account must not skip the
+            // others or replace an in-flight exception.
             foreach (array_keys($touchedAccounts) as $touchedAccountId) {
-                $this->transactionService->recalculateAccountBalance($touchedAccountId, $userId);
+                try {
+                    $this->transactionService->recalculateAccountBalance($touchedAccountId, $userId);
+                } catch (\Exception $e) {
+                    $errors[] = ['error' => $this->l->t('Failed to recalculate balance for account %1$s', [(string)$touchedAccountId])];
+                }
             }
         }
 

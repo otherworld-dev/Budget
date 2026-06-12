@@ -198,8 +198,16 @@ class RecurringIncomeController extends Controller {
             // Use request params (php://input is consumed by the framework)
             $data = $this->request->getParams();
 
-            // Remove framework-injected params that aren't part of the update
-            unset($data['id'], $data['_route']);
+            // Allowlist updatable fields — the service applies any key with a
+            // matching entity setter, so passing the raw body through would
+            // let a crafted payload set userId/createdAt/id (mass assignment)
+            $allowed = [
+                'name', 'description', 'amount', 'frequency', 'expectedDay',
+                'expectedMonth', 'categoryId', 'accountId', 'source',
+                'autoDetectPattern', 'notes', 'autoCreateEnabled', 'isActive',
+                'lastReceivedDate', 'excludedFromForecast',
+            ];
+            $data = array_intersect_key($data, array_flip($allowed));
 
             if (empty($data)) {
                 return new DataResponse(['error' => $this->l->t('No data provided')], Http::STATUS_BAD_REQUEST);

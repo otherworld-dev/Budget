@@ -31,13 +31,17 @@ class ReportAggregatorTest extends TestCase {
 
 		$budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
 
+		$recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+		$recurringBudgetService->method('getMonthlyBudgetsByCategory')->willReturn([]);
+
 		$this->aggregator = new ReportAggregator(
 			$this->accountMapper,
 			$this->transactionMapper,
 			$this->categoryMapper,
 			$budgetSnapshotMapper,
 			$this->calculator,
-			$this->conversionService
+			$this->conversionService,
+			$recurringBudgetService
 		);
 	}
 

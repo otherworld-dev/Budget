@@ -25,13 +25,41 @@ class BudgetAlertService {
         BudgetSnapshotMapper $budgetSnapshotMapper,
         TransactionMapper $transactionMapper,
         TransactionSplitMapper $splitMapper,
-        SettingService $settingService
+        SettingService $settingService,
+        private RecurringBudgetService $recurringBudgetService
     ) {
         $this->categoryMapper = $categoryMapper;
         $this->budgetSnapshotMapper = $budgetSnapshotMapper;
         $this->transactionMapper = $transactionMapper;
         $this->splitMapper = $splitMapper;
         $this->settingService = $settingService;
+    }
+
+    /**
+     * Resolve a category's effective budget for "now": snapshot override,
+     * else the category's own budget, else the auto-derived recurring budget
+     * (#269) converted to the category's period — so alerts and budget status
+     * agree with what the Budget view shows.
+     *
+     * @return array{amount: float, period: string}
+     */
+    private function resolveEffectiveBudget($category, array $snapshotOverrides, array $recurringBudgets): array {
+        $catId = $category->getId();
+        $period = isset($snapshotOverrides[$catId])
+            ? ($snapshotOverrides[$catId]['period'] ?? 'monthly')
+            : ($category->getBudgetPeriod() ?? 'monthly');
+        $amount = isset($snapshotOverrides[$catId])
+            ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
+            : (float) ($category->getBudgetAmount() ?? 0);
+
+        if ($amount <= 0 && isset($recurringBudgets[$catId])) {
+            $amount = $this->recurringBudgetService->convertMonthlyToPeriod(
+                (float) $recurringBudgets[$catId],
+                $period
+            );
+        }
+
+        return ['amount' => $amount, 'period' => $period];
     }
 
     /**
@@ -46,6 +74,7 @@ class BudgetAlertService {
         $categories = $this->categoryMapper->findAll($userId);
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
+        $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
 
         // Filter to categories with effective budgets > 0 (excluding excluded categories)
         $categoriesWithBudgets = [];
@@ -53,11 +82,8 @@ class BudgetAlertService {
             if ($category->getExcludedFromReports()) {
                 continue;
             }
-            $catId = $category->getId();
-            $amount = isset($snapshotOverrides[$catId])
-                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
-                : (float) ($category->getBudgetAmount() ?? 0);
-            if ($amount > 0) {
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
+            if ($resolved['amount'] > 0) {
                 $categoriesWithBudgets[] = $category;
             }
         }
@@ -71,13 +97,9 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
-            $catId = $category->getId();
-            $period = isset($snapshotOverrides[$catId])
-                ? ($snapshotOverrides[$catId]['period'] ?? 'monthly')
-                : ($category->getBudgetPeriod() ?? 'monthly');
-            $budget = isset($snapshotOverrides[$catId])
-                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
-                : (float) ($category->getBudgetAmount() ?? 0);
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
+            $period = $resolved['period'];
+            $budget = $resolved['amount'];
 
             if (!isset($periodRanges[$period])) {
                 continue;
@@ -139,6 +161,7 @@ class BudgetAlertService {
         $categories = $this->categoryMapper->findAll($userId);
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
+        $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
 
         // Filter to categories with effective budgets > 0 (excluding excluded categories)
         $categoriesWithBudgets = [];
@@ -146,11 +169,8 @@ class BudgetAlertService {
             if ($category->getExcludedFromReports()) {
                 continue;
             }
-            $catId = $category->getId();
-            $amount = isset($snapshotOverrides[$catId])
-                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
-                : (float) ($category->getBudgetAmount() ?? 0);
-            if ($amount > 0) {
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
+            if ($resolved['amount'] > 0) {
                 $categoriesWithBudgets[] = $category;
             }
         }
@@ -163,13 +183,9 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
-            $catId = $category->getId();
-            $period = isset($snapshotOverrides[$catId])
-                ? ($snapshotOverrides[$catId]['period'] ?? 'monthly')
-                : ($category->getBudgetPeriod() ?? 'monthly');
-            $budget = isset($snapshotOverrides[$catId])
-                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
-                : (float) ($category->getBudgetAmount() ?? 0);
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
+            $period = $resolved['period'];
+            $budget = $resolved['amount'];
 
             if (!isset($periodRanges[$period])) {
                 continue;

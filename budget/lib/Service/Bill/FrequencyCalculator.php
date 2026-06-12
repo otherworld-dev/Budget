@@ -274,6 +274,7 @@ class FrequencyCalculator {
             'daily' => 365,
             'weekly' => 52,
             'biweekly' => 26,
+            'semi-monthly' => 24,
             'monthly' => 12,
             'quarterly' => 4,
             'semi-annually' => 2,

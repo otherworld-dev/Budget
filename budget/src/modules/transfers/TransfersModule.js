@@ -897,10 +897,14 @@ export default class TransfersModule {
                 return amount * 52 / 12;
             case 'biweekly':
                 return amount * 26 / 12;
+            case 'semi-monthly':
+                return amount * 2;
             case 'monthly':
                 return amount;
             case 'quarterly':
                 return amount / 3;
+            case 'semi-annually':
+                return amount / 6;
             case 'yearly':
                 return amount / 12;
             default:

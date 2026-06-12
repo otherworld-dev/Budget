@@ -205,35 +205,6 @@ class BillMapper extends QBMapper {
     }
 
     /**
-     * Get total monthly bill amount
-     */
-    public function getMonthlyTotal(string $userId): float {
-        $bills = $this->findActive($userId);
-        $total = 0.0;
-
-        foreach ($bills as $bill) {
-            $total += $this->getMonthlyEquivalent($bill);
-        }
-
-        return $total;
-    }
-
-    /**
-     * Convert any bill frequency to monthly equivalent
-     */
-    private function getMonthlyEquivalent(Bill $bill): float {
-        $amount = $bill->getAmount();
-
-        return match ($bill->getFrequency()) {
-            'weekly' => $amount * 52 / 12,    // ~4.33 weeks per month
-            'monthly' => $amount,
-            'quarterly' => $amount / 3,
-            'yearly' => $amount / 12,
-            default => $amount,
-        };
-    }
-
-    /**
      * Update specific fields directly using query builder.
      * This is useful for setting fields to null where Entity change detection may not work.
      *

@@ -147,6 +147,32 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame('Monthly paycheck', $captured[12], 'description must be passed to service::create');
 	}
 
+	public function testUpdateRejectsNonAllowlistedFields(): void {
+		// Mass-assignment guard: the service applies any key with a matching
+		// setter, so the controller must strip userId/createdAt/etc. — a
+		// crafted payload could otherwise reassign the row to another user.
+		$this->request->method('getParams')->willReturn([
+			'notes' => 'legit change',
+			'userId' => 'victim',
+			'createdAt' => '1999-01-01 00:00:00',
+			'id' => 999,
+		]);
+		$income = $this->createMock(RecurringIncome::class);
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function ($id, $userId, $data) use (&$captured, $income) {
+			$captured = $data;
+			return $income;
+		});
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertArrayHasKey('notes', $captured);
+		$this->assertArrayNotHasKey('userId', $captured);
+		$this->assertArrayNotHasKey('createdAt', $captured);
+		$this->assertArrayNotHasKey('id', $captured);
+	}
+
 	public function testUpdatePersistsDescription(): void {
 		$this->validationService->method('validateDescription')
 			->willReturn(['valid' => true, 'sanitized' => 'Updated note']);

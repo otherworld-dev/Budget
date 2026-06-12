@@ -497,8 +497,26 @@ class BillController extends Controller {
                         return new DataResponse(['error' => $splitValidation['error']], Http::STATUS_BAD_REQUEST);
                     }
                     $updates['splitTemplate'] = json_encode(array_values($data['splitTemplate']));
+                    // Splits define the categories — a bill-level category must
+                    // not coexist (create() enforces the same invariant)
+                    $updates['categoryId'] = null;
                 } else {
                     $updates['splitTemplate'] = null;
+                }
+            } elseif (isset($updates['amount'])) {
+                // Amount changed without resending the split template: a stored
+                // template whose sum no longer matches would silently fail at
+                // payment time (the transaction imports unsplit and
+                // uncategorized), so validate it against the new amount.
+                $existingBill = $this->service->find($id, $this->getEffectiveUserId());
+                $storedSplits = $existingBill->getSplitTemplateArray();
+                if (!empty($storedSplits)) {
+                    $splitValidation = $this->validateSplitTemplate($storedSplits, $updates['amount']);
+                    if (!$splitValidation['valid']) {
+                        return new DataResponse([
+                            'error' => $this->l->t('The new amount does not match the bill\'s split template. Update the splits together with the amount.'),
+                        ], Http::STATUS_BAD_REQUEST);
+                    }
                 }
             }
 

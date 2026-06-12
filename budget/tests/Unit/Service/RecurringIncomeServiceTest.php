@@ -24,6 +24,10 @@ class RecurringIncomeServiceTest extends TestCase {
     protected function setUp(): void {
         $this->mapper = $this->createMock(RecurringIncomeMapper::class);
         $this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
+        // Monthly-equivalent math now delegates to the calculator — back the
+        // mock with the real (pure) implementation so summaries compute
+        $this->frequencyCalculator->method('getMonthlyEquivalentFromValues')
+            ->willReturnCallback(fn(float $amount, string $frequency) => (new FrequencyCalculator())->getMonthlyEquivalentFromValues($amount, $frequency));
         $this->recurringDetector = $this->createMock(RecurringIncomeDetector::class);
         $this->transactionService = $this->createMock(TransactionService::class);
         $logger = $this->createMock(LoggerInterface::class);
@@ -221,6 +225,29 @@ class RecurringIncomeServiceTest extends TestCase {
         $this->assertEqualsWithDelta(3866.67, $result['monthlyTotal'], 0.01);
         $this->assertEquals(1, $result['byFrequency']['monthly']['count']);
         $this->assertEquals(1, $result['byFrequency']['weekly']['count']);
+    }
+
+    public function testGetMonthlySummaryOneTimeIncomeNotCountedMonthly(): void {
+        // One-time income is not a recurring monthly commitment — the old map
+        // counted it at full value every month until received
+        $oneTime = $this->makeIncome(['id' => 1, 'amount' => 5000.0, 'frequency' => 'one-time']);
+        $monthly = $this->makeIncome(['id' => 2, 'amount' => 3000.0, 'frequency' => 'monthly']);
+
+        $this->mapper->method('findActive')->willReturn([$oneTime, $monthly]);
+
+        $result = $this->service->getMonthlySummary('user1');
+
+        $this->assertEqualsWithDelta(3000.0, $result['monthlyTotal'], 0.01);
+    }
+
+    public function testGetMonthlySummarySemiMonthlyCountedTwice(): void {
+        $semiMonthly = $this->makeIncome(['id' => 1, 'amount' => 1500.0, 'frequency' => 'semi-monthly']);
+
+        $this->mapper->method('findActive')->willReturn([$semiMonthly]);
+
+        $result = $this->service->getMonthlySummary('user1');
+
+        $this->assertEqualsWithDelta(3000.0, $result['monthlyTotal'], 0.01);
     }
 
     public function testGetMonthlySummaryWithNoIncomes(): void {

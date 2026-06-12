@@ -60,8 +60,10 @@ class ForecastService {
             return;
         }
 
-        // Clear known cache keys for this user
-        $this->cache->remove("live_{$userId}");
+        // Prefix-clear: live keys carry horizon + visibility suffixes, so a
+        // plain remove() of the bare key never matched anything and toggles
+        // (e.g. exclude-from-forecast) appeared to do nothing for 5 minutes.
+        $this->cache->clear("live_{$userId}_");
         $this->cache->remove("forecast_{$userId}_all");
     }
 
@@ -133,7 +135,10 @@ class ForecastService {
      * OPTIMIZED: Results are cached for 5 minutes.
      */
     public function getLiveForecast(string $userId, int $forecastMonths = 6, ?array $visibleAccountIds = null): array {
-        $cacheKey = "live_{$userId}_{$forecastMonths}";
+        // Key includes account visibility: a share-restricted viewer and the
+        // owner must never share a cache entry (the owner's totals would leak
+        // across the visibility boundary for up to the TTL).
+        $cacheKey = "live_{$userId}_{$forecastMonths}_" . md5(json_encode($visibleAccountIds ?? []));
 
         // Try to get from cache
         if ($this->cache !== null) {

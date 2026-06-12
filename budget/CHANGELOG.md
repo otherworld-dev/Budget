@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- The recurring-income update endpoint no longer passes the raw request body through to the entity layer — a crafted payload could previously set internal fields such as the owning user (mass assignment, integrity only — no data disclosure). Update keys are now allowlisted like the other endpoints
+
 ### Fixed
+- Auto-derived recurring budgets (#269) are now consistent across **all** surfaces: the dashboard "Budget Remaining" hero, Budget Progress/Breakdown widgets, Budget Health score, and **budget alerts** now apply the same recurring fallback as the Budget view — a category funded only by recurring bills can now trigger alerts and is counted in headline totals
+- Auto-derived budgets now respect bill start/end dates: a bill that hasn't started (or has ended) no longer counts toward today's budget, avoiding double-counting during a planned cost change ([#268](https://github.com/otherworld-dev/Budget/issues/268))
+- Recurring income summaries (Income view header, dashboard Income Tracking widget): semi-monthly income was counted at half its value, and a one-time income at full value every month until received
+- Transfers page monthly total: semi-monthly and semi-annual transfers were converted incorrectly
+- Live forecast cache: cache invalidation never matched the stored key (changes such as toggling "exclude from forecast" appeared to do nothing for up to 5 minutes), and the cache key ignored shared-account visibility, letting a share-restricted viewer briefly see the owner's totals
+- Editing a bill's amount without updating its split template is now rejected when the stored splits no longer match (the payment would have silently imported unsplit and uncategorized); setting a split template via the API now clears the bill-level category, matching creation
+- Multi-account import partial failures (e.g. a deleted destination account) are now reported in the UI instead of masquerading as a full success
+- Import preview now also flags repeated bank transaction IDs for accounts that will be created by the import
+- Long OFX FITID hashing threshold raised so every previously-imported FITID keeps its exact ID (re-import dedup continuity)
 - Auto-derived category budgets ([#269](https://github.com/otherworld-dev/Budget/issues/269)) now handle every supported frequency correctly: semi-annual bills were over-counted 6×, semi-monthly halved, custom-schedule bills counted every month, and one-time bills inflated the budget monthly until marked paid (now excluded). Frequency math is delegated to the shared calculator, which also gained the missing semi-monthly conversion
 - Auto-derived budgets no longer apply to past months — they reflect today's recurring bills/income and were rewriting history (including overriding explicitly-zeroed snapshot budgets)
 - Multi-account import: an invalid destination account mid-import no longer aborts the batch, and deferred balance recomputes now always run for already-imported rows

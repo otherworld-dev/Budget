@@ -658,10 +658,13 @@ class BillService {
             'daily' => 0.0,
             'weekly' => 0.0,
             'biweekly' => 0.0,
+            'semi-monthly' => 0.0,
             'monthly' => 0.0,
             'quarterly' => 0.0,
+            'semi-annually' => 0.0,
             'yearly' => 0.0,
             'one-time' => 0.0,
+            'custom' => 0.0,
         ];
 
         $today = date('Y-m-d');
