@@ -34,6 +34,9 @@ class ReportAggregatorTest extends TestCase {
 		$recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
 		$recurringBudgetService->method('getMonthlyBudgetsByCategory')->willReturn([]);
 
+		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+		$carryoverService->method('getCarryovers')->willReturn([]);
+
 		$this->aggregator = new ReportAggregator(
 			$this->accountMapper,
 			$this->transactionMapper,
@@ -41,7 +44,8 @@ class ReportAggregatorTest extends TestCase {
 			$budgetSnapshotMapper,
 			$this->calculator,
 			$this->conversionService,
-			$recurringBudgetService
+			$recurringBudgetService,
+			$carryoverService
 		);
 	}
 

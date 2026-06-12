@@ -530,6 +530,7 @@ export default class AccountsModule {
             // Load account transactions and metrics
             await this.loadAccountTransactions(accountId);
             await this.loadAccountMetrics(accountId);
+            this.loadReconciliationHistory(accountId);
 
             // Setup account details event listeners
             this.setupAccountDetailsEventListeners();
@@ -686,6 +687,40 @@ export default class AccountsModule {
         document.getElementById('account-display-currency').textContent = currency;
         document.getElementById('account-opened').textContent = account.openedDate ? this.formatDate(account.openedDate) : t('budget', 'Not provided');
         document.getElementById('last-reconciled').textContent = account.lastReconciled ? this.formatDate(account.lastReconciled) : t('budget', 'Never');
+    }
+
+    async loadReconciliationHistory(accountId) {
+        const section = document.getElementById('recon-history-section');
+        const body = document.getElementById('recon-history-body');
+        if (!section || !body) return;
+
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/history`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) {
+                section.style.display = 'none';
+                return;
+            }
+            const history = await response.json();
+            if (!Array.isArray(history) || history.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            body.innerHTML = history.map(session => `
+                <tr>
+                    <td>${this.formatDate(session.statementDate)}</td>
+                    <td>${this.formatCurrency(session.statementBalance)}</td>
+                    <td>${session.reconciledCount}</td>
+                    <td>${session.completedAt ? this.formatDate(session.completedAt) : '-'}</td>
+                </tr>
+            `).join('');
+            section.style.display = 'block';
+        } catch (error) {
+            section.style.display = 'none';
+        }
     }
 
     async loadInterestDetails(accountId, currency) {
@@ -1473,6 +1508,23 @@ export default class AccountsModule {
         window.location.hash = '#/transactions';
         this.app.showView('transactions');
         await this.app.loadTransactions();
+
+        // Resume an in-progress session instead of starting over
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (response.ok) {
+                const state = await response.json();
+                if (state.session && this.app.transactionsModule) {
+                    await this.app.transactionsModule.enterReconcileSession(state);
+                    return;
+                }
+            }
+        } catch (error) {
+            // Fall through to the start panel
+        }
 
         const reconcileAccountSelect = document.getElementById('reconcile-account');
         if (reconcileAccountSelect) {

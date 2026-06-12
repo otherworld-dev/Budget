@@ -18,6 +18,15 @@ return [
         ['name' => 'account#getBalanceHistory', 'url' => '/api/accounts/{id}/balance-history', 'verb' => 'GET'],
         ['name' => 'account#reconcile', 'url' => '/api/accounts/{id}/reconcile', 'verb' => 'POST'],
         ['name' => 'account#completeReconciliation', 'url' => '/api/accounts/{id}/reconcile/complete', 'verb' => 'POST'],
+
+        // Statement reconciliation sessions
+        ['name' => 'reconciliation#getSession', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'GET'],
+        ['name' => 'reconciliation#start', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'POST'],
+        ['name' => 'reconciliation#update', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'PUT'],
+        ['name' => 'reconciliation#cancel', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'DELETE'],
+        ['name' => 'reconciliation#tick', 'url' => '/api/accounts/{id}/reconciliation/tick', 'verb' => 'POST'],
+        ['name' => 'reconciliation#complete', 'url' => '/api/accounts/{id}/reconciliation/complete', 'verb' => 'POST'],
+        ['name' => 'reconciliation#history', 'url' => '/api/accounts/{id}/reconciliation/history', 'verb' => 'GET'],
         ['name' => 'account#reveal', 'url' => '/api/accounts/{id}/reveal', 'verb' => 'GET'],
 
         // Interest accrual routes
@@ -160,6 +169,8 @@ return [
         ['name' => 'bill#summary', 'url' => '/api/bills/summary', 'verb' => 'GET'],
         ['name' => 'bill#statusForMonth', 'url' => '/api/bills/status', 'verb' => 'GET'],
         ['name' => 'bill#detect', 'url' => '/api/bills/detect', 'verb' => 'GET'],
+        ['name' => 'bill#suggestions', 'url' => '/api/bills/suggestions', 'verb' => 'GET'],
+        ['name' => 'bill#dismissSuggestion', 'url' => '/api/bills/suggestions/dismiss', 'verb' => 'POST'],
         ['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
         ['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
         ['name' => 'bill#exportCalendar', 'url' => '/api/bills/export-calendar', 'verb' => 'POST'],

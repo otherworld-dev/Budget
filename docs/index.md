@@ -15,6 +15,7 @@
 | [Dashboard](dashboard.md) | Customize your financial overview with 28+ configurable tiles |
 | [Accounts](accounts.md) | Manage checking, savings, credit cards, investments, and more |
 | [Transactions](transactions.md) | Add, edit, split, and filter transactions across all accounts |
+| [Reconciliation](reconciliation.md) | Verify accounts against bank statements with live difference tracking |
 | [Categories](categories.md) | Organize spending with a hierarchical category tree |
 | [Tags](tags.md) | Add extra classification dimensions to categories with tag sets |
 
@@ -23,6 +24,7 @@
 | Document | Description |
 |----------|-------------|
 | [Budget](budget.md) | Set spending limits per category and track progress |
+| [Envelope Budgets](envelope-budgets.md) | Carry unspent budget (or overspend) into the next month per category |
 | [Income](income.md) | Track recurring income sources and monitor receipt status |
 | [Bills](bills.md) | Detect and monitor recurring bills with due date notifications |
 | [Transfers](transfers.md) | Record and auto-match transfers between your accounts |

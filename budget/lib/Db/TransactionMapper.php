@@ -129,6 +129,181 @@ class TransactionMapper extends QBMapper {
         return $qb->executeStatement();
     }
 
+    // ==================== RECONCILIATION SESSIONS ====================
+
+    /**
+     * Signed net of all already-reconciled, non-scheduled transactions —
+     * the first-session anchor: opening_balance + this = cleared balance.
+     */
+    public function getReconciledNetChange(int $accountId): float {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias(
+                $qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
+                'net_change'
+            )
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('t.reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                    $qb->expr()->isNull('t.status')
+                )
+            );
+
+        $result = $qb->executeQuery();
+        $netChange = (float) $result->fetchOne();
+        $result->closeCursor();
+
+        return $netChange;
+    }
+
+    /**
+     * Signed net of the transactions ticked into a reconciliation session.
+     */
+    public function getSessionTickedSum(int $sessionId): float {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias(
+                $qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
+                'net_change'
+            )
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->eq('t.recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                    $qb->expr()->isNull('t.status')
+                )
+            );
+
+        $result = $qb->executeQuery();
+        $sum = (float) $result->fetchOne();
+        $result->closeCursor();
+
+        return $sum;
+    }
+
+    /**
+     * Ids of transactions currently ticked into a session.
+     *
+     * @return int[]
+     */
+    public function getSessionTransactionIds(int $sessionId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)));
+
+        $result = $qb->executeQuery();
+        $ids = array_map(fn($row) => (int) $row['id'], $result->fetchAll());
+        $result->closeCursor();
+
+        return $ids;
+    }
+
+    /**
+     * Tick transactions into a session (account-scoped; already-reconciled
+     * rows and rows belonging to another session are never grabbed).
+     */
+    public function tickIntoSession(int $accountId, array $transactionIds, int $sessionId): int {
+        if (empty($transactionIds)) {
+            return 0;
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT))
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->in('id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('reconciled')
+            ))
+            ->andWhere($qb->expr()->isNull('recon_session_id'));
+
+        return $qb->executeStatement();
+    }
+
+    /**
+     * Untick transactions from a session.
+     */
+    public function untickFromSession(int $accountId, array $transactionIds, int $sessionId): int {
+        if (empty($transactionIds)) {
+            return 0;
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('recon_session_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->in('id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('reconciled')
+            ));
+
+        return $qb->executeStatement();
+    }
+
+    /**
+     * Cancel a session: release its ticked (not yet reconciled) transactions.
+     */
+    public function clearSession(int $sessionId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('recon_session_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+            ->where($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('reconciled')
+            ));
+
+        return $qb->executeStatement();
+    }
+
+    /**
+     * Complete a session: mark everything ticked into it as reconciled.
+     * The session linkage stays — permanent provenance for history.
+     */
+    public function markSessionReconciled(int $sessionId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
+            ->where($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)));
+
+        return $qb->executeStatement();
+    }
+
+    /**
+     * Unreconciled, unticked, non-scheduled transactions dated on or before
+     * the statement date — surfaced as a heads-up when completing.
+     */
+    public function countUntickedBefore(int $accountId, string $statementDate): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias($qb->createFunction('COUNT(*)'), 'cnt')
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($statementDate)))
+            ->andWhere($qb->expr()->isNull('t.recon_session_id'))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.reconciled')
+            ))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                    $qb->expr()->isNull('t.status')
+                )
+            );
+
+        $result = $qb->executeQuery();
+        $count = (int) $result->fetchOne();
+        $result->closeCursor();
+
+        return $count;
+    }
+
     /**
      * Find a transaction by ID scoped to visible account IDs (for shared access).
      *
@@ -1898,6 +2073,48 @@ class TransactionMapper extends QBMapper {
         $result->closeCursor();
 
         return (float)($row['total'] ?? 0);
+    }
+
+    /**
+     * Direct (non-split) debit spending per category per bucket over a date
+     * range, in one query. Bucket is the calendar month (YYYY-MM) by default,
+     * or the exact date (YYYY-MM-DD) with $byDay — used by the budget
+     * carryover chain when a custom budget start day shifts period bounds.
+     *
+     * @return array<int, array<string, float>> categoryId => bucket => total
+     */
+    public function getCategorySpendingByBucketBatch(string $userId, string $startDate, string $endDate, bool $byDay = false): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : $this->monthExpr();
+
+        $qb->select('t.category_id')
+            ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
+            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->isNotNull('t.category_id'))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ))
+            ->groupBy('t.category_id')
+            ->addGroupBy($qb->createFunction($bucketExpr));
+
+        $this->excludeScheduledFuture($qb);
+
+        $result = $qb->executeQuery();
+        $totals = [];
+        while ($row = $result->fetch()) {
+            $totals[(int) $row['category_id']][substr((string) $row['bucket'], 0, $byDay ? 10 : 7)] = (float) $row['total'];
+        }
+        $result->closeCursor();
+
+        return $totals;
     }
 
     /**

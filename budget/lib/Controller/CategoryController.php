@@ -283,6 +283,9 @@ class CategoryController extends Controller {
             if (array_key_exists('excludedFromReports', $params)) {
                 $updates['excludedFromReports'] = (bool) $params['excludedFromReports'];
             }
+            if (array_key_exists('budgetRollover', $params)) {
+                $updates['budgetRollover'] = (bool) $params['budgetRollover'];
+            }
 
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);

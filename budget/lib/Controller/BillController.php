@@ -35,6 +35,7 @@ class BillController extends Controller {
         BillService $service,
         ValidationService $validationService,
         GranularShareService $granularShareService,
+        private \OCA\Budget\Service\Bill\BillSuggestionService $suggestionService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -779,6 +780,37 @@ class BillController extends Controller {
             return new DataResponse($detected);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to detect recurring bills'));
+        }
+    }
+
+    /**
+     * Proactive recurring-bill suggestions: new candidates only (not billed,
+     * not dismissed, confident).
+     * @NoAdminRequired
+     */
+    public function suggestions(int $limit = 5): DataResponse {
+        try {
+            $result = $this->suggestionService->getSuggestions($this->getEffectiveUserId(), $limit);
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to load bill suggestions'));
+        }
+    }
+
+    /**
+     * Dismiss a suggestion so it never reappears.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function dismissSuggestion(string $patternKey): DataResponse {
+        try {
+            if (trim($patternKey) === '') {
+                return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+            }
+            $this->suggestionService->dismiss($this->getEffectiveUserId(), $patternKey);
+            return new DataResponse(['status' => 'success']);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to dismiss suggestion'));
         }
     }
 

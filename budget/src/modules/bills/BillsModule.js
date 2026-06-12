@@ -47,9 +47,126 @@ export default class BillsModule {
 
             // Populate dropdowns in bill modal
             this.populateBillModalDropdowns();
+
+            // Proactive suggestions (non-blocking)
+            this.loadBillSuggestions();
         } catch (error) {
             console.error('Failed to load bills:', error);
             showError(t('budget', 'Failed to load bills'));
+        }
+    }
+
+    /**
+     * Proactive recurring-bill suggestions: payments that look recurring but
+     * aren't tracked as bills yet. Dismissals are remembered server-side.
+     */
+    async loadBillSuggestions() {
+        const card = document.getElementById('bill-suggestions-card');
+        const list = document.getElementById('bill-suggestions-list');
+        if (!card || !list) return;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                card.style.display = 'none';
+                return;
+            }
+            const data = await response.json();
+            this._billSuggestions = data.suggestions || [];
+
+            if (this._billSuggestions.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            const countBadge = document.getElementById('bill-suggestions-count');
+            if (countBadge) countBadge.textContent = String(data.total);
+
+            list.innerHTML = this._billSuggestions.map((item, index) => {
+                const confidenceClass = item.confidence >= 0.8 ? 'high' : item.confidence >= 0.5 ? 'medium' : 'low';
+                return `
+                    <div class="bill-suggestion-row" data-index="${index}">
+                        <div class="bill-suggestion-info">
+                            <strong>${dom.escapeHtml(item.suggestedName || item.description)}</strong>
+                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, null, this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
+                        </div>
+                        <div class="bill-suggestion-actions">
+                            <button class="primary bill-suggestion-create" data-index="${index}">${t('budget', 'Create bill')}</button>
+                            <button class="secondary bill-suggestion-dismiss" data-index="${index}">${t('budget', 'Dismiss')}</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.querySelectorAll('.bill-suggestion-create').forEach(btn => {
+                btn.addEventListener('click', (e) => this.createBillFromSuggestion(parseInt(e.currentTarget.dataset.index)));
+            });
+            list.querySelectorAll('.bill-suggestion-dismiss').forEach(btn => {
+                btn.addEventListener('click', (e) => this.dismissBillSuggestion(parseInt(e.currentTarget.dataset.index)));
+            });
+            const dismissAll = document.getElementById('bill-suggestions-dismiss-all');
+            if (dismissAll && !dismissAll._bound) {
+                dismissAll._bound = true;
+                dismissAll.addEventListener('click', () => this.dismissAllBillSuggestions());
+            }
+
+            card.style.display = 'block';
+        } catch (error) {
+            card.style.display = 'none';
+        }
+    }
+
+    async createBillFromSuggestion(index) {
+        const item = this._billSuggestions?.[index];
+        if (!item) return;
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ bills: [item] })
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create bill');
+            }
+            showSuccess(t('budget', 'Bill "{name}" created', { name: item.suggestedName || item.description }));
+            await this.loadBillsView();
+        } catch (error) {
+            showError(t('budget', 'Failed to create bill: {message}', { message: error.message }));
+        }
+    }
+
+    async dismissBillSuggestion(index) {
+        const item = this._billSuggestions?.[index];
+        if (!item) return;
+        try {
+            await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ patternKey: item.patternKey })
+            });
+            await this.loadBillSuggestions();
+        } catch (error) {
+            showError(t('budget', 'Failed to dismiss suggestion'));
+        }
+    }
+
+    async dismissAllBillSuggestions() {
+        if (!this._billSuggestions?.length) return;
+        if (!confirm(t('budget', 'Dismiss all suggestions? They will not be shown again.'))) return;
+        try {
+            for (const item of this._billSuggestions) {
+                await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                    body: JSON.stringify({ patternKey: item.patternKey })
+                });
+            }
+            await this.loadBillSuggestions();
+        } catch (error) {
+            showError(t('budget', 'Failed to dismiss suggestions'));
         }
     }
 

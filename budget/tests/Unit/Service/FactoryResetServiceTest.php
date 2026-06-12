@@ -53,6 +53,8 @@ class FactoryResetServiceTest extends TestCase {
     private $assetSnapshotMapper;
     private TagMapper $tagMapper;
     private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
+    private $reconciliationSessionMapper;
+    private $dismissedSuggestionMapper;
 
     protected function setUp(): void {
         $this->db = $this->createMock(IDBConnection::class);
@@ -78,6 +80,9 @@ class FactoryResetServiceTest extends TestCase {
 
         $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
         $this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
+        $reconciliationSessionMapper = $this->createMock(\OCA\Budget\Db\ReconciliationSessionMapper::class);
+        $this->reconciliationSessionMapper = $reconciliationSessionMapper;
+        $this->dismissedSuggestionMapper = $this->createMock(\OCA\Budget\Db\DismissedSuggestionMapper::class);
 
         $this->service = new FactoryResetService(
             $this->accountMapper,
@@ -101,6 +106,8 @@ class FactoryResetServiceTest extends TestCase {
             $budgetSnapshotMapper,
             $this->tagMapper,
             $this->attachmentMapper,
+            $this->reconciliationSessionMapper,
+            $this->dismissedSuggestionMapper,
             $this->db
         );
     }

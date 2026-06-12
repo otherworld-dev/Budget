@@ -32,7 +32,8 @@ class TransactionService {
         TransactionSplitMapper $splitMapper,
         ExpenseShareMapper $expenseShareMapper,
         DismissedImportMapper $dismissedImportMapper,
-        private \OCA\Budget\Db\AttachmentMapper $attachmentMapper
+        private \OCA\Budget\Db\AttachmentMapper $attachmentMapper,
+        private AuditService $auditService
     ) {
         $this->mapper = $mapper;
         $this->accountMapper = $accountMapper;
@@ -454,6 +455,26 @@ class TransactionService {
             }
         }
 
+        // Editing a reconciled transaction in a balance-affecting way breaks
+        // past statement reconciliations — allowed (bank-sync corrections are
+        // legitimate) but leaves an audit trail. The UI also warns first.
+        if ($transaction->getReconciled()) {
+            $balanceKeys = ['amount', 'type', 'accountId', 'date', 'status'];
+            $changedKeys = [];
+            foreach ($balanceKeys as $key) {
+                $getter = 'get' . ucfirst($key);
+                if (array_key_exists($key, $updates) && $updates[$key] != $transaction->$getter()) {
+                    $changedKeys[] = $key;
+                }
+            }
+            if (!empty($changedKeys)) {
+                $this->auditService->log($userId, 'reconciled_tx_modified', 'transaction', $id, [
+                    'changedFields' => $changedKeys,
+                    'reconSessionId' => $transaction->getReconSessionId(),
+                ]);
+            }
+        }
+
         // Apply updates
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);
@@ -479,6 +500,16 @@ class TransactionService {
 
     public function delete(int $id, string $userId, bool $dismiss = true): void {
         $transaction = $this->find($id, $userId);
+
+        // Deleting a reconciled transaction breaks past statement
+        // reconciliations — allowed, but audit-logged (the UI warns first)
+        if ($transaction->getReconciled()) {
+            $this->auditService->log($userId, 'reconciled_tx_deleted', 'transaction', $id, [
+                'amount' => $transaction->getAmount(),
+                'date' => $transaction->getDate(),
+                'reconSessionId' => $transaction->getReconSessionId(),
+            ]);
+        }
 
         // Unlink counterpart transfer before deleting — prevents dangling
         // linked_transaction_id references that break dashboard/tag queries

@@ -291,12 +291,9 @@ export default class TransactionsModule {
             if (e.target.classList.contains('transaction-checkbox')) {
                 const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
                 this.toggleTransactionSelection(transactionId, e.target.checked);
-            }
-
-            // Reconcile checkboxes
-            if (e.target.classList.contains('reconcile-checkbox')) {
-                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
-                this.toggleTransactionReconciliation(transactionId, e.target.checked);
+                if (this.reconcileMode && this.reconcileSession) {
+                    this.queueReconcileTick(transactionId, e.target.checked);
+                }
             }
         });
     }
@@ -543,6 +540,13 @@ export default class TransactionsModule {
         });
     }
 
+    _maybeCheckReconcileSession(accountId) {
+        if (accountId && String(accountId) !== this._lastReconCheckedAccount) {
+            this._lastReconCheckedAccount = String(accountId);
+            this.checkActiveReconcileSession(parseInt(accountId));
+        }
+    }
+
     updateFilters() {
         this.app.transactionFilters = {
             account: document.getElementById('filter-account')?.value || '',
@@ -562,6 +566,9 @@ export default class TransactionsModule {
         // Always auto-apply filters (including when clearing them)
         this.app.currentPage = 1;
         this.app.loadTransactions();
+
+        // Offer to resume an in-progress reconciliation for the filtered account
+        this._maybeCheckReconcileSession(this.app.transactionFilters.account);
     }
 
     clearFilters() {
@@ -955,181 +962,303 @@ export default class TransactionsModule {
         }
 
         try {
-            // Check if we have the reconcile endpoint, otherwise simulate it
-            const account = this.accounts?.find(a => a.id === parseInt(accountId));
-            if (!account) {
-                throw new Error('Account not found');
-            }
-
-            let result;
-            try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconcile`), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({
-                        statementBalance: parseFloat(statementBalance),
-                        statementDate: statementDate
-                    })
-                });
-
-                if (response.ok) {
-                    result = await response.json();
-                } else {
-                    throw new Error('Endpoint not available');
-                }
-            } catch (apiError) {
-                // Fallback: simulate reconciliation locally
-                console.warn('Reconcile API not available, using local simulation:', apiError);
-                const currentBalance = account.balance || 0;
-                const targetBalance = parseFloat(statementBalance);
-                const difference = targetBalance - currentBalance;
-
-                result = {
-                    currentBalance: currentBalance,
-                    statementBalance: targetBalance,
-                    difference: difference,
-                    isBalanced: Math.abs(difference) < 0.01
-                };
-            }
-
-            this.reconcileMode = true;
-            this.reconcileData = result;
-
-            // Show reconcile columns and filter by account
-            document.querySelectorAll('.reconcile-column').forEach(col => {
-                col.style.display = 'table-cell';
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    statementBalance: parseFloat(statementBalance),
+                    statementDate: statementDate
+                })
             });
 
-            // Set account filter
-            const filterAccount = document.getElementById('filter-account');
-            if (filterAccount) {
-                filterAccount.value = accountId;
-                this.updateFilters();
+            if (response.status === 409) {
+                const data = await response.json();
+                if (confirm(t('budget', 'A reconciliation is already in progress for this account. Resume it?'))) {
+                    await this.enterReconcileSession(data.existing);
+                }
+                return;
+            }
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to start reconciliation');
             }
 
-            // Hide reconcile panel and show reconcile info
-            document.getElementById('reconcile-panel').style.display = 'none';
-            this.showReconcileInfo(result);
-
-            showSuccess(t('budget', 'Reconciliation mode started'));
+            const state = await response.json();
+            await this.enterReconcileSession(state);
         } catch (error) {
             console.error('Reconciliation failed:', error);
             showError(t('budget', 'Failed to start reconciliation: {message}', { message: error.message }));
         }
     }
 
-    showReconcileInfo(reconcileData) {
-        // Create floating reconcile info panel
-        const existingInfo = document.getElementById('reconcile-info-float');
-        if (existingInfo) {
-            existingInfo.remove();
+    /**
+     * Enter session mode: filter to the account, restore ticked checkboxes,
+     * show the live session bar.
+     */
+    async enterReconcileSession(state) {
+        this.reconcileMode = true;
+        this.reconcileSession = state;
+        this._reconTickQueue = new Set();
+        this._reconUntickQueue = new Set();
+
+        // Ticked transactions drive the select checkboxes (survives re-render)
+        this.selectedTransactions = new Set(state.tickedIds || []);
+
+        // Filter the table to the session's account
+        const filterAccount = document.getElementById('filter-account');
+        if (filterAccount) {
+            filterAccount.value = String(state.session.accountId);
+            this.updateFilters();
         }
 
-        const infoPanel = document.createElement('div');
-        infoPanel.id = 'reconcile-info-float';
-        infoPanel.className = 'reconcile-info-float';
-        const differenceAmount = reconcileData.difference || 0;
-        const absDifference = Math.abs(differenceAmount);
-        const adjustmentType = differenceAmount > 0 ? 'credit' : 'debit';
-        const adjustmentLabel = differenceAmount > 0 ? t('budget', 'deposit') : t('budget', 'withdrawal');
-
-        infoPanel.innerHTML = `
-            <div class="reconcile-info-content">
-                <h4>${t('budget', 'Account Reconciliation')}</h4>
-                <div class="reconcile-stats">
-                    <div class="stat">
-                        <label>${t('budget', 'Current Balance:')}</label>
-                        <span class="amount">${this.formatCurrency(reconcileData.currentBalance || 0)}</span>
-                    </div>
-                    <div class="stat">
-                        <label>${t('budget', 'Statement Balance:')}</label>
-                        <span class="amount">${this.formatCurrency(reconcileData.statementBalance || 0)}</span>
-                    </div>
-                    <div class="stat ${reconcileData.isBalanced ? 'balanced' : 'unbalanced'}">
-                        <label>${t('budget', 'Difference:')}</label>
-                        <span class="amount">${this.formatCurrency(differenceAmount)}</span>
-                    </div>
-                </div>
-                ${reconcileData.isBalanced
-                    ? `<p class="reconcile-message balanced">${t('budget', 'Balances match. You can finish reconciliation.')}</p>`
-                    : `<p class="reconcile-message unbalanced">${t('budget', 'The difference of {amount} must be resolved before finishing. You can create an adjustment transaction to match the statement balance.', { amount: this.formatCurrency(absDifference) })}</p>`
-                }
-                <div class="reconcile-actions">
-                    <button id="finish-reconcile-btn" class="primary" ${!reconcileData.isBalanced ? 'disabled' : ''}>
-                        ${t('budget', 'Finish Reconciliation')}
-                    </button>
-                    ${!reconcileData.isBalanced ? `
-                        <button id="adjust-reconcile-btn" class="primary">
-                            ${t('budget', 'Create {amount} Adjustment ({type})', { amount: this.formatCurrency(absDifference), type: adjustmentLabel })}
-                        </button>
-                    ` : ''}
-                    <button id="cancel-reconcile-info-btn" class="secondary">${t('budget', 'Cancel')}</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(infoPanel);
-
-        // Add event listeners
-        document.getElementById('finish-reconcile-btn').addEventListener('click', () => {
-            this.finishReconciliation();
-        });
-
-        const adjustBtn = document.getElementById('adjust-reconcile-btn');
-        if (adjustBtn) {
-            adjustBtn.addEventListener('click', () => {
-                this.createReconciliationAdjustment(reconcileData, adjustmentType, absDifference);
-            });
-        }
-
-        document.getElementById('cancel-reconcile-info-btn').addEventListener('click', () => {
-            this.cancelReconciliation();
-        });
+        document.getElementById('reconcile-panel').style.display = 'none';
+        this.renderReconcileBar();
+        showSuccess(t('budget', 'Reconciliation started — tick the transactions on your statement'));
     }
 
-    cancelReconciliation() {
-        this.reconcileMode = false;
-        this.reconcileData = null;
+    /**
+     * Fixed bottom bar with the live difference. Re-rendered from
+     * authoritative server state after every tick flush.
+     */
+    renderReconcileBar() {
+        const state = this.reconcileSession;
+        if (!state) return;
 
-        // Hide reconcile columns
-        document.querySelectorAll('.reconcile-column').forEach(col => {
-            col.style.display = 'none';
-        });
+        const existing = document.getElementById('reconcile-session-bar');
+        if (existing) existing.remove();
 
-        // Remove floating info panel
-        const infoPanel = document.getElementById('reconcile-info-float');
-        if (infoPanel) {
-            infoPanel.remove();
+        const bar = document.createElement('div');
+        bar.id = 'reconcile-session-bar';
+        bar.className = 'reconcile-session-bar';
+        const diff = state.difference || 0;
+        const balanced = state.isBalanced;
+        const adjustmentType = diff > 0 ? 'credit' : 'debit';
+
+        bar.innerHTML = `
+            <div class="reconcile-bar-stats">
+                <div class="stat">
+                    <label>${t('budget', 'Statement balance')}</label>
+                    <span>${this.formatCurrency(state.session.statementBalance)}</span>
+                </div>
+                <div class="stat">
+                    <label>${t('budget', 'Starting balance')}</label>
+                    <span title="${t('budget', 'Last reconciled balance — verify this matches your statement\u2019s opening balance')}">${this.formatCurrency(state.session.startingBalance)}</span>
+                </div>
+                <div class="stat">
+                    <label>${t('budget', 'Ticked ({count})', { count: state.tickedCount || 0 })}</label>
+                    <span>${this.formatCurrency(state.tickedSum || 0)}</span>
+                </div>
+                <div class="stat ${balanced ? 'balanced' : 'unbalanced'}">
+                    <label>${t('budget', 'Difference')}</label>
+                    <span class="reconcile-difference">${this.formatCurrency(diff)}</span>
+                </div>
+            </div>
+            <div class="reconcile-bar-actions">
+                <button id="finish-reconcile-btn" class="primary" ${!balanced ? 'disabled' : ''}>${t('budget', 'Finish')}</button>
+                ${!balanced ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
+                <button id="leave-reconcile-btn" class="secondary" title="${t('budget', 'Keep the session and come back later')}">${t('budget', 'Leave')}</button>
+                <button id="cancel-reconcile-session-btn" class="secondary">${t('budget', 'Cancel session')}</button>
+            </div>
+        `;
+        document.body.appendChild(bar);
+
+        document.getElementById('finish-reconcile-btn').addEventListener('click', () => this.finishReconciliation());
+        document.getElementById('adjust-reconcile-btn')?.addEventListener('click', () =>
+            this.createReconciliationAdjustment(adjustmentType, Math.abs(diff)));
+        document.getElementById('leave-reconcile-btn').addEventListener('click', () => this.exitReconcileMode());
+        document.getElementById('cancel-reconcile-session-btn').addEventListener('click', () => this.cancelReconcileSession());
+    }
+
+    /**
+     * Optimistic local difference update + debounced batch flush to the
+     * server; the response overwrites the local numbers (no float drift).
+     */
+    queueReconcileTick(transactionId, ticked) {
+        if (!this.reconcileSession) return;
+
+        if (ticked) {
+            this._reconUntickQueue.delete(transactionId);
+            this._reconTickQueue.add(transactionId);
+        } else {
+            this._reconTickQueue.delete(transactionId);
+            this._reconUntickQueue.add(transactionId);
         }
 
-        // Reset reconcile panel
+        // Optimistic update for instant feedback
+        const tx = this.app.transactions?.find(t => t.id === transactionId);
+        if (tx) {
+            const signed = (tx.type === 'credit' ? 1 : -1) * parseFloat(tx.amount) * (ticked ? 1 : -1);
+            this.reconcileSession.tickedSum = (this.reconcileSession.tickedSum || 0) + signed;
+            this.reconcileSession.tickedCount = (this.reconcileSession.tickedCount || 0) + (ticked ? 1 : -1);
+            this.reconcileSession.difference = this.reconcileSession.session.statementBalance
+                - (this.reconcileSession.session.startingBalance + this.reconcileSession.tickedSum);
+            this.reconcileSession.isBalanced = Math.abs(this.reconcileSession.difference) < 0.005;
+            this.renderReconcileBar();
+        }
+
+        clearTimeout(this._reconFlushTimer);
+        this._reconFlushTimer = setTimeout(() => this.flushReconcileTicks(), 400);
+    }
+
+    async flushReconcileTicks() {
+        if (!this.reconcileSession) return;
+        const accountId = this.reconcileSession.session.accountId;
+        const ticks = Array.from(this._reconTickQueue);
+        const unticks = Array.from(this._reconUntickQueue);
+        this._reconTickQueue.clear();
+        this._reconUntickQueue.clear();
+        if (ticks.length === 0 && unticks.length === 0) return;
+
+        try {
+            let state = null;
+            for (const [ids, ticked] of [[ticks, true], [unticks, false]]) {
+                if (ids.length === 0) continue;
+                const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                    body: JSON.stringify({ transactionIds: ids, ticked })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update reconciliation');
+                }
+                state = await response.json();
+            }
+            if (state && this.reconcileSession) {
+                // Server state is authoritative
+                this.reconcileSession = state;
+                this.selectedTransactions = new Set(state.tickedIds || []);
+                this.renderReconcileBar();
+            }
+        } catch (error) {
+            console.error('Reconcile tick failed:', error);
+            showError(t('budget', 'Failed to update reconciliation: {message}', { message: error.message }));
+            await this.refreshReconcileSession();
+        }
+    }
+
+    /** Re-fetch authoritative session state (error recovery / resume). */
+    async refreshReconcileSession() {
+        if (!this.reconcileSession) return;
+        const accountId = this.reconcileSession.session.accountId;
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (response.ok) {
+                const state = await response.json();
+                if (state.session) {
+                    this.reconcileSession = state;
+                    this.selectedTransactions = new Set(state.tickedIds || []);
+                    this.renderReconcileBar();
+                    this.app.loadTransactions();
+                }
+            }
+        } catch (error) {
+            console.error('Failed to refresh reconcile session:', error);
+        }
+    }
+
+    /**
+     * Check for an in-progress session on an account and offer to resume.
+     */
+    async checkActiveReconcileSession(accountId) {
+        if (!accountId || this.reconcileMode) return;
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
+                { headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) return;
+            const state = await response.json();
+            if (state.session) {
+                this.showReconcileResumeBanner(state);
+            }
+        } catch (error) {
+            // Non-fatal — banner just doesn't show
+        }
+    }
+
+    showReconcileResumeBanner(state) {
+        const existing = document.getElementById('reconcile-resume-banner');
+        if (existing) existing.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'reconcile-resume-banner';
+        banner.className = 'reconcile-resume-banner';
+        banner.innerHTML = `
+            <span>${t('budget', 'A reconciliation is in progress for this account (statement of {date})', { date: this.formatDate(state.session.statementDate) })}</span>
+            <button id="resume-reconcile-btn" class="primary">${t('budget', 'Resume')}</button>
+            <button id="dismiss-resume-banner-btn" class="secondary">${t('budget', 'Dismiss')}</button>
+        `;
+        const tableContainer = document.querySelector('#transactions-view .table-container');
+        if (tableContainer) {
+            tableContainer.parentNode.insertBefore(banner, tableContainer);
+        } else {
+            return;
+        }
+        document.getElementById('resume-reconcile-btn').addEventListener('click', async () => {
+            banner.remove();
+            await this.enterReconcileSession(state);
+        });
+        document.getElementById('dismiss-resume-banner-btn').addEventListener('click', () => banner.remove());
+    }
+
+    /** Leave session mode without touching the session (resumable later). */
+    exitReconcileMode() {
+        this.reconcileMode = false;
+        this.reconcileSession = null;
+        this.selectedTransactions = new Set();
+        clearTimeout(this._reconFlushTimer);
+
+        document.getElementById('reconcile-session-bar')?.remove();
         document.getElementById('reconcile-panel').style.display = 'none';
-        document.getElementById('reconcile-mode-btn').classList.remove('active');
+        document.getElementById('reconcile-mode-btn')?.classList.remove('active');
 
         this.app.loadTransactions();
     }
 
-    async finishReconciliation() {
-        const accountId = document.getElementById('reconcile-account')?.value;
-        if (!accountId) {
-            showError(t('budget', 'No account selected'));
+    async cancelReconcileSession() {
+        if (!this.reconcileSession) return;
+        if (!confirm(t('budget', 'Cancel this reconciliation? Ticked transactions will be released (nothing is marked reconciled).'))) {
             return;
         }
+        const accountId = this.reconcileSession.session.accountId;
+        try {
+            await this.flushReconcileTicks();
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`), {
+                method: 'DELETE',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to cancel');
+            }
+            this.exitReconcileMode();
+            showSuccess(t('budget', 'Reconciliation cancelled'));
+        } catch (error) {
+            showError(t('budget', 'Failed to cancel reconciliation: {message}', { message: error.message }));
+        }
+    }
 
-        // Collect selected transaction IDs
-        const transactionIds = Array.from(this.selectedTransactions);
+    cancelReconciliation() {
+        // Backwards-compatible alias used by older code paths
+        this.exitReconcileMode();
+    }
+
+    async finishReconciliation() {
+        if (!this.reconcileSession) return;
+        const accountId = this.reconcileSession.session.accountId;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconcile/complete`), {
+            await this.flushReconcileTicks();
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/complete`), {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ transactionIds })
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken }
             });
 
             if (!response.ok) {
@@ -1138,24 +1267,24 @@ export default class TransactionsModule {
             }
 
             const result = await response.json();
-            this.cancelReconciliation();
+            this.exitReconcileMode();
             this.app.loadAccounts();
             this.app.loadTransactions();
             showSuccess(t('budget', 'Reconciliation completed — {count} transactions marked as reconciled', { count: result.reconciledCount }));
+            if (result.untickedBeforeStatementDate > 0) {
+                showWarning(n('budget',
+                    '%n older uncleared transaction was not ticked and remains unreconciled',
+                    '%n older uncleared transactions were not ticked and remain unreconciled',
+                    result.untickedBeforeStatementDate));
+            }
         } catch (error) {
             showError(t('budget', 'Failed to complete reconciliation: {error}', { error: error.message }));
         }
     }
 
-    async createReconciliationAdjustment(reconcileData, type, amount) {
-        const accountId = document.getElementById('filter-account')?.value
-            || document.getElementById('reconcile-account')?.value;
-
-        if (!accountId) {
-            showError(t('budget', 'No account selected for adjustment'));
-            return;
-        }
-
+    async createReconciliationAdjustment(type, amount) {
+        if (!this.reconcileSession) return;
+        const accountId = this.reconcileSession.session.accountId;
         const today = new Date().toISOString().split('T')[0];
 
         try {
@@ -1167,11 +1296,11 @@ export default class TransactionsModule {
                 },
                 body: JSON.stringify({
                     date: today,
-                    accountId: parseInt(accountId),
+                    accountId: accountId,
                     type: type,
                     amount: amount,
                     description: t('budget', 'Reconciliation Adjustment'),
-                    notes: t('budget', 'Adjustment to match statement balance of {amount}', { amount: this.formatCurrency(reconcileData.statementBalance) })
+                    notes: t('budget', 'Adjustment to match statement balance of {amount}', { amount: this.formatCurrency(this.reconcileSession.session.statementBalance) })
                 })
             });
 
@@ -1180,29 +1309,26 @@ export default class TransactionsModule {
                 throw new Error(error.error || 'Failed to create adjustment');
             }
 
+            const created = await response.json();
+
+            // Tick the adjustment straight into the session — zeroes the difference
+            const tickResponse = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ transactionIds: [created.id], ticked: true })
+            });
+            if (tickResponse.ok) {
+                this.reconcileSession = await tickResponse.json();
+                this.selectedTransactions = new Set(this.reconcileSession.tickedIds || []);
+            }
+
             showSuccess(t('budget', 'Adjustment transaction created'));
-
-            // Reload transactions and update reconcile data
             await this.app.loadTransactions();
-            await this.app.loadAccounts();
-
-            // Re-run reconciliation with updated balances
-            this.cancelReconciliation();
-            document.getElementById('reconcile-account').value = accountId;
-            document.getElementById('reconcile-statement-balance').value = reconcileData.statementBalance;
-            document.getElementById('reconcile-statement-date').value = document.getElementById('reconcile-statement-date')?.value || today;
-            document.getElementById('reconcile-panel').style.display = 'block';
-            await this.startReconciliation();
+            this.renderReconcileBar();
         } catch (error) {
             console.error('Failed to create adjustment:', error);
             showError(t('budget', 'Failed to create adjustment: {message}', { message: error.message }));
         }
-    }
-
-    async toggleTransactionReconciliation(_transactionId, _checked) {
-        // Reconcile checkboxes are tracked locally during reconciliation mode.
-        // The actual API call happens in finishReconciliation() when the user confirms.
-        // No immediate backend call needed here.
     }
 
     // Rendering
@@ -1589,6 +1715,21 @@ export default class TransactionsModule {
         const accountId = parseInt(document.getElementById('transaction-account').value);
         const type = document.getElementById('transaction-type').value;
         const amount = parseFloat(document.getElementById('transaction-amount').value);
+
+        // Editing a reconciled transaction in a balance-affecting way breaks
+        // past statement reconciliations — warn before proceeding
+        if (id) {
+            const existing = this.transactions?.find(tx => tx.id === parseInt(id));
+            if (existing?.reconciled) {
+                const balanceChanged = parseFloat(existing.amount) !== amount
+                    || existing.type !== type
+                    || existing.accountId !== accountId
+                    || existing.date !== date;
+                if (balanceChanged && !confirm(t('budget', 'This transaction was reconciled against a bank statement. Changing its amount, type, account or date will make past reconciliations no longer match. Continue?'))) {
+                    return;
+                }
+            }
+        }
         const description = document.getElementById('transaction-description').value;
         const vendor = document.getElementById('transaction-vendor').value;
         const categoryId = document.getElementById('transaction-category').value;
@@ -2042,6 +2183,10 @@ export default class TransactionsModule {
             } else {
                 message = t('budget', 'Are you sure you want to delete this transaction?') + `\n\n${balanceEffect}`;
             }
+        }
+
+        if (transaction?.reconciled) {
+            message += '\n\n' + t('budget', 'This transaction was reconciled against a bank statement. Deleting it will make past reconciliations no longer match.');
         }
 
         if (!confirm(message)) {
@@ -3660,6 +3805,13 @@ export default class TransactionsModule {
         if (!transaction) {
             this.cancelInlineEdit(cell);
             return;
+        }
+
+        if (transaction.reconciled && ['amount', 'date', 'accountId'].includes(field)) {
+            if (!confirm(t('budget', 'This transaction was reconciled against a bank statement. Changing its amount, type, account or date will make past reconciliations no longer match. Continue?'))) {
+                this.cancelInlineEdit(cell);
+                return;
+            }
         }
 
         // Check if value actually changed

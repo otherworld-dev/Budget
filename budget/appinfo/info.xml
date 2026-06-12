@@ -74,6 +74,8 @@ Full user documentation: https://github.com/otherworld-dev/budget/tree/master/do
         <job>OCA\Budget\BackgroundJob\NetWorthSnapshotJob</job>
         <job>OCA\Budget\BackgroundJob\InterestAccrualJob</job>
         <job>OCA\Budget\BackgroundJob\BankSyncJob</job>
+        <job>OCA\Budget\BackgroundJob\DigestJob</job>
+        <job>OCA\Budget\BackgroundJob\ScheduledReportJob</job>
     </background-jobs>
     <commands>
         <command>OCA\Budget\Command\SeedDemo</command>

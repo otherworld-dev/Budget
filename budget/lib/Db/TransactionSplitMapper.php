@@ -134,6 +134,50 @@ class TransactionSplitMapper extends QBMapper {
     }
 
     /**
+     * Split allocations per category per bucket over a date range, in one
+     * query. Mirrors the semantics of getSplitTransactionIds + getCategoryTotals
+     * (debit split parents, scheduled-future excluded) but adds the time
+     * dimension for the budget carryover chain. Bucket is the calendar month
+     * (YYYY-MM) by default, or the exact date with $byDay.
+     *
+     * @return array<int, array<string, float>> categoryId => bucket => total
+     */
+    public function getCategoryTotalsByBucket(string $userId, string $startDate, string $endDate, bool $byDay = false): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : 'SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)';
+        $today = date('Y-m-d');
+
+        $qb->select('s.category_id')
+            ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
+            ->selectAlias($qb->func()->sum('s.amount'), 'total')
+            ->from($this->getTableName(), 's')
+            ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->isNotNull('s.category_id'))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                $qb->expr()->isNull('t.status'),
+                $qb->expr()->lte('t.date', $qb->createNamedParameter($today))
+            ))
+            ->groupBy('s.category_id')
+            ->addGroupBy($qb->createFunction($bucketExpr));
+
+        $result = $qb->executeQuery();
+        $totals = [];
+        while ($row = $result->fetch()) {
+            $totals[(int) $row['category_id']][substr((string) $row['bucket'], 0, $byDay ? 10 : 7)] = (float) $row['total'];
+        }
+        $result->closeCursor();
+
+        return $totals;
+    }
+
+    /**
      * Map a database row to entity with category name.
      */
     private function mapRowToEntityWithCategory(array $row): TransactionSplit {

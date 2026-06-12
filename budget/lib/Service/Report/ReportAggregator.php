@@ -9,6 +9,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\RecurringBudgetService;
 
 /**
@@ -30,7 +31,8 @@ class ReportAggregator {
         BudgetSnapshotMapper $budgetSnapshotMapper,
         ReportCalculator $calculator,
         CurrencyConversionService $conversionService,
-        private RecurringBudgetService $recurringBudgetService
+        private RecurringBudgetService $recurringBudgetService,
+        private BudgetCarryoverService $carryoverService
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
@@ -350,9 +352,22 @@ class ReportAggregator {
             ? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
             : [];
 
-        // Collect category IDs that have budgets (considering snapshots, excluding excluded)
+        // Envelope carryover is a monthly concept: apply it only when the
+        // requested range is exactly one calendar month (the budget surfaces
+        // always request whole months); arbitrary ranges get base budgets.
+        $isSingleMonth = $startDate === $reportMonth . '-01'
+            && $endDate === date('Y-m-t', strtotime($startDate));
+        $carryovers = $isSingleMonth
+            ? $this->carryoverService->getCarryovers($userId, $reportMonth, $categories)
+            : [];
+
+        // Collect category IDs that have budgets (considering snapshots and
+        // envelope carryover, excluding excluded). A non-zero carryover keeps
+        // the category in the report even when its base is 0 — a depleted
+        // envelope must show as over budget, not vanish.
         $categoryIds = [];
         $resolvedBudgets = [];
+        $resolvedBases = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports()) {
                 continue;
@@ -367,9 +382,11 @@ class ReportAggregator {
                     $category->getBudgetPeriod() ?? 'monthly'
                 );
             }
-            if ($budgeted > 0) {
+            $carried = (float) ($carryovers[$catId] ?? 0);
+            if ($budgeted > 0 || abs($carried) >= 0.005) {
                 $categoryIds[] = $catId;
-                $resolvedBudgets[$catId] = $budgeted;
+                $resolvedBases[$catId] = $budgeted;
+                $resolvedBudgets[$catId] = round($budgeted + $carried, 2);
             }
         }
 
@@ -383,12 +400,15 @@ class ReportAggregator {
 
                 $budgeted = $resolvedBudgets[$categoryId];
                 $remaining = $budgeted - $spent;
-                $percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : 0;
+                // Depleted envelope (available <= 0): any spending is over budget
+                $percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : ($spent > 0 ? 100 : 0);
 
                 $budgetReport[] = [
                     'categoryId' => $categoryId,
                     'categoryName' => $category->getName(),
                     'budgeted' => $budgeted,
+                    'baseBudget' => $resolvedBases[$categoryId],
+                    'carried' => round($budgeted - $resolvedBases[$categoryId], 2),
                     'spent' => $spent,
                     'remaining' => $remaining,
                     'percentage' => $percentage,

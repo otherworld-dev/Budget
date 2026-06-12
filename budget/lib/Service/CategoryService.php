@@ -33,7 +33,9 @@ class CategoryService extends AbstractCrudService {
         TagSetMapper $tagSetMapper,
         TagMapper $tagMapper,
         TransactionTagMapper $transactionTagMapper,
-        IL10N $l
+        IL10N $l,
+        private BudgetCarryoverService $carryoverService,
+        private RecurringBudgetService $recurringBudgetService
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
@@ -42,6 +44,22 @@ class CategoryService extends AbstractCrudService {
         $this->tagMapper = $tagMapper;
         $this->transactionTagMapper = $transactionTagMapper;
         $this->l = $l;
+    }
+
+    /**
+     * Category updates with envelope-anchor handling: enabling rollover
+     * stamps the anchor month the carryover chain starts from; re-enabling
+     * resets it (history from a previous enablement never resurrects).
+     */
+    public function update(int $id, string $userId, array $updates): Entity {
+        if (array_key_exists('budgetRollover', $updates)) {
+            $entity = $this->find($id, $userId);
+            $wasEnabled = $entity->getBudgetRollover() ?? false;
+            if ($updates['budgetRollover'] && !$wasEnabled) {
+                $updates['rolloverStart'] = date('Y-m');
+            }
+        }
+        return parent::update($id, $userId, $updates);
     }
 
     /**
@@ -432,26 +450,56 @@ class CategoryService extends AbstractCrudService {
 
     /**
      * Batch-resolve effective budgets for all categories at a given month.
-     * Returns map of categoryId => ['amount' => float|null, 'period' => string].
+     *
+     * Each entry composes the full envelope math server-side so every
+     * surface agrees (#269 lesson):
+     *   amount    — manual/snapshot value (raw, for the budget input box)
+     *   period    — budget period
+     *   rollover  — envelope flag (eligible categories only)
+     *   carried   — carryover into this month (0 unless rollover)
+     *   available — effective budget incl. recurring fallback + carryover
+     *
+     * Returns map of categoryId => array.
      */
     public function resolveEffectiveBudgets(string $userId, string $month): array {
         $categories = $this->findAll($userId);
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $month);
+        $carryovers = $this->carryoverService->getCarryovers($userId, $month, $categories);
+
+        // Recurring fallback only applies to current/future months (#269)
+        $recurring = $month >= date('Y-m')
+            ? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
+            : [];
 
         $result = [];
         foreach ($categories as $category) {
             $catId = $category->getId();
             if (isset($snapshotOverrides[$catId])) {
-                $result[$catId] = [
-                    'amount' => $snapshotOverrides[$catId]['amount'],
-                    'period' => $snapshotOverrides[$catId]['period'],
-                ];
+                $amount = $snapshotOverrides[$catId]['amount'];
+                $period = $snapshotOverrides[$catId]['period'];
             } else {
-                $result[$catId] = [
-                    'amount' => $category->getBudgetAmount(),
-                    'period' => $category->getBudgetPeriod() ?? 'monthly',
-                ];
+                $amount = $category->getBudgetAmount();
+                $period = $category->getBudgetPeriod() ?? 'monthly';
             }
+
+            $base = (float) ($amount ?? 0);
+            if ($base <= 0 && isset($recurring[$catId])) {
+                $base = $this->recurringBudgetService->convertMonthlyToPeriod(
+                    (float) $recurring[$catId],
+                    $period
+                );
+            }
+            $carried = $carryovers[$catId] ?? 0.0;
+
+            $result[$catId] = [
+                'amount' => $amount,
+                'period' => $period,
+                'rollover' => ($category->getBudgetRollover() ?? false)
+                    && ($category->getBudgetPeriod() ?? 'monthly') === 'monthly'
+                    && $category->getType() === 'expense',
+                'carried' => round($carried, 2),
+                'available' => round($base + $carried, 2),
+            ];
         }
 
         return $result;

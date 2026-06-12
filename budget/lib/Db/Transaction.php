@@ -66,6 +66,7 @@ class Transaction extends Entity implements JsonSerializable {
     protected $billId;
     protected $status;
     protected $excludedFromForecast;
+    protected $reconSessionId;   // reconciliation session this row was ticked into
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -77,6 +78,7 @@ class Transaction extends Entity implements JsonSerializable {
         $this->addType('isSplit', 'boolean');
         $this->addType('billId', 'integer');
         $this->addType('excludedFromForecast', 'boolean');
+        $this->addType('reconSessionId', 'integer');
     }
 
     /**
@@ -104,6 +106,7 @@ class Transaction extends Entity implements JsonSerializable {
             'billId' => $this->getBillId(),
             'status' => $this->getStatus() ?? 'cleared',
             'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
+            'reconSessionId' => $this->getReconSessionId(),
         ];
     }
 }

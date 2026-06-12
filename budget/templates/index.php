@@ -1284,6 +1284,23 @@ style('budget', 'budget-app');
                     </table>
                 </div>
 
+                <!-- Reconciliation History -->
+                <div class="account-details-section" id="recon-history-section" style="display: none;">
+                    <h3><?php p($l->t('Reconciliation History')); ?></h3>
+                    <table class="rate-history-table">
+                        <thead>
+                            <tr>
+                                <th><?php p($l->t('Statement Date')); ?></th>
+                                <th><?php p($l->t('Statement Balance')); ?></th>
+                                <th><?php p($l->t('Transactions')); ?></th>
+                                <th><?php p($l->t('Completed')); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody id="recon-history-body">
+                        </tbody>
+                    </table>
+                </div>
+
                 <!-- Transaction History -->
                 <div class="account-transactions-section">
                     <div class="section-header">
@@ -2391,6 +2408,16 @@ style('budget', 'budget-app');
                         <?php p($l->t('Add Bill')); ?>
                     </button>
                 </div>
+            </div>
+
+            <!-- Proactive recurring-bill suggestions -->
+            <div id="bill-suggestions-card" class="bill-suggestions-card" style="display: none;">
+                <div class="bill-suggestions-header">
+                    <h3><?php p($l->t('Suggested recurring bills')); ?> <span id="bill-suggestions-count" class="badge"></span></h3>
+                    <button id="bill-suggestions-dismiss-all" class="secondary"><?php p($l->t('Dismiss all')); ?></button>
+                </div>
+                <p class="bill-suggestions-hint"><?php p($l->t('These payments look recurring but are not tracked as bills yet.')); ?></p>
+                <div id="bill-suggestions-list"></div>
             </div>
 
             <!-- Bills Summary Cards -->
@@ -4626,6 +4653,71 @@ style('budget', 'budget-app');
                                 <div>
                                     <strong><?php p($l->t('Forecast Warnings')); ?></strong>
                                     <small><?php p($l->t('Notify about negative cash flow predictions')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-anomaly-alerts-enabled" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Unusual Spending Alerts')); ?></strong>
+                                    <small><?php p($l->t('Notify when a category runs well above its 6-month typical spending (max one alert per category per month)')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-digest-enabled" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Budget Digest')); ?></strong>
+                                    <small><?php p($l->t('Periodic summary of spending, budgets, upcoming bills and goals')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="setting-digest-frequency"><?php p($l->t('Digest Frequency')); ?></label>
+                            <select id="setting-digest-frequency" class="setting-input">
+                                <option value="weekly"><?php p($l->t('Weekly')); ?></option>
+                                <option value="monthly"><?php p($l->t('Monthly')); ?></option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-digest-email-enabled" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Email Digest')); ?></strong>
+                                    <small><?php p($l->t('Also send the digest by email (requires a working mail server)')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scheduled Reports Section -->
+                <div class="settings-section">
+                    <h3><?php p($l->t('Scheduled Reports')); ?></h3>
+
+                    <div class="settings-group">
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-report-files-enabled" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Monthly Report to Files')); ?></strong>
+                                    <small><?php p($l->t('Save a PDF summary of the previous month into Budget/Reports in your Files')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-report-email-enabled" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Monthly Report by Email')); ?></strong>
+                                    <small><?php p($l->t('Email the monthly PDF report (requires a working mail server)')); ?></small>
                                 </div>
                             </label>
                         </div>

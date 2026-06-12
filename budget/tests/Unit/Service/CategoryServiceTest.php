@@ -42,6 +42,11 @@ class CategoryServiceTest extends TestCase {
         });
         $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
 
+        $carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+        $carryoverService->method('getCarryovers')->willReturn([]);
+        $recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+        $recurringBudgetService->method('getMonthlyBudgetsByCategory')->willReturn([]);
+
         $this->service = new CategoryService(
             $this->categoryMapper,
             $this->transactionMapper,
@@ -49,7 +54,9 @@ class CategoryServiceTest extends TestCase {
             $this->tagSetMapper,
             $this->tagMapper,
             $this->transactionTagMapper,
-            $l
+            $l,
+            $carryoverService,
+            $recurringBudgetService
         );
     }
 

@@ -26,9 +26,12 @@ class RecurringBillDetector {
      *
      * @param string $userId User ID
      * @param int $months Number of months to analyze
+     * @param bool $excludeBilled Skip transactions already linked to a bill
+     *                            (used by proactive suggestions; the manual
+     *                            Detect flow keeps legacy behavior)
      * @return array Detected recurring patterns
      */
-    public function detectRecurringBills(string $userId, int $months = 6): array {
+    public function detectRecurringBills(string $userId, int $months = 6, bool $excludeBilled = false): array {
         $startDate = date('Y-m-d', strtotime("-{$months} months"));
         $endDate = date('Y-m-d');
 
@@ -41,6 +44,9 @@ class RecurringBillDetector {
             if ($transaction->getType() !== 'debit') {
                 continue;
             }
+            if ($excludeBilled && $transaction->getBillId() !== null) {
+                continue;
+            }
 
             $desc = $this->normalizeDescription($transaction->getDescription());
             $amount = $transaction->getAmount();
@@ -51,6 +57,7 @@ class RecurringBillDetector {
 
             if (!isset($grouped[$key])) {
                 $grouped[$key] = [
+                    'patternKey' => $key,
                     'description' => $transaction->getDescription(),
                     'amount' => $amount,
                     'amounts' => [],
@@ -108,6 +115,7 @@ class RecurringBillDetector {
             $avgDueDay = (int)round(array_sum($dueDays) / count($dueDays));
 
             $detected[] = [
+                'patternKey' => $data['patternKey'],
                 'description' => $data['description'],
                 'suggestedName' => $this->generateBillName($data['description']),
                 'amount' => round($avgAmount, 2),

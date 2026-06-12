@@ -34,6 +34,10 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  * @method bool|null getExcludedFromReports()
  * @method void setExcludedFromReports(?bool $excludedFromReports)
+ * @method bool|null getBudgetRollover()
+ * @method void setBudgetRollover(?bool $budgetRollover)
+ * @method string|null getRolloverStart()
+ * @method void setRolloverStart(?string $rolloverStart)
  */
 class Category extends Entity implements JsonSerializable {
     protected $userId;
@@ -46,6 +50,8 @@ class Category extends Entity implements JsonSerializable {
     protected $budgetPeriod;  // monthly, weekly, yearly, quarterly
     protected $sortOrder;
     protected $excludedFromReports;
+    protected $budgetRollover;   // envelope budgeting: unspent budget carries to next month
+    protected $rolloverStart;    // YYYY-MM the carryover chain starts from
     protected $createdAt;
     protected $updatedAt;
 
@@ -55,6 +61,7 @@ class Category extends Entity implements JsonSerializable {
         $this->addType('budgetAmount', 'float');
         $this->addType('sortOrder', 'integer');
         $this->addType('excludedFromReports', 'boolean');
+        $this->addType('budgetRollover', 'boolean');
     }
 
     /**
@@ -74,6 +81,8 @@ class Category extends Entity implements JsonSerializable {
             'budgetPeriod' => $this->getBudgetPeriod() ?? 'monthly',
             'sortOrder' => $this->getSortOrder(),
             'excludedFromReports' => $this->getExcludedFromReports() ?? false,
+            'budgetRollover' => $this->getBudgetRollover() ?? false,
+            'rolloverStart' => $this->getRolloverStart(),
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
         ];

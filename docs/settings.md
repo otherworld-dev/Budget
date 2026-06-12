@@ -45,6 +45,17 @@ Toggle notifications for budget events:
 
 - **Budget Alert Notifications** - Receive alerts when spending approaches or exceeds budget limits (on/off)
 - **Forecast Warning Notifications** - Get warned when balance forecasts predict issues like going below zero (on/off)
+- **Unusual Spending Alerts** - Notify when a category runs well above its 6-month typical spending. Median-based with a minimum-amount floor and at most one alert per category per month (on by default)
+- **Budget Digest** - Opt-in weekly or monthly summary (income vs spending, budget status, upcoming bills, goals, anomalies, new bill suggestions) as a Nextcloud notification, optionally also by email
+
+## Scheduled Reports
+
+Have the previous month's summary report delivered automatically at the start of each month:
+
+- **Monthly Report to Files** - Saves a PDF into `Budget/Reports/<year>/` in your Files; a notification links to it
+- **Monthly Report by Email** - Emails the PDF as an attachment (requires the Nextcloud instance to have a working mail server)
+
+Both can be enabled independently; with both off the feature is inactive.
 
 ## Import Settings
 

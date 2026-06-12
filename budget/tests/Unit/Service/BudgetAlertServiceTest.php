@@ -36,6 +36,7 @@ class BudgetAlertServiceTest extends TestCase {
     private SettingService $settingService;
     /** @var array<int, float> Recurring budgets returned by the mock */
     private array $recurringBudgets = [];
+    private array $carryovers = [];
 
     private const USER_ID = 'testuser';
 
@@ -60,13 +61,18 @@ class BudgetAlertServiceTest extends TestCase {
                 default => $monthly,
             });
 
+        $carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+        $carryoverService->method('getCarryovers')
+            ->willReturnCallback(fn() => $this->carryovers);
+
         $this->service = new TestableBudgetAlertService(
             $this->categoryMapper,
             $budgetSnapshotMapper,
             $this->transactionMapper,
             $this->splitMapper,
             $this->settingService,
-            $recurringBudgetService
+            $recurringBudgetService,
+            $carryoverService
         );
     }
 
@@ -121,6 +127,40 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertCount(1, $statuses);
 
         return $statuses[0];
+    }
+
+    // ===== Envelope carryover (rollover budgets) =====
+
+    public function testBudgetStatusIncludesCarryover(): void {
+        // 100 base + 50 carried = 150 available; 120 spent = 80% -> warning
+        $this->carryovers = [1 => 50.0];
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 120.0);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame(150.0, $statuses[0]['budgetAmount']);
+        $this->assertSame(50.0, $statuses[0]['carried']);
+        $this->assertSame(80.0, $statuses[0]['percentage']);
+        $this->assertSame('warning', $statuses[0]['status']);
+    }
+
+    public function testDepletedEnvelopeStillAlerts(): void {
+        // Base 0 with negative carry: any spending is over budget, and the
+        // category must not vanish from alerts
+        $this->carryovers = [1 => -50.0];
+        $category = $this->makeCategory(['budgetAmount' => 0.0]);
+        $this->setupMocksForBudgetStatus([$category], 30.0);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame('danger', $statuses[0]['status']);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+        $this->assertCount(1, $alerts);
+        $this->assertSame('danger', $alerts[0]['severity']);
     }
 
     // ===== Auto-derived recurring budgets (#269) =====

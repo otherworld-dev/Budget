@@ -10138,6 +10138,175 @@ button.danger:hover {
     cursor: help;
 }
 
+/* Proactive bill suggestions */
+.bill-suggestions-card {
+    margin-bottom: 16px;
+    padding: 14px 18px;
+    border: 1px solid var(--color-primary-element-light, rgba(0, 130, 201, 0.3));
+    border-radius: var(--border-radius-large, 10px);
+    background: var(--color-background-hover, #f5f5f5);
+}
+
+.bill-suggestions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bill-suggestions-header h3 {
+    margin: 0;
+}
+
+.bill-suggestions-header .badge {
+    display: inline-block;
+    min-width: 20px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    text-align: center;
+    border-radius: 10px;
+    background: var(--color-primary-element, #0082c9);
+    color: var(--color-primary-element-text, #fff);
+}
+
+.bill-suggestions-hint {
+    margin: 4px 0 10px;
+    color: var(--color-text-maxcontrast, #767676);
+    font-size: 0.85rem;
+}
+
+.bill-suggestion-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--color-border, #ededed);
+}
+
+.bill-suggestion-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.bill-suggestion-meta {
+    font-size: 0.82rem;
+    color: var(--color-text-maxcontrast, #767676);
+}
+
+.bill-suggestion-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* Statement reconciliation sessions */
+.reconcile-session-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1500;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--color-main-background, #fff);
+    border-top: 2px solid var(--color-primary-element, #0082c9);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.reconcile-bar-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.reconcile-bar-stats .stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.reconcile-bar-stats .stat label {
+    font-size: 0.72rem;
+    color: var(--color-text-maxcontrast, #767676);
+}
+
+.reconcile-bar-stats .stat span {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.reconcile-bar-stats .stat.balanced .reconcile-difference {
+    color: var(--color-success, #46ba61);
+}
+
+.reconcile-bar-stats .stat.unbalanced .reconcile-difference {
+    color: var(--color-error, #e9322d);
+}
+
+.reconcile-bar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.reconcile-resume-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 10px 16px;
+    border: 1px solid var(--color-primary-element, #0082c9);
+    border-radius: var(--border-radius-large, 10px);
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.1));
+}
+
+.reconcile-resume-banner span {
+    flex: 1;
+}
+
+/* Envelope budgeting (rollover) */
+.budget-carried-hint {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    cursor: help;
+}
+
+.budget-carried-hint.positive {
+    color: var(--color-success, #46ba61);
+}
+
+.budget-carried-hint.negative {
+    color: var(--color-error, #e9322d);
+}
+
+.budget-rollover-toggle {
+    margin-left: 6px;
+    padding: 2px 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    border: 1px solid var(--color-border-dark, #ccc);
+    border-radius: var(--border-radius-pill, 100px);
+    background: transparent;
+    color: var(--color-text-maxcontrast, #767676);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.budget-rollover-toggle:hover {
+    border-color: var(--color-primary-element, #0082c9);
+    color: var(--color-primary-element, #0082c9);
+}
+
+.budget-rollover-toggle.active {
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.15));
+    border-color: var(--color-primary-element, #0082c9);
+    color: var(--color-primary-element, #0082c9);
+}
+
 /* Budget Snapshot Controls */
 .budget-snapshot-controls {
     display: flex;

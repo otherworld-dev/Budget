@@ -130,6 +130,7 @@ These options are useful for installment plans, fixed-term subscriptions, or any
 - [Reports](reports.md) — The Bills Calendar provides annual bill overviews.
 - [Accounts](accounts.md) — Bills are linked to accounts for payment tracking.
 - [Nextcloud Integration](nextcloud-integration.md) — Subscribe to bills as a calendar feed; see upcoming bills on the Nextcloud dashboard.
+- The Bills view also proactively suggests recurring payments that aren't tracked yet — create them in one click or dismiss permanently.
 
 ## Settings
 

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Envelope (rollover) budgets**: per-category toggle on the Budget view — unspent budget carries into the next month's available amount, and overspend carries as a deficit. The carried amount is always derived from your actual budgets and spending (editing a past transaction recomputes every later month automatically), shown as "300 + 45 carried = 345" on the budget row and included consistently in alerts, the dashboard and reports. Monthly expense categories; carryover starts the month you enable it
+- **Statement reconciliation sessions**: reconciling an account is now a real statement workflow — enter the statement's ending balance and date, tick transactions off as you match them, and watch the difference fall to zero live (anchored on your previous reconciliation, not the account's current balance). Sessions persist (leave and resume later), completed reconciliations build a per-account history, and editing or deleting a reconciled transaction warns first and leaves an audit trail
+- **Proactive recurring-bill suggestions**: the Bills view now surfaces payments that look recurring but aren't tracked yet (confidence-scored, ignoring transactions already linked to bills and patterns matching existing bills) — create the bill in one click or dismiss it permanently
+- **Weekly/monthly digest**: opt-in summary of income vs spending, budget status, upcoming bills, goal progress, unusual spending and new bill suggestions — as a Nextcloud notification, optionally also as a themed email. Period-aware scheduling never double-sends and self-heals after cron downtime
+- **Unusual spending alerts**: a notification when a category runs well above its 6-month typical level (median-based, pro-rated for the day of month, minimum-amount floor, max one alert per category per month; threshold tunable in Settings)
+- **Scheduled monthly PDF reports**: the previous month's summary report delivered automatically — saved into `Budget/Reports/<year>/` in your Files and/or emailed as an attachment, each channel independently toggleable; a notification links to the file when it lands
+
 ## [2.29.0] - 2026-06-12
 
 ### Added

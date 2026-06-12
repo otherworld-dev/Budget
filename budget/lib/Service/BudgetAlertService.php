@@ -26,7 +26,8 @@ class BudgetAlertService {
         TransactionMapper $transactionMapper,
         TransactionSplitMapper $splitMapper,
         SettingService $settingService,
-        private RecurringBudgetService $recurringBudgetService
+        private RecurringBudgetService $recurringBudgetService,
+        private BudgetCarryoverService $carryoverService
     ) {
         $this->categoryMapper = $categoryMapper;
         $this->budgetSnapshotMapper = $budgetSnapshotMapper;
@@ -38,12 +39,16 @@ class BudgetAlertService {
     /**
      * Resolve a category's effective budget for "now": snapshot override,
      * else the category's own budget, else the auto-derived recurring budget
-     * (#269) converted to the category's period — so alerts and budget status
-     * agree with what the Budget view shows.
+     * (#269) converted to the category's period — plus envelope carryover —
+     * so alerts and budget status agree with what the Budget view shows.
      *
-     * @return array{amount: float, period: string}
+     * 'amount' is the spendable total (base + carried); 'carried' may be
+     * negative (overspend pulled forward), so 'amount' can be <= 0 for a
+     * depleted envelope — those must still alert, not vanish.
+     *
+     * @return array{amount: float, period: string, base: float, carried: float}
      */
-    private function resolveEffectiveBudget($category, array $snapshotOverrides, array $recurringBudgets): array {
+    private function resolveEffectiveBudget($category, array $snapshotOverrides, array $recurringBudgets, array $carryovers = []): array {
         $catId = $category->getId();
         $period = isset($snapshotOverrides[$catId])
             ? ($snapshotOverrides[$catId]['period'] ?? 'monthly')
@@ -59,7 +64,14 @@ class BudgetAlertService {
             );
         }
 
-        return ['amount' => $amount, 'period' => $period];
+        $carried = (float) ($carryovers[$catId] ?? 0);
+
+        return [
+            'amount' => round($amount + $carried, 2),
+            'period' => $period,
+            'base' => $amount,
+            'carried' => $carried,
+        ];
     }
 
     /**
@@ -75,15 +87,17 @@ class BudgetAlertService {
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+        $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories);
 
-        // Filter to categories with effective budgets > 0 (excluding excluded categories)
+        // Categories with a budget in play: base > 0, or a non-zero envelope
+        // carryover (a fully depleted envelope must still alert)
         $categoriesWithBudgets = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports()) {
                 continue;
             }
-            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
-            if ($resolved['amount'] > 0) {
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
+            if ($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005) {
                 $categoriesWithBudgets[] = $category;
             }
         }
@@ -97,7 +111,7 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
-            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
             $period = $resolved['period'];
             $budget = $resolved['amount'];
 
@@ -115,7 +129,8 @@ class BudgetAlertService {
                 $range['end']
             );
 
-            $percentage = $budget > 0 ? ($spent / $budget) : 0;
+            // A depleted envelope (available <= 0) with any spending is over budget
+            $percentage = $budget > 0 ? ($spent / $budget) : ($spent > 0 ? self::DANGER_THRESHOLD : 0);
 
             // Only create alert if at warning threshold or above
             if ($percentage >= self::WARNING_THRESHOLD) {
@@ -128,6 +143,7 @@ class BudgetAlertService {
                     'categoryColor' => $category->getColor(),
                     'budgetAmount' => $budget,
                     'budgetPeriod' => $period,
+                    'carried' => round($resolved['carried'], 2),
                     'spent' => round($spent, 2),
                     'remaining' => round(max(0, $budget - $spent), 2),
                     'percentage' => round($percentage * 100, 1),
@@ -162,15 +178,16 @@ class BudgetAlertService {
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+        $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories);
 
-        // Filter to categories with effective budgets > 0 (excluding excluded categories)
+        // Base budget > 0, or a non-zero envelope carryover (see getAlerts)
         $categoriesWithBudgets = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports()) {
                 continue;
             }
-            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
-            if ($resolved['amount'] > 0) {
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
+            if ($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005) {
                 $categoriesWithBudgets[] = $category;
             }
         }
@@ -183,7 +200,7 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
 
         foreach ($categoriesWithBudgets as $category) {
-            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets);
+            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
             $period = $resolved['period'];
             $budget = $resolved['amount'];
 
@@ -200,7 +217,8 @@ class BudgetAlertService {
                 $range['end']
             );
 
-            $percentage = $budget > 0 ? ($spent / $budget) : 0;
+            // A depleted envelope (available <= 0) with any spending is over budget
+            $percentage = $budget > 0 ? ($spent / $budget) : ($spent > 0 ? self::DANGER_THRESHOLD : 0);
 
             $status = 'ok';
             if ($percentage >= self::DANGER_THRESHOLD) {
@@ -216,6 +234,7 @@ class BudgetAlertService {
                 'categoryColor' => $category->getColor(),
                 'budgetAmount' => $budget,
                 'budgetPeriod' => $period,
+                'carried' => round($resolved['carried'], 2),
                 'spent' => round($spent, 2),
                 'remaining' => round($budget - $spent, 2),
                 'percentage' => round($percentage * 100, 1),

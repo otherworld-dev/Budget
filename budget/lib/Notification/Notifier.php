@@ -357,6 +357,94 @@ class Notifier implements INotifier {
 
                 break;
 
+            case 'digest':
+                $notification->setRichSubject(
+                    $parameters['frequency'] === 'monthly'
+                        ? $l->t('Your monthly budget digest')
+                        : $l->t('Your weekly budget digest')
+                );
+
+                // TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('Income {income}, spending {expenses} ({net} net). {bills} bills due soon.'),
+                    [
+                        'income' => ['type' => 'highlight', 'id' => 'income', 'name' => $parameters['income']],
+                        'expenses' => ['type' => 'highlight', 'id' => 'expenses', 'name' => $parameters['expenses']],
+                        'net' => ['type' => 'highlight', 'id' => 'net', 'name' => $parameters['net']],
+                        'bills' => ['type' => 'highlight', 'id' => 'bills', 'name' => $parameters['billCount']],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#dashboard');
+
+                break;
+
+            case 'spending_anomaly':
+                // TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
+                $notification->setRichSubject(
+                    $l->t('Unusual spending in {category}'),
+                    [
+                        'category' => ['type' => 'highlight', 'id' => 'category', 'name' => $parameters['categoryName']],
+                    ]
+                );
+
+                // TRANSLATORS: {category}, {percent}, {amount} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('{category} spending is {percent}% above your typical level — {amount} so far this month.'),
+                    [
+                        'category' => ['type' => 'highlight', 'id' => 'category', 'name' => $parameters['categoryName']],
+                        'percent' => ['type' => 'highlight', 'id' => 'percent', 'name' => $parameters['percentAbove']],
+                        'amount' => ['type' => 'highlight', 'id' => 'amount', 'name' => $parameters['amount']],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#budget');
+
+                break;
+
+            case 'report_ready':
+                // TRANSLATORS: {month} is replaced with the report month. Do NOT translate {month} — keep it exactly as-is.
+                $notification->setRichSubject(
+                    $l->t('Your Budget report for {month} is ready'),
+                    [
+                        'month' => ['type' => 'highlight', 'id' => 'month', 'name' => $parameters['month']],
+                    ]
+                );
+
+                // TRANSLATORS: {file} is replaced with the file name. Do NOT translate {file} — keep it exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('{file} was saved to your Files.'),
+                    [
+                        'file' => [
+                            'type' => 'file',
+                            'id' => $parameters['fileId'],
+                            'name' => $parameters['fileName'],
+                            'path' => $parameters['fileName'],
+                            'link' => $this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]),
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]));
+
+                break;
+
             default:
                 throw new \InvalidArgumentException('Unknown subject');
         }

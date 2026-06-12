@@ -61,6 +61,7 @@ class BillControllerTest extends TestCase {
 			$this->service,
 			$this->validationService,
 			$granularShareService,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
 			$this->l,
 			'user1',
 			$this->logger
@@ -84,6 +85,7 @@ class BillControllerTest extends TestCase {
 			$this->service,
 			$vs,
 			$granularShareService,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
 			$this->l,
 			'user1',
 			$this->logger

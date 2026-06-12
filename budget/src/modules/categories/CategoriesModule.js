@@ -1313,9 +1313,27 @@ export default class CategoriesModule {
      * derived fallback (#269). Variable amounts typed in always win.
      */
     _getEffectiveBudgetForCalc(categoryId, fallback, period) {
+        // Server-composed value (manual/snapshot + recurring fallback + envelope
+        // carryover) — the single source of truth so every surface agrees
+        const eb = this._effectiveBudgets && this._effectiveBudgets[categoryId];
+        if (eb && eb.available != null) {
+            return parseFloat(eb.available) || 0;
+        }
         const manual = this._getEffectiveBudgetAmount(categoryId, fallback);
         if (manual > 0) return manual;
         return this._getRecurringBudgetAmount(categoryId, period);
+    }
+
+    /** Envelope carryover into the selected month (0 unless rollover is on). */
+    _getCarriedAmount(categoryId) {
+        const eb = this._effectiveBudgets && this._effectiveBudgets[categoryId];
+        return eb && eb.carried != null ? (parseFloat(eb.carried) || 0) : 0;
+    }
+
+    /** Whether the envelope (rollover) flag is on for this category. */
+    _getRolloverEnabled(categoryId) {
+        const eb = this._effectiveBudgets && this._effectiveBudgets[categoryId];
+        return !!(eb && eb.rollover);
     }
 
     renderSnapshotControls() {
@@ -1713,7 +1731,15 @@ export default class CategoriesModule {
             // Recurring-derived fallback used when no manual budget is set (#269)
             const recurringBudgetAmount = this._getRecurringBudgetAmount(category.id, effectivePeriod);
             const isAutoBudget = manualBudgetAmount <= 0 && recurringBudgetAmount > 0;
-            const effectiveBudgetAmount = manualBudgetAmount > 0 ? manualBudgetAmount : recurringBudgetAmount;
+            const baseBudgetAmount = manualBudgetAmount > 0 ? manualBudgetAmount : recurringBudgetAmount;
+
+            // Envelope carryover (rollover budgets): available = base + carried
+            const rolloverEnabled = this._getRolloverEnabled(category.id);
+            const carried = this._getCarriedAmount(category.id);
+            const effectiveBudgetAmount = this._getEffectiveBudgetForCalc(category.id, category.budgetAmount, effectivePeriod);
+            const rolloverEligible = category.type === 'expense' && effectivePeriod === 'monthly';
+            const nowMonth = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+            const carriedProjected = this.budgetMonth && this.budgetMonth > nowMonth;
 
             // Get spending for this category (already calculated for the period)
             const spent = this.categorySpending[category.id] || 0;
@@ -1724,7 +1750,9 @@ export default class CategoriesModule {
                 : effectiveBudgetAmount;
 
             const remaining = budget - spent;
-            const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+            const percentage = budget > 0
+                ? Math.min((spent / budget) * 100, 100)
+                : (spent > 0 && rolloverEnabled && carried !== 0 ? 100 : 0);
             const isIncome = category.type === 'income';
 
             let progressStatus = 'good';
@@ -1761,6 +1789,10 @@ export default class CategoriesModule {
                                step="0.01"
                                min="0">
                         ${isAutoBudget ? `<span class="budget-auto-hint" title="${t('budget', 'Auto-calculated from recurring bills/income. Enter a value to override.')}">${t('budget', 'auto')}</span>` : ''}
+                        ${rolloverEnabled && Math.abs(carried) >= 0.005 ? `<span class="budget-carried-hint ${carried < 0 ? 'negative' : 'positive'}" title="${t('budget', 'Unspent budget carried over from previous months')}">${carried < 0
+                            ? t('budget', '{base} − {over} overspent = {available}', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
+                            : t('budget', '{base} + {carried} carried = {available}', { base: this.formatCurrency(baseBudgetAmount), carried: this.formatCurrency(carried), available: this.formatCurrency(effectiveBudgetAmount) })
+                        }${carriedProjected ? ' ' + t('budget', '(projected)') : ''}</span>` : ''}
                         ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
@@ -1770,6 +1802,11 @@ export default class CategoriesModule {
                             <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
                             <option value="yearly" ${effectivePeriod === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                         </select>
+                        ${rolloverEligible ? `<button class="budget-rollover-toggle ${rolloverEnabled ? 'active' : ''}"
+                                data-category-id="${category.id}"
+                                data-enabled="${rolloverEnabled ? '1' : '0'}"
+                                title="${rolloverEnabled ? t('budget', 'Envelope budgeting on: unspent budget carries to next month. Click to turn off.') : t('budget', 'Turn on envelope budgeting: unspent budget carries to next month')}"
+                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}">&#8635;</button>` : ''}
                     </div>
                     <div class="budget-spent" data-label="${t('budget', 'Spent')}">
                         ${this.formatCurrency(spent)}
@@ -1832,6 +1869,42 @@ export default class CategoriesModule {
 
                 // Update old period data attribute for next change
                 e.target.dataset.oldPeriod = newPeriod;
+            });
+        });
+
+        // Envelope (rollover) toggles
+        document.querySelectorAll('.budget-rollover-toggle').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                const categoryId = parseInt(btn.dataset.categoryId);
+                const enable = btn.dataset.enabled !== '1';
+                btn.disabled = true;
+                try {
+                    const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', ...this.app.getAuthHeaders() },
+                        body: JSON.stringify({ budgetRollover: enable })
+                    });
+                    if (!response.ok) {
+                        throw new Error('Failed to update category');
+                    }
+                    const category = this.findCategoryById(categoryId);
+                    if (category) {
+                        category.budgetRollover = enable;
+                    }
+                    // Re-fetch composed budgets (carried/available) and re-render
+                    await this.fetchEffectiveBudgets();
+                    await this.calculateCategorySpending();
+                    this.renderBudgetTree();
+                    this.updateBudgetSummary();
+                    showSuccess(enable
+                        ? t('budget', 'Envelope budgeting enabled — unspent budget now carries to next month')
+                        : t('budget', 'Envelope budgeting disabled'));
+                } catch (error) {
+                    console.error('Failed to toggle rollover:', error);
+                    showError(t('budget', 'Failed to update envelope setting'));
+                    btn.disabled = false;
+                }
             });
         });
     }

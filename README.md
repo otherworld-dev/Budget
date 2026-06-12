@@ -8,16 +8,18 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.29
+## What's New in v2.30
 
-Budget now feels like a first-class Nextcloud citizen ([docs](docs/nextcloud-integration.md)):
+The Budgeting Depth release — the workflows that make a money app a daily driver:
 
-- **Nextcloud Dashboard Widgets** - Upcoming bills and a budget/balance overview right on Nextcloud's own dashboard
-- **Unified Search** - Find transactions from the Nextcloud search bar; results deep-link into the app with the term pre-filled
-- **Bills Calendar Feed** - Subscribe to your bills from Nextcloud Calendar, your phone, or Thunderbird via a token-secured ICS feed — including custom recurrence schedules and reminders as calendar alarms
-- **Receipt Attachments** - Attach receipts and invoices to transactions, stored in your own Files (upload or pick existing); 📎 badges, thumbnails, and renames followed automatically
+- **Envelope (Rollover) Budgets** - Unspent budget carries into next month, overspend carries as a deficit — per-category toggle, always derived from your real spending ([docs](docs/envelope-budgets.md))
+- **Statement Reconciliation** - A real statement workflow: enter the ending balance, tick transactions off, watch the difference hit zero live; resumable sessions and per-account history ([docs](docs/reconciliation.md))
+- **Proactive Bill Suggestions** - The Bills view spots recurring payments you aren't tracking and offers one-click bill creation (dismissals remembered)
+- **Budget Digest** - Opt-in weekly/monthly summary as a notification and optional themed email
+- **Unusual Spending Alerts** - "Groceries is 45% above your typical level" — median-based, noise-guarded, once per category per month
+- **Scheduled PDF Reports** - The previous month's report auto-saved to your Files and/or emailed
 
-Highlights from v2.28: ledger-derived **rock-solid balances** ([#274](https://github.com/otherworld-dev/Budget/issues/274)), auto-derived budgets ([#269](https://github.com/otherworld-dev/Budget/issues/269)), forecast exclusions ([#270](https://github.com/otherworld-dev/Budget/issues/270)), smarter import duplicate handling ([#275](https://github.com/otherworld-dev/Budget/issues/275), [#276](https://github.com/otherworld-dev/Budget/issues/276)).
+Highlights from v2.29: [Nextcloud integration pack](docs/nextcloud-integration.md) — dashboard widgets, unified search, bills calendar feed, receipt attachments.
 
 See the [full changelog](budget/CHANGELOG.md) for details.
 
@@ -80,6 +82,8 @@ Popular topics:
 - **Tag Sets** - Multi-dimensional transaction categorization with custom tag sets per category
 
 ### Budgeting & Planning
+- **Envelope (Rollover) Budgets** - Per-category carryover of unspent budget or overspend into the next month, derived live from actual spending
+- **Statement Reconciliation Sessions** - Tick transactions against a bank statement with a live difference, resumable sessions, and per-account history
 - **Budget Tracking** - Set spending limits by category with alerts when approaching or exceeding budgets
   - Per-month budget adjustments — change budgets from any month forward without affecting historical data
   - Dynamic period switching (weekly, monthly, quarterly, yearly)
