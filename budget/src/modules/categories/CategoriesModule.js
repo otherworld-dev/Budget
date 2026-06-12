@@ -1794,10 +1794,10 @@ export default class CategoriesModule {
                                step="0.01"
                                min="0">
                         ${isAutoBudget ? `<span class="budget-auto-hint" title="${t('budget', 'Auto-calculated from recurring bills/income. Enter a value to override.')}">${t('budget', 'auto')}</span>` : ''}
-                        ${rolloverEnabled && Math.abs(carried) >= 0.005 ? `<span class="budget-carried-hint ${carried < 0 ? 'negative' : 'positive'}" title="${t('budget', 'Unspent budget carried over from previous months')}">${carried < 0
-                            ? t('budget', '{base} − {over} overspent = {available}', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
-                            : t('budget', '{base} + {carried} carried = {available}', { base: this.formatCurrency(baseBudgetAmount), carried: this.formatCurrency(carried), available: this.formatCurrency(effectiveBudgetAmount) })
-                        }${carriedProjected ? ' ' + t('budget', '(projected)') : ''}</span>` : ''}
+                        ${rolloverEnabled && Math.abs(carried) >= 0.005 ? `<span class="budget-carried-hint ${carried < 0 ? 'negative' : 'positive'}" title="${(carried < 0
+                            ? t('budget', '{base} − {over} overspent = {available} available', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
+                            : t('budget', '{base} + {carried} carried = {available} available', { base: this.formatCurrency(baseBudgetAmount), carried: this.formatCurrency(carried), available: this.formatCurrency(effectiveBudgetAmount) })
+                        ) + (carriedProjected ? ' ' + t('budget', '(projected)') : '')}">${carried < 0 ? '\u2212' : '+'}${this.formatCurrency(Math.abs(carried))}${carriedProjected ? '*' : ''}</span>` : ''}
                         ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">

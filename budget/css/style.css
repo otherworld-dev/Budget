@@ -10108,6 +10108,7 @@ button.danger:hover {
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    position: relative; /* anchors the carried-over badge */
 }
 
 .budget-aggregate-hint {
@@ -10267,12 +10268,19 @@ button.danger:hover {
     flex: 1;
 }
 
-/* Envelope budgeting (rollover) */
+/* Envelope budgeting (rollover) — compact badge absolutely positioned
+   under the input so it never adds row height; full math in the tooltip */
 .budget-carried-hint {
-    display: block;
-    margin-top: 2px;
-    font-size: 0.72rem;
+    position: absolute;
+    top: 100%;
+    right: 4px;
+    margin-top: 1px;
+    font-size: 0.7rem;
+    line-height: 1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
     cursor: help;
+    pointer-events: auto;
 }
 
 .budget-carried-hint.positive {
