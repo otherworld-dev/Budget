@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.29.0] - 2026-06-12
 
 ### Added
 - **Nextcloud dashboard widgets**: "Upcoming bills" (next five bills due within 60 days, with overdue/due-today wording) and "Overview" (total balance, this month's budget progress, and an attention line for over-budget categories) — enable them via Customize on the Nextcloud dashboard
