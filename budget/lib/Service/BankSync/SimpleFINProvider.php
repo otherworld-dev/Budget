@@ -56,7 +56,8 @@ class SimpleFINProvider implements BankSyncProviderInterface {
             }
         } catch (\Exception $e) {
             $this->logger->error('SimpleFIN token claim failed: ' . $e->getMessage(), ['app' => 'budget']);
-            throw new \Exception('Failed to claim SimpleFIN token: ' . $e->getMessage());
+            throw new \Exception('Failed to claim SimpleFIN token: ' . $this->describeHttpFailure($e)
+                . ' Note: setup tokens are single-use — generate a fresh token for each attempt.');
         }
 
         // Fetch initial accounts to verify the connection works
@@ -103,7 +104,7 @@ class SimpleFINProvider implements BankSyncProviderInterface {
             $data = json_decode($response->getBody(), true);
         } catch (\Exception $e) {
             $this->logger->error('SimpleFIN fetch failed: ' . $e->getMessage(), ['app' => 'budget']);
-            throw new \Exception('Failed to fetch accounts from SimpleFIN');
+            throw new \Exception('Failed to fetch accounts from SimpleFIN: ' . $this->describeHttpFailure($e));
         }
 
         if (!is_array($data) || !isset($data['accounts'])) {
@@ -157,6 +158,26 @@ class SimpleFINProvider implements BankSyncProviderInterface {
     public function fetchAccountList(string $credentials, array $options = []): array {
         // SimpleFIN doesn't have a separate metadata endpoint
         return $this->fetchAccounts($credentials, $options);
+    }
+
+    /**
+     * Turn an HTTP client exception into a short, user-actionable description.
+     * The bridge's status code is the diagnostic (e.g. 402/403 = account or
+     * subscription problem on the SimpleFIN side) — hiding it behind a generic
+     * message made these reports impossible to self-diagnose (#277).
+     */
+    private function describeHttpFailure(\Exception $e): string {
+        if (preg_match('/resulted in a `(\d{3})[^`]*`/', $e->getMessage(), $m)) {
+            $status = (int) $m[1];
+            $hint = match (true) {
+                $status === 402, $status === 403 => ' Check on the SimpleFIN Bridge website that your subscription is active and the token has not been revoked.',
+                $status === 401 => ' The access credentials were rejected — reconnect with a fresh setup token.',
+                $status >= 500 => ' The SimpleFIN service appears to be having problems — try again later.',
+                default => '',
+            };
+            return "SimpleFIN returned HTTP {$status}.{$hint}";
+        }
+        return 'Could not reach the SimpleFIN service.';
     }
 
     public function requiresReauthorization(string $credentials): bool {
