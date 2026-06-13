@@ -804,19 +804,21 @@ class BillService {
             $isTransfer = !empty($item['isTransfer']);
             $destinationAccountId = isset($item['destinationAccountId']) ? (int) $item['destinationAccountId'] : null;
 
+            // Named arguments — create() has 25 parameters and positional
+            // calls here previously drifted (a missing value pushed `false`
+            // into the ?string customRecurrencePattern slot, 500-ing every
+            // detect-and-add). Names keep this aligned.
             $bill = $this->create(
-                $userId,
-                $item['suggestedName'] ?? $item['description'],
-                $item['amount'],
-                $item['frequency'],
-                $item['dueDay'] ?? null,
-                null,
-                $isTransfer ? null : ($item['categoryId'] ?? null),
-                $item['accountId'] ?? null,
-                $item['autoDetectPattern'] ?? null,
-                null, null, null, false, null, false,
-                $isTransfer,
-                $destinationAccountId
+                userId: $userId,
+                name: $item['suggestedName'] ?? $item['description'],
+                amount: (float) $item['amount'],
+                frequency: $item['frequency'],
+                dueDay: isset($item['dueDay']) ? (int) $item['dueDay'] : null,
+                categoryId: $isTransfer ? null : (isset($item['categoryId']) ? (int) $item['categoryId'] : null),
+                accountId: isset($item['accountId']) ? (int) $item['accountId'] : null,
+                autoDetectPattern: $item['autoDetectPattern'] ?? null,
+                isTransfer: $isTransfer,
+                destinationAccountId: $destinationAccountId,
             );
             $created[] = $bill;
         }

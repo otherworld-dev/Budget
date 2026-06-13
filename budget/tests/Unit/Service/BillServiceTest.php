@@ -181,6 +181,62 @@ class BillServiceTest extends TestCase {
 		);
 	}
 
+	// ── createFromDetected (#278) ───────────────────────────────────
+
+	public function testCreateFromDetectedAcrossFrequencies(): void {
+		// Regression for #278: createFromDetected drifted its positional args
+		// into create(), pushing `false` into ?string customRecurrencePattern
+		// and 500-ing every detect-and-add. Exercise detector-shaped items.
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
+		$this->mapper->method('insert')->willReturnCallback(function (Bill $b) {
+			$b->setId(7);
+			return $b;
+		});
+
+		$mk = fn(array $o = []) => array_merge([
+			'patternKey' => 'netflix|16', 'description' => 'NETFLIX 12345',
+			'suggestedName' => 'Netflix', 'amount' => 15.99, 'frequency' => 'monthly',
+			'dueDay' => 16, 'categoryId' => null, 'accountId' => null,
+			'occurrences' => 4, 'confidence' => 0.83, 'autoDetectPattern' => 'NETFLIX',
+			'lastSeen' => '2026-06-01',
+		], $o);
+
+		$detected = [
+			$mk(),
+			$mk(['frequency' => 'weekly', 'dueDay' => 3]),
+			$mk(['frequency' => 'yearly']),
+			$mk(['amount' => '15.99']),           // numeric string must not TypeError
+			$mk(['dueDay' => null]),
+			$mk(['categoryId' => 5, 'accountId' => 9]),
+		];
+
+		$created = $this->service->createFromDetected('user1', $detected);
+
+		$this->assertCount(6, $created);
+		foreach ($created as $bill) {
+			$this->assertInstanceOf(Bill::class, $bill);
+			$this->assertSame('NETFLIX', $bill->getAutoDetectPattern());
+		}
+	}
+
+	public function testCreateFromDetectedTransfer(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
+		$this->mapper->method('insert')->willReturnCallback(function (Bill $b) {
+			$b->setId(8);
+			return $b;
+		});
+
+		$created = $this->service->createFromDetected('user1', [[
+			'suggestedName' => 'Savings transfer', 'amount' => 200.0, 'frequency' => 'monthly',
+			'dueDay' => 1, 'isTransfer' => true, 'destinationAccountId' => 3, 'accountId' => 1,
+		]]);
+
+		$this->assertCount(1, $created);
+		$this->assertTrue($created[0]->getIsTransfer());
+		$this->assertSame(3, $created[0]->getDestinationAccountId());
+		$this->assertNull($created[0]->getCategoryId());
+	}
+
 	// ── markPaid ────────────────────────────────────────────────────
 
 	public function testMarkPaidAdvancesNextDueDate(): void {
