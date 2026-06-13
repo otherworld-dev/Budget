@@ -35,10 +35,14 @@ class AmountFormatter {
      */
     public function formatForUser(string $userId, float $amount, ?string $currency = null): string {
         if ($currency === null) {
+            // The user's currency lives under 'default_currency' (the key used
+            // by CurrencyConversionService and the settings UI). Reading the
+            // wrong key here made every server-rendered amount fall back to USD
+            // regardless of the user's actual currency.
             try {
-                $currency = $this->settingService->get($userId, 'currency') ?? 'USD';
+                $currency = $this->settingService->get($userId, 'default_currency') ?? 'GBP';
             } catch (\Exception $e) {
-                $currency = 'USD';
+                $currency = 'GBP';
             }
         }
         return $this->format($amount, $currency);

@@ -108,7 +108,7 @@ class BillReminderJobTest extends TestCase {
 
 	public function testFormatAmountWithUsd(): void {
 		$this->settingService->method('get')
-			->with('user1', 'currency')
+			->with('user1', 'default_currency')
 			->willReturn('USD');
 
 		$result = $this->invokeFormatAmount('user1', 15.99);
@@ -117,7 +117,7 @@ class BillReminderJobTest extends TestCase {
 
 	public function testFormatAmountWithEur(): void {
 		$this->settingService->method('get')
-			->with('user1', 'currency')
+			->with('user1', 'default_currency')
 			->willReturn('EUR');
 
 		$result = $this->invokeFormatAmount('user1', 100.00);
@@ -126,7 +126,7 @@ class BillReminderJobTest extends TestCase {
 
 	public function testFormatAmountWithGbp(): void {
 		$this->settingService->method('get')
-			->with('user1', 'currency')
+			->with('user1', 'default_currency')
 			->willReturn('GBP');
 
 		$result = $this->invokeFormatAmount('user1', 50.50);
@@ -135,19 +135,19 @@ class BillReminderJobTest extends TestCase {
 
 	public function testFormatAmountWithUnknownCurrency(): void {
 		$this->settingService->method('get')
-			->with('user1', 'currency')
+			->with('user1', 'default_currency')
 			->willReturn('SEK');
 
 		$result = $this->invokeFormatAmount('user1', 299.00);
 		$this->assertEquals('SEK 299.00', $result);
 	}
 
-	public function testFormatAmountDefaultsToUsdOnError(): void {
+	public function testFormatAmountDefaultsToGbpOnError(): void {
 		$this->settingService->method('get')
 			->willThrowException(new \RuntimeException('Settings unavailable'));
 
 		$result = $this->invokeFormatAmount('user1', 25.00);
-		$this->assertEquals('$25.00', $result);
+		$this->assertEquals('£25.00', $result);
 	}
 
 	// ===== run() - Reminders =====

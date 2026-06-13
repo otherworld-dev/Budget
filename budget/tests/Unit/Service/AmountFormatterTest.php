@@ -29,7 +29,7 @@ class AmountFormatterTest extends TestCase {
 
     public function testFormatForUserReadsUserCurrency(): void {
         $this->settingService->method('get')
-            ->with('alice', 'currency')
+            ->with('alice', 'default_currency')
             ->willReturn('EUR');
 
         $this->assertSame('€5.00', $this->formatter->formatForUser('alice', 5.0));
@@ -41,16 +41,16 @@ class AmountFormatterTest extends TestCase {
         $this->assertSame('£5.00', $this->formatter->formatForUser('alice', 5.0, 'GBP'));
     }
 
-    public function testFormatForUserFallsBackToUsdOnError(): void {
+    public function testFormatForUserFallsBackToDefaultOnError(): void {
         $this->settingService->method('get')
             ->willThrowException(new \RuntimeException('db gone'));
 
-        $this->assertSame('$5.00', $this->formatter->formatForUser('alice', 5.0));
+        $this->assertSame('£5.00', $this->formatter->formatForUser('alice', 5.0));
     }
 
-    public function testFormatForUserFallsBackToUsdWhenUnset(): void {
+    public function testFormatForUserFallsBackToDefaultWhenUnset(): void {
         $this->settingService->method('get')->willReturn(null);
 
-        $this->assertSame('$5.00', $this->formatter->formatForUser('alice', 5.0));
+        $this->assertSame('£5.00', $this->formatter->formatForUser('alice', 5.0));
     }
 }
