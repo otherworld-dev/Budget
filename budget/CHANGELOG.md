@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.30.0] - 2026-06-13
 
 ### Added
 - **Envelope (rollover) budgets**: per-category toggle on the Budget view — unspent budget carries into the next month's available amount, and overspend carries as a deficit. The carried amount is always derived from your actual budgets and spending (editing a past transaction recomputes every later month automatically), shown as "300 + 45 carried = 345" on the budget row and included consistently in alerts, the dashboard and reports. Monthly expense categories; carryover starts the month you enable it
