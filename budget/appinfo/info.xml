@@ -50,21 +50,13 @@ Full user documentation: https://github.com/otherworld-dev/budget/tree/master/do
     <category>organization</category>
     <bugs>https://github.com/otherworld-dev/budget/issues</bugs>
     <repository>https://github.com/otherworld-dev/budget</repository>
-    <funding>https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2</funding>
     <screenshot small-thumbnail="https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard-thumb.png">https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard.png</screenshot>
+    <donation type="paypal" title="Donate via PayPal">https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2</donation>
     <dependencies>
         <php min-version="8.1" />
         <lib>bcmath</lib>
         <nextcloud min-version="30" max-version="35" />
     </dependencies>
-    <navigations>
-        <navigation>
-            <name>Budget</name>
-            <route>budget.page.index</route>
-            <icon>app.svg</icon>
-            <order>10</order>
-        </navigation>
-    </navigations>
     <background-jobs>
         <job>OCA\Budget\BackgroundJob\CleanupImportFilesJob</job>
         <job>OCA\Budget\BackgroundJob\CleanupAuditLogsJob</job>
@@ -80,4 +72,12 @@ Full user documentation: https://github.com/otherworld-dev/budget/tree/master/do
     <commands>
         <command>OCA\Budget\Command\SeedDemo</command>
     </commands>
+    <navigations>
+        <navigation>
+            <name>Budget</name>
+            <route>budget.page.index</route>
+            <icon>app.svg</icon>
+            <order>10</order>
+        </navigation>
+    </navigations>
 </info>
