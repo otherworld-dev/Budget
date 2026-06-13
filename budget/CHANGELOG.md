@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.30.2] - 2026-06-13
 
 ### Fixed
 - Dropdowns in the transaction list (the column-configuration gear menu and the in-cell category/tag/account editors) were cut off when the table had only a few rows, because the table area was shorter than the dropdowns. The transaction table now fills the available height, so every dropdown has room to open in full ([#280](https://github.com/otherworld-dev/Budget/issues/280))
