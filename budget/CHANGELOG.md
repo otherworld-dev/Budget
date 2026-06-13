@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The Budget Overview dashboard widget (and the digest, spending-anomaly and bill-reminder notifications) always showed amounts in US dollars regardless of your configured currency. The server-side amount formatter was reading the wrong settings key and falling back to USD; it now uses your default currency
+- The Budget Overview dashboard widget's "Total balance" now converts multi-currency accounts to your base currency instead of summing different currencies under one symbol (currencies without an exchange rate are excluded from the total and named)
 
 ## [2.30.2] - 2026-06-13
 

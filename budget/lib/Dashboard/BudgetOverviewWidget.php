@@ -7,6 +7,7 @@ namespace OCA\Budget\Dashboard;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AmountFormatter;
 use OCA\Budget\Service\BudgetAlertService;
+use OCA\Budget\Service\CurrencyConversionService;
 use OCP\Dashboard\IAPIWidget;
 use OCP\Dashboard\IAPIWidgetV2;
 use OCP\Dashboard\IButtonWidget;
@@ -28,6 +29,7 @@ class BudgetOverviewWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBu
         private AccountService $accountService,
         private BudgetAlertService $budgetAlertService,
         private AmountFormatter $amountFormatter,
+        private CurrencyConversionService $currencyConversion,
         private IL10N $l,
         private IURLGenerator $urlGenerator,
     ) {
@@ -102,9 +104,22 @@ class BudgetOverviewWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBu
             return [];
         }
 
+        // Everything in this widget is shown in the user's base currency.
+        $base = $this->currencyConversion->getBaseCurrency($userId);
+
+        // getSummary()'s totalBalance is a raw cross-currency sum; convert each
+        // currency's subtotal to the base currency so multi-currency accounts
+        // aren't mixed under one symbol. Currencies with no exchange rate are
+        // left out of the total and named, rather than silently distorting it.
+        [$totalInBase, $unconverted] = $this->totalInBaseCurrency($userId, $accountSummary, $base);
+        $balanceSubtitle = $this->amountFormatter->format($totalInBase, $base);
+        if (!empty($unconverted)) {
+            $balanceSubtitle .= ' ' . $this->l->t('(excludes %1$s — no exchange rate)', [implode(', ', $unconverted)]);
+        }
+
         $items[] = new WidgetItem(
             $this->l->t('Total balance'),
-            $this->amountFormatter->formatForUser($userId, (float) ($accountSummary['totalBalance'] ?? 0)),
+            $balanceSubtitle,
             $this->getUrl(),
             $this->getIconUrl(),
             'balance'
@@ -115,8 +130,8 @@ class BudgetOverviewWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBu
             $items[] = new WidgetItem(
                 $this->l->t('Budget this month'),
                 $this->l->t('%1$s of %2$s spent (%3$s%%)', [
-                    $this->amountFormatter->formatForUser($userId, (float) $budget['totalSpent']),
-                    $this->amountFormatter->formatForUser($userId, (float) $budget['totalBudget']),
+                    $this->amountFormatter->format((float) $budget['totalSpent'], $base),
+                    $this->amountFormatter->format((float) $budget['totalBudget'], $base),
                     (string) $budget['overallPercentage'],
                 ]),
                 $this->getUrl(),
@@ -145,5 +160,36 @@ class BudgetOverviewWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBu
         }
 
         return $items;
+    }
+
+    /**
+     * Sum all account balances into the base currency, converting each
+     * currency's subtotal where an exchange rate exists.
+     *
+     * @param array $summary AccountService::getSummary() result
+     * @return array{0: float, 1: string[]} [total in base currency, currencies that couldn't be converted]
+     */
+    private function totalInBaseCurrency(string $userId, array $summary, string $base): array {
+        $breakdown = $summary['currencyBreakdown'] ?? [];
+        if (empty($breakdown)) {
+            // Older/empty summaries: fall back to the raw total (single-currency safe)
+            return [(float) ($summary['totalBalance'] ?? 0), []];
+        }
+
+        $total = 0.0;
+        $unconverted = [];
+        foreach ($breakdown as $currency => $amount) {
+            $currency = (string) $currency;
+            $amount = (float) $amount;
+            if ($currency === '' || strtoupper($currency) === strtoupper($base)) {
+                $total += $amount;
+            } elseif ($this->currencyConversion->canConvert($currency, $userId)) {
+                $total += $this->currencyConversion->convertToBaseFloat($amount, $currency, $userId);
+            } else {
+                $unconverted[] = $currency;
+            }
+        }
+
+        return [round($total, 2), $unconverted];
     }
 }
