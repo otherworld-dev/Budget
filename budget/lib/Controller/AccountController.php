@@ -234,6 +234,8 @@ class AccountController extends Controller {
                 $swiftBic = $swiftValidation['formatted'];
             }
 
+            $excludedFromReports = filter_var($data['excludedFromReports'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
             // Create the account
             $account = $this->service->create(
                 $this->getEffectiveUserId(),
@@ -253,7 +255,8 @@ class AccountController extends Controller {
                 $creditLimit,
                 $overdraftLimit,
                 $minimumPayment,
-                $walletAddress
+                $walletAddress,
+                $excludedFromReports
             );
 
             // Audit log the account creation
@@ -438,6 +441,11 @@ class AccountController extends Controller {
                 $newEnabled = (bool) $data['interestEnabled'];
                 $updates['interestEnabled'] = $newEnabled;
                 $interestToggled = true;
+            }
+
+            // Exclude-from-reports flag (#286)
+            if (array_key_exists('excludedFromReports', $data)) {
+                $updates['excludedFromReports'] = filter_var($data['excludedFromReports'], FILTER_VALIDATE_BOOLEAN);
             }
 
             if (empty($updates)) {

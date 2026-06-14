@@ -83,6 +83,8 @@ class ForecastService {
             $accounts = !empty($visibleAccountIds)
                 ? $this->accountMapper->findByIds($visibleAccountIds)
                 : $this->accountMapper->findAll($userId);
+            // The all-accounts forecast skips accounts flagged out of reports (#286)
+            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
         }
 
         // Get future transaction adjustments to calculate balance as of today
@@ -151,6 +153,9 @@ class ForecastService {
         $accounts = !empty($visibleAccountIds)
             ? $this->accountMapper->findByIds($visibleAccountIds)
             : $this->accountMapper->findAll($userId);
+
+        // The live (all-accounts) forecast skips accounts flagged out of reports (#286)
+        $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
 
         // Get future transaction adjustments to calculate balance as of today
         $today = date('Y-m-d');

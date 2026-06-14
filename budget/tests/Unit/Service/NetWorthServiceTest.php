@@ -192,4 +192,23 @@ class NetWorthServiceTest extends TestCase {
 
 		$this->assertEqualsWithDelta(1425.00, $result['totalAssets'], 0.01);
 	}
+
+	// ===== exclude-from-reports (#286) =====
+
+	public function testExcludesFlaggedAccountsFromNetWorth(): void {
+		$included = $this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP');
+		$excluded = $this->makeAccount(2, 'Side Account', 'savings', 5000.00, 'GBP');
+		$excluded->setExcludedFromReports(true);
+
+		$this->accountMapper->method('findAll')->willReturn([$included, $excluded]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$result = $this->service->calculateNetWorth('user1');
+
+		// Only the included account's 1000 counts; the flagged 5000 is ignored
+		$this->assertEquals(1000.00, $result['totalAssets']);
+		$this->assertEquals(1000.00, $result['netWorth']);
+	}
 }

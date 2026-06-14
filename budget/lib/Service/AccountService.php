@@ -56,7 +56,8 @@ class AccountService extends AbstractCrudService {
         ?float $creditLimit = null,
         ?float $overdraftLimit = null,
         ?float $minimumPayment = null,
-        ?string $walletAddress = null
+        ?string $walletAddress = null,
+        bool $excludedFromReports = false
     ): Account {
         $account = new Account();
         $account->setUserId($userId);
@@ -78,6 +79,7 @@ class AccountService extends AbstractCrudService {
         $account->setCreditLimit($creditLimit);
         $account->setOverdraftLimit($overdraftLimit);
         $account->setMinimumPayment($minimumPayment);
+        $account->setExcludedFromReports($excludedFromReports);
         $this->setTimestamps($account, true);
 
         return $this->mapper->insert($account);
@@ -250,6 +252,11 @@ class AccountService extends AbstractCrudService {
             $sharedAccounts = $this->mapper->findByIds($sharedAccountIds);
             $accounts = array_merge($accounts, $sharedAccounts);
         }
+
+        // The summary feeds the dashboard / overview totals, so drop accounts the
+        // user flagged out of aggregations (#286). The account itself stays
+        // visible on the accounts page (AccountController::index keeps it).
+        $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
 
         $totalBalance = '0.00';
         $currencyBreakdown = [];

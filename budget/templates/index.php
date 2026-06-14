@@ -5273,6 +5273,14 @@ style('budget', 'budget-app');
                 </div>
             </div>
 
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                    <input type="checkbox" id="account-excluded-from-reports" style="width: 18px; height: 18px; margin: 0;">
+                    <?php p($l->t('Exclude from reports, dashboard & forecast')); ?>
+                </label>
+                <small class="form-text"><?php p($l->t('Keep tracking this account, but leave its transactions and balance out of every "all accounts" total — reports, the dashboard, forecast, net worth and budgets. The account still appears in your accounts list and on its own page.')); ?></small>
+            </div>
+
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="<?php p($l->t('Save account')); ?>"><?php p($l->t('Save')); ?></button>
                 <button type="button" class="secondary cancel-btn" aria-label="<?php p($l->t('Cancel and close dialog')); ?>"><?php p($l->t('Cancel')); ?></button>

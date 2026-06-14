@@ -155,6 +155,11 @@ class TransactionSplitMapper extends QBMapper {
             ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            // Exclude accounts flagged out of reports/budgets (#286)
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->isNull('a.excluded_from_reports'),
+                $qb->expr()->eq('a.excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+            ))
             ->andWhere($qb->expr()->isNotNull('s.category_id'))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))

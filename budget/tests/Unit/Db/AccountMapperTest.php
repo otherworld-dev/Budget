@@ -24,6 +24,8 @@ class AccountMapperTest extends TestCase {
     private IFunctionBuilder $func;
     private IResult $result;
     private EncryptionService $encryptionService;
+    /** @var string[] Columns passed to $qb->set() during the last update() */
+    private array $setColumns = [];
 
     protected function setUp(): void {
         $this->db = $this->createMock(IDBConnection::class);
@@ -40,10 +42,17 @@ class AccountMapperTest extends TestCase {
         $this->qb->method('createNamedParameter')->willReturn(':param');
 
         foreach (['select', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'insert', 'delete', 'update', 'set',
+                   'orderBy', 'insert', 'delete', 'update',
                    'setValue'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
+
+        // Record which columns update()/insert() write so tests can assert coverage
+        $this->setColumns = [];
+        $this->qb->method('set')->willReturnCallback(function (string $column) {
+            $this->setColumns[] = $column;
+            return $this->qb;
+        });
 
         // Encryption: pass through by default
         $this->encryptionService->method('encrypt')->willReturnCallback(fn($v) => "enc:{$v}");
@@ -232,6 +241,39 @@ class AccountMapperTest extends TestCase {
         $account = $this->mapper->updateBalance(1, '1234.56', 'user1');
 
         $this->assertInstanceOf(Account::class, $account);
+    }
+
+    // ===== update writes excluded_from_reports (#286) =====
+
+    /**
+     * Regression for #286: update() is a hand-written method that explicitly
+     * set()s each column, so a newly added column is silently dropped unless
+     * listed here (the same class of bug as #284 for bills). The flag must be
+     * persisted, otherwise toggling "exclude from reports" never takes effect.
+     */
+    public function testUpdatePersistsExcludedFromReports(): void {
+        $this->qb->method('executeStatement')->willReturn(1);
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls(
+                $this->makeAccountRow(['excluded_from_reports' => 1]),
+                false
+            );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $account = new Account();
+        $account->setId(1);
+        $account->setUserId('user1');
+        $account->setName('Checking');
+        $account->setType('checking');
+        $account->setBalance(100.0);
+        $account->setCurrency('USD');
+        $account->setExcludedFromReports(true);
+
+        $this->mapper->update($account);
+
+        $this->assertContains('excluded_from_reports', $this->setColumns,
+            'update() must persist the excluded_from_reports column');
     }
 
     // ===== insert (encryption) =====

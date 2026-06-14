@@ -632,6 +632,37 @@ class AccountControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	// ===== exclude-from-reports (#286) =====
+
+	public function testUpdatePassesExcludedFromReports(): void {
+		$this->mockInput(json_encode(['excludedFromReports' => true]));
+
+		$this->service->expects($this->once())
+			->method('update')
+			->with(1, 'user1', $this->callback(fn($updates) => ($updates['excludedFromReports'] ?? null) === true))
+			->willReturn($this->makeAccount());
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreatePassesExcludedFromReports(): void {
+		$captured = null;
+		$account = $this->makeAccount();
+		$this->service->method('create')->willReturnCallback(function (...$args) use (&$captured, $account) {
+			$captured = $args;
+			return $account;
+		});
+		$this->mockInput(json_encode(['name' => 'Hidden', 'type' => 'checking', 'excludedFromReports' => true]));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		// excludedFromReports is the final positional argument to AccountService::create
+		$this->assertTrue(end($captured));
+	}
+
 	public function testUpdateServiceException(): void {
 		$this->mockInput(json_encode(['name' => 'Updated']));
 		$this->service->method('update')->willThrowException(new \RuntimeException('DB error'));

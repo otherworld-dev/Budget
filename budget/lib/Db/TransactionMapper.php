@@ -34,14 +34,35 @@ class TransactionMapper extends QBMapper {
      * Apply user scope to a query — either by userId or by visible account IDs.
      * Used for granular sharing where the user can see specific shared accounts.
      *
+     * By default this ALSO excludes accounts flagged excluded_from_reports (#286)
+     * so every "all accounts" aggregation drops them automatically. The few
+     * non-aggregate callers that must still see those accounts — the transaction
+     * list/count, search, and the generic date-range fetch — pass
+     * $includeReportExcluded = true to opt out.
+     *
      * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
      */
-    private function applyUserScope(IQueryBuilder $qb, string $userId, ?array $visibleAccountIds = null): void {
+    private function applyUserScope(IQueryBuilder $qb, string $userId, ?array $visibleAccountIds = null, bool $includeReportExcluded = false): void {
         if ($visibleAccountIds !== null && !empty($visibleAccountIds)) {
             $qb->andWhere($qb->expr()->in('a.id', $qb->createNamedParameter($visibleAccountIds, IQueryBuilder::PARAM_INT_ARRAY)));
         } else {
             $qb->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
         }
+        if (!$includeReportExcluded) {
+            $this->excludeReportExcludedAccounts($qb);
+        }
+    }
+
+    /**
+     * Add a condition that drops transactions belonging to accounts flagged
+     * excluded_from_reports (#286). NULL counts as not-excluded so existing
+     * accounts are unaffected. The given alias must reference budget_accounts.
+     */
+    private function excludeReportExcludedAccounts(IQueryBuilder $qb, string $alias = 'a'): void {
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->isNull($alias . '.excluded_from_reports'),
+            $qb->expr()->eq($alias . '.excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+        ));
     }
 
     /**
@@ -454,6 +475,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $row = $result->fetch();
@@ -502,6 +524,7 @@ class TransactionMapper extends QBMapper {
         }
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         $qb->groupBy($qb->createFunction($this->monthExpr()))
             ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
@@ -527,7 +550,8 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        // Category management count keeps excluded accounts (not a report aggregate) (#286)
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
         $qb->andWhere($qb->expr()->isNotNull('t.category_id'));
 
         $this->excludeScheduledFuture($qb);
@@ -660,7 +684,8 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        // List/search views still show excluded accounts' transactions (#286)
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
 
         $qb->andWhere(
                 $qb->expr()->orX(
@@ -689,7 +714,8 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        // List/search views still show excluded accounts' transactions (#286)
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
 
         // Apply filters using the filter builder
         $this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
@@ -700,7 +726,7 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $countQb->expr()->eq('t.account_id', 'a.id'));
 
-        $this->applyUserScope($countQb, $userId, $visibleAccountIds);
+        $this->applyUserScope($countQb, $userId, $visibleAccountIds, true);
 
         // Apply same filters to count query
         $this->filterBuilder->applyTransactionFilters($countQb, $filters, 't');
@@ -1206,6 +1232,7 @@ class TransactionMapper extends QBMapper {
         $qb->select('t.category_id')
             ->selectAlias($qb->func()->sum('t.amount'), 'total')
             ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
@@ -1213,6 +1240,9 @@ class TransactionMapper extends QBMapper {
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        } else {
+            // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
+            $this->excludeReportExcludedAccounts($qb);
         }
 
         if ($excludeDeductedTransfers) {
@@ -2111,6 +2141,7 @@ class TransactionMapper extends QBMapper {
             ));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -2154,6 +2185,7 @@ class TransactionMapper extends QBMapper {
             ->addGroupBy($qb->createFunction($bucketExpr));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $totals = [];
@@ -2184,6 +2216,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $data = $result->fetchAll();
@@ -2613,6 +2646,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -2729,6 +2763,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));

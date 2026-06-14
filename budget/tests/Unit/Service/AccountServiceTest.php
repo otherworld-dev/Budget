@@ -385,4 +385,33 @@ class AccountServiceTest extends TestCase {
         $this->expectException(DoesNotExistException::class);
         $this->service->getAccountMetrics(999, 'user1');
     }
+
+    // ===== exclude-from-reports (#286) =====
+
+    public function testGetSummaryExcludesFlaggedAccounts(): void {
+        $included = $this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']);
+        $excluded = $this->makeAccount(['id' => 2, 'balance' => 500.00, 'currency' => 'USD']);
+        $excluded->setExcludedFromReports(true);
+        $this->accountMapper->method('findAll')->willReturn([$included, $excluded]);
+        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+        $result = $this->service->getSummary('user1');
+
+        // The flagged account drops out of the dashboard summary entirely
+        $this->assertEquals(1, $result['accountCount']);
+        $this->assertEquals(1000.0, $result['totalBalance']);
+        $this->assertSame([1], array_column($result['accounts'], 'id'));
+    }
+
+    public function testCreateStoresExcludedFromReports(): void {
+        $captured = null;
+        $this->accountMapper->method('insert')->willReturnCallback(function ($account) use (&$captured) {
+            $captured = $account;
+            return $account;
+        });
+
+        $this->service->create('user1', 'Hidden', 'checking', 0.0, 'USD', excludedFromReports: true);
+
+        $this->assertTrue($captured->getExcludedFromReports());
+    }
 }

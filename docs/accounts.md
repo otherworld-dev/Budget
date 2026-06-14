@@ -73,8 +73,21 @@ Navigate to **Accounts > Add Account** to create a new account.
 | **Interest Rate** | Available for liability accounts. Used in debt payoff calculations. |
 | **Minimum Payment** | Available for liability accounts. Used in debt payoff planning. |
 | **Overdraft Limit** | The overdraft threshold for the account. The app warns you when your balance drops below this limit. |
+| **Exclude from reports, dashboard & forecast** | When ticked, the account is kept out of every "all accounts" total — reports, the dashboard, forecast, net worth and category budgets. See [Excluding an Account from Aggregations](#excluding-an-account-from-aggregations). |
 
 > **Note:** The currency is set per account, so you can track accounts in different currencies. Multi-currency totals on the dashboard use exchange rates to convert to your default currency. See [Exchange Rates](exchange-rates.md) for details.
+
+## Excluding an Account from Aggregations
+
+Sometimes you want to track an account in Budget without letting it affect your overall financial picture — for example an account you manage on someone else's behalf, or one that isn't really part of your own net worth. Tick **Exclude from reports, dashboard & forecast** in the account's edit dialog to do exactly that.
+
+When an account is excluded:
+
+- Its transactions and balance are left out of all **reports** (spending, income, cash flow, trends, tags), the **dashboard** (totals, charts and summary tiles), the **forecast**, **net worth**, **total balance**, and **category budgets** — everywhere "All accounts" is aggregated.
+- The account still appears in your **accounts list** (marked with an **Excluded** badge) and on its own **detail page**, and its transactions still show in the transactions list, so you can keep using and reconciling it normally.
+- If you explicitly select the account in a report or forecast, that view still works on its own — the exclusion only applies to the combined "all accounts" figures.
+
+You can toggle this off again at any time; the account immediately rejoins all totals (everything is derived live, nothing is cached).
 
 ## Account Detail View
 

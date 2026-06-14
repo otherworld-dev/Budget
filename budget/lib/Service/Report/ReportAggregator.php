@@ -66,6 +66,13 @@ class ReportAggregator {
             $accounts = $this->accountMapper->findAll($userId);
         }
 
+        // In the "all accounts" summary, drop accounts the user flagged out of
+        // reports (#286). When a specific account is explicitly selected we keep
+        // it — the transaction aggregates are already filtered at the query layer.
+        if ($accountId === null) {
+            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
+        }
+
         $baseCurrency = $this->conversionService->getBaseCurrency($userId);
         $needsConversion = $accountId === null && $this->conversionService->needsConversion($accounts);
         $unconvertedCurrencies = [];
@@ -457,6 +464,9 @@ class ReportAggregator {
             $accounts = !empty($visibleAccountIds)
                 ? $this->accountMapper->findByIds($visibleAccountIds)
                 : $this->accountMapper->findAll($userId);
+            // Excluded accounts contribute no transactions, so keep them out of
+            // the currency-conversion setup too (#286)
+            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
             $needsConversion = $this->conversionService->needsConversion($accounts);
 
             if ($needsConversion) {
@@ -564,6 +574,8 @@ class ReportAggregator {
             $accounts = !empty($visibleAccountIds)
                 ? $this->accountMapper->findByIds($visibleAccountIds)
                 : $this->accountMapper->findAll($userId);
+            // Keep excluded accounts out of the conversion setup (#286)
+            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
             $needsConversion = $this->conversionService->needsConversion($accounts);
 
             if ($needsConversion) {

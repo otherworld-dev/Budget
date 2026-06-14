@@ -61,6 +61,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  * @method string|null getLastReconciled()
  * @method void setLastReconciled(?string $lastReconciled)
+ * @method bool|null getExcludedFromReports()
+ * @method void setExcludedFromReports(?bool $excludedFromReports)
  */
 class Account extends Entity implements JsonSerializable {
     protected $userId;
@@ -101,6 +103,11 @@ class Account extends Entity implements JsonSerializable {
     protected $createdAt;
     protected $updatedAt;
     protected $lastReconciled;
+    // When true, the account is omitted from every "all accounts" aggregation —
+    // reports, dashboard, forecast, net worth, total balance and budgets (#286).
+    // The account itself stays fully usable (accounts list, detail page, its
+    // own transaction list).
+    protected $excludedFromReports;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -112,6 +119,7 @@ class Account extends Entity implements JsonSerializable {
         $this->addType('minimumPayment', 'float');
         $this->addType('interestEnabled', 'boolean');
         $this->addType('accruedInterest', 'float');
+        $this->addType('excludedFromReports', 'boolean');
     }
 
     /**
@@ -172,6 +180,7 @@ class Account extends Entity implements JsonSerializable {
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
             'lastReconciled' => $this->getLastReconciled(),
+            'excludedFromReports' => $this->getExcludedFromReports() ?? false,
             'hasSensitiveData' => $this->hasSensitiveData(),
         ];
     }
@@ -208,6 +217,7 @@ class Account extends Entity implements JsonSerializable {
             'createdAt' => $this->getCreatedAt(),
             'updatedAt' => $this->getUpdatedAt(),
             'lastReconciled' => $this->getLastReconciled(),
+            'excludedFromReports' => $this->getExcludedFromReports() ?? false,
         ];
     }
 

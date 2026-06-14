@@ -69,6 +69,11 @@ class ScenarioBuilder {
             ? [$this->accountMapper->find($accountId, $userId)]
             : $this->accountMapper->findAll($userId);
 
+        // Skip accounts flagged out of reports in all-accounts scenarios (#286)
+        if ($accountId === null) {
+            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
+        }
+
         // Get future transaction adjustments to calculate balance as of today
         $today = date('Y-m-d');
         $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
@@ -190,6 +195,11 @@ class ScenarioBuilder {
         $accounts = $accountId
             ? [$this->accountMapper->find($accountId, $userId)]
             : $this->accountMapper->findAll($userId);
+
+        // Skip accounts flagged out of reports in all-accounts scenarios (#286)
+        if ($accountId === null) {
+            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
+        }
 
         // Get future transaction adjustments to calculate balance as of today
         $today = date('Y-m-d');

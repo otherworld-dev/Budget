@@ -305,6 +305,7 @@ export default class AccountsModule {
                         <h3 class="account-name">${accountName}</h3>
                         <div class="account-meta">
                             <span class="account-type-badge">${typeInfo.label}</span>
+                            ${account.excludedFromReports ? `<span class="account-excluded-badge" title="${t('budget', 'Excluded from reports, dashboard & forecast')}">${t('budget', 'Excluded')}</span>` : ''}
                             ${institution ? `<span class="account-institution">${institution}</span>` : ''}
                         </div>
                     </div>
@@ -1911,7 +1912,8 @@ export default class AccountsModule {
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true),
                 minimumPayment: getFormValue('account-minimum-payment', null, true),
                 interestEnabled: document.getElementById('account-interest-enabled')?.checked || false,
-                compoundingFrequency: getFormValue('account-compounding-frequency', 'daily')
+                compoundingFrequency: getFormValue('account-compounding-frequency', 'daily'),
+                excludedFromReports: document.getElementById('account-excluded-from-reports')?.checked || false
             };
 
             // Only include balance on create — on edit, balance is managed by transactions
@@ -2175,6 +2177,8 @@ export default class AccountsModule {
             if (interestEnabledEl) interestEnabledEl.checked = account.interestEnabled || false;
             const compoundingEl = document.getElementById('account-compounding-frequency');
             if (compoundingEl) compoundingEl.value = account.compoundingFrequency || 'daily';
+            const excludedEl = document.getElementById('account-excluded-from-reports');
+            if (excludedEl) excludedEl.checked = account.excludedFromReports || false;
         } catch (error) {
             console.error('Failed to load account data:', error);
             showError(t('budget', 'Failed to load account data'));

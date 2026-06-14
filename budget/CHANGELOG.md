@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Exclude an account from totals**: a per-account "Exclude from reports, dashboard & forecast" option (in the account's edit dialog) keeps the account fully tracked but leaves its transactions and balance out of every "all accounts" aggregation — reports, the dashboard, forecast, net worth, total balance and category budgets. The account still appears in your accounts list (with an "Excluded" badge) and on its own detail page, and selecting it explicitly in a report still works ([#286](https://github.com/otherworld-dev/Budget/issues/286))
+
 ### Fixed
 - The account detail page's overview tiles only counted the transactions on the visible page (e.g. "50" for an account with 1,603). "Total Transactions", "This Month Income", "This Month Expenses" and "Avg. Transaction" are now aggregated server-side over the whole account, so they're correct regardless of paging ([#285](https://github.com/otherworld-dev/Budget/issues/285))
 - The dashboard spending chart's "Total Spending" figure (and each category's percentage) only summed the top 10 categories shown in the chart. It now reflects spending across all categories

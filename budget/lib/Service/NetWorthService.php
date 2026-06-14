@@ -54,6 +54,9 @@ class NetWorthService {
             ? $this->accountMapper->findByIds($visibleAccountIds)
             : $this->accountMapper->findAll($userId);
 
+        // Accounts flagged excluded_from_reports contribute nothing to net worth (#286)
+        $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
+
         // Get future transaction adjustments for all accounts in one query
         $today = date('Y-m-d');
         $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);

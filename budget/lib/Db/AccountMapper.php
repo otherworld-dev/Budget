@@ -94,7 +94,12 @@ class AccountMapper extends QBMapper {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->func()->sum('balance'))
             ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            // Accounts flagged out of reports don't count toward the total (#286)
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->isNull('excluded_from_reports'),
+                $qb->expr()->eq('excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+            ));
 
         if ($currency !== null) {
             $qb->andWhere($qb->expr()->eq('currency', $qb->createNamedParameter($currency)));
@@ -179,6 +184,7 @@ class AccountMapper extends QBMapper {
             ))
             ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
             ->set('last_reconciled', $qb->createNamedParameter($entity->getLastReconciled()))
+            ->set('excluded_from_reports', $qb->createNamedParameter($entity->getExcludedFromReports() ?? false, IQueryBuilder::PARAM_BOOL))
             ->set('updated_at', $qb->createNamedParameter($entity->getUpdatedAt()))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($entity->getId(), IQueryBuilder::PARAM_INT)));
 
