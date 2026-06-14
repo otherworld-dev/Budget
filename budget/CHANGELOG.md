@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.31.0] - 2026-06-14
 
 ### Added
 - **Exclude an account from totals**: a per-account "Exclude from reports, dashboard & forecast" option (in the account's edit dialog) keeps the account fully tracked but leaves its transactions and balance out of every "all accounts" aggregation — reports, the dashboard, forecast, net worth, total balance and category budgets. The account still appears in your accounts list (with an "Excluded" badge) and on its own detail page, and selecting it explicitly in a report still works ([#286](https://github.com/otherworld-dev/Budget/issues/286))
