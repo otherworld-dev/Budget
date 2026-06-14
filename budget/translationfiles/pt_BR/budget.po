@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: https://github.com/otherworld-dev/budget/issues\n"
 "POT-Creation-Date: 2026-04-11 09:45+0000\n"
-"PO-Revision-Date: 2026-06-06 22:47+0000\n"
+"PO-Revision-Date: 2026-06-14 19:01+0000\n"
 "Last-Translator: H2Oufoe <regularwater@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "nextcloud-budget/budget/pt_BR/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.6\n"
+"X-Generator: Weblate 2026.7.dev0\n"
 
 #: /var/www/html/apps-extra/budget/build/budget/lib/Notification/Notifier.php:30
 #: /var/www/html/apps-extra/budget/lib/Notification/Notifier.php:30
@@ -336,19 +336,19 @@ msgstr "Não foi possível apagar o snapshot"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:361
 msgid "Failed to retrieve asset summary"
-msgstr ""
+msgstr "Não foi possível recuperar resumo de ativos"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:373
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Não foi possível recuperar a projeção de ativos"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:385
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Não foi possível recuperar a projeção de ativos combinados"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AssetController.php:405
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Não foi possível recuperar o histórico de valor do ativo"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/AuthController.php:71
 msgid "Failed to get auth status"
@@ -640,230 +640,230 @@ msgstr "Não foi possível recuperar o resumo da dívidas"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:90
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
-msgstr ""
+msgstr "Estratégia inválida. Deve ser \"avalanche\" ou \"bola de neve\""
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:98
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:129
 msgid "Extra payment cannot be negative"
-msgstr ""
+msgstr "O pagamento extra não pode ser negativo"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:112
 #: /var/www/html/apps-extra/budget/src/main.js:2477
 #: /var/www/html/apps-extra/budget/src/main.js:2488
 msgid "Failed to calculate payoff plan"
-msgstr ""
+msgstr "Não foi possível calcular o plano de recompensa"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/DebtController.php:142
 #: /var/www/html/apps-extra/budget/src/main.js:2556
 #: /var/www/html/apps-extra/budget/src/main.js:2567
 msgid "Failed to compare strategies"
-msgstr ""
+msgstr "Não foi possível comparar estratégias"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:111
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:37
 msgid "Failed to load exchange rates"
-msgstr ""
+msgstr "Não foi possível carregar as taxas de câmbio"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:127
 msgid "Failed to get base currency"
-msgstr ""
+msgstr "Não foi possível obter a moeda base"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:141
 msgid "Exchange rates refreshed successfully"
-msgstr ""
+msgstr "Taxas de câmbio atualizadas com sucesso"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:144
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:364
 msgid "Failed to refresh exchange rates"
-msgstr ""
+msgstr "Não foi possível atualizar as taxas de câmbio"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:160
 msgid "Currency and rate are required"
-msgstr ""
+msgstr "Moeda e tarifas são necessárias"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:173
 msgid "Failed to set manual rate"
-msgstr ""
+msgstr "Não foi possível definir a taxa manual"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ExchangeRateController.php:187
 #: /var/www/html/apps-extra/budget/src/modules/exchange-rates/ExchangeRatesModule.js:343
 msgid "Failed to remove manual rate"
-msgstr ""
+msgstr "Não foi possível remover a taxa manual"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:55
 msgid "Failed to generate forecast"
-msgstr ""
+msgstr "Não foi possível gerar previsão"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:83
 msgid "Failed to generate cash flow forecast"
-msgstr ""
+msgstr "Não foi possível gerar previsão de fluxo de caixa"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:102
 msgid "Failed to retrieve spending trends"
-msgstr ""
+msgstr "Não foi possível recuperar as tendências de gastos"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:121
 msgid "Failed to run forecast scenarios"
-msgstr ""
+msgstr "Não foi possível executar os cenários de previsão"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:144
 msgid "Failed to generate enhanced forecast"
-msgstr ""
+msgstr "Não foi possível gerar a previsão aprimorada"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:160
 msgid "Failed to retrieve live forecast"
-msgstr ""
+msgstr "Não foi possível recuperar a previsão ao vivo"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ForecastController.php:178
 msgid "Failed to export forecast"
-msgstr ""
+msgstr "Não foi possível exportar a previsão"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:54
 msgid "Failed to retrieve goals"
-msgstr ""
+msgstr "Não foi possível recuperar as metas"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:66
 #: /var/www/html/apps-extra/budget/templates/index.php:2609
 msgid "Goal"
-msgstr ""
+msgstr "Metas"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:102
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:181
 msgid "Target date"
-msgstr ""
+msgstr "Data alvo"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:112
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:189
 msgid "Target amount must be greater than zero"
-msgstr ""
+msgstr "A quantidade-alvo deve ser maior que zero"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:117
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:194
 msgid "Target months must be greater than zero"
-msgstr ""
+msgstr "Os meses-alvo devem ser maiores que zero"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:122
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:199
 msgid "Current amount cannot be negative"
-msgstr ""
+msgstr "A quantidade atual não pode ser negativa"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:127
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:204
 msgid "Invalid tag ID"
-msgstr ""
+msgstr "ID de tag inválida"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:142
 msgid "Failed to create goal"
-msgstr ""
+msgstr "Não foi possível criar a meta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:225
 msgid "Failed to update goal"
-msgstr ""
+msgstr "Não foi possível atualizar a meta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:236
 msgid "Goal deleted successfully"
-msgstr ""
+msgstr "Meta apagada com sucesso"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:238
 #: /var/www/html/apps-extra/budget/src/modules/savings/SavingsModule.js:405
 msgid "Failed to delete goal"
-msgstr ""
+msgstr "Não foi possível apagar a meta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:250
 msgid "Failed to retrieve goal progress"
-msgstr ""
+msgstr "Não foi possível recuperar o progresso da meta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/GoalsController.php:262
 msgid "Failed to retrieve goal forecast"
-msgstr ""
+msgstr "Não foi possível recuperar a previsão de meta"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:55
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:83
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:121
 msgid "No file uploaded"
-msgstr ""
+msgstr "Nenhum arquivo carregado"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:59
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:90
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:128
 msgid "File upload failed"
-msgstr ""
+msgstr "O envio do arquivo falhou"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:78
 #: /var/www/html/apps-extra/budget/src/modules/import/ImportModule.js:93
 msgid "Failed to upload file"
-msgstr ""
+msgstr "Não foi possível enviar o arquivo"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:105
 #: /var/www/html/apps-extra/budget/lib/Controller/MigrationController.php:105
 msgid "Failed to preview import"
-msgstr ""
+msgstr "Não foi possível pré-visualizar a importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:151
 msgid "Failed to process import"
-msgstr ""
+msgstr "Não foi possível processar a importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:163
 msgid "Failed to retrieve import templates"
-msgstr ""
+msgstr "Não foi possível recuperar os modelos de importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:175
 msgid "Failed to retrieve import history"
-msgstr ""
+msgstr "Não foi possível recuperar o histórico de importações"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:187
 msgid "Failed to validate file"
-msgstr ""
+msgstr "Falha ao validar o arquivo"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:209
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Falha ao executar a importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportController.php:222
 msgid "Failed to rollback import"
-msgstr ""
+msgstr "Falha ao reverter a importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:57
 msgid "Failed to retrieve import rules"
-msgstr ""
+msgstr "Falha ao recuperar as regras de importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:69
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:307
 msgid "Import rule"
-msgstr ""
+msgstr "Regra de importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:103
 msgid "Criteria required for v2 rules"
-msgstr ""
+msgstr "Critérios necessários para as regras do v2"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:109
 msgid "Pattern, field, and matchType required for v1 rules"
-msgstr ""
+msgstr "Padrão, campo e tipos necessários para as regras v1"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:121
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:220
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
-msgstr ""
+msgstr "Campo inválido. Deve ser um dos: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:126
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:228
 #, php-format
 msgid "Invalid match type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo de combinação inválida. Deve ser um dos: %1$s"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:132
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:236
 msgid "Invalid regex pattern"
-msgstr ""
+msgstr "Padrão regex inválido"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:172
 msgid "Failed to create import rule"
-msgstr ""
+msgstr "Falha ao criar as regras de importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:294
 msgid "Failed to update import rule"
-msgstr ""
+msgstr "Falha ao atualizar as regras de importação"
 
 #: /var/www/html/apps-extra/budget/lib/Controller/ImportRuleController.php:319
 msgid "Failed to test import rules"

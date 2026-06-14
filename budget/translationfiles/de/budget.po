@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-06-12 19:30+0000\n"
+"PO-Revision-Date: 2026-06-14 19:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -9054,28 +9054,28 @@ msgstr "Bezeichnung für dieses Aktivum"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3769
 msgid "Optional notes about this asset"
-msgstr ""
+msgstr "Optionale Notizen zu diesem Vermögenswert"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3775
 msgid "Valuation"
-msgstr ""
+msgstr "Bewertung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3780
 msgid "Today's estimated market value"
-msgstr ""
+msgstr "Geschätzter aktueller Marktwert"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3793
 msgid "Original acquisition cost"
-msgstr ""
+msgstr "Ursprüngliche Anschaffungskosten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3804
 msgid "Growth / Depreciation"
-msgstr ""
+msgstr "Wertzuwachs / Wertverlust"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3807
 #, php-format
 msgid "Annual Change Rate (%%)"
-msgstr ""
+msgstr "Jährliche Wachstumsrate (%%)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3808
 msgid "e.g., 3.5"
@@ -9086,10 +9086,12 @@ msgid ""
 "Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., "
 "-15). Used for value projections."
 msgstr ""
+"Positive Werte bedeuten Wertzuwachs (z. B. 3,5), negative Werte Wertverlust "
+"(z. B. −15). Diese Angabe wird für die Wertentwicklungsvorschau verwendet."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3815
 msgid "Save Asset"
-msgstr ""
+msgstr "Vermögenswert speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3837
 msgid ""
@@ -9129,7 +9131,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3921
 msgid "Extra Monthly Payment"
-msgstr ""
+msgstr "Zusätzliche monatliche Zahlung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:3927
 msgid "Calculate Plan"
