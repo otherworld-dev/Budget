@@ -43,6 +43,7 @@ class ReportExporter {
             'cashflow' => $this->writeCashFlowCsv($csv, $data),
             'income' => $this->writeIncomeCsv($csv, $data),
             'budget' => $this->writeBudgetCsv($csv, $data),
+            'category-monthly' => $this->writeCategoryMonthlyCsv($csv, $data),
             default => null,
         };
 
@@ -78,7 +79,9 @@ class ReportExporter {
             return $this->exportToJson($data, $type);
         }
 
-        $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        // The category-by-month matrix is wide (a column per month), so render it landscape
+        $orientation = $type === 'category-monthly' ? 'L' : 'P';
+        $pdf = new \TCPDF($orientation, 'mm', 'A4', true, 'UTF-8', false);
 
         // Set document information
         $pdf->SetCreator('Nextcloud Budget');
@@ -117,6 +120,7 @@ class ReportExporter {
             'cashflow' => $this->renderCashFlowPdf($pdf, $data),
             'income' => $this->renderIncomePdf($pdf, $data),
             'budget' => $this->renderBudgetPdf($pdf, $data),
+            'category-monthly' => $this->renderCategoryMonthlyPdf($pdf, $data),
             default => null,
         };
 
@@ -452,6 +456,106 @@ class ReportExporter {
         $pdf->Cell(30, 6, $this->formatNumber($totals['remaining'] ?? 0), 1, 0, 'R');
         $pdf->Cell(25, 6, '', 1, 0, 'R');
         $pdf->Cell(25, 6, ucfirst($data['overallStatus'] ?? ''), 1, 1, 'C');
+    }
+
+    /**
+     * Write the category-by-month matrix to CSV (#288). One row per category
+     * (children indented), a column per month, then an Overall total, with a
+     * Net total row at the end. Values use a plain decimal (no thousands
+     * separator) so the columns stay intact.
+     */
+    private function writeCategoryMonthlyCsv($handle, array $data): void {
+        $months = $data['period']['months'] ?? [];
+
+        $header = ['Category'];
+        foreach ($months as $m) {
+            $header[] = date('M Y', strtotime($m . '-01'));
+        }
+        $header[] = 'Overall';
+        fputcsv($handle, $header);
+
+        foreach ($data['rows'] ?? [] as $row) {
+            $line = [str_repeat('    ', (int) ($row['depth'] ?? 0)) . ($row['name'] ?? '')];
+            foreach ($months as $m) {
+                $line[] = number_format((float) ($row['monthly'][$m] ?? 0), 2, '.', '');
+            }
+            $line[] = number_format((float) ($row['total'] ?? 0), 2, '.', '');
+            fputcsv($handle, $line);
+        }
+
+        fputcsv($handle, ['']);
+        $totalLine = ['Net total'];
+        foreach ($months as $m) {
+            $totalLine[] = number_format((float) ($data['totals']['monthly'][$m] ?? 0), 2, '.', '');
+        }
+        $totalLine[] = number_format((float) ($data['totals']['total'] ?? 0), 2, '.', '');
+        fputcsv($handle, $totalLine);
+    }
+
+    /**
+     * Render the category-by-month matrix to PDF (#288), landscape with one
+     * column per month. Column widths scale to the number of months; negative
+     * (expense) values are shown in red.
+     */
+    private function renderCategoryMonthlyPdf($pdf, array $data): void {
+        $months = $data['period']['months'] ?? [];
+
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->Cell(0, 8, 'Category Income & Expenses by Month', 0, 1);
+        $pdf->Ln(1);
+
+        // A4 landscape usable width is ~267mm (297 - 2x15mm margins). Divide the
+        // remaining width evenly so the table always fits the page, even for long
+        // custom ranges (a narrower category column when there are many months).
+        $numCols = count($months) + 1; // months + Overall
+        $catW = $numCols > 13 ? 42.0 : 55.0;
+        $colW = $numCols > 0 ? (267.0 - $catW) / $numCols : 20.0;
+        $fontSize = $numCols > 13 ? 6.0 : ($numCols > 9 ? 6.5 : 8.0);
+
+        $pdf->SetFont('helvetica', 'B', $fontSize);
+        $pdf->Cell($catW, 6, 'Category', 1, 0, 'L');
+        foreach ($months as $m) {
+            $pdf->Cell($colW, 6, date('M y', strtotime($m . '-01')), 1, 0, 'R');
+        }
+        $pdf->Cell($colW, 6, 'Overall', 1, 1, 'R');
+
+        foreach ($data['rows'] ?? [] as $row) {
+            $name = str_repeat('   ', (int) ($row['depth'] ?? 0)) . ($row['name'] ?? '');
+            $pdf->SetFont('helvetica', !empty($row['isParent']) ? 'B' : '', $fontSize);
+            $pdf->Cell($catW, 5, $this->truncateText($name, 40), 1, 0, 'L');
+            foreach ($months as $m) {
+                $this->amountCell($pdf, $colW, (float) ($row['monthly'][$m] ?? 0), false);
+            }
+            $this->amountCell($pdf, $colW, (float) ($row['total'] ?? 0), true);
+        }
+
+        $pdf->SetFont('helvetica', 'B', $fontSize);
+        $pdf->Cell($catW, 6, 'Net total', 1, 0, 'L');
+        foreach ($months as $m) {
+            $this->amountCell($pdf, $colW, (float) ($data['totals']['monthly'][$m] ?? 0), false);
+        }
+        $this->amountCell($pdf, $colW, (float) ($data['totals']['total'] ?? 0), true);
+        $pdf->Ln();
+    }
+
+    /**
+     * Render one right-aligned amount cell, in red when negative.
+     */
+    private function amountCell($pdf, float $width, float $value, bool $newline): void {
+        if ($value < 0) {
+            $pdf->SetTextColor(200, 0, 0);
+        }
+        $pdf->Cell($width, 5, $this->formatNumber($value), 1, $newline ? 1 : 0, 'R');
+        if ($value < 0) {
+            $pdf->SetTextColor(0, 0, 0);
+        }
+    }
+
+    /**
+     * Truncate a string to a maximum length (ASCII ellipsis for PDF core fonts).
+     */
+    private function truncateText(string $text, int $max): string {
+        return mb_strlen($text) > $max ? mb_substr($text, 0, $max - 1) . '...' : $text;
     }
 
     /**

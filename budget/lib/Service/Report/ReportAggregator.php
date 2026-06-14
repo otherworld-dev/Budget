@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Service\CurrencyConversionService;
@@ -32,7 +33,8 @@ class ReportAggregator {
         ReportCalculator $calculator,
         CurrencyConversionService $conversionService,
         private RecurringBudgetService $recurringBudgetService,
-        private BudgetCarryoverService $carryoverService
+        private BudgetCarryoverService $carryoverService,
+        private TransactionSplitMapper $splitMapper
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
@@ -625,6 +627,215 @@ class ReportAggregator {
         }
 
         return $trends;
+    }
+
+    /**
+     * Category-by-month matrix report (#288). One row per category, ordered
+     * alphabetically (or by total) with children indented under their parents;
+     * columns are each calendar month in the range. Cell value is the signed net
+     * for that category and month — income positive, expense negative — including
+     * split allocations. Parent rows include the totals of all their descendants.
+     * Accounts flagged out of reports (#286) are excluded.
+     *
+     * Amounts are summed in their stored currency; for a single-currency budget
+     * this is exact. (Multi-currency conversion is not applied here.)
+     *
+     * @param string $sort 'alpha' (default) or 'total'
+     * @param int[] $visibleAccountIds
+     * @return array{period: array, sort: string, baseCurrency: string, rows: array, totals: array}
+     */
+    public function getCategoryMonthlyReport(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        string $sort = 'alpha',
+        array $visibleAccountIds = []
+    ): array {
+        $sort = $sort === 'total' ? 'total' : 'alpha';
+        $vis = !empty($visibleAccountIds) ? $visibleAccountIds : null;
+        $months = $this->buildMonthList($startDate, $endDate);
+
+        // Signed net per category per month: each category's OWN amounts (direct + splits)
+        $direct = $this->transactionMapper->getCategoryNetByMonthBatch($userId, $startDate, $endDate, $accountId, $vis);
+        $splits = $this->splitMapper->getCategoryNetByMonthBatch($userId, $startDate, $endDate, $accountId, $vis);
+        $own = [];
+        foreach ([$direct, $splits] as $src) {
+            foreach ($src as $catId => $monthMap) {
+                foreach ($monthMap as $m => $v) {
+                    $own[(int) $catId][$m] = ($own[(int) $catId][$m] ?? 0.0) + (float) $v;
+                }
+            }
+        }
+
+        // Categories, honoring the category-level exclude-from-reports flag that
+        // the other reports respect: excluded categories contribute nothing and
+        // are not shown; any non-excluded children are promoted to the nearest
+        // non-excluded ancestor (or to the root). Orphans (parent missing) are
+        // treated as roots.
+        $categories = $this->categoryMapper->findAll($userId);
+        $excluded = [];
+        $parentOf = [];
+        foreach ($categories as $c) {
+            $parentOf[$c->getId()] = $c->getParentId();
+            if ($c->getExcludedFromReports()) {
+                $excluded[$c->getId()] = true;
+            }
+        }
+        // Drop excluded categories' own amounts so they affect neither rows nor totals
+        foreach (array_keys($own) as $catId) {
+            if (isset($excluded[$catId])) {
+                unset($own[$catId]);
+            }
+        }
+        // Walk up to the nearest non-excluded ancestor (null => becomes a root)
+        $effectiveParent = function (?int $pid) use ($parentOf, $excluded): ?int {
+            $guard = 0;
+            while ($pid !== null && isset($excluded[$pid]) && $guard < 100) {
+                $pid = $parentOf[$pid] ?? null;
+                $guard++;
+            }
+            return $pid;
+        };
+
+        $byId = [];
+        foreach ($categories as $c) {
+            if (!isset($excluded[$c->getId()])) {
+                $byId[$c->getId()] = $c;
+            }
+        }
+        $childrenOf = [];
+        $rootIds = [];
+        foreach ($categories as $c) {
+            if (isset($excluded[$c->getId()])) {
+                continue;
+            }
+            $pid = $effectiveParent($c->getParentId());
+            if ($pid !== null && isset($byId[$pid])) {
+                $childrenOf[$pid][] = $c->getId();
+            } else {
+                $rootIds[] = $c->getId();
+            }
+        }
+
+        // Roll each category's descendants up into it (post-order)
+        $rolled = [];
+        $rollup = function (int $catId) use (&$rollup, &$rolled, $own, $childrenOf): array {
+            $acc = $own[$catId] ?? [];
+            foreach ($childrenOf[$catId] ?? [] as $childId) {
+                foreach ($rollup($childId) as $m => $v) {
+                    $acc[$m] = ($acc[$m] ?? 0.0) + $v;
+                }
+            }
+            $rolled[$catId] = $acc;
+            return $acc;
+        };
+        foreach ($rootIds as $rid) {
+            $rollup($rid);
+        }
+
+        // Emit rows depth-first: each node, then its (sorted) children
+        $rows = [];
+        $emit = function (int $catId, int $depth) use (&$emit, &$rows, $byId, $childrenOf, $rolled, $months, $sort): void {
+            $c = $byId[$catId];
+            $monthly = [];
+            $total = 0.0;
+            foreach ($months as $m) {
+                $val = round($rolled[$catId][$m] ?? 0.0, 2);
+                $monthly[$m] = $val;
+                $total += $val;
+            }
+            $kids = $childrenOf[$catId] ?? [];
+            $rows[] = [
+                'categoryId' => $catId,
+                'name' => $c->getName(),
+                'type' => $c->getType(),
+                'color' => $c->getColor(),
+                'depth' => $depth,
+                'isParent' => !empty($kids),
+                'monthly' => $monthly,
+                'total' => round($total, 2),
+            ];
+            foreach ($this->sortCategoryIds($kids, $byId, $rolled, $sort) as $kid) {
+                $emit($kid, $depth + 1);
+            }
+        };
+        foreach ($this->sortCategoryIds($rootIds, $byId, $rolled, $sort) as $rid) {
+            $emit($rid, 0);
+        }
+
+        // Grand totals per month + overall: sum each category's OWN net (avoids
+        // double-counting the rolled-up parent rows).
+        $grandMonthly = [];
+        $grandTotal = 0.0;
+        foreach ($months as $m) {
+            $s = 0.0;
+            foreach ($own as $monthMap) {
+                $s += $monthMap[$m] ?? 0.0;
+            }
+            $grandMonthly[$m] = round($s, 2);
+            $grandTotal += $grandMonthly[$m];
+        }
+
+        // Amounts are summed in their stored currency (no conversion here); flag
+        // when the user has accounts in more than one currency so the UI can warn.
+        $reportAccounts = !empty($visibleAccountIds)
+            ? $this->accountMapper->findByIds($visibleAccountIds)
+            : $this->accountMapper->findAll($userId);
+        $reportAccounts = array_values(array_filter($reportAccounts, static fn($a) => !$a->getExcludedFromReports()));
+        $mixedCurrency = $this->conversionService->needsConversion($reportAccounts);
+
+        return [
+            'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
+            'sort' => $sort,
+            'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
+            'mixedCurrency' => $mixedCurrency,
+            'rows' => $rows,
+            'totals' => ['monthly' => $grandMonthly, 'total' => round($grandTotal, 2)],
+        ];
+    }
+
+    /**
+     * List of 'YYYY-MM' month keys from startDate to endDate inclusive.
+     *
+     * @return string[]
+     */
+    private function buildMonthList(string $startDate, string $endDate): array {
+        $months = [];
+        $cur = strtotime(substr($startDate, 0, 7) . '-01');
+        $end = strtotime(substr($endDate, 0, 7) . '-01');
+        // Guard against pathological ranges
+        $guard = 0;
+        while ($cur !== false && $cur <= $end && $guard < 600) {
+            $months[] = date('Y-m', $cur);
+            $cur = strtotime('+1 month', $cur);
+            $guard++;
+        }
+        return $months;
+    }
+
+    /**
+     * Sort category IDs alphabetically by name, or by absolute rolled-up total
+     * (largest magnitude first) when $sort === 'total'.
+     *
+     * @param int[] $ids
+     * @param array<int, \OCA\Budget\Db\Category> $byId
+     * @param array<int, array<string, float>> $rolled
+     * @return int[]
+     */
+    private function sortCategoryIds(array $ids, array $byId, array $rolled, string $sort): array {
+        usort($ids, function (int $a, int $b) use ($byId, $rolled, $sort) {
+            if ($sort === 'total') {
+                $ta = array_sum($rolled[$a] ?? []);
+                $tb = array_sum($rolled[$b] ?? []);
+                $cmp = abs($tb) <=> abs($ta);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+            }
+            return strcasecmp($byId[$a]->getName(), $byId[$b]->getName());
+        });
+        return $ids;
     }
 
     /**

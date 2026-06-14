@@ -3047,6 +3047,7 @@ style('budget', 'budget-app');
                         <option value="cashflow"><?php p($l->t('Cash Flow')); ?></option>
                         <option value="yoy"><?php p($l->t('Year over Year')); ?></option>
                         <option value="bills-calendar"><?php p($l->t('Bills Calendar')); ?></option>
+                        <option value="category-monthly"><?php p($l->t('Category by Month')); ?></option>
                     </select>
                 </div>
 
@@ -3463,6 +3464,26 @@ style('budget', 'budget-app');
                         </div>
                         <div id="bills-calendar-heatmap" class="bills-calendar-heatmap">
                             <!-- Heatmap will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category by Month report (#288) -->
+                <div id="report-category-monthly" class="report-section" style="display: none;">
+                    <div class="dashboard-card">
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <h3><?php p($l->t('Category Income & Expenses by Month')); ?></h3>
+                            <div class="control-group" style="margin:0;">
+                                <label for="category-monthly-sort"><?php p($l->t('Sort')); ?></label>
+                                <select id="category-monthly-sort" class="report-select">
+                                    <option value="alpha"><?php p($l->t('Alphabetical')); ?></option>
+                                    <option value="total"><?php p($l->t('By total')); ?></option>
+                                </select>
+                            </div>
+                        </div>
+                        <p class="report-hint"><?php p($l->t('Income is shown positive, expenses negative. Parent categories include the totals of their sub-categories.')); ?></p>
+                        <div id="category-monthly-table">
+                            <!-- Matrix rendered by JavaScript -->
                         </div>
                     </div>
                 </div>

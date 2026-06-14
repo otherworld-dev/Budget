@@ -38,9 +38,10 @@ class TransactionSplitMapperTest extends TestCase {
 
         $sumFunc = $this->createMock(IQueryFunction::class);
         $this->func->method('sum')->willReturn($sumFunc);
+        $this->qb->method('createFunction')->willReturn($sumFunc);
 
         foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy'] as $method) {
+                   'orderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy', 'addGroupBy'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
 
@@ -199,5 +200,20 @@ class TransactionSplitMapperTest extends TestCase {
         $count = $this->mapper->deleteAll('user1');
 
         $this->assertEquals(5, $count);
+    }
+
+    // ===== getCategoryNetByMonthBatch (#288) =====
+
+    public function testGetCategoryNetByMonthBatchMapsSignedNet(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => 5, 'bucket' => '2026-01', 'net_total' => '-30.00'],
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $out = $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
+
+        $this->assertSame(-30.0, $out[5]['2026-01']);
     }
 }

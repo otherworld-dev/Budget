@@ -353,6 +353,32 @@ class ReportService {
     }
 
     /**
+     * Category-by-month matrix report (#288): one signed-net row per category
+     * (alphabetical or by total, parents summing their children) with a column
+     * per month and an overall total.
+     *
+     * @param string $sort 'alpha' or 'total'
+     * @param int[]|null $visibleAccountIds
+     */
+    public function getCategoryMonthlyReport(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        string $sort = 'alpha',
+        ?array $visibleAccountIds = null
+    ): array {
+        return $this->aggregator->getCategoryMonthlyReport(
+            $userId,
+            $startDate,
+            $endDate,
+            $accountId,
+            $sort,
+            $visibleAccountIds ?? []
+        );
+    }
+
+    /**
      * Export a report to the specified format.
      *
      * @param string $userId User ID
@@ -379,6 +405,7 @@ class ReportService {
             'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
             'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
             'budget' => $this->getBudgetReport($userId, $startDate, $endDate),
+            'category-monthly' => $this->getCategoryMonthlyReport($userId, $startDate, $endDate, $accountId, 'alpha', $visibleAccountIds),
             default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
         };
 

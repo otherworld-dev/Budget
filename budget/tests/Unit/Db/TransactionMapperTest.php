@@ -56,7 +56,7 @@ class TransactionMapperTest extends TestCase {
         // Fluent methods
         foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
                    'orderBy', 'addOrderBy', 'innerJoin', 'leftJoin',
-                   'delete', 'update', 'set', 'groupBy',
+                   'delete', 'update', 'set', 'groupBy', 'addGroupBy',
                    'setMaxResults', 'setFirstResult'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
@@ -988,5 +988,22 @@ class TransactionMapperTest extends TestCase {
 
         $this->assertEquals(150.00, $result['data'][0]['total']);
         $this->assertEquals(2, $result['data'][0]['count']);
+    }
+
+    // ===== getCategoryNetByMonthBatch (#288) =====
+
+    public function testGetCategoryNetByMonthBatchMapsSignedNet(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => 5, 'bucket' => '2026-01', 'net_total' => '-80.00'],
+            ['category_id' => 1, 'bucket' => '2026-02', 'net_total' => '3000.00'],
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $out = $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-02-28');
+
+        $this->assertSame(-80.0, $out[5]['2026-01']);
+        $this->assertSame(3000.0, $out[1]['2026-02']);
     }
 }

@@ -2198,6 +2198,54 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Direct (non-split) signed-net amount per category per month over a date
+     * range, in one query: credits count positive, debits negative. Used by the
+     * Category-by-Month report (#288) where income and expense categories appear
+     * in one matrix. Scheduled-future transactions and accounts flagged out of
+     * reports (#286) are excluded.
+     *
+     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+     * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => signed net
+     */
+    public function getCategoryNetByMonthBatch(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $bucketExpr = $this->monthExpr();
+
+        $qb->select('t.category_id')
+            ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END)"
+            ), 'net_total')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+        $qb->andWhere($qb->expr()->isNotNull('t.category_id'))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ))
+            ->groupBy('t.category_id')
+            ->addGroupBy($qb->createFunction($bucketExpr));
+
+        $this->excludeScheduledFuture($qb);
+
+        $result = $qb->executeQuery();
+        $totals = [];
+        while ($row = $result->fetch()) {
+            $totals[(int) $row['category_id']][substr((string) $row['bucket'], 0, 7)] = (float) $row['net_total'];
+        }
+        $result->closeCursor();
+
+        return $totals;
+    }
+
+    /**
      * Get IDs of split transactions within a date range for a user.
      * Used to calculate spending from splits.
      *

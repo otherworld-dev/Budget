@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Category by Month report**: a new report (Reports → Category by Month) showing income and expenses per category broken down by month, with a column per month and an overall total. Categories are listed alphabetically with sub-categories grouped under their parents, and **parent rows include the totals of their sub-categories**; a toggle switches to sorting by total instead. Defaults to year-to-date, follows the report date-range and account filters, and exports to CSV and PDF ([#288](https://github.com/otherworld-dev/Budget/discussions/288))
+
 ## [2.31.0] - 2026-06-14
 
 ### Added

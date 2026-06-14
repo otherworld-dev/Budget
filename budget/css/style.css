@@ -18653,3 +18653,63 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 #import-routing-template-bar {
     margin-bottom: 12px;
 }
+
+/* Category-by-month matrix report (#288) */
+.cm-table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+.category-monthly-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.category-monthly-matrix th,
+.category-monthly-matrix td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border, #ddd);
+}
+.category-monthly-matrix thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-main-background, #fff);
+    z-index: 2;
+    font-weight: 600;
+}
+.category-monthly-matrix .cm-name {
+    position: sticky;
+    left: 0;
+    background: var(--color-main-background, #fff);
+    text-align: left;
+    z-index: 1;
+    min-width: 180px;
+}
+.category-monthly-matrix thead .cm-name {
+    z-index: 3;
+}
+.category-monthly-matrix .cm-parent .cm-name {
+    font-weight: 600;
+}
+.category-monthly-matrix .cm-total {
+    font-weight: 600;
+}
+.category-monthly-matrix .cm-total td {
+    border-top: 2px solid var(--color-border-dark, #999);
+}
+.category-monthly-matrix .cm-total .cm-name {
+    background: var(--color-background-hover, #f5f5f5);
+}
+.category-monthly-matrix td.cm-zero {
+    color: var(--color-text-maxcontrast, #999);
+}
+.category-monthly-matrix td.negative {
+    color: var(--color-error, #c62828);
+}
+.category-monthly-matrix td.positive {
+    color: var(--color-success, #2e7d32);
+}
+.cm-currency-notice {
+    color: var(--color-warning, #b8860b);
+    margin-bottom: 8px;
+}

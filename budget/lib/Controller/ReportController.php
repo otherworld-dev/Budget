@@ -442,4 +442,37 @@ class ReportController extends Controller {
             return $this->handleError($e, $this->l->t('Failed to generate tag set breakdown'));
         }
     }
+
+    /**
+     * Category-by-month matrix report (income & expenses per category broken down
+     * by month), defaulting to year-to-date (#288).
+     * @NoAdminRequired
+     */
+    public function categoryMonthly(
+        ?int $accountId = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        string $sort = 'alpha'
+    ): DataResponse {
+        try {
+            if (!$startDate) {
+                $startDate = date('Y-01-01');
+            }
+            if (!$endDate) {
+                $endDate = date('Y-m-d');
+            }
+
+            $report = $this->service->getCategoryMonthlyReport(
+                $this->getEffectiveUserId(),
+                $startDate,
+                $endDate,
+                $accountId,
+                $sort,
+                $this->getVisibleAccountIds()
+            );
+            return new DataResponse($report);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to generate category monthly report'));
+        }
+    }
 }

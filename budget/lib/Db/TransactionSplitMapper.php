@@ -183,6 +183,67 @@ class TransactionSplitMapper extends QBMapper {
     }
 
     /**
+     * Split allocations as signed-net per category per month over a date range:
+     * a split contributes positively when its parent transaction is a credit and
+     * negatively when a debit (splits inherit the parent's direction). Mirrors
+     * getCategoryTotalsByBucket but signed, for the Category-by-Month report (#288).
+     * Scheduled-future transactions and accounts flagged out of reports (#286) are excluded.
+     *
+     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+     * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => signed net from splits
+     */
+    public function getCategoryNetByMonthBatch(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $bucketExpr = 'SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)';
+        $today = date('Y-m-d');
+
+        if ($visibleAccountIds !== null && !empty($visibleAccountIds)) {
+            $scopeWhere = $qb->expr()->in('a.id', $qb->createNamedParameter($visibleAccountIds, IQueryBuilder::PARAM_INT_ARRAY));
+        } else {
+            $scopeWhere = $qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId));
+        }
+
+        $qb->select('s.category_id')
+            ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = 'credit' THEN s.amount ELSE -s.amount END)"
+            ), 'net_total')
+            ->from($this->getTableName(), 's')
+            ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($scopeWhere)
+            // Exclude accounts flagged out of reports (#286)
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->isNull('a.excluded_from_reports'),
+                $qb->expr()->eq('a.excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+            ))
+            ->andWhere($qb->expr()->isNotNull('s.category_id'))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                $qb->expr()->isNull('t.status'),
+                $qb->expr()->lte('t.date', $qb->createNamedParameter($today))
+            ))
+            ->groupBy('s.category_id')
+            ->addGroupBy($qb->createFunction($bucketExpr));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $result = $qb->executeQuery();
+        $totals = [];
+        while ($row = $result->fetch()) {
+            $totals[(int) $row['category_id']][substr((string) $row['bucket'], 0, 7)] = (float) $row['net_total'];
+        }
+        $result->closeCursor();
+
+        return $totals;
+    }
+
+    /**
      * Map a database row to entity with category name.
      */
     private function mapRowToEntityWithCategory(array $row): TransactionSplit {

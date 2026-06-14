@@ -92,6 +92,27 @@ class ReportControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	// ── category by month (#288) ────────────────────────────────────
+
+	public function testCategoryMonthlyReturnsData(): void {
+		$report = ['period' => ['months' => ['2026-01']], 'rows' => [], 'totals' => ['total' => 0]];
+		$this->service->method('getCategoryMonthlyReport')->willReturn($report);
+
+		$response = $this->controller->categoryMonthly(null, '2026-01-01', '2026-01-31', 'alpha');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($report, $response->getData());
+	}
+
+	public function testCategoryMonthlyHandlesError(): void {
+		$this->service->method('getCategoryMonthlyReport')
+			->willThrowException(new \RuntimeException('error'));
+
+		$response = $this->controller->categoryMonthly();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── income ──────────────────────────────────────────────────────
 
 	public function testIncomeReturnsData(): void {

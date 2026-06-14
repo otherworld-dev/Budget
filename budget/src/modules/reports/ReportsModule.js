@@ -90,6 +90,15 @@ export default class ReportsModule {
         document.getElementById('export-csv-btn')?.addEventListener('click', () => this.exportReport('csv'));
         document.getElementById('export-pdf-btn')?.addEventListener('click', () => this.exportReport('pdf'));
 
+        // Category-by-month report: sort toggle (alphabetical / by total)
+        const cmSort = document.getElementById('category-monthly-sort');
+        if (cmSort) {
+            cmSort.addEventListener('change', (e) => {
+                this.categoryMonthlySort = e.target.value;
+                this.generateReport();
+            });
+        }
+
         // Initialize charts object for reports
         this.reportCharts = {};
     }
@@ -382,6 +391,9 @@ export default class ReportsModule {
                     break;
                 case 'bills-calendar':
                     this.showBillsCalendarReport();
+                    break;
+                case 'category-monthly':
+                    await this.generateCategoryMonthlyReport(params);
                     break;
             }
         } catch (error) {
@@ -688,6 +700,92 @@ export default class ReportsModule {
 
         // Render table
         this.renderCashFlowTable(data.data || [], currency);
+    }
+
+    async generateCategoryMonthlyReport(params) {
+        const sort = this.categoryMonthlySort || 'alpha';
+        const response = await fetch(
+            OC.generateUrl(`/apps/budget/api/reports/categories/monthly?${params}&sort=${sort}`),
+            { headers: { 'requesttoken': OC.requestToken } }
+        );
+
+        if (!response.ok) throw new Error('Failed to fetch category monthly report');
+        const data = await response.json();
+
+        const section = document.getElementById('report-category-monthly');
+        if (section) section.style.display = 'block';
+
+        // Keep the sort control in sync with the active sort
+        const sortSel = document.getElementById('category-monthly-sort');
+        if (sortSel && sortSel.value !== sort) sortSel.value = sort;
+
+        this.renderCategoryMonthlyMatrix(data);
+    }
+
+    renderCategoryMonthlyMatrix(data) {
+        const container = document.getElementById('category-monthly-table');
+        if (!container) return;
+
+        const months = data.period?.months || [];
+        const currency = data.baseCurrency || this.getPrimaryCurrency();
+        const rows = data.rows || [];
+
+        if (rows.length === 0 || months.length === 0) {
+            container.innerHTML = `<div class="empty-state"><p>${t('budget', 'No data for the selected period.')}</p></div>`;
+            return;
+        }
+
+        const monthLabel = (m) => {
+            const d = new Date(`${m}-01T00:00:00`);
+            return isNaN(d.getTime()) ? m : d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+        };
+        const cell = (v) => {
+            const val = v || 0;
+            if (val === 0) return '<td class="text-right cm-zero">—</td>';
+            const cls = val < 0 ? 'negative' : 'positive';
+            return `<td class="text-right ${cls}">${this.escapeHtml(this.formatCurrency(val, currency))}</td>`;
+        };
+
+        const headCells = months.map(m => `<th class="text-right">${this.escapeHtml(monthLabel(m))}</th>`).join('');
+        const bodyRows = rows.map(row => {
+            const indent = (row.depth || 0) * 16;
+            const monthCells = months.map(m => cell(row.monthly?.[m])).join('');
+            return `<tr class="${row.isParent ? 'cm-parent' : ''}">
+                <td class="cm-name" style="padding-left:${8 + indent}px">${this.escapeHtml(row.name || '')}</td>
+                ${monthCells}
+                ${cell(row.total)}
+            </tr>`;
+        }).join('');
+
+        const totals = data.totals || {};
+        const totalCells = months.map(m => cell(totals.monthly?.[m])).join('');
+        const totalRow = `<tr class="cm-total">
+            <td class="cm-name">${t('budget', 'Net total')}</td>
+            ${totalCells}
+            ${cell(totals.total)}
+        </tr>`;
+
+        const notice = data.mixedCurrency
+            ? `<div class="report-hint cm-currency-notice">${this.escapeHtml(t('budget', 'You have accounts in more than one currency. Amounts are summed in their original currency without conversion.'))}</div>`
+            : '';
+
+        container.innerHTML = `
+            ${notice}
+            <div class="cm-table-scroll">
+                <table class="report-table category-monthly-matrix">
+                    <thead>
+                        <tr>
+                            <th class="cm-name">${t('budget', 'Category')}</th>
+                            ${headCells}
+                            <th class="text-right">${t('budget', 'Overall')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bodyRows}
+                        ${totalRow}
+                    </tbody>
+                </table>
+            </div>`;
     }
 
     renderCashFlowChart(data) {

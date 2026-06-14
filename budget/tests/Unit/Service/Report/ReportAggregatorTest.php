@@ -21,6 +21,7 @@ class ReportAggregatorTest extends TestCase {
 	private CategoryMapper $categoryMapper;
 	private ReportCalculator $calculator;
 	private CurrencyConversionService $conversionService;
+	private $splitMapper;
 
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
@@ -37,6 +38,8 @@ class ReportAggregatorTest extends TestCase {
 		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
 		$carryoverService->method('getCarryovers')->willReturn([]);
 
+		$this->splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
+
 		$this->aggregator = new ReportAggregator(
 			$this->accountMapper,
 			$this->transactionMapper,
@@ -45,7 +48,8 @@ class ReportAggregatorTest extends TestCase {
 			$this->calculator,
 			$this->conversionService,
 			$recurringBudgetService,
-			$carryoverService
+			$carryoverService,
+			$this->splitMapper
 		);
 	}
 
@@ -252,5 +256,123 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertArrayHasKey('currencyConverted', $result);
 		$this->assertArrayHasKey('unconvertedCurrencies', $result);
 		$this->assertEquals('USD', $result['baseCurrency']);
+	}
+
+	// ===== getCategoryMonthlyReport (#288) =====
+
+	private function makeCategory(int $id, string $name, string $type, ?int $parentId = null, bool $excluded = false): \OCA\Budget\Db\Category {
+		$c = new \OCA\Budget\Db\Category();
+		$c->setId($id);
+		$c->setName($name);
+		$c->setType($type);
+		$c->setParentId($parentId);
+		$c->setExcludedFromReports($excluded);
+		return $c;
+	}
+
+	private function categoryMonthlyFixture(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		// Salary (income), Housing (expense) > Rent, Utilities (children)
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+			$this->makeCategory(2, 'Housing', 'expense'),
+			$this->makeCategory(3, 'Rent', 'expense', 2),
+			$this->makeCategory(4, 'Utilities', 'expense', 2),
+		]);
+		$this->transactionMapper->method('getCategoryNetByMonthBatch')->willReturn([
+			1 => ['2026-01' => 3000.0, '2026-02' => 3000.0],
+			3 => ['2026-01' => -1000.0, '2026-02' => -1000.0],
+			4 => ['2026-01' => -100.0, '2026-02' => -150.0],
+		]);
+		$this->splitMapper->method('getCategoryNetByMonthBatch')->willReturn([]);
+	}
+
+	public function testCategoryMonthlyRollupAndAlphabeticalOrder(): void {
+		$this->categoryMonthlyFixture();
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-02-28');
+
+		$this->assertSame(['2026-01', '2026-02'], $r['period']['months']);
+
+		// Alphabetical roots: Housing before Salary; Housing's children indented under it
+		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$this->assertSame(['Housing', 'Rent', 'Utilities', 'Salary'], $names);
+
+		$housing = $r['rows'][0];
+		$this->assertSame(0, $housing['depth']);
+		$this->assertTrue($housing['isParent']);
+		// Parent sums its children: -1000 + -100 = -1100 (Jan), -1000 + -150 = -1150 (Feb)
+		$this->assertEqualsWithDelta(-1100.0, $housing['monthly']['2026-01'], 0.001);
+		$this->assertEqualsWithDelta(-1150.0, $housing['monthly']['2026-02'], 0.001);
+		$this->assertEqualsWithDelta(-2250.0, $housing['total'], 0.001);
+
+		$this->assertSame(1, $r['rows'][1]['depth']); // Rent indented
+		$this->assertSame(1, $r['rows'][2]['depth']); // Utilities indented
+
+		$salary = $r['rows'][3];
+		$this->assertEqualsWithDelta(6000.0, $salary['total'], 0.001);
+
+		// Grand totals = sum of each category's own net (no double counting)
+		$this->assertEqualsWithDelta(1900.0, $r['totals']['monthly']['2026-01'], 0.001); // 3000-1000-100
+		$this->assertEqualsWithDelta(1850.0, $r['totals']['monthly']['2026-02'], 0.001); // 3000-1000-150
+		$this->assertEqualsWithDelta(3750.0, $r['totals']['total'], 0.001);
+	}
+
+	public function testCategoryMonthlySortByTotal(): void {
+		$this->categoryMonthlyFixture();
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-02-28', null, 'total');
+
+		// By |total| desc at root: Salary (6000) before Housing (2250); children by |total|: Rent (2000) before Utilities (250)
+		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$this->assertSame(['Salary', 'Housing', 'Rent', 'Utilities'], $names);
+		$this->assertSame('total', $r['sort']);
+	}
+
+	public function testCategoryMonthlyMergesSplitAllocations(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(5, 'Groceries', 'expense'),
+		]);
+		// Direct -50 and a split allocation -30 in the same month should combine to -80
+		$this->transactionMapper->method('getCategoryNetByMonthBatch')->willReturn([
+			5 => ['2026-01' => -50.0],
+		]);
+		$this->splitMapper->method('getCategoryNetByMonthBatch')->willReturn([
+			5 => ['2026-01' => -30.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertEqualsWithDelta(-80.0, $r['rows'][0]['monthly']['2026-01'], 0.001);
+		$this->assertEqualsWithDelta(-80.0, $r['totals']['total'], 0.001);
+	}
+
+	public function testCategoryMonthlyHonorsExcludedCategories(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+		$this->accountMapper->method('findAll')->willReturn([]);
+		// Housing is excluded; its child Rent is NOT — Rent should be promoted to root
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+			$this->makeCategory(2, 'Housing', 'expense', null, true),
+			$this->makeCategory(3, 'Rent', 'expense', 2),
+		]);
+		$this->transactionMapper->method('getCategoryNetByMonthBatch')->willReturn([
+			1 => ['2026-01' => 3000.0],
+			2 => ['2026-01' => -200.0], // excluded category's own spend — must be dropped
+			3 => ['2026-01' => -1000.0],
+		]);
+		$this->splitMapper->method('getCategoryNetByMonthBatch')->willReturn([]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$this->assertNotContains('Housing', $names);          // excluded row hidden
+		$this->assertContains('Rent', $names);                // child kept
+		$rent = $r['rows'][array_search('Rent', $names)];
+		$this->assertSame(0, $rent['depth']);                 // promoted to root
+		// Grand total excludes Housing's -200: 3000 + (-1000) = 2000
+		$this->assertEqualsWithDelta(2000.0, $r['totals']['total'], 0.001);
 	}
 }

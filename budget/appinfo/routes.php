@@ -308,6 +308,7 @@ return [
         ['name' => 'report#income', 'url' => '/api/reports/income', 'verb' => 'GET'],
         ['name' => 'report#cashflow', 'url' => '/api/reports/cashflow', 'verb' => 'GET'],
         ['name' => 'report#budget', 'url' => '/api/reports/budget', 'verb' => 'GET'],
+        ['name' => 'report#categoryMonthly', 'url' => '/api/reports/categories/monthly', 'verb' => 'GET'],
         ['name' => 'report#export', 'url' => '/api/reports/export', 'verb' => 'POST'],
 
         // Tag Report routes
