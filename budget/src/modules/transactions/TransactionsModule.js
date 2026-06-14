@@ -952,6 +952,21 @@ export default class TransactionsModule {
         }
     }
 
+    /**
+     * Read an error message from a failed response without assuming it is JSON.
+     * A 500 returns Nextcloud's HTML error page; calling response.json() on it
+     * throws an opaque parser error (on Safari/WebKit: "The string did not match
+     * the expected pattern"), which previously masked the real failure (#287).
+     */
+    async reconcileErrorMessage(response, fallback) {
+        try {
+            const data = await response.json();
+            return data.error || fallback;
+        } catch (e) {
+            return t('budget', 'Server error ({status}) — check the Nextcloud logs', { status: response.status });
+        }
+    }
+
     async startReconciliation() {
         const accountId = document.getElementById('reconcile-account').value;
         const statementBalance = document.getElementById('reconcile-statement-balance').value;
@@ -983,8 +998,7 @@ export default class TransactionsModule {
                 return;
             }
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to start reconciliation');
+                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to start reconciliation')));
             }
 
             const state = await response.json();
@@ -1123,8 +1137,7 @@ export default class TransactionsModule {
                     body: JSON.stringify({ transactionIds: ids, ticked })
                 });
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to update reconciliation');
+                    throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to update reconciliation')));
                 }
                 state = await response.json();
             }
@@ -1236,8 +1249,7 @@ export default class TransactionsModule {
                 headers: { 'requesttoken': OC.requestToken }
             });
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to cancel');
+                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to cancel')));
             }
             this.exitReconcileMode();
             showSuccess(t('budget', 'Reconciliation cancelled'));
@@ -1263,8 +1275,7 @@ export default class TransactionsModule {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to complete reconciliation');
+                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to complete reconciliation')));
             }
 
             const result = await response.json();
@@ -1306,8 +1317,7 @@ export default class TransactionsModule {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to create adjustment');
+                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to create adjustment')));
             }
 
             const created = await response.json();
