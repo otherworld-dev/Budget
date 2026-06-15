@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
-"PO-Revision-Date: 2026-06-14 22:53+0000\n"
+"PO-Revision-Date: 2026-06-15 23:01+0000\n"
 "Last-Translator: St0rml <n.f@mailbox.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -630,7 +630,7 @@ msgstr "Die Schuldenzusammenfassung konnte nicht abgerufen werden"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:96
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
 msgstr ""
-"Ungültige Schuldenabbaustrategie. Nur Lawinen- oder Schneball-Methode stehen "
+"Ungültige Schuldenabbaustrategie. Nur Lawinen- oder Schneeballmethode stehen "
 "zur Verfügung"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/DebtController.php:104
@@ -866,7 +866,7 @@ msgstr "Vorschau der Regelanwendung konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:373
 msgid "Failed to test rule against transactions"
-msgstr "Regel konnte nicht mit Transaktionen getestet werden"
+msgstr "Regel konnte nicht mit Buchungen getestet werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/ImportRuleController.php:400
 msgid "Failed to apply rules to transactions"
@@ -1360,12 +1360,12 @@ msgstr "Salden konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:195
 msgid "Failed to get shared transactions"
-msgstr "Gemeinsame Transaktionen konnten nicht abgerufen werden"
+msgstr "Gemeinsame Buchungen konnten nicht abgerufen werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:226
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:253
 msgid "This transaction is already shared with this contact"
-msgstr "Diese Transaktion wird bereits mit diesem Kontakt geteilt"
+msgstr "Diese Buchung wird bereits mit diesem Kontakt geteilt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/SharedExpenseController.php:235
 #: /tmp/budget-v2.11.0/budget/src/modules/shared-expenses/SharedExpensesModule.js:604
@@ -1501,7 +1501,7 @@ msgstr "Fehler beim löschen des globalen Schlagwortes"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:116
 msgid "Failed to retrieve transactions"
-msgstr "Abruf der Transaktionen fehlgeschlagen"
+msgstr "Abruf der Buchungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:133
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:341
@@ -1517,11 +1517,11 @@ msgstr "Buchung"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:169
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:268
 msgid "Invalid transaction type. Must be credit or debit"
-msgstr "Ungültiger Transaktionstyp. Dieser muss Kredit oder Debit sein"
+msgstr "Ungültiger Buchungstyp. Dieser muss Kredit oder Debit sein"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:220
 msgid "Failed to create transaction"
-msgstr "Erstellen der Transaktion fehlgeschlagen"
+msgstr "Erstellen der Buchung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:316
 msgid "Invalid status. Must be cleared or scheduled"
@@ -1530,29 +1530,29 @@ msgstr "Ungültiger Status. Dieser Muss geklärt oder geplant sein"
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:328
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3194
 msgid "Failed to update transaction"
-msgstr "Aktualisierung der Transaktion fehlgeschlagen"
+msgstr "Aktualisierung der Buchung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:353
 msgid "Failed to search transactions"
-msgstr "Suchen von Transaktionen fehlgeschlagen"
+msgstr "Suchen von Buchungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:365
 msgid "Failed to retrieve uncategorized transactions"
-msgstr "Abruf unkategorisierter Transaktionen fehlgeschlagen"
+msgstr "Abruf unkategorisierter Buchungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:378
 msgid "Failed to categorize transactions"
-msgstr "Transaktionen kategorisieren fehlgeschlagen"
+msgstr "Buchungen kategorisieren fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:426
 #: /tmp/budget-v2.11.0/budget/src/main.js:2878
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1770
 msgid "Failed to unlink transaction"
-msgstr "Aufheben der Transaktionsvernüpfung fehlgeschlagen"
+msgstr "Aufheben der Buchungsvernüpfung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:443
 msgid "Failed to bulk match transactions"
-msgstr "Massenabgleich von Transaktionen fehlgeschlagen"
+msgstr "Massenabgleich von Buchungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:458
 msgid "Failed to scan for matches"
@@ -1564,18 +1564,18 @@ msgstr "Keine gültigen Wertepaare angegeben"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:480
 msgid "Failed to bulk link transactions"
-msgstr "Fehler beim Verknüpfen mehrerer Transaktionen"
+msgstr "Fehler beim Verknüpfen mehrerer Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:493
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:512
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:531
 msgid "No transaction IDs provided"
-msgstr "Keine Transaktions-ID bereitgestellt"
+msgstr "Keine Buchungs-ID bereitgestellt"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:499
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:762
 msgid "Failed to delete transactions"
-msgstr "Transaktionen löschen fehlgeschlagen"
+msgstr "Buchungen löschen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:518
 msgid "Failed to update reconcile status"
@@ -1592,7 +1592,7 @@ msgstr "Ungültige Felder: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:575
 msgid "Failed to bulk edit transactions"
-msgstr "Massenbearbeitung der Transaktionen fehlgeschlagen"
+msgstr "Massenbearbeitung der Buchungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:605
 msgid "Invalid splits data"
@@ -1622,11 +1622,11 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:713
 msgid "Failed to set transaction tags"
-msgstr "Transaktions-Tags konnten nicht gesetzt werden"
+msgstr "Buchungs-Tags konnten nicht gesetzt werden"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:728
 msgid "Failed to clear transaction tags"
-msgstr "Löschen Transaktionsmarkierung fehlgeschlagen"
+msgstr "Löschen Buchungsmarkierung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/lib/Controller/TransactionController.php:746
 msgid "Failed to find duplicates"
@@ -1749,8 +1749,8 @@ msgid ""
 "Cannot delete account with existing transactions. Please delete all "
 "transactions first."
 msgstr ""
-"Konto mit existierenden Transaktionen kann nicht gelöscht werden. Bitte "
-"lösche zuerst alle Transaktionen."
+"Konto mit existierenden Buchungen kann nicht gelöscht werden. Bitte lösche "
+"zuerst alle Buchungen."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/AuthService.php:105
 msgid "Password protection not set up"
@@ -1885,7 +1885,7 @@ msgid ""
 "(^)."
 msgstr ""
 "Datei scheint keine gültige QIF-Datei zu sein. Fehlende Markierung "
-"Transaktionsende (^)."
+"Buchungsende (^)."
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ImportService.php:91
 #, php-format
@@ -2052,7 +2052,7 @@ msgstr "Ungültige Wiederholung. Muss einem der folgenden entsprechen: %1$s"
 
 #: /tmp/budget-v2.11.0/budget/lib/Service/ValidationService.php:379
 msgid "Invalid transaction type"
-msgstr "Ungültiger Transaktionstyp"
+msgstr "Ungültiger Buchungstyp"
 
 #: /tmp/budget-v2.11.0/budget/lib/Traits/ApiErrorHandlerTrait.php:55
 msgid "This shared item is read-only"
@@ -2436,12 +2436,12 @@ msgstr "Buchung schnell erfassen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:352
 msgid "Duplicate transaction"
-msgstr "Doppelte Transaktion"
+msgstr "Doppelte Buchung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:355
 #: /tmp/budget-v2.11.0/budget/src/main.js:984
 msgid "Split transaction"
-msgstr "geteilte Transaktion"
+msgstr "geteilte Buchung"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:358
 msgid "Share expense"
@@ -2474,7 +2474,7 @@ msgstr "Umbuchung"
 #: /tmp/budget-v2.11.0/budget/src/main.js:978
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:685
 msgid "Click to view linked transaction in {account}"
-msgstr "Klicken, um die verknüpfte Transaktion in {account} anzuzeigen"
+msgstr "Klicken, um die verknüpfte Buchung in {account} anzuzeigen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:978
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:685
@@ -2529,27 +2529,27 @@ msgstr "Mehr Aktionen"
 #: /tmp/budget-v2.11.0/budget/src/main.js:1069
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:722
 msgid "Edit transaction"
-msgstr "Transaktion editieren"
+msgstr "Buchung editieren"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1074
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:725
 msgid "Delete transaction"
-msgstr "Transaktion löschen"
+msgstr "Buchung löschen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1282
 msgid "Failed to load transactions"
-msgstr "Transaktionen laden fehlgeschlagen"
+msgstr "Buchungen laden fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1328
 msgid "{displayed} of {total} transactions"
-msgstr "{displayed} von {total} Transaktionen"
+msgstr "{displayed} von {total} Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1329
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:684
 msgid "%n transaction"
 msgid_plural "%n transactions"
-msgstr[0] "%n Transaktion"
-msgstr[1] "%n Transaktionen"
+msgstr[0] "%n Buchung"
+msgstr[1] "%n Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:1346
 msgid "Total: {amount}"
@@ -2947,7 +2947,7 @@ msgstr "Empfohlen nach der Avalanche-Methode"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2631
 msgid "Snowball Recommended"
-msgstr ""
+msgstr "Schneeballmethode empfohlen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2631
 msgid "Either Works"
@@ -2966,7 +2966,7 @@ msgstr "Das Schneeballmodell spart {amount} an Zinsen"
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1685
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1778
 msgid "Transaction not found"
-msgstr "Transaktion nicht gefunden"
+msgstr "Buchung nicht gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2774
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1734
@@ -2988,35 +2988,34 @@ msgstr "Buchung als Transfer verknüpft"
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2474
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2546
 msgid "Failed to link transactions"
-msgstr "Transaktionen verknüpfen fehlgeschlagen"
+msgstr "Buchungen verknüpfen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2818
 msgid "Could not navigate to linked transaction"
-msgstr "Verknüpfte Transaktion konnte nicht geöffnet werden"
+msgstr "Verknüpfte Buchung konnte nicht geöffnet werden"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2869
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1761
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr ""
-"Bist Du sicher, dass Du diese Transaktion von seinem Transferpaar ablösen "
-"willst?"
+"Bist Du sicher, dass Du diese Buchung von seinem Transferpaar ablösen willst?"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2875
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1767
 msgid "Transaction unlinked"
-msgstr "Transaktion abgelöst"
+msgstr "Buchung abgelöst"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2906
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1794
 msgid "Edit Transaction Splits"
-msgstr "Transaktionsteilungen editieren"
+msgstr "Buchungsteilungen editieren"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2906
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1794
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5536
 msgid "Split Transaction"
-msgstr "Transaktion teilen"
+msgstr "Buchung teilen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:2918
 #: /tmp/budget-v2.11.0/budget/src/main.js:2995
@@ -3084,20 +3083,20 @@ msgstr "Teilung entfernen"
 #: /tmp/budget-v2.11.0/budget/src/main.js:3125
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1958
 msgid "A split transaction must have at least 2 parts"
-msgstr "Eine geteilte Transaktion muss mindestens 2 Teile haben"
+msgstr "Eine geteilte Buchung muss mindestens 2 Teile haben"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3131
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1964
 msgid ""
 "Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})"
 msgstr ""
-"Die geteilten Beträge {splitTotal} müssen dem Transaktionsbetrag "
-"{totalAmount} entsprechen"
+"Die geteilten Beträge {splitTotal} müssen dem Buchungsbetrag {totalAmount} "
+"entsprechen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3151
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1984
 msgid "Transaction split successfully"
-msgstr "Transaktion teilen erfolgreich"
+msgstr "Buchung teilen erfolgreich"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3155
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1988
@@ -3115,12 +3114,12 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/src/main.js:3182
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2012
 msgid "Transaction unsplit successfully"
-msgstr "Aufteilung der Transaktion erfolgreich entfernt"
+msgstr "Aufteilung der Buchung erfolgreich entfernt"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3186
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:2016
 msgid "Failed to unsplit transaction"
-msgstr "Aufhebung der Transaktionsaufteilung fehlgeschlagen"
+msgstr "Aufhebung der Buchungsaufteilung fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/main.js:3503
 msgid "At least one column must remain visible"
@@ -3195,11 +3194,11 @@ msgstr "Nie"
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:646
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:553
 msgid "No transactions found"
-msgstr "Keine Transaktionen gefunden"
+msgstr "Keine Buchungen gefunden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:647
 msgid "This account doesn't have any transactions yet."
-msgstr "Dieses Konto hat bisher keine Transaktionen."
+msgstr "Dieses Konto hat bisher keine Buchungen."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:678
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1195
@@ -3291,7 +3290,7 @@ msgstr "Bitte wähle ein Datum"
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1271
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1394
 msgid "Please select a transaction type"
-msgstr "Bitte wähle einen Transaktionstyp"
+msgstr "Bitte wähle einen Buchungstyp"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1275
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1398
@@ -3306,23 +3305,23 @@ msgstr "Bitte geben Sie eine Beschreibung ein"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1323
 msgid "Transaction saved successfully"
-msgstr "Transaktionen wurden erfolgreich gespeichert"
+msgstr "Buchungen wurden erfolgreich gespeichert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1332
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1345
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1562
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:1566
 msgid "Failed to save transaction"
-msgstr "Speichern der Transaktionen fehlgeschlagen"
+msgstr "Speichern der Buchungen fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1428
 msgid "Transaction added successfully!"
-msgstr "Transaktion erfolgreich erstellt!"
+msgstr "Buchung erfolgreich erstellt!"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1439
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1452
 msgid "Failed to add transaction"
-msgstr "Transaktion konnte nicht erstellt werden"
+msgstr "Buchung konnte nicht erstellt werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1493
 #: /tmp/budget-v2.11.0/budget/templates/index.php:892
@@ -3389,7 +3388,7 @@ msgstr "Konto hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1758
 msgid "Balance is calculated from transactions"
-msgstr "Der Saldo wird aus den Transaktionen berechnet"
+msgstr "Der Saldo wird aus den Buchungen berechnet"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1762
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1043
@@ -3402,7 +3401,7 @@ msgstr "Aktueller Kontostand"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1792
 msgid "••••••••  (leave blank to keep current)"
-msgstr ""
+msgstr "••••••••  (leave blank to keep current)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:1807
 msgid "Failed to load account data"
@@ -3500,7 +3499,7 @@ msgstr "Konto ist in gutem Zustand"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2243
 msgid "No transactions to export"
-msgstr "Keine Transaktionen zum Exportieren vorhanden"
+msgstr "Keine Buchungen zum Exportieren vorhanden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/accounts/AccountsModule.js:2256
 #: /tmp/budget-v2.11.0/budget/templates/index.php:896
@@ -3931,7 +3930,7 @@ msgstr "Wird erkannt..."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:1048
 msgid "No recurring transactions detected"
-msgstr "Keine wiederkehrenden Transaktionen erkannt"
+msgstr "Keine wiederkehrenden Buchungen erkannt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/bills/BillsModule.js:1059
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2204
@@ -4028,7 +4027,7 @@ msgstr "Stabil"
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:563
 #: /tmp/budget-v2.11.0/budget/templates/index.php:1710
 msgid "No transactions in this category yet."
-msgstr "Noch keine Transaktionen in dieser Kategorie."
+msgstr "Noch keine Buchungen in dieser Kategorie."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/categories/CategoriesModule.js:713
 msgid "Root"
@@ -4613,7 +4612,7 @@ msgstr "Wechselkurse aktualisiert"
 #: /tmp/budget-v2.11.0/budget/src/modules/exchange-rates/ExchangeRatesModule.js:368
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4052
 msgid "Refresh Rates"
-msgstr "Wechselkurse"
+msgstr "Wechselkurse aktualisieren"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:99
 msgid "Failed to load forecast data"
@@ -4654,7 +4653,7 @@ msgstr "{amount}/mo"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/forecast/ForecastModule.js:379
 msgid "Based on {months} month(s) of data ({count} transactions)"
-msgstr "Basierend auf Daten aus {months} Monat(en) ({count} Transaktion(en))"
+msgstr "Basierend auf Daten aus {months} Monat(en) ({count} Buchung(en))"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:62
 msgid "Rule: {name}"
@@ -4698,7 +4697,7 @@ msgstr "Fehler bei der Verarbeitung der Importdaten: {message}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:551
 msgid "No transactions to import"
-msgstr "Keine Transaktionen zum Importieren vorhanden"
+msgstr "Keine Buchungen zum Importieren vorhanden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:562
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:601
@@ -4740,12 +4739,11 @@ msgstr "Serverfehler ({status}): Ungültige Antwort"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:802
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
-msgstr ""
-"Erfolgreich importiert: {imported} Transaktionen ({skipped} übersprungen)"
+msgstr "Erfolgreich importiert: {imported} Buchungen ({skipped} übersprungen)"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:811
 msgid "Failed to import transactions: {message}"
-msgstr "Fehler beim Importieren der Transaktionen: {message}"
+msgstr "Fehler beim Importieren der Buchungen: {message}"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:887
 msgid "Download"
@@ -4788,14 +4786,14 @@ msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
 msgstr ""
-"Willst du diesen Import rückgängig machen? Alle importierten Transaktionen "
+"Willst du diesen Import rückgängig machen? Alle importierten Buchungen "
 "werden dadurch gelöscht."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:959
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
-msgstr[0] "Eine Transaktion wurde zurückgesetzt"
-msgstr[1] "%n Transaktionen wurden zurückgesetzt"
+msgstr[0] "Eine Buchung wurde zurückgesetzt"
+msgstr[1] "%n Buchungen wurden zurückgesetzt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/import/ImportModule.js:964
 msgid "Rollback failed"
@@ -4894,7 +4892,7 @@ msgstr "Fehler beim Löschen der Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:504
 msgid "Income marked as received. Transaction created."
-msgstr "Einnahme als erhalten markiert. Transaktion erstellt."
+msgstr "Einnahme als erhalten markiert. Buchung erstellt."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:505
 msgid "Income marked as received."
@@ -4907,8 +4905,7 @@ msgstr "Fehler beim Markieren der Einnahme als erhalten"
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:633
 msgid "No recurring income patterns found in your transactions"
 msgstr ""
-"In deinen Transaktionen wurden keine wiederkehrenden Einnahmemuster "
-"festgestellt"
+"In deinen Buchungen wurden keine wiederkehrenden Einnahmemuster festgestellt"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/income/IncomeModule.js:645
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2381
@@ -5086,7 +5083,7 @@ msgstr "Fehler beim Erstellen des Vergleichs"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:904
 msgid "YTD"
-msgstr "Seit Jahresbeginn"
+msgstr "Laufendes Jahr"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/reports/ReportsModule.js:929
 msgid "{monthName} - Year over Year Comparison"
@@ -5898,7 +5895,7 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:385
 msgid "root"
-msgstr ""
+msgstr "Wurzel"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/rules/components/CriteriaBuilder.js:385
 msgid "Group at {path} has no conditions"
@@ -6642,12 +6639,12 @@ msgstr[1] "%n Buchungen wurden als nicht abgeglichen markiert"
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:838
 msgid "Failed to unreconcile %n transaction"
 msgid_plural "Failed to unreconcile %n transactions"
-msgstr[0] "Abgleich von %n Transaktion konnte nicht aufgehoben werden"
-msgstr[1] "Abgleich von %n Transaktionen konnte nicht aufgehoben werden"
+msgstr[0] "Abgleich von %n Buchung konnte nicht aufgehoben werden"
+msgstr[1] "Abgleich von %n Buchungen konnte nicht aufgehoben werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:842
 msgid "Failed to unreconcile transactions"
-msgstr "Der Abgleich der Transaktionen konnte nicht aufgehoben werden"
+msgstr "Der Abgleich der Buchungen konnte nicht aufgehoben werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:862
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5599
@@ -6661,24 +6658,24 @@ msgstr "Bitte fülle mindestens ein Feld aus, um Änderungen vorzunehmen"
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:892
 msgid "Are you sure you want to update %n transaction?"
 msgid_plural "Are you sure you want to update %n transactions?"
-msgstr[0] "Möchtest du diese Transaktion wirklich aktualisieren?"
-msgstr[1] "Möchtest du wirklich %n Transaktionen aktualisieren?"
+msgstr[0] "Möchtest du diese Buchung wirklich aktualisieren?"
+msgstr[1] "Möchtest du wirklich %n Buchungen aktualisieren?"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:912
 msgid "Successfully updated %n transaction"
 msgid_plural "Successfully updated %n transactions"
-msgstr[0] "%n Transaktion erfolgreich aktualisiert"
-msgstr[1] "%n Transaktionen erfolgreich aktualisiert"
+msgstr[0] "%n Buchung erfolgreich aktualisiert"
+msgstr[1] "%n Buchungen erfolgreich aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:922
 msgid "Failed to update %n transaction"
 msgid_plural "Failed to update %n transactions"
-msgstr[0] "%n Transaktion konnte nicht aktualisiert werden"
-msgstr[1] "%n Transaktionen konnten nicht aktualisiert werden"
+msgstr[0] "%n Buchung konnte nicht aktualisiert werden"
+msgstr[1] "%n Buchungen konnten nicht aktualisiert werden"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:926
 msgid "Failed to update transactions"
-msgstr "Fehler beim Aktualisieren der Transaktionen"
+msgstr "Fehler beim Aktualisieren der Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:953
 msgid "Please fill in all reconciliation fields"
@@ -7020,9 +7017,9 @@ msgid ""
 "the selection, then delete the checked items."
 msgstr ""
 "Es wurden {groupCount} Gruppen mit {duplicateCount} verdächtigen doppelten "
-"Buchungen gefunden. Standardmäßig wird die älteste Transaktion in jeder "
-"Gruppe beibehalten. Bitte überprüfe die Auswahl. Die ausgewählten Einträge "
-"werden gelöscht."
+"Buchungen gefunden. Standardmäßig wird die älteste Buchung in jeder Gruppe "
+"beibehalten. Bitte überprüfe die Auswahl. Die ausgewählten Einträge werden "
+"gelöscht."
 
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3313
 #: /tmp/budget-v2.11.0/budget/src/modules/transactions/TransactionsModule.js:3466
@@ -8221,7 +8218,7 @@ msgstr "Dateiname"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2202
 msgid "Auto-detect recurring bills from transactions"
-msgstr "Wiederkehrende Rechnungen anhand von Transaktionen automatisch erkennen"
+msgstr "Wiederkehrende Rechnungen anhand von Buchungen automatisch erkennen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2206
 msgid "Add new bill"
@@ -8252,12 +8249,12 @@ msgstr "Füge deine erste Rechnung hinzu"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2283
 msgid "Detected Recurring Transactions"
-msgstr "Erkannte wiederkehrende Transaktionen"
+msgstr "Erkannte wiederkehrende Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2284
 msgid "We found these potential recurring bills in your transaction history"
 msgstr ""
-"Wir haben in deinem Transaktionsverlauf diese möglichen wiederkehrenden "
+"Wir haben in deinem Buchungsverlauf diese möglichen wiederkehrenden "
 "Rechnungen erkannt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2293
@@ -8266,7 +8263,7 @@ msgstr "Ausgewählte Zahlungen hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2309
 msgid "Apply rules to transactions"
-msgstr "Regeln auf Transaktionen anwenden"
+msgstr "Regeln auf Buchungen anwenden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2313
 msgid "Add new rule"
@@ -9293,7 +9290,7 @@ msgstr "Standardwährung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4187
 msgid "Default currency for new accounts and transactions"
-msgstr "Standardwährung für neue Konten und Transaktionen"
+msgstr "Standardwährung für neue Konten und Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4196
 msgid "Budget Period"
@@ -9513,7 +9510,7 @@ msgid ""
 "Download all your accounts, transactions, categories, bills, import rules, "
 "and settings as a ZIP file."
 msgstr ""
-"Alle Konten, Transaktionen, Kategorien, Rechnungen, Importregeln und "
+"Alle Konten, Buchungen, Kategorien, Rechnungen, Importregeln und "
 "Einstellungen als ZIP-Datei herunterladen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4423
@@ -9636,7 +9633,7 @@ msgid ""
 "categories, settings, and more. Only audit logs will be preserved for "
 "compliance. This action cannot be undone."
 msgstr ""
-"Lösche ALLE deiner Daten dauerhaft, einschließlich Konten, Transaktionen, "
+"Lösche ALLE deiner Daten dauerhaft, einschließlich Konten, Buchungen, "
 "Rechnungen, Kategorien, Einstellungen und mehr. Nur die Prüfprotokolle "
 "werden aus Compliance-Gründen aufbewahrt. Dieser Vorgang kann nicht "
 "rückgängig gemacht werden."
@@ -9831,11 +9828,11 @@ msgstr "Dispolimit"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4783
 msgid "Maximum overdraft amount"
-msgstr "Höhe des Dispolimits"
+msgstr "Maximaler Betrag des Dispokredits"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4787
 msgid "Minimum Payment"
-msgstr ""
+msgstr "Mindestzahlung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4789
 msgid "Minimum monthly payment for debt payoff calculations"
@@ -9843,19 +9840,19 @@ msgstr "Mindestzahlung pro Monat zur Schuldentilgung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4794
 msgid "Save account"
-msgstr ""
+msgstr "Konto speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4804
 msgid "Add/Edit Bill"
-msgstr ""
+msgstr "Rechnung hinzufügen oder bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4809
 msgid "Bill Name / Vendor"
-msgstr ""
+msgstr "Rechnungs-/Händlername"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4810
 msgid "e.g., Netflix, Rent, Electric Bill"
-msgstr ""
+msgstr "z.B. Netflix, Miete, Stromrechnung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4811
 msgid "Name of the vendor or recurring bill"
@@ -9867,7 +9864,7 @@ msgstr "Erwarteter Rechnungsbetrag"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4830
 msgid "Custom"
-msgstr ""
+msgstr "Benutzerdefiniert"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4832
 msgid "How often this bill is due"
@@ -9875,24 +9872,24 @@ msgstr "Turnus der Rechnung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4836
 msgid "Select Months"
-msgstr ""
+msgstr "Monate auswählen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4851
 msgid "Select which months this bill occurs"
-msgstr ""
+msgstr "Die Monate, in denen diese Rechnung anfällt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4861
 msgid "Due Month"
-msgstr ""
+msgstr "Fälligkeitsmonat"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4863
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5246
 msgid "Select month..."
-msgstr ""
+msgstr "Monat auswählen..."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4877
 msgid "Month when yearly bill is due"
-msgstr ""
+msgstr "Monat in dem die jährliche Rechnung anfällt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4885
 msgid "Categorize this bill (optional)"
@@ -9907,7 +9904,7 @@ msgstr ""
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4902
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5571
 msgid "Add Split"
-msgstr ""
+msgstr "Aufteilung hinzufügen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4908
 msgid "Pay From Account"
@@ -9924,7 +9921,7 @@ msgstr "Muster automatisch erkennen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4917
 msgid "e.g., NETFLIX, SPOTIFY"
-msgstr ""
+msgstr "z.B. NETFLIX, SPOTIFY"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4918
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5282
@@ -9951,11 +9948,11 @@ msgstr "Die Rechnung endet nach diesem Datum automatisch (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4934
 msgid "Remaining Payments"
-msgstr ""
+msgstr "Restzahlungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4935
 msgid "e.g., 10"
-msgstr ""
+msgstr "z.B. 10"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4936
 msgid "Number of payments left before bill auto-deactivates (optional)"
@@ -9973,31 +9970,31 @@ msgstr "Keine Erinnerung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4943
 msgid "On due date"
-msgstr ""
+msgstr "Zum Fälligkeitstermin"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4944
 msgid "1 day before"
-msgstr ""
+msgstr "Einen Tag vorher"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4945
 msgid "2 days before"
-msgstr ""
+msgstr "2 Tage vorher"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4946
 msgid "3 days before"
-msgstr ""
+msgstr "3 Tage vorher"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4947
 msgid "5 days before"
-msgstr ""
+msgstr "5 Tage vorher"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4948
 msgid "1 week before"
-msgstr ""
+msgstr "Eine Woche vorher"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4949
 msgid "2 weeks before"
-msgstr ""
+msgstr "2 Woche vorher"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4951
 msgid "Receive a notification before bill is due"
@@ -10024,17 +10021,19 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4978
 msgid "Auto-pay failed!"
-msgstr ""
+msgstr "Automatische Zahlung fehlgeschlagen!"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4978
 msgid ""
 "Auto-pay has been disabled. Please check the bill details and re-enable if "
 "needed."
 msgstr ""
+"Automatische Zahlung wurde deaktiviert. Kontrolliere die Rechnungsdetails "
+"und aktiviere Sie wieder, falls gewollt."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4983
 msgid "Save bill"
-msgstr ""
+msgstr "Rechnung speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:4993
 msgid "Add/Edit Rule"
@@ -10042,140 +10041,145 @@ msgstr "Regel hinzufügen/bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5001
 msgid "Rule Name"
-msgstr ""
+msgstr "Regelname"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5002
 msgid "e.g., Amazon Purchases, Grocery Stores"
-msgstr ""
+msgstr "z.B. Amazon Einkäufe, Supermärkte"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5003
 msgid "A descriptive name for this rule"
-msgstr ""
+msgstr "Ein beschreibender Name für diese Regel"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5007
 msgid "Priority"
-msgstr ""
+msgstr "Priorität"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5016
 msgid "Matching Criteria"
-msgstr ""
+msgstr "Übereinstimmungskriterien"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5017
 msgid "Define when this rule should apply to a transaction"
-msgstr ""
+msgstr "Lege fest, wann diese Regel auf eine Buchung angewendet werden soll"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5022
 msgid "Match Field"
-msgstr ""
+msgstr "Übereinstimmungsfeld"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5030
 msgid "Which transaction field to match against"
-msgstr ""
+msgstr "Buchungsfeld das auf Übereinstimmung geprüft werden soll"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5034
 msgid "Match Type"
-msgstr ""
+msgstr "Art der Übereinstimmung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5036
 msgid "Contains"
-msgstr ""
+msgstr "Enthält"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5037
 msgid "Exact Match"
-msgstr ""
+msgstr "Exakte Übereinstimmung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5038
 msgid "Starts With"
-msgstr ""
+msgstr "Beginnt mit"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5039
 msgid "Ends With"
-msgstr ""
+msgstr "Endet mit"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5040
 msgid "Regex"
-msgstr ""
+msgstr "Regex (Regulärer Ausdruck)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5042
 msgid "How to match the pattern"
-msgstr ""
+msgstr "Wie das Muster erkannt werden soll"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5046
 msgid "Pattern"
-msgstr ""
+msgstr "Muster"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5047
 msgid "e.g., AMAZON, grocery|supermarket"
-msgstr ""
+msgstr "z.B. AMAZON, lebensmittel|supermarkt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5048
 msgid "Text or pattern to match (case-insensitive)"
 msgstr ""
+"Zu suchender Text oder Muster (Groß-/Kleinschreibung wird nicht "
+"berücksichtigt)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5061
 msgid "What to do when a transaction matches these criteria"
 msgstr ""
+"Was geschehen soll, wenn eine Buchung mit diesen Kriterien übereinstimmt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5073
 msgid "Only active rules are applied"
-msgstr ""
+msgstr "Nur aktive Regeln werden angewendet"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5079
 msgid "Apply during import"
-msgstr ""
+msgstr "Während Import anwenden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5081
 msgid "Auto-apply when importing transactions"
-msgstr ""
+msgstr "Automatisch die Regeln beim Importieren von Buchungen anwenden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5088
 msgid "matching transactions"
-msgstr ""
+msgstr "übereinstimmende Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5088
 msgid "showing first 50"
-msgstr ""
+msgstr "die ersten 50 werden gezeigt"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5109
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5178
 msgid "Updated"
-msgstr ""
+msgstr "Aktualisiert"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5113
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5182
 msgid "Skipped"
-msgstr ""
+msgstr "Übersprungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5117
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5186
 msgid "Failed"
-msgstr ""
+msgstr "Fehlgeschlagen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5123
 msgid "Preview matching transactions"
-msgstr ""
+msgstr "Vorschau der übereinstimmenden Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5124
 msgid "Apply rule to uncategorized transactions now"
-msgstr ""
+msgstr "Regel jetzt auf nicht kategorisierte Buchungen anwenden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5125
 msgid "Save rule"
-msgstr ""
+msgstr "Regel speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5135
 msgid "Apply Rules to Transactions"
-msgstr ""
+msgstr "Regeln auf Buchungen anwenden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5164
 msgid "Only apply to uncategorized transactions"
-msgstr ""
+msgstr "Gilt nur für nicht kategorisierte Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5166
 msgid ""
 "When enabled, rules will only be applied to transactions that don't have a "
 "category assigned"
 msgstr ""
+"Wenn diese Option aktiviert ist, werden die Regeln nur auf Transaktionen "
+"angewendet, denen keine Kategorie zugewiesen ist"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5201
 msgid "Add/Edit Recurring Income"
@@ -10183,11 +10187,11 @@ msgstr "Wiederkehrende Einnahmen hinzufügen/bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5206
 msgid "Income Name"
-msgstr ""
+msgstr "Name der Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5207
 msgid "e.g., Salary, Dividends, Rental Income"
-msgstr ""
+msgstr "z.B. Gehalt, Dividenden, Mieterträge"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5208
 msgid "Name of the recurring income"
@@ -10195,59 +10199,59 @@ msgstr "Bezeichnung der wiederkehrenden Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5212
 msgid "Expected Amount"
-msgstr ""
+msgstr "Erwarteter Betrag"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5214
 msgid "Expected amount each period"
-msgstr ""
+msgstr "Erwarteter Betrag pro Periode"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5218
 msgid "Source"
-msgstr ""
+msgstr "Bezugsquelle"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5219
 msgid "e.g., Employer Name, Company"
-msgstr ""
+msgstr "z.B. Name des Arbeitgebers, der Firma"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5220
 msgid "Who pays this income (optional)"
-msgstr ""
+msgstr "Die Entität, von der diese Einnahme ausgezahlt wird (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5234
 msgid "How often you receive this income"
-msgstr ""
+msgstr "Die Häufigkeit dieser Einnahme"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5244
 msgid "Expected Month"
-msgstr ""
+msgstr "Erwarteter Monat"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5260
 msgid "Month when yearly income is expected"
-msgstr ""
+msgstr "Monat, in dem das Jahreseinkommen erwartet wird"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5268
 msgid "Categorize this income (optional)"
-msgstr ""
+msgstr "Diese Einnahmen kategorisieren (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5272
 msgid "Receive To Account"
-msgstr ""
+msgstr "Verbuchen auf"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5276
 msgid "Account where income is received (optional)"
-msgstr ""
+msgstr "Konto auf welches diese Einnahme gebucht wird (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5281
 msgid "e.g., PAYROLL, DIVIDEND"
-msgstr ""
+msgstr "z.B. GEHALT, DIVIDENDE"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5292
 msgid "Save income"
-msgstr ""
+msgstr "Einnahme speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5302
 msgid "Add/Edit Category"
-msgstr ""
+msgstr "Kategorie hinzufügen/bearbeiten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5307
 msgid "Category Name"
@@ -10275,85 +10279,93 @@ msgstr "Farbe für Diagramme und Anzeige"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5339
 msgid "Save category"
-msgstr ""
+msgstr "Kategorie speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5355
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5431
 msgid "Tag Set Name"
-msgstr ""
+msgstr "Schlagwortgruppenname"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5356
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5432
 msgid "e.g., Activity, Equipment, Location"
-msgstr ""
+msgstr "z.B. Aktivität, Ausrüstung, Ort"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5360
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5436
 msgid "Optional description"
-msgstr ""
+msgstr "Optionale Beschreibung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5381
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5407
 msgid "e.g., Fishing, Rods, Online"
-msgstr ""
+msgstr "z.B. Angeln, Angelruten, Online"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5449
 msgid "Find Transfer Matches"
-msgstr ""
+msgstr "Finde übereinstimmende Umbuchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5451
 msgid "Source Transaction"
-msgstr ""
+msgstr "Ursprüngliche Buchung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5462
 msgid "Searching for matches..."
-msgstr ""
+msgstr "Suche nach Übereinstimmungen..."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5465
 msgid "No matching transactions found within the date range."
 msgstr ""
+"Innerhalb des angegebenen Zeitraums wurden keine passenden Buchungen "
+"gefunden."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5466
 msgid ""
 "Matches must have the same amount, opposite type (income/expense), and be "
 "within 3 days."
 msgstr ""
+"Die Einträge müssen denselben Betrag, den entgegengesetzten Typ (Einnahme/"
+"Ausgabe) aufweisen und innerhalb von drei Tagen liegen."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5471
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5528
 msgid "Close dialog"
-msgstr ""
+msgstr "Dialog schließen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5479
 msgid "Match Transfers"
-msgstr ""
+msgstr "Umbuchungen erkennen und verknüpfen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5496
 msgid "Matched Pairs"
-msgstr ""
+msgstr "Verknüpfte Buchungspaare"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5500
 msgid "Need Review"
-msgstr ""
+msgstr "Überprüfung notwendig"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5506
 msgid "Auto-Matched Pairs"
-msgstr ""
+msgstr "Automatisch verknüpfte Buchungspaare"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5507
 msgid ""
 "These transactions were automatically linked. Click Undo to unlink a pair."
 msgstr ""
+"Diese Buchungen wurden automatisch miteinander verknüpft. Klicke auf „"
+"Rückgängig“, um die Verknüpfung eines Paares aufzuheben."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5513
 msgid "Needs Manual Review"
-msgstr ""
+msgstr "Manuelle Überprüfung notwendig"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5514
 msgid ""
 "These transactions have multiple potential matches. Select the correct match "
 "for each."
 msgstr ""
+"Für diese Buchungen gibt es mehrere mögliche Übereinstimmungen. Wähle für "
+"jede Buchung die richtige Übereinstimmung aus."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5521
 msgid ""
@@ -10366,152 +10378,154 @@ msgstr ""
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5526
 msgid "Scan for Matches"
-msgstr ""
+msgstr "Nach Übereinstimmungen suchen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5545
 msgid "Amount:"
-msgstr ""
+msgstr "Betrag:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5576
 msgid "Remaining to allocate:"
-msgstr ""
+msgstr "Noch zuzuweisen:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5581
 msgid "Unsplit Transaction"
-msgstr ""
+msgstr "Buchungsaufteilung aufheben"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5583
 msgid "Save Splits"
-msgstr ""
+msgstr "Aufteilung speichern"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5593
 msgid "Bulk Edit Transactions"
-msgstr ""
+msgstr "Stapelbearbeitung von Buchungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5594
 msgid "Edit fields for"
-msgstr ""
+msgstr "Felder von"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5594
 msgid "selected transactions. Leave fields empty to keep existing values."
 msgstr ""
+"ausgewählte Buchungen werden geändert. Lass die Felder leer, um die "
+"bestehenden Werte beizubehalten."
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5595
 msgid "Bulk edit form"
-msgstr ""
+msgstr "Formular für Massenbearbeitung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5601
 msgid "Update category for all selected transactions (optional)"
-msgstr ""
+msgstr "Kategorie für alle ausgewählten Buchungen aktualisieren (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5607
 msgid "Update vendor name for all selected transactions (optional)"
-msgstr ""
+msgstr "Empfänger für alle ausgewählten Buchungen aktualisieren (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5613
 msgid "Update reference number for all selected transactions (optional)"
-msgstr ""
+msgstr "Referenznummer für alle ausgewählten Buchungen aktualisieren (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5619
 msgid "Update notes for all selected transactions (optional)"
-msgstr ""
+msgstr "Notizen für alle ausgewählten Buchungen aktualisieren (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5623
 msgid "Update selected transactions"
-msgstr ""
+msgstr "Ausgewählte Buchungen aktualisieren"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5623
 msgid "Update Transactions"
-msgstr ""
+msgstr "Buchungen aktualisieren"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5634
 msgid "Contact form"
-msgstr ""
+msgstr "Kontaktformular"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5639
 msgid "e.g., John, Roommate, Partner"
-msgstr ""
+msgstr "z.B. Max, Mitbewohner, Partner"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5643
 msgid "Email"
-msgstr ""
+msgstr "E-Mail"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5644
 msgid "Optional email address"
-msgstr ""
+msgstr "Die E-Mail-Adresse des Kontaktes (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5658
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5695
 msgid "Share Expense"
-msgstr ""
+msgstr "Ausgabe teilen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5659
 msgid "Share expense form"
-msgstr ""
+msgstr "Formular zur Aufteilung der Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5669
 msgid "Split with"
-msgstr ""
+msgstr "Teilen mit"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5676
 msgid "Split Method"
-msgstr ""
+msgstr "Aufteilungsmethode"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5678
 msgid "50/50 Split"
-msgstr ""
+msgstr "50/50 Aufteilung"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5679
 msgid "Custom Amount"
-msgstr ""
+msgstr "Benutzerdefinierter Betrag"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5684
 msgid "Amount They Owe You"
-msgstr ""
+msgstr "Dir geschuldeter Betrag"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5686
 msgid "Positive = they owe you, negative = you owe them"
-msgstr ""
+msgstr "Positiv = dir geschuldet, negativ = du schuldest"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5691
 msgid "Optional notes about this split"
-msgstr ""
+msgstr "Anmerkungen über diese Ausgabenteilung (optional)"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5705
 msgid "Settle Expenses"
-msgstr ""
+msgstr "Geteilte Ausgaben begleichen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5706
 msgid "Settlement form"
-msgstr ""
+msgstr "Formular zum Begleichen der Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5715
 msgid "Select expenses to settle"
-msgstr ""
+msgstr "Ausgaben zum Begleichen auswählen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5737
 msgid "Optional notes"
-msgstr ""
+msgstr "Optionale Anmerkungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5741
 msgid "Settle Selected"
-msgstr ""
+msgstr "Ausgewählte begleichen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5751
 msgid "Contact Details"
-msgstr ""
+msgstr "Kontaktdetails"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5758
 msgid "Balance:"
-msgstr ""
+msgstr "Saldo:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5764
 msgid "Settle All"
-msgstr ""
+msgstr "Alle begleichen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5765
 msgid "Record Payment"
-msgstr ""
+msgstr "Zahlung aufnehmen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5770
 msgid "Settlement History"
@@ -10519,23 +10533,25 @@ msgstr "Abrechnungshistorie"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5796
 msgid "Confirm Factory Reset"
-msgstr ""
+msgstr "Bestätigung des Zurücksetzens auf Werkseinstellungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5800
 msgid "WARNING: This action cannot be undone!"
-msgstr ""
+msgstr "ACHTUNG: Dieser Vorgang kann nicht rückgängig gemacht werden!"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5801
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr ""
+"Durch das Zurücksetzen auf die Werkseinstellungen werden ALLE Ihre Daten "
+"dauerhaft gelöscht, darunter:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5803
 msgid "All accounts and their balances"
-msgstr ""
+msgstr "Alle Konten und deren Salden"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5804
 msgid "All transactions and transaction history"
-msgstr ""
+msgstr "Alle Buchungen und die gesamte Buchungshistorie"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5805
 msgid "All bills and recurring income"
@@ -10547,11 +10563,11 @@ msgstr "Alle Kategorien und Budgeteinstellungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5807
 msgid "All savings goals and pension accounts"
-msgstr ""
+msgstr "Alle Sparziele und Renten"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5808
 msgid "All import rules and settings"
-msgstr ""
+msgstr "Alle Import-Regeln und Einstellungen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5809
 msgid "All shared expenses and contacts"
@@ -10572,7 +10588,7 @@ msgstr "Geben Sie „ DELETE“ zur Bestätigung ein:"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5822
 msgid "Type DELETE to confirm"
-msgstr ""
+msgstr "Tippe „DELETE“, um diesen Vorgang zu bestätigen"
 
 #: /tmp/budget-v2.11.0/budget/templates/index.php:5825
 msgid "You must type DELETE (all caps) exactly to proceed"
