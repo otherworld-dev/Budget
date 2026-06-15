@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-04-15 23:25+0000\n"
 "PO-Revision-Date: 2026-06-15 23:01+0000\n"
-"Last-Translator: Marcus <spintike@protonmail.com>\n"
+"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -2282,7 +2282,7 @@ msgstr "Einnahmen und Ausgaben im Vergleich"
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2782
 #: /tmp/budget-v2.11.0/budget/templates/index.php:2931
 msgid "Spending by Category"
-msgstr "Ausgaben nach Kategorien"
+msgstr "Kategoriebezogene Ausgaben"
 
 #: /tmp/budget-v2.11.0/budget/src/config/dashboardWidgets.js:36
 #: /tmp/budget-v2.11.0/budget/templates/index.php:570
