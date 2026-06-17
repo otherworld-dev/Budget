@@ -16823,6 +16823,63 @@ tr.pending-transaction td:first-child {
 }
 
 /* Phase 4: Quick Add Transaction Form */
+/* The Quick Add widget is a full form, taller than its dashboard tile on
+   mobile, where the tile clipped the lower fields and the submit button —
+   making it impossible to add a transaction (#298). It's condensed below
+   (each label sits on the same line as its control, with tighter spacing) so
+   the whole form fits a mobile tile; the content can still scroll within the
+   tile as a fallback if it's resized very small. All rules are scoped to
+   #quick-add-card so other widgets and the standalone page are unaffected. */
+#quick-add-card .widget-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#quick-add-card .quick-add-form {
+    gap: 6px;
+}
+
+/* Each field on one row: a fixed label column on the left, control fills the rest */
+#quick-add-card .form-group-inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+#quick-add-card .form-group-inline > label {
+    flex: 0 0 84px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.2;
+    text-align: right;
+}
+
+#quick-add-card .form-group-inline > input,
+#quick-add-card .form-group-inline > select {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    padding: 5px 8px;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+#quick-add-card .quick-add-actions {
+    margin-top: 4px;
+}
+
+#quick-add-card .quick-add-actions button {
+    padding: 7px 12px;
+    font-size: 13px;
+}
+
+#quick-add-card .quick-add-message {
+    margin-top: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
 .quick-add-form {
     display: flex;
     flex-direction: column;
