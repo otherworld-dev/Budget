@@ -1082,8 +1082,10 @@ export default class DashboardModule {
                 ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.83L19.53 19H4.47L12 5.83zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>'
                 : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
 
-            const percentDisplay = alert.percentage >= 100
-                ? t('budget', '{percent}% over', { percent: Math.round(alert.percentage - 100) })
+            // "Over" only when the budget was actually exceeded (danger). Spending
+            // that exactly meets the budget is "100% used", not "0% over" (#293).
+            const percentDisplay = alert.severity === 'danger'
+                ? t('budget', '{percent}% over', { percent: Math.max(0, Math.round(alert.percentage - 100)) })
                 : t('budget', '{percent}% used', { percent: Math.round(alert.percentage) });
 
             return `

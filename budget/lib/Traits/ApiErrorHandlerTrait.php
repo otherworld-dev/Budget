@@ -60,11 +60,62 @@ trait ApiErrorHandlerTrait {
         // Log the full error details server-side
         $this->logError($e, $context);
 
-        // Return generic message to client
-        return new DataResponse(
-            ['error' => $genericMessage],
-            $statusCode
-        );
+        $body = ['error' => $genericMessage];
+
+        // Database errors are otherwise invisible on managed Nextcloud instances
+        // where admins cannot read nextcloud.log. Surface a sanitised detail of
+        // the driver error (e.g. a missing column) so the cause is diagnosable
+        // from the browser's network tab. The generic, translated message is
+        // still what the UI shows; this only adds a separate diagnostic field.
+        $dbDetail = $this->extractDbErrorDetail($e);
+        if ($dbDetail !== null) {
+            $body['detail'] = $dbDetail;
+        }
+
+        return new DataResponse($body, $statusCode);
+    }
+
+    /**
+     * Extract a safe, human-readable detail string from a database exception.
+     *
+     * Returns null for non-database errors. The result is limited to the
+     * driver's error message (which describes schema/constraint problems such
+     * as a missing column) with the executed SQL and any bound parameters
+     * stripped, so no stack trace or query bindings are ever exposed.
+     */
+    private function extractDbErrorDetail(\Throwable $e): ?string {
+        $dbException = null;
+        for ($cursor = $e; $cursor !== null; $cursor = $cursor->getPrevious()) {
+            if ($cursor instanceof \OCP\DB\Exception) {
+                $dbException = $cursor;
+                break;
+            }
+        }
+        if ($dbException === null) {
+            return null;
+        }
+
+        $message = $dbException->getMessage();
+
+        // Doctrine prefixes the message with the executed SQL (and, on older
+        // versions, the bound parameters). Keep only the driver portion that
+        // starts at the SQLSTATE marker, which drops any data values.
+        $pos = strpos($message, 'SQLSTATE');
+        if ($pos !== false) {
+            $message = substr($message, $pos);
+        }
+
+        $message = trim($message);
+        if ($message === '') {
+            return null;
+        }
+
+        // Hard cap so a pathological driver message can't bloat the response.
+        if (strlen($message) > 300) {
+            $message = substr($message, 0, 297) . '...';
+        }
+
+        return $message;
     }
 
     /**

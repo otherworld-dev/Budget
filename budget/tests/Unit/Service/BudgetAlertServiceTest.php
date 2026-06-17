@@ -163,6 +163,53 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertSame('danger', $alerts[0]['severity']);
     }
 
+    // ===== Over-budget boundary (#293) =====
+
+    public function testSpendingExactlyAtBudgetIsWarningNotDanger(): void {
+        // Budget fully used (spent == budget) is "100% used", not exceeded.
+        $category = $this->makeCategory(['budgetAmount' => 54.94]);
+        $this->setupMocksForBudgetStatus([$category], 54.94);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame(100.0, $statuses[0]['percentage']);
+        $this->assertSame('warning', $statuses[0]['status']);
+    }
+
+    public function testAlertExactlyAtBudgetIsWarningNotDanger(): void {
+        $category = $this->makeCategory(['budgetAmount' => 54.94]);
+        $this->setupMocksForBudgetStatus([$category], 54.94);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+
+        $this->assertCount(1, $alerts);
+        $this->assertSame(100.0, $alerts[0]['percentage']);
+        $this->assertSame('warning', $alerts[0]['severity']);
+    }
+
+    public function testSpendingOverBudgetIsDanger(): void {
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 120.0);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame(120.0, $statuses[0]['percentage']);
+        $this->assertSame('danger', $statuses[0]['status']);
+    }
+
+    public function testSpendingJustOverBudgetIsDanger(): void {
+        // A cent over the budget exceeds the half-cent epsilon -> over budget.
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 100.01);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame('danger', $statuses[0]['status']);
+    }
+
     // ===== Auto-derived recurring budgets (#269) =====
 
     public function testBudgetStatusFallsBackToRecurringBudget(): void {

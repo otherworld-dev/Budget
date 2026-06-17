@@ -19,6 +19,10 @@ class BudgetAlertService {
     // Alert thresholds
     private const WARNING_THRESHOLD = 0.80;  // 80%
     private const DANGER_THRESHOLD = 1.00;   // 100%
+    // Spending must exceed the budget by more than this (half a cent) to count
+    // as over budget — spending that exactly meets the budget is "fully used",
+    // not exceeded (issue #293).
+    private const OVER_BUDGET_EPSILON = 0.005;
 
     public function __construct(
         CategoryMapper $categoryMapper,
@@ -72,6 +76,39 @@ class BudgetAlertService {
             'base' => $amount,
             'carried' => $carried,
         ];
+    }
+
+    /**
+     * Classify spending against a resolved budget amount.
+     *
+     * Spending that strictly exceeds a positive budget is 'danger' (over
+     * budget); a depleted envelope (no positive budget remaining) with any
+     * spending is likewise over budget. Spending that merely meets the budget
+     * (100% used) is 'warning', not exceeded — a full budget hasn't been
+     * overspent (issue #293). Spending at or above the warning threshold but
+     * within budget is 'warning'; anything below it is 'ok'.
+     *
+     * @return array{percentage: float, severity: string} percentage is a ratio (1.0 = 100%)
+     */
+    private function classifySpending(float $spent, float $budget): array {
+        if ($budget > 0) {
+            $percentage = $spent / $budget;
+            $overBudget = $spent > $budget + self::OVER_BUDGET_EPSILON;
+        } else {
+            // Depleted envelope: any spending is over the (zero/negative) budget.
+            $overBudget = $spent > 0;
+            $percentage = $overBudget ? self::DANGER_THRESHOLD : 0.0;
+        }
+
+        if ($overBudget) {
+            $severity = 'danger';
+        } elseif ($percentage >= self::WARNING_THRESHOLD) {
+            $severity = 'warning';
+        } else {
+            $severity = 'ok';
+        }
+
+        return ['percentage' => $percentage, 'severity' => $severity];
     }
 
     /**
@@ -129,12 +166,13 @@ class BudgetAlertService {
                 $range['end']
             );
 
-            // A depleted envelope (available <= 0) with any spending is over budget
-            $percentage = $budget > 0 ? ($spent / $budget) : ($spent > 0 ? self::DANGER_THRESHOLD : 0);
+            // Classify: exactly meeting the budget is "fully used", not over (#293).
+            $classified = $this->classifySpending($spent, $budget);
+            $percentage = $classified['percentage'];
 
             // Only create alert if at warning threshold or above
-            if ($percentage >= self::WARNING_THRESHOLD) {
-                $severity = $percentage >= self::DANGER_THRESHOLD ? 'danger' : 'warning';
+            if ($classified['severity'] !== 'ok') {
+                $severity = $classified['severity'];
 
                 $alerts[] = [
                     'categoryId' => $category->getId(),
@@ -217,15 +255,10 @@ class BudgetAlertService {
                 $range['end']
             );
 
-            // A depleted envelope (available <= 0) with any spending is over budget
-            $percentage = $budget > 0 ? ($spent / $budget) : ($spent > 0 ? self::DANGER_THRESHOLD : 0);
-
-            $status = 'ok';
-            if ($percentage >= self::DANGER_THRESHOLD) {
-                $status = 'danger';
-            } elseif ($percentage >= self::WARNING_THRESHOLD) {
-                $status = 'warning';
-            }
+            // Classify: exactly meeting the budget is "fully used", not over (#293).
+            $classified = $this->classifySpending($spent, $budget);
+            $percentage = $classified['percentage'];
+            $status = $classified['severity'];
 
             $statuses[] = [
                 'categoryId' => $category->getId(),
