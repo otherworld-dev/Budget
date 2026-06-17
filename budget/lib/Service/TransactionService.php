@@ -487,6 +487,15 @@ class TransactionService {
         $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
         $transaction = $this->mapper->update($transaction);
 
+        // If a split transaction's amount changed (e.g. inline-edited in the
+        // list), rescale its splits proportionally so they keep summing to the
+        // new amount instead of reflecting the old total (#297 follow-up).
+        if (array_key_exists('amount', $updates)
+            && $transaction->getIsSplit()
+            && abs((float) $oldAmount - (float) $transaction->getAmount()) > 0.001) {
+            $this->rescaleSplits($id, (float) $oldAmount, (float) $transaction->getAmount());
+        }
+
         // Recompute affected account balances from the ledger. This replaces the
         // old hand-computed delta branches (account move / status flips / amount
         // or type edits), every one of which was a historical drift source.
@@ -496,6 +505,35 @@ class TransactionService {
         }
 
         return $transaction;
+    }
+
+    /**
+     * Proportionally rescale a split transaction's parts to a new total so the
+     * splits keep summing to the transaction amount after an amount edit. The
+     * last split absorbs any rounding remainder so the sum stays exact. When the
+     * old amount was 0 (no proportions to preserve) shares are split evenly.
+     */
+    private function rescaleSplits(int $transactionId, float $oldAmount, float $newAmount): void {
+        $splits = $this->splitMapper->findByTransaction($transactionId);
+        $count = count($splits);
+        if ($count < 2) {
+            return;
+        }
+
+        $running = 0.0;
+        foreach (array_values($splits) as $i => $split) {
+            if ($i === $count - 1) {
+                $amount = round($newAmount - $running, 2);
+            } else {
+                $share = $oldAmount > 0
+                    ? ((float) $split->getAmount() / $oldAmount)
+                    : (1.0 / $count);
+                $amount = round($newAmount * $share, 2);
+                $running += $amount;
+            }
+            $split->setAmount((string) $amount);
+            $this->splitMapper->update($split);
+        }
     }
 
     public function delete(int $id, string $userId, bool $dismiss = true): void {

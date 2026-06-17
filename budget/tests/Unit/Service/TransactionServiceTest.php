@@ -24,6 +24,8 @@ class TransactionServiceTest extends TestCase {
     private TransactionTagMapper $transactionTagMapper;
     private ExpenseShareMapper $expenseShareMapper;
     private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
+    /** @var \OCA\Budget\Db\TransactionSplitMapper&\PHPUnit\Framework\MockObject\MockObject */
+    private $splitMapper;
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(TransactionMapper::class);
@@ -31,6 +33,7 @@ class TransactionServiceTest extends TestCase {
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
         $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
         $splitMapper->method('findByTransactionIds')->willReturn([]);
+        $this->splitMapper = $splitMapper;
         $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
         $dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
         $this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
@@ -311,6 +314,48 @@ class TransactionServiceTest extends TestCase {
             ->with(10, '925.00', 'user1');
 
         $this->service->update(1, 'user1', ['amount' => 75.00]);
+    }
+
+    public function testUpdateRescalesSplitsWhenAmountChanges(): void {
+        // A split transaction's parts must keep summing to the (new) amount.
+        $tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']);
+        $tx->setIsSplit(true);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+        $mk = function (int $id, string $amount) {
+            $s = new \OCA\Budget\Db\TransactionSplit();
+            $s->setId($id);
+            $s->setTransactionId(1);
+            $s->setAmount($amount);
+            return $s;
+        };
+        $s1 = $mk(1, '850');
+        $s2 = $mk(2, '100');
+        $s3 = $mk(3, '50');
+        $this->splitMapper->method('findByTransaction')->with(1)->willReturn([$s1, $s2, $s3]);
+        $this->splitMapper->expects($this->exactly(3))->method('update');
+
+        $this->service->update(1, 'user1', ['amount' => 1100.00]);
+
+        // Proportional rescale to 1100 (×1.1); last split absorbs the remainder.
+        $this->assertEquals('935', $s1->getAmount());
+        $this->assertEquals('110', $s2->getAmount());
+        $this->assertEquals('55', $s3->getAmount());
+    }
+
+    public function testUpdateDoesNotRescaleNonSplitTransaction(): void {
+        $tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']); // not a split
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+        $this->splitMapper->expects($this->never())->method('findByTransaction');
+
+        $this->service->update(1, 'user1', ['amount' => 1100.00]);
     }
 
     public function testUpdateAccountMoveRecalculatesBothAccounts(): void {

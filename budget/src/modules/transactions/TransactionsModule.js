@@ -2001,10 +2001,11 @@ export default class TransactionsModule {
             }
         };
 
-        // Update remaining when main amount changes
+        // Rebalance splits when the main amount changes so they keep summing to
+        // it (the last split absorbs the difference); a no-op when not splitting.
         const amountInput = document.getElementById('transaction-amount');
         if (amountInput) {
-            amountInput.addEventListener('input', () => this.updateInlineSplitRemaining());
+            amountInput.addEventListener('input', () => this.rebalanceInlineSplits(amountInput));
         }
 
         // Add row button
@@ -2060,12 +2061,8 @@ export default class TransactionsModule {
         `;
 
         const amountInput = row.querySelector('.inline-split-amount');
-        if (existingSplit) {
-            amountInput.dataset.userEdited = 'true';
-        }
         amountInput.addEventListener('input', () => {
-            amountInput.dataset.userEdited = 'true';
-            this.autoFillInlineSplitRemaining();
+            this.rebalanceInlineSplits(amountInput);
         });
 
         row.querySelector('.split-remove-btn').addEventListener('click', (e) => {
@@ -2096,26 +2093,30 @@ export default class TransactionsModule {
         }
     }
 
-    autoFillInlineSplitRemaining() {
+    /**
+     * Keep the splits summing to the transaction amount: when one split amount
+     * is edited, the last *other* split row absorbs the remainder. This makes
+     * editing an existing split's parts stay balanced against the transaction
+     * total (#297 follow-up) — and still auto-fills a fresh second row.
+     */
+    rebalanceInlineSplits(editedInput) {
         const totalAmount = parseFloat(document.getElementById('transaction-amount')?.value) || 0;
-        const rows = Array.from(document.querySelectorAll('#inline-splits-container .split-row'));
-        let allocated = 0;
-        let autoFillTarget = null;
+        const inputs = Array.from(
+            document.querySelectorAll('#inline-splits-container .split-row .inline-split-amount')
+        );
 
-        rows.forEach(row => {
-            const input = row.querySelector('.inline-split-amount');
-            if (input.dataset.userEdited) {
-                // Sum all manually edited inputs
-                allocated += parseFloat(input.value) || 0;
-            } else {
-                // First non-edited input is the auto-fill target
-                if (!autoFillTarget) autoFillTarget = input;
+        if (inputs.length >= 2) {
+            // Balancer = the last input that isn't the one being edited.
+            let balancer = null;
+            for (let i = inputs.length - 1; i >= 0; i--) {
+                if (inputs[i] !== editedInput) { balancer = inputs[i]; break; }
             }
-        });
-
-        if (autoFillTarget) {
-            const remaining = totalAmount - allocated;
-            autoFillTarget.value = remaining > 0 ? remaining.toFixed(2) : '';
+            if (balancer) {
+                let sumOthers = 0;
+                inputs.forEach(inp => { if (inp !== balancer) sumOthers += parseFloat(inp.value) || 0; });
+                const remaining = Math.round((totalAmount - sumOthers) * 100) / 100;
+                balancer.value = remaining > 0 ? remaining.toFixed(2) : '0.00';
+            }
         }
 
         this.updateInlineSplitRemaining();
