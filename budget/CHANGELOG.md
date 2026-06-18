@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.33.1] - 2026-06-18
+
+### Fixed
+- On some installs an earlier update was recorded as applied but didn't fully run (an interrupted upgrade, or a database restored from a backup taken mid-upgrade), leaving the `excluded_from_forecast` column missing — so every new transaction failed with "Unknown column 'excluded_from_forecast'". A migration now re-adds the column automatically on update. (Also surfaced by the new database-error `detail` field added in 2.32.0.) ([#289](https://github.com/otherworld-dev/Budget/issues/289))
+
 ## [2.33.0] - 2026-06-18
 
 ### Added
