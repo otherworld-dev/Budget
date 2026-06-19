@@ -1346,6 +1346,10 @@ class BudgetApp {
             if (this.transactionFilters?.status) {
                 params.append('status', this.transactionFilters.status);
             }
+            // Reconciliation-status filter (#301): 'yes' -> true, 'no' -> false, '' -> all
+            if (this.transactionFilters?.reconciled === 'yes' || this.transactionFilters?.reconciled === 'no') {
+                params.append('reconciled', this.transactionFilters.reconciled === 'yes' ? 'true' : 'false');
+            }
             if (this.transactionFilters?.tagIds && this.transactionFilters.tagIds.length > 0) {
                 this.transactionFilters.tagIds.forEach(tagId => {
                     params.append('tagIds[]', tagId);

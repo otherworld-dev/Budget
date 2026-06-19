@@ -1512,6 +1512,15 @@ style('budget', 'budget-app');
                         </div>
 
                         <div class="filter-group">
+                            <label for="filter-reconciled"><?php p($l->t('Reconciled')); ?></label>
+                            <select id="filter-reconciled">
+                                <option value=""><?php p($l->t('All')); ?></option>
+                                <option value="yes"><?php p($l->t('Reconciled')); ?></option>
+                                <option value="no"><?php p($l->t('Not reconciled')); ?></option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
                             <label for="filter-date-from"><?php p($l->t('From Date')); ?></label>
                             <input type="date" id="filter-date-from">
                         </div>

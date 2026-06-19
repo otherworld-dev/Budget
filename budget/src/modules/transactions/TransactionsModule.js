@@ -92,7 +92,7 @@ export default class TransactionsModule {
 
         // Filter controls
         const filterControls = [
-            'filter-account', 'filter-category', 'filter-type', 'filter-status',
+            'filter-account', 'filter-category', 'filter-type', 'filter-status', 'filter-reconciled',
             'filter-date-from', 'filter-date-to',
             'filter-created-from', 'filter-created-to',
             'filter-amount-min', 'filter-amount-max', 'filter-search'
@@ -553,6 +553,7 @@ export default class TransactionsModule {
             category: document.getElementById('filter-category')?.value || '',
             type: document.getElementById('filter-type')?.value || '',
             status: document.getElementById('filter-status')?.value || '',
+            reconciled: document.getElementById('filter-reconciled')?.value || '',
             dateFrom: document.getElementById('filter-date-from')?.value || '',
             dateTo: document.getElementById('filter-date-to')?.value || '',
             createdAtFrom: document.getElementById('filter-created-from')?.value || '',
@@ -573,7 +574,7 @@ export default class TransactionsModule {
 
     clearFilters() {
         const filterInputs = [
-            'filter-account', 'filter-category', 'filter-type', 'filter-status',
+            'filter-account', 'filter-category', 'filter-type', 'filter-status', 'filter-reconciled',
             'filter-date-from', 'filter-date-to',
             'filter-created-from', 'filter-created-to',
             'filter-amount-min', 'filter-amount-max', 'filter-search'

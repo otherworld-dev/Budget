@@ -75,7 +75,8 @@ class TransactionController extends Controller {
         ?string $sort = 'date',
         ?string $direction = 'desc',
         ?string $status = null,
-        ?array $tagIds = null
+        ?array $tagIds = null,
+        ?bool $reconciled = null
     ): DataResponse {
         try {
             $offset = ($page - 1) * $limit;
@@ -95,6 +96,7 @@ class TransactionController extends Controller {
                 'direction' => $direction,
                 'status' => $status,
                 'tagIds' => $tagIds,
+                'reconciled' => $reconciled,
             ];
 
             $visibleAccountIds = $this->getVisibleAccountIds();
