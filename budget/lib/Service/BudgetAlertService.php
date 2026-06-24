@@ -90,7 +90,7 @@ class BudgetAlertService {
      *
      * @return array{percentage: float, severity: string} percentage is a ratio (1.0 = 100%)
      */
-    private function classifySpending(float $spent, float $budget): array {
+    private function classifySpending(float $spent, float $budget, float $warningThreshold = self::WARNING_THRESHOLD): array {
         if ($budget > 0) {
             $percentage = $spent / $budget;
             $overBudget = $spent > $budget + self::OVER_BUDGET_EPSILON;
@@ -100,15 +100,29 @@ class BudgetAlertService {
             $percentage = $overBudget ? self::DANGER_THRESHOLD : 0.0;
         }
 
+        // At or above the threshold (but not over budget) = "approaching"
+        // warning. A threshold of 100% collapses the warning band entirely, so a
+        // fully-used budget stays 'ok' and only an actual overspend alerts (#293).
         if ($overBudget) {
             $severity = 'danger';
-        } elseif ($percentage >= self::WARNING_THRESHOLD) {
+        } elseif ($warningThreshold < 1.0 && $percentage >= $warningThreshold) {
             $severity = 'warning';
         } else {
             $severity = 'ok';
         }
 
         return ['percentage' => $percentage, 'severity' => $severity];
+    }
+
+    /**
+     * The budget-usage percentage (0–1) above which a category starts showing on
+     * the alerts tile, from the budget_alert_threshold setting (default 80%).
+     * Set to 100% to alert only when a category actually exceeds its budget.
+     */
+    private function getAlertThreshold(string $userId): float {
+        $value = $this->settingService->get($userId, 'budget_alert_threshold');
+        $pct = $value !== null ? (int) $value : 80;
+        return max(1, min(100, $pct)) / 100;
     }
 
     /**
@@ -146,6 +160,7 @@ class BudgetAlertService {
         // Calculate date ranges for each period type
         $startDay = $this->getBudgetStartDay($userId);
         $periodRanges = $this->calculatePeriodRanges($startDay);
+        $alertThreshold = $this->getAlertThreshold($userId);
 
         foreach ($categoriesWithBudgets as $category) {
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -167,7 +182,7 @@ class BudgetAlertService {
             );
 
             // Classify: exactly meeting the budget is "fully used", not over (#293).
-            $classified = $this->classifySpending($spent, $budget);
+            $classified = $this->classifySpending($spent, $budget, $alertThreshold);
             $percentage = $classified['percentage'];
 
             // Only create alert if at warning threshold or above
@@ -236,6 +251,7 @@ class BudgetAlertService {
 
         $startDay = $this->getBudgetStartDay($userId);
         $periodRanges = $this->calculatePeriodRanges($startDay);
+        $alertThreshold = $this->getAlertThreshold($userId);
 
         foreach ($categoriesWithBudgets as $category) {
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -256,7 +272,7 @@ class BudgetAlertService {
             );
 
             // Classify: exactly meeting the budget is "fully used", not over (#293).
-            $classified = $this->classifySpending($spent, $budget);
+            $classified = $this->classifySpending($spent, $budget, $alertThreshold);
             $percentage = $classified['percentage'];
             $status = $classified['severity'];
 

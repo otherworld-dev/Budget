@@ -117,8 +117,7 @@ class BudgetAlertServiceTest extends TestCase {
         $this->service->setNow(new \DateTime($fakeDate));
 
         $this->settingService->method('get')
-            ->with(self::USER_ID, 'budget_start_day')
-            ->willReturn($startDaySetting);
+            ->willReturnCallback(fn($u, $key) => $key === 'budget_start_day' ? $startDaySetting : null);
 
         $category = $this->makeCategory();
         $this->setupMocksForBudgetStatus([$category]);
@@ -210,6 +209,41 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertSame('danger', $statuses[0]['status']);
     }
 
+    // ===== Configurable alert threshold (#293) =====
+
+    public function testAlertThreshold100SuppressesFullyUsedButNotOver(): void {
+        // With the threshold at 100%, a category that is exactly at its budget
+        // (fully used, not over) is "ok" and absent from the alerts tile.
+        $this->settingService->method('get')->willReturnCallback(
+            fn($u, $key) => $key === 'budget_alert_threshold' ? '100' : null
+        );
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 100.0);
+
+        $this->assertSame('ok', $this->service->getBudgetStatus(self::USER_ID)[0]['status']);
+        $this->assertCount(0, $this->service->getAlerts(self::USER_ID));
+    }
+
+    public function testAlertThreshold100StillAlertsWhenOverBudget(): void {
+        $this->settingService->method('get')->willReturnCallback(
+            fn($u, $key) => $key === 'budget_alert_threshold' ? '100' : null
+        );
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 120.0);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+        $this->assertCount(1, $alerts);
+        $this->assertSame('danger', $alerts[0]['severity']);
+    }
+
+    public function testDefaultThresholdStillWarnsBelowBudget(): void {
+        // Default threshold (80%): a category at 90% is a warning.
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 90.0);
+
+        $this->assertSame('warning', $this->service->getBudgetStatus(self::USER_ID)[0]['status']);
+    }
+
     // ===== Auto-derived recurring budgets (#269) =====
 
     public function testBudgetStatusFallsBackToRecurringBudget(): void {
@@ -252,8 +286,7 @@ class BudgetAlertServiceTest extends TestCase {
         $this->service->setNow(new \DateTime('2026-03-15'));
 
         $this->settingService->method('get')
-            ->with(self::USER_ID, 'budget_start_day')
-            ->willReturn(null);
+            ->willReturnCallback(fn($u, $key) => null);
 
         $category = $this->makeCategory();
         $this->setupMocksForBudgetStatus([$category]);
@@ -375,8 +408,7 @@ class BudgetAlertServiceTest extends TestCase {
         $this->service->setNow(new \DateTime('2026-03-04')); // Wednesday
 
         $this->settingService->method('get')
-            ->with(self::USER_ID, 'budget_start_day')
-            ->willReturn('25');
+            ->willReturnCallback(fn($u, $key) => $key === 'budget_start_day' ? '25' : null);
 
         $category = $this->makeCategory(['budgetPeriod' => 'weekly']);
         $this->setupMocksForBudgetStatus([$category]);
@@ -390,8 +422,7 @@ class BudgetAlertServiceTest extends TestCase {
         $this->service->setNow(new \DateTime('2026-06-15'));
 
         $this->settingService->method('get')
-            ->with(self::USER_ID, 'budget_start_day')
-            ->willReturn('25');
+            ->willReturnCallback(fn($u, $key) => $key === 'budget_start_day' ? '25' : null);
 
         $category = $this->makeCategory(['budgetPeriod' => 'yearly']);
         $this->setupMocksForBudgetStatus([$category]);
@@ -407,8 +438,7 @@ class BudgetAlertServiceTest extends TestCase {
         $this->service->setNow(new \DateTime('2026-03-04'));
 
         $this->settingService->method('get')
-            ->with(self::USER_ID, 'budget_start_day')
-            ->willReturn('25');
+            ->willReturnCallback(fn($u, $key) => $key === 'budget_start_day' ? '25' : null);
 
         $category = $this->makeCategory(['budgetAmount' => 100.0]);
 

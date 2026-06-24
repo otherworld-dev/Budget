@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - The transaction list filters now include a **Reconciled** filter (All / Reconciled / Not reconciled), so you can quickly see which transactions still need reconciling ([#301](https://github.com/otherworld-dev/Budget/discussions/301))
+- A **Budget alert threshold** setting controls when a category appears on the Budget Alerts tile (default 80% of budget). Set it to 100% to be alerted only when a category actually goes over budget, rather than when it's merely approaching or fully used ([#293](https://github.com/otherworld-dev/Budget/issues/293))
 
 ## [2.33.1] - 2026-06-18
 

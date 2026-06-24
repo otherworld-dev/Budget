@@ -4604,6 +4604,15 @@ style('budget', 'budget-app');
                             <input type="number" id="setting-budget-start-day" class="setting-input"
                                    min="1" max="31" step="1" value="1">
                         </div>
+
+                        <div class="setting-item">
+                            <label for="setting-budget-alert-threshold">
+                                <strong><?php p($l->t('Budget alert threshold (%%)')); ?></strong>
+                                <small><?php p($l->t('Show a category on the Budget Alerts tile once its spending passes this percentage of its budget. Set to 100 to alert only when a category goes over budget.')); ?></small>
+                            </label>
+                            <input type="number" id="setting-budget-alert-threshold" class="setting-input"
+                                   min="1" max="100" step="1" value="80">
+                        </div>
                     </div>
                 </div>
 
