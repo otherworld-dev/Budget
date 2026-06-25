@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.35.0] - 2026-06-25
 
 ### Added
 - **Pensions revamp.** You can now record a contribution as a transfer **from a bank account** — the matching withdrawal is created automatically and kept out of your spending — and record **withdrawals/drawdown** back into an account ([#304](https://github.com/otherworld-dev/Budget/issues/304)). **Scheduled (recurring) contributions** (monthly/quarterly/yearly) can post automatically or on demand ([#251](https://github.com/otherworld-dev/Budget/issues/251)). DC pensions gained a configurable **projection target** with a progress indicator and a **"today's money"** (inflation-adjusted) view on the growth chart, plus an optional **Pension Projection** dashboard card. Bank legs that fund a pension show a **Pension** badge in the transaction list.
