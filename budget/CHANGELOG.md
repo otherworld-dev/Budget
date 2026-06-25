@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.35.1] - 2026-06-25
 
 ### Fixed
 - Categories marked **"Exclude from reports"** are now consistently excluded everywhere, including the **Income vs Expenses** trend, **Category Trends**, **Top Spending Categories** and the monthly spending chart — not just the dashboard summary. Exclusion is now applied in the database query itself, so reports and dashboard insight tiles can no longer disagree about which categories count ([#219](https://github.com/otherworld-dev/Budget/issues/219))
