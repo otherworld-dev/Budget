@@ -62,6 +62,7 @@ The transaction list includes a filter panel for narrowing down what you see. Fi
 | **Category** | Filter by spending or income category. |
 | **Type** | Filter by credit, debit, or transfer. |
 | **Status** | Show all transactions, cleared only, or pending/scheduled only. |
+| **Reconciled** | Show all transactions, only reconciled, or only those not yet reconciled. |
 | **Date range** | Filter by transaction date (from/to). |
 | **Created date range** | Filter by when the transaction was entered into the app (from/to). |
 | **Amount range** | Filter by minimum and/or maximum amount. |

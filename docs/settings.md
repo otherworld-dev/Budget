@@ -44,6 +44,7 @@ Configure how your budget periods work:
 Toggle notifications for budget events:
 
 - **Budget Alert Notifications** - Receive alerts when spending approaches or exceeds budget limits (on/off)
+- **Budget Alert Threshold** - The percentage of a category's budget at which it starts showing on the Budget Alerts tile (default 80%). Set it to 100% to be alerted only when a category actually goes over budget, rather than when it's merely approaching the limit
 - **Forecast Warning Notifications** - Get warned when balance forecasts predict issues like going below zero (on/off)
 - **Unusual Spending Alerts** - Notify when a category runs well above its 6-month typical spending. Median-based with a minimum-amount floor and at most one alert per category per month (on by default)
 - **Budget Digest** - Opt-in weekly or monthly summary (income vs spending, budget status, upcoming bills, goals, anomalies, new bill suggestions) as a Nextcloud notification, optionally also by email

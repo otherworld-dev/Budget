@@ -98,6 +98,7 @@ Widget tiles provide detailed views, lists, charts, and actionable information:
 | **Category Trends** | Category spending over time |
 | **Bills Due Soon** | Upcoming bill payments |
 | **Income Tracking** | Income progress and projections |
+| **Pension Projection** | Projected pension value and progress toward your target (off by default) |
 | **Recent Imports** | Latest file imports and their status |
 | **Rule Effectiveness** | How well auto-categorization rules are working |
 | **Spending Velocity** | Rate of spending compared to budget |
