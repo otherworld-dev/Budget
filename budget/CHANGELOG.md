@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.37.0] - 2026-06-28
 
 ### Added
 - **Exclude shared accounts from reports.** When other people have shared accounts with you, the **Reports** page gains an **"Exclude shared accounts"** toggle so you can see just your own accounts' figures. The same option is available per-tile (in the gear menu) on the account-based dashboard cards — **Income vs Expenses**, **Spending by Category**, **Top Spending Categories** and **Recent Transactions**. It's off by default (shared accounts are included, as before) and only appears when you actually have shared accounts. Note: a transfer between one of your accounts and a shared account can only be partly seen when shared accounts are excluded, so income/expense totals may be slightly overstated in that case.
