@@ -453,7 +453,7 @@ class TransactionMapper extends QBMapper {
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->orderBy('t.date', 'DESC')
@@ -846,7 +846,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
 
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
@@ -910,7 +910,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
             ->innerJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
 
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
@@ -980,7 +980,7 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
@@ -1012,7 +1012,7 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
@@ -1051,7 +1051,7 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
@@ -1083,7 +1083,7 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
@@ -1137,7 +1137,7 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
@@ -1181,7 +1181,8 @@ class TransactionMapper extends QBMapper {
         string $endDate,
         array $tagIds = [],
         bool $includeUntagged = true,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        bool $includeReportExcluded = false
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -1197,7 +1198,9 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        // A specific (possibly report-excluded) account selected upstream must still
+        // produce its summary; only the all-accounts view drops excluded ones (#309).
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $includeReportExcluded);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
@@ -1869,7 +1872,7 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
@@ -2372,7 +2375,7 @@ class TransactionMapper extends QBMapper {
             ), 'net_total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
@@ -2553,7 +2556,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
             ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
@@ -2614,7 +2617,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
             ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
@@ -2675,7 +2678,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
             ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
             ->innerJoin('tag', 'budget_tag_sets', 'ts', $qb->expr()->eq('tag.tag_set_id', 'ts.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
@@ -2750,7 +2753,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
             ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));

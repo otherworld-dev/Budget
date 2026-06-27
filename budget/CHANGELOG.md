@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Code-integrity **"Some files have not passed the integrity check"** errors reporting `FILE_MISSING` for `js/.htaccess` and `vendor/tecnickcom/tcpdf/tools/.htaccess`. The app no longer ships any `.htaccess` files — the Nextcloud App Store strips them from the published archive, which left the signature expecting files that were no longer present. Neither file was needed (the JS one only set a redundant cache header) ([#307](https://github.com/otherworld-dev/Budget/issues/307))
 - Deprecation warning in the Nextcloud log — the notifier now throws `UnknownNotificationException` instead of `InvalidArgumentException` for unrecognised notifications, as required by Nextcloud 30+ ([#308](https://github.com/otherworld-dev/Budget/issues/308))
+- Reports and the dashboard summary were empty when a single account flagged **"Exclude from reports"** was the only account selected. Accounts flagged out of reports are now only dropped from the **all-accounts** views; explicitly selecting one shows its data as normal ([#309](https://github.com/otherworld-dev/Budget/issues/309))
 
 ## [2.35.1] - 2026-06-25
 

@@ -109,14 +109,17 @@ class ReportAggregator {
             'unconvertedCurrencies' => []
         ];
 
-        // Single aggregated query for all account summaries (replaces N+1 pattern)
+        // Single aggregated query for all account summaries (replaces N+1 pattern).
+        // When a specific account is selected — even one flagged out of reports —
+        // include it so its summary isn't blank (#309).
         $accountSummaries = $this->transactionMapper->getAccountSummaries(
             $userId,
             $startDate,
             $endDate,
             $tagIds,
             $includeUntagged,
-            !empty($visibleAccountIds) ? $visibleAccountIds : null
+            !empty($visibleAccountIds) ? $visibleAccountIds : null,
+            $accountId !== null
         );
 
         // Build excluded category ID set (used for totals and spending breakdown)
