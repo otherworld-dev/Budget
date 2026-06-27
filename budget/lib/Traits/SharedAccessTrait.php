@@ -77,12 +77,6 @@ trait SharedAccessTrait {
             // nothing accessible, rather than scoping to an empty set.
             return [null, $selected !== [] ? $selected : $visible];
         }
-        // A single accountId outside the effective baseline (e.g. a shared account
-        // while excludeShared is on, or one no longer accessible) is dropped so the
-        // report falls back to the visible set instead of an empty/erroring scope.
-        if ($accountId !== null && !in_array($accountId, $visible, true)) {
-            $accountId = null;
-        }
         return [$accountId, $visible];
     }
 

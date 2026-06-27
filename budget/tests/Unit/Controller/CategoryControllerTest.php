@@ -22,6 +22,7 @@ class CategoryControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private RecurringBudgetService $recurringBudgetService;
 	private IRequest $request;
+	private GranularShareService $granularShareService;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -36,8 +37,8 @@ class CategoryControllerTest extends TestCase {
 		$this->validationService = new ValidationService($l);
 		$logger = $this->createMock(LoggerInterface::class);
 
-		$granularShareService = $this->createMock(GranularShareService::class);
-		$granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		$this->granularShareService->method('canAccess')->willReturn(true);
 
 		$this->recurringBudgetService = $this->createMock(RecurringBudgetService::class);
 
@@ -45,7 +46,7 @@ class CategoryControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->validationService,
-			$granularShareService,
+			$this->granularShareService,
 			$this->recurringBudgetService,
 			$l,
 			'user1',
@@ -283,6 +284,8 @@ class CategoryControllerTest extends TestCase {
 	// ── destroy ─────────────────────────────────────────────────────
 
 	public function testDestroySuccess(): void {
+		// destroy() resolves the owner first (owner-only delete, #306 phase 2)
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
 		$this->service->expects($this->once())->method('delete')->with(1, 'user1');
 
 		$response = $this->controller->destroy(1);
@@ -292,6 +295,7 @@ class CategoryControllerTest extends TestCase {
 	}
 
 	public function testDestroyHandlesException(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
 		$this->service->method('delete')
 			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException(''));
 
