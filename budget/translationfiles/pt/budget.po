@@ -8,14 +8,16 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-06-27 02:09+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-06-27 18:50+0000\n"
+"Last-Translator: ssantos <ssantos@web.de>\n"
+"Language-Team: Portuguese <https://hosted.weblate.org/projects/nextcloud-"
+"budget/budget/pt/>\n"
 "Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 2026.7.dev0\n"
 
 #: /app/js/budget-app.js:2
 msgid "hero"
@@ -51,7 +53,7 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:82
 msgid "Failed to retrieve accounts"
-msgstr ""
+msgstr "Falha ao buscar as contas financeiras"
 
 #: /app/lib/Controller/AccountController.php:92
 #: /app/lib/Controller/AccountController.php:530
@@ -75,70 +77,70 @@ msgstr ""
 #: /app/templates/index.php:5199 /app/templates/index.php:5857
 #: /app/templates/quick-add.php:27
 msgid "Account"
-msgstr ""
+msgstr "Conta"
 
 #: /app/lib/Controller/AccountController.php:117
 msgid "Invalid JSON data or empty request"
-msgstr ""
+msgstr "Dados de JSON inválido ou pedido vazio"
 
 #: /app/lib/Controller/AccountController.php:129
 msgid "Account type is required and cannot be empty"
-msgstr ""
+msgstr "O tipo da conta financeira é necessário e não pode ficar vazio"
 
 #: /app/lib/Controller/AccountController.php:135
 #: /app/lib/Controller/AccountController.php:302
 #, php-format
 msgid "Invalid account type: %1$s"
-msgstr ""
+msgstr "Tipo de conta inválido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:142
 #: /app/lib/Controller/AccountController.php:311
 #, php-format
 msgid "Invalid currency: %1$s"
-msgstr ""
+msgstr "Tipo de moeda inválida: %1$s"
 
 #: /app/lib/Controller/AccountController.php:148 /app/templates/index.php:5362
 msgid "Institution"
-msgstr ""
+msgstr "Instituição"
 
 #: /app/lib/Controller/AccountController.php:157
 msgid "Account holder name"
-msgstr ""
+msgstr "Nome do titular da conta"
 
 #: /app/lib/Controller/AccountController.php:208
 #: /app/lib/Controller/AccountController.php:340
 #, php-format
 msgid "Invalid routing number: %1$s"
-msgstr ""
+msgstr "Número de roteamento inválido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:216
 #: /app/lib/Controller/AccountController.php:353
 #, php-format
 msgid "Invalid sort code: %1$s"
-msgstr ""
+msgstr "Código de classificação inválido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:224
 #: /app/lib/Controller/AccountController.php:366
 #, php-format
 msgid "Invalid IBAN: %1$s"
-msgstr ""
+msgstr "IBAN inválido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:232
 #: /app/lib/Controller/AccountController.php:379
 #, php-format
 msgid "Invalid SWIFT/BIC: %1$s"
-msgstr ""
+msgstr "SWIFT/BIC inválido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:268
 msgid "Failed to create account"
-msgstr ""
+msgstr "Falha ao tentar criar a conta financeira"
 
 #: /app/lib/Controller/AccountController.php:284
 #: /app/lib/Controller/BillController.php:808
 #: /app/lib/Controller/BillController.php:826
 #: /app/lib/Controller/RecurringIncomeController.php:363
 msgid "Invalid request data"
-msgstr ""
+msgstr "Pedido de dados inválido"
 
 #: /app/lib/Controller/AccountController.php:452
 #: /app/lib/Controller/BillController.php:578
@@ -150,11 +152,11 @@ msgstr ""
 #: /app/lib/Controller/TagSetController.php:359
 #: /app/lib/Controller/TransactionController.php:330
 msgid "No valid fields to update"
-msgstr ""
+msgstr "Nenhum campo válido para atualizar"
 
 #: /app/lib/Controller/AccountController.php:479
 msgid "Failed to update account"
-msgstr ""
+msgstr "Falha ao atualizar a conta financeira"
 
 #: /app/lib/Controller/AccountController.php:513
 #: /app/src/modules/accounts/AccountsModule.js:2252
@@ -163,15 +165,15 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:537
 msgid "This account has no sensitive banking data to reveal"
-msgstr ""
+msgstr "Esta conta não tem dados bancários sensíveis para revelar"
 
 #: /app/lib/Controller/AccountController.php:563
 msgid "Failed to retrieve account summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo das contas financeiras"
 
 #: /app/lib/Controller/AccountController.php:653
 msgid "Failed to reconcile account"
-msgstr ""
+msgstr "Falha ao tentar reconciliar a conta financeira"
 
 #: /app/lib/Controller/AccountController.php:668
 msgid "Too many transactions (max 500)"
@@ -205,23 +207,23 @@ msgstr ""
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
-msgstr ""
+msgstr "Falha ao buscar os alertas de orçamento"
 
 #: /app/lib/Controller/AlertController.php:64
 msgid "Failed to retrieve budget status"
-msgstr ""
+msgstr "Falha ao buscar o estado do orçamento"
 
 #: /app/lib/Controller/AlertController.php:77
 msgid "Failed to retrieve budget summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo do orçamento"
 
 #: /app/lib/Controller/AssetController.php:78
 msgid "Failed to retrieve assets"
-msgstr ""
+msgstr "Falha ao buscar os ativos"
 
 #: /app/lib/Controller/AssetController.php:90
 msgid "Asset"
-msgstr ""
+msgstr "Investimentos"
 
 #: /app/lib/Controller/AssetController.php:103
 #: /app/lib/Controller/AssetController.php:193
@@ -232,76 +234,77 @@ msgstr ""
 #: /app/lib/Controller/PensionController.php:407
 #: /app/lib/Controller/TransactionController.php:687
 msgid "Invalid JSON data"
-msgstr ""
+msgstr "Dados JSON inválidos"
 
 #: /app/lib/Controller/AssetController.php:117
 #: /app/lib/Controller/PensionController.php:131
 msgid "Name and type are required"
-msgstr ""
+msgstr "Nome e tipo são necessários"
 
 #: /app/lib/Controller/AssetController.php:130
 #: /app/lib/Controller/AssetController.php:217
 #, php-format
 msgid "Invalid asset type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo de investimento inválido. Deve ser um dos:%1$s"
 
 #: /app/lib/Controller/AssetController.php:145
 #: /app/lib/Controller/AssetController.php:232
 #: /app/lib/Controller/PensionController.php:159
 #: /app/lib/Controller/PensionController.php:257
 msgid "Currency must be a 3-letter code"
-msgstr ""
+msgstr "A moeda deve ser um código de 3 letras"
 
 #: /app/lib/Controller/AssetController.php:150
 #: /app/lib/Controller/AssetController.php:237
 msgid "Current value cannot be negative"
-msgstr ""
+msgstr "O valor atual não pode ser negativo"
 
 #: /app/lib/Controller/AssetController.php:153
 #: /app/lib/Controller/AssetController.php:240
 msgid "Purchase price cannot be negative"
-msgstr ""
+msgstr "Preço de compra não pode ser negativo"
 
 #: /app/lib/Controller/AssetController.php:156
 #: /app/lib/Controller/AssetController.php:243
 #, php-format
 msgid "Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)"
 msgstr ""
+"A taxa de variação anual deve estar entre -1 e 1 (por exemplo, 0,03 para 3%%)"
 
 #: /app/lib/Controller/AssetController.php:161
 #: /app/lib/Controller/AssetController.php:248
 msgid "Purchase date"
-msgstr ""
+msgstr "Data de compra"
 
 #: /app/lib/Controller/AssetController.php:180
 msgid "Failed to create asset"
-msgstr ""
+msgstr "Falha na criação do ativo"
 
 #: /app/lib/Controller/AssetController.php:268
 msgid "Failed to update asset"
-msgstr ""
+msgstr "Falha ao atualizar o ativo"
 
 #: /app/lib/Controller/AssetController.php:279
 msgid "Asset deleted successfully"
-msgstr ""
+msgstr "Investimento apagado com sucesso"
 
 #: /app/lib/Controller/AssetController.php:281
 #: /app/src/modules/assets/AssetsModule.js:414
 msgid "Failed to delete asset"
-msgstr ""
+msgstr "Falha ao apagar o ativo"
 
 #: /app/lib/Controller/AssetController.php:297
 #: /app/lib/Controller/PensionController.php:326
 msgid "Failed to retrieve snapshots"
-msgstr ""
+msgstr "Falha ao buscar os snapshots"
 
 #: /app/lib/Controller/AssetController.php:317
 msgid "Value and date are required"
-msgstr ""
+msgstr "Valor e data são necessários"
 
 #: /app/lib/Controller/AssetController.php:322
 msgid "Value cannot be negative"
-msgstr ""
+msgstr "O valor não pode ser negativo"
 
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:356
@@ -322,38 +325,38 @@ msgstr ""
 #: /app/templates/index.php:5807 /app/templates/index.php:6506
 #: /app/templates/quick-add.php:22
 msgid "Date"
-msgstr ""
+msgstr "Data"
 
 #: /app/lib/Controller/AssetController.php:334
 #: /app/lib/Controller/PensionController.php:364
 msgid "Failed to create snapshot"
-msgstr ""
+msgstr "Falha ao criar o snapshot"
 
 #: /app/lib/Controller/AssetController.php:345
 #: /app/lib/Controller/PensionController.php:375
 msgid "Snapshot deleted successfully"
-msgstr ""
+msgstr "Snapshot apagado com sucesso"
 
 #: /app/lib/Controller/AssetController.php:347
 #: /app/lib/Controller/PensionController.php:377
 msgid "Failed to delete snapshot"
-msgstr ""
+msgstr "Falha ao apagar o snapshot"
 
 #: /app/lib/Controller/AssetController.php:363
 msgid "Failed to retrieve asset summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo de ativos"
 
 #: /app/lib/Controller/AssetController.php:375
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Falha ao buscar a projeção de ativos"
 
 #: /app/lib/Controller/AssetController.php:387
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Falha ao buscar a projeção combinada dos ativos"
 
 #: /app/lib/Controller/AssetController.php:407
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Falha ao buscar o histórico de valor do ativo"
 
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
@@ -385,7 +388,7 @@ msgstr ""
 #: /app/lib/Controller/MigrationController.php:83
 #: /app/lib/Controller/MigrationController.php:118
 msgid "No file uploaded"
-msgstr ""
+msgstr "Nenhum ficheiro carregado"
 
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:1685
@@ -482,53 +485,53 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:87
 msgid "Failed to retrieve bills"
-msgstr ""
+msgstr "Falha ao buscar as contas"
 
 #: /app/lib/Controller/BillController.php:111
 #: /app/lib/Controller/BillController.php:599 /app/templates/index.php:3477
 msgid "Bill"
-msgstr ""
+msgstr "Contas"
 
 #: /app/lib/Controller/BillController.php:126
 msgid "Name and amount are required"
-msgstr ""
+msgstr "Nome e quantidade são necessários"
 
 #: /app/lib/Controller/BillController.php:165
 #: /app/lib/Service/BillService.php:202 /app/lib/Service/BillService.php:284
 msgid "Auto-pay requires an account to be set"
-msgstr ""
+msgstr "O pagamento automático requer que uma conta seja selecionada"
 
 #: /app/lib/Controller/BillController.php:173
 #: /app/lib/Controller/BillController.php:543
 #: /app/lib/Service/BillService.php:207
 msgid "Transfer requires a destination account"
-msgstr ""
+msgstr "Transferência requer uma conta de destino"
 
 #: /app/lib/Controller/BillController.php:181
 #: /app/lib/Controller/BillController.php:571
 #: /app/lib/Service/BillService.php:212
 #: /app/src/modules/transfers/TransfersModule.js:618
 msgid "Cannot transfer to the same account"
-msgstr ""
+msgstr "Não é possível transferir para a mesma conta"
 
 #: /app/lib/Controller/BillController.php:202
 #: /app/lib/Controller/BillController.php:348
 msgid "Due day must be between 1 and 31"
-msgstr ""
+msgstr "O dia de vencimento deve ser entre 1 e 31"
 
 #: /app/lib/Controller/BillController.php:207
 #: /app/lib/Controller/BillController.php:360
 msgid "Due month must be between 1 and 12"
-msgstr ""
+msgstr "O mês de vencimento deve ser entre 1 e 12"
 
 #: /app/lib/Controller/BillController.php:230
 #: /app/lib/Controller/BillController.php:413
 msgid "Reminder days must be between 0 and 30"
-msgstr ""
+msgstr "Os dias de lembrete devem ser entre 0 e 30"
 
 #: /app/lib/Controller/BillController.php:243
 msgid "Transaction date"
-msgstr ""
+msgstr "Data da transação"
 
 #: /app/lib/Controller/BillController.php:251
 #: /app/lib/Controller/BillController.php:455 /app/templates/index.php:3097
@@ -538,7 +541,7 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:261
 #: /app/lib/Controller/BillController.php:466 /app/templates/index.php:3099
 msgid "End date"
-msgstr ""
+msgstr "Data final"
 
 #: /app/lib/Controller/BillController.php:271
 msgid "Start date must be before the end date"
@@ -547,11 +550,11 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:276
 #: /app/lib/Controller/BillController.php:479
 msgid "Remaining payments must be at least 1"
-msgstr ""
+msgstr "Deve ter pelo menos um pagamento restante"
 
 #: /app/lib/Controller/BillController.php:309
 msgid "Failed to create bill"
-msgstr ""
+msgstr "Falha ao criar a conta"
 
 #: /app/lib/Controller/BillController.php:518
 msgid ""
@@ -561,7 +564,7 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:584
 msgid "Failed to update bill"
-msgstr ""
+msgstr "Falha ao alterar a conta"
 
 #: /app/lib/Controller/BillController.php:612
 msgid "Failed to find matching transactions"
@@ -570,7 +573,7 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:631
 #: /app/src/modules/bills/BillsModule.js:1067
 msgid "Failed to mark bill as paid"
-msgstr ""
+msgstr "Falha ao marcar a conta como paga"
 
 #: /app/lib/Controller/BillController.php:648
 msgid "Missing previous state"
@@ -595,28 +598,28 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:715
 msgid "Failed to retrieve upcoming bills"
-msgstr ""
+msgstr "Falha ao buscar as contas a vencer"
 
 #: /app/lib/Controller/BillController.php:729
 msgid "Failed to retrieve bills due this month"
-msgstr ""
+msgstr "Falha ao buscar as contas com vencimento neste mês"
 
 #: /app/lib/Controller/BillController.php:743
 msgid "Failed to retrieve overdue bills"
-msgstr ""
+msgstr "Falha ao buscar as contas em atraso"
 
 #: /app/lib/Controller/BillController.php:756
 msgid "Failed to retrieve bill summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo das contas"
 
 #: /app/lib/Controller/BillController.php:769
 msgid "Failed to retrieve bill status"
-msgstr ""
+msgstr "Falha ao buscar o estado das contas"
 
 #: /app/lib/Controller/BillController.php:782
 #: /app/src/modules/bills/BillsModule.js:1459
 msgid "Failed to detect recurring bills"
-msgstr ""
+msgstr "Falha ao detetar contas recorrentes"
 
 #: /app/lib/Controller/BillController.php:796
 msgid "Failed to load bill suggestions"
@@ -629,20 +632,20 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:835
 msgid "Failed to create bills from detected patterns"
-msgstr ""
+msgstr "Falha ao criar contas a partir de padrões detetados"
 
 #: /app/lib/Controller/BillController.php:850
 #: /app/lib/Controller/BillController.php:883
 msgid "Invalid year"
-msgstr ""
+msgstr "Ano inválido"
 
 #: /app/lib/Controller/BillController.php:865
 msgid "Failed to generate annual overview"
-msgstr ""
+msgstr "Falha ao gerar visão geral anual"
 
 #: /app/lib/Controller/BillController.php:906
 msgid "Failed to export bills calendar"
-msgstr ""
+msgstr "Falha ao exportar o calendário de contas"
 
 #: /app/lib/Controller/BillController.php:1048
 msgid "Split template must have at least 2 splits"
@@ -658,47 +661,47 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:1072
 msgid "Invalid JSON in custom recurrence pattern"
-msgstr ""
+msgstr "JSON inválido em padrão de recorrência personalizado"
 
 #: /app/lib/Controller/BillController.php:1079
 msgid "Custom recurrence pattern must be a JSON object"
-msgstr ""
+msgstr "O padrão de recorrência personalizado deve ser um objeto JSON"
 
 #: /app/lib/Controller/BillController.php:1088
 msgid "Months must be an array"
-msgstr ""
+msgstr "Meses devem ser um array"
 
 #: /app/lib/Controller/BillController.php:1095
 msgid "At least one month must be specified"
-msgstr ""
+msgstr "Pelo menos um mês deve ser especificado"
 
 #: /app/lib/Controller/BillController.php:1103
 msgid "Each month must be a number between 1 and 12"
-msgstr ""
+msgstr "Cada mês deve ser um número entre 1 e 12"
 
 #: /app/lib/Controller/BillController.php:1116
 msgid "Dates must be an array"
-msgstr ""
+msgstr "As datas devem ser um array"
 
 #: /app/lib/Controller/BillController.php:1123
 msgid "At least one date must be specified"
-msgstr ""
+msgstr "Pelo menos uma data deve ser especificada"
 
 #: /app/lib/Controller/BillController.php:1131
 msgid "Each date must have \"month\" and \"day\" fields"
-msgstr ""
+msgstr "Cada data deve ter os campos de \"mês\" e \"dia\""
 
 #: /app/lib/Controller/BillController.php:1138
 msgid "Month must be a number between 1 and 12"
-msgstr ""
+msgstr "O mês deve ser um número entre 1 e 12"
 
 #: /app/lib/Controller/BillController.php:1145
 msgid "Day must be a number between 1 and 31"
-msgstr ""
+msgstr "O dia deve ser um número entre 1 e 31"
 
 #: /app/lib/Controller/BillController.php:1155
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
-msgstr ""
+msgstr "O padrão personalizado deve conter o campo \"meses\" ou \"datas\""
 
 #: /app/lib/Controller/CalendarFeedController.php:94
 #: /app/src/modules/bills/BillsModule.js:975
@@ -712,15 +715,15 @@ msgstr ""
 
 #: /app/lib/Controller/CategoryController.php:80
 msgid "Failed to retrieve categories"
-msgstr ""
+msgstr "Falha ao buscar as categorias"
 
 #: /app/lib/Controller/CategoryController.php:117
 msgid "Failed to retrieve category tree"
-msgstr ""
+msgstr "Falha ao buscar a árvore de categorias"
 
 #: /app/lib/Controller/CategoryController.php:129
 msgid "Failed to retrieve transaction counts"
-msgstr ""
+msgstr "Falha ao buscar as contagens de transações"
 
 #: /app/lib/Controller/CategoryController.php:141
 #: /app/lib/Controller/CategoryController.php:353
@@ -742,21 +745,22 @@ msgstr ""
 #: /app/templates/index.php:6322 /app/templates/index.php:6363
 #: /app/templates/quick-add.php:60
 msgid "Category"
-msgstr ""
+msgstr "Categoria"
 
 #: /app/lib/Controller/CategoryController.php:170
 #: /app/lib/Controller/CategoryController.php:240
 msgid "Invalid category type. Must be income or expense"
-msgstr ""
+msgstr "Tipo de categoria inválido. Deve ser renda ou despesa"
 
 #: /app/lib/Controller/CategoryController.php:267
 msgid "Invalid budget period. Must be monthly, weekly, yearly, or quarterly"
 msgstr ""
+"Período orçamental inválido. Deve ser mensal, semanal, anual ou trimestral"
 
 #: /app/lib/Controller/CategoryController.php:329
 #: /app/lib/Controller/CategoryController.php:341
 msgid "Failed to retrieve category spending"
-msgstr ""
+msgstr "Falha ao buscar os gastos da categoria"
 
 #: /app/lib/Controller/CategoryController.php:377
 #: /app/lib/Controller/CategoryController.php:399
@@ -787,24 +791,24 @@ msgstr ""
 
 #: /app/lib/Controller/DebtController.php:58
 msgid "Failed to retrieve debts"
-msgstr ""
+msgstr "Falha ao buscar as dívidas"
 
 #: /app/lib/Controller/DebtController.php:79
 msgid "Failed to retrieve debt summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo das dívidas"
 
 #: /app/lib/Controller/DebtController.php:96
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
-msgstr ""
+msgstr "Estratégia inválida. Deve ser \"avalanche\" ou \"bola de neve\""
 
 #: /app/lib/Controller/DebtController.php:104
 #: /app/lib/Controller/DebtController.php:153
 msgid "Extra payment cannot be negative"
-msgstr ""
+msgstr "O pagamento extra não pode ser negativo"
 
 #: /app/lib/Controller/DebtController.php:118
 msgid "Failed to calculate payoff plan"
-msgstr ""
+msgstr "Falha ao calcular o plano de pagamento"
 
 #: /app/lib/Controller/DebtController.php:136
 msgid "Failed to get debt progress"
@@ -813,7 +817,7 @@ msgstr ""
 #: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3008
 #: /app/src/main.js:3014
 msgid "Failed to compare strategies"
-msgstr ""
+msgstr "Falha ao comparar estratégias"
 
 #: /app/lib/Controller/DebtScenarioController.php:59
 msgid "Failed to retrieve debt scenarios"
@@ -878,11 +882,11 @@ msgstr ""
 #: /app/lib/Controller/ExchangeRateController.php:111
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:37
 msgid "Failed to load exchange rates"
-msgstr ""
+msgstr "Falha ao carregar as taxas de câmbio"
 
 #: /app/lib/Controller/ExchangeRateController.php:127
 msgid "Failed to get base currency"
-msgstr ""
+msgstr "Falha ao obter a moeda base"
 
 #: /app/lib/Controller/ExchangeRateController.php:162
 msgid "Failed to convert currency"
@@ -890,57 +894,57 @@ msgstr ""
 
 #: /app/lib/Controller/ExchangeRateController.php:176
 msgid "Exchange rates refreshed successfully"
-msgstr ""
+msgstr "Taxas de câmbio atualizadas com sucesso"
 
 #: /app/lib/Controller/ExchangeRateController.php:179
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:364
 msgid "Failed to refresh exchange rates"
-msgstr ""
+msgstr "Falha ao atualizar as taxas de câmbio"
 
 #: /app/lib/Controller/ExchangeRateController.php:195
 msgid "Currency and rate are required"
-msgstr ""
+msgstr "Moeda e tarifas são necessárias"
 
 #: /app/lib/Controller/ExchangeRateController.php:205
 msgid "Failed to set manual rate"
-msgstr ""
+msgstr "Falha ao definir a taxa manual"
 
 #: /app/lib/Controller/ExchangeRateController.php:219
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:343
 msgid "Failed to remove manual rate"
-msgstr ""
+msgstr "Falha ao remover a taxa manual"
 
 #: /app/lib/Controller/ForecastController.php:61
 msgid "Failed to generate forecast"
-msgstr ""
+msgstr "Falha ao gerar a previsão"
 
 #: /app/lib/Controller/ForecastController.php:90
 msgid "Failed to generate cash flow forecast"
-msgstr ""
+msgstr "Falha ao gerar a previsão de fluxo de caixa"
 
 #: /app/lib/Controller/ForecastController.php:110
 msgid "Failed to retrieve spending trends"
-msgstr ""
+msgstr "Falha ao buscar as tendências de gastos"
 
 #: /app/lib/Controller/ForecastController.php:130
 msgid "Failed to run forecast scenarios"
-msgstr ""
+msgstr "Falha ao executar os cenários de previsão"
 
 #: /app/lib/Controller/ForecastController.php:154
 msgid "Failed to generate enhanced forecast"
-msgstr ""
+msgstr "Falha ao gerar a previsão avançada"
 
 #: /app/lib/Controller/ForecastController.php:171
 msgid "Failed to retrieve live forecast"
-msgstr ""
+msgstr "Falha ao buscar a previsão em tempo real"
 
 #: /app/lib/Controller/ForecastController.php:189
 msgid "Failed to export forecast"
-msgstr ""
+msgstr "Falha ao exportar a previsão"
 
 #: /app/lib/Controller/GoalsController.php:75
 msgid "Failed to retrieve goals"
-msgstr ""
+msgstr "Falha ao buscar as metas"
 
 #: /app/lib/Controller/GoalsController.php:87
 #: /app/lib/Controller/GoalsController.php:99
@@ -948,7 +952,7 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:344
 #: /app/lib/Controller/GoalsController.php:363 /app/templates/index.php:2902
 msgid "Goal"
-msgstr ""
+msgstr "Meta"
 
 #: /app/lib/Controller/GoalsController.php:87
 #: /app/lib/Controller/GoalsController.php:316
@@ -962,27 +966,27 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:137
 #: /app/lib/Controller/GoalsController.php:236
 msgid "Target date"
-msgstr ""
+msgstr "Data alvo"
 
 #: /app/lib/Controller/GoalsController.php:147
 #: /app/lib/Controller/GoalsController.php:244
 msgid "Target amount must be greater than zero"
-msgstr ""
+msgstr "A quantidade-alvo deve ser maior que zero"
 
 #: /app/lib/Controller/GoalsController.php:152
 #: /app/lib/Controller/GoalsController.php:249
 msgid "Target months must be greater than zero"
-msgstr ""
+msgstr "Os meses-alvo devem ser maiores que zero"
 
 #: /app/lib/Controller/GoalsController.php:157
 #: /app/lib/Controller/GoalsController.php:254
 msgid "Current amount cannot be negative"
-msgstr ""
+msgstr "A quantidade atual não pode ser negativa"
 
 #: /app/lib/Controller/GoalsController.php:162
 #: /app/lib/Controller/GoalsController.php:259
 msgid "Invalid tag ID"
-msgstr ""
+msgstr "ID de tag inválida"
 
 #: /app/lib/Controller/GoalsController.php:167
 #: /app/lib/Controller/GoalsController.php:264
@@ -991,11 +995,11 @@ msgstr ""
 
 #: /app/lib/Controller/GoalsController.php:193
 msgid "Failed to create goal"
-msgstr ""
+msgstr "Falha ao criar a meta"
 
 #: /app/lib/Controller/GoalsController.php:303
 msgid "Failed to update goal"
-msgstr ""
+msgstr "Falha ao atualizar a meta"
 
 #: /app/lib/Controller/GoalsController.php:324
 msgid "Only the goal owner can delete it"
@@ -1003,65 +1007,65 @@ msgstr ""
 
 #: /app/lib/Controller/GoalsController.php:330
 msgid "Goal deleted successfully"
-msgstr ""
+msgstr "Meta apagada com sucesso"
 
 #: /app/lib/Controller/GoalsController.php:332
 #: /app/src/modules/savings/SavingsModule.js:434
 msgid "Failed to delete goal"
-msgstr ""
+msgstr "Falha ao apagar a meta"
 
 #: /app/lib/Controller/GoalsController.php:351
 msgid "Failed to retrieve goal progress"
-msgstr ""
+msgstr "Falha ao buscar o progresso da meta"
 
 #: /app/lib/Controller/GoalsController.php:370
 msgid "Failed to retrieve goal forecast"
-msgstr ""
+msgstr "Falha ao buscar a previsão da meta"
 
 #: /app/lib/Controller/ImportController.php:98
 #: /app/lib/Controller/MigrationController.php:90
 #: /app/lib/Controller/MigrationController.php:125
 msgid "File upload failed"
-msgstr ""
+msgstr "O envio do ficheiro falhou"
 
 #: /app/lib/Controller/ImportController.php:117
 #: /app/src/modules/import/ImportModule.js:102
 msgid "Failed to upload file"
-msgstr ""
+msgstr "Falha ao enviar o ficheiro"
 
 #: /app/lib/Controller/ImportController.php:157
 #: /app/lib/Controller/MigrationController.php:102
 msgid "Failed to preview import"
-msgstr ""
+msgstr "Falha ao pré-visualizar a importação"
 
 #: /app/lib/Controller/ImportController.php:216
 msgid "Failed to process import"
-msgstr ""
+msgstr "Falha ao processar a importação"
 
 #: /app/lib/Controller/ImportController.php:228
 #: /app/lib/Controller/ImportTemplateController.php:51
 msgid "Failed to retrieve import templates"
-msgstr ""
+msgstr "Falha ao buscar os modelos de importação"
 
 #: /app/lib/Controller/ImportController.php:240
 msgid "Failed to retrieve import history"
-msgstr ""
+msgstr "Falha ao buscar o histórico de importações"
 
 #: /app/lib/Controller/ImportController.php:252
 msgid "Failed to validate file"
-msgstr ""
+msgstr "Falha ao validar o ficheiro"
 
 #: /app/lib/Controller/ImportController.php:274
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Falha ao executar a importação"
 
 #: /app/lib/Controller/ImportController.php:287
 msgid "Failed to rollback import"
-msgstr ""
+msgstr "Falha ao reverter a importação"
 
 #: /app/lib/Controller/ImportRuleController.php:57
 msgid "Failed to retrieve import rules"
-msgstr ""
+msgstr "Falha ao buscar as regras de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:69
 msgid "Failed to retrieve rule groups"
@@ -1070,64 +1074,64 @@ msgstr ""
 #: /app/lib/Controller/ImportRuleController.php:81
 #: /app/lib/Controller/ImportRuleController.php:326
 msgid "Import rule"
-msgstr ""
+msgstr "Regra de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:116
 msgid "Criteria required for v2 rules"
-msgstr ""
+msgstr "Critérios necessários para as regras do v2"
 
 #: /app/lib/Controller/ImportRuleController.php:122
 msgid "Pattern, field, and matchType required for v1 rules"
-msgstr ""
+msgstr "Padrão, campo e tipos necessários para as regras v1"
 
 #: /app/lib/Controller/ImportRuleController.php:134
 #: /app/lib/Controller/ImportRuleController.php:235
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
-msgstr ""
+msgstr "Campo inválido. Deve ser um dos: %1$s"
 
 #: /app/lib/Controller/ImportRuleController.php:139
 #: /app/lib/Controller/ImportRuleController.php:243
 #, php-format
 msgid "Invalid match type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo de combinação inválida. Deve ser um dos: %1$s"
 
 #: /app/lib/Controller/ImportRuleController.php:145
 #: /app/lib/Controller/ImportRuleController.php:251
 msgid "Invalid regex pattern"
-msgstr ""
+msgstr "Padrão regex inválido"
 
 #: /app/lib/Controller/ImportRuleController.php:186
 msgid "Failed to create import rule"
-msgstr ""
+msgstr "Falha ao criar as regras de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:313
 msgid "Failed to update import rule"
-msgstr ""
+msgstr "Falha ao atualizar as regras de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:338
 msgid "Failed to test import rules"
-msgstr ""
+msgstr "Falha ao testar as regras de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:364
 msgid "Failed to preview rule application"
-msgstr ""
+msgstr "Falha ao visualizar a aplicação da regra"
 
 #: /app/lib/Controller/ImportRuleController.php:392
 msgid "Failed to test rule against transactions"
-msgstr ""
+msgstr "Falha ao testar a regra nas transações"
 
 #: /app/lib/Controller/ImportRuleController.php:419
 msgid "Failed to apply rules to transactions"
-msgstr ""
+msgstr "Falha na aplicação de regras às transações"
 
 #: /app/lib/Controller/ImportRuleController.php:433
 msgid "Failed to migrate import rule"
-msgstr ""
+msgstr "Falha ao migrar a regra de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:450
 msgid "Failed to migrate import rules"
-msgstr ""
+msgstr "Falha ao migrar as regras de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:466
 #: /app/lib/Traits/InputValidationTrait.php:108
@@ -1149,83 +1153,86 @@ msgstr ""
 
 #: /app/lib/Controller/MigrationController.php:67
 msgid "Failed to export data"
-msgstr ""
+msgstr "Falha na exportação de dados"
 
 #: /app/lib/Controller/MigrationController.php:134
 msgid ""
 "Import not confirmed. This operation will replace ALL existing data. Pass "
 "confirmed=true to proceed."
 msgstr ""
+"Importação não confirmada. Esta ação irá substituir TODOS os dados "
+"existentes. Confirme com confirmed=true para prosseguir."
 
 #: /app/lib/Controller/MigrationController.php:179
 msgid "Failed to import data"
-msgstr ""
+msgstr "Falha na importação de dados"
 
 #: /app/lib/Controller/NetWorthController.php:64
 msgid "Failed to calculate net worth"
-msgstr ""
+msgstr "Falha ao calcular o patrimônio líquido"
 
 #: /app/lib/Controller/NetWorthController.php:79
 msgid "Failed to retrieve net worth snapshots"
-msgstr ""
+msgstr "Falha ao buscar os snapshots do patrimônio líquido"
 
 #: /app/lib/Controller/NetWorthController.php:99
 msgid "Failed to create net worth snapshot"
-msgstr ""
+msgstr "Falha ao criar o snapshot do patrimônio líquido"
 
 #: /app/lib/Controller/NetWorthController.php:112
 msgid "Snapshot deleted"
-msgstr ""
+msgstr "Snapshot apagado"
 
 #: /app/lib/Controller/NetWorthController.php:114
 msgid "Snapshot"
-msgstr ""
+msgstr "Snapshot"
 
 #: /app/lib/Controller/PensionController.php:88
 msgid "Failed to retrieve pensions"
-msgstr ""
+msgstr "Falha ao buscar os planos de previdência"
 
 #: /app/lib/Controller/PensionController.php:100 /app/src/main.js:1119
 #: /app/src/utils/formatters.js:198
 msgid "Pension"
-msgstr ""
+msgstr "Previdência"
 
 #: /app/lib/Controller/PensionController.php:144
 #: /app/lib/Controller/PensionController.php:242
 #, php-format
 msgid "Invalid pension type. Must be one of: %1$s"
 msgstr ""
+"Tipo de plano de previdência inválido. Selecione um dos seguintes: %1$s\""
 
 #: /app/lib/Controller/PensionController.php:164
 #: /app/lib/Controller/PensionController.php:262
 msgid "Current balance cannot be negative"
-msgstr ""
+msgstr "O saldo atual não pode ser negativo"
 
 #: /app/lib/Controller/PensionController.php:167
 #: /app/lib/Controller/PensionController.php:265
 msgid "Monthly contribution cannot be negative"
-msgstr ""
+msgstr "A contribuição mensal não deve ser negativa"
 
 #: /app/lib/Controller/PensionController.php:170
 #: /app/lib/Controller/PensionController.php:268
 #, php-format
 msgid "Expected return rate must be between 0%% and 100%%"
-msgstr ""
+msgstr "A taxa de retorno esperada deve estar entre 0%% e 100%%"
 
 #: /app/lib/Controller/PensionController.php:173
 #: /app/lib/Controller/PensionController.php:271
 msgid "Retirement age must be between 18 and 100"
-msgstr ""
+msgstr "A idade de reforma deve estar entre 18 e 100"
 
 #: /app/lib/Controller/PensionController.php:176
 #: /app/lib/Controller/PensionController.php:274
 msgid "Annual income cannot be negative"
-msgstr ""
+msgstr "A renda anual não pode ser negativa"
 
 #: /app/lib/Controller/PensionController.php:179
 #: /app/lib/Controller/PensionController.php:277
 msgid "Transfer value cannot be negative"
-msgstr ""
+msgstr "O valor de transferência não pode ser negativo"
 
 #: /app/lib/Controller/PensionController.php:182
 msgid "Projection target cannot be negative"
@@ -1233,47 +1240,47 @@ msgstr ""
 
 #: /app/lib/Controller/PensionController.php:201
 msgid "Failed to create pension"
-msgstr ""
+msgstr "Falha ao criar o plano de previdência"
 
 #: /app/lib/Controller/PensionController.php:297
 msgid "Failed to update pension"
-msgstr ""
+msgstr "Falha ao atualizar o plano de previdência"
 
 #: /app/lib/Controller/PensionController.php:308
 msgid "Pension deleted successfully"
-msgstr ""
+msgstr "Plano de previdência apagado com sucesso"
 
 #: /app/lib/Controller/PensionController.php:310
 #: /app/src/modules/pensions/PensionsModule.js:498
 msgid "Failed to delete pension"
-msgstr ""
+msgstr "Falha ao apagar o plano de previdência"
 
 #: /app/lib/Controller/PensionController.php:347
 msgid "Balance and date are required"
-msgstr ""
+msgstr "O saldo e a data são obrigatórios"
 
 #: /app/lib/Controller/PensionController.php:352
 msgid "Balance cannot be negative"
-msgstr ""
+msgstr "O saldo não pode ser negativo"
 
 #: /app/lib/Controller/PensionController.php:393
 msgid "Failed to retrieve contributions"
-msgstr ""
+msgstr "Falha ao buscar as contribuições"
 
 #: /app/lib/Controller/PensionController.php:419
 #: /app/lib/Controller/PensionController.php:471
 msgid "Amount and date are required"
-msgstr ""
+msgstr "O valor e a data são obrigatórios"
 
 #: /app/lib/Controller/PensionController.php:424
 #: /app/lib/Controller/PensionController.php:474
 #: /app/lib/Controller/PensionController.php:583
 msgid "Amount must be greater than zero"
-msgstr ""
+msgstr "O valor deve ser maior que zero"
 
 #: /app/lib/Controller/PensionController.php:449
 msgid "Failed to create contribution"
-msgstr ""
+msgstr "Falha ao criar contribuição"
 
 #: /app/lib/Controller/PensionController.php:497
 #: /app/src/modules/pensions/PensionsModule.js:1029
@@ -1282,11 +1289,11 @@ msgstr ""
 
 #: /app/lib/Controller/PensionController.php:508
 msgid "Contribution deleted successfully"
-msgstr ""
+msgstr "Contribuição apagada com sucesso"
 
 #: /app/lib/Controller/PensionController.php:510
 msgid "Failed to delete contribution"
-msgstr ""
+msgstr "Falha ao apagar a contribuição"
 
 #: /app/lib/Controller/PensionController.php:528
 msgid "Failed to retrieve balance history"
@@ -1331,15 +1338,15 @@ msgstr ""
 
 #: /app/lib/Controller/PensionController.php:669
 msgid "Failed to retrieve pension summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo dos planos de previdência"
 
 #: /app/lib/Controller/PensionController.php:682
 msgid "Failed to retrieve pension projection"
-msgstr ""
+msgstr "Falha ao buscar a projeção dos planos de previdência"
 
 #: /app/lib/Controller/PensionController.php:695
 msgid "Failed to retrieve combined pension projection"
-msgstr ""
+msgstr "Falha ao buscar a projeção combinada dos planos de previdência"
 
 #: /app/lib/Controller/ReconciliationController.php:58
 msgid "Failed to load reconciliation session"
@@ -1355,28 +1362,28 @@ msgstr ""
 
 #: /app/lib/Controller/RecurringIncomeController.php:75
 msgid "Failed to retrieve recurring income"
-msgstr ""
+msgstr "Falha ao buscar a renda recorrente"
 
 #: /app/lib/Controller/RecurringIncomeController.php:88
 #: /app/lib/Controller/RecurringIncomeController.php:265
 #: /app/lib/Controller/RecurringIncomeController.php:280
 #: /app/lib/Controller/RecurringIncomeController.php:336
 msgid "Recurring income"
-msgstr ""
+msgstr "Renda recorrente"
 
 #: /app/lib/Controller/RecurringIncomeController.php:140
 #: /app/lib/Controller/RecurringIncomeController.php:246
 msgid "Expected day must be between 1 and 31"
-msgstr ""
+msgstr "O dia esperado deve estar entre 1 e 31"
 
 #: /app/lib/Controller/RecurringIncomeController.php:145
 #: /app/lib/Controller/RecurringIncomeController.php:253
 msgid "Expected month must be between 1 and 12"
-msgstr ""
+msgstr "O mês esperado deve estar entre 1 e 12"
 
 #: /app/lib/Controller/RecurringIncomeController.php:185
 msgid "Failed to create recurring income"
-msgstr ""
+msgstr "Falha ao criar a renda recorrente"
 
 #: /app/lib/Controller/RecurringIncomeController.php:213
 msgid "No data provided"
@@ -1384,77 +1391,77 @@ msgstr ""
 
 #: /app/lib/Controller/RecurringIncomeController.php:278
 msgid "Recurring income deleted"
-msgstr ""
+msgstr "Renda recorrente apagada"
 
 #: /app/lib/Controller/RecurringIncomeController.php:293
 msgid "Failed to retrieve upcoming income"
-msgstr ""
+msgstr "Falha ao buscar a renda a receber"
 
 #: /app/lib/Controller/RecurringIncomeController.php:306
 msgid "Failed to retrieve expected income"
-msgstr ""
+msgstr "Falha ao buscar a renda esperada"
 
 #: /app/lib/Controller/RecurringIncomeController.php:319
 msgid "Failed to retrieve income summary"
-msgstr ""
+msgstr "Falha ao buscar o resumo da renda"
 
 #: /app/lib/Controller/RecurringIncomeController.php:349
 #: /app/src/modules/income/IncomeModule.js:689
 msgid "Failed to detect recurring income"
-msgstr ""
+msgstr "Falha ao detetar a renda recorrente"
 
 #: /app/lib/Controller/RecurringIncomeController.php:372
 msgid "Failed to create recurring income from detected patterns"
-msgstr ""
+msgstr "Falha ao criar a renda recorrente a partir dos padrões detetados"
 
 #: /app/lib/Controller/ReportController.php:75
 msgid "Failed to generate summary report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de resumo"
 
 #: /app/lib/Controller/ReportController.php:112
 msgid "Failed to generate spending report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de gastos"
 
 #: /app/lib/Controller/ReportController.php:149
 msgid "Failed to generate income report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de renda"
 
 #: /app/lib/Controller/ReportController.php:189
 #: /app/src/modules/reports/ReportsModule.js:1438
 msgid "Failed to export report"
-msgstr ""
+msgstr "Falha ao exportar o relatório"
 
 #: /app/lib/Controller/ReportController.php:217
 msgid "Failed to generate budget report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de orçamento"
 
 #: /app/lib/Controller/ReportController.php:252
 msgid "Failed to generate comparison report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de comparação"
 
 #: /app/lib/Controller/ReportController.php:287
 msgid "Failed to generate cash flow report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de fluxo de caixa"
 
 #: /app/lib/Controller/ReportController.php:321
 msgid "Failed to generate tag dimensions"
-msgstr ""
+msgstr "Falha ao gerar as dimensões de etiquetas"
 
 #: /app/lib/Controller/ReportController.php:359
 msgid "Failed to generate tag combination report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de combinação de etiquetas"
 
 #: /app/lib/Controller/ReportController.php:394
 msgid "Failed to generate cross-tabulation"
-msgstr ""
+msgstr "Falha ao gerar a tabulação cruzada"
 
 #: /app/lib/Controller/ReportController.php:425
 msgid "Failed to generate tag trend report"
-msgstr ""
+msgstr "Falha ao gerar o relatório de tendências de etiquetas"
 
 #: /app/lib/Controller/ReportController.php:458
 msgid "Failed to generate tag set breakdown"
-msgstr ""
+msgstr "Falha ao gerar a análise detalhada da coleção de etiquetas"
 
 #: /app/lib/Controller/ReportController.php:493
 msgid "Failed to generate category monthly report"
@@ -1481,62 +1488,62 @@ msgstr ""
 
 #: /app/lib/Controller/SettingController.php:99
 msgid "Failed to retrieve settings"
-msgstr ""
+msgstr "Falha ao buscar as configurações"
 
 #: /app/lib/Controller/SettingController.php:124
 #: /app/lib/Controller/SettingController.php:236
 msgid "Setting not found"
-msgstr ""
+msgstr "Configuração não encontrada"
 
 #: /app/lib/Controller/SettingController.php:128
 msgid "Failed to retrieve setting"
-msgstr ""
+msgstr "Falha ao buscar a configuração"
 
 #: /app/lib/Controller/SettingController.php:170
 msgid "Settings updated successfully"
-msgstr ""
+msgstr "Configurações atualizadas com sucesso"
 
 #: /app/lib/Controller/SettingController.php:174
 msgid "Failed to update settings"
-msgstr ""
+msgstr "Falha ao atualizar as configurações"
 
 #: /app/lib/Controller/SettingController.php:190
 msgid "Value parameter is required"
-msgstr ""
+msgstr "O parâmetro de valor é obrigatório"
 
 #: /app/lib/Controller/SettingController.php:215
 msgid "Setting updated successfully"
-msgstr ""
+msgstr "Configuração atualizada com sucesso"
 
 #: /app/lib/Controller/SettingController.php:220
 msgid "Failed to update setting"
-msgstr ""
+msgstr "Falha ao atualizar a configuração"
 
 #: /app/lib/Controller/SettingController.php:242
 msgid "Setting reset to default"
-msgstr ""
+msgstr "Configuração redefinida para o padrão"
 
 #: /app/lib/Controller/SettingController.php:247
 msgid "Failed to reset setting"
-msgstr ""
+msgstr "Falha ao restaurar a configuração padrão"
 
 #: /app/lib/Controller/SettingController.php:262
 msgid "All settings reset to defaults"
-msgstr ""
+msgstr "Todas as configurações restauradas para o padrão"
 
 #: /app/lib/Controller/SettingController.php:267
 #: /app/src/modules/settings/SettingsModule.js:175
 #: /app/src/modules/settings/SettingsModule.js:184
 msgid "Failed to reset settings"
-msgstr ""
+msgstr "Falha ao restaurar as configurações padrão"
 
 #: /app/lib/Controller/SettingController.php:296 /app/templates/index.php:4778
 msgid "Sunday"
-msgstr ""
+msgstr "Domingo"
 
 #: /app/lib/Controller/SettingController.php:297 /app/templates/index.php:4779
 msgid "Monday"
-msgstr ""
+msgstr "Segunda-feira"
 
 #: /app/lib/Controller/SettingController.php:300
 #: /app/src/modules/bills/BillsModule.js:229
@@ -1548,7 +1555,7 @@ msgstr ""
 #: /app/templates/index.php:4726 /app/templates/index.php:4882
 #: /app/templates/index.php:5515 /app/templates/index.php:5967
 msgid "Weekly"
-msgstr ""
+msgstr "Semanal"
 
 #: /app/lib/Controller/SettingController.php:301
 #: /app/src/modules/accounts/AccountsModule.js:770
@@ -1563,7 +1570,7 @@ msgstr ""
 #: /app/templates/index.php:4883 /app/templates/index.php:5445
 #: /app/templates/index.php:5518 /app/templates/index.php:5970
 msgid "Monthly"
-msgstr ""
+msgstr "Mensal"
 
 #: /app/lib/Controller/SettingController.php:302
 #: /app/src/modules/bills/BillsModule.js:233
@@ -1576,7 +1583,7 @@ msgstr ""
 #: /app/templates/index.php:3968 /app/templates/index.php:4728
 #: /app/templates/index.php:5519 /app/templates/index.php:5971
 msgid "Quarterly"
-msgstr ""
+msgstr "Trismestral"
 
 #: /app/lib/Controller/SettingController.php:303
 #: /app/src/modules/accounts/AccountsModule.js:771
@@ -1591,11 +1598,11 @@ msgstr ""
 #: /app/templates/index.php:5446 /app/templates/index.php:5521
 #: /app/templates/index.php:5973
 msgid "Yearly"
-msgstr ""
+msgstr "Anual"
 
 #: /app/lib/Controller/SetupController.php:67
 msgid "Budget app initialized successfully"
-msgstr ""
+msgstr "App de orçamento inicializada com sucesso"
 
 #: /app/lib/Controller/SetupController.php:71
 msgid "Failed to initialize budget app"
@@ -1608,7 +1615,7 @@ msgstr ""
 #: /app/lib/Controller/SetupController.php:103
 #, php-format
 msgid "%1$s duplicate categories removed"
-msgstr ""
+msgstr "%1$s categorias duplicadas removidas"
 
 #: /app/lib/Controller/SetupController.php:106
 msgid "Failed to remove duplicate categories"
@@ -1617,7 +1624,7 @@ msgstr ""
 #: /app/lib/Controller/SetupController.php:121
 #, php-format
 msgid "Reset complete: deleted %1$s, created %2$s"
-msgstr ""
+msgstr "Restauração concluída: %1$s apagado(s), %2$s criado(s)"
 
 #: /app/lib/Controller/SetupController.php:124
 msgid "Failed to reset categories"
@@ -1628,11 +1635,14 @@ msgid ""
 "Factory reset requires confirmed=true parameter. This will permanently "
 "delete ALL your data."
 msgstr ""
+"A restauração de fábrica requer confirmação com confirmed=true. Esta ação "
+"apagará permanentemente TODOS os seus dados."
 
 #: /app/lib/Controller/SetupController.php:159 /app/src/main.js:2034
 #: /app/src/modules/settings/SettingsModule.js:339
 msgid "Factory reset completed successfully. All data has been deleted."
 msgstr ""
+"Restauração de fábrica concluída com sucesso. Todos os dados foram apagados."
 
 #: /app/lib/Controller/SetupController.php:163 /app/src/main.js:2027
 #: /app/src/modules/settings/SettingsModule.js:332
@@ -1731,7 +1741,7 @@ msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:65
 msgid "Failed to get contacts"
-msgstr ""
+msgstr "Falha ao carregar os contactos"
 
 #: /app/lib/Controller/SharedExpenseController.php:87
 msgid "Nextcloud user not found"
@@ -1739,24 +1749,24 @@ msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:105
 msgid "Failed to create contact"
-msgstr ""
+msgstr "Falha ao criar o contacto"
 
 #: /app/lib/Controller/SharedExpenseController.php:174
 msgid "Failed to update contact"
-msgstr ""
+msgstr "Falha ao atualizar o contacto"
 
 #: /app/lib/Controller/SharedExpenseController.php:196
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:393
 msgid "Failed to delete contact"
-msgstr ""
+msgstr "Falha ao apagar o contacto"
 
 #: /app/lib/Controller/SharedExpenseController.php:218
 msgid "Failed to get contact details"
-msgstr ""
+msgstr "Falha ao carregar os pormenores do contacto"
 
 #: /app/lib/Controller/SharedExpenseController.php:242
 msgid "Failed to get balances"
-msgstr ""
+msgstr "Falha ao carregar os saldos"
 
 #: /app/lib/Controller/SharedExpenseController.php:264
 msgid "Failed to get shared expenses"
@@ -1775,27 +1785,27 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:750
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:765
 msgid "Failed to share expense"
-msgstr ""
+msgstr "Falha ao partilhar a despesa"
 
 #: /app/lib/Controller/SharedExpenseController.php:354
 msgid "Failed to split expense"
-msgstr ""
+msgstr "Falha ao dividir a despesa"
 
 #: /app/lib/Controller/SharedExpenseController.php:376
 msgid "Failed to get shares"
-msgstr ""
+msgstr "Falha ao carregar os partilhamentos"
 
 #: /app/lib/Controller/SharedExpenseController.php:398
 msgid "Failed to update share"
-msgstr ""
+msgstr "Falha ao atualizar o partilhamento"
 
 #: /app/lib/Controller/SharedExpenseController.php:420
 msgid "Failed to mark settled"
-msgstr ""
+msgstr "Falha ao marcar como quitado"
 
 #: /app/lib/Controller/SharedExpenseController.php:442
 msgid "Failed to delete share"
-msgstr ""
+msgstr "Falha ao apagar o partilhamento"
 
 #: /app/lib/Controller/SharedExpenseController.php:460
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:613
@@ -1806,78 +1816,78 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:641
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:669
 msgid "Failed to settle expenses"
-msgstr ""
+msgstr "Não foi possível quitar as despesas"
 
 #: /app/lib/Controller/SharedExpenseController.php:510
 msgid "Failed to record settlement"
-msgstr ""
+msgstr "Falha ao registar a quitação"
 
 #: /app/lib/Controller/SharedExpenseController.php:535
 msgid "Failed to settle"
-msgstr ""
+msgstr "Falha ao quitar"
 
 #: /app/lib/Controller/SharedExpenseController.php:557
 msgid "Failed to get settlements"
-msgstr ""
+msgstr "Falha ao carregar as quitações"
 
 #: /app/lib/Controller/SharedExpenseController.php:579
 msgid "Failed to delete settlement"
-msgstr ""
+msgstr "Falha ao apagar as quitações"
 
 #: /app/lib/Controller/TagSetController.php:64
 msgid "Failed to retrieve tag sets"
-msgstr ""
+msgstr "Falha ao buscar as coleções de etiquetas"
 
 #: /app/lib/Controller/TagSetController.php:76
 msgid "Tag set"
-msgstr ""
+msgstr "Coleção de etiquetas"
 
 #: /app/lib/Controller/TagSetController.php:90
 msgid "Category ID and name are required"
-msgstr ""
+msgstr "O ID e o nome da categoria são obrigatórios"
 
 #: /app/lib/Controller/TagSetController.php:114
 #: /app/src/modules/tagsets/TagSetsModule.js:458
 #: /app/src/modules/tagsets/TagSetsModule.js:559
 #: /app/src/modules/tagsets/TagSetsModule.js:918
 msgid "Failed to create tag set"
-msgstr ""
+msgstr "Falha na criação da coleção de etiquetas"
 
 #: /app/lib/Controller/TagSetController.php:152
 #: /app/src/modules/tagsets/TagSetsModule.js:936
 #: /app/src/modules/tagsets/TagSetsModule.js:995
 msgid "Failed to update tag set"
-msgstr ""
+msgstr "Falha ao atualizar a coleção de etiquetas"
 
 #: /app/lib/Controller/TagSetController.php:165
 #: /app/src/modules/tagsets/TagSetsModule.js:475
 #: /app/src/modules/tagsets/TagSetsModule.js:577
 #: /app/src/modules/tagsets/TagSetsModule.js:852
 msgid "Failed to delete tag set"
-msgstr ""
+msgstr "Falha ao apagar a coleção de etiquetas"
 
 #: /app/lib/Controller/TagSetController.php:177
 msgid "Failed to retrieve tags"
-msgstr ""
+msgstr "Falha ao buscar as etiquetas"
 
 #: /app/lib/Controller/TagSetController.php:191
 #: /app/lib/Controller/TagSetController.php:309
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:338
 msgid "Name is required"
-msgstr ""
+msgstr "O preenchimento do nome é obrigatório"
 
 #: /app/lib/Controller/TagSetController.php:223
 #: /app/src/modules/tagsets/TagSetsModule.js:507
 #: /app/src/modules/tagsets/TagSetsModule.js:600
 #: /app/src/modules/tagsets/TagSetsModule.js:1139
 msgid "Failed to create tag"
-msgstr ""
+msgstr "Falha na criação da etiqueta"
 
 #: /app/lib/Controller/TagSetController.php:267
 #: /app/src/modules/tagsets/TagSetsModule.js:1157
 #: /app/src/modules/tagsets/TagSetsModule.js:1221
 msgid "Failed to update tag"
-msgstr ""
+msgstr "Falha ao atualizar a etiqueta"
 
 #: /app/lib/Controller/TagSetController.php:280
 #: /app/src/modules/tagsets/TagSetsModule.js:265
@@ -1885,27 +1895,27 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:618
 #: /app/src/modules/tagsets/TagSetsModule.js:885
 msgid "Failed to delete tag"
-msgstr ""
+msgstr "Falha ao apagar a etiqueta"
 
 #: /app/lib/Controller/TagSetController.php:296
 msgid "Failed to retrieve global tags"
-msgstr ""
+msgstr "Falha ao buscar as etiquetas globais"
 
 #: /app/lib/Controller/TagSetController.php:329
 msgid "Failed to create global tag"
-msgstr ""
+msgstr "Falha na criação da etiqueta global"
 
 #: /app/lib/Controller/TagSetController.php:365
 msgid "Failed to update global tag"
-msgstr ""
+msgstr "Falha na atualização da etiqueta global"
 
 #: /app/lib/Controller/TagSetController.php:378
 msgid "Failed to delete global tag"
-msgstr ""
+msgstr "Falha ao apagar a etiqueta global"
 
 #: /app/lib/Controller/TransactionController.php:118
 msgid "Failed to retrieve transactions"
-msgstr ""
+msgstr "Falha ao buscar as transações"
 
 #: /app/lib/Controller/TransactionController.php:135
 #: /app/lib/Controller/TransactionController.php:374
@@ -1916,16 +1926,16 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:717
 #: /app/src/modules/dashboard/DashboardModule.js:1090
 msgid "Transaction"
-msgstr ""
+msgstr "Transação"
 
 #: /app/lib/Controller/TransactionController.php:172
 #: /app/lib/Controller/TransactionController.php:273
 msgid "Invalid transaction type. Must be credit or debit"
-msgstr ""
+msgstr "Tipo de transação inválido. Deve ser crédito ou débito"
 
 #: /app/lib/Controller/TransactionController.php:224
 msgid "Failed to create transaction"
-msgstr ""
+msgstr "Falha na criação da transação"
 
 #: /app/lib/Controller/TransactionController.php:324
 msgid "Invalid status. Must be cleared, scheduled or pending"
@@ -1934,32 +1944,32 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:349
 #: /app/src/modules/transactions/TransactionsModule.js:3956
 msgid "Failed to update transaction"
-msgstr ""
+msgstr "Falha na atualização da transação"
 
 #: /app/lib/Controller/TransactionController.php:386
 msgid "Failed to search transactions"
-msgstr ""
+msgstr "Falha ao pesquisar as transações"
 
 #: /app/lib/Controller/TransactionController.php:398
 msgid "Failed to retrieve uncategorized transactions"
-msgstr ""
+msgstr "Falha ao buscar as transações não categorizadas"
 
 #: /app/lib/Controller/TransactionController.php:411
 msgid "Failed to categorize transactions"
-msgstr ""
+msgstr "Falha ao categorizar as transações"
 
 #: /app/lib/Controller/TransactionController.php:459 /app/src/main.js:3385
 #: /app/src/modules/transactions/TransactionsModule.js:2527
 msgid "Failed to unlink transaction"
-msgstr ""
+msgstr "Falha ao desvincular a transação"
 
 #: /app/lib/Controller/TransactionController.php:476
 msgid "Failed to bulk match transactions"
-msgstr ""
+msgstr "Falha ao associar transações em massa"
 
 #: /app/lib/Controller/TransactionController.php:491
 msgid "Failed to scan for matches"
-msgstr ""
+msgstr "Falha ao buscar correspondências"
 
 #: /app/lib/Controller/TransactionController.php:507
 msgid "No valid pairs provided"
@@ -1967,7 +1977,7 @@ msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:513
 msgid "Failed to bulk link transactions"
-msgstr ""
+msgstr "Falha ao vincular transações em massa"
 
 #: /app/lib/Controller/TransactionController.php:526
 #: /app/lib/Controller/TransactionController.php:545
@@ -1978,11 +1988,11 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:532
 #: /app/src/modules/transactions/TransactionsModule.js:771
 msgid "Failed to delete transactions"
-msgstr ""
+msgstr "Falha ao apagar as transações"
 
 #: /app/lib/Controller/TransactionController.php:551
 msgid "Failed to update reconcile status"
-msgstr ""
+msgstr "Falha ao atualizar o estado de conciliação"
 
 #: /app/lib/Controller/TransactionController.php:568
 msgid "No update fields provided"
@@ -1995,7 +2005,7 @@ msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:608
 msgid "Failed to bulk edit transactions"
-msgstr ""
+msgstr "Falha ao editar as transações em massa"
 
 #: /app/lib/Controller/TransactionController.php:637
 msgid "Invalid splits data"
@@ -2016,39 +2026,39 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:262 /app/templates/index.php:1356
 #: /app/templates/index.php:1509
 msgid "Split"
-msgstr ""
+msgstr "Dividir"
 
 #: /app/lib/Controller/TransactionController.php:743
 msgid "Failed to set transaction tags"
-msgstr ""
+msgstr "Falha ao definir as etiquetas da transação"
 
 #: /app/lib/Controller/TransactionController.php:758
 msgid "Failed to clear transaction tags"
-msgstr ""
+msgstr "Falha ao remover as etiquetas da transação"
 
 #: /app/lib/Controller/TransactionController.php:776
 msgid "Failed to find duplicates"
-msgstr ""
+msgstr "Nenhuma duplicata encontrada"
 
 #: /app/lib/Controller/YearOverYearController.php:69
 msgid "Failed to compare month data"
-msgstr ""
+msgstr "Falha na comparação de dados do mês"
 
 #: /app/lib/Controller/YearOverYearController.php:95
 msgid "Failed to compare year data"
-msgstr ""
+msgstr "Falha na comparação de dados do ano"
 
 #: /app/lib/Controller/YearOverYearController.php:121
 msgid "Failed to compare category data"
-msgstr ""
+msgstr "Falha ao comparar os dados da categoria"
 
 #: /app/lib/Controller/YearOverYearController.php:147
 msgid "Failed to get monthly trends"
-msgstr ""
+msgstr "Falha ao obter tendências mensais"
 
 #: /app/lib/Controller/YearOverYearController.php:199
 msgid "Failed to export YoY data"
-msgstr ""
+msgstr "Falha ao exportar dados ano a ano"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:43
 msgid "Budget: Overview"
@@ -2120,7 +2130,7 @@ msgstr ""
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:119
 #: /app/lib/Notification/Notifier.php:57
 msgid "due today"
-msgstr ""
+msgstr "vence hoje"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:122
 msgid "due in %n day"
@@ -2136,41 +2146,41 @@ msgstr[1] ""
 #: /app/templates/index.php:93 /app/templates/index.php:2026
 #: /app/templates/index.php:2097
 msgid "Budget"
-msgstr ""
+msgstr "Orçamento"
 
 #: /app/lib/Notification/Notifier.php:46
 msgid "Bill reminder: {bill}"
-msgstr ""
+msgstr "Lembrete de despesa: {bill}"
 
 #: /app/lib/Notification/Notifier.php:60
 msgid "due tomorrow"
-msgstr ""
+msgstr "vence amanhã"
 
 #: /app/lib/Notification/Notifier.php:61
 #, php-format
 msgid "due in %s days"
-msgstr ""
+msgstr "vence em %s dias"
 
 #: /app/lib/Notification/Notifier.php:66
 msgid "{bill} ({amount}) is {dueText}"
-msgstr ""
+msgstr "{bill} ({amount}) está {dueText}"
 
 #: /app/lib/Notification/Notifier.php:99
 msgid "Overdue bill: {bill}"
-msgstr ""
+msgstr "Conta atrasada: {bill}"
 
 #: /app/lib/Notification/Notifier.php:111
 msgid "1 day overdue"
-msgstr ""
+msgstr "1 dia de atraso"
 
 #: /app/lib/Notification/Notifier.php:112
 #, php-format
 msgid "%s days overdue"
-msgstr ""
+msgstr "%s dias de atraso"
 
 #: /app/lib/Notification/Notifier.php:116
 msgid "{bill} ({amount}) is {overdueText}"
-msgstr ""
+msgstr "{bill} ({amount}) está {overdueText}"
 
 #: /app/lib/Notification/Notifier.php:149
 msgid "Bill auto-paid: {bill}"
@@ -2182,13 +2192,15 @@ msgstr ""
 
 #: /app/lib/Notification/Notifier.php:194
 msgid "Auto-pay failed: {bill}"
-msgstr ""
+msgstr "Falha no pagamento automático: {bill}"
 
 #: /app/lib/Notification/Notifier.php:206
 msgid ""
 "Failed to auto-pay {bill} ({amount}). Auto-pay has been disabled. Reason: "
 "{reason}"
 msgstr ""
+"Falha no pagamento automático da {bill} ({amount}). O pagamento automático "
+"foi desativado. Motivo: {reason}"
 
 #: /app/lib/Notification/Notifier.php:239
 msgid "Income auto-created: {income}"
@@ -2447,7 +2459,7 @@ msgstr ""
 #: /app/lib/Service/ImportService.php:117
 #, php-format
 msgid "Failed to process upload: %1$s"
-msgstr ""
+msgstr "Falha ao processar o envio: %1$s"
 
 #: /app/lib/Service/ImportService.php:286
 msgid "Import file not found"
@@ -2799,7 +2811,7 @@ msgstr ""
 #: /app/templates/index.php:497 /app/templates/index.php:1346
 #: /app/templates/index.php:1499 /app/templates/quick-add.php:62
 msgid "Uncategorized"
-msgstr ""
+msgstr "Não categorizado"
 
 #: /app/src/config/dashboardWidgets.js:27 /app/templates/index.php:510
 msgid "Low Balance Alert"
@@ -2842,7 +2854,7 @@ msgstr ""
 #: /app/templates/index.php:1028 /app/templates/index.php:1110
 #: /app/templates/index.php:5026
 msgid "Accounts"
-msgstr ""
+msgstr "Contas Financeiras"
 
 #: /app/src/config/dashboardWidgets.js:40 /app/templates/index.php:674
 #: /app/templates/index.php:4843
@@ -2963,7 +2975,7 @@ msgstr ""
 
 #: /app/src/main.js:426
 msgid "Share expense"
-msgstr ""
+msgstr "Partilhar despesa"
 
 #: /app/src/main.js:430
 msgid "Unlink transfer"
@@ -2975,15 +2987,15 @@ msgstr ""
 
 #: /app/src/main.js:772
 msgid "Failed to load accounts: {status} {statusText}"
-msgstr ""
+msgstr "Falha ao carregar as contas financeiras: {status}{statusText}"
 
 #: /app/src/main.js:794
 msgid "Failed to load data"
-msgstr ""
+msgstr "Falha no carregamento de dados"
 
 #: /app/src/main.js:854 /app/templates/index.php:43
 msgid "Dashboard"
-msgstr ""
+msgstr "Painel"
 
 #: /app/src/main.js:854
 msgid ""
@@ -3016,7 +3028,7 @@ msgstr ""
 #: /app/src/modules/sharing/SharingModule.js:245 /app/templates/index.php:73
 #: /app/templates/index.php:1735 /app/templates/index.php:5022
 msgid "Categories"
-msgstr ""
+msgstr "Categorias"
 
 #: /app/src/main.js:857
 msgid ""
@@ -3037,7 +3049,7 @@ msgstr ""
 #: /app/templates/index.php:1568 /app/templates/index.php:1653
 #: /app/templates/index.php:1707 /app/templates/index.php:1945
 msgid "Tags"
-msgstr ""
+msgstr "Etiquetas"
 
 #: /app/src/main.js:858
 msgid ""
@@ -3131,7 +3143,7 @@ msgstr ""
 #: /app/src/main.js:867 /app/templates/index.php:173
 #: /app/templates/index.php:4468 /app/templates/index.php:6544
 msgid "Shared Expenses"
-msgstr ""
+msgstr "Despesas Partilhadas"
 
 #: /app/src/main.js:867
 msgid ""
@@ -3163,7 +3175,7 @@ msgstr ""
 #: /app/templates/index.php:216 /app/templates/index.php:1324
 #: /app/templates/index.php:2364
 msgid "Import"
-msgstr ""
+msgstr "Importar"
 
 #: /app/src/main.js:870
 msgid ""
@@ -3174,7 +3186,7 @@ msgstr ""
 #: /app/src/main.js:871 /app/templates/index.php:226
 #: /app/templates/index.php:2539
 msgid "Rules"
-msgstr ""
+msgstr "Regras"
 
 #: /app/src/main.js:871
 msgid ""
@@ -3287,7 +3299,7 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:519
 msgid "Settled"
-msgstr ""
+msgstr "Quitado"
 
 #: /app/src/main.js:1109 /app/src/modules/accounts/AccountsModule.js:1017
 msgid "Not yet posted by your bank"
@@ -3341,7 +3353,7 @@ msgstr ""
 
 #: /app/src/main.js:1410
 msgid "Failed to load transactions"
-msgstr ""
+msgstr "Falha no carregamento de transações"
 
 #: /app/src/main.js:1456
 msgid "{displayed} of {total} transactions"
@@ -3364,7 +3376,7 @@ msgstr ""
 
 #: /app/src/main.js:1631
 msgid "Recalculating..."
-msgstr ""
+msgstr "A recalcular..."
 
 #: /app/src/main.js:1645
 msgid "Recalculation failed"
@@ -3380,7 +3392,7 @@ msgstr ""
 
 #: /app/src/main.js:1656
 msgid "Failed to recalculate balances: {error}"
-msgstr ""
+msgstr "Falha ao recalcular os saldos: {error}"
 
 #: /app/src/main.js:1671
 msgid "Scanning..."
@@ -3516,7 +3528,7 @@ msgstr ""
 #: /app/src/main.js:2010 /app/src/modules/settings/SettingsModule.js:315
 #: /app/src/modules/transactions/TransactionsModule.js:4175
 msgid "Deleting..."
-msgstr ""
+msgstr "A apagar..."
 
 #: /app/src/main.js:2048 /app/src/modules/settings/SettingsModule.js:353
 #: /app/templates/index.php:6607
@@ -3529,7 +3541,7 @@ msgstr ""
 
 #: /app/src/main.js:2124
 msgid "Exporting..."
-msgstr ""
+msgstr "A exportar..."
 
 #: /app/src/main.js:2133
 msgid "Export failed"
@@ -3565,7 +3577,7 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:2489
 #: /app/src/modules/transfers/TransfersModule.js:964
 msgid "Unknown"
-msgstr ""
+msgstr "Desconhecido"
 
 #: /app/src/main.js:2230
 msgid "Failed to preview file: {error}"
@@ -3603,19 +3615,19 @@ msgstr ""
 
 #: /app/src/main.js:2288
 msgid "categories"
-msgstr ""
+msgstr "categorias"
 
 #: /app/src/main.js:2289
 msgid "accounts"
-msgstr ""
+msgstr "contas financeiras"
 
 #: /app/src/main.js:2290
 msgid "transactions"
-msgstr ""
+msgstr "transações"
 
 #: /app/src/main.js:2291
 msgid "bills"
-msgstr ""
+msgstr "contas"
 
 #: /app/src/main.js:2292
 msgid "import rules"
@@ -3623,7 +3635,7 @@ msgstr ""
 
 #: /app/src/main.js:2293
 msgid "settings"
-msgstr ""
+msgstr "configurações"
 
 #: /app/src/main.js:2301
 msgid "Import completed successfully"
@@ -3644,7 +3656,7 @@ msgstr ""
 #: /app/src/main.js:2589 /app/src/modules/dashboard/DashboardModule.js:792
 #: /app/src/modules/reports/ReportsModule.js:1394
 msgid "N/A"
-msgstr ""
+msgstr "N/D"
 
 #: /app/src/main.js:2627 /app/templates/index.php:3329
 #: /app/templates/index.php:3363
@@ -3691,7 +3703,7 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:83 /app/templates/index.php:1118
 #: /app/templates/index.php:1821 /app/templates/index.php:4097
 msgid "Edit"
-msgstr ""
+msgstr "Editar"
 
 #: /app/src/main.js:2808 /app/src/modules/accounts/AccountsModule.js:375
 #: /app/src/modules/accounts/AccountsModule.js:785
@@ -3706,7 +3718,7 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:84 /app/templates/index.php:1590
 #: /app/templates/index.php:1825 /app/templates/index.php:3067
 msgid "Delete"
-msgstr ""
+msgstr "Apagar"
 
 #: /app/src/main.js:2809
 msgid "Set as active"
@@ -3841,7 +3853,7 @@ msgstr ""
 #: /app/templates/index.php:5947 /app/templates/index.php:6125
 #: /app/templates/index.php:6201 /app/templates/quick-add.php:50
 msgid "Description"
-msgstr ""
+msgstr "Descrição"
 
 #: /app/src/main.js:3429
 msgid "Total Amount"
@@ -3868,7 +3880,7 @@ msgstr ""
 #: /app/templates/index.php:5809 /app/templates/index.php:6323
 #: /app/templates/quick-add.php:45
 msgid "Amount"
-msgstr ""
+msgstr "Quantidade"
 
 #: /app/src/main.js:3503
 #: /app/src/modules/transactions/TransactionsModule.js:2065
@@ -3948,11 +3960,11 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:295
 msgid "Owed"
-msgstr ""
+msgstr "Devido"
 
 #: /app/src/modules/accounts/AccountsModule.js:295
 msgid "Credit"
-msgstr ""
+msgstr "Crédito"
 
 #: /app/src/modules/accounts/AccountsModule.js:295
 #: /app/src/modules/accounts/AccountsModule.js:296
@@ -3962,7 +3974,7 @@ msgstr ""
 #: /app/templates/index.php:1425 /app/templates/index.php:1661
 #: /app/templates/index.php:1713 /app/templates/index.php:3222
 msgid "Balance"
-msgstr ""
+msgstr "Saldo"
 
 #: /app/src/modules/accounts/AccountsModule.js:308
 msgid "Excluded from reports, dashboard & forecast"
@@ -4000,7 +4012,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:690
 #: /app/templates/index.php:1268
 msgid "Never"
-msgstr ""
+msgstr "Nunca"
 
 #: /app/src/modules/accounts/AccountsModule.js:769
 #: /app/templates/index.php:5444
@@ -4062,7 +4074,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:1016
 #: /app/templates/index.php:1366 /app/templates/index.php:1519
 msgid "Scheduled"
-msgstr ""
+msgstr "Agendado"
 
 #: /app/src/modules/accounts/AccountsModule.js:1023
 msgid "Transfer {direction} {account}"
@@ -4260,7 +4272,7 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:2455
 msgid "Valid"
-msgstr ""
+msgstr "Válido"
 
 #: /app/src/modules/accounts/AccountsModule.js:2520
 #: /app/templates/index.php:5323
@@ -4282,13 +4294,13 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:882
 #: /app/src/utils/formatters.js:194
 msgid "Investment"
-msgstr ""
+msgstr "Investimento"
 
 #: /app/src/modules/accounts/AccountsModule.js:2540
 #: /app/src/modules/dashboard/DashboardModule.js:884
 #: /app/src/utils/formatters.js:196
 msgid "Loan"
-msgstr ""
+msgstr "Empréstimo"
 
 #: /app/src/modules/accounts/AccountsModule.js:2545
 #: /app/src/modules/dashboard/DashboardModule.js:883
@@ -4299,7 +4311,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:2550
 #: /app/src/utils/formatters.js:199 /app/templates/index.php:5331
 msgid "Cryptocurrency"
-msgstr ""
+msgstr "Criptomoeda"
 
 #: /app/src/modules/accounts/AccountsModule.js:2572
 msgid "Credit utilization very high"
@@ -4331,7 +4343,7 @@ msgstr ""
 #: /app/templates/index.php:4221 /app/templates/index.php:5206
 #: /app/templates/index.php:6071 /app/templates/quick-add.php:37
 msgid "Type"
-msgstr ""
+msgstr "Tipo"
 
 #: /app/src/modules/assets/AssetsModule.js:31
 msgid "Failed to load assets"
@@ -4343,22 +4355,22 @@ msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:92 /app/templates/index.php:4224
 msgid "Vehicle"
-msgstr ""
+msgstr "Veículo"
 
 #: /app/src/modules/assets/AssetsModule.js:97 /app/templates/index.php:4225
 msgid "Jewelry"
-msgstr ""
+msgstr "Joias"
 
 #: /app/src/modules/assets/AssetsModule.js:102 /app/templates/index.php:4226
 msgid "Collectibles"
-msgstr ""
+msgstr "Colecionáveis"
 
 #: /app/src/modules/assets/AssetsModule.js:107
 #: /app/src/modules/dashboard/DashboardModule.js:1821
 #: /app/src/modules/dashboard/DashboardModule.js:4593
 #: /app/templates/index.php:4227
 msgid "Other"
-msgstr ""
+msgstr "Outros"
 
 #: /app/src/modules/assets/AssetsModule.js:138
 msgid "Purchased at {price}"
@@ -4419,7 +4431,7 @@ msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:566 /app/templates/index.php:4307
 msgid "Value"
-msgstr ""
+msgstr "Valor"
 
 #: /app/src/modules/assets/AssetsModule.js:639
 msgid "Projected Appreciation"
@@ -4722,14 +4734,14 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:265
 #: /app/templates/index.php:2490
 msgid "Paid"
-msgstr ""
+msgstr "Pago"
 
 #: /app/src/modules/bills/BillsModule.js:218
 #: /app/src/modules/transfers/TransfersModule.js:115
 #: /app/src/modules/transfers/TransfersModule.js:268
 #: /app/templates/index.php:2462 /app/templates/index.php:2489
 msgid "Overdue"
-msgstr ""
+msgstr "Vencido"
 
 #: /app/src/modules/bills/BillsModule.js:221
 #: /app/src/modules/transfers/TransfersModule.js:114
@@ -4742,7 +4754,7 @@ msgstr ""
 #: /app/src/modules/income/IncomeModule.js:108
 #: /app/src/modules/transfers/TransfersModule.js:274
 msgid "Upcoming"
-msgstr ""
+msgstr "A vencer"
 
 #: /app/src/modules/bills/BillsModule.js:230
 #: /app/src/modules/income/IncomeModule.js:114
@@ -4751,7 +4763,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:784
 #: /app/templates/index.php:5516 /app/templates/index.php:5968
 msgid "Bi-Weekly"
-msgstr ""
+msgstr "Quinzenal"
 
 #: /app/src/modules/bills/BillsModule.js:231
 #: /app/src/modules/income/IncomeModule.js:115
@@ -4768,7 +4780,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:788
 #: /app/templates/index.php:5520 /app/templates/index.php:5972
 msgid "Semi-Annually"
-msgstr ""
+msgstr "Semestral"
 
 #: /app/src/modules/bills/BillsModule.js:236
 #: /app/src/modules/income/IncomeModule.js:120
@@ -4777,7 +4789,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:790
 #: /app/templates/index.php:5522 /app/templates/index.php:5974
 msgid "One-Time"
-msgstr ""
+msgstr "Único"
 
 #: /app/src/modules/bills/BillsModule.js:258
 #: /app/src/modules/transfers/TransfersModule.js:305
@@ -5105,7 +5117,7 @@ msgstr ""
 #: /app/templates/index.php:6471 /app/templates/index.php:6517
 #: /app/templates/index.php:6604 /app/templates/index.php:6675
 msgid "Cancel"
-msgstr ""
+msgstr "Cancelar"
 
 #: /app/src/modules/bills/BillsModule.js:1221
 #: /app/src/modules/categories/CategoriesModule.js:1381
@@ -5264,7 +5276,7 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:942
 #: /app/src/modules/categories/CategoriesModule.js:945
 msgid "Failed to delete category"
-msgstr ""
+msgstr "Falha ao apagar a categoria"
 
 #: /app/src/modules/categories/CategoriesModule.js:917
 msgid "this category"
@@ -5416,7 +5428,7 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:1801
 #: /app/src/modules/reports/ReportsModule.js:1694 /app/templates/index.php:6500
 msgid "Total"
-msgstr ""
+msgstr "Total"
 
 #: /app/src/modules/categories/CategoriesModule.js:1803
 #: /app/templates/index.php:2098 /app/templates/index.php:3084
@@ -6001,7 +6013,7 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:4589
 msgid "Goals"
-msgstr ""
+msgstr "Metas"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4591
 msgid "Alerts"
@@ -6606,7 +6618,7 @@ msgstr ""
 #: /app/src/modules/pensions/PensionsModule.js:526
 #: /app/templates/index.php:3768
 msgid "SIPP"
-msgstr ""
+msgstr "Plano de Previdência Individual"
 
 #: /app/src/modules/pensions/PensionsModule.js:90
 #: /app/src/modules/pensions/PensionsModule.js:527
@@ -6915,25 +6927,25 @@ msgstr ""
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3478
 #: /app/templates/index.php:5531
 msgid "Jan"
-msgstr ""
+msgstr "Jan"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3479
 #: /app/templates/index.php:5532
 msgid "Feb"
-msgstr ""
+msgstr "Fev"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3480
 #: /app/templates/index.php:5533
 msgid "Mar"
-msgstr ""
+msgstr "Mar"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3481
 #: /app/templates/index.php:5534
 msgid "Apr"
-msgstr ""
+msgstr "Abr"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/modules/reports/ReportsModule.js:1769
@@ -6941,160 +6953,160 @@ msgstr ""
 #: /app/templates/index.php:3482 /app/templates/index.php:5535
 #: /app/templates/index.php:5561 /app/templates/index.php:5993
 msgid "May"
-msgstr ""
+msgstr "Mai"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3483
 #: /app/templates/index.php:5536
 msgid "Jun"
-msgstr ""
+msgstr "Jun"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3484
 #: /app/templates/index.php:5537
 msgid "Jul"
-msgstr ""
+msgstr "Jul"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3485
 #: /app/templates/index.php:5538
 msgid "Aug"
-msgstr ""
+msgstr "Ago"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3486
 #: /app/templates/index.php:5539
 msgid "Sep"
-msgstr ""
+msgstr "Set"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3487
 #: /app/templates/index.php:5540
 msgid "Oct"
-msgstr ""
+msgstr "Out"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3488
 #: /app/templates/index.php:5541
 msgid "Nov"
-msgstr ""
+msgstr "Nov"
 
 #: /app/src/modules/reports/ReportsModule.js:1669
 #: /app/src/utils/formatters.js:171 /app/templates/index.php:3489
 #: /app/templates/index.php:5542
 msgid "Dec"
-msgstr ""
+msgstr "Dez"
 
 #: /app/src/modules/reports/ReportsModule.js:1680
 msgid "Total Bills"
-msgstr ""
+msgstr "Total de Contas"
 
 #: /app/src/modules/reports/ReportsModule.js:1758
 msgid "Monthly Totals"
-msgstr ""
+msgstr "Totais Mensais"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3365
 #: /app/templates/index.php:5557 /app/templates/index.php:5989
 msgid "January"
-msgstr ""
+msgstr "Janeiro"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3366
 #: /app/templates/index.php:5558 /app/templates/index.php:5990
 msgid "February"
-msgstr ""
+msgstr "Fevereiro"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3367
 #: /app/templates/index.php:5559 /app/templates/index.php:5991
 msgid "March"
-msgstr ""
+msgstr "Março"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3368
 #: /app/templates/index.php:5560 /app/templates/index.php:5992
 msgid "April"
-msgstr ""
+msgstr "Abril"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3370
 #: /app/templates/index.php:5562 /app/templates/index.php:5994
 msgid "June"
-msgstr ""
+msgstr "Junho"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3371
 #: /app/templates/index.php:5563 /app/templates/index.php:5995
 msgid "July"
-msgstr ""
+msgstr "Julho"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3372
 #: /app/templates/index.php:5564 /app/templates/index.php:5996
 msgid "August"
-msgstr ""
+msgstr "Agosto"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3373
 #: /app/templates/index.php:5565 /app/templates/index.php:5997
 msgid "September"
-msgstr ""
+msgstr "Setembro"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3374
 #: /app/templates/index.php:5566 /app/templates/index.php:5998
 msgid "October"
-msgstr ""
+msgstr "Outubro"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3375
 #: /app/templates/index.php:5567 /app/templates/index.php:5999
 msgid "November"
-msgstr ""
+msgstr "Novembro"
 
 #: /app/src/modules/reports/ReportsModule.js:1769 /app/templates/index.php:3376
 #: /app/templates/index.php:5568 /app/templates/index.php:6000
 msgid "December"
-msgstr ""
+msgstr "Dezembro"
 
 #: /app/src/modules/reports/ReportsModule.js:1787
 #: /app/src/modules/reports/ReportsModule.js:1789
 msgid "%n bill"
 msgid_plural "%n bills"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n conta"
+msgstr[1] "%n contas"
 
 #: /app/src/modules/rules/RulesModule.js:89
 msgid "Failed to load rules"
-msgstr ""
+msgstr "Não foi possível carregar as regras"
 
 #: /app/src/modules/rules/RulesModule.js:120
 #: /app/src/modules/rules/RulesModule.js:190
 #: /app/src/modules/rules/components/CriteriaBuilder.js:145
 msgid "contains"
-msgstr ""
+msgstr "contém"
 
 #: /app/src/modules/rules/RulesModule.js:121
 #: /app/src/modules/rules/RulesModule.js:193
 #: /app/src/modules/rules/components/CriteriaBuilder.js:153
 msgid "equals"
-msgstr ""
+msgstr "é igual a"
 
 #: /app/src/modules/rules/RulesModule.js:122
 #: /app/src/modules/rules/RulesModule.js:191
 #: /app/src/modules/rules/components/CriteriaBuilder.js:146
 msgid "starts with"
-msgstr ""
+msgstr "começa com"
 
 #: /app/src/modules/rules/RulesModule.js:123
 #: /app/src/modules/rules/RulesModule.js:192
 #: /app/src/modules/rules/components/CriteriaBuilder.js:147
 msgid "ends with"
-msgstr ""
+msgstr "termina com"
 
 #: /app/src/modules/rules/RulesModule.js:124
 #: /app/src/modules/rules/RulesModule.js:194
 msgid "matches"
-msgstr ""
+msgstr "corresponde a"
 
 #: /app/src/modules/rules/RulesModule.js:134
 msgid "Click to disable"
-msgstr ""
+msgstr "Clique para desativar"
 
 #: /app/src/modules/rules/RulesModule.js:134
 msgid "Click to enable"
-msgstr ""
+msgstr "Clique para ativar"
 
 #: /app/src/modules/rules/RulesModule.js:143
 msgid "Run rule"
@@ -7102,65 +7114,65 @@ msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:144
 msgid "Edit rule"
-msgstr ""
+msgstr "Editar regra"
 
 #: /app/src/modules/rules/RulesModule.js:145
 msgid "Delete rule"
-msgstr ""
+msgstr "Apagar regra"
 
 #: /app/src/modules/rules/RulesModule.js:169
 #: /app/src/modules/rules/RulesModule.js:185
 msgid "Complex criteria"
-msgstr ""
+msgstr "Critérios avançados"
 
 #: /app/src/modules/rules/RulesModule.js:181 /app/templates/index.php:1363
 #: /app/templates/index.php:1516 /app/templates/index.php:1526
 #: /app/templates/index.php:2581 /app/templates/index.php:4579
 msgid "All"
-msgstr ""
+msgstr "Todos"
 
 #: /app/src/modules/rules/RulesModule.js:181
 msgid "Any"
-msgstr ""
+msgstr "Qualquer"
 
 #: /app/src/modules/rules/RulesModule.js:182
 msgid "{operator} of {count} conditions"
-msgstr ""
+msgstr "{operator} de {count} condições"
 
 #: /app/src/modules/rules/RulesModule.js:197
 #: /app/src/modules/rules/components/CriteriaBuilder.js:156
 msgid "between"
-msgstr ""
+msgstr "entre"
 
 #: /app/src/modules/rules/RulesModule.js:198
 #: /app/src/modules/rules/components/CriteriaBuilder.js:161
 msgid "before"
-msgstr ""
+msgstr "antes de"
 
 #: /app/src/modules/rules/RulesModule.js:199
 #: /app/src/modules/rules/components/CriteriaBuilder.js:162
 msgid "after"
-msgstr ""
+msgstr "depois de"
 
 #: /app/src/modules/rules/RulesModule.js:202
 #: /app/src/modules/rules/components/CriteriaBuilder.js:113
 msgid "NOT"
-msgstr ""
+msgstr "NÃO"
 
 #: /app/src/modules/rules/RulesModule.js:233
 #: /app/src/modules/rules/RulesModule.js:262
 msgid "Category #{id}"
-msgstr ""
+msgstr "Categoria #{id}"
 
 #: /app/src/modules/rules/RulesModule.js:238
 #: /app/src/modules/rules/RulesModule.js:268
 msgid "Vendor:"
-msgstr ""
+msgstr "Fornecedor:"
 
 #: /app/src/modules/rules/RulesModule.js:241
 #: /app/src/modules/rules/RulesModule.js:272
 msgid "Set notes"
-msgstr ""
+msgstr "Definir notas"
 
 #: /app/src/modules/rules/RulesModule.js:244
 msgid "Set tags"
@@ -7180,7 +7192,7 @@ msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:276
 msgid "No actions"
-msgstr ""
+msgstr "Nenhuma ação"
 
 #: /app/src/modules/rules/RulesModule.js:404
 #: /app/src/modules/rules/RulesModule.js:423
@@ -7210,30 +7222,30 @@ msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:676
 msgid "This rule has been upgraded to the new format with advanced features"
-msgstr ""
+msgstr "Esta regra foi atualizada para o novo formato com recursos avançados"
 
 #: /app/src/modules/rules/RulesModule.js:679
 msgid "Failed to upgrade rule format"
-msgstr ""
+msgstr "Não foi possível atualizar o formato da regra"
 
 #: /app/src/modules/rules/RulesModule.js:695
 msgid "Edit Rule"
-msgstr ""
+msgstr "Editar Regra"
 
 #: /app/src/modules/rules/RulesModule.js:723 /app/templates/index.php:2547
 msgid "Add Rule"
-msgstr ""
+msgstr "Adicionar Regra"
 
 #: /app/src/modules/rules/RulesModule.js:825
 #: /app/src/modules/rules/RulesModule.js:1154
 msgid "Error: CriteriaBuilder not initialized"
-msgstr ""
+msgstr "Erro: CriteriaBuilder não inicializado"
 
 #: /app/src/modules/rules/RulesModule.js:831
 #: /app/src/modules/rules/RulesModule.js:1019
 #: /app/src/modules/rules/RulesModule.js:1160
 msgid "Invalid criteria: {errors}"
-msgstr ""
+msgstr "Critérios inválidos: {errors}"
 
 #: /app/src/modules/rules/RulesModule.js:846
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:533
@@ -7246,121 +7258,121 @@ msgstr ""
 #: /app/templates/index.php:948 /app/templates/index.php:957
 #: /app/templates/index.php:966 /app/templates/index.php:5175
 msgid "Loading..."
-msgstr ""
+msgstr "A carregar..."
 
 #: /app/src/modules/rules/RulesModule.js:875
 msgid "Failed to preview rule: {error}"
-msgstr ""
+msgstr "Não foi possível visualizar a regra: {error}"
 
 #: /app/src/modules/rules/RulesModule.js:879 /app/templates/index.php:5837
 msgid "Preview Matches"
-msgstr ""
+msgstr "Pré-visualizar Correspondências"
 
 #: /app/src/modules/rules/RulesModule.js:899
 #: /app/src/modules/rules/RulesModule.js:1105 /app/templates/index.php:5810
 msgid "Current Category"
-msgstr ""
+msgstr "Categoria Atual"
 
 #: /app/src/modules/rules/RulesModule.js:917
 msgid "No matching transactions found"
-msgstr ""
+msgstr "Nenhuma transação correspondente encontrada"
 
 #: /app/src/modules/rules/RulesModule.js:947 /app/templates/quick-add.php:146
 msgid "Saving..."
-msgstr ""
+msgstr "A gravar..."
 
 #: /app/src/modules/rules/RulesModule.js:955
 msgid "Failed to save rule"
-msgstr ""
+msgstr "Não foi possível gravar a regra"
 
 #: /app/src/modules/rules/RulesModule.js:959
 #: /app/src/modules/rules/RulesModule.js:1323
 msgid "Running..."
-msgstr ""
+msgstr "A executar..."
 
 #: /app/src/modules/rules/RulesModule.js:983
 #: /app/src/modules/rules/RulesModule.js:1348
 msgid "Rule applied: %n transaction updated"
 msgid_plural "Rule applied: %n transactions updated"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Regra aplicada: %n transação atualizada"
+msgstr[1] "Regra aplicada: %n transações atualizadas"
 
 #: /app/src/modules/rules/RulesModule.js:989
 #: /app/src/modules/rules/RulesModule.js:1117
 #: /app/src/modules/rules/RulesModule.js:1353
 #: /app/src/modules/rules/RulesModule.js:1402
 msgid "No transactions were updated"
-msgstr ""
+msgstr "Nenhuma transação foi atualizada"
 
 #: /app/src/modules/rules/RulesModule.js:994
 #: /app/src/modules/rules/RulesModule.js:1357
 msgid "Failed to run rule: {error}"
-msgstr ""
+msgstr "Não foi possível executar a regra: {error}"
 
 #: /app/src/modules/rules/RulesModule.js:997 /app/templates/index.php:5838
 msgid "Run Rule Now"
-msgstr ""
+msgstr "Executar Regra Agora"
 
 #: /app/src/modules/rules/RulesModule.js:1014
 msgid "CriteriaBuilder not initialized"
-msgstr ""
+msgstr "CriteriaBuilder não inicializado"
 
 #: /app/src/modules/rules/RulesModule.js:1026
 msgid "ActionBuilder not initialized"
-msgstr ""
+msgstr "ActionBuilder não inicializado"
 
 #: /app/src/modules/rules/RulesModule.js:1031
 #: /app/src/modules/rules/RulesModule.js:1174
 msgid "Invalid actions: {errors}"
-msgstr ""
+msgstr "Ações inválidas: {errors}"
 
 #: /app/src/modules/rules/RulesModule.js:1110
 msgid "{count} updated"
-msgstr ""
+msgstr "{count} atualizado(s)"
 
 #: /app/src/modules/rules/RulesModule.js:1168
 msgid "Error: ActionBuilder not initialized"
-msgstr ""
+msgstr "Erro: ActionBuilder não inicializado"
 
 #: /app/src/modules/rules/RulesModule.js:1211
 msgid "Rule updated successfully"
-msgstr ""
+msgstr "Regra atualizada com sucesso"
 
 #: /app/src/modules/rules/RulesModule.js:1211
 msgid "Rule created successfully"
-msgstr ""
+msgstr "Regra criada com sucesso"
 
 #: /app/src/modules/rules/RulesModule.js:1216
 msgid "Failed to save rule: {error}"
-msgstr ""
+msgstr "Não foi possível gravar a regra: {error}"
 
 #: /app/src/modules/rules/RulesModule.js:1232
 msgid "Failed to load rule"
-msgstr ""
+msgstr "Não foi possível carregar a regra"
 
 #: /app/src/modules/rules/RulesModule.js:1237
 msgid "Are you sure you want to delete this rule?"
-msgstr ""
+msgstr "Tem certeza que deseja apagar esta regra?"
 
 #: /app/src/modules/rules/RulesModule.js:1247
 msgid "Rule deleted successfully"
-msgstr ""
+msgstr "Regra apagada com sucesso"
 
 #: /app/src/modules/rules/RulesModule.js:1251
 msgid "Failed to delete rule"
-msgstr ""
+msgstr "Não foi possível apagar a regra"
 
 #: /app/src/modules/rules/RulesModule.js:1287
 msgid "Rule enabled"
-msgstr ""
+msgstr "Regra ativada"
 
 #: /app/src/modules/rules/RulesModule.js:1287
 msgid "Rule disabled"
-msgstr ""
+msgstr "Regra desativada"
 
 #: /app/src/modules/rules/RulesModule.js:1290
 msgid "Failed to update rule: {error}"
-msgstr ""
+msgstr "Não foi possível atualizar a regra: {error}"
 
 #: /app/src/modules/rules/RulesModule.js:1307
 msgid "Run rule \"{name}\" on matching transactions?"
@@ -7393,27 +7405,31 @@ msgid ""
 "Apply rules to matching transactions? This will modify the selected "
 "transactions."
 msgstr ""
+"Aplicar regras às transações correspondentes? Isto irá modificar as "
+"transações selecionadas."
 
 #: /app/src/modules/rules/RulesModule.js:1477
 msgid "Applying..."
-msgstr ""
+msgstr "A aplicar..."
 
 #: /app/src/modules/rules/RulesModule.js:1503
 msgid "Rules applied: {success} updated, {skipped} skipped, {failed} failed"
 msgstr ""
+"Regras aplicadas: {success} atualizado(s), {skipped} ignorado(s), {failed} "
+"falharam"
 
 #: /app/src/modules/rules/RulesModule.js:1512
 msgid "Failed to apply rules"
-msgstr ""
+msgstr "Não foi possível aplicar as regras"
 
 #: /app/src/modules/rules/RulesModule.js:1515 /app/templates/index.php:2543
 #: /app/templates/index.php:5906
 msgid "Apply Rules"
-msgstr ""
+msgstr "Aplicar Regras"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:88
 msgid "+ Add Action"
-msgstr ""
+msgstr "+ Adicionar Ação"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:89
 #: /app/src/modules/rules/components/ActionBuilder.js:121
@@ -7554,7 +7570,7 @@ msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:246
 msgid "No tag sets available"
-msgstr ""
+msgstr "Nenhuma coleção de etiquetas disponível"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:264
 msgid "Merge with existing tags"
@@ -7566,7 +7582,7 @@ msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:275
 msgid "Account:"
-msgstr ""
+msgstr "Conta financeira:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:277
 msgid "-- Select Account --"
@@ -8016,6 +8032,8 @@ msgid ""
 "Are you sure you want to delete this contact? This will also remove all "
 "shared expense records with them."
 msgstr ""
+"Tem certeza que deseja apagar este contacto? Isto também removerá todos os "
+"registos de despesas partilhadas com ele."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:388
 msgid "Contact deleted"
@@ -8028,7 +8046,7 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:468
 #: /app/templates/index.php:6550
 msgid "No shared expenses"
-msgstr ""
+msgstr "Nenhuma despesa partilhada"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 msgid "Open"
@@ -8037,7 +8055,7 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:493
 #: /app/templates/index.php:6556
 msgid "No settlements yet"
-msgstr ""
+msgstr "Sem quitações registadas"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:546
 msgid "No unsettled expenses"
@@ -8059,14 +8077,16 @@ msgstr ""
 msgid ""
 "This will mark all shared expenses with this contact as settled. Continue?"
 msgstr ""
+"Isto marcará todas as despesas partilhadas com este contacto como quitadas. "
+"Deseja continuar?"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:664
 msgid "All expenses settled"
-msgstr ""
+msgstr "Todas as despesas quitadas"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:686
 msgid "Please add contacts first in Shared Expenses"
-msgstr ""
+msgstr "Por favor, adicione contactos primeiro em Despesas Partilhadas"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:701
 #: /app/templates/index.php:6446
@@ -8083,7 +8103,7 @@ msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:756
 msgid "Expense shared"
-msgstr ""
+msgstr "Despesa partilhada"
 
 #: /app/src/modules/sharing/SharingModule.js:48
 msgid "Failed to load sharing data"
@@ -8302,22 +8322,24 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:374
 msgid "Save category first to manage tag sets"
-msgstr ""
+msgstr "Grave a categoria primeiro para gerir as coleções de etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:383 /app/templates/index.php:1917
 msgid "Tag Sets"
-msgstr ""
+msgstr "Coleções de Etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:385 /app/templates/index.php:6116
 #: /app/templates/index.php:6129
 msgid "Add Tag Set"
-msgstr ""
+msgstr "Adicionar Coleção de Etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:391
 msgid ""
 "No tag sets yet. Add your first tag set to enable multi-dimensional "
 "categorization."
 msgstr ""
+"Nenhuma coleção de etiquetas cadastrada. Adicione a sua primeira coleção de "
+"etiquetas para ativar a categorização multidimensional."
 
 #: /app/src/modules/tagsets/TagSetsModule.js:402
 msgid "Add tag"
@@ -8325,7 +8347,7 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:405
 msgid "Delete tag set"
-msgstr ""
+msgstr "Apagar coleção de etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:415
 #: /app/src/modules/tagsets/TagSetsModule.js:769
@@ -8335,12 +8357,13 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:438
 msgid "Enter tag set name (e.g., \"Priority\", \"Status\"):"
 msgstr ""
+"Digite o nome da coleção de etiquetas (ex.: \"Prioridade\", \"Estado\"):"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:446
 #: /app/src/modules/tagsets/TagSetsModule.js:907
 #: /app/src/modules/tagsets/TagSetsModule.js:984
 msgid "A tag set named \"{name}\" already exists in this category"
-msgstr ""
+msgstr "Já existe uma coleção de etiquetas chamada \"{name}\" nesta categoria"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:450
 msgid "Enter description (optional):"
@@ -8349,17 +8372,19 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:455
 #: /app/src/modules/tagsets/TagSetsModule.js:915
 msgid "Tag set created successfully"
-msgstr ""
+msgstr "Coleção de etiquetas criada com sucesso"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:467
 msgid ""
 "Delete this tag set? All associated tags will be removed from transactions."
 msgstr ""
+"Apagar esta coleção de etiquetas? Todas as etiquetas associadas serão "
+"removidas das transações."
 
 #: /app/src/modules/tagsets/TagSetsModule.js:472
 #: /app/src/modules/tagsets/TagSetsModule.js:849
 msgid "Tag set deleted"
-msgstr ""
+msgstr "Coleção de etiquetas apagada"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:484
 msgid "Enter tag name:"
@@ -8369,7 +8394,7 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:1127
 #: /app/src/modules/tagsets/TagSetsModule.js:1209
 msgid "A tag named \"{name}\" already exists in this tag set"
-msgstr ""
+msgstr "Já existe uma etiqueta chamada \"{name}\" nesta coleção de etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:499
 msgid "Enter color (e.g., #FF5733):"
@@ -8382,11 +8407,11 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:728
 msgid "Select a category to manage tag sets"
-msgstr ""
+msgstr "Selecione uma categoria para gerir as coleções de etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:738 /app/templates/index.php:1924
 msgid "No tag sets yet."
-msgstr ""
+msgstr "Ainda não há coleções de etiquetas cadastradas."
 
 #: /app/src/modules/tagsets/TagSetsModule.js:770
 msgid "Delete tag"
@@ -8394,15 +8419,15 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:780 /app/templates/index.php:6191
 msgid "Edit Tag Set"
-msgstr ""
+msgstr "Editar Coleção de Etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:783
 msgid "Delete Tag Set"
-msgstr ""
+msgstr "Apagar Coleção de Etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:801
 msgid "Failed to load tag sets"
-msgstr ""
+msgstr "Não foi possível carregar as coleções de etiquetas"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:845
 msgid "Delete this tag set? All tags in this set will be removed."
@@ -9301,7 +9326,7 @@ msgstr ""
 
 #: /app/src/utils/formatters.js:197 /app/templates/index.php:5328
 msgid "Mortgage"
-msgstr ""
+msgstr "Hipoteca"
 
 #: /app/src/utils/validators.js:25
 msgid "This field is required"
@@ -9868,7 +9893,7 @@ msgstr ""
 
 #: /app/templates/index.php:1868
 msgid "Trend"
-msgstr ""
+msgstr "Tendência"
 
 #: /app/templates/index.php:1883
 msgid "Monthly Spending"
@@ -12166,7 +12191,7 @@ msgstr ""
 
 #: /app/templates/index.php:5523
 msgid "Custom"
-msgstr ""
+msgstr "Personalizado"
 
 #: /app/templates/index.php:5525
 msgid "How often this bill is due"
@@ -12787,11 +12812,11 @@ msgstr ""
 
 #: /app/templates/index.php:6433 /app/templates/index.php:6470
 msgid "Share Expense"
-msgstr ""
+msgstr "Partilhar Despesa"
 
 #: /app/templates/index.php:6434
 msgid "Share expense form"
-msgstr ""
+msgstr "Formulário de partilhamento de despesa"
 
 #: /app/templates/index.php:6444
 msgid "Split with"
@@ -12827,7 +12852,7 @@ msgstr ""
 
 #: /app/templates/index.php:6481
 msgid "Settlement form"
-msgstr ""
+msgstr "Formulário de quitação"
 
 #: /app/templates/index.php:6490
 msgid "Select expenses to settle"
@@ -12851,7 +12876,7 @@ msgstr ""
 
 #: /app/templates/index.php:6539
 msgid "Settle All"
-msgstr ""
+msgstr "Quitar Tudo"
 
 #: /app/templates/index.php:6540
 msgid "Record Payment"
@@ -12859,7 +12884,7 @@ msgstr ""
 
 #: /app/templates/index.php:6545
 msgid "Settlement History"
-msgstr ""
+msgstr "Histórico de Quitação"
 
 #: /app/templates/index.php:6571
 msgid "Confirm Factory Reset"
@@ -12899,7 +12924,7 @@ msgstr ""
 
 #: /app/templates/index.php:6584
 msgid "All shared expenses and contacts"
-msgstr ""
+msgstr "Todos os contactos e despesas partilhadas"
 
 #: /app/templates/index.php:6586
 msgid "Only audit logs will be preserved for compliance purposes."
@@ -12919,7 +12944,7 @@ msgstr ""
 
 #: /app/templates/index.php:6600
 msgid "You must type DELETE (all caps) exactly to proceed"
-msgstr ""
+msgstr "Digite DELETE (em maiúsculas) exatamente para prosseguir"
 
 #: /app/templates/index.php:6629 /app/templates/index.php:6633
 msgid "Add Bank Connection"
