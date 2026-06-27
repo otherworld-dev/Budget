@@ -8,20 +8,14 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.30
+## What's New in v2.36
 
-The Budgeting Depth release — the workflows that make a money app a daily driver:
+- **Auto-share new entities** - A per-person "Auto-share new" toggle for each entity type (accounts, categories, bills, recurring income, savings goals): switch it on and anything you create from then on is shared automatically, at the permission you choose ([#306](https://github.com/otherworld-dev/Budget/issues/306))
+- **Pensions, revamped** - Fund contributions straight from a bank account (kept out of your spending), record withdrawals, schedule recurring contributions, and project growth toward a configurable target — in nominal or inflation-adjusted "today's money"
+- **Consistent "Exclude from reports"** - Excluded accounts and categories are now respected across every report and dashboard tile, and selecting a single excluded account in a report shows its data again
+- Plus code-integrity, notification and reporting fixes — see the [full changelog](budget/CHANGELOG.md)
 
-- **Envelope (Rollover) Budgets** - Unspent budget carries into next month, overspend carries as a deficit — per-category toggle, always derived from your real spending ([docs](docs/envelope-budgets.md))
-- **Statement Reconciliation** - A real statement workflow: enter the ending balance, tick transactions off, watch the difference hit zero live; resumable sessions and per-account history ([docs](docs/reconciliation.md))
-- **Proactive Bill Suggestions** - The Bills view spots recurring payments you aren't tracking and offers one-click bill creation (dismissals remembered)
-- **Budget Digest** - Opt-in weekly/monthly summary as a notification and optional themed email
-- **Unusual Spending Alerts** - "Groceries is 45% above your typical level" — median-based, noise-guarded, once per category per month
-- **Scheduled PDF Reports** - The previous month's report auto-saved to your Files and/or emailed
-
-Highlights from v2.29: [Nextcloud integration pack](docs/nextcloud-integration.md) — dashboard widgets, unified search, bills calendar feed, receipt attachments.
-
-See the [full changelog](budget/CHANGELOG.md) for details.
+Earlier highlights: envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](docs/nextcloud-integration.md) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
 
 ## Documentation
 
@@ -118,9 +112,12 @@ Popular topics:
   - Dashboard widgets: chart sparkline, progress countdown, days until debt free
 - **Savings Goals** - Set financial targets with progress tracking and achievement forecasting
   - Link goals to tags for automatic amount calculation from tagged transactions
-- **Pension Tracker** - Track retirement accounts with growth projections and combined forecasts
+- **Pension Tracker** - Track retirement accounts with contributions funded from a bank account, withdrawals, scheduled recurring contributions, and growth projections (nominal or inflation-adjusted "today's money") toward a configurable target, with combined forecasts
 
 ### Sharing & Collaboration
+- **Budget Sharing** - Share accounts, categories, bills, recurring income and savings goals with other Nextcloud users, at read or read-write permission, configured per person
+  - **Auto-share new entities** - Opt in per person and per type so anything you create later is shared automatically, at the permission you set
+  - Recipients accept or decline; revoke or leave a share at any time
 - **Shared Expenses** - Share expenses with roommates, partners, or friends and track who owes whom
   - Settlement tracking with payment history
   - Contact integration with Nextcloud
