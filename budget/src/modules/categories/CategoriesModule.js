@@ -87,8 +87,9 @@ export default class CategoriesModule {
                 this.app.categoryTree = mergedTree;
                 this.app.allCategories = this.flattenCategories(mergedTree);
                 this.app.categories = this.app.allCategories;
-                // For the management view, show only own categories
-                this.managementTree = fullTree.filter(cat => !cat._shared);
+                // Management view: own categories (editable) plus shared categories
+                // that don't duplicate an own name+type, shown read-only (#306).
+                this.managementTree = this.buildManagementTree(fullTree);
             }
             if (countsResponse.ok) {
                 this.serverTransactionCounts = await countsResponse.json();
@@ -223,9 +224,10 @@ export default class CategoriesModule {
         this.setupCategoryItemListeners();
         this.setupDragAndDrop();
 
-        // Auto-select first category if none is selected
-        if (!this.selectedCategory && typedCategories.length > 0) {
-            this.selectCategory(typedCategories[0].id);
+        // Auto-select the first OWN category (shared ones are read-only references)
+        const firstOwn = typedCategories.find(cat => !cat._shared);
+        if (!this.selectedCategory && firstOwn) {
+            this.selectCategory(firstOwn.id);
         }
     }
 
@@ -243,16 +245,19 @@ export default class CategoriesModule {
 
             // Use pre-computed count map for O(1) lookup
             const transactionCount = countMap[category.id] || 0;
+            const shared = !!category._shared;
+            const sharedOwner = category._sharedByName || category._sharedBy || '';
 
             return `
                 <div class="category-node" data-level="${level}">
-                    <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''}"
+                    <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared ? 'category-shared' : ''}"
                          data-category-id="${category.id}"
-                         draggable="true">
-                        <input type="checkbox"
+                         ${shared ? 'data-shared="1"' : ''}
+                         draggable="${shared ? 'false' : 'true'}">
+                        ${shared ? '' : `<input type="checkbox"
                                class="category-checkbox"
                                data-category-id="${category.id}"
-                               ${isChecked ? 'checked' : ''}>
+                               ${isChecked ? 'checked' : ''}>`}
                         ${hasChildren ? `
                             <button class="category-toggle ${isExpanded ? 'expanded' : ''}"
                                     data-category-id="${category.id}">
@@ -267,15 +272,16 @@ export default class CategoriesModule {
                         <div class="category-content">
                             <span class="category-name">${category.name}</span>
                             <div class="category-meta">
+                                ${shared ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwner}</span>` : ''}
                                 ${transactionCount > 0 ? `<span class="transaction-count">${transactionCount}</span>` : ''}
                             </div>
                         </div>
 
-                        <button class="category-delete-btn"
+                        ${shared ? '' : `<button class="category-delete-btn"
                                 data-category-id="${category.id}"
                                 title="${t('budget', 'Delete {name}', { name: category.name })}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
 
                     ${hasChildren ? `
@@ -305,6 +311,8 @@ export default class CategoriesModule {
                 if (e.target.closest('.category-toggle')) return;
                 if (e.target.closest('.category-checkbox')) return;
                 if (e.target.closest('.category-delete-btn')) return;
+                // Shared categories are read-only references — no edit panel.
+                if (item.dataset.shared === '1') return;
 
                 const categoryId = parseInt(item.dataset.categoryId);
                 this.selectCategory(categoryId);
@@ -2082,6 +2090,22 @@ export default class CategoriesModule {
             }
         });
         return result;
+    }
+
+    /**
+     * Build the Categories management tree: the user's own categories (editable)
+     * plus any shared categories whose name+type doesn't duplicate an own one,
+     * kept read-only. Unlike mergeCategoryTree this gives OWN priority, so a
+     * user's own editable category is never hidden behind a same-named shared
+     * one. Recipients with no own categories see the full shared tree (#306).
+     */
+    buildManagementTree(tree) {
+        const own = tree.filter(cat => !cat._shared);
+        const shared = tree.filter(cat => cat._shared);
+        if (shared.length === 0) return own;
+        const ownKeys = new Set(own.map(c => `${c.name}|${c.type}`));
+        const sharedToShow = shared.filter(c => !ownKeys.has(`${c.name}|${c.type}`));
+        return [...own, ...sharedToShow];
     }
 
     /**

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- The **Categories** page now also lists categories that have been shared with you, shown read-only with a **"Shared · &lt;owner&gt;"** badge. Previously it showed only your own categories, so anyone using a budget made up entirely of shared categories saw an empty page even though the categories worked everywhere else ([#306](https://github.com/otherworld-dev/Budget/issues/306))
+
 ## [2.36.0] - 2026-06-27
 
 ### Added

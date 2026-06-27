@@ -5403,6 +5403,26 @@ button.danger:hover {
     background: var(--color-primary-element-light);
 }
 
+/* Read-only categories shared in from another user (#306) */
+.category-item.category-shared {
+    cursor: default;
+}
+.category-item.category-shared .category-name {
+    color: var(--color-text-maxcontrast);
+}
+.category-shared-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: 9px;
+    background: var(--color-background-dark);
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+}
+
 .category-checkbox {
     margin-right: 8px;
     width: 16px;

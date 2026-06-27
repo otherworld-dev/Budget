@@ -15,6 +15,7 @@ use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Exception\ReadOnlyShareException;
 use OCP\IL10N;
+use OCP\IUserManager;
 
 /**
  * Central service for granular per-entity sharing.
@@ -31,6 +32,7 @@ class GranularShareService {
     private RecurringIncomeMapper $recurringIncomeMapper;
     private SavingsGoalMapper $savingsGoalMapper;
     private IL10N $l;
+    private ?IUserManager $userManager;
 
     /** @var array<string, mixed> Per-request cache */
     private array $cache = [];
@@ -43,7 +45,8 @@ class GranularShareService {
         CategoryMapper $categoryMapper,
         RecurringIncomeMapper $recurringIncomeMapper,
         SavingsGoalMapper $savingsGoalMapper,
-        IL10N $l
+        IL10N $l,
+        ?IUserManager $userManager = null
     ) {
         $this->shareMapper = $shareMapper;
         $this->shareItemMapper = $shareItemMapper;
@@ -53,6 +56,27 @@ class GranularShareService {
         $this->recurringIncomeMapper = $recurringIncomeMapper;
         $this->savingsGoalMapper = $savingsGoalMapper;
         $this->l = $l;
+        $this->userManager = $userManager;
+    }
+
+    /**
+     * Resolve a user ID to a display name (per-request cached). Falls back to the
+     * raw uid if the user can't be resolved — used to label shared entities by owner.
+     */
+    private function displayNameFor(string $uid): string {
+        $key = "displayname:{$uid}";
+        if (isset($this->cache[$key])) {
+            return $this->cache[$key];
+        }
+        $name = $uid;
+        if ($this->userManager !== null) {
+            $user = $this->userManager->get($uid);
+            if ($user !== null) {
+                $name = $user->getDisplayName();
+            }
+        }
+        $this->cache[$key] = $name;
+        return $name;
     }
 
     // ==========================================
@@ -292,7 +316,11 @@ class GranularShareService {
         $ids = $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
         if (empty($ids)) return [];
         $categories = $this->categoryMapper->findByIdsUnscoped($ids);
-        return array_map(fn($c) => array_merge($c->jsonSerialize(), ['_shared' => true]), array_values($categories));
+        return array_map(fn($c) => array_merge($c->jsonSerialize(), [
+            '_shared' => true,
+            '_sharedBy' => $c->getUserId(),
+            '_sharedByName' => $this->displayNameFor($c->getUserId()),
+        ]), array_values($categories));
     }
 
     /**
