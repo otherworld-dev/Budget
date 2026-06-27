@@ -5423,6 +5423,16 @@ button.danger:hover {
     white-space: nowrap;
 }
 
+/* Write-shared categories (#306 phase 2): editable by the recipient, so they
+   stay clickable and carry a distinct badge tint from read-only shares. */
+.category-item.category-write-shared {
+    cursor: pointer;
+}
+.category-shared-badge.write-shared {
+    background: var(--color-primary-element-light, var(--color-primary-light, #d8eaff));
+    color: var(--color-primary-element-light-text, var(--color-main-text));
+}
+
 .category-checkbox {
     margin-right: 8px;
     width: 16px;

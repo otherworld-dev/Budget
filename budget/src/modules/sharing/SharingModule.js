@@ -306,7 +306,9 @@ export default class SharingModule {
         panel.querySelectorAll('.btn-select-all').forEach(btn => {
             btn.addEventListener('click', () => {
                 const type = btn.dataset.type;
-                const checkboxes = panel.querySelectorAll(`input[data-type="${type}"]`);
+                // Only entity checkboxes carry data-entity-id; this excludes the
+                // "Auto-share new" toggle, which shares data-type with them.
+                const checkboxes = panel.querySelectorAll(`input[data-type="${type}"][data-entity-id]`);
                 const allChecked = Array.from(checkboxes).every(cb => cb.checked);
                 checkboxes.forEach(cb => cb.checked = !allChecked);
                 btn.textContent = allChecked ? t('budget', 'Select All') : t('budget', 'Deselect All');
@@ -328,8 +330,12 @@ export default class SharingModule {
             const permSelect = section.querySelector('.share-config-permission');
             const permission = permSelect ? permSelect.value : 'read';
 
-            const checkboxes = section.querySelectorAll(`input[data-type="${type}"]:checked`);
-            const entityIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.entityId));
+            // Require data-entity-id so the "Auto-share new" toggle (same
+            // data-type, no entity id) is never collected as a phantom entity.
+            const checkboxes = section.querySelectorAll(`input[data-type="${type}"][data-entity-id]:checked`);
+            const entityIds = Array.from(checkboxes)
+                .map(cb => parseInt(cb.dataset.entityId, 10))
+                .filter(id => Number.isInteger(id));
 
             try {
                 await this.fetchApi(`/apps/budget/api/shares/${shareId}/items/${type}`, {

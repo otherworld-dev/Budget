@@ -159,12 +159,12 @@ class ForecastController extends Controller {
      * @NoAdminRequired
      * Get live forecast data for dashboard
      */
-    public function live(int $forecastMonths = 6): DataResponse {
+    public function live(int $forecastMonths = 6, ?bool $excludeShared = null): DataResponse {
         try {
             $forecast = $this->service->getLiveForecast(
                 $this->getEffectiveUserId(),
                 $forecastMonths,
-                $this->getVisibleAccountIds()
+                $this->getEffectiveAccountIds((bool)$excludeShared)
             );
             return new DataResponse($forecast);
         } catch (\Exception $e) {

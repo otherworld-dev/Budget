@@ -76,7 +76,8 @@ class TransactionController extends Controller {
         ?string $direction = 'desc',
         ?string $status = null,
         ?array $tagIds = null,
-        ?bool $reconciled = null
+        ?bool $reconciled = null,
+        ?bool $excludeShared = null
     ): DataResponse {
         try {
             $offset = ($page - 1) * $limit;
@@ -99,7 +100,7 @@ class TransactionController extends Controller {
                 'reconciled' => $reconciled,
             ];
 
-            $visibleAccountIds = $this->getVisibleAccountIds();
+            $visibleAccountIds = $this->getEffectiveAccountIds((bool)$excludeShared);
             $result = $this->service->findWithFilters($this->userId, $filters, $limit, $offset, $visibleAccountIds);
 
             $responseData = [

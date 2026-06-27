@@ -8,6 +8,12 @@ The Reports section offers different perspectives on your finances. Each report 
 
 Navigate to **Reports** and select the report type you want to generate.
 
+### Account Scope
+
+Use the **Account** selector to limit a report to specific accounts. If other people have [shared accounts](sharing.md) with you, an **"Exclude shared accounts"** toggle also appears — turn it on to base the report on **your own accounts only**, leaving out accounts shared to you. It's off by default (shared accounts are included), and only shows up when you actually have shared accounts. The same option is available per-card on the account-based dashboard tiles, via each tile's gear menu.
+
+> **Note:** A transfer between one of your own accounts and a shared account can only be partly seen when shared accounts are excluded, so income/expense totals may be slightly overstated in that case.
+
 ## Budget Report
 
 The Budget Report compares your planned budget against actual spending by category over a selected date range.

@@ -38,6 +38,20 @@ trait SharedAccessTrait {
     }
 
     /**
+     * Account-id scope for reports/dashboard aggregates. When $excludeShared is
+     * true, scope to the user's OWN accounts only (drop accounts shared to them);
+     * otherwise own + shared. Lets a report/tile opt out of shared-account data
+     * without any SQL-layer change — the choke points just receive a narrower set.
+     *
+     * @return int[]
+     */
+    protected function getEffectiveAccountIds(bool $excludeShared = false): array {
+        return $excludeShared
+            ? $this->granularShareService->getOwnAccountIds($this->userId)
+            : $this->granularShareService->getVisibleAccountIds($this->userId);
+    }
+
+    /**
      * Resolve a report's account scope from a legacy single accountId and an
      * optional multi-select accountIds array (#299). Returns
      * [effectiveAccountId, visibleAccountIds] to pass to a report service:
@@ -46,11 +60,14 @@ trait SharedAccessTrait {
      *  - single accountId: unchanged.
      *  - neither: all visible accounts.
      *
+     * When $excludeShared is true the "visible" baseline is the user's own
+     * accounts only, so a multi-select is also intersected against own accounts.
+     *
      * @param int[]|null $accountIds
      * @return array{0: ?int, 1: int[]}
      */
-    protected function resolveAccountScope(?int $accountId, ?array $accountIds): array {
-        $visible = $this->getVisibleAccountIds();
+    protected function resolveAccountScope(?int $accountId, ?array $accountIds, bool $excludeShared = false): array {
+        $visible = $this->getEffectiveAccountIds($excludeShared);
         if (!empty($accountIds)) {
             $selected = array_values(array_intersect(
                 array_map('intval', $accountIds),
@@ -59,6 +76,12 @@ trait SharedAccessTrait {
             // Fall back to all visible accounts if the selection resolves to
             // nothing accessible, rather than scoping to an empty set.
             return [null, $selected !== [] ? $selected : $visible];
+        }
+        // A single accountId outside the effective baseline (e.g. a shared account
+        // while excludeShared is on, or one no longer accessible) is dropped so the
+        // report falls back to the visible set instead of an empty/erroring scope.
+        if ($accountId !== null && !in_array($accountId, $visible, true)) {
+            $accountId = null;
         }
         return [$accountId, $visible];
     }

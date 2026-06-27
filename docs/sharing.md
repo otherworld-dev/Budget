@@ -32,6 +32,15 @@ When you share your budget with another user, they receive access according to d
 
 > **Tip:** Start with **View** access and increase permissions as needed. You can always change the permission level later.
 
+## Shared Categories
+
+Categories shared with you appear on your **Categories** page alongside your own, each marked with a badge naming the owner:
+
+- **"Shared · &lt;owner&gt;"** — read-only. You can still use the category to classify transactions, but you cannot change the category itself.
+- **"Shared (editable) · &lt;owner&gt;"** — shared with **Edit** permission. You can **rename** it and change its **colour** directly from the Categories page.
+
+Even with Edit permission, some aspects of a category stay with its owner: the **type** (income or expense), the **parent** category, the **budget**, whether it is **excluded from reports**, and **deleting** it. These change how the owner's budget and reports are calculated, so they remain owner-controlled.
+
 ## Managing Shares
 
 To view and manage your active shares:

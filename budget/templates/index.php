@@ -3118,6 +3118,13 @@ style('budget', 'budget-app');
                     </div>
                 </div>
 
+                <div class="control-group" id="report-exclude-shared-wrap" style="display: none;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="report-exclude-shared">
+                        <span><?php p($l->t('Exclude shared accounts')); ?></span>
+                    </label>
+                </div>
+
                 <div class="control-group">
                     <label for="report-tags-input"><?php p($l->t('Filter by Tags')); ?></label>
                     <div id="report-tags-filter" class="tags-autocomplete">

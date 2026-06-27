@@ -14,6 +14,7 @@ export default class ReportsModule {
         this.reportCharts = {};
         this.reportEventListenersSetup = false;
         this.yoyControlsSetup = false;
+        this._yoyGenerated = false;
     }
 
     // Getters for app state
@@ -99,6 +100,16 @@ export default class ReportsModule {
             });
         }
 
+        // "Exclude shared accounts" toggle — shown only when the user has shared
+        // accounts (see syncExcludeSharedToggle); drives the whole reports page.
+        const exclShared = document.getElementById('report-exclude-shared');
+        if (exclShared) {
+            exclShared.addEventListener('change', (e) => {
+                this.excludeShared = e.target.checked;
+                this.generateReport();
+            });
+        }
+
         // Initialize charts object for reports
         this.reportCharts = {};
     }
@@ -171,11 +182,13 @@ export default class ReportsModule {
     /** Append the selected account IDs to a URLSearchParams as accountIds[]. */
     appendAccountIds(params) {
         this.getSelectedReportAccountIds().forEach(id => params.append('accountIds[]', id));
+        if (this.excludeShared) params.append('excludeShared', '1');
     }
 
     /** Build a query-string fragment (&accountIds[]=...) for the selected accounts. */
     accountIdsQuery() {
-        return this.getSelectedReportAccountIds().map(id => `&accountIds[]=${id}`).join('');
+        const ids = this.getSelectedReportAccountIds().map(id => `&accountIds[]=${id}`).join('');
+        return ids + (this.excludeShared ? '&excludeShared=1' : '');
     }
 
     setupReportAccountMultiselect() {
@@ -244,6 +257,20 @@ export default class ReportsModule {
         const allCb = document.getElementById('report-account-all');
         if (allCb) allCb.checked = this.selectedReportAccounts.size === 0;
         this.updateReportAccountSummary();
+        this.syncExcludeSharedToggle();
+    }
+
+    /**
+     * Show the "Exclude shared accounts" toggle only when the user actually has
+     * shared accounts, and keep the checkbox in step with this.excludeShared.
+     */
+    syncExcludeSharedToggle() {
+        const hasShared = Array.isArray(this.accounts) && this.accounts.some(a => a._shared);
+        this.excludeShared = hasShared ? !!this.excludeShared : false;
+        const wrap = document.getElementById('report-exclude-shared-wrap');
+        if (wrap) wrap.style.display = hasShared ? '' : 'none';
+        const cb = document.getElementById('report-exclude-shared');
+        if (cb) cb.checked = this.excludeShared;
     }
 
     onReportAccountToggle(cb, accountId) {
@@ -334,6 +361,7 @@ export default class ReportsModule {
             yoyYears: document.getElementById('yoy-years')?.value || '3',
             yoyMonth: document.getElementById('yoy-month')?.value || '',
             categoryMonthlySort: this.categoryMonthlySort || 'alpha',
+            excludeShared: !!this.excludeShared,
         };
         if (preset === 'custom') {
             config.startDate = document.getElementById('report-start-date')?.value || '';
@@ -348,7 +376,10 @@ export default class ReportsModule {
         const setVal = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
 
         setVal('report-type', config.reportType);
-        document.getElementById('report-type')?.dispatchEvent(new Event('change'));
+        // NB: don't dispatch a synthetic 'change' here — its only listener is
+        // generateReport(), which would fire with stale scope before excludeShared
+        // and account selection are restored below. The generateReport() at the end
+        // regenerates once all state is in place.
 
         const preset = config.periodPreset || 'last-3-months';
         setVal('report-period-preset', preset);
@@ -364,6 +395,7 @@ export default class ReportsModule {
 
         // Restore account selection (then re-render the checklist)
         this.selectedReportAccounts = new Set(Array.isArray(config.accountIds) ? config.accountIds : []);
+        this.excludeShared = !!config.excludeShared; // checkbox synced by populateReportAccountDropdown
         this.populateReportAccountDropdown();
 
         // Restore tags
@@ -667,6 +699,10 @@ export default class ReportsModule {
                     break;
                 case 'yoy':
                     this.showYoYReport();
+                    // Re-run the comparison so control changes (date range,
+                    // accounts, exclude-shared) re-scope an already-shown YoY
+                    // report; first selection still waits for the Compare click.
+                    if (this._yoyGenerated) this.generateYoYComparison();
                     break;
                 case 'bills-calendar':
                     this.showBillsCalendarReport();
@@ -1178,12 +1214,13 @@ export default class ReportsModule {
         if (!this.yoyControlsSetup) {
             this.setupYoYControls();
             this.yoyControlsSetup = true;
-        }
 
-        // Set default month to current month
-        const monthSelect = document.getElementById('yoy-month');
-        if (monthSelect) {
-            monthSelect.value = new Date().getMonth() + 1;
+            // Default the month to the current month, but only on first setup so a
+            // user's chosen month isn't reset when the view is re-shown/re-fetched.
+            const monthSelect = document.getElementById('yoy-month');
+            if (monthSelect) {
+                monthSelect.value = new Date().getMonth() + 1;
+            }
         }
     }
 
@@ -1206,6 +1243,7 @@ export default class ReportsModule {
     }
 
     async generateYoYComparison() {
+        this._yoyGenerated = true;
         const comparisonType = document.getElementById('yoy-comparison-type')?.value || 'years';
         const years = document.getElementById('yoy-years')?.value || 3;
         const month = document.getElementById('yoy-month')?.value || new Date().getMonth() + 1;
@@ -1454,7 +1492,8 @@ export default class ReportsModule {
                 format,
                 startDate,
                 endDate,
-                accountIds: this.getSelectedReportAccountIds() // multi-select scope (#299)
+                accountIds: this.getSelectedReportAccountIds(), // multi-select scope (#299)
+                excludeShared: !!this.excludeShared
             })
         });
     }
@@ -1475,7 +1514,8 @@ export default class ReportsModule {
                 format,
                 years: parseInt(years),
                 month: parseInt(month),
-                accountIds: this.getSelectedReportAccountIds() // multi-select scope (#299)
+                accountIds: this.getSelectedReportAccountIds(), // multi-select scope (#299)
+                excludeShared: !!this.excludeShared
             })
         });
     }

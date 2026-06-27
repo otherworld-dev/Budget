@@ -224,8 +224,9 @@ export default class CategoriesModule {
         this.setupCategoryItemListeners();
         this.setupDragAndDrop();
 
-        // Auto-select the first OWN category (shared ones are read-only references)
-        const firstOwn = typedCategories.find(cat => !cat._shared);
+        // Auto-select the first editable category — own or write-shared.
+        // Read-shared categories stay read-only references and are skipped.
+        const firstOwn = typedCategories.find(cat => !cat._shared || cat._canWrite);
         if (!this.selectedCategory && firstOwn) {
             this.selectCategory(firstOwn.id);
         }
@@ -246,13 +247,14 @@ export default class CategoriesModule {
             // Use pre-computed count map for O(1) lookup
             const transactionCount = countMap[category.id] || 0;
             const shared = !!category._shared;
+            const canWrite = !!category._canWrite;
             const sharedOwner = category._sharedByName || category._sharedBy || '';
 
             return `
                 <div class="category-node" data-level="${level}">
-                    <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared ? 'category-shared' : ''}"
+                    <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared && !canWrite ? 'category-shared' : ''} ${shared && canWrite ? 'category-write-shared' : ''}"
                          data-category-id="${category.id}"
-                         ${shared ? 'data-shared="1"' : ''}
+                         ${shared && !canWrite ? 'data-shared="1"' : ''}${shared && canWrite ? 'data-write-shared="1"' : ''}
                          draggable="${shared ? 'false' : 'true'}">
                         ${shared ? '' : `<input type="checkbox"
                                class="category-checkbox"
@@ -272,7 +274,11 @@ export default class CategoriesModule {
                         <div class="category-content">
                             <span class="category-name">${category.name}</span>
                             <div class="category-meta">
-                                ${shared ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwner}</span>` : ''}
+                                ${shared && canWrite
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwner}</span>`
+                                    : shared
+                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwner}</span>`
+                                    : ''}
                                 ${transactionCount > 0 ? `<span class="transaction-count">${transactionCount}</span>` : ''}
                             </div>
                         </div>
@@ -311,7 +317,10 @@ export default class CategoriesModule {
                 if (e.target.closest('.category-toggle')) return;
                 if (e.target.closest('.category-checkbox')) return;
                 if (e.target.closest('.category-delete-btn')) return;
-                // Shared categories are read-only references — no edit panel.
+                // Read-shared categories are read-only references — no edit panel.
+                // Write-shared items carry data-write-shared="1" instead (set in
+                // renderCategoryNodes), so they pass through here and open the edit
+                // panel. Do not generalise this to a broad shared check.
                 if (item.dataset.shared === '1') return;
 
                 const categoryId = parseInt(item.dataset.categoryId);
@@ -430,6 +439,15 @@ export default class CategoriesModule {
 
             if (!draggedCategory || !targetCategory) return;
 
+            // Shared categories belong to another user: they cannot be moved, and
+            // nothing may be reparented relative to them (the server also rejects
+            // this — parent validation is owner-scoped). Block at the client for
+            // clear UX instead of a generic failure.
+            if (draggedCategory._shared || targetCategory._shared) {
+                showWarning(t('budget', 'Shared categories cannot be moved or reordered'));
+                return;
+            }
+
             let newParentId = null;
             let newSortOrder = 0;
 
@@ -532,6 +550,17 @@ export default class CategoriesModule {
         if (periodSelect) {
             periodSelect.onchange = () => this.refreshCategoryChart();
         }
+
+        // Action button visibility by ownership/write access:
+        //  - own category    → Edit + Delete
+        //  - write-shared     → Edit only (delete is owner-only)
+        //  - read-shared      → neither (defensive; read-shared can't be selected)
+        const editBtn = document.getElementById('edit-category-btn');
+        const deleteBtn = document.getElementById('delete-category-btn');
+        const isReadShared = !!category._shared && !category._canWrite;
+        const isWriteShared = !!category._shared && !!category._canWrite;
+        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
+        if (deleteBtn) deleteBtn.style.display = (isReadShared || isWriteShared) ? 'none' : '';
     }
 
     async fetchCategoryDetails(categoryId, months = null) {
@@ -797,7 +826,11 @@ export default class CategoriesModule {
             return null;
         };
 
-        return findInTree(this.categoryTree || []);
+        // Search the merged tree first, then fall back to the management tree so
+        // write-shared categories (which may be replaced by name in the merged
+        // tree) remain resolvable with their _canWrite/_shared flags intact.
+        return findInTree(this.categoryTree || [])
+            || findInTree(this.managementTree || []);
     }
 
     getCategoryPath(category) {
@@ -841,8 +874,15 @@ export default class CategoriesModule {
         title.textContent = t('budget', 'Add Category');
         this.resetCategoryForm();
 
-        // Set category type BEFORE populating parent dropdown so it filters correctly
+        // Re-enable fields that a prior write-shared edit may have locked
+        const parentSelect = document.getElementById('category-parent');
         const typeSelect = document.getElementById('category-type');
+        const excludedCheckbox = document.getElementById('category-excluded-from-reports');
+        if (parentSelect) parentSelect.disabled = false;
+        if (typeSelect) typeSelect.disabled = false;
+        if (excludedCheckbox) excludedCheckbox.disabled = false;
+
+        // Set category type BEFORE populating parent dropdown so it filters correctly
         if (typeSelect && this.currentCategoryType) {
             typeSelect.value = this.currentCategoryType;
         }
@@ -865,6 +905,11 @@ export default class CategoriesModule {
         if (!this.selectedCategory) {
             return;
         }
+        // Read-shared categories are not editable (they cannot be selected, but
+        // guard defensively in case of unexpected state).
+        if (this.selectedCategory._shared && !this.selectedCategory._canWrite) {
+            return;
+        }
 
         const modal = document.getElementById('category-modal');
         const title = document.getElementById('category-modal-title');
@@ -874,9 +919,23 @@ export default class CategoriesModule {
             return;
         }
 
-        title.textContent = t('budget', 'Edit Category');
+        const isWriteShared = !!this.selectedCategory._shared && !!this.selectedCategory._canWrite;
+
+        title.textContent = isWriteShared
+            ? t('budget', 'Edit Shared Category')
+            : t('budget', 'Edit Category');
         this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId);
         this.loadCategoryData(this.selectedCategory);
+
+        // For write-shared categories, lock fields that belong to the owner —
+        // recipients may edit only name and colour. Structural fields (type,
+        // parent) and report-scope (excludedFromReports) stay owner-only.
+        const parentSelect = document.getElementById('category-parent');
+        const typeSelect = document.getElementById('category-type');
+        const excludedCheckbox = document.getElementById('category-excluded-from-reports');
+        if (parentSelect) parentSelect.disabled = isWriteShared;
+        if (typeSelect) typeSelect.disabled = isWriteShared;
+        if (excludedCheckbox) excludedCheckbox.disabled = isWriteShared;
 
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
@@ -889,6 +948,11 @@ export default class CategoriesModule {
 
     async deleteSelectedCategory() {
         if (!this.selectedCategory) {
+            return;
+        }
+        // Only own categories can be deleted — shared categories (read or write)
+        // are owner-only for deletion.
+        if (this.selectedCategory._shared) {
             return;
         }
 
@@ -922,6 +986,11 @@ export default class CategoriesModule {
 
     async deleteCategoryById(categoryId) {
         const category = this.findCategoryById(categoryId);
+        // Safety: the inline delete button is never rendered for shared items
+        // (own or write-shared), so this should not be reachable for them.
+        if (category?._shared) {
+            return;
+        }
         const categoryName = category ? category.name : t('budget', 'this category');
 
         if (!confirm(t('budget', 'Are you sure you want to delete "{name}"? This action cannot be undone.', { name: categoryName }))) {
@@ -1103,13 +1172,23 @@ export default class CategoriesModule {
 
         const excludedFromReports = document.getElementById('category-excluded-from-reports')?.checked || false;
 
-        const categoryData = {
-            name,
-            type,
-            parentId: parentId ? parseInt(parentId) : null,
-            color,
-            excludedFromReports
-        };
+        // When editing a write-shared category, the recipient may change only
+        // cosmetic fields (name, colour). Structural fields (type, parent), budget
+        // fields and report-scope (excludedFromReports) belong to the owner and
+        // are stripped server-side too. Guard precisely on the category being
+        // edited so creating a new category is never affected by a stale selection.
+        const isEditingWriteShared = !!categoryId
+            && this.selectedCategory
+            && String(this.selectedCategory.id) === String(categoryId)
+            && !!this.selectedCategory._shared
+            && !!this.selectedCategory._canWrite;
+
+        const categoryData = { name, color };
+        if (!isEditingWriteShared) {
+            categoryData.type = type;
+            categoryData.parentId = parentId ? parseInt(parentId) : null;
+            categoryData.excludedFromReports = excludedFromReports;
+        }
 
         try {
             const isEdit = !!categoryId;
@@ -2093,19 +2172,23 @@ export default class CategoriesModule {
     }
 
     /**
-     * Build the Categories management tree: the user's own categories (editable)
-     * plus any shared categories whose name+type doesn't duplicate an own one,
-     * kept read-only. Unlike mergeCategoryTree this gives OWN priority, so a
-     * user's own editable category is never hidden behind a same-named shared
-     * one. Recipients with no own categories see the full shared tree (#306).
+     * Build the Categories management tree: the user's own categories (editable),
+     * plus write-shared categories (editable by the recipient, #306 phase 2) and
+     * read-shared categories (read-only references). Unlike mergeCategoryTree this
+     * gives OWN priority, so a user's own category is never hidden behind a
+     * same-named shared one. Write-shared categories are always surfaced (their
+     * badge distinguishes them); read-shared ones are deduped against own to avoid
+     * clutter. Recipients with no own categories see the full shared tree.
      */
     buildManagementTree(tree) {
         const own = tree.filter(cat => !cat._shared);
         const shared = tree.filter(cat => cat._shared);
         if (shared.length === 0) return own;
+        const writeShared = shared.filter(c => c._canWrite);
+        const readShared = shared.filter(c => !c._canWrite);
         const ownKeys = new Set(own.map(c => `${c.name}|${c.type}`));
-        const sharedToShow = shared.filter(c => !ownKeys.has(`${c.name}|${c.type}`));
-        return [...own, ...sharedToShow];
+        const readToShow = readShared.filter(c => !ownKeys.has(`${c.name}|${c.type}`));
+        return [...own, ...writeShared, ...readToShow];
     }
 
     /**

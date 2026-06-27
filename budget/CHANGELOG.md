@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Exclude shared accounts from reports.** When other people have shared accounts with you, the **Reports** page gains an **"Exclude shared accounts"** toggle so you can see just your own accounts' figures. The same option is available per-tile (in the gear menu) on the account-based dashboard cards — **Income vs Expenses**, **Spending by Category**, **Top Spending Categories** and **Recent Transactions**. It's off by default (shared accounts are included, as before) and only appears when you actually have shared accounts. Note: a transfer between one of your accounts and a shared account can only be partly seen when shared accounts are excluded, so income/expense totals may be slightly overstated in that case.
+
+### Fixed
+- Saving share settings failed with **"Some entities do not belong to you"** (HTTP 400) when the **"Auto-share new"** toggle was enabled for a type, or after using **Select All** — the auto-share toggle (which shares the same `data-type` as the entity checkboxes) was being collected as a phantom entity and sent as a null id. Entity selection is now scoped precisely, so share settings save correctly with auto-share on ([#306](https://github.com/otherworld-dev/Budget/issues/306))
+
 ### Changed
 - The **Categories** page now also lists categories that have been shared with you, shown read-only with a **"Shared · &lt;owner&gt;"** badge. Previously it showed only your own categories, so anyone using a budget made up entirely of shared categories saw an empty page even though the categories worked everywhere else ([#306](https://github.com/otherworld-dev/Budget/issues/306))
+- Categories shared with you at **Edit** permission are now **editable** — rename them and change their colour straight from the Categories page (they carry a **"Shared (editable) · &lt;owner&gt;"** badge). Read-only shares stay read-only, and a category's type, parent, budget, report visibility and deletion all remain owner-only ([#306](https://github.com/otherworld-dev/Budget/issues/306))
 
 ## [2.36.0] - 2026-06-27
 

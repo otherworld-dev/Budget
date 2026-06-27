@@ -554,11 +554,14 @@ export default class DashboardModule {
                 const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
                 return this.refreshAssetValueChart(days);
             },
+            topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
             const settings = tileSettings[widgetId];
-            if (settings && (settings.accountId || settings.dateRange)) {
+            // excludeShared is a re-scope just like accountId/dateRange, so a tile
+            // whose only non-default setting is excludeShared must still re-fetch.
+            if (settings && (settings.accountId || settings.dateRange || settings.excludeShared)) {
                 refreshes.push(refreshFn(settings));
             }
         }
@@ -1474,6 +1477,9 @@ export default class DashboardModule {
             let url = `/apps/budget/api/reports/spending?startDate=${startDate}&endDate=${endDate}`;
             if (settings.accountId) {
                 url += `&accountId=${settings.accountId}`;
+            }
+            if (settings.excludeShared) {
+                url += '&excludeShared=1';
             }
             const response = await fetch(
                 OC.generateUrl(url),
@@ -2781,6 +2787,9 @@ export default class DashboardModule {
             if (accountId) {
                 url += `&accountId=${accountId}`;
             }
+            if (this.dashboardConfig.widgets?.tileSettings?.[instanceId]?.excludeShared) {
+                url += '&excludeShared=1';
+            }
 
             const response = await fetch(
                 OC.generateUrl(url),
@@ -2819,6 +2828,9 @@ export default class DashboardModule {
             let url = `/apps/budget/api/reports/spending?startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`;
             if (accountId) {
                 url += `&accountId=${accountId}`;
+            }
+            if (this.dashboardConfig.widgets?.tileSettings?.[instanceId]?.excludeShared) {
+                url += '&excludeShared=1';
             }
 
             const response = await fetch(
@@ -2868,6 +2880,9 @@ export default class DashboardModule {
             let url = '/apps/budget/api/transactions?limit=8';
             if (accountId) {
                 url += `&accountId=${accountId}`;
+            }
+            if (this.dashboardConfig.widgets?.tileSettings?.[instanceId]?.excludeShared) {
+                url += '&excludeShared=1';
             }
             const response = await fetch(
                 OC.generateUrl(url),
@@ -4254,6 +4269,22 @@ export default class DashboardModule {
                 <div class="form-group">
                     <label>${t('budget', 'Account')}</label>
                     <select class="tile-setting-input" data-setting="accountId">${options}</select>
+                </div>
+            `);
+        }
+
+        // Exclude shared accounts (checkbox) — scopes this tile to the user's own
+        // accounts, dropping accounts shared to them. Only offered on account-scoped
+        // tiles (schema.excludeShared) and only useful when shared accounts exist.
+        if (schema.excludeShared && Array.isArray(this.accounts) && this.accounts.some(a => a._shared)) {
+            const checked = currentSettings.excludeShared || false;
+            fields.push(`
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" class="tile-setting-input" data-setting="excludeShared"
+                            style="width: auto; min-height: auto;" ${checked ? 'checked' : ''}>
+                        ${t('budget', 'Exclude shared accounts')}
+                    </label>
                 </div>
             `);
         }

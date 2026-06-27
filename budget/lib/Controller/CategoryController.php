@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
@@ -24,6 +25,15 @@ class CategoryController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
     use SharedAccessTrait;
+
+    /**
+     * Fields a write-shared recipient may change on a category they don't own.
+     * Strictly cosmetic. Structural fields (type, parentId, sortOrder), budget
+     * fields, and report-scope (excludedFromReports — it alters the OWNER's
+     * report aggregates) all stay owner-only. Any field not listed here is
+     * stripped from a recipient's update, so the restriction is fail-closed.
+     */
+    private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color'];
 
     private CategoryService $service;
     private ValidationService $validationService;
@@ -287,13 +297,28 @@ class CategoryController extends Controller {
                 $updates['budgetRollover'] = (bool) $params['budgetRollover'];
             }
 
+            // Write access is confirmed above. Resolve the actual owner so the
+            // owner-scoped service lookup succeeds for write-shared categories.
+            // Recipients are restricted to cosmetic fields — structural fields
+            // (type, parentId, sortOrder), budgets and report-scope stay owner-only.
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id)
+                ?? $this->userId;
+            if ($owner !== $this->userId) {
+                $updates = array_intersect_key($updates, array_flip(self::RECIPIENT_WRITABLE_FIELDS));
+            }
+
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $category = $this->service->update($id, $this->getEffectiveUserId(), $updates);
+            $category = $this->service->update($id, $owner, $updates);
             return new DataResponse($category);
+        } catch (ReadOnlyShareException $e) {
+            // Read-only share violation → 403 with a clear message.
+            return $this->handleError($e, $this->l->t('Failed to update category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
         } catch (\Exception $e) {
+            // Surface curated service-level validation messages (e.g. duplicate
+            // name, self-parent) to the user.
             return $this->handleValidationError($e);
         }
     }
@@ -304,8 +329,24 @@ class CategoryController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->requireWriteAccess('category', $id);
-            $this->service->delete($id, $this->getEffectiveUserId());
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+            // Only the owner may delete a category — recipients (even with write
+            // access) can edit it but not remove it. Deletion cascades to the
+            // owner's child categories, budget snapshots, and tag metadata.
+            if ($owner !== $this->userId) {
+                return new DataResponse(
+                    ['error' => $this->l->t('Only the category owner can delete it')],
+                    Http::STATUS_FORBIDDEN
+                );
+            }
+
+            $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             // Surface validation messages (e.g., "has transactions assigned") to the user

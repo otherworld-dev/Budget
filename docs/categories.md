@@ -105,6 +105,15 @@ Click any category to open its detail view, which shows:
 
 This view helps you quickly understand your spending patterns for any category without navigating to the full reports.
 
+## Shared Categories
+
+If another user shares categories with you, they appear in your category tree with a badge naming the owner:
+
+- **"Shared · &lt;owner&gt;"** -- read-only. You can classify transactions with it but cannot change the category itself.
+- **"Shared (editable) · &lt;owner&gt;"** -- shared with **Edit** permission. You can rename it and change its colour.
+
+A shared category's type, parent, budget, report visibility and deletion always remain with its owner. See [Sharing](sharing.md#shared-categories) for the full details.
+
 ## Deleting Categories
 
 To delete a category, open it and click **Delete**.

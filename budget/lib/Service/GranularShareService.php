@@ -161,26 +161,35 @@ class GranularShareService {
      * Own entities are always writable. Shared entities depend on permission.
      */
     public function canWrite(string $userId, string $entityType, int $entityId): bool {
-        // Own entities are always writable
-        $ownIds = $this->getOwnIds($userId, $entityType);
-        if (in_array($entityId, $ownIds, true)) {
-            return true;
+        // Per-request memo: getSharedCategories()/GoalsController call this once
+        // per shared entity, each otherwise issuing a fresh getEntityPermission
+        // query. Cache is cleared in updateShareItems() when shares change.
+        $cacheKey = "canwrite:{$userId}:{$entityType}:{$entityId}";
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
         }
 
-        // Check shared permission
-        $shares = $this->getAcceptedIncomingShares($userId);
-        foreach ($shares as $share) {
-            $permission = $this->shareItemMapper->getEntityPermission(
-                $share->getId(),
-                $entityType,
-                $entityId
-            );
-            if ($permission === ShareItem::PERMISSION_WRITE) {
-                return true;
+        $result = false;
+        // Own entities are always writable
+        if (in_array($entityId, $this->getOwnIds($userId, $entityType), true)) {
+            $result = true;
+        } else {
+            // Check shared permission across accepted incoming shares
+            foreach ($this->getAcceptedIncomingShares($userId) as $share) {
+                $permission = $this->shareItemMapper->getEntityPermission(
+                    $share->getId(),
+                    $entityType,
+                    $entityId
+                );
+                if ($permission === ShareItem::PERMISSION_WRITE) {
+                    $result = true;
+                    break;
+                }
             }
         }
 
-        return false;
+        $this->cache[$cacheKey] = $result;
+        return $result;
     }
 
     /**
@@ -320,6 +329,7 @@ class GranularShareService {
             '_shared' => true,
             '_sharedBy' => $c->getUserId(),
             '_sharedByName' => $this->displayNameFor($c->getUserId()),
+            '_canWrite' => $this->canWrite($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
         ]), array_values($categories));
     }
 
