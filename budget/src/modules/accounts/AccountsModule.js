@@ -1013,7 +1013,7 @@ export default class AccountsModule {
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
             const category = this.categories?.find(c => c.id === transaction.categoryId);
             const isScheduled = transaction.status === 'scheduled';
-            const scheduledBadge = isScheduled ? '<span class="scheduled-badge">' + t('budget', 'Scheduled') + '</span>' : '';
+            const scheduledBadge = isScheduled ? '<span class="scheduled-badge" title="' + t('budget', 'Future transaction — not counted in the current balance until it occurs') + '">' + t('budget', 'Scheduled') + '</span>' : '';
             const pendingBadge = transaction.status === 'pending' ? '<span class="pending-badge" title="' + t('budget', 'Not yet posted by your bank') + '">' + t('budget', 'Pending') + '</span>' : '';
 
             // Transfer badge

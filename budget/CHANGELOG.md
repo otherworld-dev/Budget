@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Scheduled (future-dated) transactions now show a **Scheduled** badge in the main transaction list, with a tooltip explaining they are not counted until they occur. Previously only the account detail view had the badge and the main list showed scheduled rows in italics alone, which made a bill's pre-created next occurrence easy to mistake for a duplicate booking ([#311](https://github.com/otherworld-dev/Budget/issues/311))
+- The transaction list **Total** no longer includes scheduled transactions — they are placeholders for money that has not moved yet ([#311](https://github.com/otherworld-dev/Budget/issues/311))
+
 ## [2.37.0] - 2026-06-28
 
 ### Added

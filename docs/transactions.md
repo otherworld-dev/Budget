@@ -44,9 +44,11 @@ Cleared transactions represent confirmed activity -- they have occurred and are 
 
 ### Scheduled
 
-Transactions with a future date are automatically marked as **scheduled**. They appear in the transaction list with a **SCHEDULED** badge and are included in the **projected balance** but not the current balance.
+Transactions with a future date are automatically marked as **scheduled**. They appear in the transaction list in italics with a **SCHEDULED** badge and are included in the **projected balance** but not the current balance or the transaction list total.
 
 This distinction lets you enter upcoming bills or expected deposits ahead of time without inflating your current balance. The projected balance (visible in the account detail view) shows what your balance will be once scheduled transactions clear.
+
+Recurring [bills](bills.md) create scheduled transactions automatically: marking a bill paid pre-creates a placeholder for the next occurrence. This placeholder is not a duplicate payment — it becomes the real transaction when that occurrence is paid.
 
 > **Tip:** Use scheduled transactions to plan ahead. Enter your rent, subscriptions, and other recurring payments with their expected dates so the projected balance reflects your true financial picture.
 

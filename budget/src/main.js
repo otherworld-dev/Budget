@@ -1105,6 +1105,9 @@ class BudgetApp {
                 : sharedStatus === 'settled'
                 ? `<span class="shared-settled-indicator" title="${t('budget', 'Shared expense - settled')}">&#x2705; ${t('budget', 'Settled')}</span>`
                 : '';
+            const scheduledBadge = transaction.status === 'scheduled'
+                ? `<span class="scheduled-badge" title="${t('budget', 'Future transaction — not counted in the current balance until it occurs')}">${t('budget', 'Scheduled')}</span>`
+                : '';
             const pendingBadge = transaction.status === 'pending'
                 ? `<span class="pending-badge" title="${t('budget', 'Not yet posted by your bank')}">${t('budget', 'Pending')}</span>`
                 : '';
@@ -1138,7 +1141,7 @@ class BudgetApp {
                         <div class="transaction-description">
                             <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
                             ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
-                            ${(linkedBadge || splitBadge || sharedBadge || pendingBadge || forecastExcludedBadge || attachmentBadge || pensionBadge) ? `<div class="transaction-badges">${pendingBadge}${forecastExcludedBadge}${attachmentBadge}${linkedBadge}${splitBadge}${sharedBadge}${pensionBadge}</div>` : ''}
+                            ${(scheduledBadge || linkedBadge || splitBadge || sharedBadge || pendingBadge || forecastExcludedBadge || attachmentBadge || pensionBadge) ? `<div class="transaction-badges">${scheduledBadge}${pendingBadge}${forecastExcludedBadge}${attachmentBadge}${linkedBadge}${splitBadge}${sharedBadge}${pensionBadge}</div>` : ''}
                         </div>
                     </td>
                     <td class="vendor-column editable-cell"
@@ -1459,6 +1462,10 @@ class BudgetApp {
 
         if (totalElement && this.transactions) {
             const total = this.transactions.reduce((sum, tx) => {
+                // Scheduled rows are future placeholders (e.g. a bill's next
+                // occurrence) — no money has moved yet, so keep them out of
+                // the displayed total (#311).
+                if (tx.status === 'scheduled') return sum;
                 return sum + (tx.type === 'credit' ? tx.amount : -tx.amount);
             }, 0);
 

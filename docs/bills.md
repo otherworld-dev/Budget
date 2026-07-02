@@ -66,9 +66,14 @@ If the background job encounters an error (e.g., the linked account was deleted)
 
 Click **Mark Paid** on any bill to record the payment. This:
 
-1. Creates a cleared transaction in the linked account for the bill amount and category.
+1. Creates a cleared transaction in the linked account for the bill amount and category, dated today.
 2. Advances the due date to the next occurrence based on the frequency.
-3. Shows an **Undo** notification for approximately 5 seconds, allowing you to reverse the action if clicked accidentally.
+3. Pre-creates a **scheduled** transaction for the next occurrence, so the upcoming payment is visible in the transaction list and forecasts.
+4. Shows an **Undo** notification for approximately 5 seconds, allowing you to reverse the action if clicked accidentally.
+
+> **Note:** The pre-created transaction for the next occurrence is a placeholder, not a second payment. It carries a **Scheduled** badge, is shown in italics, and is not counted toward your current balance or the transaction list total until it is due. When you mark the next occurrence paid, this placeholder becomes the real payment — it is not duplicated. See [Transaction Status](transactions.md#transaction-status) for details.
+
+Marking a bill paid after its due date works the same way: the payment transaction is dated the day you mark it paid, and the due date still advances from the original schedule (a bill due on the 1st stays due on the 1st of the next month, even if you paid on the 2nd).
 
 > **Important:** If the bill has **no account assigned** (or the transaction cannot be created), the bill is still marked paid but **no money movement is recorded** — your account balance will not reflect the payment. The app shows a clear warning when this happens. Assign an account to the bill, or add the transaction manually, so your tracked balance stays in step with your bank.
 
