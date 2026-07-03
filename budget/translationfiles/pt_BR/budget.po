@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-02 21:44+0000\n"
-"PO-Revision-Date: 2026-06-24 17:01+0000\n"
+"PO-Revision-Date: 2026-07-03 23:24+0000\n"
 "Last-Translator: Rods Kaden <services.effects831@passfwd.com>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "nextcloud-budget/budget/pt_BR/>\n"
@@ -17,49 +17,40 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.7.dev0\n"
-
-#: /app/js/budget-app.js:2
-msgid "hero"
-msgstr ""
+"X-Generator: Weblate 2026.7.1.dev0\n"
 
 #: /app/js/budget-app.js:2
 #, fuzzy
-#| msgid "Budget"
+msgid "hero"
+msgstr "hero"
+
+#: /app/js/budget-app.js:2
 msgid "widget"
-msgstr "Orçamento"
+msgstr "widget"
 
 #: /app/js/budget-app.js:2
 msgid "type"
-msgstr ""
+msgstr "tipo"
 
 #: /app/js/budget-app.js:2
 msgid "name"
-msgstr ""
+msgstr "nome"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Balance"
 msgid "balance"
-msgstr "Saldo"
+msgstr "saldo"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Cryptocurrency"
 msgid "currency"
-msgstr "Criptomoeda"
+msgstr "moeda"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Paid"
 msgid "id"
-msgstr "Pago"
+msgstr "id"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Institution"
 msgid "institution"
-msgstr "Instituição"
+msgstr "instituição"
 
 #: /app/lib/Controller/AccountController.php:82
 msgid "Failed to retrieve accounts"
@@ -67,10 +58,8 @@ msgstr "Falha ao buscar as contas financeiras"
 
 #: /app/lib/Controller/AccountController.php:92
 #: /app/lib/Controller/AccountController.php:530
-#, fuzzy
-#| msgid "Setting not found"
 msgid "Account not found"
-msgstr "Configuração não encontrada"
+msgstr "Conta financeira não encontrada"
 
 #: /app/lib/Controller/AccountController.php:103
 #: /app/lib/Controller/AccountController.php:511
@@ -173,7 +162,7 @@ msgstr "Falha ao atualizar a conta financeira"
 #: /app/lib/Controller/AccountController.php:513
 #: /app/src/modules/accounts/AccountsModule.js:2252
 msgid "Failed to delete account"
-msgstr ""
+msgstr "Falha ao excluir a conta"
 
 #: /app/lib/Controller/AccountController.php:537
 msgid "This account has no sensitive banking data to reveal"
@@ -188,44 +177,34 @@ msgid "Failed to reconcile account"
 msgstr "Falha ao tentar reconciliar a conta financeira"
 
 #: /app/lib/Controller/AccountController.php:668
-#, fuzzy
-#| msgid "No matching transactions found"
 msgid "Too many transactions (max 500)"
-msgstr "Nenhuma transação correspondente encontrada"
+msgstr "Limite de transações excedido (máx. 500)"
 
 #: /app/lib/Controller/AccountController.php:675
 #: /app/src/modules/transactions/TransactionsModule.js:1279
-#, fuzzy
-#| msgid "Failed to delete contribution"
 msgid "Failed to complete reconciliation"
-msgstr "Falha ao excluir a contribuição"
+msgstr "Falha ao concluir a conciliação"
 
 #: /app/lib/Controller/AccountController.php:724
-#, fuzzy
-#| msgid "Expected return rate must be between 0%% and 100%%"
 msgid "Interest rate must be between 0 and 999.9999"
-msgstr "A taxa de retorno esperada deve estar entre 0%% e 100%%"
+msgstr "A taxa de juros deve estar entre 0 e 999,9999"
 
 #: /app/lib/Controller/AccountController.php:729
 #: /app/src/modules/accounts/AccountsModule.js:839
 msgid "Invalid compounding frequency"
-msgstr ""
+msgstr "Frequência de capitalização inválida"
 
 #: /app/lib/Controller/AccountController.php:733
 msgid "Invalid date format. Use YYYY-MM-DD"
-msgstr ""
+msgstr "Formato de data inválido. Use AAAA-MM-DD"
 
 #: /app/lib/Controller/AccountController.php:739
-#, fuzzy
-#| msgid "Failed to load exchange rates"
 msgid "Failed to add interest rate"
-msgstr "Falha ao carregar as taxas de câmbio"
+msgstr "Falha ao adicionar a taxa de juros"
 
 #: /app/lib/Controller/AccountController.php:754
-#, fuzzy
-#| msgid "Failed to delete contact"
 msgid "Failed to delete interest rate"
-msgstr "Falha ao excluir o contato"
+msgstr "Falha ao excluir a taxa de juros"
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
@@ -383,10 +362,8 @@ msgstr "Falha ao buscar o histórico de valor do ativo"
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:1672
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load attachments"
-msgstr "Não foi possível carregar as coleções de etiquetas"
+msgstr "Falha ao carregar os anexos"
 
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
@@ -395,21 +372,17 @@ msgstr "Não foi possível carregar as coleções de etiquetas"
 #: /app/src/modules/transactions/TransactionsModule.js:2442
 #: /app/src/modules/transactions/TransactionsModule.js:2535
 msgid "Transaction not found"
-msgstr ""
+msgstr "Transação não encontrada"
 
 #: /app/lib/Controller/AttachmentController.php:76
-#, fuzzy
-#| msgid "Setting not found"
 msgid "File not found"
-msgstr "Configuração não encontrada"
+msgstr "Arquivo não encontrado"
 
 #: /app/lib/Controller/AttachmentController.php:78
 #: /app/src/modules/transactions/TransactionsModule.js:1703
 #: /app/src/modules/transactions/TransactionsModule.js:1706
-#, fuzzy
-#| msgid "Failed to validate file"
 msgid "Failed to attach file"
-msgstr "Falha ao validar o arquivo"
+msgstr "Falha ao anexar o arquivo"
 
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:94
@@ -421,131 +394,95 @@ msgstr "Nenhum arquivo carregado"
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:1685
 #: /app/src/modules/transactions/TransactionsModule.js:1688
-#, fuzzy
-#| msgid "Failed to upload file"
 msgid "Failed to upload receipt"
-msgstr "Falha ao enviar o arquivo"
+msgstr "Falha ao enviar o comprovante"
 
 #: /app/lib/Controller/AttachmentController.php:112
 msgid "Attachment removed"
-msgstr ""
+msgstr "Anexos removidos"
 
 #: /app/lib/Controller/AttachmentController.php:114
-#, fuzzy
-#| msgid "Setting not found"
 msgid "Attachment not found"
-msgstr "Configuração não encontrada"
+msgstr "Anexo não encontrado"
 
 #: /app/lib/Controller/AttachmentController.php:118
 #: /app/src/modules/transactions/TransactionsModule.js:1719
-#, fuzzy
-#| msgid "Failed to record settlement"
 msgid "Failed to remove attachment"
-msgstr "Falha ao registrar a quitação"
+msgstr "Falha ao remover o anexo"
 
 #: /app/lib/Controller/BankSyncController.php:40
 msgid "Bank sync is disabled by the administrator"
-msgstr ""
+msgstr "A sincronização bancária foi desativada pelo administrador"
 
 #: /app/lib/Controller/BankSyncController.php:81
 msgid "This provider does not support institution listing"
-msgstr ""
+msgstr "Este provedor não suporta listagem de instituições"
 
 #: /app/lib/Controller/BankSyncController.php:87
-#, fuzzy
-#| msgid "Invalid sort code: %1$s"
 msgid "Invalid country code"
-msgstr "Código de classificação inválido: %1$s"
+msgstr "Código de país inválido"
 
 #: /app/lib/Controller/BankSyncController.php:93
-#, fuzzy
-#| msgid "Name is required"
 msgid "API credentials required"
-msgstr "O preenchimento do nome é obrigatório"
+msgstr "Credenciais de API são obrigatórias"
 
 #: /app/lib/Controller/BankSyncController.php:102
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "Failed to fetch institutions"
-msgstr "Falha ao criar contribuição"
+msgstr "Falha ao buscar instituições"
 
 #: /app/lib/Controller/BankSyncController.php:129
-#, fuzzy
-#| msgid "Category ID and name are required"
 msgid "Provider and name are required"
-msgstr "O ID e o nome da categoria são obrigatórios"
+msgstr "Provedor e nome são obrigatórios"
 
 #: /app/lib/Controller/BankSyncController.php:134
-#, fuzzy
-#| msgid "Retirement age must be between 18 and 100"
 msgid "Connection name must be between 1 and 255 characters"
-msgstr "A idade de aposentadoria deve estar entre 18 e 100"
+msgstr "O nome da conexão deve ter entre 1 e 255 caracteres"
 
 #: /app/lib/Controller/BankSyncController.php:139
-#, fuzzy
-#| msgid "Invalid year"
 msgid "Invalid provider"
-msgstr "Ano inválido"
+msgstr "Provedor inválido"
 
 #: /app/lib/Controller/BankSyncController.php:163
-#, fuzzy
-#| msgid "Failed to get balances"
 msgid "Failed to connect bank"
-msgstr "Falha ao carregar os saldos"
+msgstr "Falha ao conectar o banco"
 
 #: /app/lib/Controller/BankSyncController.php:179
 #: /app/src/modules/bank-sync/BankSyncModule.js:767
-#, fuzzy
-#| msgid "Failed to get balances"
 msgid "Failed to disconnect bank"
-msgstr "Falha ao carregar os saldos"
+msgstr "Falha ao desconectar o banco"
 
 #: /app/lib/Controller/BankSyncController.php:208
-#, fuzzy
-#| msgid "Failed to update contact"
 msgid "Failed to update connection"
-msgstr "Falha ao atualizar o contato"
+msgstr "Falha ao atualizar a conexão"
 
 #: /app/lib/Controller/BankSyncController.php:224
-#, fuzzy
-#| msgid "Failed to load data"
 msgid "Failed to sync bank data"
-msgstr "Falha no carregamento de dados"
+msgstr "Falha ao sincrônizar os dados bancários"
 
 #: /app/lib/Controller/BankSyncController.php:249
-#, fuzzy
-#| msgid "Setting not found"
 msgid "Connection not found"
-msgstr "Configuração não encontrada"
+msgstr "Conexão não encontrada"
 
 #: /app/lib/Controller/BankSyncController.php:254
-#, fuzzy
-#| msgid "Failed to reset settings"
 msgid "Failed to fetch mappings"
-msgstr "Falha ao restaurar as configurações padrão"
+msgstr "Falha ao obter os mapeamentos"
 
 #: /app/lib/Controller/BankSyncController.php:276
 #: /app/src/modules/bank-sync/BankSyncModule.js:876
-#, fuzzy
-#| msgid "Failed to update tag"
 msgid "Failed to update mapping"
-msgstr "Falha ao atualizar a etiqueta"
+msgstr "Falha ao atualizar o mapeamento"
 
 #: /app/lib/Controller/BankSyncController.php:292
-#, fuzzy
-#| msgid "Failed to retrieve accounts"
 msgid "Failed to refresh accounts"
-msgstr "Falha ao buscar as contas financeiras"
+msgstr "Falha ao atualizar as contas financeiras"
 
 #: /app/lib/Controller/BankSyncController.php:310
 msgid "Institution ID is required"
-msgstr ""
+msgstr "O ID da instituição é obrigatório"
 
 #: /app/lib/Controller/BankSyncController.php:323
-#, fuzzy
-#| msgid "Failed to get shares"
 msgid "Failed to re-authorize"
-msgstr "Falha ao carregar os compartilhamentos"
+msgstr "Falha ao reautorizar"
 
 #: /app/lib/Controller/BillController.php:87
 msgid "Failed to retrieve bills"
@@ -600,7 +537,7 @@ msgstr "Data da transação"
 #: /app/lib/Controller/BillController.php:251
 #: /app/lib/Controller/BillController.php:455 /app/templates/index.php:3097
 msgid "Start date"
-msgstr ""
+msgstr "Data de início"
 
 #: /app/lib/Controller/BillController.php:261
 #: /app/lib/Controller/BillController.php:466 /app/templates/index.php:3099
@@ -609,7 +546,7 @@ msgstr "Data final"
 
 #: /app/lib/Controller/BillController.php:271
 msgid "Start date must be before the end date"
-msgstr ""
+msgstr "A data de início deve ser anterior à data de término"
 
 #: /app/lib/Controller/BillController.php:276
 #: /app/lib/Controller/BillController.php:479
@@ -625,16 +562,16 @@ msgid ""
 "The new amount does not match the bill's split template. Update the splits "
 "together with the amount."
 msgstr ""
+"O novo valor é incompatível com o modelo de divisão da conta. Atualize as "
+"divisões e o valor."
 
 #: /app/lib/Controller/BillController.php:584
 msgid "Failed to update bill"
 msgstr "Falha ao alterar a conta"
 
 #: /app/lib/Controller/BillController.php:612
-#, fuzzy
-#| msgid "Failed to bulk match transactions"
 msgid "Failed to find matching transactions"
-msgstr "Falha ao associar transações em massa"
+msgstr "Falha ao localizar transações correspondentes"
 
 #: /app/lib/Controller/BillController.php:631
 #: /app/src/modules/bills/BillsModule.js:1067
@@ -643,20 +580,18 @@ msgstr "Falha ao marcar a conta como paga"
 
 #: /app/lib/Controller/BillController.php:648
 msgid "Missing previous state"
-msgstr ""
+msgstr "Estado anterior não encontrado"
 
 #: /app/lib/Controller/BillController.php:662
 #, fuzzy
 #| msgid "Failed to mark bill as paid"
 msgid "Failed to undo mark as paid"
-msgstr "Falha ao marcar a conta como paga"
+msgstr "Falha ao desfazer \"Marcar como paga\""
 
 #: /app/lib/Controller/BillController.php:679
 #: /app/src/modules/bills/BillsModule.js:1338
-#, fuzzy
-#| msgid "Failed to mark bill as paid"
 msgid "Failed to skip bill payment"
-msgstr "Falha ao marcar a conta como paga"
+msgstr "Falha ao adiar o pagamento da conta"
 
 #: /app/lib/Controller/BillController.php:695
 msgid "Missing previous due date"
@@ -868,7 +803,7 @@ msgstr "Falha ao buscar os gastos da categoria"
 #: /app/lib/Controller/CategoryController.php:470
 #: /app/lib/Controller/CategoryController.php:508
 msgid "Invalid month format. Use YYYY-MM"
-msgstr ""
+msgstr "Formato de mês inválido. Use AAAA-MM"
 
 #: /app/lib/Controller/CategoryController.php:446
 #, fuzzy
@@ -1122,10 +1057,8 @@ msgstr "ID de tag inválida"
 
 #: /app/lib/Controller/GoalsController.php:167
 #: /app/lib/Controller/GoalsController.php:264
-#, fuzzy
-#| msgid "Invalid tag ID"
 msgid "Invalid account ID"
-msgstr "ID de tag inválida"
+msgstr "ID de conta financeira inválido"
 
 #: /app/lib/Controller/GoalsController.php:193
 msgid "Failed to create goal"
@@ -1137,7 +1070,7 @@ msgstr "Falha ao atualizar a meta"
 
 #: /app/lib/Controller/GoalsController.php:324
 msgid "Only the goal owner can delete it"
-msgstr ""
+msgstr "Somente o proprietário da meta pode excluí-la"
 
 #: /app/lib/Controller/GoalsController.php:330
 msgid "Goal deleted successfully"
@@ -1202,10 +1135,8 @@ msgid "Failed to retrieve import rules"
 msgstr "Falha ao buscar as regras de importação"
 
 #: /app/lib/Controller/ImportRuleController.php:69
-#, fuzzy
-#| msgid "Failed to retrieve goals"
 msgid "Failed to retrieve rule groups"
-msgstr "Falha ao buscar as metas"
+msgstr "Falha ao buscar os grupos de regras"
 
 #: /app/lib/Controller/ImportRuleController.php:81
 #: /app/lib/Controller/ImportRuleController.php:326
@@ -1272,20 +1203,18 @@ msgstr "Falha ao migrar as regras de importação"
 #: /app/lib/Controller/ImportRuleController.php:466
 #: /app/lib/Traits/InputValidationTrait.php:108
 msgid "Validation failed"
-msgstr ""
+msgstr "Falha na validação"
 
 #: /app/lib/Controller/ImportTemplateController.php:63
 #: /app/lib/Controller/ImportTemplateController.php:167
 #, fuzzy
 #| msgid "Import rule"
 msgid "Import template"
-msgstr "Regra de importação"
+msgstr "Modelo de importação"
 
 #: /app/lib/Controller/ImportTemplateController.php:99
-#, fuzzy
-#| msgid "Failed to retrieve import templates"
 msgid "Failed to create import template"
-msgstr "Falha ao buscar os modelos de importação"
+msgstr "Falha ao criar o modelo de importação"
 
 #: /app/lib/Controller/ImportTemplateController.php:154
 #, fuzzy
@@ -1454,46 +1383,32 @@ msgid "Failed to retrieve pension activity"
 msgstr "Falha ao buscar o resumo dos planos de previdência"
 
 #: /app/lib/Controller/PensionController.php:558
-#, fuzzy
-#| msgid "Failed to retrieve contributions"
 msgid "Failed to retrieve recurring contributions"
-msgstr "Falha ao buscar as contribuições"
+msgstr "Falha ao buscar os aportes recorrentes"
 
 #: /app/lib/Controller/PensionController.php:580
-#, fuzzy
-#| msgid "Amount and date are required"
 msgid "Amount, frequency and next date are required"
-msgstr "O valor e a data são obrigatórios"
+msgstr "O valor, frequência e próxima data são obrigatórios"
 
 #: /app/lib/Controller/PensionController.php:586
-#, fuzzy
-#| msgid "Target date"
 msgid "Next date"
-msgstr "Data alvo"
+msgstr "Próxima data"
 
 #: /app/lib/Controller/PensionController.php:611
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "Failed to create recurring contribution"
-msgstr "Falha ao criar contribuição"
+msgstr "Falha ao criar o aporte recorrente"
 
 #: /app/lib/Controller/PensionController.php:625
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "Failed to update recurring contribution"
-msgstr "Falha ao criar contribuição"
+msgstr "Falha ao atualizar o aporte recorrente"
 
 #: /app/lib/Controller/PensionController.php:636
-#, fuzzy
-#| msgid "Recurring income deleted"
 msgid "Recurring contribution deleted"
-msgstr "Renda recorrente excluída"
+msgstr "Aporte recorrente excluído"
 
 #: /app/lib/Controller/PensionController.php:638
-#, fuzzy
-#| msgid "Failed to delete contribution"
 msgid "Failed to delete recurring contribution"
-msgstr "Falha ao excluir a contribuição"
+msgstr "Falha ao excluir o aporte recorrente"
 
 #: /app/lib/Controller/PensionController.php:653
 #: /app/src/modules/pensions/PensionsModule.js:1164
@@ -1515,10 +1430,8 @@ msgid "Failed to retrieve combined pension projection"
 msgstr "Falha ao buscar a projeção combinada dos planos de previdência"
 
 #: /app/lib/Controller/ReconciliationController.php:58
-#, fuzzy
-#| msgid "Failed to load transactions"
 msgid "Failed to load reconciliation session"
-msgstr "Falha no carregamento de transações"
+msgstr "Falha ao carregar a sessão de conciliação"
 
 #: /app/lib/Controller/ReconciliationController.php:73
 msgid "A reconciliation is already in progress for this account"
@@ -1663,10 +1576,8 @@ msgstr "Falha ao atualizar o compartilhamento"
 
 #: /app/lib/Controller/SavedReportController.php:93
 #: /app/src/modules/reports/ReportsModule.js:466
-#, fuzzy
-#| msgid "Failed to delete share"
 msgid "Failed to delete saved report"
-msgstr "Falha ao excluir o compartilhamento"
+msgstr "Falha ao excluir o relatório salvo"
 
 #: /app/lib/Controller/SettingController.php:99
 msgid "Failed to retrieve settings"
@@ -1787,16 +1698,12 @@ msgid "Budget app initialized successfully"
 msgstr "Aplicativo de orçamento inicializado com sucesso"
 
 #: /app/lib/Controller/SetupController.php:71
-#, fuzzy
-#| msgid "Failed to retrieve budget alerts"
 msgid "Failed to initialize budget app"
-msgstr "Falha ao buscar os alertas de orçamento"
+msgstr "Falha ao inicializar o aplicativo de orçamento"
 
 #: /app/lib/Controller/SetupController.php:89
-#, fuzzy
-#| msgid "Failed to get settlements"
 msgid "Failed to get setup status"
-msgstr "Falha ao carregar as quitações"
+msgstr "Falha ao obter o status de configuração"
 
 #: /app/lib/Controller/SetupController.php:103
 #, php-format
@@ -1804,10 +1711,8 @@ msgid "%1$s duplicate categories removed"
 msgstr "%1$s categorias duplicadas removidas"
 
 #: /app/lib/Controller/SetupController.php:106
-#, fuzzy
-#| msgid "Failed to retrieve categories"
 msgid "Failed to remove duplicate categories"
-msgstr "Falha ao buscar as categorias"
+msgstr "Falha ao remover as categorias duplicadas"
 
 #: /app/lib/Controller/SetupController.php:121
 #, php-format
@@ -1818,7 +1723,7 @@ msgstr "Restauração concluída: %1$s excluído(s), %2$s criado(s)"
 #, fuzzy
 #| msgid "Failed to retrieve categories"
 msgid "Failed to reset categories"
-msgstr "Falha ao buscar as categorias"
+msgstr "Falha ao restaurar as categorias padrão"
 
 #: /app/lib/Controller/SetupController.php:141
 msgid ""
@@ -1837,7 +1742,7 @@ msgstr ""
 #: /app/lib/Controller/SetupController.php:163 /app/src/main.js:2034
 #: /app/src/modules/settings/SettingsModule.js:332
 msgid "Factory reset failed"
-msgstr ""
+msgstr "Falha ao restaurar as configurações de fábrica"
 
 #: /app/lib/Controller/SetupController.php:187
 msgid "Balance recalculation failed"
@@ -1862,29 +1767,21 @@ msgid "Repair failed"
 msgstr "O envio do arquivo falhou"
 
 #: /app/lib/Controller/SetupController.php:359
-#, fuzzy
-#| msgid "Failed to get settlements"
 msgid "Failed to get system info"
-msgstr "Falha ao carregar as quitações"
+msgstr "Falha ao obter as informações do sistema"
 
 #: /app/lib/Controller/ShareController.php:58
 #: /app/lib/Controller/ShareController.php:72
-#, fuzzy
-#| msgid "Failed to retrieve assets"
 msgid "Failed to retrieve shares"
-msgstr "Falha ao buscar os ativos"
+msgstr "Falha ao buscar os compartilhamentos"
 
 #: /app/lib/Controller/ShareController.php:86
-#, fuzzy
-#| msgid "Failed to retrieve spending trends"
 msgid "Failed to retrieve pending shares"
-msgstr "Falha ao buscar as tendências de gastos"
+msgstr "Falha ao buscar os compartilhamentos pendentes"
 
 #: /app/lib/Controller/ShareController.php:103
-#, fuzzy
-#| msgid "Failed to create asset"
 msgid "Failed to create share"
-msgstr "Falha na criação do ativo"
+msgstr "Falha ao criar o compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:119
 #: /app/lib/Controller/ShareController.php:137
@@ -1893,47 +1790,35 @@ msgstr "Falha na criação do ativo"
 #: /app/lib/Controller/ShareController.php:198
 #: /app/lib/Controller/ShareController.php:232
 msgid "Share"
-msgstr ""
+msgstr "Compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:121
 #: /app/src/modules/sharing/SharingModule.js:410
-#, fuzzy
-#| msgid "Failed to get shares"
 msgid "Failed to accept share"
-msgstr "Falha ao carregar os compartilhamentos"
+msgstr "Falha ao aceitar o compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:139
 #: /app/src/modules/sharing/SharingModule.js:418
-#, fuzzy
-#| msgid "Failed to delete share"
 msgid "Failed to decline share"
-msgstr "Falha ao excluir o compartilhamento"
+msgstr "Falha ao recusar o compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:157
 #: /app/src/modules/sharing/SharingModule.js:428
-#, fuzzy
-#| msgid "Failed to delete share"
 msgid "Failed to revoke share"
-msgstr "Falha ao excluir o compartilhamento"
+msgstr "Falha ao revogar o compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:175
 #: /app/src/modules/sharing/SharingModule.js:438
-#, fuzzy
-#| msgid "Failed to delete share"
 msgid "Failed to leave share"
-msgstr "Falha ao excluir o compartilhamento"
+msgstr "Falha ao sair do compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:192
-#, fuzzy
-#| msgid "Setting not found"
 msgid "Share not found"
-msgstr "Configuração não encontrada"
+msgstr "Compartilhamento não encontrado"
 
 #: /app/lib/Controller/ShareController.php:200
-#, fuzzy
-#| msgid "Failed to retrieve contributions"
 msgid "Failed to retrieve share configuration"
-msgstr "Falha ao buscar as contribuições"
+msgstr "Falha ao buscar a configuração do compartilhamento"
 
 #: /app/lib/Controller/ShareController.php:216
 #, fuzzy
@@ -2869,7 +2754,7 @@ msgstr ""
 #: /app/lib/Service/ValidationService.php:191
 #, php-format
 msgid "%1$s must be in YYYY-MM-DD format"
-msgstr ""
+msgstr "%1$s deve estar no formato AAAA-MM-DD"
 
 #: /app/lib/Service/ValidationService.php:209
 #, php-format
@@ -4360,7 +4245,7 @@ msgstr "Os dias de lembrete devem ser entre 0 e 30"
 
 #: /app/src/modules/accounts/AccountsModule.js:834
 msgid "Effective date (YYYY-MM-DD)"
-msgstr ""
+msgstr "Data de vigência (AAAA-MM-DD)"
 
 #: /app/src/modules/accounts/AccountsModule.js:837
 msgid "Compounding frequency (daily, monthly, yearly, simple)"
@@ -5201,7 +5086,7 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:271
 #: /app/src/modules/transfers/TransfersModule.js:315
 msgid "Mark as paid"
-msgstr ""
+msgstr "Marcar como paga"
 
 #: /app/src/modules/bills/BillsModule.js:273
 #: /app/src/modules/transfers/TransfersModule.js:317
@@ -7300,16 +7185,12 @@ msgid "Post now"
 msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:1131
-#, fuzzy
-#| msgid "Failed to retrieve contributions"
 msgid "Failed to save recurring contribution"
-msgstr "Falha ao buscar as contribuições"
+msgstr "Falha ao salvar o aporte recorrente"
 
 #: /app/src/modules/pensions/PensionsModule.js:1135
-#, fuzzy
-#| msgid "Failed to retrieve contributions"
 msgid "Recurring contribution saved"
-msgstr "Falha ao buscar as contribuições"
+msgstr "Aporte recorrente salvo com sucesso"
 
 #: /app/src/modules/pensions/PensionsModule.js:1142
 #, fuzzy
@@ -12129,23 +12010,24 @@ msgstr ""
 
 #: /app/templates/index.php:4771
 msgid "YYYY-MM-DD (2025-10-12)"
-msgstr ""
+msgstr "AAAA-MM-DD (2025-10-12)"
 
 #: /app/templates/index.php:4772
 msgid "MM/DD/YYYY (10/12/2025)"
-msgstr ""
+msgstr "MM/DD/AAAA (10/12/2025)"
 
 #: /app/templates/index.php:4773
 msgid "DD/MM/YYYY (12/10/2025)"
-msgstr ""
+msgstr "DD/MM/AAAA (12/10/2025)"
 
 #: /app/templates/index.php:4774
 msgid "DD.MM.YYYY (12.10.2025)"
-msgstr ""
+msgstr "DD.MM.AAAA (12.10.2025)"
 
 #: /app/templates/index.php:4775
+#, fuzzy
 msgid "Mon D, YYYY (Oct 12, 2025)"
-msgstr ""
+msgstr "Seg D, AAAA (12 de out, 2025)"
 
 #: /app/templates/index.php:4781
 msgid "First Day of Week"
