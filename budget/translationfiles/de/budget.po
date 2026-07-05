@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-03 23:07+0000\n"
-"PO-Revision-Date: 2026-07-05 06:01+0000\n"
+"PO-Revision-Date: 2026-07-05 23:40+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -603,7 +603,7 @@ msgstr "Enddatum"
 
 #: /app/lib/Controller/BillController.php:271
 msgid "Start date must be before the end date"
-msgstr ""
+msgstr "Das Startdatum muss vor dem Enddatum liegen"
 
 #: /app/lib/Controller/BillController.php:276
 #: /app/lib/Controller/BillController.php:479
@@ -619,6 +619,8 @@ msgid ""
 "The new amount does not match the bill's split template. Update the splits "
 "together with the amount."
 msgstr ""
+"Der neue Betrag entspricht nicht der Aufteilungsvorlage dieser Rechnung. "
+"Passe die Aufteilung gemeinsam mit dem Betrag an."
 
 #: /app/lib/Controller/BillController.php:584
 msgid "Failed to update bill"
@@ -852,7 +854,7 @@ msgstr "%1$s nicht gefunden"
 
 #: /app/lib/Controller/CategoryController.php:344
 msgid "Only the category owner can delete it"
-msgstr ""
+msgstr "Nur der Eigentümer der Kategorie kann das löschen"
 
 #: /app/lib/Controller/CategoryController.php:370
 #: /app/lib/Controller/CategoryController.php:382
@@ -864,7 +866,7 @@ msgstr "Die Ausgabenkategorie konnte nicht abgerufen werden"
 #: /app/lib/Controller/CategoryController.php:470
 #: /app/lib/Controller/CategoryController.php:508
 msgid "Invalid month format. Use YYYY-MM"
-msgstr ""
+msgstr "Ungültiges Monatsformat. Verwende YYYY-MM"
 
 #: /app/lib/Controller/CategoryController.php:446
 #, fuzzy
@@ -1135,7 +1137,7 @@ msgstr "Ziel konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/GoalsController.php:324
 msgid "Only the goal owner can delete it"
-msgstr ""
+msgstr "Nur der Eigentümer des Ziels kann das löschen"
 
 #: /app/lib/Controller/GoalsController.php:330
 msgid "Goal deleted successfully"
@@ -2294,7 +2296,7 @@ msgstr "Budget"
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:117
 #, php-format
 msgid "(excludes %1$s — no exchange rate)"
-msgstr ""
+msgstr "(%1$s ausgeschlossen – kein Wechselkurs verfügbar)"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:121
 #, fuzzy
@@ -2311,7 +2313,7 @@ msgstr "Diesen Monat fällig"
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:132
 #, php-format
 msgid "%1$s of %2$s spent (%3$s%%)"
-msgstr ""
+msgstr "%1$s von %2$s ausgegeben (%3$s %%)"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:147
 #, fuzzy
@@ -2337,10 +2339,8 @@ msgid "Attention"
 msgstr "Aktionen"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:42
-#, fuzzy
-#| msgid "Upcoming Bills"
 msgid "Budget: Upcoming bills"
-msgstr "Fällige Zahlungen"
+msgstr "Budget: Fällige Zahlungen"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:78
 #: /app/src/modules/dashboard/DashboardModule.js:1357
@@ -2355,10 +2355,8 @@ msgid "All bills"
 msgstr "Alle Rechnungen"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:116
-#, fuzzy
-#| msgid "Overdue"
 msgid "overdue"
-msgstr "Überfällig"
+msgstr "überfällig"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:119
 #: /app/lib/Notification/Notifier.php:57
@@ -2442,7 +2440,7 @@ msgstr ""
 
 #: /app/lib/Notification/Notifier.php:239
 msgid "Income auto-created: {income}"
-msgstr ""
+msgstr "Einnahme automatisch erstellt: {income}"
 
 #: /app/lib/Notification/Notifier.php:251
 #, fuzzy
@@ -2486,17 +2484,19 @@ msgstr ""
 #: /app/lib/Notification/Notifier.php:364
 #: /app/lib/Service/DigestService.php:127
 msgid "Your monthly budget digest"
-msgstr ""
+msgstr "Deine monatliche Budgetübersicht"
 
 #: /app/lib/Notification/Notifier.php:365
 #: /app/lib/Service/DigestService.php:126
 msgid "Your weekly budget digest"
-msgstr ""
+msgstr "Deine wöchentliche Budgetübersicht"
 
 #: /app/lib/Notification/Notifier.php:370
 msgid ""
 "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
 msgstr ""
+"Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
+"sind bald fällig."
 
 #: /app/lib/Notification/Notifier.php:392
 #, fuzzy
@@ -2510,6 +2510,8 @@ msgid ""
 "{category} spending is {percent}%% above your typical level — {amount} so "
 "far this month."
 msgstr ""
+"Die Ausgaben für „{category}“ liegen {percent} %% über deinem üblichen "
+"Niveau – bisher {amount} in diesem Monat."
 
 #: /app/lib/Notification/Notifier.php:421
 msgid "Your Budget report for {month} is ready"
@@ -2547,11 +2549,13 @@ msgid ""
 "Found %1$s account(s). Please open Account Mappings to enable and map them, "
 "then sync again."
 msgstr ""
+"%1$s Konten gefunden. Öffne die Kontozuordnungen, aktiviere die Konten und "
+"ordne sie zu. Starte anschließend die Synchronisierung erneut."
 
 #: /app/lib/Service/BankSync/BankSyncService.php:425
 #, php-format
 msgid "Sync completed with %1$s error(s)"
-msgstr ""
+msgstr "Synchronisierung abgeschlossen, %1$s Fehler"
 
 #: /app/lib/Service/Bill/BillIcsService.php:54 /app/src/main.js:866
 #: /app/src/modules/dashboard/DashboardModule.js:4621
@@ -2563,7 +2567,7 @@ msgstr "Rechnungen"
 #: /app/lib/Service/Bill/BillIcsService.php:141
 #, php-format
 msgid "Bill due: %1$s"
-msgstr ""
+msgstr "Rechnung fällig: %1$s"
 
 #: /app/lib/Service/BillService.php:570
 msgid "Cannot skip a one-time bill"
@@ -2614,7 +2618,7 @@ msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
 
 #: /app/lib/Service/CategoryService.php:432
 msgid "No budget snapshot found for this category and month"
-msgstr ""
+msgstr "Für diese Kategorie und diesen Monat sind keine Budgetdaten verfügbar"
 
 #: /app/lib/Service/DigestService.php:132
 #, php-format
