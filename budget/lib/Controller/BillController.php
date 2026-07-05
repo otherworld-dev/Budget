@@ -138,7 +138,9 @@ class BillController extends Controller {
             $notes = $data['notes'] ?? null;
             $reminderDays = isset($data['reminderDays']) ? (int) $data['reminderDays'] : null;
             $customRecurrencePattern = $data['customRecurrencePattern'] ?? null;
-            $createTransaction = $data['createTransaction'] ?? false;
+            // Defaults to true: pre-booking the next occurrence is the app's
+            // established behaviour, so omitting the field opts in (#311)
+            $createTransaction = filter_var($data['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN);
             $transactionDate = $data['transactionDate'] ?? null;
             $autoPayEnabled = $data['autoPayEnabled'] ?? false;
             $isTransfer = $data['isTransfer'] ?? false;
@@ -524,6 +526,11 @@ class BillController extends Controller {
             // Handle exclude-from-forecast flag (#270)
             if (array_key_exists('excludedFromForecast', $data)) {
                 $updates['excludedFromForecast'] = filter_var($data['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
+            }
+
+            // Handle pre-create future transaction flag (#311)
+            if (array_key_exists('createTransaction', $data)) {
+                $updates['createTransaction'] = filter_var($data['createTransaction'], FILTER_VALIDATE_BOOLEAN);
             }
 
             // Validate transfer constraints if being updated

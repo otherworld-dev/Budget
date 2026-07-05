@@ -421,6 +421,8 @@ OC.L10N.register(
     "Budget Sharing" : "Budget",
     "Account Mappings" : "Compte",
     "Budget Digest" : "Budget",
+    "Counterpart account" : "Compte",
+    "Create and link" : "Impossible de créer la facture",
     "Save Transaction" : "Transaction",
     "Transaction saved!" : "Date de transaction"
 },

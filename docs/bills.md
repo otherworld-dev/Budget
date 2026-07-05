@@ -17,6 +17,7 @@ Navigate to **Bills > Add Bill** to create a new bill.
 | **Account** | The account the payment comes from. Required for auto-pay, and needed for "Mark Paid" to record a transaction. |
 | **Auto-Detect Pattern** | A text pattern to match imported transactions against this bill (e.g., "NETFLIX" or "ELECTRIC CO"). When an import or bank sync brings in a matching transaction (amount within 10%, dated near the due date), the bill is automatically marked as paid with that transaction linked — no duplicate money movement, and the Bills Calendar ticks the month off. |
 | **Exclude from Forecast** | Marks the bill as extraordinary: transactions it generates are left out of [forecast](forecast.md) projections (they still affect your balance). |
+| **Create future transaction** | On by default. Keeps a **scheduled** placeholder transaction for the bill's next due date, so upcoming payments appear in the transaction list and forecasts. Untick to opt this bill out — no placeholders are ever created for it, including after marking it paid. Toggling it on a saved bill takes effect immediately (the pending placeholder is created or removed). |
 | **Notes** | Optional free-text notes about the bill. |
 
 > **Tip:** Setting an auto-detect pattern helps the app automatically recognize bill payments when you import bank statements, saving you from manually marking each one as paid.
@@ -68,10 +69,10 @@ Click **Mark Paid** on any bill to record the payment. This:
 
 1. Creates a cleared transaction in the linked account for the bill amount and category, dated today.
 2. Advances the due date to the next occurrence based on the frequency.
-3. Pre-creates a **scheduled** transaction for the next occurrence, so the upcoming payment is visible in the transaction list and forecasts.
+3. Pre-creates a **scheduled** transaction for the next occurrence, so the upcoming payment is visible in the transaction list and forecasts (unless the bill's **Create future transaction** option is unticked).
 4. Shows an **Undo** notification for approximately 5 seconds, allowing you to reverse the action if clicked accidentally.
 
-> **Note:** The pre-created transaction for the next occurrence is a placeholder, not a second payment. It carries a **Scheduled** badge, is shown in italics, and is not counted toward your current balance or the transaction list total until it is due. When you mark the next occurrence paid, this placeholder becomes the real payment — it is not duplicated. See [Transaction Status](transactions.md#transaction-status) for details.
+> **Note:** The pre-created transaction for the next occurrence is a placeholder, not a second payment. It carries a **Scheduled** badge, is shown in italics, and is not counted toward your current balance or the transaction list total until it is due. When you mark the next occurrence paid, this placeholder becomes the real payment — it is not duplicated. See [Transaction Status](transactions.md#transaction-status) for details. If you prefer not to see these placeholders at all, untick **Create future transaction** on the bill.
 
 Marking a bill paid after its due date works the same way: the payment transaction is dated the day you mark it paid, and the due date still advances from the original schedule (a bill due on the 1st stays due on the 1st of the next month, even if you paid on the 2nd).
 

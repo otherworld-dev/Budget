@@ -48,7 +48,7 @@ Transactions with a future date are automatically marked as **scheduled**. They 
 
 This distinction lets you enter upcoming bills or expected deposits ahead of time without inflating your current balance. The projected balance (visible in the account detail view) shows what your balance will be once scheduled transactions clear.
 
-Recurring [bills](bills.md) create scheduled transactions automatically: marking a bill paid pre-creates a placeholder for the next occurrence. This placeholder is not a duplicate payment — it becomes the real transaction when that occurrence is paid.
+Recurring [bills](bills.md) create scheduled transactions automatically: marking a bill paid pre-creates a placeholder for the next occurrence. This placeholder is not a duplicate payment — it becomes the real transaction when that occurrence is paid. Each bill has a **Create future transaction** option to turn this off per bill.
 
 > **Tip:** Use scheduled transactions to plan ahead. Enter your rent, subscriptions, and other recurring payments with their expected dates so the projected balance reflects your true financial picture.
 

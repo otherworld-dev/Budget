@@ -792,6 +792,8 @@ OC.L10N.register(
     "Custom" : "Personalizado",
     "Run Rule" : "Executar Regra Agora",
     "Auto-create transaction when due" : "Falha na criação da transação",
+    "Counterpart account" : "contas financeiras",
+    "Create and link" : "Falha ao criar a conta",
     "Share Expense" : "Compartilhar Despesa",
     "Share expense form" : "Formulário de compartilhamento de despesa",
     "Settle Expenses" : "Despesas Compartilhadas",

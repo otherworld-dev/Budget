@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The **Recent Transactions** dashboard tile now honors its **"Rows to show"** setting above 8 — the display respected the setting but the data fetch was hardcoded to 8 rows, so values of 9–20 silently showed only 8
+
 ### Added
+- **Per-bill opt-out of pre-created transactions.** The **"Create future transaction for this bill"** checkbox is now a persistent bill setting instead of a one-shot option at creation. Bills with it unticked never get a scheduled placeholder — not at creation, not after marking paid, not after skipping — and toggling it on an existing bill adds or removes the pending placeholder immediately. Previously the checkbox only affected the moment a bill was created, while every payment re-enabled pre-booking unconditionally, so unticking it never actually opted a bill out ([#311](https://github.com/otherworld-dev/Budget/issues/311))
+
 - **Convert a transaction into a transfer.** The **Match transfer** dialog gains a **"No match? Create the other side"** section: pick one of your accounts and the app creates the opposite transaction there and links the pair as a transfer. Until now the dialog could only link two *existing* transactions, which left no way to correctly book payments to accounts that have nothing to import — e.g. a loan tracked as its own account ([#313](https://github.com/otherworld-dev/Budget/issues/313))
 
 ### Changed

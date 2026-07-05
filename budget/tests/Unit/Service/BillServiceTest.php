@@ -76,6 +76,9 @@ class BillServiceTest extends TestCase {
 		$bill->setDestinationAccountId($overrides['destinationAccountId'] ?? null);
 		$bill->setAutoDetectPattern($overrides['autoDetectPattern'] ?? null);
 		$bill->setCreatedAt($overrides['createdAt'] ?? '2024-01-01 00:00:00');
+		if (array_key_exists('createTransaction', $overrides)) {
+			$bill->setCreateTransaction($overrides['createTransaction']);
+		}
 		return $bill;
 	}
 
@@ -259,6 +262,83 @@ class BillServiceTest extends TestCase {
 		$this->assertTrue($bill->getIsActive());
 		$this->assertArrayHasKey('previousState', $result);
 		$this->assertArrayHasKey('createdTransactionIds', $result);
+	}
+
+	// ── pre-created next transaction opt-out (#311) ─────────────────
+
+	public function testMarkPaidCreatesNextPlaceholderByDefault(): void {
+		// Legacy rows have no flag (null) — treated as opted in
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		// Once for the payment leg, once for the next occurrence
+		$this->transactionService->expects($this->exactly(2))->method('createFromBill');
+
+		$this->service->markPaid(1, 'user1');
+	}
+
+	public function testMarkPaidSkipsNextPlaceholderWhenOptedOut(): void {
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		// Only the payment leg is recorded — no placeholder for the next occurrence
+		$this->transactionService->expects($this->once())
+			->method('createFromBill')
+			->with('user1', $bill, $this->anything(), 'cleared');
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		// Schedule still advances as normal
+		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
+	}
+
+	public function testSkipPaymentSkipsPlaceholderWhenOptedOut(): void {
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$result = $this->service->skipPayment(1, 'user1');
+
+		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
+	}
+
+	public function testUpdateTogglingOffRemovesPlaceholders(): void {
+		$bill = $this->makeBill(); // no flag = enabled
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
+
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$this->service->update(1, 'user1', ['createTransaction' => false]);
+	}
+
+	public function testUpdateTogglingOnCreatesPlaceholder(): void {
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
+
+		$this->transactionService->expects($this->once())->method('createFromBill');
+		$this->transactionService->expects($this->never())->method('deleteScheduledBillTransactions');
+
+		$this->service->update(1, 'user1', ['createTransaction' => true]);
+	}
+
+	public function testCreatePersistsPreBookOptOut(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
+		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+
+		$bill = $this->service->create('user1', 'Netflix', 15.99, 'monthly', 1, createTransaction: false);
+
+		$this->assertFalse($bill->getCreateTransaction());
 	}
 
 	public function testMarkPaidUsesProvidedDate(): void {

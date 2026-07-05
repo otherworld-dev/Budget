@@ -563,8 +563,10 @@ export default class BillsModule {
             const remainingPayments = bill.remainingPayments ?? bill.remaining_payments;
             document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
 
-            // Reset transaction creation fields for edit mode
-            document.getElementById('bill-create-transaction').checked = false;
+            // Populate the persistent pre-book flag (older bills without the
+            // column count as enabled — that was the effective behaviour)
+            document.getElementById('bill-create-transaction').checked =
+                bill.createTransaction ?? bill.create_transaction ?? true;
             clearDateValue('bill-transaction-date');
             document.getElementById('transaction-date-group').style.display = 'none';
 
@@ -613,8 +615,9 @@ export default class BillsModule {
             clearDateValue('bill-end-date');
             document.getElementById('bill-remaining-payments').value = '';
 
-            // Reset transaction creation fields for new bill
-            document.getElementById('bill-create-transaction').checked = false;
+            // Pre-book is on by default for new bills (matches the app's
+            // established mark-paid behaviour); untick to opt this bill out
+            document.getElementById('bill-create-transaction').checked = true;
             clearDateValue('bill-transaction-date');
             document.getElementById('transaction-date-group').style.display = 'none';
 

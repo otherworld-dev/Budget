@@ -190,7 +190,7 @@ export default class DashboardModule {
                 fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`), {
                     headers: { 'requesttoken': OC.requestToken }
                 }),
-                fetch(OC.generateUrl('/apps/budget/api/transactions?limit=8'), {
+                fetch(OC.generateUrl(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`), {
                     headers: { 'requesttoken': OC.requestToken }
                 }),
                 fetch(OC.generateUrl('/apps/budget/api/bills/upcoming'), {
@@ -2875,9 +2875,15 @@ export default class DashboardModule {
         }
     }
 
+    /** Fetch limit for a Recent Transactions instance: the tile's saved rows-to-show setting */
+    _recentTxLimit(instanceId = 'recentTransactions') {
+        const rowCount = parseInt(this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.rowCount, 10);
+        return rowCount > 0 ? rowCount : 8;
+    }
+
     async refreshRecentTransactions(accountId = null, instanceId = 'recentTransactions') {
         try {
-            let url = '/apps/budget/api/transactions?limit=8';
+            let url = `/apps/budget/api/transactions?limit=${this._recentTxLimit(instanceId)}`;
             if (accountId) {
                 url += `&accountId=${accountId}`;
             }

@@ -184,7 +184,7 @@ class BillService {
         ?string $notes = null,
         ?int $reminderDays = null,
         ?string $customRecurrencePattern = null,
-        bool $createTransaction = false,
+        bool $createTransaction = true,
         ?string $transactionDate = null,
         bool $autoPayEnabled = false,
         bool $isTransfer = false,
@@ -237,6 +237,7 @@ class BillService {
         $bill->setEndDate($endDate);
         $bill->setRemainingPayments($remainingPayments);
         $bill->setExcludedFromForecast($excludedFromForecast);
+        $bill->setCreateTransaction($createTransaction);
         if ($splitTemplate !== null) {
             $bill->setSplitTemplateArray($splitTemplate);
             // When splits define the categories, clear the bill-level category
@@ -353,6 +354,27 @@ class BillService {
         // Apply all updates directly to database
         if (!empty($dbUpdates)) {
             $this->mapper->updateFields($id, $userId, $dbUpdates);
+        }
+
+        // Toggling "create future transaction" takes effect immediately:
+        // off removes the pending placeholder, on creates one for the next
+        // occurrence (instead of only changing behaviour at the next payment)
+        if (isset($updates['createTransaction'])) {
+            $wasEnabled = $bill->getCreateTransaction() ?? true;
+            $nowEnabled = (bool) $updates['createTransaction'];
+            if ($wasEnabled && !$nowEnabled) {
+                $this->transactionService->deleteScheduledBillTransactions($id);
+            } elseif (!$wasEnabled && $nowEnabled) {
+                $fresh = $this->find($id, $userId);
+                if ($fresh->getIsActive() && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
+                    try {
+                        $nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
+                        $this->applySplitTemplate($fresh, $nextTransaction, $userId);
+                    } catch (\Exception $e) {
+                        $this->logger->warning("Failed to create next transaction after enabling pre-booking on bill {$id}: {$e->getMessage()}");
+                    }
+                }
+            }
         }
 
         // Reload from database to ensure we return the actual saved state
@@ -478,7 +500,8 @@ class BillService {
 
         // Auto-create transaction for next occurrence if bill has account
         // Skip for deactivated bills (one-time, end date reached, remaining payments exhausted)
-        if ($createNextTransaction && $bill->getIsActive() && $bill->getAccountId() !== null) {
+        // and bills that opted out of pre-created transactions (null = legacy rows, treated as opted in)
+        if ($createNextTransaction && ($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
                 $createdTransactionIds[] = $nextTransaction->getId();
@@ -598,8 +621,9 @@ class BillService {
 
         $bill = $this->mapper->update($bill);
 
-        // Create scheduled transaction for the new next occurrence
-        if ($bill->getIsActive() && $bill->getAccountId() !== null) {
+        // Create scheduled transaction for the new next occurrence,
+        // unless the bill opted out of pre-created transactions
+        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
                 $this->applySplitTemplate($bill, $nextTransaction, $userId);

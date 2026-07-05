@@ -5662,7 +5662,7 @@ style('budget', 'budget-app');
                     <input type="checkbox" id="bill-create-transaction" style="width: 18px; height: 18px; cursor: pointer;">
                     <span><?php p($l->t('Create future transaction for this bill')); ?></span>
                 </label>
-                <small class="form-text"><?php p($l->t("Automatically creates a transaction on the bill's due date")); ?></small>
+                <small class="form-text"><?php p($l->t("Keeps a scheduled transaction for the next due date so the upcoming payment shows in the transaction list and forecasts. Untick to never pre-create transactions for this bill.")); ?></small>
             </div>
 
             <div class="form-group" id="transaction-date-group" style="display: none;">

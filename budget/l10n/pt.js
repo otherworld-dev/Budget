@@ -467,6 +467,7 @@ OC.L10N.register(
     "Mortgage" : "Hipoteca",
     "Trend" : "Tendência",
     "Custom" : "Personalizado",
+    "Counterpart account" : "Falha ao atualizar a conta financeira",
     "Share Expense" : "Partilhar Despesa",
     "Share expense form" : "Formulário de partilhamento de despesa",
     "Settlement form" : "Formulário de quitação",

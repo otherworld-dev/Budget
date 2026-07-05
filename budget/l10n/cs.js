@@ -205,6 +205,7 @@ OC.L10N.register(
     "Admin Settings" : "nastavení",
     "Interest Tracking" : "Úrok",
     "Enable" : "Stabilní",
+    "Counterpart account" : "účty",
     "Country" : "Množství",
     "Save Transaction" : "Transakce",
     "Transaction saved!" : "Transakce",
