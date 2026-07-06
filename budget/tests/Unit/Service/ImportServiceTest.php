@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\CategoryService;
@@ -291,6 +292,49 @@ class ImportServiceTest extends TestCase {
 
         $this->assertEquals(0, $result['imported']);
         $this->assertEquals(1, $result['skipped']);
+    }
+
+    public function testProcessImportLinksDeferredTransfersById(): void {
+        // Regression #314: findPotentialMatches returns Transaction entities,
+        // but the deferred-link loop read $match['id'] (array access) — a PHP
+        // Error that escaped the catch(\Exception) and surfaced on the import
+        // screen after the rows were already saved.
+        $file = $this->createMock(ISimpleFile::class);
+        $file->method('getContent')->willReturn('csv data');
+        $folder = $this->createMock(ISimpleFolder::class);
+        $folder->method('getFile')->willReturn($file);
+        $this->appData->method('getFolder')->willReturn($folder);
+
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['date' => '2025-01-01', 'amount' => '100', 'description' => 'Transfer out'],
+        ]);
+
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2025-01-01', 'amount' => 100.0, 'description' => 'Transfer out', 'type' => 'debit',
+            '_deferred_link_transfer' => true,
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_tr1');
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $created = new Transaction();
+        $created->setId(42);
+        $this->transactionService->method('create')->willReturn($created);
+
+        $match = new Transaction();
+        $match->setId(99);
+        $this->transactionService->method('findPotentialMatches')->willReturn([$match]);
+
+        $this->transactionService->expects($this->once())
+            ->method('linkTransactions')
+            ->with(42, 99, 'user1');
+
+        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+
+        $this->assertEquals(1, $result['imported']);
+        $this->assertEmpty($result['errors']);
     }
 
     // ===== occurrence-aware duplicate detection (#276) =====

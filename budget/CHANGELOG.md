@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Importing transactions that trigger the **Auto-Link as Transfer** rule action no longer shows *"Cannot use object of type Transaction as array"* on the import screen. The import itself always completed — the error came from the transfer-linking step afterwards, which also means those transfers were never actually linked ([#314](https://github.com/otherworld-dev/Budget/issues/314))
 - The **Recent Transactions** dashboard tile now honors its **"Rows to show"** setting above 8 — the display respected the setting but the data fetch was hardcoded to 8 rows, so values of 9–20 silently showed only 8
 
 ### Added

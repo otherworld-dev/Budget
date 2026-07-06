@@ -1087,12 +1087,13 @@ class ImportService {
                     $matches = $this->transactionService->findPotentialMatches($txId, $userId, 3);
                     if (!empty($matches)) {
                         // Auto-link the best match (first one — highest confidence)
-                        $bestMatch = $matches[0];
-                        $this->transactionService->linkTransactions($txId, $bestMatch['id'], $userId);
+                        $this->transactionService->linkTransactions($txId, $matches[0]->getId(), $userId);
                         $transfersLinked++;
                     }
-                } catch (\Exception $e) {
-                    // Silently skip — match may not exist or already linked
+                } catch (\Throwable $e) {
+                    // Silently skip — match may not exist or already linked.
+                    // Throwable, not Exception: a PHP Error here surfaced to the
+                    // import screen after the rows were already saved (#314)
                 }
             }
         }

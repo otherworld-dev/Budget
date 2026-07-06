@@ -2361,7 +2361,6 @@
     "2 weeks before" : "За 2 недели",
     "Receive a notification before bill is due" : "Получать уведомление до наступления срока оплаты счета",
     "Create future transaction for this bill" : "Создать будущую транзакцию для этого счета",
-    "Automatically creates a transaction on the bill's due date" : "Автоматически создает транзакцию в дату оплаты счета",
     "Auto-pay when due" : "Автоплатеж в срок оплаты",
     "Automatically mark this bill as paid when due date arrives (requires account)" : "Автоматически отмечать этот счет как оплаченный при наступлении срока оплаты (требуется счет)",
     "Auto-pay failed!" : "Не удалось выполнить автоплатеж!",
