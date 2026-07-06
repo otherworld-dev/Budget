@@ -52,6 +52,7 @@ Full user documentation: https://github.com/otherworld-dev/budget/tree/master/do
     <repository>https://github.com/otherworld-dev/budget</repository>
     <screenshot small-thumbnail="https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard-thumb.png">https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard.png</screenshot>
     <donation type="paypal" title="Donate via PayPal">https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2</donation>
+    <donation type="other" title="Sponsor on GitHub">https://github.com/sponsors/otherworld-dev</donation>
     <dependencies>
         <php min-version="8.1" />
         <lib>bcmath</lib>

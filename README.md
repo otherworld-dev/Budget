@@ -32,6 +32,15 @@ Popular topics:
 - [Bills & recurring payments](docs/bills.md)
 - [Settings reference](docs/settings.md)
 
+## Support the Project
+
+Budget is free and open source, built and maintained in spare time. If it's useful to you — especially if it replaced a paid finance service — consider supporting development:
+
+- **[GitHub Sponsors](https://github.com/sponsors/otherworld-dev)** — monthly or one-time
+- **[PayPal](https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2)** — one-time donation
+
+Sponsorship funds the time behind quick fixes, new features, and keeping the app moving.
+
 ## Features
 
 ### Dashboard & Visualization
