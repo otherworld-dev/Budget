@@ -222,6 +222,32 @@ class ImportRuleServiceTest extends TestCase {
         $this->service->update(1, 'user1', ['criteria' => $criteria]);
     }
 
+    public function testUpdateRejectsV1ToV2UpgradeWithoutCriteria(): void {
+        // A JSON edit that sets schemaVersion=2 but omits criteria on a v1 rule
+        // must error, not silently save an inert (never-matching) rule (#318)
+        $rule = $this->makeRule(['schemaVersion' => 1]);
+        $rule->setCriteria(null);
+        $this->mapper->method('find')->willReturn($rule);
+        $this->mapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Criteria required for v2 rules');
+
+        $this->service->update(1, 'user1', ['schemaVersion' => 2]);
+    }
+
+    public function testUpdateAllowsV2PartialUpdateKeepingExistingCriteria(): void {
+        // Editing another field on an already-v2 rule (criteria omitted) is a
+        // valid partial update — the stored criteria is left untouched
+        $rule = $this->makeRule(['schemaVersion' => 2]);
+        $rule->setCriteriaFromArray(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]]);
+        $this->mapper->method('find')->willReturn($rule);
+        $this->criteriaEvaluator->expects($this->never())->method('validate');
+        $this->mapper->expects($this->once())->method('update')->willReturnCallback(fn($r) => $r);
+
+        $this->service->update(1, 'user1', ['priority' => 42]);
+    }
+
     // ===== delete =====
 
     public function testDeleteFindsAndRemoves(): void {

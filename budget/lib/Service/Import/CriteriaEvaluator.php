@@ -467,6 +467,16 @@ class CriteriaEvaluator {
 					$errors[] = "Invalid matchType '$matchType' for field '$field'";
 				}
 			}
+
+			// Reject an invalid regex pattern at save time so it surfaces as a
+			// clear error, instead of silently never matching at run time. The
+			// visual builder already checks this client-side; validating here
+			// covers the JSON-editing path too (#318).
+			if ($matchType === 'regex' && isset($node['pattern']) && is_string($node['pattern'])) {
+				if (@preg_match('/' . $node['pattern'] . '/i', '') === false) {
+					$errors[] = "Invalid regex pattern: '" . $node['pattern'] . "'";
+				}
+			}
 		} else {
 			$errors[] = 'Unknown node type';
 		}

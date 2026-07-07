@@ -1,10 +1,6 @@
 OC.L10N.register(
     "budget",
     {
-    "widget" : "Rozpočet",
-    "balance" : "Zůstatek",
-    "currency" : "Kryptoměna",
-    "institution" : "Instituce",
     "Failed to retrieve accounts" : "Nepodařilo se získat účty",
     "Account not found" : "Účet nenalezen",
     "Account" : "Účet",
@@ -29,6 +25,9 @@ OC.L10N.register(
     "Failed to re-authorize" : "Nepodařilo se získat účty",
     "Bill" : "Faktura",
     "Category" : "Kategorie",
+    "Failed to load report preferences" : "Nepodařilo se získat účty",
+    "Category not found" : "Účet nenalezen",
+    "Failed to update report preference" : "Nepodařilo se získat účty",
     "Failed to delete budget snapshot" : "Nepodařilo se získat účty",
     "Failed to retrieve snapshot months" : "Nepodařilo se získat účty",
     "Failed to retrieve effective budgets" : "Nepodařilo se získat účty",
@@ -163,6 +162,7 @@ OC.L10N.register(
     "Loans" : "Půjčky",
     "No large transactions" : "transakce",
     "Uncategorized transactions" : "Nezařazeno",
+    "Click to view transactions" : "Nezařazeno",
     "Portfolio" : "Portfolio",
     "yesterday" : "včera",
     "Tile Settings" : "nastavení",

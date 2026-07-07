@@ -165,6 +165,19 @@ class ImportRuleService extends AbstractCrudService {
                 if (!$validation['valid']) {
                     throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
                 }
+            } else {
+                // A rule ending up at v2 must have valid criteria (mirrors the
+                // create() invariant). Without this, a JSON edit that sets
+                // schemaVersion=2 but omits criteria silently produced an inert
+                // rule that matches nothing (#318). Only enforced when the rule
+                // has no usable criteria yet — a partial v2 update that leaves
+                // existing criteria untouched is fine.
+                $upgradingToV2 = ($currentVersion !== 2);
+                $storedCriteria = $rule->getCriteria();
+                $hasStoredCriteria = ($storedCriteria !== null && $storedCriteria !== '');
+                if ($upgradingToV2 || !$hasStoredCriteria) {
+                    throw new \InvalidArgumentException('Criteria required for v2 rules');
+                }
             }
 
             // Validate actions if being updated

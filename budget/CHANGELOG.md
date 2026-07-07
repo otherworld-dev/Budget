@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The **Recent Transactions** dashboard tile now honors its **"Rows to show"** setting above 8 — the display respected the setting but the data fetch was hardcoded to 8 rows, so values of 9–20 silently showed only 8
 
 ### Added
+- **Edit auto-categorization rules as JSON.** The rule editor gains a **Builder / JSON** toggle. The JSON view shows the raw rule structure — editable and paste-friendly — checked when you save, and switching back to Builder repopulates the visual widgets. A **Copy JSON** button makes it easy to move a rule between instances (category/account IDs are instance-specific, as noted in the view). Requested in [#318](https://github.com/otherworld-dev/Budget/issues/318)
+
 - **Hide shared categories from your own reports.** Categories shared with you gain a per-viewer **"Hide from my reports"** toggle on the Categories page. Unlike the owner's "Exclude from reports" flag — which stays owner-only because it changes every viewer's reports at once — this only affects your own reports and dashboards; the owner and other viewers see no difference. Applied at the SQL layer through the same choke points as the owner flag, so every report and insight tile honors it consistently
 
 - **"Exclude shared accounts" on the remaining dashboard tiles.** The per-tile toggle added in v2.37 now also covers **Budget Progress, Monthly Comparison, Large Transactions, Weekly Spending, Category Trends, Cash Flow Forecast and Year-over-Year** (shown in the gear menu when you have shared accounts). Bills, income and pension tiles are deliberately not included — they show entity data, not account aggregates

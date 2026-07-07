@@ -20,6 +20,7 @@ export default class RulesModule {
         this.statusFilter = 'all'; // 'all', 'active', 'inactive'
         this.expandedGroups = new Set(); // Track which groups are expanded
         this.ruleGroups = []; // Available group names
+        this.ruleViewMode = 'builder'; // 'builder' | 'json' — rule editor view (#318)
     }
 
     // Getters for app state
@@ -538,6 +539,23 @@ export default class RulesModule {
             runRuleNowBtn.dataset.listenerAttached = 'true';
         }
 
+        // Builder / JSON view toggle (#318)
+        const ruleViewBuilderBtn = document.getElementById('rule-view-builder-btn');
+        if (ruleViewBuilderBtn && !ruleViewBuilderBtn.dataset.listenerAttached) {
+            ruleViewBuilderBtn.addEventListener('click', () => this.switchRuleView('builder'));
+            ruleViewBuilderBtn.dataset.listenerAttached = 'true';
+        }
+        const ruleViewJsonBtn = document.getElementById('rule-view-json-btn');
+        if (ruleViewJsonBtn && !ruleViewJsonBtn.dataset.listenerAttached) {
+            ruleViewJsonBtn.addEventListener('click', () => this.switchRuleView('json'));
+            ruleViewJsonBtn.dataset.listenerAttached = 'true';
+        }
+        const ruleJsonCopyBtn = document.getElementById('rule-json-copy-btn');
+        if (ruleJsonCopyBtn && !ruleJsonCopyBtn.dataset.listenerAttached) {
+            ruleJsonCopyBtn.addEventListener('click', () => this.copyRuleJson());
+            ruleJsonCopyBtn.dataset.listenerAttached = 'true';
+        }
+
         // Execute apply button
         const executeBtn = document.getElementById('execute-apply-rules-btn');
         if (executeBtn && !executeBtn.dataset.listenerAttached) {
@@ -647,6 +665,9 @@ export default class RulesModule {
 
         form.reset();
         document.getElementById('rule-id').value = '';
+
+        // Always open in Builder view (#318)
+        this.resetRuleView();
 
         // Populate group datalist
         this.populateGroupDatalist();
@@ -1142,57 +1163,20 @@ export default class RulesModule {
         const ruleId = document.getElementById('rule-id').value;
         const isEdit = !!ruleId;
 
-        // Collect form data
-        const name = document.getElementById('rule-name').value.trim();
-        const groupName = document.getElementById('rule-group-name').value.trim();
-        const priority = parseInt(document.getElementById('rule-priority').value) || 0;
-        const active = document.getElementById('rule-active').checked;
-        const applyOnImport = document.getElementById('rule-apply-on-import').checked;
-
-        // Validate criteria from CriteriaBuilder
-        if (!this.criteriaBuilder) {
-            showError(t('budget', 'Error: CriteriaBuilder not initialized'));
-            return;
+        // Build the request body from whichever editor is active (#318).
+        // Both go to the same endpoint; the server validates criteria/actions
+        // and returns readable errors either way.
+        const requestBody = this.ruleViewMode === 'json'
+            ? this.parseRuleJsonInput()
+            : this.collectBuilderPayload();
+        if (!requestBody) {
+            return; // a syntax/validation error was already surfaced to the user
         }
-
-        const validation = this.criteriaBuilder.validate();
-        if (!validation.valid) {
-            showError(t('budget', 'Invalid criteria: {errors}', { errors: validation.errors.join(', ') }));
-            return;
-        }
-
-        const criteria = this.criteriaBuilder.getCriteria();
-
-        // Validate actions from ActionBuilder
-        if (!this.actionBuilder) {
-            showError(t('budget', 'Error: ActionBuilder not initialized'));
-            return;
-        }
-
-        const actionsValidation = this.actionBuilder.validate();
-        if (!actionsValidation.valid) {
-            showError(t('budget', 'Invalid actions: {errors}', { errors: actionsValidation.errors.join(', ') }));
-            return;
-        }
-
-        const actions = this.actionBuilder.getActions();
 
         try {
             const url = isEdit
                 ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
                 : OC.generateUrl('/apps/budget/api/import-rules');
-
-            const requestBody = {
-                name,
-                groupName,
-                priority,
-                active,
-                applyOnImport,
-                schemaVersion: 2,
-                criteria,
-                actions: actions,
-                stopProcessing: actions.stopProcessing
-            };
 
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
@@ -1204,7 +1188,7 @@ export default class RulesModule {
             });
 
             if (!response.ok) {
-                const error = await response.json();
+                const error = await response.json().catch(() => ({}));
                 throw new Error(error.error || 'Failed to save rule');
             }
 
@@ -1213,7 +1197,231 @@ export default class RulesModule {
             await this.loadRules();
         } catch (error) {
             console.error('Failed to save rule:', error);
+            // In JSON mode, surface save errors inline next to the JSON too
+            if (this.ruleViewMode === 'json') {
+                this.showRuleJsonError(error.message);
+            }
             showError(t('budget', 'Failed to save rule: {error}', { error: error.message }));
+        }
+    }
+
+    /**
+     * Assemble the rule payload from the visual builder, validating criteria
+     * and actions first. Returns null (after showing an error) if invalid.
+     */
+    collectBuilderPayload() {
+        const name = document.getElementById('rule-name').value.trim();
+        const groupName = document.getElementById('rule-group-name').value.trim();
+        const priority = parseInt(document.getElementById('rule-priority').value) || 0;
+        const active = document.getElementById('rule-active').checked;
+        const applyOnImport = document.getElementById('rule-apply-on-import').checked;
+
+        if (!this.criteriaBuilder) {
+            showError(t('budget', 'Error: CriteriaBuilder not initialized'));
+            return null;
+        }
+        const validation = this.criteriaBuilder.validate();
+        if (!validation.valid) {
+            showError(t('budget', 'Invalid criteria: {errors}', { errors: validation.errors.join(', ') }));
+            return null;
+        }
+        const criteria = this.criteriaBuilder.getCriteria();
+
+        if (!this.actionBuilder) {
+            showError(t('budget', 'Error: ActionBuilder not initialized'));
+            return null;
+        }
+        const actionsValidation = this.actionBuilder.validate();
+        if (!actionsValidation.valid) {
+            showError(t('budget', 'Invalid actions: {errors}', { errors: actionsValidation.errors.join(', ') }));
+            return null;
+        }
+        const actions = this.actionBuilder.getActions();
+
+        return {
+            name,
+            groupName,
+            priority,
+            active,
+            applyOnImport,
+            schemaVersion: 2,
+            criteria,
+            actions,
+            stopProcessing: actions.stopProcessing
+        };
+    }
+
+    /**
+     * The rule as a plain, portable object built from the current builder
+     * state — shown in the JSON view. No hard validation so the user can see
+     * and fix an in-progress rule as JSON. Field order is chosen for reading.
+     */
+    ruleExportFromBuilder() {
+        const criteria = this.criteriaBuilder
+            ? this.criteriaBuilder.getCriteria()
+            : { version: 2, root: { operator: 'AND', conditions: [] } };
+        const actions = this.actionBuilder
+            ? this.actionBuilder.getActions()
+            : { version: 2, stopProcessing: true, actions: [] };
+        return {
+            name: document.getElementById('rule-name').value.trim(),
+            groupName: document.getElementById('rule-group-name').value.trim(),
+            priority: parseInt(document.getElementById('rule-priority').value) || 0,
+            active: document.getElementById('rule-active').checked,
+            applyOnImport: document.getElementById('rule-apply-on-import').checked,
+            schemaVersion: 2,
+            stopProcessing: actions.stopProcessing,
+            criteria,
+            actions
+        };
+    }
+
+    /**
+     * Parse the JSON textarea into a save payload. Returns null (after showing
+     * an inline error) on invalid JSON or a non-object.
+     */
+    parseRuleJsonInput() {
+        const textarea = document.getElementById('rule-json-input');
+        if (!textarea) return null;
+        let parsed;
+        try {
+            parsed = JSON.parse(textarea.value);
+        } catch (e) {
+            this.showRuleJsonError(t('budget', 'Invalid JSON: {error}', { error: e.message }));
+            return null;
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            this.showRuleJsonError(t('budget', 'Rule JSON must be a single object.'));
+            return null;
+        }
+        this.hideRuleJsonError();
+        // Safe defaults so a hand-written or pasted rule saves cleanly. The
+        // server still validates the criteria/actions structure.
+        const body = { ...parsed };
+        if (body.schemaVersion === undefined) body.schemaVersion = 2;
+        if (body.stopProcessing === undefined && body.actions && typeof body.actions === 'object' && !Array.isArray(body.actions)) {
+            body.stopProcessing = body.actions.stopProcessing ?? true;
+        }
+        return body;
+    }
+
+    /** Switch the rule editor between the visual builder and the JSON view. */
+    switchRuleView(mode) {
+        if (mode === this.ruleViewMode) return;
+        const builderView = document.getElementById('rule-builder-view');
+        const jsonView = document.getElementById('rule-json-view');
+        const previewBtn = document.getElementById('preview-rule-btn');
+        const runBtn = document.getElementById('run-rule-now-btn');
+
+        if (mode === 'json') {
+            const textarea = document.getElementById('rule-json-input');
+            if (textarea) textarea.value = JSON.stringify(this.ruleExportFromBuilder(), null, 2);
+            this.hideRuleJsonError();
+            if (builderView) builderView.style.display = 'none';
+            if (jsonView) jsonView.style.display = 'block';
+            // #rule-name is `required` and now hidden; a hidden required field
+            // blocks native form submit (and can't be focused), so drop the
+            // constraint in JSON mode — the JSON path validates its own name.
+            document.getElementById('rule-name').removeAttribute('required');
+            // Preview / Run operate on the builder — not meaningful in JSON mode
+            if (previewBtn) previewBtn.style.display = 'none';
+            if (runBtn) runBtn.style.display = 'none';
+        } else {
+            // JSON -> Builder: parse and repopulate the widgets. Stay in JSON
+            // view (with the error shown) if the JSON can't be parsed.
+            const parsed = this.parseRuleJsonInput();
+            if (!parsed) return;
+            // Repopulating the builders from arbitrary JSON can still throw on
+            // deeply malformed input the builders don't normalize; keep the
+            // user in JSON view with an inline message rather than a blank UI.
+            try {
+                this.applyRuleJsonToForm(parsed);
+            } catch (e) {
+                console.error('Failed to load rule JSON into the builder:', e);
+                this.showRuleJsonError(t('budget', 'This JSON could not be loaded into the builder. Fix the structure, or save directly from JSON.'));
+                return;
+            }
+            if (builderView) builderView.style.display = 'block';
+            if (jsonView) jsonView.style.display = 'none';
+            document.getElementById('rule-name').setAttribute('required', 'required');
+            if (previewBtn) previewBtn.style.display = '';
+            if (runBtn) runBtn.style.display = '';
+        }
+        this.ruleViewMode = mode;
+        this.updateRuleViewTabs(mode);
+    }
+
+    /** Populate the builder + meta inputs from a parsed rule JSON object. */
+    applyRuleJsonToForm(obj) {
+        document.getElementById('rule-name').value = obj.name || '';
+        document.getElementById('rule-group-name').value = obj.groupName || '';
+        const priority = parseInt(obj.priority, 10);
+        document.getElementById('rule-priority').value = Number.isFinite(priority) ? priority : 0;
+        document.getElementById('rule-active').checked = obj.active !== false;
+        document.getElementById('rule-apply-on-import').checked = obj.applyOnImport !== false;
+        // Re-init the builders from the JSON; both tolerate null/missing input
+        this.initializeCriteriaBuilder(obj.criteria || null);
+        this.initializeActionBuilder(obj.actions || null);
+    }
+
+    updateRuleViewTabs(mode) {
+        const builderBtn = document.getElementById('rule-view-builder-btn');
+        const jsonBtn = document.getElementById('rule-view-json-btn');
+        if (builderBtn) {
+            builderBtn.classList.toggle('active', mode === 'builder');
+            builderBtn.setAttribute('aria-selected', mode === 'builder' ? 'true' : 'false');
+        }
+        if (jsonBtn) {
+            jsonBtn.classList.toggle('active', mode === 'json');
+            jsonBtn.setAttribute('aria-selected', mode === 'json' ? 'true' : 'false');
+        }
+    }
+
+    /** Reset the editor to Builder view — called each time the modal opens. */
+    resetRuleView() {
+        this.ruleViewMode = 'builder';
+        const builderView = document.getElementById('rule-builder-view');
+        const jsonView = document.getElementById('rule-json-view');
+        if (builderView) builderView.style.display = 'block';
+        if (jsonView) jsonView.style.display = 'none';
+        // Restore the name-required constraint (JSON mode drops it)
+        const nameField = document.getElementById('rule-name');
+        if (nameField) nameField.setAttribute('required', 'required');
+        const previewBtn = document.getElementById('preview-rule-btn');
+        const runBtn = document.getElementById('run-rule-now-btn');
+        if (previewBtn) previewBtn.style.display = '';
+        if (runBtn) runBtn.style.display = '';
+        this.updateRuleViewTabs('builder');
+        this.hideRuleJsonError();
+    }
+
+    showRuleJsonError(message) {
+        const box = document.getElementById('rule-json-error');
+        if (box) {
+            box.textContent = message;
+            box.style.display = 'block';
+        }
+    }
+
+    hideRuleJsonError() {
+        const box = document.getElementById('rule-json-error');
+        if (box) {
+            box.textContent = '';
+            box.style.display = 'none';
+        }
+    }
+
+    async copyRuleJson() {
+        const textarea = document.getElementById('rule-json-input');
+        if (!textarea) return;
+        try {
+            await navigator.clipboard.writeText(textarea.value);
+            showSuccess(t('budget', 'Rule JSON copied to clipboard'));
+        } catch (e) {
+            // Clipboard API unavailable (e.g. non-HTTPS) — select for manual copy
+            textarea.focus();
+            textarea.select();
+            showError(t('budget', 'Could not copy automatically — the text is selected, press Ctrl+C'));
         }
     }
 

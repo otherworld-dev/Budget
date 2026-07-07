@@ -1,7 +1,6 @@
 OC.L10N.register(
     "budget",
     {
-    "institution" : "Instytucja",
     "Failed to retrieve accounts" : "Nie udało się pobrać kont",
     "Account not found" : "Nie znaleziono konta",
     "Account" : "Konto",
@@ -25,6 +24,9 @@ OC.L10N.register(
     "Failed to fetch mappings" : "Nie udało się pobrać kont",
     "Failed to refresh accounts" : "Nie udało się pobrać kont",
     "Failed to re-authorize" : "Nie udało się pobrać kont",
+    "Failed to load report preferences" : "Nie udało się pobrać kont",
+    "Category not found" : "Nie znaleziono konta",
+    "Failed to update report preference" : "Nie udało się pobrać kont",
     "Failed to delete budget snapshot" : "Nie udało się pobrać kont",
     "Failed to retrieve snapshot months" : "Nie udało się pobrać kont",
     "Failed to retrieve effective budgets" : "Nie udało się pobrać kont",

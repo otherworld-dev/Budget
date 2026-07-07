@@ -108,6 +108,17 @@ Rules normally apply during import, but you can also apply them retroactively:
 
 > **Warning:** Running a rule with "Always" behavior on existing transactions will overwrite any manual categorization you've previously done on matching transactions.
 
+## Editing a Rule as JSON
+
+Every rule can be edited as raw JSON instead of clicking through the visual builder — useful for power users who prefer to type, and for copying a rule between instances.
+
+At the top of the rule editor, switch from **Builder** to **JSON**. The current rule is shown as an editable JSON document (its criteria, actions, and settings). Edit it freely, or paste a rule copied from elsewhere, then:
+
+- **Save** — the JSON is checked when you save; if the structure is wrong (an unknown field, an invalid match type, a missing category) the error is shown so you can fix it. Switching back to **Builder** first re-parses the JSON and repopulates the visual widgets, which is a quick way to sanity-check it.
+- **Copy JSON** — copies the document to your clipboard so you can share a rule or move it to another Budget instance.
+
+> **Note:** Category and account IDs in the JSON are specific to the instance the rule came from. When you paste a rule into a different instance, point those IDs at the matching categories/accounts there (or set them in the Builder afterwards).
+
 ## Related Features
 
 - [Import](import.md) — rules are applied automatically during the import process

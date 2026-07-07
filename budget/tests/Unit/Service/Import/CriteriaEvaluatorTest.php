@@ -681,4 +681,39 @@ class CriteriaEvaluatorTest extends TestCase {
 		$this->assertFalse($result['valid']);
 		$this->assertStringContainsString('field', strtolower($result['errors'][0]));
 	}
+
+	public function testValidateRejectsInvalidRegexPattern(): void {
+		// An unbalanced regex would otherwise save fine and silently never
+		// match at run time — the JSON editor path relies on this check (#318)
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '(unclosed',
+				'negate' => false
+			]
+		];
+
+		$result = $this->evaluator->validate($criteria);
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('regex', strtolower(implode(' ', $result['errors'])));
+	}
+
+	public function testValidateAcceptsValidRegexPattern(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => 'amazon|ebay',
+				'negate' => false
+			]
+		];
+
+		$result = $this->evaluator->validate($criteria);
+		$this->assertTrue($result['valid']);
+	}
 }

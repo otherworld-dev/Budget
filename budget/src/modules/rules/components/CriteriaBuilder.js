@@ -23,19 +23,34 @@ export class CriteriaBuilder {
 	 * Fixes legacy migrations where root was a single condition
 	 */
 	normalizeCriteria(criteria) {
-		if (!criteria) {
+		if (!criteria || typeof criteria !== 'object') {
+			return this.createEmptyRoot();
+		}
+
+		const root = criteria.root;
+
+		// Guard against a null/missing/non-object root (e.g. hand-edited JSON
+		// like {"criteria": {}} or {"root": null}); render() dereferences
+		// root.operator and would otherwise throw (#318).
+		if (!root || typeof root !== 'object') {
 			return this.createEmptyRoot();
 		}
 
 		// If root is a single condition (legacy migration bug), wrap it in a group
-		if (criteria.root && criteria.root.type === 'condition') {
+		if (root.type === 'condition') {
 			return {
 				version: 2,
 				root: {
 					operator: 'AND',
-					conditions: [criteria.root]
+					conditions: [root]
 				}
 			};
+		}
+
+		// A root that is neither a group (has an operator) nor a condition is
+		// malformed — fall back to an empty builder rather than crashing.
+		if (!root.operator) {
+			return this.createEmptyRoot();
 		}
 
 		// Already normalized

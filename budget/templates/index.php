@@ -5708,6 +5708,13 @@ style('budget', 'budget-app');
         <form id="rule-form">
             <input type="hidden" id="rule-id">
 
+            <!-- Builder / JSON view toggle (#318) -->
+            <div class="rule-view-toggle" role="tablist" aria-label="<?php p($l->t('Rule editor view')); ?>">
+                <button type="button" id="rule-view-builder-btn" class="rule-view-tab active" role="tab" aria-selected="true"><?php p($l->t('Builder')); ?></button>
+                <button type="button" id="rule-view-json-btn" class="rule-view-tab" role="tab" aria-selected="false"><?php p($l->t('JSON')); ?></button>
+            </div>
+
+            <div id="rule-builder-view">
             <!-- Basic Info Section -->
             <div class="form-section" style="background: transparent; border: none; padding: 0 0 20px 0;">
                 <div style="display: grid; grid-template-columns: 1fr 150px 80px; gap: 16px;">
@@ -5803,6 +5810,20 @@ style('budget', 'budget-app');
                     </div>
                 </div>
             </fieldset>
+            </div><!-- /#rule-builder-view -->
+
+            <!-- JSON view (#318): edit the raw rule structure directly -->
+            <div id="rule-json-view" style="display: none;">
+                <div class="form-group">
+                    <label for="rule-json-input"><?php p($l->t('Rule JSON')); ?></label>
+                    <textarea id="rule-json-input" class="rule-json-input" spellcheck="false" autocomplete="off" autocapitalize="off" rows="18"></textarea>
+                    <small class="form-text"><?php p($l->t('The raw rule structure. Edit or paste JSON here — it is checked when you save. Copy it to move a rule between instances (category and account IDs are instance-specific and may need adjusting).')); ?></small>
+                    <div id="rule-json-error" class="rule-json-error" style="display: none;"></div>
+                </div>
+                <div class="rule-json-actions">
+                    <button type="button" id="rule-json-copy-btn" class="secondary"><?php p($l->t('Copy JSON')); ?></button>
+                </div>
+            </div>
 
             <!-- Preview Section (hidden until preview is run) -->
             <div id="rule-preview-section" class="rule-preview-section" style="display: none;">
