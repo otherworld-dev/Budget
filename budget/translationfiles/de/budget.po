@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-06 23:22+0000\n"
-"PO-Revision-Date: 2026-07-05 23:40+0000\n"
+"PO-Revision-Date: 2026-07-08 21:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -2642,12 +2642,13 @@ msgstr "Für diese Kategorie und diesen Monat sind keine Budgetdaten verfügbar"
 #: /app/lib/Service/DigestService.php:132
 #, php-format
 msgid "Income %1$s, spending %2$s (%3$s net)."
-msgstr ""
+msgstr "Einnahmen: %1$s, Ausgaben: %2$s (Saldo: %3$s)."
 
 #: /app/lib/Service/DigestService.php:140
 #, php-format
 msgid "%1$s of %2$s spent (%3$s%%) across %4$s budgeted categories."
 msgstr ""
+"%1$s von %2$s ausgegeben (%3$s %%), verteilt auf %4$s budgetierte Kategorien."
 
 #: /app/lib/Service/DigestService.php:148
 #, fuzzy
@@ -2668,6 +2669,8 @@ msgstr "Fällige Zahlungen"
 #, php-format
 msgid "%1$s is %2$s%% above your typical spending (%3$s so far this month)."
 msgstr ""
+"Die Ausgaben für %1$s liegen %2$s %% über deinem üblichen Niveau (%3$s "
+"bisher in diesem Monat)."
 
 #: /app/lib/Service/DigestService.php:168
 #, fuzzy
@@ -2847,16 +2850,18 @@ msgstr "Ungültige Anfragedaten"
 
 #: /app/lib/Service/ReconciliationService.php:118
 msgid "Too many transactions in one request (max 500)"
-msgstr ""
+msgstr "Zu viele Transaktionen in einer Anfrage (max. 500)"
 
 #: /app/lib/Service/ReconciliationService.php:140
 #, php-format
 msgid "The difference must be zero before finishing — %1$s left to resolve"
 msgstr ""
+"Die Differenz muss vor dem Abschluss null sein – %1$s müssen noch "
+"ausgeglichen werden"
 
 #: /app/lib/Service/ReconciliationService.php:238
 msgid "No reconciliation in progress for this account"
-msgstr ""
+msgstr "Für dieses Konto wird derzeit kein Abgleich durchgeführt"
 
 #: /app/lib/Service/Report/ScheduledReportService.php:72
 #: /app/lib/Service/Report/ScheduledReportService.php:73
@@ -9713,10 +9718,8 @@ msgid "Finish"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1098
-#, fuzzy
-#| msgid "Create {amount} Adjustment ({type})"
 msgid "Create {amount} adjustment"
-msgstr "Korrekturbuchung über {amount} erstellen ({type})"
+msgstr "Korrekturbuchung über {amount} erstellen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1099
 msgid "Keep the session and come back later"
@@ -15012,13 +15015,11 @@ msgstr ""
 
 #: /app/vendor/nextcloud/ocp/OCP/TaskProcessing/TaskTypes/TextToTextSummary.php:85
 msgid "Summary"
-msgstr ""
+msgstr "Zusammenfassung"
 
 #: /app/vendor/nextcloud/ocp/OCP/TaskProcessing/TaskTypes/TextToTextSummary.php:86
-#, fuzzy
-#| msgid "Failed to generate summary report"
 msgid "The generated summary"
-msgstr "Zusammengefasster Bericht konnte nicht generiert werden"
+msgstr "Die erstellte Zusammenfassung"
 
 #: /app/vendor/nextcloud/ocp/OCP/TaskProcessing/TaskTypes/TextToTextTopics.php:46
 #: /app/vendor/nextcloud/ocp/OCP/TextProcessing/TopicsTaskType.php:41
