@@ -140,12 +140,12 @@ Transfer transactions display a transfer badge in the transaction list so you ca
 An imported or manually added credit/debit can be turned into a transfer after the fact — useful when a bank-imported payment is really a transfer to one of your own accounts (for example, a payment toward a loan tracked as its own account).
 
 1. Open the transaction's action menu and choose **Match transfer**.
-2. If the matching transaction already exists in the other account, click **Link as Transfer** next to it.
+2. If the matching transaction already exists in the other account, click **Link as Transfer** next to it. The list shows same-currency transactions with the same amount, plus — for accounts in a **different currency** — nearby opposite transactions of *any* amount, since the exchanged amount never matches exactly. Check the account and amount before linking a cross-currency pair.
 3. If the other account has no matching transaction (common for accounts with nothing to import, like a loan account), use the **"No match? Create the other side"** section: pick the account and click **Create and link**. The app creates the opposite transaction there and links the pair as a transfer.
 
-Only accounts using the same currency are offered — for cross-currency transfers, create the other side manually with the converted amount and link it via step 2 instead.
+The "create the other side" dropdown only offers accounts using the same currency — for a cross-currency transfer where the other leg is missing, create it manually with the converted amount and link it via step 2 instead.
 
-After importing bank statements the app also scans automatically and links any pairs it finds, so manual matching is only needed when one side is missing or ambiguous.
+After importing bank statements the app also scans automatically and links any pairs it finds (same amount and currency only), so manual matching is only needed when one side is missing, ambiguous, or in another currency.
 
 > **Note:** A transfer cannot be changed back into a regular transaction in one step — unlink the pair, then delete the leg you don't want.
 

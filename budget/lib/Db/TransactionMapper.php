@@ -823,6 +823,7 @@ class TransactionMapper extends QBMapper {
                 'isSplit' => (bool)($row['is_split'] ?? false),
                 'billId' => ($row['bill_id'] ?? null) ? (int)$row['bill_id'] : null,
                 'status' => $row['status'] ?? 'cleared',
+                'excludedFromForecast' => (bool)($row['excluded_from_forecast'] ?? false),
                 'pensionContribId' => ($row['pension_contrib_id'] ?? null) ? (int)$row['pension_contrib_id'] : null,
                 'accountName' => $row['account_name'],
                 'accountCurrency' => $row['account_currency'] ?? 'USD',
@@ -1409,6 +1410,70 @@ class TransactionMapper extends QBMapper {
         }
 
         return $spending;
+    }
+
+    /**
+     * Get income/expense totals for a set of categories grouped by account.
+     * Used for currency-aware excluded-category deduction in multi-currency
+     * aggregation (#326) — mirrors getTransferTotalsByAccount().
+     *
+     * When $excludeDeductedTransfers is true, excludes ALL linked transfers
+     * (which getTransferTotals() also fully deducts), since a transfer is never
+     * income or expense (#262).
+     *
+     * @param int[] $categoryIds
+     * @return array<int, array{income: float, expenses: float}> accountId => totals
+     */
+    public function getCategoryTotalsByAccount(array $categoryIds, string $startDate, string $endDate, ?int $accountId = null, bool $excludeDeductedTransfers = false): array {
+        if (empty($categoryIds)) {
+            return [];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+
+        $qb->select('t.account_id')
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
+                'income'
+            )
+            ->selectAlias(
+                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
+                'expenses'
+            )
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        } else {
+            // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
+            $this->excludeReportExcludedAccounts($qb);
+        }
+
+        if ($excludeDeductedTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
+
+        $this->excludeScheduledFuture($qb);
+
+        $qb->groupBy('t.account_id');
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        $totals = [];
+        foreach ($data as $row) {
+            $totals[(int)$row['account_id']] = [
+                'income' => (float)($row['income'] ?? 0),
+                'expenses' => (float)($row['expenses'] ?? 0),
+            ];
+        }
+
+        return $totals;
     }
 
     /**
@@ -2049,6 +2114,12 @@ class TransactionMapper extends QBMapper {
      * Find potential transfer matches for a transaction
      * Matches on: same amount, opposite type, different account, same currency, within date window
      *
+     * With $includeCrossCurrency, candidates in accounts with a DIFFERENT
+     * currency are also returned regardless of amount (the exchanged amount is
+     * never equal, so amount equality cannot apply) — linkTransactions()
+     * already accepts such pairs (#326). Auto-link flows must keep this off;
+     * only the manual match dialog opts in.
+     *
      * @return Transaction[]
      */
     public function findPotentialMatches(
@@ -2059,7 +2130,8 @@ class TransactionMapper extends QBMapper {
         string $type,
         string $date,
         string $currency,
-        int $dateWindowDays = 3
+        int $dateWindowDays = 3,
+        bool $includeCrossCurrency = false
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -2071,18 +2143,27 @@ class TransactionMapper extends QBMapper {
         // Opposite type for transfer matching
         $oppositeType = $type === 'credit' ? 'debit' : 'credit';
 
+        // Same currency + same amount; optionally any amount in another currency
+        $sameCurrencySameAmount = $qb->expr()->andX(
+            $qb->expr()->eq('a.currency', $qb->createNamedParameter($currency)),
+            $qb->expr()->eq('t.amount', $qb->createNamedParameter($amount))
+        );
+        $amountCurrencyMatch = $includeCrossCurrency
+            ? $qb->expr()->orX(
+                $sameCurrencySameAmount,
+                $qb->expr()->neq('a.currency', $qb->createNamedParameter($currency))
+            )
+            : $sameCurrencySameAmount;
+
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             // Different account
             ->andWhere($qb->expr()->neq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            // Same amount
-            ->andWhere($qb->expr()->eq('t.amount', $qb->createNamedParameter($amount)))
+            ->andWhere($amountCurrencyMatch)
             // Opposite type (debit in one account, credit in another)
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($oppositeType)))
-            // Same currency
-            ->andWhere($qb->expr()->eq('a.currency', $qb->createNamedParameter($currency)))
             // Within date window
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))

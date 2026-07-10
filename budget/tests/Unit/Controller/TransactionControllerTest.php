@@ -271,7 +271,8 @@ class TransactionControllerTest extends TestCase {
 
 	public function testGetMatchesReturnsMatches(): void {
 		$matches = [['id' => 2, 'amount' => -100.00]];
-		$this->service->method('findPotentialMatches')->with(1, 'user1', 3)->willReturn($matches);
+		// Manual match dialog opts into cross-currency candidates (#326)
+		$this->service->method('findPotentialMatches')->with(1, 'user1', 3, true)->willReturn($matches);
 
 		$response = $this->controller->getMatches(1);
 

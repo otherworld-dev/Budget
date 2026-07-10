@@ -804,9 +804,13 @@ class TransactionService {
     /**
      * Find potential transfer matches for a transaction
      *
+     * $includeCrossCurrency also returns candidates in accounts with another
+     * currency (any amount, since the exchanged amount never matches) for the
+     * manual match dialog (#326). Auto-link flows must keep it off.
+     *
      * @return Transaction[]
      */
-    public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3): array {
+    public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3, bool $includeCrossCurrency = false): array {
         $transaction = $this->find($transactionId, $userId);
 
         // Don't find matches if already linked
@@ -825,7 +829,8 @@ class TransactionService {
             $transaction->getType(),
             $transaction->getDate(),
             $account->getCurrency(),
-            $dateWindowDays
+            $dateWindowDays,
+            $includeCrossCurrency
         );
     }
 

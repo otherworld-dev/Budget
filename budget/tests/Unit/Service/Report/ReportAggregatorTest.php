@@ -183,6 +183,148 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEqualsWithDelta($expectedIncome, $result['totals']['totalIncome'], 0.01);
 	}
 
+	// ===== Excluded-category deduction (#326) =====
+
+	public function testExcludedCategoryDeductionSingleCurrency(): void {
+		$accounts = [
+			$this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP'),
+		];
+
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 600, 'expenses' => 200, 'count' => 10],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+
+		// All-accounts view: linked transfers already deducted, so skipped here
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([7], '2026-01-01', '2026-01-31', null, true)
+			->willReturn([1 => ['income' => 10, 'expenses' => 50]]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		$this->assertEqualsWithDelta(590.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(150.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
+	public function testExcludedCategoryDeductionMultiCurrency(): void {
+		$accounts = [
+			$this->makeAccount(1, 'GBP Account', 'checking', 1000.00, 'GBP'),
+			$this->makeAccount(2, 'EUR Account', 'savings', 1000.00, 'EUR'),
+		];
+
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 1000, 'expenses' => 500, 'count' => 10],
+			2 => ['income' => 800, 'expenses' => 300, 'count' => 5],
+		]);
+		$this->setupDefaultMocks();
+
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('canConvert')->willReturn(true);
+		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
+		$this->conversionService->method('convertToBaseFloat')
+			->willReturnCallback(function ($amount, $currency, $userId) {
+				return $currency === 'EUR' ? (float)$amount * 0.85 : (float)$amount;
+			});
+
+		$this->transactionMapper->method('getTransferTotalsByAccount')->willReturn([]);
+
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+
+		// Unmatched cross-currency transfer legs booked to an excluded category:
+		// each account's amounts must be converted like the totals they offset
+		$this->transactionMapper->method('getCategoryTotalsByAccount')->willReturn([
+			1 => ['income' => 0, 'expenses' => 100],
+			2 => ['income' => 50, 'expenses' => 200],
+		]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		// Income: 1000 + 800*0.85=680 = 1680, minus excluded 0 + 50*0.85=42.5
+		$this->assertEqualsWithDelta(1680 - 42.5, $result['totals']['totalIncome'], 0.01);
+		// Expenses: 500 + 300*0.85=255 = 755, minus excluded 100 + 200*0.85=170
+		$this->assertEqualsWithDelta(755 - 100 - 170, $result['totals']['totalExpenses'], 0.01);
+	}
+
+	public function testExcludedCategoryDeductionSkipsUnconvertibleCurrency(): void {
+		$accounts = [
+			$this->makeAccount(1, 'GBP Account', 'checking', 1000.00, 'GBP'),
+			$this->makeAccount(2, 'XYZ Account', 'savings', 1000.00, 'XYZ'),
+		];
+
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 1000, 'expenses' => 500, 'count' => 10],
+			2 => ['income' => 800, 'expenses' => 300, 'count' => 5],
+		]);
+		$this->setupDefaultMocks();
+
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('canConvert')
+			->willReturnCallback(fn($currency) => $currency !== 'XYZ');
+		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'XYZ']);
+		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn($a) => (float)$a);
+
+		$this->transactionMapper->method('getTransferTotalsByAccount')->willReturn([]);
+
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+		$this->transactionMapper->method('getCategoryTotalsByAccount')->willReturn([
+			1 => ['income' => 0, 'expenses' => 100],
+			2 => ['income' => 50, 'expenses' => 200],
+		]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		// Account 2 never entered the totals (unconvertible), so nothing of it
+		// may be deducted either — only account 1's excluded expenses apply
+		$this->assertEqualsWithDelta(1000.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(400.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
+	public function testExcludedCategoryDeductionScopedToSelectedAccount(): void {
+		$account = $this->makeAccount(1, 'Checking', 'checking', 1000.00, 'EUR');
+
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 300, 'expenses' => 100, 'count' => 5],
+		]);
+		$this->setupDefaultMocks();
+
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+
+		// Single-account view: deduction scoped to that account, and linked
+		// transfers are NOT skipped (no transfer deduction ran)
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([7], '2026-01-01', '2026-01-31', 1, false)
+			->willReturn([1 => ['income' => 20, 'expenses' => 30]]);
+
+		$result = $this->aggregator->generateSummary('user1', 1, '2026-01-01', '2026-01-31');
+
+		$this->assertEqualsWithDelta(280.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(70.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
 	// ===== Per-account data keeps native currency =====
 
 	public function testPerAccountDataKeepsNativeCurrency(): void {

@@ -851,11 +851,25 @@ class TransactionServiceTest extends TestCase {
         $matches = [$this->makeTransaction(['id' => 2])];
         $this->mapper->expects($this->once())
             ->method('findPotentialMatches')
-            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3)
+            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false)
             ->willReturn($matches);
 
         $result = $this->service->findPotentialMatches(1, 'user1');
         $this->assertCount(1, $result);
+    }
+
+    public function testFindPotentialMatchesPassesCrossCurrencyFlag(): void {
+        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
+        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $this->mapper->expects($this->once())
+            ->method('findPotentialMatches')
+            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, true)
+            ->willReturn([]);
+
+        $this->service->findPotentialMatches(1, 'user1', 3, true);
     }
 
     // ===== bulkCategorize() =====

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Editing a **monthly recurring income** never saved the changes — the app showed *"Income saved successfully"* but the Expected Day (and every other field) kept its old value. Any update whose payload contained an empty field (a monthly income always sends its yearly-only "expected month" as empty) reloaded the entity mid-save and threw away the edits. Thanks to @redsteadz for the fix ([#324](https://github.com/otherworld-dev/Budget/issues/324), [#325](https://github.com/otherworld-dev/Budget/pull/325))
+- The **"Exclude from forecast"** checkbox on a transaction appeared unticked whenever the edit dialog was reopened, and saving the transaction again then really did reset the flag. The flag was stored correctly (including when set by an import rule) but the transaction list never sent it back to the browser, so the dialog always showed — and re-saved — it as off ([#326](https://github.com/otherworld-dev/Budget/issues/326))
+- **Income/Expenses This Month** (and the other report summary totals) deducted transactions in **"Exclude from reports" categories** without converting them to the base currency, so on multi-currency setups the deduction was applied at the wrong rate — and for a single selected account the deduction wrongly included every other account's excluded transactions too ([#326](https://github.com/otherworld-dev/Budget/issues/326))
+
+### Changed
+- The **Match transfer** dialog now also lists candidates from accounts in a **different currency** (any amount, within the date window), so cross-currency transfer pairs — e.g. imported from CSV — can finally be linked by hand. Automatic matching after imports is unchanged and still only links exact same-currency amounts ([#326](https://github.com/otherworld-dev/Budget/issues/326))
 
 ## [2.38.0] - 2026-07-07
 

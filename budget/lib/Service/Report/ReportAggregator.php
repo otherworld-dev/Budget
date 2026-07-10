@@ -227,14 +227,37 @@ class ReportAggregator {
 
         // Exclude transactions in excluded-from-reports categories from totals.
         // In all-accounts view, transfers were already subtracted above, so skip
-        // all linked transfers here to avoid double-subtraction.
+        // all linked transfers here to avoid double-subtraction. Grouped by
+        // account so each account's amounts get the same currency conversion as
+        // the income/expense totals they are deducted from, and so a selected
+        // account only has its own excluded transactions deducted (#326).
         if (!empty($excludedCategoryIds)) {
             $excludedIds = array_keys($excludedCategoryIds);
-            $skipDeducted = ($accountId === null);
-            $excludedExpenses = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'debit', null, $skipDeducted);
-            $excludedIncome = $this->transactionMapper->getCategorySpendingBatch($excludedIds, $startDate, $endDate, 'credit', null, $skipDeducted);
-            $totalExpenses -= array_sum($excludedExpenses);
-            $totalIncome -= array_sum($excludedIncome);
+            $excludedByAccount = $this->transactionMapper->getCategoryTotalsByAccount(
+                $excludedIds,
+                $startDate,
+                $endDate,
+                $accountId,
+                $accountId === null
+            );
+            foreach ($excludedByAccount as $accId => $excluded) {
+                $excludedIncome = $excluded['income'];
+                $excludedExpenses = $excluded['expenses'];
+                if ($needsConversion) {
+                    $accCurrency = $currencyMap[$accId] ?? $baseCurrency;
+                    if ($accCurrency !== $baseCurrency) {
+                        // Accounts whose currency cannot be converted never made
+                        // it into the totals, so there is nothing to deduct
+                        if (!$this->conversionService->canConvert($accCurrency, $userId)) {
+                            continue;
+                        }
+                        $excludedIncome = $this->conversionService->convertToBaseFloat($excludedIncome, $accCurrency, $userId);
+                        $excludedExpenses = $this->conversionService->convertToBaseFloat($excludedExpenses, $accCurrency, $userId);
+                    }
+                }
+                $totalIncome -= $excludedIncome;
+                $totalExpenses -= $excludedExpenses;
+            }
         }
 
         $summary['totals']['totalIncome'] = $totalIncome;

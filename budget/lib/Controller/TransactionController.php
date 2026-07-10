@@ -420,7 +420,9 @@ class TransactionController extends Controller {
      */
     public function getMatches(int $id, int $dateWindow = 3): DataResponse {
         try {
-            $matches = $this->service->findPotentialMatches($id, $this->getEffectiveUserId(), $dateWindow);
+            // Manual dialog: include cross-currency candidates — the user picks,
+            // and linkTransactions() accepts different amounts across currencies
+            $matches = $this->service->findPotentialMatches($id, $this->getEffectiveUserId(), $dateWindow, true);
             return new DataResponse([
                 'matches' => $matches,
                 'count' => count($matches)

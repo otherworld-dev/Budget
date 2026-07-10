@@ -293,6 +293,7 @@ class TransactionMapperTest extends TestCase {
         $mainResult = $this->createMock(IResult::class);
         $mainResult->method('fetchAll')->willReturn([
             array_merge($this->makeTransactionRow(), [
+                'excluded_from_forecast' => 1,
                 'account_name' => 'Checking',
                 'account_currency' => 'USD',
                 'category_name' => 'Food',
@@ -321,6 +322,9 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals(4.50, $tx['amount']);
         $this->assertEquals('debit', $tx['type']);
         $this->assertFalse($tx['reconciled']);
+        // Regression #326: the edit dialog is populated from list rows, so the
+        // flag must survive the row mapping or edits silently reset it
+        $this->assertTrue($tx['excludedFromForecast']);
         $this->assertEquals('Checking', $tx['accountName']);
         $this->assertEquals('USD', $tx['accountCurrency']);
         $this->assertEquals('Food', $tx['categoryName']);
@@ -396,6 +400,8 @@ class TransactionMapperTest extends TestCase {
 
         // null status defaults to 'cleared'
         $this->assertEquals('cleared', $result['transactions'][0]['status']);
+        // missing excluded_from_forecast defaults to false
+        $this->assertFalse($result['transactions'][0]['excludedFromForecast']);
         // null account_currency defaults to 'USD'
         $this->assertEquals('USD', $result['transactions'][0]['accountCurrency']);
     }
@@ -558,6 +564,60 @@ class TransactionMapperTest extends TestCase {
         $this->assertArrayHasKey(10, $spending);
         $this->assertEquals(450.00, $spending[5]);
         $this->assertEquals(200.00, $spending[10]);
+    }
+
+    // ===== getCategoryTotalsByAccount =====
+
+    public function testGetCategoryTotalsByAccountReturnsEmptyForEmptyInput(): void {
+        $this->qb->expects($this->never())->method('executeQuery');
+
+        $result = $this->mapper->getCategoryTotalsByAccount([], '2026-01-01', '2026-01-31');
+
+        $this->assertEmpty($result);
+    }
+
+    public function testGetCategoryTotalsByAccountReturnsIndexedByAccountId(): void {
+        $this->result->method('fetchAll')->willReturn([
+            ['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
+            ['account_id' => '20', 'income' => null, 'expenses' => '200.00'],
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $totals = $this->mapper->getCategoryTotalsByAccount([5, 10], '2026-01-01', '2026-01-31');
+
+        $this->assertEquals(['income' => 50.00, 'expenses' => 450.00], $totals[10]);
+        $this->assertEquals(['income' => 0.0, 'expenses' => 200.00], $totals[20]);
+    }
+
+    // ===== findPotentialMatches =====
+
+    public function testFindPotentialMatchesIsStrictByDefault(): void {
+        // Same-currency-same-amount only: no OR branch in the query
+        $this->expr->expects($this->never())->method('orX');
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
+
+        $this->assertSame([], $result);
+    }
+
+    public function testFindPotentialMatchesCrossCurrencyAddsOrBranch(): void {
+        // Cross-currency opt-in (#326): (same currency AND same amount) OR different currency
+        $this->expr->expects($this->once())->method('orX');
+
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls($this->makeTransactionRow(['type' => 'credit']), false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true);
+
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(Transaction::class, $result[0]);
     }
 
     // ===== getSpendingByAccountAggregated =====
