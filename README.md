@@ -172,10 +172,11 @@ Sponsorship funds the time behind quick fixes, new features, and keeping the app
 
 ### Manual Installation
 
+The app lives in the `budget/` subfolder of the repository, so build there and copy (or symlink) that folder into `apps/`:
+
 ```bash
-cd /path/to/nextcloud/apps
-git clone https://github.com/otherworld-dev/Budget.git budget
-cd budget/budget
+git clone https://github.com/otherworld-dev/Budget.git
+cd Budget/budget
 
 # Install dependencies
 composer install --no-dev --optimize-autoloader
@@ -183,6 +184,9 @@ npm install
 
 # Build frontend
 npm run build
+
+# Make the app folder available to Nextcloud
+cp -r . /path/to/nextcloud/apps/budget
 ```
 
 Enable the app:
@@ -191,14 +195,16 @@ Enable the app:
 php occ app:enable budget
 ```
 
+Alternatively, grab the signed `budget.tar.gz` from the [latest release](https://github.com/otherworld-dev/Budget/releases) and extract it into `apps/` — see [INSTALL.md](INSTALL.md).
+
 ## Development
 
 ### Setup Development Environment
 
 ```bash
-cd /path/to/nextcloud/apps
-git clone https://github.com/otherworld-dev/Budget.git budget
-cd budget/budget
+git clone https://github.com/otherworld-dev/Budget.git
+cd Budget/budget
+# ...and symlink this folder into your dev instance's apps/ directory
 
 # Install all dependencies
 composer install

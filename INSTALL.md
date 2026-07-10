@@ -2,47 +2,55 @@
 
 ## Requirements
 
-- Nextcloud 30 or higher
-- PHP 8.3 or higher
+- Nextcloud 30 – 35
+- PHP 8.1 or higher, with the BCMath extension (`php-bcmath`)
 - MySQL/MariaDB, PostgreSQL, or SQLite database
-- Node.js 16+ (for building frontend assets)
+- Node.js and npm (only when building from source)
 
 ## Installation Methods
 
 ### Method 1: App Store (Recommended)
 1. Go to your Nextcloud Apps page
-2. Search for "Budget"  
+2. Search for "Budget"
 3. Click "Install"
 4. Enable the app
 
-### Method 2: Manual Installation
+### Method 2: Release Tarball
 
-#### Step 1: Download and Extract
+Each [GitHub release](https://github.com/otherworld-dev/Budget/releases) ships the same signed `budget.tar.gz` that is submitted to the App Store.
+
 ```bash
 cd /path/to/nextcloud/apps
-git clone https://github.com/yourusername/budget.git
-cd budget
-```
+curl -LO https://github.com/otherworld-dev/Budget/releases/latest/download/budget.tar.gz
+tar -xzf budget.tar.gz && rm budget.tar.gz
 
-#### Step 2: Install Dependencies
-```bash
-# Install PHP dependencies
-composer install --no-dev --optimize-autoloader
-
-# Install JavaScript dependencies
-npm install
-
-# Build frontend assets
-npm run build
-```
-
-#### Step 3: Enable the App
-```bash
 # From your Nextcloud root directory
 php occ app:enable budget
 ```
 
-#### Step 4: Initialize Default Data
+### Method 3: From Source
+
+The app lives in the `budget/` subfolder of the repository, so build there and copy (or symlink) that folder into `apps/`:
+
+```bash
+git clone https://github.com/otherworld-dev/Budget.git
+cd Budget/budget
+
+# Install PHP dependencies
+composer install --no-dev --optimize-autoloader
+
+# Install JavaScript dependencies and build frontend assets
+npm install
+npm run build
+
+# Make the app folder available to Nextcloud
+cp -r . /path/to/nextcloud/apps/budget
+
+# From your Nextcloud root directory
+php occ app:enable budget
+```
+
+#### Initialize Default Data
 After enabling the app, visit the Budget app in your Nextcloud instance. The app will automatically prompt you to initialize default categories and import rules.
 
 Alternatively, you can initialize via API:
@@ -55,15 +63,15 @@ curl -X POST http://your-nextcloud/apps/budget/api/setup/initialize \
 
 ### Prerequisites
 - Nextcloud development environment
-- PHP 8.3+ with extensions: pdo_mysql, gd, zip, curl
-- Node.js 16+ with npm
+- PHP 8.1+ with extensions: bcmath, pdo_mysql, gd, zip, curl
+- Node.js with npm
 - Composer
 
 ### Development Installation
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/budget.git
-cd budget
+# Clone the repository (e.g. symlink Budget/budget into your dev instance's apps/)
+git clone https://github.com/otherworld-dev/Budget.git
+cd Budget/budget
 
 # Install all dependencies (including dev dependencies)
 composer install
@@ -91,10 +99,10 @@ make psalm
 ## Configuration
 
 ### Database Migration
-The app will automatically run database migrations when enabled. If you need to run migrations manually:
+The app will automatically run database migrations when enabled or upgraded. If you need to run migrations manually:
 
 ```bash
-php occ migrations:execute budget
+php occ migrations:migrate budget
 ```
 
 ### App Settings
@@ -112,18 +120,15 @@ The app supports importing from various financial institutions:
 - **OFX Files**: Open Financial Exchange format from banks
 - **QIF Files**: Quicken Interchange Format
 
-#### Setting up Bank Imports
-1. Go to Settings → Import Rules
-2. Create rules to automatically categorize transactions
-3. Test rules with sample data before importing large files
+See the [import guide](docs/import.md) and [auto-categorization rules guide](docs/rules.md) for details. Test rules with sample data before importing large files.
 
 ## Troubleshooting
 
 ### Common Issues
 
 **Error: "App can't be installed"**
-- Check PHP version (must be 8.3+)
-- Ensure all required PHP extensions are installed
+- Check PHP version (must be 8.1+)
+- Ensure all required PHP extensions are installed (including BCMath)
 - Check Nextcloud version compatibility
 
 **Import fails with "Invalid format"**
@@ -138,7 +143,7 @@ The app supports importing from various financial institutions:
 
 **Database errors**
 - Check database permissions
-- Run migrations manually: `php occ migrations:execute budget`
+- Run migrations manually: `php occ migrations:migrate budget`
 - Check Nextcloud logs for detailed error messages
 
 ### Debug Mode
@@ -149,9 +154,9 @@ Enable debug mode in Nextcloud config:
 ```
 
 ### Getting Help
-- Check the [GitHub Issues](https://github.com/yourusername/budget/issues)
+- Check the [GitHub Issues](https://github.com/otherworld-dev/Budget/issues)
 - Visit [Nextcloud Community](https://help.nextcloud.com)
-- Read the [User Documentation](README.md)
+- Read the [User Documentation](docs/index.md)
 
 ## Uninstalling
 
@@ -178,7 +183,7 @@ rm -rf /path/to/nextcloud/apps/budget
 ## Performance Tips
 
 - For large transaction datasets (10k+ transactions), consider archiving old data
-- Import rules are processed in priority order - organize them efficiently  
+- Import rules are processed in priority order - organize them efficiently
 - Regular database maintenance will keep queries fast
 - Enable Nextcloud's caching for better performance
 
