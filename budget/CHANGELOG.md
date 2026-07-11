@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Share recipients saw wrong dashboard totals.** For a user whose accounts are all shared from someone else, the Income/Expenses This Month cards counted transactions in the owner's **"Exclude from reports" categories** — the exclusion list was built only from the viewer's own categories, so the owner's internal-transfer legs inflated the recipient's income and expenses while the owner's own dashboard was correct. Shared categories now keep their owner's exclusion for every viewer, and per-viewer **"Hide from my reports"** mutes are honored by these totals as well ([#326](https://github.com/otherworld-dev/Budget/issues/326))
+
 ## [2.39.0] - 2026-07-11
 
 ### Added

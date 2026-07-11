@@ -22,6 +22,8 @@ class ReportAggregatorTest extends TestCase {
 	private ReportCalculator $calculator;
 	private CurrencyConversionService $conversionService;
 	private $splitMapper;
+	private $granularShareService;
+	private $categoryMuteMapper;
 
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
@@ -40,6 +42,11 @@ class ReportAggregatorTest extends TestCase {
 
 		$this->splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
 
+		// createMock auto-stubs array-returning methods to [], so shared/muted
+		// categories default to none; individual tests override as needed
+		$this->granularShareService = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
+		$this->categoryMuteMapper = $this->createMock(\OCA\Budget\Db\CategoryMuteMapper::class);
+
 		$this->aggregator = new ReportAggregator(
 			$this->accountMapper,
 			$this->transactionMapper,
@@ -49,7 +56,9 @@ class ReportAggregatorTest extends TestCase {
 			$this->conversionService,
 			$recurringBudgetService,
 			$carryoverService,
-			$this->splitMapper
+			$this->splitMapper,
+			$this->granularShareService,
+			$this->categoryMuteMapper
 		);
 	}
 
@@ -295,6 +304,71 @@ class ReportAggregatorTest extends TestCase {
 		// may be deducted either — only account 1's excluded expenses apply
 		$this->assertEqualsWithDelta(1000.00, $result['totals']['totalIncome'], 0.01);
 		$this->assertEqualsWithDelta(400.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
+	public function testViewerDeductsOwnerExcludedSharedCategories(): void {
+		// A share recipient owns no categories; the owner's exclude-from-reports
+		// flag on shared categories must still be deducted from their totals (#326)
+		$accounts = [
+			$this->makeAccount(1, 'Shared Checking', 'checking', 1000.00, 'GBP'),
+		];
+
+		$this->accountMapper->method('findByIds')->willReturn($accounts);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 2000, 'expenses' => 1500, 'count' => 10],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		// Viewer owns no categories …
+		$this->categoryMapper->method('findAll')->willReturn([]);
+		// … but the owner's excluded category is shared with them
+		$this->granularShareService->method('getSharedCategoryIds')->willReturn([7]);
+		$this->categoryMapper->method('findByIdsUnscoped')->with([7])->willReturn([
+			$this->makeCategory(7, 'Internal Transfers', 'expense', null, true),
+		]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([7], '2026-01-01', '2026-01-31', null, true)
+			->willReturn([1 => ['income' => 1000, 'expenses' => 1200]]);
+
+		$result = $this->aggregator->generateSummary('viewer', null, '2026-01-01', '2026-01-31', [], true, [1]);
+
+		$this->assertEqualsWithDelta(1000.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(300.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
+	public function testViewerMutedCategoriesDeductedFromTotals(): void {
+		$accounts = [
+			$this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP'),
+		];
+
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 600, 'expenses' => 400, 'count' => 5],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$this->categoryMapper->method('findAll')->willReturn([]);
+		$this->categoryMuteMapper->method('findMutedCategoryIds')->willReturn([9]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([9], '2026-01-01', '2026-01-31', null, true)
+			->willReturn([1 => ['income' => 0, 'expenses' => 100]]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		$this->assertEqualsWithDelta(600.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(300.00, $result['totals']['totalExpenses'], 0.01);
 	}
 
 	public function testExcludedCategoryDeductionScopedToSelectedAccount(): void {

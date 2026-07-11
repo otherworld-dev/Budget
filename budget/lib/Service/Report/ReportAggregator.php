@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\CategoryMuteMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\BudgetCarryoverService;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
 
 /**
@@ -34,7 +36,9 @@ class ReportAggregator {
         CurrencyConversionService $conversionService,
         private RecurringBudgetService $recurringBudgetService,
         private BudgetCarryoverService $carryoverService,
-        private TransactionSplitMapper $splitMapper
+        private TransactionSplitMapper $splitMapper,
+        private ?GranularShareService $granularShareService = null,
+        private ?CategoryMuteMapper $categoryMuteMapper = null
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
@@ -129,6 +133,25 @@ class ReportAggregator {
             if ($cat->getExcludedFromReports()) {
                 $excludedCategoryIds[$cat->getId()] = true;
             }
+        }
+
+        // Categories SHARED with this user keep their owner's exclude-from-reports
+        // flag. findAll() only returns own categories, so without this a share
+        // recipient saw the owner's excluded transactions (e.g. internal
+        // transfer legs) counted in their income/expense totals (#326)
+        $sharedCategoryIds = $this->granularShareService?->getSharedCategoryIds($userId) ?? [];
+        if (!empty($sharedCategoryIds)) {
+            foreach ($this->categoryMapper->findByIdsUnscoped($sharedCategoryIds) as $cat) {
+                if ($cat->getExcludedFromReports()) {
+                    $excludedCategoryIds[$cat->getId()] = true;
+                }
+            }
+        }
+
+        // Per-viewer report mutes ("hide from my reports" on a shared category)
+        // apply to these totals the same way as the owner flag
+        foreach ($this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [] as $mutedId) {
+            $excludedCategoryIds[$mutedId] = true;
         }
 
         // Get future transaction adjustments to calculate balance as of today
