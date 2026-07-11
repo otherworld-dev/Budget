@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.39.0] - 2026-07-11
 
 ### Added
 - **The Bills page now flags payments without a recorded transaction.** A warning card lists bills that were marked paid in the last 60 days without a transaction being created or linked — the situation where the app balance silently detaches from the bank. Each entry has a one-click **Record transaction** repair that books the missing payment (dated the day it was marked paid, both legs for transfers, splits applied). Deliberate skips via the *Skip* button are not flagged ([#274](https://github.com/otherworld-dev/Budget/issues/274))
