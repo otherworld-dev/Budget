@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-11 00:29+0000\n"
-"PO-Revision-Date: 2026-07-10 22:15+0000\n"
+"PO-Revision-Date: 2026-07-12 10:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -2582,7 +2582,7 @@ msgstr "Umbuchung wurde als bezahlt markiert"
 #: /app/lib/Service/BillService.php:160
 #: /app/src/modules/bills/BillsModule.js:100
 msgid "Assign an account to the bill first"
-msgstr ""
+msgstr "Weise der Rechnung zuerst ein Konto zu"
 
 #: /app/lib/Service/BillService.php:169
 #, fuzzy
@@ -3022,55 +3022,6 @@ msgid "Simple budget tracker and forecaster"
 msgstr "Einfache Budgetüberwachung und -prognose"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:4
-#, fuzzy
-#| msgid ""
-#| "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
-#| "backup your data regularly and report any issues.**\n"
-#| "\n"
-#| "# Budget - Financial Tracking for Nextcloud\n"
-#| "\n"
-#| "Track your spending habits, manage savings, and forecast future account "
-#| "balances with intelligent analysis of your financial history.\n"
-#| "\n"
-#| "## Features\n"
-#| "\n"
-#| "* **Import Bank Statements**: Support for CSV, OFX, and QIF formats\n"
-#| "* **Smart Categorization**: Automatic vendor matching and transaction "
-#| "categorization\n"
-#| "* **Auto-Categorization Rules**: Apply rules to existing transactions "
-#| "anytime with preview\n"
-#| "* **Split Transactions**: Allocate single transactions across multiple "
-#| "categories\n"
-#| "* **Transfer Detection**: Automatic matching of transfers between "
-#| "accounts\n"
-#| "* **Budget Tracking**: Set spending limits with alerts when approaching "
-#| "or exceeding budgets\n"
-#| "* **Balance Forecasting**: Predict future balances based on historical "
-#| "data\n"
-#| "* **Recurring Bills**: Track bills with due date monitoring and Nextcloud "
-#| "notifications\n"
-#| "* **Recurring Income**: Track expected income sources with receipt "
-#| "tracking\n"
-#| "* **Split Expenses**: Share expenses with contacts and track who owes "
-#| "whom\n"
-#| "* **Debt Payoff Planner**: Plan repayment using avalanche or snowball "
-#| "strategies\n"
-#| "* **Savings Goals**: Set targets with progress tracking and achievement "
-#| "forecasting\n"
-#| "* **Pension Tracker**: Track retirement accounts with growth projections\n"
-#| "* **Net Worth History**: Track assets and liabilities over time\n"
-#| "* **Year-over-Year Reports**: Compare spending across multiple years\n"
-#| "* **Multi-Account Support**: Manage multiple bank accounts and "
-#| "currencies\n"
-#| "* **Custom Categories**: Create your own category hierarchy\n"
-#| "* **Reports & Charts**: Visualize your financial data with interactive "
-#| "charts\n"
-#| "\n"
-#| "## Requirements\n"
-#| "\n"
-#| "* Nextcloud 30 or higher\n"
-#| "* PHP 8.1 or higher\n"
-#| "* PHP BCMath extension (`php-bcmath`)"
 msgid ""
 "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
 "backup your data regularly and report any issues.**\n"
@@ -3120,57 +3071,64 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Beta: Diese App befindet sich momentan in der Testphase. Ein "
-"Datenverlust ist möglich. Bitte sichere Deine Daten regelmäßig und berichte "
-"etwaige Fehler.**\n"
+"**⚠️ Beta: Diese App befindet sich derzeit in der Testphase. Datenverlust "
+"ist möglich. Bitte erstelle regelmäßig Sicherungen deiner Daten und melde "
+"auftretende Probleme.**\n"
 "\n"
-"# Budget - Finanzüberwachung für die NextCloud\n"
+"# Budget – Finanzverwaltung für Nextcloud\n"
 "\n"
-"Verfolge Deine Ausgabegewohnheiten, verwalte Ersparnisse und sage zukünftige "
-"Kontostände mithilfe einer intelligenten Analyse Deiner Finanzhistorie "
-"heraus.\n"
+"Behalte deine Ausgaben im Blick, verwalte deine Ersparnisse und "
+"prognostiziere zukünftige Kontostände mithilfe einer intelligenten Analyse "
+"deiner Finanzhistorie.\n"
 "\n"
-"## Leistungsmerkmale\n"
+"## Funktionen\n"
 "\n"
 "* **Kontoauszüge importieren**: Unterstützung für CSV-, OFX- und QIF-"
-"Formate\n"
-"* **intelligente Kategorisierung**: automatische Zuordnung der Bank und "
+"Dateien\n"
+"* **Intelligente Kategorisierung**: Automatische Erkennung von Händlern und "
 "Kategorisierung von Transaktionen\n"
-"* **Transaktionen per Regel kategorisieren**: Jederzeit Regeln auf "
-"existierende Transaktionen mit Vorschau anwenden\n"
-"* **Transaktionen aufteilen**: Einzelne Transaktionen können mehreren "
-"Kategorien zugeordnet werden\n"
-"* **Überweisungserkennung**: Automatischer Abgleich von Überweisungen "
-"zwischen Konten\n"
-"* **Ausgabegewohnheiten überwachen**: Ausgabelimits mit Alarm erstellen, "
-"wenn ein Budget erreicht oder überschritten wird\n"
-"* **Kontostandvorhersage**: zukünftige Kontostände auf Basis historischer "
-"Daten vorhersagen\n"
-"* **wiederkehrende Rechnungen**: Rechnungen mit Zieldatum überwachen und "
-"NextCloud-Hinweis erstellen\n"
-"* **wiederkehrendes Einkommen**: Erwartete Einkommensquellen mit "
-"Rechnungsüberwachung nachverfolgen\n"
-"* **Ausgaben aufteilen**: Ausgaben mit Kontakten teilen und nachvollziehen, "
-"wer wem was schuldet\n"
-"* **Schuldentilgung planen**: Rückzahlung mithilfe von Lawinen- oder "
-"Schneeball-Strategien\n"
-"* **Sparziele**: Ziele einstellen und mit Fortschrittsüberwachung und "
-"Leistungsprognosen nachverfolgen\n"
-"* **Rentenrechner**: Altersvorsorgekonten mit Wachstumsprognosen überwachen\n"
-"* **Entwicklung des Nettovermögens**: Vermögenswerte und Verbindlichkeiten "
-"im Zeitverlauf verfolgen\n"
-"* **Jahresvergleiche**: Ausgaben über mehrere Jahre hinweg vergleichen\n"
-"* **Unterstützung mehrerer Konten**: Verschiedene Bankkonten und Währungen "
+"* **Regeln zur automatischen Kategorisierung**: Regeln jederzeit mit "
+"Vorschau auf bestehende Transaktionen anwenden\n"
+"* **Transaktionen aufteilen**: Einzelne Transaktionen auf mehrere Kategorien "
+"verteilen\n"
+"* **Umbuchungserkennung**: Automatische Erkennung und Zuordnung von "
+"Umbuchungen zwischen Konten\n"
+"* **Budgetverwaltung**: Ausgabenlimits festlegen und Warnungen erhalten, "
+"wenn sich das Budget dem Limit nähert oder überschritten wird\n"
+"* **Kontostandsprognose**: Zukünftige Kontostände anhand historischer Daten "
+"vorhersagen\n"
+"* **Wiederkehrende Rechnungen**: Rechnungen mit Fälligkeitsüberwachung und "
+"Nextcloud-Benachrichtigungen verwalten\n"
+"* **Wiederkehrende Einnahmen**: Erwartete Einnahmen mit "
+"Zahlungseingangsverfolgung verwalten\n"
+"* **Ausgaben aufteilen**: Ausgaben mit Kontakten teilen und offene Beträge "
 "verwalten\n"
-"* **eigene Kategorien**: Erstelle Deine eigene Kategorien-Hierarchie\n"
-"* **Reporte und Diagramme**: Visualisiere Deine Finanzdaten mit interaktiven "
-"Diagrammen\n"
+"* **Schuldentilgungsplaner**: Rückzahlungen mit der Avalanche- oder Snowball-"
+"Strategie planen\n"
+"* **Sparziele**: Sparziele festlegen, Fortschritt verfolgen und den "
+"voraussichtlichen Zieltermin berechnen\n"
+"* **Altersvorsorge**: Altersvorsorgekonten mit Wachstumsprognosen verwalten\n"
+"* **Vermögensentwicklung**: Vermögenswerte und Verbindlichkeiten im "
+"Zeitverlauf verfolgen\n"
+"* **Vorjahresvergleich**: Ausgaben über mehrere Jahre hinweg vergleichen\n"
+"* **Unterstützung mehrerer Konten**: Mehrere Bankkonten und Währungen "
+"verwalten\n"
+"* **Eigene Kategorien**: Individelle Kategorien und Kategorienhierarchien "
+"erstellen\n"
+"* **Berichte und Diagramme**: Finanzdaten mit interaktiven Diagrammen "
+"visualisieren\n"
+"\n"
+"## Dokumentation\n"
+"\n"
+"Vollständige Benutzerdokumentation: [https://github.com/otherworld-dev/"
+"budget/tree/master/docs](https://github.com/otherworld-dev/budget/tree/"
+"master/docs)\n"
 "\n"
 "## Voraussetzungen\n"
 "\n"
 "* Nextcloud 30 oder neuer\n"
 "* PHP 8.1 oder neuer\n"
-"* PHP BCMath-Erweiterung (`php-bcmath`)"
+"* PHP-BCMath-Erweiterung (`php-bcmath`)"
 
 #: /app/src/config/dashboardWidgets.js:8
 #: /app/src/modules/dashboard/DashboardModule.js:2471
@@ -3818,7 +3776,7 @@ msgstr "Ausstehend"
 
 #: /app/src/main.js:1120
 msgid "Excluded from forecast (extraordinary / one-time)"
-msgstr ""
+msgstr "Von der Prognose ausgeschlossen (außergewöhnlich / einmalig)"
 
 #: /app/src/main.js:1120
 #, fuzzy
@@ -3829,12 +3787,14 @@ msgstr "Prognose"
 #: /app/src/main.js:1124
 msgid "%n receipt attached"
 msgid_plural "%n receipts attached"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Beleg angehängt"
+msgstr[1] "%n Belege angehängt"
 
 #: /app/src/main.js:1127
 msgid "Funds a pension contribution — excluded from spending"
 msgstr ""
+"Dient der Finanzierung eines Altersvorsorgebeitrags – wird nicht als Ausgabe "
+"berücksichtigt"
 
 #: /app/src/main.js:1147 /app/src/modules/accounts/AccountsModule.js:1042
 msgid "No description"
@@ -3915,14 +3875,16 @@ msgstr "Fehler beim Speichern der Regel: {error}"
 #: /app/src/main.js:1730
 msgid "No data integrity issues found. Everything looks good!"
 msgstr ""
+"Es wurden keine Probleme mit der Datenintegrität gefunden. Alles ist in "
+"Ordnung!"
 
 #: /app/src/main.js:1732
 msgid "Found {count} issue(s) across {categories} categories."
-msgstr ""
+msgstr "{count} Problem(e) in {categories} Kategorien gefunden."
 
 #: /app/src/main.js:1738 /app/src/main.js:1799
 msgid "(unnamed)"
-msgstr ""
+msgstr "(Unbenannt)"
 
 #: /app/src/main.js:1741
 #, fuzzy
@@ -3938,7 +3900,7 @@ msgstr "Doppelte Buchung"
 
 #: /app/src/main.js:1751 /app/src/main.js:1812
 msgid "and {more} more"
-msgstr ""
+msgstr "und {more} weitere"
 
 #: /app/src/main.js:1760
 #, fuzzy
@@ -3954,15 +3916,15 @@ msgstr "Endet am {date}"
 
 #: /app/src/main.js:1768
 msgid "Bills with Stuck Due Dates"
-msgstr ""
+msgstr "Rechnungen mit nicht aktualisierten Fälligkeitsdaten"
 
 #: /app/src/main.js:1788
 msgid "Paid One-Time Bills Still Active"
-msgstr ""
+msgstr "Bezahlte einmalige Rechnungen sind noch aktiv"
 
 #: /app/src/main.js:1809
 msgid "Future Transactions Not Marked as Scheduled"
-msgstr ""
+msgstr "Zukünftige Transaktionen sind nicht als geplant markiert"
 
 #: /app/src/main.js:1821
 #, fuzzy
@@ -4041,7 +4003,7 @@ msgstr "{count} aktualisiert"
 
 #: /app/src/main.js:1920
 msgid "{count} one-time bills deactivated"
-msgstr ""
+msgstr "{count} einmalige Rechnungen deaktiviert"
 
 #: /app/src/main.js:1923
 msgid "{count} future transactions set to scheduled"
@@ -4053,7 +4015,7 @@ msgstr "{count} Kontostände korrigiert"
 
 #: /app/src/main.js:1929
 msgid "Repair complete: {details}"
-msgstr ""
+msgstr "Reparatur abgeschlossen: {details}"
 
 #: /app/src/main.js:1936
 #, fuzzy
@@ -4235,7 +4197,7 @@ msgstr ""
 
 #: /app/src/main.js:2808 /app/src/main.js:3063
 msgid "Snowball"
-msgstr ""
+msgstr "Snowball"
 
 #: /app/src/main.js:2808 /app/src/main.js:3052
 #, fuzzy
@@ -4283,7 +4245,7 @@ msgstr "Rente bearbeiten"
 #: /app/src/main.js:2835 /app/templates/index.php:4342
 #: /app/templates/index.php:4344 /app/templates/index.php:4418
 msgid "New Scenario"
-msgstr ""
+msgstr "Neues Szenario"
 
 #: /app/src/main.js:2889
 #, fuzzy
@@ -4317,7 +4279,7 @@ msgstr "Prognoseszenarien konnten nicht ausgeführt werden"
 
 #: /app/src/main.js:3054 /app/src/main.js:3065
 msgid "Months to payoff"
-msgstr ""
+msgstr "Monate bis zur Tilgung"
 
 #: /app/src/main.js:3058 /app/src/main.js:3069
 #, fuzzy
@@ -4347,11 +4309,11 @@ msgstr "Das Schneeballmodell spart {amount} an Zinsen"
 
 #: /app/src/main.js:3128
 msgid "Hide"
-msgstr ""
+msgstr "Ausblenden"
 
 #: /app/src/main.js:3128
 msgid "Show"
-msgstr ""
+msgstr "Anzeigen"
 
 #: /app/src/main.js:3307
 #: /app/src/modules/transactions/TransactionsModule.js:2526
@@ -4567,11 +4529,11 @@ msgstr "Saldo"
 
 #: /app/src/modules/accounts/AccountsModule.js:308
 msgid "Excluded from reports, dashboard & forecast"
-msgstr ""
+msgstr "Von Berichten, Dashboard und Prognose ausgeschlossen"
 
 #: /app/src/modules/accounts/AccountsModule.js:308
 msgid "Excluded"
-msgstr ""
+msgstr "Ausgeschlossen"
 
 #: /app/src/modules/accounts/AccountsModule.js:335
 #: /app/src/modules/accounts/AccountsModule.js:2069
@@ -4606,11 +4568,11 @@ msgstr "Nie"
 #: /app/src/modules/accounts/AccountsModule.js:769
 #: /app/templates/index.php:5462
 msgid "Daily"
-msgstr ""
+msgstr "Täglich"
 
 #: /app/src/modules/accounts/AccountsModule.js:772
 msgid "Simple"
-msgstr ""
+msgstr "Einfach"
 
 #: /app/src/modules/accounts/AccountsModule.js:804
 #, fuzzy
@@ -4639,15 +4601,15 @@ msgstr "Der Erinnerungszeitraum muss zwischen 0 und 30 liegen"
 
 #: /app/src/modules/accounts/AccountsModule.js:834
 msgid "Effective date (YYYY-MM-DD)"
-msgstr ""
+msgstr "Gültig ab (JJJJ-MM-TT)"
 
 #: /app/src/modules/accounts/AccountsModule.js:837
 msgid "Compounding frequency (daily, monthly, yearly, simple)"
-msgstr ""
+msgstr "Zinseszinsintervall (täglich, monatlich, jährlich, einfache Verzinsung)"
 
 #: /app/src/modules/accounts/AccountsModule.js:858
 msgid "Rate change added"
-msgstr ""
+msgstr "Zinssatzänderung hinzugefügt"
 
 #: /app/src/modules/accounts/AccountsModule.js:862
 #: /app/src/modules/accounts/AccountsModule.js:865
@@ -4660,6 +4622,8 @@ msgstr "Erstellung Aktie fehlgeschlagen"
 msgid ""
 "Some historical exchange rates could not be found. P&L may be approximate."
 msgstr ""
+"Einige historische Wechselkurse konnten nicht gefunden werden. Die Gewinn-"
+"und-Verlust-Berechnung kann daher ungenau sein."
 
 #: /app/src/modules/accounts/AccountsModule.js:993
 #: /app/src/modules/import/ImportModule.js:1196
@@ -4837,6 +4801,9 @@ msgid ""
 "Enter as negative for amount owed (e.g. -5000). Enter as positive for a "
 "credit/overpayment."
 msgstr ""
+"Gib den Betrag als negativen Wert ein, wenn du Geld schuldest (z. B. -5000). "
+"Gib ihn als positiven Wert ein, wenn ein Guthaben oder eine Überzahlung "
+"vorliegt."
 
 #: /app/src/modules/accounts/AccountsModule.js:2162
 msgid "••••••••  (leave blank to keep current)"
@@ -5054,6 +5021,8 @@ msgstr "Wert aktualisiert"
 #: /app/templates/index.php:4689
 msgid "No bank connections yet. Click \"Add Connection\" to get started."
 msgstr ""
+"Noch keine Bankverbindungen vorhanden. Klicke auf „Verbindung hinzufügen“, "
+"um zu beginnen."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:152
 #: /app/src/modules/sharing/SharingModule.js:129
@@ -5069,12 +5038,13 @@ msgid "Awaiting Authorization"
 msgstr "übereinstimmende Buchungen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:154
+#, fuzzy
 msgid "Error"
-msgstr ""
+msgstr "Fehler"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:155
 msgid "Expired"
-msgstr ""
+msgstr "Abgelaufen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:160
 msgid "Last sync: {date}"
@@ -5082,15 +5052,16 @@ msgstr "Letzte Synchronisierung: {date}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:161
 msgid "Never synced"
-msgstr ""
+msgstr "Noch nie synchronisiert"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:167
 msgid "Re-authorize"
-msgstr ""
+msgstr "Erneut autorisieren"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:168
+#, fuzzy
 msgid "Sync now"
-msgstr ""
+msgstr "Jetzt synchronisieren"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:171
 #, fuzzy
@@ -5100,7 +5071,7 @@ msgstr "Ausgewählte Buchungen aktualisieren"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:172
 msgid "Force"
-msgstr ""
+msgstr "Erzwingen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:185
 #, fuzzy
@@ -5110,7 +5081,7 @@ msgstr "Kontodetails"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:188
 msgid "Disconnect"
-msgstr ""
+msgstr "Trennen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:195
 msgid "{count} account(s) mapped"
@@ -5133,6 +5104,9 @@ msgid ""
 "Also pull pending (not yet posted) transactions. They are marked Pending and "
 "reconciled when they post."
 msgstr ""
+"Auch vorgemerkte (noch nicht verbuchte) Transaktionen importieren. Sie "
+"werden als „Vorgemerkt“ gekennzeichnet und nach der Verbuchung automatisch "
+"abgeglichen."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:203
 #, fuzzy
@@ -5207,12 +5181,12 @@ msgstr "Konto konnte nicht gespeichert werden: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:459
 msgid "No banks found for this country."
-msgstr ""
+msgstr "Für dieses Land wurden keine Banken gefunden."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:575
 #: /app/templates/index.php:6748
 msgid "Connect"
-msgstr ""
+msgstr "Verbinden"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:596
 msgid "Checking..."
@@ -5223,6 +5197,8 @@ msgid ""
 "Authorization successful! {count} account(s) found. You can now close this "
 "dialog and set up your account mappings."
 msgstr ""
+"Autorisierung erfolgreich! {count} Konten gefunden. Du kannst diesen Dialog "
+"jetzt schließen und die Kontozuordnungen einrichten."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:618
 #: /app/templates/index.php:5083
@@ -5234,19 +5210,21 @@ msgid ""
 "Authorization not yet complete. Please finish the authorization in the bank "
 "window and try again."
 msgstr ""
+"Die Autorisierung ist noch nicht abgeschlossen. Bitte schließe die "
+"Autorisierung im Bankfenster ab und versuche es anschließend erneut."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:624
 msgid "Authorization check failed: {error}"
-msgstr ""
+msgstr "Autorisierung konnte nicht überprüft werden: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:629
 #: /app/templates/index.php:6770
 msgid "I've Completed Authorization"
-msgstr ""
+msgstr "Autorisierung abgeschlossen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:663
 msgid "Force syncing..."
-msgstr ""
+msgstr "Synchronisierung wird erzwungen …"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:685
 #, fuzzy
@@ -5267,6 +5245,8 @@ msgid ""
 "Synced {synced} of {total} connections: {imported} imported, {skipped} "
 "skipped, {errors} failed"
 msgstr ""
+"{synced} von {total} Verbindungen synchronisiert: {imported} importiert, "
+"{skipped} übersprungen, {errors} fehlgeschlagen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:739
 msgid "Synced {synced} connections: {imported} imported, {skipped} skipped"
@@ -5287,12 +5267,13 @@ msgstr ""
 "geteilten Buchungen löschen."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:762
+#, fuzzy
 msgid "Bank disconnected"
-msgstr ""
+msgstr "Bank getrennt"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:790
 msgid "Account Mappings — {name}"
-msgstr ""
+msgstr "Kontozuordnungen – {name}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:795
 #, fuzzy
@@ -5346,16 +5327,12 @@ msgid "Failed to load bills"
 msgstr "Rechnungen konnten nicht geladen werden"
 
 #: /app/src/modules/bills/BillsModule.js:95
-#, fuzzy
-#| msgid "Ends {date}"
 msgid "Marked paid on {date}"
-msgstr "Endet am {date}"
+msgstr "Am {date} als bezahlt markiert"
 
 #: /app/src/modules/bills/BillsModule.js:99
-#, fuzzy
-#| msgid "Edit transaction"
 msgid "Record transaction"
-msgstr "Buchung editieren"
+msgstr "Transaktion erfassen"
 
 #: /app/src/modules/bills/BillsModule.js:125
 #, fuzzy
@@ -10775,7 +10752,7 @@ msgstr "Kontonummer"
 
 #: /app/templates/index.php:1243 /app/templates/index.php:5410
 msgid "Routing Number"
-msgstr "Bankleitzahl"
+msgstr "Bankleitzahl (USA)"
 
 #: /app/templates/index.php:1247 /app/templates/index.php:5422
 msgid "IBAN"
@@ -11413,16 +11390,16 @@ msgid "Add new bill"
 msgstr "Neue Rechnung hinzufügen"
 
 #: /app/templates/index.php:2441
-#, fuzzy
-#| msgid "Failed to add transaction"
 msgid "Payments without a recorded transaction"
-msgstr "Buchung konnte nicht erstellt werden"
+msgstr "Zahlungen ohne erfasste Transaktion"
 
 #: /app/templates/index.php:2443
 msgid ""
 "These bills were marked as paid, but no transaction was recorded — your "
 "account balance does not reflect these payments."
 msgstr ""
+"Diese Rechnungen wurden als bezahlt markiert, es wurde jedoch keine "
+"Transaktion erfasst – dein Kontostand berücksichtigt diese Zahlungen nicht."
 
 #: /app/templates/index.php:2449
 #, fuzzy
@@ -12807,7 +12784,7 @@ msgstr "Standardzeitraum für die Budgetauswertung"
 
 #: /app/templates/index.php:4753
 msgid "Budget Cycle Start Day"
-msgstr "tarttag des Budgetzyklus"
+msgstr "Starttag des Budgetzyklus"
 
 #: /app/templates/index.php:4754
 msgid ""
@@ -12830,6 +12807,10 @@ msgid ""
 "percentage of its budget. Set to 100 to alert only when a category goes over "
 "budget."
 msgstr ""
+"Zeige eine Kategorie in der Kachel „Budgetwarnungen“ an, sobald ihre "
+"Ausgaben diesen Prozentsatz des Budgets überschreiten. Setze den Wert auf "
+"100, um erst dann eine Warnung anzuzeigen, wenn das Budget tatsächlich "
+"überschritten wird."
 
 #: /app/templates/index.php:4773
 msgid "Display Settings"
@@ -12930,7 +12911,7 @@ msgstr "Über negative Cashflow-Prognosen informieren"
 
 #: /app/templates/index.php:4881
 msgid "Unusual Spending Alerts"
-msgstr ""
+msgstr "Warnungen bei ungewöhnlichen Ausgaben"
 
 #: /app/templates/index.php:4882
 msgid ""
@@ -12947,6 +12928,8 @@ msgstr "Budgetplanung"
 #: /app/templates/index.php:4892
 msgid "Periodic summary of spending, budgets, upcoming bills and goals"
 msgstr ""
+"Regelmäßige Übersicht über Ausgaben, Budgets, bevorstehende Rechnungen und "
+"Ziele"
 
 #: /app/templates/index.php:4898
 #, fuzzy
@@ -12956,11 +12939,13 @@ msgstr "Häufigkeit"
 
 #: /app/templates/index.php:4909
 msgid "Email Digest"
-msgstr ""
+msgstr "E-Mail-Übersicht"
 
 #: /app/templates/index.php:4910
 msgid "Also send the digest by email (requires a working mail server)"
 msgstr ""
+"Die Übersicht zusätzlich per E-Mail senden (erfordert einen funktionierenden "
+"Mailserver)"
 
 #: /app/templates/index.php:4919
 #, fuzzy
@@ -12978,6 +12963,8 @@ msgstr "Monatssummen"
 msgid ""
 "Save a PDF summary of the previous month into Budget/Reports in your Files"
 msgstr ""
+"Eine PDF-Zusammenfassung des Vormonats im Ordner „Budget/Reports“ in deinen "
+"Dateien speichern"
 
 #: /app/templates/index.php:4936
 #, fuzzy
@@ -13239,6 +13226,9 @@ msgid ""
 "A minimal page for adding transactions on mobile. Bookmark this URL or add "
 "it to your home screen."
 msgstr ""
+"Eine schlanke Seite zum Hinzufügen von Transaktionen auf Mobilgeräten. "
+"Speichere diese URL als Lesezeichen oder füge sie deinem Startbildschirm "
+"hinzu."
 
 #: /app/templates/index.php:5183
 msgid "Copy URL"
@@ -13250,7 +13240,7 @@ msgstr ""
 
 #: /app/templates/index.php:5191
 msgid "Copy this information when reporting issues."
-msgstr ""
+msgstr "Kopiere diese Informationen, wenn du ein Problem meldest."
 
 #: /app/templates/index.php:5197
 msgid "Copy to Clipboard"
