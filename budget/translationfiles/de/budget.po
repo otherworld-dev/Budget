@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-11 00:29+0000\n"
-"PO-Revision-Date: 2026-07-12 10:01+0000\n"
+"PO-Revision-Date: 2026-07-14 21:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.7.1.dev0\n"
+"X-Generator: Weblate 2026.8.dev0\n"
 
 #: /app/js/budget-app.js:2
 msgid "hero"
@@ -363,10 +363,8 @@ msgstr "Der Verlauf des Anlagenwertes konnte nicht geladen werden"
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:1693
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load attachments"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Anhänge konnten nicht geladen werden"
 
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
@@ -378,18 +376,14 @@ msgid "Transaction not found"
 msgstr "Buchung nicht gefunden"
 
 #: /app/lib/Controller/AttachmentController.php:76
-#, fuzzy
-#| msgid "Share not found"
 msgid "File not found"
-msgstr "Aktie nicht gefunden"
+msgstr "Datei nicht gefunden"
 
 #: /app/lib/Controller/AttachmentController.php:78
 #: /app/src/modules/transactions/TransactionsModule.js:1724
 #: /app/src/modules/transactions/TransactionsModule.js:1727
-#, fuzzy
-#| msgid "Failed to validate file"
 msgid "Failed to attach file"
-msgstr "Fehler bei der Dateiprüfung"
+msgstr "Datei konnte nicht angehängt werden"
 
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:94
