@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-11 00:29+0000\n"
-"PO-Revision-Date: 2026-07-14 21:01+0000\n"
+"PO-Revision-Date: 2026-07-16 21:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -5277,11 +5277,11 @@ msgstr "Fehler beim Laden der Konto Details"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:822
 msgid "Consent expires: {date}"
-msgstr ""
+msgstr "Einwilligung gültig bis: {date}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:827
 msgid "— Not mapped —"
-msgstr ""
+msgstr "— Nicht zugeordnet —"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:874
 #, fuzzy
@@ -5303,7 +5303,7 @@ msgstr "Fehler beim Löschen des Kontos: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:919
 msgid "Import rules will be applied during sync"
-msgstr ""
+msgstr "Importregeln werden während der Synchronisierung angewendet"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:921
 #: /app/src/modules/bank-sync/BankSyncModule.js:935
@@ -5315,6 +5315,7 @@ msgstr "Einstellungen konnten nicht aktualisiert werden"
 #: /app/src/modules/bank-sync/BankSyncModule.js:933
 msgid "Pending transactions will be included during sync"
 msgstr ""
+"Vorgemerkte Transaktionen werden während der Synchronisierung importiert"
 
 #: /app/src/modules/bills/BillsModule.js:58
 msgid "Failed to load bills"
@@ -5351,11 +5352,11 @@ msgstr "Rechnung löschen"
 #: /app/src/modules/bills/BillsModule.js:171
 #: /app/src/modules/transactions/TransactionsModule.js:1232
 msgid "Dismiss"
-msgstr ""
+msgstr "Verwerfen"
 
 #: /app/src/modules/bills/BillsModule.js:208
 msgid "Bill \"{name}\" created"
-msgstr ""
+msgstr "Rechnung „{name}“ erstellt"
 
 #: /app/src/modules/bills/BillsModule.js:211
 #, fuzzy
@@ -5365,7 +5366,7 @@ msgstr "Fehler beim Erstellen der Ausgleichsbuchung: {message}"
 
 #: /app/src/modules/bills/BillsModule.js:232
 msgid "Dismiss all suggestions? They will not be shown again."
-msgstr ""
+msgstr "Alle Vorschläge verwerfen? Sie werden nicht erneut angezeigt."
 
 #: /app/src/modules/bills/BillsModule.js:243
 #, fuzzy
@@ -5602,6 +5603,10 @@ msgid ""
 "Thunderbird, your phone) to see upcoming bill due dates. Bills appear as all-"
 "day events for the next 12 months and refresh automatically."
 msgstr ""
+"Abonniere diese URL in einer Kalender-App (z. B. Nextcloud Kalender, "
+"Thunderbird oder auf deinem Smartphone), um bevorstehende Fälligkeitstermine "
+"deiner Rechnungen anzuzeigen. Die Rechnungen werden für die nächsten 12 "
+"Monate als ganztägige Termine angezeigt und automatisch aktualisiert."
 
 #: /app/src/modules/bills/BillsModule.js:1068
 #, fuzzy
@@ -5614,10 +5619,13 @@ msgid ""
 "Anyone with this URL can read your bill names and amounts. Regenerate the "
 "link if it leaks."
 msgstr ""
+"Jeder, der über diese URL verfügt, kann die Namen und Beträge deiner "
+"Rechnungen einsehen. Erstelle einen neuen Link, wenn die URL in falsche "
+"Hände geraten ist."
 
 #: /app/src/modules/bills/BillsModule.js:1073
 msgid "Copy link"
-msgstr ""
+msgstr "Link kopieren"
 
 #: /app/src/modules/bills/BillsModule.js:1074
 #, fuzzy
@@ -5627,20 +5635,22 @@ msgstr "Generieren"
 
 #: /app/src/modules/bills/BillsModule.js:1084
 msgid "Link copied to clipboard"
-msgstr ""
+msgstr "Link in die Zwischenablage kopiert"
 
 #: /app/src/modules/bills/BillsModule.js:1087
 msgid "Press Ctrl+C to copy the selected link"
-msgstr ""
+msgstr "Drücke Strg+C, um den ausgewählten Link zu kopieren"
 
 #: /app/src/modules/bills/BillsModule.js:1092
 msgid ""
 "Regenerate the link? Existing calendar subscriptions will stop updating."
 msgstr ""
+"Link neu erstellen? Bestehende Kalenderabonnements werden anschließend nicht "
+"mehr aktualisiert."
 
 #: /app/src/modules/bills/BillsModule.js:1101
 msgid "New link generated"
-msgstr ""
+msgstr "Neuer Link erstellt"
 
 #: /app/src/modules/bills/BillsModule.js:1192
 #, fuzzy
@@ -5653,6 +5663,8 @@ msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it."
 msgstr ""
+"Für diese Zahlung wurde keine Transaktion erfasst. Sie wird daher im "
+"Kontostand nicht berücksichtigt."
 
 #: /app/src/modules/bills/BillsModule.js:1197
 #, fuzzy
@@ -5665,12 +5677,18 @@ msgid ""
 "The bill was marked as paid, but linking the selected transaction failed. "
 "You can link it manually from the transaction."
 msgstr ""
+"Die Rechnung wurde als bezahlt markiert, die Verknüpfung mit der "
+"ausgewählten Transaktion ist jedoch fehlgeschlagen. Du kannst sie manuell "
+"über die Transaktion verknüpfen."
 
 #: /app/src/modules/bills/BillsModule.js:1208
 msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it. Assign an account to the bill, or add the transaction manually."
 msgstr ""
+"Für diese Zahlung wurde keine Transaktion erfasst. Sie wird daher im "
+"Kontostand nicht berücksichtigt. Weise der Rechnung ein Konto zu oder "
+"erfasse die Transaktion manuell."
 
 #: /app/src/modules/bills/BillsModule.js:1210
 #, fuzzy
@@ -5694,11 +5712,11 @@ msgstr "Erwarteter Betrag"
 
 #: /app/src/modules/bills/BillsModule.js:1244
 msgid "Similar amount (±5%)"
-msgstr ""
+msgstr "Ähnlicher Betrag (±5 %)"
 
 #: /app/src/modules/bills/BillsModule.js:1245
 msgid "Approximate amount (±20%)"
-msgstr ""
+msgstr "Ungefährer Betrag (±20 %)"
 
 #: /app/src/modules/bills/BillsModule.js:1246
 msgid "Vendor matches"
@@ -5724,19 +5742,19 @@ msgstr "Beschreibung (optional)"
 
 #: /app/src/modules/bills/BillsModule.js:1250
 msgid "Same day"
-msgstr ""
+msgstr "Am selben Tag"
 
 #: /app/src/modules/bills/BillsModule.js:1251
 msgid "±1 day"
-msgstr ""
+msgstr "±1 Tag"
 
 #: /app/src/modules/bills/BillsModule.js:1252
 msgid "±3 days"
-msgstr ""
+msgstr "±3 Tage"
 
 #: /app/src/modules/bills/BillsModule.js:1253
 msgid "±7 days"
-msgstr ""
+msgstr "±7 Tage"
 
 #: /app/src/modules/bills/BillsModule.js:1258
 #: /app/src/modules/transactions/TransactionsModule.js:4125
@@ -5745,7 +5763,7 @@ msgstr "(keine Beschreibung)"
 
 #: /app/src/modules/bills/BillsModule.js:1271
 msgid "Strong match"
-msgstr ""
+msgstr "Hohe Übereinstimmung"
 
 #: /app/src/modules/bills/BillsModule.js:1283
 #, fuzzy
@@ -5759,6 +5777,10 @@ msgid ""
 "({billName}, {amount}). Would you like to link one instead of creating a new "
 "transaction?"
 msgstr ""
+"Wir haben bestehende Transaktionen gefunden, die möglicherweise bereits zu "
+"dieser Rechnungszahlung passen ({billName}, {amount}). Möchtest du "
+"stattdessen eine davon verknüpfen, anstatt eine neue Transaktion zu "
+"erstellen?"
 
 #: /app/src/modules/bills/BillsModule.js:1294
 #, fuzzy
@@ -5768,11 +5790,11 @@ msgstr "Hinzugefügte Buchungsnotiz"
 
 #: /app/src/modules/bills/BillsModule.js:1300
 msgid "Don't create any transaction (just mark as paid)"
-msgstr ""
+msgstr "Keine Transaktion erstellen (nur als bezahlt markieren)"
 
 #: /app/src/modules/bills/BillsModule.js:1301
 msgid "Your account balance will NOT reflect this payment."
-msgstr ""
+msgstr "Diese Zahlung wirkt sich NICHT auf deinen Kontostand aus."
 
 #: /app/src/modules/bills/BillsModule.js:1306
 #: /app/src/modules/categories/CategoriesModule.js:1519
@@ -5876,7 +5898,7 @@ msgstr "Kategorien konnten nicht geladen werden"
 
 #: /app/src/modules/categories/CategoriesModule.js:286
 msgid "Shared by {owner} — you can edit"
-msgstr ""
+msgstr "Von {owner} geteilt – du kannst es bearbeiten"
 
 #: /app/src/modules/categories/CategoriesModule.js:286
 #, fuzzy
@@ -5887,7 +5909,7 @@ msgstr "Geteilt mit mir"
 #: /app/src/modules/categories/CategoriesModule.js:288
 #: /app/src/modules/savings/SavingsModule.js:120
 msgid "Shared by {owner}"
-msgstr ""
+msgstr "Von {owner} geteilt"
 
 #: /app/src/modules/categories/CategoriesModule.js:290
 msgid "Hidden from your reports — the owner and other viewers are unaffected"
