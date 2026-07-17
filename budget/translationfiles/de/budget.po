@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-11 00:29+0000\n"
-"PO-Revision-Date: 2026-07-16 21:01+0000\n"
+"PO-Revision-Date: 2026-07-17 22:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -5914,18 +5914,20 @@ msgstr "Von {owner} geteilt"
 #: /app/src/modules/categories/CategoriesModule.js:290
 msgid "Hidden from your reports — the owner and other viewers are unaffected"
 msgstr ""
+"In deinen Berichten ausgeblendet – der Eigentümer und andere Nutzer sind "
+"davon nicht betroffen"
 
 #: /app/src/modules/categories/CategoriesModule.js:290
 msgid "Hidden from my reports"
-msgstr ""
+msgstr "In meinen Berichten ausgeblendet"
 
 #: /app/src/modules/categories/CategoriesModule.js:298
 msgid "Show in my reports"
-msgstr ""
+msgstr "In meinen Berichten anzeigen"
 
 #: /app/src/modules/categories/CategoriesModule.js:298
 msgid "Hide from my reports"
-msgstr ""
+msgstr "In meinen Berichten ausblenden"
 
 #: /app/src/modules/categories/CategoriesModule.js:302
 msgid "Delete {name}"
@@ -5933,15 +5935,16 @@ msgstr "{name} löschen"
 
 #: /app/src/modules/categories/CategoriesModule.js:395
 msgid "Category hidden from your reports"
-msgstr ""
+msgstr "Kategorie in deinen Berichten ausgeblendet"
 
 #: /app/src/modules/categories/CategoriesModule.js:396
 msgid "Category shown in your reports again"
-msgstr ""
+msgstr "Kategorie wird wieder in deinen Berichten angezeigt"
 
 #: /app/src/modules/categories/CategoriesModule.js:497
 msgid "Shared categories cannot be moved or reordered"
 msgstr ""
+"Freigegebene Kategorien können nicht verschoben oder neu angeordnet werden"
 
 #: /app/src/modules/categories/CategoriesModule.js:528
 msgid "Category reordered successfully"
@@ -6114,7 +6117,7 @@ msgstr "Standardkategorien konnten nicht erstellt werden"
 
 #: /app/src/modules/categories/CategoriesModule.js:1487
 msgid "Budgets adjusted from {month}"
-msgstr ""
+msgstr "Budgets ab {month} angepasst"
 
 #: /app/src/modules/categories/CategoriesModule.js:1488
 #, fuzzy
@@ -6132,6 +6135,9 @@ msgid ""
 "onwards. Previous months will keep their existing values. You can edit the "
 "new values after confirming."
 msgstr ""
+"Die aktuellen Budgetwerte werden ab {month} als neue Ausgangswerte "
+"gespeichert. Die Werte der vorherigen Monate bleiben unverändert. Nach dem "
+"Bestätigen kannst du die neuen Werte bearbeiten."
 
 #: /app/src/modules/categories/CategoriesModule.js:1515
 msgid "Adjust budgets from {month}?"
