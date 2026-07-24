@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-11 00:29+0000\n"
-"PO-Revision-Date: 2026-07-17 22:01+0000\n"
+"PO-Revision-Date: 2026-07-25 04:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -6147,6 +6147,8 @@ msgstr "Budgets ab {month} anpassen?"
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
+"Das Budget wurde ab {month} angepasst. Du kannst die Werte ab diesem Monat "
+"jetzt bearbeiten."
 
 #: /app/src/modules/categories/CategoriesModule.js:1556
 #: /app/src/modules/categories/CategoriesModule.js:1560
@@ -6161,7 +6163,7 @@ msgstr "Budgetanpassung erstellt."
 
 #: /app/src/modules/categories/CategoriesModule.js:1608
 msgid "Budget adjustment removed"
-msgstr ""
+msgstr "Budgetanpassung entfernt"
 
 #: /app/src/modules/categories/CategoriesModule.js:1610
 #: /app/src/modules/categories/CategoriesModule.js:1614
@@ -6175,27 +6177,33 @@ msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
 msgstr ""
+"Umlagebudgetierung aktiviert: Nicht verbrauchtes Budget wird in den nächsten "
+"Monat übernommen. Klicke hier, um sie zu deaktivieren."
 
 #: /app/src/modules/categories/CategoriesModule.js:1922
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
+"Umlagebudgetierung aktivieren: Nicht verbrauchtes Budget wird in den "
+"nächsten Monat übernommen"
 
 #: /app/src/modules/categories/CategoriesModule.js:1933
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
+"Automatisch aus wiederkehrenden Rechnungen und Einnahmen berechnet. Gib "
+"einen Wert ein, um ihn zu überschreiben."
 
 #: /app/src/modules/categories/CategoriesModule.js:1933
 #: /app/src/modules/pensions/PensionsModule.js:1080
 msgid "auto"
-msgstr ""
+msgstr "Auto"
 
 #: /app/src/modules/categories/CategoriesModule.js:1935
 msgid "{base} − {over} overspent = {available} available"
-msgstr ""
+msgstr "{base} − {over} überzogen = {available} verfügbar"
 
 #: /app/src/modules/categories/CategoriesModule.js:1936
 msgid "{base} + {carried} carried = {available} available"
-msgstr ""
+msgstr "{base} + {carried} übernommen = {available} verfügbar"
 
 #: /app/src/modules/categories/CategoriesModule.js:1937
 #, fuzzy
