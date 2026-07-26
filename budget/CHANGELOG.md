@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.40.0] - 2026-07-26
 
 ### Added
 - **Keyboard shortcuts.** Budget can now be driven from the keyboard. Press **?** anywhere for a cheat sheet. Globally, `/` (or `Ctrl`/`Cmd`+`K`) focuses search and `g` then a letter jumps to any page in the sidebar (`g d` Dashboard, `g t` Transactions, and so on — every page has a letter). Any dialog now closes with `Esc`, traps `Tab` inside itself, focuses its first field on open, and saves with `Enter`. On the Transactions list, `j`/`k` move a row cursor, `e` (or `Enter`) edits the highlighted row, and `x` selects it. Shortcuts stay out of the way while you're typing in a field
