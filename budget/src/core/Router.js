@@ -14,14 +14,7 @@ export default class Router {
                 if (!href || !href.startsWith('#')) return;
 
                 e.preventDefault();
-                const view = href.substring(1);
-                this.showView(view);
-
-                // Update active state on parent li
-                document.querySelectorAll('.app-navigation-entry').forEach(entry =>
-                    entry.classList.remove('active')
-                );
-                link.parentElement.classList.add('active');
+                this.showView(href.substring(1));
 
                 // Close mobile navigation after selecting a view
                 this.closeMobileNavigation();
@@ -31,23 +24,19 @@ export default class Router {
         // Dashboard card links (View All, Manage, Details, etc.)
         document.addEventListener('click', (e) => {
             const cardLink = e.target.closest('.card-link');
-            if (cardLink) {
+            if (!cardLink) return;
+            const href = cardLink.getAttribute('href');
+            if (href && href.startsWith('#')) {
                 e.preventDefault();
-                const href = cardLink.getAttribute('href');
-                if (href && href.startsWith('#')) {
-                    const view = href.substring(1);
-                    this.showView(view);
-
-                    // Update nav active state
-                    document.querySelectorAll('.app-navigation-entry').forEach(entry => {
-                        const navLink = entry.querySelector('a');
-                        if (navLink && navLink.getAttribute('href') === href) {
-                            document.querySelectorAll('.app-navigation-entry').forEach(e => e.classList.remove('active'));
-                            entry.classList.add('active');
-                        }
-                    });
-                }
+                this.showView(href.substring(1));
             }
+        });
+
+        // Browser back / forward: re-render the view encoded in the URL without
+        // recording another history entry (that would fight the user).
+        window.addEventListener('popstate', (e) => {
+            const view = (e.state && e.state.view) || this.viewFromHash() || 'dashboard';
+            this.showView(view, { history: false });
         });
 
         this.setupMobileNavigationToggle();
@@ -134,7 +123,17 @@ export default class Router {
         'settings': 'loadSettingsView',
     };
 
-    showView(viewName) {
+    /**
+     * Show a view and (by default) record it in browser history so the back /
+     * forward buttons move between in-app views instead of leaving the app.
+     *
+     * @param {string} viewName
+     * @param {object} [opts]
+     * @param {boolean} [opts.history=true] Update browser history for this
+     *   navigation. Pass false when the call is itself a response to a history
+     *   event (popstate) or the initial page load, so we don't double-record it.
+     */
+    showView(viewName, { history = true } = {}) {
         // Hide all views
         document.querySelectorAll('.view').forEach(view => {
             view.classList.remove('active');
@@ -143,20 +142,59 @@ export default class Router {
 
         // Show selected view
         const view = document.getElementById(`${viewName}-view`);
-        if (view) {
-            view.classList.add('active');
-            this.app.currentView = viewName;
+        if (!view) return;
 
-            // Update help panel if open
-            if (typeof this.app._updateHelpContent === 'function') {
-                this.app._updateHelpContent();
-            }
+        view.classList.add('active');
+        this.app.currentView = viewName;
+        this.setActiveNav(viewName);
 
-            // Load view-specific data
-            const loader = Router.VIEW_LOADERS[viewName];
-            if (loader) {
-                this.app[loader]();
-            }
+        // Update help panel if open
+        if (typeof this.app._updateHelpContent === 'function') {
+            this.app._updateHelpContent();
+        }
+
+        // Load view-specific data
+        const loader = Router.VIEW_LOADERS[viewName];
+        if (loader) {
+            this.app[loader]();
+        }
+
+        if (history) {
+            this.syncHistory(viewName);
+        }
+    }
+
+    /**
+     * Highlight the matching left-nav entry (matched by its data-id) and clear
+     * the rest. Views without a nav entry simply clear all highlights.
+     */
+    setActiveNav(viewName) {
+        document.querySelectorAll('.app-navigation-entry').forEach(entry => {
+            entry.classList.toggle('active', entry.dataset.id === viewName);
+        });
+    }
+
+    /**
+     * Read the view name from the URL hash (supports both #view and the
+     * #/view?params deep-link form).
+     */
+    viewFromHash() {
+        const m = window.location.hash.match(/^#\/?([a-z-]+)/);
+        return m ? m[1] : null;
+    }
+
+    /**
+     * Push (or replace) a history entry so back/forward navigate between views.
+     * Re-selecting the current view replaces rather than pushes, keeping the
+     * history stack free of duplicate adjacent entries.
+     */
+    syncHistory(viewName) {
+        const currentView = (window.history.state && window.history.state.view) || this.viewFromHash();
+        const state = { view: viewName };
+        if (currentView === viewName) {
+            window.history.replaceState(state, '', `#${viewName}`);
+        } else {
+            window.history.pushState(state, '', `#${viewName}`);
         }
     }
 

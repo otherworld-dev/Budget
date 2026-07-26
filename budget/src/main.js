@@ -184,16 +184,20 @@ class BudgetApp {
         // from unified search results) instead of always landing on the
         // dashboard. Unknown hashes fall through to the dashboard.
         const hashMatch = window.location.hash.match(/^#\/?([a-z-]+)(?:\?(.*))?$/);
+        let initialView = 'dashboard';
         if (hashMatch && Router.VIEW_LOADERS[hashMatch[1]]) {
-            if (hashMatch[1] === 'transactions' && hashMatch[2]) {
+            initialView = hashMatch[1];
+            if (initialView === 'transactions' && hashMatch[2]) {
                 const search = new URLSearchParams(hashMatch[2]).get('search');
                 const searchInput = document.getElementById('filter-search');
                 if (search && searchInput) searchInput.value = search;
             }
-            this.showView(hashMatch[1]);
-        } else {
-            this.showView('dashboard');
         }
+        // Seed the initial history entry with state (preserving any deep-link
+        // hash/params) so the back button can return here, then render without
+        // pushing a second entry on top of the page-load entry.
+        window.history.replaceState({ view: initialView }, '', window.location.hash || `#${initialView}`);
+        this.showView(initialView, { history: false });
     }
 
 
