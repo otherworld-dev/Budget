@@ -22,6 +22,7 @@ class ImportRuleServiceTest extends TestCase {
     private IDBConnection $db;
     private CriteriaEvaluator $criteriaEvaluator;
     private RuleActionApplicator $actionApplicator;
+    private \OCA\Budget\Service\GranularShareService $granularShareService;
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(ImportRuleMapper::class);
@@ -31,6 +32,7 @@ class ImportRuleServiceTest extends TestCase {
         $this->db = $this->createMock(IDBConnection::class);
         $this->criteriaEvaluator = $this->createMock(CriteriaEvaluator::class);
         $this->actionApplicator = $this->createMock(RuleActionApplicator::class);
+        $this->granularShareService = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
 
         $this->service = new ImportRuleService(
             $this->mapper,
@@ -39,7 +41,8 @@ class ImportRuleServiceTest extends TestCase {
             $transactionService,
             $this->db,
             $this->criteriaEvaluator,
-            $this->actionApplicator
+            $this->actionApplicator,
+            $this->granularShareService
         );
     }
 

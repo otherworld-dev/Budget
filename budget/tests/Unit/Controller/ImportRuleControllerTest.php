@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ImportRuleController;
 use OCA\Budget\Db\ImportRule;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
@@ -18,6 +19,7 @@ class ImportRuleControllerTest extends TestCase {
 	private ImportRuleController $controller;
 	private ImportRuleService $service;
 	private ValidationService $validationService;
+	private GranularShareService $granularShareService;
 	private IRequest $request;
 	private LoggerInterface $logger;
 
@@ -25,6 +27,9 @@ class ImportRuleControllerTest extends TestCase {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(ImportRuleService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		// No shared rules by default — most tests exercise the user's own rules
+		$this->granularShareService->method('getSharedImportRules')->willReturn([]);
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function ($text, $parameters = []) {
@@ -35,6 +40,7 @@ class ImportRuleControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->validationService,
+			$this->granularShareService,
 			$l,
 			'user1',
 			$this->logger
@@ -75,6 +81,8 @@ class ImportRuleControllerTest extends TestCase {
 
 	public function testShowReturnsRule(): void {
 		$rule = $this->createMock(ImportRule::class);
+		$rule->method('jsonSerialize')->willReturn(['id' => 1, 'name' => 'Groceries']);
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
 		$this->service->method('find')->with(1, 'user1')->willReturn($rule);
 
 		$response = $this->controller->show(1);
@@ -472,12 +480,22 @@ class ImportRuleControllerTest extends TestCase {
 	// ── destroy ─────────────────────────────────────────────────────
 
 	public function testDestroyDeletesRule(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
 		$this->service->expects($this->once())->method('delete')->with(1, 'user1');
 
 		$response = $this->controller->destroy(1);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame('success', $response->getData()['status']);
+	}
+
+	public function testDestroyForbiddenForRecipient(): void {
+		// A rule shared with the user (owned by someone else) can't be deleted
+		$this->granularShareService->method('resolveOwner')->willReturn('owner2');
+
+		$response = $this->controller->destroy(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
 	public function testDestroyHandlesError(): void {

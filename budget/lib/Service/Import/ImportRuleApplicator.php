@@ -6,6 +6,8 @@ namespace OCA\Budget\Service\Import;
 
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Service\GranularShareService;
 
 /**
  * Applies import rules to automatically categorize and tag transactions during import.
@@ -14,10 +16,32 @@ use OCA\Budget\Db\ImportRuleMapper;
 class ImportRuleApplicator {
     private ImportRuleMapper $importRuleMapper;
     private CriteriaEvaluator $criteriaEvaluator;
+    private GranularShareService $granularShareService;
 
-    public function __construct(ImportRuleMapper $importRuleMapper, CriteriaEvaluator $criteriaEvaluator) {
+    public function __construct(
+        ImportRuleMapper $importRuleMapper,
+        CriteriaEvaluator $criteriaEvaluator,
+        GranularShareService $granularShareService
+    ) {
         $this->importRuleMapper = $importRuleMapper;
         $this->criteriaEvaluator = $criteriaEvaluator;
+        $this->granularShareService = $granularShareService;
+    }
+
+    /**
+     * Active rules that apply during a user's import: their own plus rules
+     * shared with them. Sorted by priority DESC.
+     *
+     * @return ImportRule[]
+     */
+    private function activeRulesFor(string $userId): array {
+        $own = $this->importRuleMapper->findActive($userId);
+        $sharedIds = $this->granularShareService->getSharedImportRuleIds($userId);
+        $shared = $this->importRuleMapper->findActiveByIds($sharedIds);
+
+        $all = array_merge($own, $shared);
+        usort($all, fn(ImportRule $a, ImportRule $b) => $b->getPriority() - $a->getPriority());
+        return $all;
     }
 
     /**
@@ -28,7 +52,7 @@ class ImportRuleApplicator {
      * @return array Transaction data with rules applied
      */
     public function applyRules(string $userId, array $transaction): array {
-        $rules = $this->importRuleMapper->findActive($userId);
+        $rules = $this->activeRulesFor($userId);
 
         foreach ($rules as $rule) {
             // Skip rules not meant for import
@@ -45,7 +69,7 @@ class ImportRuleApplicator {
             }
 
             // Apply v2 actions
-            $transaction = $this->applyActions($rule, $transaction);
+            $transaction = $this->applyActions($rule, $transaction, $userId);
 
             // Track which rule was applied
             $transaction['appliedRule'] = [
@@ -84,7 +108,7 @@ class ImportRuleApplicator {
      * @return array List of rule matches with transaction indices
      */
     public function previewRuleApplications(string $userId, array $transactions): array {
-        $rules = $this->importRuleMapper->findActive($userId);
+        $rules = $this->activeRulesFor($userId);
         $previews = [];
 
         foreach ($transactions as $index => $transaction) {
@@ -121,7 +145,7 @@ class ImportRuleApplicator {
      * @return array Statistics about rule matches
      */
     public function getMatchStatistics(string $userId, array $transactions): array {
-        $rules = $this->importRuleMapper->findActive($userId);
+        $rules = $this->activeRulesFor($userId);
         $matched = 0;
         $unmatched = 0;
         $ruleUsage = [];
@@ -161,9 +185,15 @@ class ImportRuleApplicator {
 
     /**
      * Extract and apply v2 actions from a rule to a transaction array.
+     *
+     * @param string $userId The user performing the import (may differ from the
+     *                        rule owner when the rule was shared with them).
      */
-    private function applyActions(ImportRule $rule, array $transaction): array {
+    private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
         $actions = $rule->getParsedActions();
+        // A rule shared with the importer may set a category the importer can't
+        // see; such actions are skipped rather than stamping an inaccessible id.
+        $ruleShared = ($rule->getUserId() !== null && $rule->getUserId() !== $userId);
         $actionList = [];
 
         if (isset($actions['version']) && $actions['version'] === 2) {
@@ -187,7 +217,12 @@ class ImportRuleApplicator {
             switch ($type) {
                 case 'set_category':
                     if ($this->shouldApply($behavior, $transaction['categoryId'] ?? null)) {
-                        $transaction['categoryId'] = (int)$value;
+                        // For a shared rule, only stamp the category if the importer
+                        // can actually see it (co-shared); otherwise skip it.
+                        if (!$ruleShared
+                            || $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+                            $transaction['categoryId'] = (int)$value;
+                        }
                     }
                     break;
 

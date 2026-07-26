@@ -226,12 +226,21 @@ export default class SharingModule {
             // Filter to own categories only (owner configures their own entities)
             const ownCategories = flatCategories.filter(c => !c._shared);
 
+            // Import rules aren't part of the initial load; fetch on demand and
+            // keep only the owner's own rules (recipients can't reshare).
+            let rules = this.app.rules || [];
+            if (rules.length === 0) {
+                rules = await this.fetchApi('/apps/budget/api/import-rules').catch(() => []);
+            }
+            const ownRules = (Array.isArray(rules) ? rules : []).filter(r => !r._shared);
+
             this.renderConfigPanel(panel, shareId, config, {
                 account: accounts,
                 category: ownCategories,
                 bill: this.app.bills || [],
                 recurring_income: this.app.recurringIncome || [],
                 savings_goal: this.app.savingsGoals || [],
+                import_rule: ownRules,
             }, autoConfig || {});
         } catch (error) {
             console.error('Failed to load config:', error);
@@ -246,6 +255,7 @@ export default class SharingModule {
             { type: 'bill', label: t('budget', 'Bills'), nameField: 'name' },
             { type: 'recurring_income', label: t('budget', 'Recurring Income'), nameField: 'name' },
             { type: 'savings_goal', label: t('budget', 'Savings Goals'), nameField: 'name' },
+            { type: 'import_rule', label: t('budget', 'Import Rules'), nameField: 'name' },
         ];
 
         panel.innerHTML = `
@@ -320,7 +330,7 @@ export default class SharingModule {
         const panel = document.getElementById(`share-config-${shareId}`);
         if (!panel) return;
 
-        const types = ['account', 'category', 'bill', 'recurring_income', 'savings_goal'];
+        const types = ['account', 'category', 'bill', 'recurring_income', 'savings_goal', 'import_rule'];
         const errors = [];
 
         for (const type of types) {

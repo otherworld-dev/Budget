@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
@@ -25,6 +26,8 @@ class ImportRuleService extends AbstractCrudService {
     private IDBConnection $db;
     private CriteriaEvaluator $criteriaEvaluator;
     private RuleActionApplicator $actionApplicator;
+    private GranularShareService $granularShareService;
+    private ?AutoShareService $autoShareService;
 
     /** @var array<int,string> Cache of account id => type for the account/account_type rule fields */
     private array $accountTypeCache = [];
@@ -36,7 +39,9 @@ class ImportRuleService extends AbstractCrudService {
         TransactionService $transactionService,
         IDBConnection $db,
         CriteriaEvaluator $criteriaEvaluator,
-        RuleActionApplicator $actionApplicator
+        RuleActionApplicator $actionApplicator,
+        GranularShareService $granularShareService,
+        ?AutoShareService $autoShareService = null
     ) {
         $this->mapper = $mapper;
         $this->categoryMapper = $categoryMapper;
@@ -45,6 +50,41 @@ class ImportRuleService extends AbstractCrudService {
         $this->db = $db;
         $this->criteriaEvaluator = $criteriaEvaluator;
         $this->actionApplicator = $actionApplicator;
+        $this->granularShareService = $granularShareService;
+        $this->autoShareService = $autoShareService;
+    }
+
+    /**
+     * Active rules that apply for a user: their own plus rules shared with them
+     * (an accepted incoming share). Sorted by priority DESC so higher-priority
+     * rules win, matching findActive's ordering.
+     *
+     * @return ImportRule[]
+     */
+    public function findActiveIncludingShared(string $userId): array {
+        $own = $this->mapper->findActive($userId);
+        $sharedIds = $this->granularShareService->getSharedImportRuleIds($userId);
+        $shared = $this->mapper->findActiveByIds($sharedIds);
+
+        $all = array_merge($own, $shared);
+        usort($all, fn(ImportRule $a, ImportRule $b) => $b->getPriority() - $a->getPriority());
+        return $all;
+    }
+
+    /**
+     * Find a rule the user may run — their own, or one shared with them.
+     * Returns null when the id is neither owned nor accessible via a share.
+     */
+    private function findAccessibleRule(int $ruleId, string $userId): ?ImportRule {
+        $owner = $this->granularShareService->resolveOwner($userId, ShareItem::TYPE_IMPORT_RULE, $ruleId);
+        if ($owner === null) {
+            return null;
+        }
+        try {
+            return $this->mapper->find($ruleId, $owner);
+        } catch (DoesNotExistException $e) {
+            return null;
+        }
     }
 
     /**
@@ -150,7 +190,11 @@ class ImportRuleService extends AbstractCrudService {
             $rule->setGroupName(substr(trim($groupName), 0, 100));
         }
 
-        return $this->mapper->insert($rule);
+        $inserted = $this->mapper->insert($rule);
+        if ($this->autoShareService !== null) {
+            $this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_IMPORT_RULE, $inserted->getId());
+        }
+        return $inserted;
     }
 
     public function update(int $id, string $userId, array $updates): ImportRule {
@@ -420,19 +464,15 @@ class ImportRuleService extends AbstractCrudService {
     public function previewRuleApplication(string $userId, array $ruleIds, array $filters): array {
         $transactions = $this->findTransactionsForRules($userId, $filters);
 
-        // Get rules to apply
+        // Get rules to apply — own plus rules shared with this user
         if (empty($ruleIds)) {
-            $rules = $this->mapper->findActive($userId);
+            $rules = $this->findActiveIncludingShared($userId);
         } else {
             $rules = [];
             foreach ($ruleIds as $ruleId) {
-                try {
-                    $rule = $this->find($ruleId, $userId);
-                    if ($rule->getActive()) {
-                        $rules[] = $rule;
-                    }
-                } catch (DoesNotExistException $e) {
-                    continue;
+                $rule = $this->findAccessibleRule($ruleId, $userId);
+                if ($rule !== null && $rule->getActive()) {
+                    $rules[] = $rule;
                 }
             }
         }
@@ -485,19 +525,15 @@ class ImportRuleService extends AbstractCrudService {
     public function applyRulesToTransactions(string $userId, array $ruleIds, array $filters): array {
         $transactions = $this->findTransactionsForRules($userId, $filters);
 
-        // Get rules to apply
+        // Get rules to apply — own plus rules shared with this user
         if (empty($ruleIds)) {
-            $rules = $this->mapper->findActive($userId);
+            $rules = $this->findActiveIncludingShared($userId);
         } else {
             $rules = [];
             foreach ($ruleIds as $ruleId) {
-                try {
-                    $rule = $this->find($ruleId, $userId);
-                    if ($rule->getActive()) {
-                        $rules[] = $rule;
-                    }
-                } catch (DoesNotExistException $e) {
-                    continue;
+                $rule = $this->findAccessibleRule($ruleId, $userId);
+                if ($rule !== null && $rule->getActive()) {
+                    $rules[] = $rule;
                 }
             }
         }

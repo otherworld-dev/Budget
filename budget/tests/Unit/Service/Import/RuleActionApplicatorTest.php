@@ -10,6 +10,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\Import\RuleActionApplicator;
 use OCA\Budget\Service\TransactionTagService;
 use PHPUnit\Framework\TestCase;
@@ -20,18 +21,21 @@ class RuleActionApplicatorTest extends TestCase {
 	private TransactionTagService $tagService;
 	private CategoryMapper $categoryMapper;
 	private AccountMapper $accountMapper;
+	private GranularShareService $granularShareService;
 	private LoggerInterface $logger;
 
 	protected function setUp(): void {
 		$this->tagService = $this->createMock(TransactionTagService::class);
 		$this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$this->accountMapper = $this->createMock(AccountMapper::class);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
 
 		$this->applicator = new RuleActionApplicator(
 			$this->tagService,
 			$this->categoryMapper,
 			$this->accountMapper,
+			$this->granularShareService,
 			$this->logger
 		);
 	}
@@ -113,6 +117,53 @@ class RuleActionApplicatorTest extends TestCase {
 
 		$this->assertArrayHasKey('category', $changes);
 		$this->assertEquals(5, $transaction->getCategoryId());
+	}
+
+	public function testSetCategoryFromSharedRuleAppliesWhenCoShared(): void {
+		// A rule shared with the user references the owner's category. The user
+		// doesn't own it (find throws) but it is co-shared (canAccess true), so
+		// the action applies.
+		$transaction = $this->createTransaction(['categoryId' => null]);
+
+		$this->categoryMapper->method('find')
+			->willThrowException(new \Exception('Not owned by this user'));
+		$this->granularShareService->method('canAccess')
+			->with('recipient', 'category', 5)
+			->willReturn(true);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 5, 'behavior' => 'always', 'priority' => 100],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'recipient');
+
+		$this->assertArrayHasKey('category', $changes);
+		$this->assertEquals(5, $transaction->getCategoryId());
+	}
+
+	public function testSetCategoryFromSharedRuleSkippedWhenNotAccessible(): void {
+		// Referenced category is neither owned nor co-shared → action skipped.
+		$transaction = $this->createTransaction(['categoryId' => null]);
+
+		$this->categoryMapper->method('find')
+			->willThrowException(new \Exception('Not owned by this user'));
+		$this->granularShareService->method('canAccess')->willReturn(false);
+		$this->logger->expects($this->once())->method('warning');
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 99, 'behavior' => 'always', 'priority' => 100],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'recipient');
+
+		$this->assertArrayNotHasKey('category', $changes);
+		$this->assertNull($transaction->getCategoryId());
 	}
 
 	public function testSetForecastExclude(): void {

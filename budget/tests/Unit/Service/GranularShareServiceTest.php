@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\Share;
@@ -28,6 +29,7 @@ class GranularShareServiceTest extends TestCase {
     private CategoryMapper $categoryMapper;
     private RecurringIncomeMapper $recurringIncomeMapper;
     private SavingsGoalMapper $savingsGoalMapper;
+    private ImportRuleMapper $importRuleMapper;
     private IL10N $l;
 
     protected function setUp(): void {
@@ -38,6 +40,7 @@ class GranularShareServiceTest extends TestCase {
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
         $this->recurringIncomeMapper = $this->createMock(RecurringIncomeMapper::class);
         $this->savingsGoalMapper = $this->createMock(SavingsGoalMapper::class);
+        $this->importRuleMapper = $this->createMock(ImportRuleMapper::class);
         $this->l = $this->createMock(IL10N::class);
 
         $this->l->method('t')->willReturnCallback(
@@ -52,6 +55,7 @@ class GranularShareServiceTest extends TestCase {
             $this->categoryMapper,
             $this->recurringIncomeMapper,
             $this->savingsGoalMapper,
+            $this->importRuleMapper,
             $this->l
         );
     }
@@ -191,6 +195,57 @@ class GranularShareServiceTest extends TestCase {
         $result = $this->service->getSharedCategoryIds('alice');
 
         $this->assertSame([10, 11], $result);
+    }
+
+    // =============================================
+    // import rules
+    // =============================================
+
+    public function testGetVisibleImportRuleIdsMergesOwnAndShared(): void {
+        $this->importRuleMapper->method('findAll')
+            ->with('alice')
+            ->willReturn([$this->makeEntity(1), $this->makeEntity(2)]);
+
+        $share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+        $this->shareMapper->method('findByRecipient')
+            ->with('alice')
+            ->willReturn([$share]);
+
+        $this->shareItemMapper->method('findSharedEntityIds')
+            ->with(100, ShareItem::TYPE_IMPORT_RULE)
+            ->willReturn([5, 6]);
+
+        $result = $this->service->getVisibleImportRuleIds('alice');
+
+        $this->assertEqualsCanonicalizing([1, 2, 5, 6], $result);
+    }
+
+    public function testGetSharedImportRulesFlagsOwnerAndWritePermission(): void {
+        $share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+        $this->shareMapper->method('findByRecipient')
+            ->with('alice')
+            ->willReturn([$share]);
+        $this->shareItemMapper->method('findSharedEntityIds')
+            ->with(100, ShareItem::TYPE_IMPORT_RULE)
+            ->willReturn([7]);
+
+        $rule = new \OCA\Budget\Db\ImportRule();
+        $rule->setId(7);
+        $rule->setUserId('bob');
+        $rule->setName('Groceries');
+        // canWrite() checks own ids first — alice owns no rules here
+        $this->importRuleMapper->method('findAll')->willReturn([]);
+        $this->importRuleMapper->method('findByIds')->with([7])->willReturn([$rule]);
+        $this->shareItemMapper->method('getEntityPermission')
+            ->with(100, ShareItem::TYPE_IMPORT_RULE, 7)
+            ->willReturn(ShareItem::PERMISSION_WRITE);
+
+        $result = $this->service->getSharedImportRules('alice');
+
+        $this->assertCount(1, $result);
+        $this->assertTrue($result[0]['_shared']);
+        $this->assertSame('bob', $result[0]['_sharedBy']);
+        $this->assertTrue($result[0]['_canWrite']);
     }
 
     // =============================================
@@ -348,6 +403,7 @@ class GranularShareServiceTest extends TestCase {
                 [100, ShareItem::TYPE_BILL, []],
                 [100, ShareItem::TYPE_RECURRING_INCOME, []],
                 [100, ShareItem::TYPE_SAVINGS_GOAL, []],
+                [100, ShareItem::TYPE_IMPORT_RULE, []],
             ]);
 
         $config = $this->service->getShareConfig(100);
@@ -364,6 +420,7 @@ class GranularShareServiceTest extends TestCase {
         $this->assertArrayNotHasKey(ShareItem::TYPE_BILL, $config);
         $this->assertArrayNotHasKey(ShareItem::TYPE_RECURRING_INCOME, $config);
         $this->assertArrayNotHasKey(ShareItem::TYPE_SAVINGS_GOAL, $config);
+        $this->assertArrayNotHasKey(ShareItem::TYPE_IMPORT_RULE, $config);
     }
 
     // =============================================

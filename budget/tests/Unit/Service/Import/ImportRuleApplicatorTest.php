@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Import;
 
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
 use OCA\Budget\Service\Import\ImportRuleApplicator;
 use PHPUnit\Framework\TestCase;
@@ -14,16 +15,28 @@ class ImportRuleApplicatorTest extends TestCase {
 	private ImportRuleApplicator $applicator;
 	private ImportRuleMapper $ruleMapper;
 	private CriteriaEvaluator $evaluator;
+	private GranularShareService $granularShareService;
 
 	protected function setUp(): void {
 		$this->ruleMapper = $this->createMock(ImportRuleMapper::class);
 		$this->evaluator = $this->createMock(CriteriaEvaluator::class);
-		$this->applicator = new ImportRuleApplicator($this->ruleMapper, $this->evaluator);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		// No shared rules by default — tests exercise own rules
+		$this->granularShareService->method('getSharedImportRuleIds')->willReturn([]);
+		$this->ruleMapper->method('findActiveByIds')->willReturn([]);
+		$this->applicator = new ImportRuleApplicator(
+			$this->ruleMapper,
+			$this->evaluator,
+			$this->granularShareService
+		);
 	}
 
 	private function makeRule(array $overrides = []): ImportRule {
 		$rule = new ImportRule();
 		$rule->setId($overrides['id'] ?? 1);
+		// Own the rule by the acting user in tests unless overridden, so its
+		// actions apply without a co-share check.
+		$rule->setUserId($overrides['userId'] ?? 'user1');
 		$rule->setName($overrides['name'] ?? 'Test Rule');
 		$rule->setApplyOnImport($overrides['applyOnImport'] ?? true);
 		$rule->setSchemaVersion($overrides['schemaVersion'] ?? 2);
@@ -54,6 +67,39 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame(42, $result['categoryId']);
 		$this->assertSame(1, $result['appliedRule']['id']);
 		$this->assertSame('Test Rule', $result['appliedRule']['name']);
+	}
+
+	public function testSharedRuleSetCategoryAppliedWhenCoShared(): void {
+		// A rule owned by someone else, shared with the importer. Its category is
+		// co-shared, so it stamps during the importer's import.
+		$rule = $this->makeRule([
+			'userId' => 'owner2',
+			'actions' => ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 7]]],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')
+			->with('user1', 'category', 7)->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'x']);
+
+		$this->assertSame(7, $result['categoryId']);
+	}
+
+	public function testSharedRuleSetCategorySkippedWhenNotCoShared(): void {
+		// The category the shared rule targets isn't visible to the importer, so
+		// it must not be stamped onto their transaction.
+		$rule = $this->makeRule([
+			'userId' => 'owner2',
+			'actions' => ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 7]]],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')->willReturn(false);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'x']);
+
+		$this->assertArrayNotHasKey('categoryId', $result);
 	}
 
 	public function testApplyRulesSetVendor(): void {

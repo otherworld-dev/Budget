@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
+use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -20,6 +23,7 @@ use Psr\Log\LoggerInterface;
 class ImportRuleController extends Controller {
     use ApiErrorHandlerTrait;
     use InputValidationTrait;
+    use SharedAccessTrait;
 
     private ImportRuleService $service;
     private ValidationService $validationService;
@@ -33,6 +37,7 @@ class ImportRuleController extends Controller {
         IRequest $request,
         ImportRuleService $service,
         ValidationService $validationService,
+        GranularShareService $granularShareService,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -44,6 +49,7 @@ class ImportRuleController extends Controller {
         $this->userId = $userId;
         $this->setLogger($logger);
         $this->setInputValidator($validationService);
+        $this->setGranularShareService($granularShareService);
     }
 
     /**
@@ -51,8 +57,11 @@ class ImportRuleController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $rules = $this->service->findAll($this->userId);
-            return new DataResponse($rules);
+            // Own rules (entities; serialized by DataResponse) plus rules shared
+            // with this user (already flagged _shared / _sharedBy / _canWrite).
+            $own = $this->service->findAll($this->userId);
+            $shared = $this->granularShareService->getSharedImportRules($this->userId);
+            return new DataResponse(array_merge($own, $shared));
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve import rules'));
         }
@@ -75,7 +84,20 @@ class ImportRuleController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $rule = $this->service->find($id, $this->userId);
+            $owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Import rule')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+
+            $rule = $this->service->find($id, $owner)->jsonSerialize();
+            if ($owner !== $this->userId) {
+                $rule['_shared'] = true;
+                $rule['_sharedBy'] = $owner;
+                $rule['_canWrite'] = $this->granularShareService->canWrite($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
+            }
             return new DataResponse($rule);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
@@ -209,6 +231,9 @@ class ImportRuleController extends Controller {
         ?string $groupName = null
     ): DataResponse {
         try {
+            // Owners and write-share recipients may edit; enforce before validating
+            $this->requireWriteAccess(ShareItem::TYPE_IMPORT_RULE, $id);
+
             $updates = [];
 
             // Validate name if provided
@@ -307,7 +332,12 @@ class ImportRuleController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $rule = $this->service->update($id, $this->userId, $updates);
+            // Write access confirmed above; resolve the owner so the
+            // owner-scoped service lookup succeeds for shared rules too.
+            $owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id)
+                ?? $this->userId;
+
+            $rule = $this->service->update($id, $owner, $updates);
             return new DataResponse($rule);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
@@ -320,6 +350,23 @@ class ImportRuleController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
+            $owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
+            if ($owner === null) {
+                return $this->handleNotFoundError(
+                    new \OCP\AppFramework\Db\DoesNotExistException('Import rule not found'),
+                    $this->l->t('Import rule'),
+                    ['ruleId' => $id]
+                );
+            }
+            // Only the owner may delete a rule — recipients (even with write
+            // access) can edit but not remove it.
+            if ($owner !== $this->userId) {
+                return new DataResponse(
+                    ['error' => $this->l->t('Only the rule owner can delete it')],
+                    Http::STATUS_FORBIDDEN
+                );
+            }
+
             $this->service->delete($id, $this->userId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {

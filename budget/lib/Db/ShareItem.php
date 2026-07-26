@@ -39,6 +39,7 @@ class ShareItem extends Entity implements JsonSerializable {
     public const TYPE_BILL = 'bill';
     public const TYPE_RECURRING_INCOME = 'recurring_income';
     public const TYPE_SAVINGS_GOAL = 'savings_goal';
+    public const TYPE_IMPORT_RULE = 'import_rule';
 
     public const VALID_TYPES = [
         self::TYPE_ACCOUNT,
@@ -46,6 +47,7 @@ class ShareItem extends Entity implements JsonSerializable {
         self::TYPE_BILL,
         self::TYPE_RECURRING_INCOME,
         self::TYPE_SAVINGS_GOAL,
+        self::TYPE_IMPORT_RULE,
     ];
 
     public function __construct() {

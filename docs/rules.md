@@ -121,6 +121,12 @@ At the top of the rule editor, switch from **Builder** to **JSON**. The current 
 
 > **Note:** Category and account IDs in the JSON are specific to the instance the rule came from. When you paste a rule into a different instance, point those IDs at the matching categories/accounts there (or set them in the Builder afterwards).
 
+## Sharing Rules
+
+Rules can be shared with other Nextcloud users you already share your budget with. In the **Sharing** page, open a share's **Configure** panel and pick which rules to share, at read-only or read/write permission.
+
+A rule shared with you shows a **"Shared"** badge on the Rules page. You can run it, and with write permission edit it (edits affect the owner and every recipient — it's one rule, not a copy); only the owner can delete it. Shared rules also run during your own imports. See [Sharing](sharing.md#shared-import-rules) for how a shared rule's *set category* / *set account* actions behave for the recipient.
+
 ## Related Features
 
 - [Import](import.md) — rules are applied automatically during the import process

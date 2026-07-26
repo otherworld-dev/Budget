@@ -127,13 +127,22 @@ export default class RulesModule {
             criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
         }
 
+        // Shared rules: read-only unless the owner granted write. Only the owner
+        // may delete; recipients can run and (with write) edit.
+        const isShared = rule._shared === true;
+        const canWrite = !isShared || rule._canWrite === true;
+        const ownerLabel = rule._sharedByName || rule._sharedBy || '';
+        const sharedBadge = isShared
+            ? `<span class="rule-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: ownerLabel })}">${t('budget', 'Shared')}</span>`
+            : '';
+
         return `
             <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
                 <td class="rules-col-priority">${rule.priority}</td>
-                <td class="rules-col-name">${this.escapeHtml(rule.name)}</td>
+                <td class="rules-col-name">${this.escapeHtml(rule.name)}${sharedBadge}</td>
                 <td class="rules-col-status">
                     <label class="rule-toggle" title="${rule.active ? t('budget', 'Click to disable') : t('budget', 'Click to enable')}">
-                        <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''}>
+                        <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''} ${canWrite ? '' : 'disabled'}>
                         <span class="rule-toggle-slider"></span>
                     </label>
                     ${rule.applyOnImport ? `<span class="status-badge import">${t('budget', 'Import')}</span>` : ''}
@@ -142,8 +151,8 @@ export default class RulesModule {
                 <td class="rules-col-actions">${actionBadges}</td>
                 <td class="rules-col-buttons">
                     <button class="icon-play rule-run-btn" data-rule-id="${rule.id}" title="${t('budget', 'Run rule')}"></button>
-                    <button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}"></button>
-                    <button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}"></button>
+                    ${canWrite ? `<button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}"></button>` : ''}
+                    ${isShared ? '' : `<button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}"></button>`}
                 </td>
             </tr>
         `;

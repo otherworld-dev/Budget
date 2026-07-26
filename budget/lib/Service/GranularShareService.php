@@ -11,6 +11,7 @@ use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Exception\ReadOnlyShareException;
@@ -31,6 +32,7 @@ class GranularShareService {
     private CategoryMapper $categoryMapper;
     private RecurringIncomeMapper $recurringIncomeMapper;
     private SavingsGoalMapper $savingsGoalMapper;
+    private ImportRuleMapper $importRuleMapper;
     private IL10N $l;
     private ?IUserManager $userManager;
 
@@ -45,6 +47,7 @@ class GranularShareService {
         CategoryMapper $categoryMapper,
         RecurringIncomeMapper $recurringIncomeMapper,
         SavingsGoalMapper $savingsGoalMapper,
+        ImportRuleMapper $importRuleMapper,
         IL10N $l,
         ?IUserManager $userManager = null
     ) {
@@ -55,6 +58,7 @@ class GranularShareService {
         $this->categoryMapper = $categoryMapper;
         $this->recurringIncomeMapper = $recurringIncomeMapper;
         $this->savingsGoalMapper = $savingsGoalMapper;
+        $this->importRuleMapper = $importRuleMapper;
         $this->l = $l;
         $this->userManager = $userManager;
     }
@@ -121,6 +125,13 @@ class GranularShareService {
     }
 
     /**
+     * @return int[]
+     */
+    public function getVisibleImportRuleIds(string $userId): array {
+        return $this->getVisibleIds($userId, ShareItem::TYPE_IMPORT_RULE);
+    }
+
+    /**
      * Get only the shared entity IDs (not own) for a user.
      * Useful for cross-user budget aggregation.
      *
@@ -142,6 +153,13 @@ class GranularShareService {
      */
     public function getSharedSavingsGoalIds(string $userId): array {
         return $this->getSharedIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getSharedImportRuleIds(string $userId): array {
+        return $this->getSharedIds($userId, ShareItem::TYPE_IMPORT_RULE);
     }
 
     // ==========================================
@@ -373,6 +391,24 @@ class GranularShareService {
         return array_map(fn($g) => array_merge($g->jsonSerialize(), ['_shared' => true]), $goals);
     }
 
+    /**
+     * Fetch shared import rules as serialized arrays, flagged with the owner
+     * and the recipient's write permission (mirrors getSharedCategories).
+     *
+     * @return array[]
+     */
+    public function getSharedImportRules(string $userId): array {
+        $ids = $this->getSharedIds($userId, ShareItem::TYPE_IMPORT_RULE);
+        if (empty($ids)) return [];
+        $rules = $this->importRuleMapper->findByIds($ids);
+        return array_map(fn($r) => array_merge($r->jsonSerialize(), [
+            '_shared' => true,
+            '_sharedBy' => $r->getUserId(),
+            '_sharedByName' => $this->displayNameFor($r->getUserId()),
+            '_canWrite' => $this->canWrite($userId, ShareItem::TYPE_IMPORT_RULE, $r->getId()),
+        ]), $rules);
+    }
+
     // ==========================================
     // Internal helpers
     // ==========================================
@@ -444,6 +480,10 @@ class GranularShareService {
             ShareItem::TYPE_SAVINGS_GOAL => array_map(
                 fn($g) => $g->getId(),
                 $this->savingsGoalMapper->findAll($userId)
+            ),
+            ShareItem::TYPE_IMPORT_RULE => array_map(
+                fn($r) => $r->getId(),
+                $this->importRuleMapper->findAll($userId)
             ),
             default => [],
         };

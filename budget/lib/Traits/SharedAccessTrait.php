@@ -100,6 +100,11 @@ trait SharedAccessTrait {
         return $this->granularShareService->getVisibleSavingsGoalIds($this->userId);
     }
 
+    /** @return int[] */
+    protected function getVisibleImportRuleIds(): array {
+        return $this->granularShareService->getVisibleImportRuleIds($this->userId);
+    }
+
     /**
      * Check write permission. Throws ReadOnlyShareException if denied.
      */

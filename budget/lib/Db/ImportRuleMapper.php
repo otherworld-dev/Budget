@@ -55,7 +55,50 @@ class ImportRuleMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
             ->orderBy('priority', 'DESC')
             ->addOrderBy('id', 'ASC');
-        
+
+        return $this->findEntities($qb);
+    }
+
+    /**
+     * Find multiple rules by IDs without user scoping.
+     * IDs are pre-authorized by GranularShareService (shared rules).
+     *
+     * @param int[] $ids
+     * @return ImportRule[]
+     */
+    public function findByIds(array $ids): array {
+        if (empty($ids)) {
+            return [];
+        }
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->orderBy('priority', 'DESC')
+            ->addOrderBy('id', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
+     * Find active rules among a pre-authorized set of IDs (shared rules that
+     * apply during a recipient's import/run). IDs are not user-scoped.
+     *
+     * @param int[] $ids
+     * @return ImportRule[]
+     */
+    public function findActiveByIds(array $ids): array {
+        if (empty($ids)) {
+            return [];
+        }
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            ->orderBy('priority', 'DESC')
+            ->addOrderBy('id', 'ASC');
+
         return $this->findEntities($qb);
     }
 

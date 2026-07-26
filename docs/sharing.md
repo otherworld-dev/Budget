@@ -43,6 +43,19 @@ Even with Edit permission, some aspects of a category stay with its owner: the *
 
 If you don't want a shared category counted in **your own** reports, use the **Hide from my reports** toggle on its row (visible on hover). This affects only what you see — the owner's reports and other viewers are untouched, and the category still works for classifying transactions. Toggle it back with **Show in my reports** at any time.
 
+## Shared Import Rules
+
+You can share individual [import rules](rules.md) the same way you share accounts or categories — pick which rules to share, at **View** or **Edit** permission, from the share's **Configure** panel.
+
+A rule shared with you appears on your **Rules** page marked with a **"Shared"** badge:
+
+- **View** — you can see and **run** the rule, but not change it.
+- **Edit** — you can also modify the rule's criteria and actions. Edits apply for the owner and everyone it's shared with (it is one rule, not a copy). Only the **owner** can delete it.
+
+Shared rules also run automatically when **you** import, and when you use **Run Rule Now**, exactly like your own rules.
+
+> **Note on categories and accounts:** a rule's actions (like *set category* or *set account*) point at the owner's categories and accounts. When such a rule runs for you, that action only takes effect if the target category/account is **also shared with you** — otherwise it is skipped, so a transaction is never filed under something you can't see. Sharing the relevant categories/accounts alongside the rule makes it fully effective.
+
 ## Managing Shares
 
 To view and manage your active shares:

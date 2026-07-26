@@ -6,8 +6,10 @@ namespace OCA\Budget\Service\Import;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\ImportRule;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionTagService;
 use Psr\Log\LoggerInterface;
 
@@ -26,6 +28,7 @@ class RuleActionApplicator {
 	private TransactionTagService $transactionTagService;
 	private CategoryMapper $categoryMapper;
 	private AccountMapper $accountMapper;
+	private GranularShareService $granularShareService;
 	private LoggerInterface $logger;
 
 	/** Maximum actions per rule to prevent abuse */
@@ -35,12 +38,41 @@ class RuleActionApplicator {
 		TransactionTagService $transactionTagService,
 		CategoryMapper $categoryMapper,
 		AccountMapper $accountMapper,
+		GranularShareService $granularShareService,
 		LoggerInterface $logger
 	) {
 		$this->transactionTagService = $transactionTagService;
 		$this->categoryMapper = $categoryMapper;
 		$this->accountMapper = $accountMapper;
+		$this->granularShareService = $granularShareService;
 		$this->logger = $logger;
+	}
+
+	/**
+	 * Whether the acting user may target a category in a rule action — their own,
+	 * or one shared with them (so a shared rule's set_category resolves when the
+	 * category is co-shared, and is skipped otherwise rather than referencing an
+	 * inaccessible entity). Ids are global, so there is no same-id ambiguity.
+	 */
+	private function canUseCategory(int $categoryId, string $userId): bool {
+		try {
+			$this->categoryMapper->find($categoryId, $userId);
+			return true;
+		} catch (\Exception $e) {
+			return $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, $categoryId);
+		}
+	}
+
+	/**
+	 * Whether the acting user may target an account in a rule action (own or shared).
+	 */
+	private function canUseAccount(int $accountId, string $userId): bool {
+		try {
+			$this->accountMapper->find($accountId, $userId);
+			return true;
+		} catch (\Exception $e) {
+			return $this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId);
+		}
 	}
 
 	/**
@@ -191,17 +223,15 @@ class RuleActionApplicator {
 		switch ($type) {
 			case 'set_category':
 				if ($this->shouldApply($type, $behavior, $transaction->getCategoryId(), $appliedActions)) {
-					// Validate category exists
-					try {
-						$this->categoryMapper->find((int)$value, $userId);
+					// Category must be accessible to the acting user (own or shared)
+					if ($this->canUseCategory((int)$value, $userId)) {
 						$oldValue = $transaction->getCategoryId();
 						$transaction->setCategoryId((int)$value);
 						$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
 						$changes['category'] = ['old' => $oldValue, 'new' => $value];
-					} catch (\Exception $e) {
+					} else {
 						$this->logger->warning('Invalid category reference in rule action', [
 							'categoryId' => $value,
-							'error' => $e->getMessage()
 						]);
 					}
 				}
@@ -255,17 +285,15 @@ class RuleActionApplicator {
 
 			case 'set_account':
 				if ($this->shouldApply($type, $behavior, $transaction->getAccountId(), $appliedActions)) {
-					// Validate account exists
-					try {
-						$this->accountMapper->find((int)$value, $userId);
+					// Account must be accessible to the acting user (own or shared)
+					if ($this->canUseAccount((int)$value, $userId)) {
 						$oldValue = $transaction->getAccountId();
 						$transaction->setAccountId((int)$value);
 						$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
 						$changes['account'] = ['old' => $oldValue, 'new' => $value];
-					} catch (\Exception $e) {
+					} else {
 						$this->logger->warning('Invalid account reference in rule action', [
 							'accountId' => $value,
-							'error' => $e->getMessage()
 						]);
 					}
 				}
@@ -418,22 +446,14 @@ class RuleActionApplicator {
 			// Validate action-specific requirements
 			switch ($type) {
 				case 'set_category':
-					if ($value !== null) {
-						try {
-							$this->categoryMapper->find((int)$value, $userId);
-						} catch (\Exception $e) {
-							$errors[] = "Action $idx: invalid category ID $value";
-						}
+					if ($value !== null && !$this->canUseCategory((int)$value, $userId)) {
+						$errors[] = "Action $idx: invalid category ID $value";
 					}
 					break;
 
 				case 'set_account':
-					if ($value !== null) {
-						try {
-							$this->accountMapper->find((int)$value, $userId);
-						} catch (\Exception $e) {
-							$errors[] = "Action $idx: invalid account ID $value";
-						}
+					if ($value !== null && !$this->canUseAccount((int)$value, $userId)) {
+						$errors[] = "Action $idx: invalid account ID $value";
 					}
 					break;
 
