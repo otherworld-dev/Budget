@@ -3791,13 +3791,15 @@ button.danger:hover {
 }
 
 .amount-column {
-    width: 100px;
+    /* Wide enough for an 8-decimal crypto amount plus its suffix, e.g.
+       "0.00012345 BTC" — 100px ellipsised the suffix to "…" (#331). */
+    width: 140px;
     text-align: center;
     white-space: nowrap;
 }
 
 .balance-column {
-    width: 100px;
+    width: 140px;
     text-align: right;
     white-space: nowrap;
 }

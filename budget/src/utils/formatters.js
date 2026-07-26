@@ -107,6 +107,33 @@ const CURRENCY_CONFIG = {
  * @param {object} settings - User settings object
  * @returns {string} Formatted currency string
  */
+/**
+ * Decimal places for a currency: the currency's native precision (crypto/JOD/etc.)
+ * or the user's fiat default. Drives both display and input `step` (#331).
+ * @param {string} currency - Currency code (e.g. 'BTC', 'USD')
+ * @param {object} settings - User settings
+ * @returns {number}
+ */
+export function currencyDecimals(currency, settings = {}) {
+    const config = CURRENCY_CONFIG[currency];
+    if (config && config.decimals !== undefined) {
+        return config.decimals;
+    }
+    return parseInt(settings.number_format_decimals) || 2;
+}
+
+/**
+ * The HTML number-input `step` for a currency (e.g. '0.00000001' for BTC,
+ * '0.01' for USD, '1' for JPY).
+ * @param {string} currency
+ * @param {object} settings
+ * @returns {string}
+ */
+export function currencyStep(currency, settings = {}) {
+    const dp = currencyDecimals(currency, settings);
+    return dp > 0 ? '0.' + '0'.repeat(dp - 1) + '1' : '1';
+}
+
 export function formatCurrency(amount, currency, settings) {
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };

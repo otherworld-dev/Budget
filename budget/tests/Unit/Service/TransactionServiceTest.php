@@ -334,6 +334,24 @@ class TransactionServiceTest extends TestCase {
         $this->service->update(1, 'user1', ['amount' => 75.00]);
     }
 
+    public function testRecalculateUsesAccountCurrencyPrecision(): void {
+        // A crypto account's balance must keep 8dp, not be rounded to 2 (#331).
+        $tx = $this->makeTransaction(['amount' => 0.00012345, 'type' => 'debit']);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(-0.00012345);
+
+        $account = $this->makeAccount(['openingBalance' => 0.5, 'currency' => 'BTC']);
+        $this->accountMapper->method('find')->willReturn($account);
+
+        // 0.5 + (-0.00012345) = 0.49987655 (8dp, not rounded to 0.50)
+        $this->accountMapper->expects($this->once())
+            ->method('updateBalance')
+            ->with(10, '0.49987655', 'user1');
+
+        $this->service->update(1, 'user1', ['amount' => 0.00012345]);
+    }
+
     public function testUpdateRescalesSplitsWhenAmountChanges(): void {
         // A split transaction's parts must keep summing to the (new) amount.
         $tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']);

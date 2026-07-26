@@ -216,6 +216,17 @@ enum Currency: string {
     }
 
     /**
+     * Decimal places for a currency code (e.g. 'BTC' => 8), defaulting to 2 for
+     * an unknown/blank code. Convenience for storage/calculation scale (#331).
+     */
+    public static function decimalsFor(?string $code): int {
+        if ($code === null || $code === '') {
+            return 2;
+        }
+        return self::tryFrom(strtoupper($code))?->decimals() ?? 2;
+    }
+
+    /**
      * Get human-readable name.
      */
     public function name(): string {

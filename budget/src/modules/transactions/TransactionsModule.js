@@ -1537,12 +1537,22 @@ export default class TransactionsModule {
             // Source or destination account change — check for cross-currency
             const sourceAccountSelect = document.getElementById('transaction-account');
             if (sourceAccountSelect) {
-                sourceAccountSelect.addEventListener('change', () => this._checkCrossCurrencyTransfer());
+                sourceAccountSelect.addEventListener('change', () => {
+                    this._checkCrossCurrencyTransfer();
+                    this._updateAmountStep();
+                });
             }
             const toAccountSelect2 = document.getElementById('transfer-to-account');
             if (toAccountSelect2) {
-                toAccountSelect2.addEventListener('change', () => this._checkCrossCurrencyTransfer());
+                toAccountSelect2.addEventListener('change', () => {
+                    this._checkCrossCurrencyTransfer();
+                    this._updateAmountStep();
+                });
             }
+
+            // Match the amount inputs' step to the account currency's precision so
+            // crypto accounts accept up to 8 decimals instead of just 2 (#331).
+            this._updateAmountStep();
 
             // Source amount change — update destination amount if cross-currency
             // Source amount change — update destination amount if cross-currency
@@ -2388,6 +2398,23 @@ export default class TransactionsModule {
      * Check if source and destination accounts have different currencies.
      * Shows/hides the destination amount field and auto-fills via exchange rate.
      */
+    /**
+     * Set the amount inputs' `step` to match the selected account's currency
+     * precision, so crypto accounts accept up to 8 decimals (#331).
+     */
+    _updateAmountStep() {
+        const apply = (inputId, accountSelectId) => {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const accId = parseInt(document.getElementById(accountSelectId)?.value);
+            const account = (this.accounts || []).find(a => a.id === accId);
+            const currency = account?.currency || 'USD';
+            input.step = formatters.currencyStep(currency, this.settings || {});
+        };
+        apply('transaction-amount', 'transaction-account');
+        apply('transfer-dest-amount', 'transfer-to-account');
+    }
+
     _checkCrossCurrencyTransfer() {
         const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
         if (!destAmountWrapper) return;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Db;
 
 use OCA\Budget\Db\Trait\EncryptedFieldsTrait;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\EncryptionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
@@ -152,9 +153,11 @@ class AccountMapper extends QBMapper {
         }
 
         /** @var Account $entity */
-        // Normalize balance to string for database precision
+        // Normalize balance to string at the account currency's precision so a
+        // crypto balance keeps its 8dp instead of being rounded to 2 (#331).
+        $dp = Currency::decimalsFor($entity->getCurrency());
         $balance = $entity->getBalance();
-        $balanceStr = is_float($balance) ? sprintf('%.2f', $balance) : (string) $balance;
+        $balanceStr = is_float($balance) ? sprintf('%.' . $dp . 'f', $balance) : (string) $balance;
 
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->getTableName())
@@ -171,7 +174,7 @@ class AccountMapper extends QBMapper {
             ->set('account_holder_name', $qb->createNamedParameter($entity->getAccountHolderName()))
             ->set('opening_date', $qb->createNamedParameter($entity->getOpeningDate()))
             ->set('opening_balance', $qb->createNamedParameter(
-                $entity->getOpeningBalance() !== null ? sprintf('%.2f', $entity->getOpeningBalance()) : null
+                $entity->getOpeningBalance() !== null ? sprintf('%.' . $dp . 'f', $entity->getOpeningBalance()) : null
             ))
             ->set('interest_rate', $qb->createNamedParameter($entity->getInterestRate()))
             ->set('credit_limit', $qb->createNamedParameter($entity->getCreditLimit()))
@@ -180,7 +183,7 @@ class AccountMapper extends QBMapper {
             ->set('interest_enabled', $qb->createNamedParameter($entity->getInterestEnabled(), IQueryBuilder::PARAM_BOOL))
             ->set('compounding_frequency', $qb->createNamedParameter($entity->getCompoundingFrequency()))
             ->set('accrued_interest', $qb->createNamedParameter(
-                $entity->getAccruedInterest() !== null ? sprintf('%.2f', $entity->getAccruedInterest()) : '0.00'
+                $entity->getAccruedInterest() !== null ? sprintf('%.' . $dp . 'f', $entity->getAccruedInterest()) : sprintf('%.' . $dp . 'f', 0)
             ))
             ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
             ->set('last_reconciled', $qb->createNamedParameter($entity->getLastReconciled()))

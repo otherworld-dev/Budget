@@ -2341,22 +2341,17 @@ export default class AccountsModule {
                 if (walletGroup) {
                     walletGroup.style.display = 'block';
                 }
-                // Update balance step for crypto precision
-                const balanceInput = document.getElementById('account-balance');
-                if (balanceInput) {
-                    balanceInput.step = '0.00000001';
-                }
                 break;
             }
         }
 
-        // Reset balance step to fiat default for non-crypto types
-        if (accountType !== 'cryptocurrency') {
-            const balanceInput = document.getElementById('account-balance');
-            if (balanceInput) {
-                balanceInput.step = '0.01';
-            }
-        }
+        // Match the balance inputs' step to the selected currency's precision
+        // (crypto → 8dp, JOD → 3dp, fiat → 2dp) rather than the account type (#331).
+        const step = formatters.currencyStep(currency, this.app?.settings || {});
+        ['account-balance', 'account-opening-balance'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.step = step;
+        });
     }
 
     async setupInstitutionAutocomplete() {

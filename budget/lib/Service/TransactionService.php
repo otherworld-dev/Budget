@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\DismissedImportMapper;
 use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\Bill;
@@ -988,9 +989,12 @@ class TransactionService {
     public function recalculateAccountBalance(int $accountId, string $userId): void {
         $account = $this->accountMapper->find($accountId, $userId);
         $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
+        // Compute at the account currency's precision so a crypto balance keeps
+        // its 8dp instead of being rounded to 2 (#331).
+        $scale = Currency::decimalsFor($account->getCurrency());
         // Pass the float through: MoneyCalculator normalizes it without
         // scientific notation (a string cast would bypass that)
-        $newBalance = MoneyCalculator::add($openingBalance, $this->mapper->getNetChangeAll($accountId));
+        $newBalance = MoneyCalculator::add($openingBalance, $this->mapper->getNetChangeAll($accountId), $scale);
 
         $this->accountMapper->updateBalance($accountId, $newBalance, $userId);
     }
