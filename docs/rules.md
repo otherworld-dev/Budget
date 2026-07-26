@@ -121,6 +121,10 @@ At the top of the rule editor, switch from **Builder** to **JSON**. The current 
 
 > **Note:** Category and account IDs in the JSON are specific to the instance the rule came from. When you paste a rule into a different instance, point those IDs at the matching categories/accounts there (or set them in the Builder afterwards).
 
+### Exporting all rules
+
+The **Export** button at the top of the Rules page downloads **all your rules** as a single JSON file (`budget-rules-<date>.json`) — a quick backup, or a way to move your whole rule set elsewhere. Rules shared with you by others are not included (they belong to their owner). To bring rules back in, open the JSON editor and paste them one at a time. Your rules are also included automatically in a full [data export](settings.md) if you'd rather move everything at once.
+
 ## Sharing Rules
 
 Rules can be shared with other Nextcloud users you already share your budget with. In the **Sharing** page, open a share's **Configure** panel and pick which rules to share, at read-only or read/write permission.

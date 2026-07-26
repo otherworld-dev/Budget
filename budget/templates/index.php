@@ -2553,6 +2553,10 @@ style('budget', 'budget-app');
                         <span class="icon-play" aria-hidden="true"></span>
                         <?php p($l->t('Apply Rules')); ?>
                     </button>
+                    <button id="rules-export-btn" class="secondary" aria-label="<?php p($l->t('Export all rules as JSON')); ?>">
+                        <span class="icon-download" aria-hidden="true"></span>
+                        <?php p($l->t('Export')); ?>
+                    </button>
                     <button id="rules-add-btn" class="primary" aria-label="<?php p($l->t('Add new rule')); ?>">
                         <span class="icon-add" aria-hidden="true"></span>
                         <?php p($l->t('Add Rule')); ?>

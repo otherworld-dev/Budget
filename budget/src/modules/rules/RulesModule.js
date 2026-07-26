@@ -524,6 +524,13 @@ export default class RulesModule {
             applyRulesBtn.dataset.listenerAttached = 'true';
         }
 
+        // Export Rules button
+        const exportRulesBtn = document.getElementById('rules-export-btn');
+        if (exportRulesBtn && !exportRulesBtn.dataset.listenerAttached) {
+            exportRulesBtn.addEventListener('click', () => this.exportAllRules());
+            exportRulesBtn.dataset.listenerAttached = 'true';
+        }
+
         // Rule form submit
         const ruleForm = document.getElementById('rule-form');
         if (ruleForm && !ruleForm.dataset.listenerAttached) {
@@ -1286,6 +1293,71 @@ export default class RulesModule {
             criteria,
             actions
         };
+    }
+
+    /**
+     * A saved rule (from the list) as a portable, instance-independent object —
+     * the same shape the JSON editor produces, minus ids/timestamps. Used by the
+     * bulk "Export" action.
+     */
+    ruleToExportObject(rule) {
+        const out = {
+            name: rule.name || '',
+            groupName: rule.groupName || '',
+            priority: rule.priority || 0,
+            active: rule.active !== false,
+            applyOnImport: rule.applyOnImport !== false,
+            schemaVersion: rule.schemaVersion || 1,
+            stopProcessing: rule.stopProcessing !== false,
+        };
+        // v2 rules carry a criteria tree + structured actions
+        if (rule.criteria) {
+            out.criteria = rule.criteria;
+        }
+        if (rule.actions && typeof rule.actions === 'object' && Object.keys(rule.actions).length) {
+            out.actions = rule.actions;
+        }
+        // v1 legacy rules match on a single field/pattern
+        if (!rule.criteria) {
+            out.pattern = rule.pattern || '';
+            out.field = rule.field || 'description';
+            out.matchType = rule.matchType || 'contains';
+        }
+        return out;
+    }
+
+    /**
+     * Export all of the user's own rules as a downloadable JSON file. Shared
+     * rules are excluded — they belong to their owner and reference the owner's
+     * categories/accounts. The file can be re-imported one rule at a time via
+     * the JSON editor (paste), or kept as a backup.
+     */
+    exportAllRules() {
+        const own = (this.rules || []).filter(r => !r._shared);
+        if (own.length === 0) {
+            showInfo(t('budget', 'You have no rules to export.'));
+            return;
+        }
+
+        const payload = {
+            app: 'budget',
+            type: 'import_rules',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            rules: own.map(r => this.ruleToExportObject(r)),
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `budget-rules-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        showSuccess(n('budget', 'Exported %n rule', 'Exported %n rules', own.length));
     }
 
     /**
