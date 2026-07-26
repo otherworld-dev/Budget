@@ -196,6 +196,28 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	public function testCreateCoercesStringFalseAutoPayToOff(): void {
+		// A client that sends autoPayEnabled as the string "false" must not enable
+		// auto-pay — (bool)"false" is true, so the flag is filter_var'd (#335).
+		$this->mockInput(json_encode([
+			'name' => 'Hetzner',
+			'amount' => 35.0,
+			'autoPayEnabled' => 'false',
+		]));
+
+		$captured = null;
+		$bill = $this->createMock(Bill::class);
+		$this->service->method('create')->willReturnCallback(function (...$args) use (&$captured, $bill) {
+			$captured = $args[15]; // autoPayEnabled (16th positional argument)
+			return $bill;
+		});
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertFalse($captured, 'autoPayEnabled "false" string must coerce to false');
+	}
+
 	public function testCreateInvalidJson(): void {
 		$this->mockInput('not json');
 

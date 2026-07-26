@@ -574,22 +574,25 @@ class MigrationService {
             // has no schedule left and advances one day at a time when paid
             $bill->setCustomRecurrencePattern($billData['customRecurrencePattern'] ?? null);
             $bill->setAutoDetectPattern($billData['autoDetectPattern'] ?? null);
-            $bill->setIsActive($billData['isActive'] ?? true);
+            // Coerce booleans with filter_var: a backup can store them as strings
+            // ("false"), which is truthy under a bare cast — that silently turned
+            // auto-pay ON for restored bills (#335).
+            $bill->setIsActive(filter_var($billData['isActive'] ?? true, FILTER_VALIDATE_BOOLEAN));
             $bill->setLastPaidDate($billData['lastPaidDate'] ?? null);
             $bill->setNextDueDate($billData['nextDueDate'] ?? null);
             $bill->setNotes($billData['notes'] ?? null);
             $bill->setReminderDays($billData['reminderDays'] ?? null);
-            $bill->setAutoPayEnabled($billData['autoPayEnabled'] ?? false);
-            $bill->setAutoPayFailed($billData['autoPayFailed'] ?? false);
-            $bill->setIsTransfer($billData['isTransfer'] ?? false);
+            $bill->setAutoPayEnabled(filter_var($billData['autoPayEnabled'] ?? false, FILTER_VALIDATE_BOOLEAN));
+            $bill->setAutoPayFailed(filter_var($billData['autoPayFailed'] ?? false, FILTER_VALIDATE_BOOLEAN));
+            $bill->setIsTransfer(filter_var($billData['isTransfer'] ?? false, FILTER_VALIDATE_BOOLEAN));
             $bill->setTransferDescriptionPattern($billData['transferDescriptionPattern'] ?? null);
             $bill->setTagIdsArray(is_array($billData['tagIds'] ?? null) ? $billData['tagIds'] : []);
             $bill->setStartDate($billData['startDate'] ?? null);
             $bill->setEndDate($billData['endDate'] ?? null);
             $bill->setRemainingPayments($billData['remainingPayments'] ?? null);
             $bill->setSplitTemplateArray(is_array($billData['splitTemplate'] ?? null) ? $billData['splitTemplate'] : null);
-            $bill->setExcludedFromForecast($billData['excludedFromForecast'] ?? false);
-            $bill->setCreateTransaction($billData['createTransaction'] ?? true);
+            $bill->setExcludedFromForecast(filter_var($billData['excludedFromForecast'] ?? false, FILTER_VALIDATE_BOOLEAN));
+            $bill->setCreateTransaction(filter_var($billData['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN));
             $bill->setCreatedAt($billData['createdAt'] ?? date('Y-m-d H:i:s'));
 
             // Remap category ID

@@ -142,8 +142,11 @@ class BillController extends Controller {
             // established behaviour, so omitting the field opts in (#311)
             $createTransaction = filter_var($data['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN);
             $transactionDate = $data['transactionDate'] ?? null;
-            $autoPayEnabled = $data['autoPayEnabled'] ?? false;
-            $isTransfer = $data['isTransfer'] ?? false;
+            // filter_var, not a bare cast: a string "false" (some clients/serializations
+            // send booleans as strings) is truthy under (bool), which silently turned
+            // auto-pay ON for bills created with the toggle off (#335).
+            $autoPayEnabled = filter_var($data['autoPayEnabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $isTransfer = filter_var($data['isTransfer'] ?? false, FILTER_VALIDATE_BOOLEAN);
             $destinationAccountId = isset($data['destinationAccountId']) ? (int) $data['destinationAccountId'] : null;
             $transferDescriptionPattern = $data['transferDescriptionPattern'] ?? null;
             $tagIds = isset($data['tagIds']) && is_array($data['tagIds']) ? array_map('intval', $data['tagIds']) : [];
@@ -407,7 +410,7 @@ class BillController extends Controller {
                 $updates['accountId'] = $data['accountId'] !== null ? (int) $data['accountId'] : null;
             }
             if (isset($data['active'])) {
-                $updates['active'] = (bool) $data['active'];
+                $updates['active'] = filter_var($data['active'], FILTER_VALIDATE_BOOLEAN);
             }
             if (array_key_exists('reminderDays', $data)) {
                 if ($data['reminderDays'] !== null) {
@@ -434,13 +437,13 @@ class BillController extends Controller {
                 }
             }
             if (isset($data['autoPayEnabled'])) {
-                $updates['autoPayEnabled'] = (bool) $data['autoPayEnabled'];
+                $updates['autoPayEnabled'] = filter_var($data['autoPayEnabled'], FILTER_VALIDATE_BOOLEAN);
             }
             if (isset($data['autoPayFailed'])) {
-                $updates['autoPayFailed'] = (bool) $data['autoPayFailed'];
+                $updates['autoPayFailed'] = filter_var($data['autoPayFailed'], FILTER_VALIDATE_BOOLEAN);
             }
             if (isset($data['isTransfer'])) {
-                $updates['isTransfer'] = (bool) $data['isTransfer'];
+                $updates['isTransfer'] = filter_var($data['isTransfer'], FILTER_VALIDATE_BOOLEAN);
             }
             if (array_key_exists('destinationAccountId', $data)) {
                 $updates['destinationAccountId'] = $data['destinationAccountId'] !== null ? (int) $data['destinationAccountId'] : null;
