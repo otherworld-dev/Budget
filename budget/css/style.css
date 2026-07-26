@@ -8386,13 +8386,39 @@ button.danger:hover {
     margin: 16px 0;
 }
 
-.help-quick-links h4 {
+.help-quick-links h4,
+.help-shortcuts h4 {
     margin: 0 0 8px 0;
     font-size: 13px;
     font-weight: 600;
     color: var(--color-text-maxcontrast);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.help-shortcuts p {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    color: var(--color-main-text);
+}
+
+.help-shortcuts kbd {
+    display: inline-block;
+    min-width: 16px;
+    padding: 1px 5px;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    color: var(--color-main-text);
+    background: var(--color-background-dark);
+    border: 1px solid var(--color-border-dark, var(--color-border));
+    border-radius: 4px;
+    box-shadow: 0 1px 0 var(--color-border-dark, var(--color-border));
+}
+
+.help-shortcuts-btn {
+    font-size: 0.9rem;
 }
 
 .help-quick-links ul {
@@ -19264,4 +19290,136 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 .cm-currency-notice {
     color: var(--color-warning, #b8860b);
     margin-bottom: 8px;
+}
+
+/* ============================================
+   Keyboard controls
+   ============================================ */
+
+/* Row cursor for j/k navigation on the transactions list */
+.transaction-row.kbd-cursor > td {
+    background: var(--color-background-hover);
+    box-shadow: inset 3px 0 0 0 var(--color-primary-element);
+}
+
+/* Keyboard shortcuts cheat sheet (toggled with "?") */
+.kbd-shortcuts-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001; /* above modals (10000) */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8vh 16px 16px;
+    background: rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+.kbd-shortcuts-card {
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-large, 10px);
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 720px;
+}
+
+.kbd-shortcuts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.kbd-shortcuts-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.kbd-shortcuts-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    line-height: 1;
+    padding: 0 6px;
+    cursor: pointer;
+    color: var(--color-text-maxcontrast);
+}
+
+.kbd-shortcuts-close:hover {
+    color: var(--color-main-text);
+}
+
+.kbd-shortcuts-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px 32px;
+    padding: 20px 24px 24px;
+}
+
+.kbd-group h4 {
+    margin: 8px 0 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-text-maxcontrast);
+}
+
+.kbd-group dl {
+    margin: 0;
+}
+
+/* Wide group (e.g. the full page list) spans the card and flows in columns */
+.kbd-group--wide {
+    grid-column: 1 / -1;
+}
+
+.kbd-group--wide dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0 32px;
+}
+
+.kbd-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.kbd-row dt {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.kbd-row dd {
+    margin: 0;
+    text-align: right;
+    color: var(--color-main-text);
+    font-size: 13px;
+}
+
+.kbd-shortcuts-body kbd {
+    display: inline-block;
+    min-width: 18px;
+    padding: 1px 6px;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 18px;
+    text-align: center;
+    color: var(--color-main-text);
+    background: var(--color-background-dark);
+    border: 1px solid var(--color-border-dark, var(--color-border));
+    border-radius: 4px;
+    box-shadow: 0 1px 0 var(--color-border-dark, var(--color-border));
+}
+
+.kbd-shortcuts-body .kbd-sep {
+    color: var(--color-text-maxcontrast);
+    font-size: 12px;
+    padding: 0 1px;
 }

@@ -75,6 +75,7 @@ import { initDatePickers } from './utils/datepicker.js';
 // Configuration
 // Core
 import Router from './core/Router.js';
+import KeyboardShortcuts from './core/KeyboardShortcuts.js';
 
 // Modules
 import DashboardModule from './modules/dashboard/DashboardModule.js';
@@ -148,6 +149,7 @@ class BudgetApp {
 
         // Initialize core infrastructure
         this.router = new Router(this);
+        this.keyboardShortcuts = new KeyboardShortcuts(this);
 
         // Initialize modules
         this.dashboardModule = new DashboardModule(this);
@@ -614,6 +616,10 @@ class BudgetApp {
         // Tag modal listeners
         this.setupAddTagModalListeners();
         this.setupAddTagSetModalListeners();
+
+        // App-wide keyboard controls (modal Esc/Tab/Enter, "/" search, "?" help,
+        // "g"+letter navigation, j/k/e/x on the transactions list)
+        this.keyboardShortcuts.init();
     }
 
     setupNavigationSearch() {
@@ -895,6 +901,12 @@ class BudgetApp {
                     <a href="https://github.com/otherworld-dev/budget/blob/master/docs/${topic.doc}.md" target="_blank" rel="noopener">${t('budget', 'Read full guide')} &rarr;</a>
                 </div>
                 <hr>
+                <div class="help-shortcuts">
+                    <h4>${t('budget', 'Keyboard shortcuts')}</h4>
+                    <p>${t('budget', 'Budget can be driven from the keyboard — press')} <kbd>?</kbd> ${t('budget', 'anytime to see the full list.')}</p>
+                    <button type="button" class="help-shortcuts-btn">${t('budget', 'Show keyboard shortcuts')}</button>
+                </div>
+                <hr>
                 <div class="help-quick-links">
                     <h4>${t('budget', 'Quick Links')}</h4>
                     <ul>
@@ -926,6 +938,15 @@ class BudgetApp {
 
         closeBtn?.addEventListener('click', () => {
             panel.style.display = 'none';
+        });
+
+        // "Show keyboard shortcuts" button inside the help panel — open the
+        // cheat-sheet overlay and close the panel so it's not behind it.
+        content.addEventListener('click', (e) => {
+            if (e.target.closest('.help-shortcuts-btn')) {
+                panel.style.display = 'none';
+                this.keyboardShortcuts.openShortcuts();
+            }
         });
     }
 

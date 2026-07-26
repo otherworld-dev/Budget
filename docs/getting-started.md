@@ -60,6 +60,38 @@ Click **Customize Dashboard** to show, hide, or rearrange tiles to match what ma
 
 > **Note:** Some tiles (like budget alerts and savings goals) only appear once you have set up the corresponding features.
 
+## Keyboard Shortcuts
+
+Budget can be driven from the keyboard. Press **?** at any time to open a cheat sheet of every shortcut.
+
+**Global**
+
+| Key | Action |
+| --- | --- |
+| `/` or `Ctrl`/`Cmd` + `K` | Focus the search box |
+| `?` | Show / hide the keyboard shortcuts cheat sheet |
+| `Esc` | Close the open dialog (or the cheat sheet) |
+| `g` then a letter | Jump to a page |
+
+**Go to a page** -- press `g`, then the page's letter. Every page in the sidebar has one:
+
+| Key | Page | Key | Page | Key | Page |
+| --- | --- | --- | --- | --- | --- |
+| `d` | Dashboard | `n` | Transfers | `f` | Forecast |
+| `a` | Accounts | `v` | Savings Goals | `r` | Reports |
+| `t` | Transactions | `y` | Debt Payoff | `m` | Import |
+| `c` | Categories | `p` | Pensions | `u` | Rules |
+| `g` | Tags | `e` | Assets | `x` | Exchange Rates |
+| `b` | Budget | `h` | Shared Expenses | `w` | Sharing |
+| `i` | Income | | | `k` | Bank Sync |
+| `l` | Bills | | | `s` | Settings |
+
+**In any dialog** -- `Esc` closes it, `Tab` cycles through its fields, and `Enter` saves (in a text field). When a dialog opens, the first field is focused automatically.
+
+**On the Transactions list** -- `j` / `k` move a row cursor down / up, `e` (or `Enter`) edits the highlighted row, and `x` selects or deselects it. See [Transactions](transactions.md) for more.
+
+Shortcuts are ignored while you are typing in a text field, so they never get in the way of entering data.
+
 ## What's Next
 
 Now that the basics are in place, explore these features to get more out of Budget:

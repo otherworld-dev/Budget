@@ -32,6 +32,16 @@ There are two ways to edit a transaction:
 
 Both methods save changes immediately when you confirm. The edit modal is useful when you need to see all fields at once, while inline editing is faster for quick changes like updating a category or amount.
 
+### Keyboard navigation
+
+The transactions list can be worked without the mouse. When you are not typing in a field:
+
+- `j` / `k` -- move a row cursor down / up the list
+- `e` or `Enter` -- open the highlighted row for editing
+- `x` -- select or deselect the highlighted row (for [bulk operations](#bulk-operations))
+
+Press `?` anywhere in the app for the full list of shortcuts.
+
 > **Note:** Transfer transactions have some editing restrictions. The transfer type cannot be changed after creation, and the linked transaction in the other account is updated automatically to keep the pair in sync.
 
 ## Transaction Status
