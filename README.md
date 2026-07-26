@@ -8,14 +8,15 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.36
+## What's New in v2.40
 
-- **Auto-share new entities** - A per-person "Auto-share new" toggle for each entity type (accounts, categories, bills, recurring income, savings goals): switch it on and anything you create from then on is shared automatically, at the permission you choose ([#306](https://github.com/otherworld-dev/Budget/issues/306))
-- **Pensions, revamped** - Fund contributions straight from a bank account (kept out of your spending), record withdrawals, schedule recurring contributions, and project growth toward a configurable target — in nominal or inflation-adjusted "today's money"
-- **Consistent "Exclude from reports"** - Excluded accounts and categories are now respected across every report and dashboard tile, and selecting a single excluded account in a report shows its data again
-- Plus code-integrity, notification and reporting fixes — see the [full changelog](budget/CHANGELOG.md)
+- **Keyboard shortcuts** - Drive Budget from the keyboard: press **?** anytime for a cheat sheet. `/` (or `Ctrl`/`Cmd`+`K`) focuses search, `g` then a letter jumps to any page, dialogs close with `Esc` (and trap `Tab`), and on the transactions list `j`/`k`/`e`/`x` move, edit and select rows
+- **Import rules: export, import & share** - Back up or move your rule set as a JSON file, and share rules with another Nextcloud user (read-only or read/write) just like accounts and categories ([#318](https://github.com/otherworld-dev/Budget/issues/318), [#320](https://github.com/otherworld-dev/Budget/issues/320))
+- **Rules can match on the account** - New Account and Account Type conditions scope a rule to a specific account or kind of account ([#322](https://github.com/otherworld-dev/Budget/issues/322))
+- **Full-precision crypto** - Accounts and transactions now store up to 8 decimals, following each currency's native precision ([#331](https://github.com/otherworld-dev/Budget/issues/331))
+- Plus shared-category and shared-bill fixes, and the browser Back button now moves between pages inside Budget — see the [full changelog](budget/CHANGELOG.md)
 
-Earlier highlights: envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](docs/nextcloud-integration.md) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
+Earlier highlights: auto-share new entities, revamped pensions, consistent "Exclude from reports" (v2.36); envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](docs/nextcloud-integration.md) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
 
 ## Documentation
 
@@ -59,6 +60,7 @@ Sponsorship funds the time behind quick fixes, new features, and keeping the app
 - **Transaction Matching** - Automatic transfer detection and linking between accounts
 - **Transfer Creation** - Create linked transfer transactions directly from transaction form
 - **Pending Transactions** - Future-dated transactions shown with visual indicators and filterable status (All / Cleared / Pending)
+- **Keyboard Shortcuts** - App-wide keys: `/` or `Ctrl`/`Cmd`+`K` to search, `g`+letter to jump to any page, `?` for a cheat sheet, full modal keyboard control (`Esc`/`Tab`/`Enter`), and `j`/`k`/`e`/`x` row navigation on the transactions list
 
 ### Import & Automation
 - **Bank Sync (Beta)** - Connect external bank accounts for automatic transaction imports
