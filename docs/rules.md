@@ -121,9 +121,11 @@ At the top of the rule editor, switch from **Builder** to **JSON**. The current 
 
 > **Note:** Category and account IDs in the JSON are specific to the instance the rule came from. When you paste a rule into a different instance, point those IDs at the matching categories/accounts there (or set them in the Builder afterwards).
 
-### Exporting all rules
+### Exporting and importing all rules
 
-The **Export** button at the top of the Rules page downloads **all your rules** as a single JSON file (`budget-rules-<date>.json`) — a quick backup, or a way to move your whole rule set elsewhere. Rules shared with you by others are not included (they belong to their owner). To bring rules back in, open the JSON editor and paste them one at a time. Your rules are also included automatically in a full [data export](settings.md) if you'd rather move everything at once.
+The **Export** button at the top of the Rules page downloads **all your rules** as a single JSON file (`budget-rules-<date>.json`) — a quick backup, or a way to move your whole rule set elsewhere. Rules shared with you by others are not included (they belong to their owner). Your rules are also included automatically in a full [data export](settings.md) if you'd rather move everything at once.
+
+The **Import** button reads such a file back in and creates the rules. It accepts an exported file or a bare list of rules. A rule that references a category or account which doesn't exist on this instance is rejected and reported (so nothing is silently mis-filed) — after importing, fix those references in the Builder or [JSON editor](#editing-a-rule-as-json). Import adds rules; it never overwrites or removes existing ones, so re-importing the same file makes duplicates.
 
 ## Sharing Rules
 

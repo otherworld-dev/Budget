@@ -531,6 +531,21 @@ export default class RulesModule {
             exportRulesBtn.dataset.listenerAttached = 'true';
         }
 
+        // Import Rules button (opens the hidden file picker)
+        const importRulesBtn = document.getElementById('rules-import-btn');
+        if (importRulesBtn && !importRulesBtn.dataset.listenerAttached) {
+            importRulesBtn.addEventListener('click', () => {
+                const input = document.getElementById('rules-import-input');
+                if (input) { input.value = ''; input.click(); }
+            });
+            importRulesBtn.dataset.listenerAttached = 'true';
+        }
+        const importRulesInput = document.getElementById('rules-import-input');
+        if (importRulesInput && !importRulesInput.dataset.listenerAttached) {
+            importRulesInput.addEventListener('change', (e) => this.handleRulesImportFile(e));
+            importRulesInput.dataset.listenerAttached = 'true';
+        }
+
         // Rule form submit
         const ruleForm = document.getElementById('rule-form');
         if (ruleForm && !ruleForm.dataset.listenerAttached) {
@@ -1358,6 +1373,110 @@ export default class RulesModule {
         URL.revokeObjectURL(url);
 
         showSuccess(n('budget', 'Exported %n rule', 'Exported %n rules', own.length));
+    }
+
+    /**
+     * Handle a file chosen via the "Import" button: parse an exported rules file
+     * (or a bare array of rules) and create each one. Rules that reference
+     * categories/accounts that don't exist here are rejected by the server and
+     * counted as failures, so nothing is silently mis-created.
+     */
+    async handleRulesImportFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        let data;
+        try {
+            data = JSON.parse(await file.text());
+        } catch (e) {
+            showError(t('budget', 'Could not read that file: {error}', { error: e.message }));
+            return;
+        }
+
+        // Accept the export wrapper { rules: [...] } or a bare array
+        const rules = Array.isArray(data)
+            ? data
+            : (data && Array.isArray(data.rules) ? data.rules : null);
+        if (!rules || rules.length === 0) {
+            showError(t('budget', 'No rules found in that file.'));
+            return;
+        }
+
+        let imported = 0;
+        let failed = 0;
+        for (const rule of rules) {
+            try {
+                await this.createRuleFromImport(rule);
+                imported++;
+            } catch (e) {
+                failed++;
+            }
+        }
+
+        await this.loadRules();
+
+        if (imported === 0) {
+            showError(t('budget', 'No rules could be imported. They may reference categories or accounts that don\'t exist here.'));
+        } else if (failed > 0) {
+            showWarning(t('budget', 'Imported {imported}; {failed} could not be imported (they may reference categories or accounts that don\'t exist here).', { imported, failed }));
+        } else {
+            showSuccess(n('budget', 'Imported %n rule', 'Imported %n rules', imported));
+        }
+    }
+
+    /**
+     * Create a single rule from an exported/portable rule object. Rejects (so the
+     * caller counts a failure) when the server refuses it. Preserves a disabled
+     * state, which the create endpoint doesn't set.
+     */
+    async createRuleFromImport(rule) {
+        if (!rule || typeof rule !== 'object' || !rule.name) {
+            throw new Error('Invalid rule');
+        }
+
+        const body = {
+            name: rule.name,
+            groupName: rule.groupName || '',
+            priority: rule.priority || 0,
+            applyOnImport: rule.applyOnImport !== false,
+            stopProcessing: rule.stopProcessing !== false,
+            schemaVersion: rule.schemaVersion || (rule.criteria ? 2 : 1),
+        };
+        if (rule.criteria) {
+            body.criteria = rule.criteria;
+        }
+        if (rule.actions && typeof rule.actions === 'object') {
+            body.actions = rule.actions;
+        }
+        // v1 legacy rules match on a single field/pattern
+        if (!rule.criteria) {
+            body.pattern = rule.pattern || '';
+            body.field = rule.field || 'description';
+            body.matchType = rule.matchType || 'contains';
+        }
+
+        const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to create rule');
+        }
+
+        // The create endpoint always makes new rules active; restore a disabled
+        // state so an exported inactive rule doesn't start running on import.
+        if (rule.active === false) {
+            const created = await response.json().catch(() => null);
+            if (created && created.id) {
+                await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${created.id}`), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                    body: JSON.stringify({ active: false }),
+                }).catch(() => {});
+            }
+        }
     }
 
     /**

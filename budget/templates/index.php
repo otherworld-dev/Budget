@@ -2557,6 +2557,11 @@ style('budget', 'budget-app');
                         <span class="icon-download" aria-hidden="true"></span>
                         <?php p($l->t('Export')); ?>
                     </button>
+                    <button id="rules-import-btn" class="secondary" aria-label="<?php p($l->t('Import rules from a JSON file')); ?>">
+                        <span class="icon-upload" aria-hidden="true"></span>
+                        <?php p($l->t('Import')); ?>
+                    </button>
+                    <input type="file" id="rules-import-input" accept="application/json,.json" style="display: none;">
                     <button id="rules-add-btn" class="primary" aria-label="<?php p($l->t('Add new rule')); ?>">
                         <span class="icon-add" aria-hidden="true"></span>
                         <?php p($l->t('Add Rule')); ?>
