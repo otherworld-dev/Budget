@@ -1160,7 +1160,7 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="balance-item" id="credit-info" style="display: none;">
                                     <label><?php p($l->t('Credit Limit')); ?></label>
-                                    <div id="account-credit-limit" class="balance-amount"></div>
+                                    <div id="account-credit-limit-display" class="balance-amount"></div>
                                 </div>
                                 <div class="balance-item" id="minimum-payment-info" style="display: none;">
                                     <label><?php p($l->t('Min Payment')); ?></label>

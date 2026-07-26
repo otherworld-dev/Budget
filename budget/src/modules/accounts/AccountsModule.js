@@ -618,7 +618,7 @@ export default class AccountsModule {
             availableBalance = account.creditLimit - Math.abs(currentBalance);
             // Show credit info
             document.getElementById('credit-info').style.display = 'block';
-            document.getElementById('account-credit-limit').textContent = this.formatCurrency(account.creditLimit, currency);
+            document.getElementById('account-credit-limit-display').textContent = this.formatCurrency(account.creditLimit, currency);
         } else {
             document.getElementById('credit-info').style.display = 'none';
         }
@@ -2067,17 +2067,22 @@ export default class AccountsModule {
 
         if (accountId) {
             title.textContent = t('budget', 'Edit Account');
-            this.loadAccountData(accountId);
+            // Populate first, THEN apply type-conditional field visibility. The load
+            // is async, so running the conditionals on a fixed timer raced it — if
+            // they ran before the type was set, the type-specific fields (credit
+            // limit, etc.) stayed hidden until the type was toggled (#330).
+            this.loadAccountData(accountId).then(() => {
+                this.setupAccountTypeConditionals();
+                this.setupBankingFieldValidation();
+            });
         } else {
             title.textContent = t('budget', 'Add Account');
             this.resetAccountForm();
+            setTimeout(() => {
+                this.setupAccountTypeConditionals();
+                this.setupBankingFieldValidation();
+            }, 100);
         }
-
-        // Setup conditional fields and validation
-        setTimeout(() => {
-            this.setupAccountTypeConditionals();
-            this.setupBankingFieldValidation();
-        }, 100);
 
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
