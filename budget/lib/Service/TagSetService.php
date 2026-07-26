@@ -12,6 +12,7 @@ use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSet;
 use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TransactionTagMapper;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -70,6 +71,19 @@ class TagSetService extends AbstractCrudService {
      *
      * @return TagSet[]
      */
+    /**
+     * The category a tag set belongs to, resolved without user scoping so the
+     * controller can determine the owner of a shared category (#328). Returns
+     * null if the tag set does not exist.
+     */
+    public function getTagSetCategoryId(int $tagSetId): ?int {
+        try {
+            return $this->mapper->findById($tagSetId)->getCategoryId();
+        } catch (DoesNotExistException $e) {
+            return null;
+        }
+    }
+
     public function findByCategory(int $categoryId, string $userId): array {
         return $this->mapper->findByCategory($categoryId, $userId);
     }

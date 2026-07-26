@@ -14,6 +14,7 @@ use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Exception\CategoryInUseException;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
 
@@ -190,10 +191,11 @@ class CategoryService extends AbstractCrudService {
             $this->delete($child->getId(), $userId);
         }
 
-        // Check for transactions
+        // Check for transactions. Typed so the controller can offer to reassign
+        // them to No Category and retry (#332).
         $transactions = $this->transactionMapper->findByCategory($entity->getId(), $userId, 1);
         if (!empty($transactions)) {
-            throw new \Exception($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
+            throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
         }
 
         // Cascade delete: Delete budget snapshots for this category
@@ -213,6 +215,97 @@ class CategoryService extends AbstractCrudService {
             // Finally delete the tag set
             $this->tagSetMapper->delete($tagSet);
         }
+    }
+
+    /**
+     * Delete a category after moving its transactions — and those of its
+     * descendant categories — to No Category, so a category that still has
+     * transactions can be removed without hand-recategorizing first (#332).
+     * Owner-only, like delete(). Split-line category references degrade to
+     * uncategorized via the report leftJoins, matching the reassignment.
+     */
+    public function deleteWithReassign(int $id, string $userId): void {
+        // Ownership check (throws if not found / not the user's).
+        $this->find($id, $userId);
+
+        $categoryIds = $this->collectSelfAndDescendantIds($id, $userId);
+        $this->transactionMapper->clearCategory($categoryIds);
+
+        // Transactions are now uncategorized, so beforeDelete()'s guard passes.
+        $this->delete($id, $userId);
+    }
+
+    /**
+     * Reorder a category relative to a target sibling, renumbering the whole
+     * destination sibling group sequentially. Setting a single sortOrder collides
+     * with existing values and the sort tiebreak then silently ignores the move;
+     * renumbering makes the result deterministic (#328). 'above'/'below' reorder
+     * within the target's level; 'child' nests under the target.
+     */
+    public function reorderCategory(int $id, string $userId, int $targetId, string $position): Category {
+        $category = $this->find($id, $userId);
+        $target = $this->find($targetId, $userId);
+
+        if ($position === 'child') {
+            if (in_array($targetId, $this->collectSelfAndDescendantIds($id, $userId), true)) {
+                throw new \InvalidArgumentException($this->l->t('A category cannot be nested inside itself'));
+            }
+            $newParentId = $targetId;
+        } else {
+            $newParentId = $target->getParentId();
+        }
+
+        // The owner's full sibling group at the destination level, excluding the
+        // moved category. Using the owner's full set (not just the shared subset)
+        // keeps ordering clean when only some categories are shared.
+        $siblings = $newParentId === null
+            ? $this->getCategoryMapper()->findRootCategories($userId)
+            : $this->getCategoryMapper()->findChildren($userId, $newParentId);
+        $siblings = array_values(array_filter($siblings, static fn($c) => $c->getId() !== $id));
+
+        if ($position === 'child') {
+            $insertIndex = 0;
+        } else {
+            $insertIndex = count($siblings);
+            foreach ($siblings as $i => $c) {
+                if ($c->getId() === $targetId) {
+                    $insertIndex = $position === 'above' ? $i : $i + 1;
+                    break;
+                }
+            }
+        }
+        array_splice($siblings, $insertIndex, 0, [$category]);
+
+        // Renumber sequentially; persist only rows that actually change.
+        foreach ($siblings as $i => $c) {
+            $changed = false;
+            if ($c->getSortOrder() !== $i) {
+                $c->setSortOrder($i);
+                $changed = true;
+            }
+            if ($c->getId() === $id && $c->getParentId() !== $newParentId) {
+                $c->setParentId($newParentId);
+                $changed = true;
+            }
+            if ($changed) {
+                $this->getCategoryMapper()->update($c);
+            }
+        }
+
+        return $this->find($id, $userId);
+    }
+
+    /**
+     * This category id plus every descendant category id (recursive).
+     *
+     * @return int[]
+     */
+    private function collectSelfAndDescendantIds(int $id, string $userId): array {
+        $ids = [$id];
+        foreach ($this->getCategoryMapper()->findChildren($userId, $id) as $child) {
+            $ids = array_merge($ids, $this->collectSelfAndDescendantIds($child->getId(), $userId));
+        }
+        return $ids;
     }
 
     public function getCategoryTree(string $userId): array {

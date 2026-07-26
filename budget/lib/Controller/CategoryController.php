@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\CategoryInUseException;
 use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
@@ -27,13 +28,14 @@ class CategoryController extends Controller {
     use SharedAccessTrait;
 
     /**
-     * Fields a write-shared recipient may change on a category they don't own.
-     * Strictly cosmetic. Structural fields (type, parentId, sortOrder), budget
-     * fields, and report-scope (excludedFromReports — it alters the OWNER's
-     * report aggregates) all stay owner-only. Any field not listed here is
-     * stripped from a recipient's update, so the restriction is fail-closed.
+     * Fields a write-shared recipient may change on a category they don't own:
+     * cosmetic fields plus sortOrder (so they can reorder shared categories, #328).
+     * Remaining structural fields (type, parentId), budget fields, and report-scope
+     * (excludedFromReports — it alters the OWNER's report aggregates) stay
+     * owner-only. Any field not listed here is stripped from a recipient's update,
+     * so the restriction is fail-closed.
      */
-    private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color'];
+    private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color', 'sortOrder'];
 
     private CategoryService $service;
     private ValidationService $validationService;
@@ -299,8 +301,9 @@ class CategoryController extends Controller {
 
             // Write access is confirmed above. Resolve the actual owner so the
             // owner-scoped service lookup succeeds for write-shared categories.
-            // Recipients are restricted to cosmetic fields — structural fields
-            // (type, parentId, sortOrder), budgets and report-scope stay owner-only.
+            // Recipients are restricted to cosmetic fields plus sortOrder (so they
+            // can reorder shared categories, #328); type, parentId, budgets and
+            // report-scope stay owner-only.
             $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id)
                 ?? $this->userId;
             if ($owner !== $this->userId) {
@@ -326,8 +329,46 @@ class CategoryController extends Controller {
     /**
      * @NoAdminRequired
      */
+    /**
+     * Reorder a category relative to a target sibling (drag-and-drop). Renumbers
+     * the sibling group so the order is deterministic. Own categories support all
+     * positions; write-shared categories may be reordered (above/below) but not
+     * nested (reparenting is owner-only) (#328).
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 60, period: 60)]
+    public function reorder(int $id): DataResponse {
+        try {
+            $params = $this->request->getParams();
+            $targetId = isset($params['targetId']) ? (int) $params['targetId'] : 0;
+            $position = $params['position'] ?? 'below';
+            if (!in_array($position, ['above', 'below', 'child'], true)) {
+                return new DataResponse(['error' => $this->l->t('Invalid position')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $this->requireWriteAccess('category', $id);
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id) ?? $this->userId;
+
+            // Reparenting is structural — owner-only. Recipients may only reorder.
+            if ($position === 'child' && $owner !== $this->userId) {
+                return new DataResponse(['error' => $this->l->t('Shared categories cannot be nested')], Http::STATUS_FORBIDDEN);
+            }
+
+            $category = $this->service->reorderCategory($id, $owner, $targetId, $position);
+            return new DataResponse($category);
+        } catch (ReadOnlyShareException $e) {
+            return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     */
     #[UserRateLimit(limit: 20, period: 60)]
-    public function destroy(int $id): DataResponse {
+    public function destroy(int $id, bool $reassign = false): DataResponse {
         try {
             $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
             if ($owner === null) {
@@ -346,8 +387,20 @@ class CategoryController extends Controller {
                 );
             }
 
-            $this->service->delete($id, $this->userId);
+            // reassign=true moves the category's (and descendants') transactions
+            // to No Category first, so it can be deleted without hand-recategorizing (#332).
+            if ($reassign) {
+                $this->service->deleteWithReassign($id, $this->userId);
+            } else {
+                $this->service->delete($id, $this->userId);
+            }
             return new DataResponse(['status' => 'success']);
+        } catch (CategoryInUseException $e) {
+            // Machine-readable code lets the client offer to reassign and retry.
+            return new DataResponse(
+                ['error' => $e->getMessage(), 'code' => 'has_transactions'],
+                Http::STATUS_CONFLICT
+            );
         } catch (\Exception $e) {
             // Surface validation messages (e.g., "has transactions assigned") to the user
             return $this->handleValidationError($e);
@@ -410,7 +463,13 @@ class CategoryController extends Controller {
      */
     public function spending(int $id, string $startDate, string $endDate): DataResponse {
         try {
-            $spending = $this->service->getCategorySpending($id, $this->getEffectiveUserId(), $startDate, $endDate);
+            // Resolve the owner so a shared category reads the owner's data, not
+            // the recipient's (whose owner-scoped queries would find nothing) (#328).
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+            if ($owner === null) {
+                return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
+            }
+            $spending = $this->service->getCategorySpending($id, $owner, $startDate, $endDate);
             return new DataResponse(['spending' => $spending]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve category spending'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
@@ -422,7 +481,13 @@ class CategoryController extends Controller {
      */
     public function details(int $id, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): DataResponse {
         try {
-            $details = $this->service->getCategoryDetails($id, $this->getEffectiveUserId(), $startDate, $endDate, $accountId);
+            // Resolve the owner so a shared category reads the owner's data, not
+            // the recipient's (whose owner-scoped queries would find nothing) (#328).
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+            if ($owner === null) {
+                return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
+            }
+            $details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId);
             return new DataResponse($details);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
@@ -434,7 +499,13 @@ class CategoryController extends Controller {
      */
     public function transactions(int $id, int $limit = 5): DataResponse {
         try {
-            $transactions = $this->service->getCategoryTransactions($id, $this->getEffectiveUserId(), $limit);
+            // Resolve the owner so a shared category reads the owner's data, not
+            // the recipient's (whose owner-scoped queries would find nothing) (#328).
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+            if ($owner === null) {
+                return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
+            }
+            $transactions = $this->service->getCategoryTransactions($id, $owner, $limit);
             return new DataResponse($transactions);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);

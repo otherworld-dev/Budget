@@ -12,6 +12,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
@@ -49,12 +50,48 @@ class TagSetController extends Controller {
     }
 
     /**
+     * Resolve the user id whose data a tag-set operation should run against for
+     * a given category: the caller for their own category, or the owner for a
+     * category shared with them. Tag sets belong to the category, so operations
+     * must run under the category owner (#328). Throws DoesNotExistException if
+     * the user can't access the category; for writes, throws ReadOnlyShare
+     * exception (→ 403) unless they have write access.
+     *
+     * @throws DoesNotExistException
+     */
+    private function categoryOwner(int $categoryId, bool $requireWrite): string {
+        $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $categoryId);
+        if ($owner === null) {
+            throw new DoesNotExistException('Category not accessible');
+        }
+        if ($requireWrite && $owner !== $this->userId) {
+            $this->requireWriteAccess('category', $categoryId);
+        }
+        return $owner;
+    }
+
+    /**
+     * Same as categoryOwner(), resolving the category from a tag set id.
+     *
+     * @throws DoesNotExistException
+     */
+    private function tagSetCategoryOwner(int $tagSetId, bool $requireWrite): string {
+        $categoryId = $this->service->getTagSetCategoryId($tagSetId);
+        if ($categoryId === null) {
+            throw new DoesNotExistException('Tag set not found');
+        }
+        return $this->categoryOwner($categoryId, $requireWrite);
+    }
+
+    /**
      * @NoAdminRequired
      */
     public function index(?int $categoryId = null): DataResponse {
         try {
             if ($categoryId !== null) {
-                $tagSets = $this->service->getCategoryTagSetsWithTags($categoryId, $this->getEffectiveUserId());
+                // Shared category → read the owner's tag sets (#328).
+                $owner = $this->categoryOwner($categoryId, false);
+                $tagSets = $this->service->getCategoryTagSetsWithTags($categoryId, $owner);
             } else {
                 // Load all tag sets with their tags for reports filtering
                 $tagSets = $this->service->getAllTagSetsWithTags($this->getEffectiveUserId());
@@ -70,7 +107,8 @@ class TagSetController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $tagSet = $this->service->getTagSetWithTags($id, $this->getEffectiveUserId());
+            $owner = $this->tagSetCategoryOwner($id, false);
+            $tagSet = $this->service->getTagSetWithTags($id, $owner);
             return new DataResponse($tagSet);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Tag set'), ['tagSetId' => $id]);
@@ -102,8 +140,10 @@ class TagSetController extends Controller {
             }
             $name = $nameValidation['sanitized'];
 
+            // Shared category → create under the owner if the caller has write access (#328).
+            $owner = $this->categoryOwner($categoryId, true);
             $tagSet = $this->service->create(
-                $this->getEffectiveUserId(),
+                $owner,
                 $categoryId,
                 $name,
                 $description,
@@ -146,7 +186,8 @@ class TagSetController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $tagSet = $this->service->update($id, $this->getEffectiveUserId(), $updates);
+            $owner = $this->tagSetCategoryOwner($id, true);
+            $tagSet = $this->service->update($id, $owner, $updates);
             return new DataResponse($tagSet);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update tag set'), Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
@@ -159,7 +200,8 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroy(int $id): DataResponse {
         try {
-            $this->service->delete($id, $this->getEffectiveUserId());
+            $owner = $this->tagSetCategoryOwner($id, true);
+            $this->service->delete($id, $owner);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete tag set'), Http::STATUS_BAD_REQUEST, ['tagSetId' => $id]);
@@ -171,7 +213,8 @@ class TagSetController extends Controller {
      */
     public function getTags(int $tagSetId): DataResponse {
         try {
-            $tagSet = $this->service->getTagSetWithTags($tagSetId, $this->getEffectiveUserId());
+            $owner = $this->tagSetCategoryOwner($tagSetId, false);
+            $tagSet = $this->service->getTagSetWithTags($tagSetId, $owner);
             return new DataResponse($tagSet->getTags());
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve tags'));
@@ -211,9 +254,10 @@ class TagSetController extends Controller {
                 $color = $colorValidation['sanitized'];
             }
 
+            $owner = $this->tagSetCategoryOwner($tagSetId, true);
             $tag = $this->service->createTag(
                 $tagSetId,
-                $this->getEffectiveUserId(),
+                $owner,
                 $name,
                 $color,
                 $sortOrder
@@ -261,7 +305,8 @@ class TagSetController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $tag = $this->service->updateTag($tagId, $this->getEffectiveUserId(), $updates);
+            $owner = $this->tagSetCategoryOwner($tagSetId, true);
+            $tag = $this->service->updateTag($tagId, $owner, $updates);
             return new DataResponse($tag);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
@@ -274,7 +319,8 @@ class TagSetController extends Controller {
     #[UserRateLimit(limit: 20, period: 60)]
     public function destroyTag(int $tagSetId, int $tagId): DataResponse {
         try {
-            $this->service->deleteTag($tagId, $this->getEffectiveUserId());
+            $owner = $this->tagSetCategoryOwner($tagSetId, true);
+            $this->service->deleteTag($tagId, $owner);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);

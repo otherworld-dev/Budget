@@ -164,6 +164,14 @@ class TransactionService {
             throw new \Exception('Bill must have an account to create transaction');
         }
 
+        // The created transaction(s) land in the bill's account, which may be a
+        // shared account owned by another user — a bill's accountId is never
+        // checked against the acting user's own accounts. Scope creation to the
+        // ACCOUNT owner (mirroring TransactionController::create); otherwise
+        // create()'s owner-scoped account lookup throws DoesNotExistException and
+        // the payment fails to record for the recipient of a shared bill (#334).
+        $ownerUserId = $this->accountMapper->findById($bill->getAccountId())->getUserId();
+
         $date = $transactionDate ?? $bill->getNextDueDate();
         // No explicit date = pre-creating the bill's next occurrence. That is
         // always a scheduled placeholder — no money has moved yet — even when
@@ -184,7 +192,7 @@ class TransactionService {
 
             // Create withdrawal from source account
             $withdrawal = $this->create(
-                userId: $userId,
+                userId: $ownerUserId,
                 accountId: $bill->getAccountId(),
                 date: $date,
                 description: $bill->getDescription() ?? '',
@@ -202,7 +210,7 @@ class TransactionService {
 
             // Create deposit to destination account (same category as source for consistency)
             $deposit = $this->create(
-                userId: $userId,
+                userId: $ownerUserId,
                 accountId: $bill->getDestinationAccountId(),
                 date: $date,
                 description: $bill->getDescription() ?? '',
@@ -219,7 +227,7 @@ class TransactionService {
             );
 
             // Link the two transactions
-            $this->linkTransactions($withdrawal->getId(), $deposit->getId(), $userId);
+            $this->linkTransactions($withdrawal->getId(), $deposit->getId(), $ownerUserId);
 
             // Apply bill's tags to both transactions
             $tagIds = $bill->getTagIdsArray();
@@ -234,7 +242,7 @@ class TransactionService {
 
         // Handle regular bills - create single transaction
         $transaction = $this->create(
-            userId: $userId,
+            userId: $ownerUserId,
             accountId: $bill->getAccountId(),
             date: $date,
             description: $bill->getDescription() ?? '',
@@ -421,8 +429,11 @@ class TransactionService {
 
         foreach ($allScheduled as $i => $scheduled) {
             if ($i === 0) {
-                // Clear the earliest scheduled transaction
-                $cleared = $this->update($scheduled->getId(), $userId, [
+                // Clear the earliest scheduled transaction. It belongs to its
+                // account's owner, which may differ from the acting user when the
+                // bill points at a shared account — update under the owner (#334).
+                $ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
+                $cleared = $this->update($scheduled->getId(), $ownerUserId, [
                     'status' => 'cleared',
                     'date' => $clearedDate,
                 ]);

@@ -97,13 +97,20 @@ export default class BillsModule {
                     <div class="bill-suggestion-actions">
                         ${item.accountId
                             ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>`
-                            : `<span class="bill-suggestion-meta">${t('budget', 'Assign an account to the bill first')}</span>`}
+                            : `<button class="unrecorded-payment-assign" data-bill-id="${item.billId}" title="${t('budget', 'One-time bills leave the list after payment — open it here to assign an account')}">${t('budget', 'Assign an account')}</button>`}
                     </div>
                 </div>
             `).join('');
 
             list.querySelectorAll('.unrecorded-payment-record').forEach(btn => {
                 btn.addEventListener('click', (e) => this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId)));
+            });
+
+            // The bill may have been auto-deactivated (one-time bills leave the
+            // active list after payment), so it can't be reached from the list to
+            // assign an account — open the editor straight from the card (#333).
+            list.querySelectorAll('.unrecorded-payment-assign').forEach(btn => {
+                btn.addEventListener('click', (e) => this.editBill(parseInt(e.currentTarget.dataset.billId)));
             });
 
             card.style.display = 'block';

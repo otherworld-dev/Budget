@@ -30,6 +30,10 @@ class TransactionServiceTest extends TestCase {
     protected function setUp(): void {
         $this->mapper = $this->createMock(TransactionMapper::class);
         $this->accountMapper = $this->createMock(AccountMapper::class);
+        // createFromBill()/clearScheduledBillTransaction() resolve the account
+        // owner via findById() (owner-agnostic). Default to a user1-owned account;
+        // shared-account tests override this per case.
+        $this->accountMapper->method('findById')->willReturn($this->makeAccount());
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
         $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
         $splitMapper->method('findByTransactionIds')->willReturn([]);
@@ -297,6 +301,18 @@ class TransactionServiceTest extends TestCase {
         $result = $this->service->update(1, 'user1', ['description' => 'Updated']);
 
         $this->assertEquals('Updated', $result->getDescription());
+    }
+
+    public function testUpdateClearsCategoryWhenIdIsNull(): void {
+        // Bulk "No Category" (#332) relies on update() applying an explicit null
+        // categoryId to clear it, rather than treating null as "leave unchanged".
+        $tx = $this->makeTransaction(['categoryId' => 5]);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $result = $this->service->update(1, 'user1', ['categoryId' => null]);
+
+        $this->assertNull($result->getCategoryId());
     }
 
     public function testUpdateRecalculatesBalanceFromLedger(): void {
@@ -584,6 +600,34 @@ class TransactionServiceTest extends TestCase {
         $result = $this->service->createFromBill('user1', $bill, '2020-01-01');
 
         $this->assertEquals('cleared', $result->getStatus());
+    }
+
+    public function testCreateFromBillRecordsUnderAccountOwnerNotActingUser(): void {
+        // A bill can point at a shared account owned by another user. When a share
+        // recipient triggers the payment, the transaction must be created under the
+        // ACCOUNT owner — create()'s account lookup is owner-scoped, so scoping to
+        // the acting user throws DoesNotExistException and the payment fails (#334).
+        $bill = $this->makeBill(['accountId' => 10]);
+        // findById() (owner-agnostic, stubbed in setUp) resolves the owner: 'user1'.
+        $ownerAccount = $this->makeAccount(['id' => 10]);
+
+        $this->accountMapper->method('find')->willReturnCallback(
+            function (int $id, string $userId) use ($ownerAccount) {
+                $this->assertSame(10, $id);
+                $this->assertSame('user1', $userId, 'payment must be scoped to the account owner, not the acting user');
+                return $ownerAccount;
+            }
+        );
+        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
+            $tx->setId(1);
+            return $tx;
+        });
+        $this->accountMapper->method('updateBalance')->willReturn($ownerAccount);
+
+        // Acting user is a share recipient, NOT the account owner.
+        $result = $this->service->createFromBill('share-recipient', $bill);
+
+        $this->assertEquals(10, $result->getAccountId());
     }
 
     // ===== findBillPaymentCandidates() =====

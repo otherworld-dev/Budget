@@ -344,6 +344,33 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Move every transaction in the given categories to No Category (null).
+     * Category assignment does not affect account balances, so this is a plain
+     * bulk UPDATE with no balance recompute. Used when deleting a category that
+     * still has transactions (#332). Returns the number of rows changed.
+     *
+     * No user scoping is applied (and none is possible in a single-table UPDATE
+     * — transactions are scoped by their account's owner via a join elsewhere):
+     * the ids are always the deleting owner's own categories, and category ids
+     * are globally unique, so this matches exactly the references that must be
+     * cleared before the category can be removed.
+     *
+     * @param int[] $categoryIds
+     */
+    public function clearCategory(array $categoryIds): int {
+        if (empty($categoryIds)) {
+            return 0;
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('category_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+            ->where($qb->expr()->in('category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+        return $qb->executeStatement();
+    }
+
+    /**
      * Unreconciled, unticked, non-scheduled transactions dated on or before
      * the statement date — surfaced as a heads-up when completing.
      */

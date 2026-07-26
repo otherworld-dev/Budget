@@ -719,7 +719,7 @@ export default class TagSetsModule {
     /**
      * Render tag sets in the category details view
      */
-    async renderCategoryTagSetsList(categoryId) {
+    async renderCategoryTagSetsList(categoryId, readOnly = false) {
         const container = document.getElementById('category-tag-sets-list');
         if (!container) return;
 
@@ -766,14 +766,14 @@ export default class TagSetsModule {
                                 ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
                                     <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
                                         ${dom.escapeHtml(tag.name)}
-                                        <button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
-                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>
+                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
+                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>`}
                                     </span>
                                 `).join('') : `<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">${t('budget', 'No tags yet')}</span>`}
                             </div>
                         </td>
                         <td class="tag-set-actions-cell" style="padding: 12px 8px; vertical-align: top; width: 120px; text-align: right;">
-                            <div class="tag-set-actions" style="display: flex; gap: 4px; justify-content: flex-end;">
+                            ${readOnly ? '' : `<div class="tag-set-actions" style="display: flex; gap: 4px; justify-content: flex-end;">
                                 <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add Tag')}" style="padding: 6px 8px;">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
@@ -783,7 +783,7 @@ export default class TagSetsModule {
                                 <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
-                            </div>
+                            </div>`}
                         </td>
                     `;
 
@@ -795,7 +795,7 @@ export default class TagSetsModule {
             }
 
             // Always setup listeners, even when there are no tag sets (for the Add button)
-            this.setupCategoryTagSetsListeners(categoryId);
+            this.setupCategoryTagSetsListeners(categoryId, readOnly);
         } catch (error) {
             console.error('Failed to load tag sets:', error);
             container.innerHTML = `<div class="error-state"><p>${t('budget', 'Failed to load tag sets')}</p></div>`;
@@ -805,17 +805,23 @@ export default class TagSetsModule {
     /**
      * Setup event listeners for category tag sets list
      */
-    setupCategoryTagSetsListeners(categoryId) {
+    setupCategoryTagSetsListeners(categoryId, readOnly = false) {
         // Add Tag Set button (check both IDs for compatibility)
         const addTagSetBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
         if (addTagSetBtn) {
-            // Remove old listener if exists
-            addTagSetBtn.replaceWith(addTagSetBtn.cloneNode(true));
-            const newBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
-            if (newBtn) {
-                newBtn.addEventListener('click', () => {
-                    this.showAddTagSetModal(categoryId);
-                });
+            // Read-shared category: hide the Add Tag Set control entirely (#328).
+            if (readOnly) {
+                addTagSetBtn.style.display = 'none';
+            } else {
+                addTagSetBtn.style.display = '';
+                // Remove old listener if exists
+                addTagSetBtn.replaceWith(addTagSetBtn.cloneNode(true));
+                const newBtn = document.getElementById('add-tag-set-btn-detail') || document.getElementById('add-tag-set-btn');
+                if (newBtn) {
+                    newBtn.addEventListener('click', () => {
+                        this.showAddTagSetModal(categoryId);
+                    });
+                }
             }
         }
 

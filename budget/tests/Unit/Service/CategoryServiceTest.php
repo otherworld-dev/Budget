@@ -244,10 +244,50 @@ class CategoryServiceTest extends TestCase {
         $this->transactionMapper->method('findByCategory')
             ->willReturn([['id' => 1]]);
 
-        $this->expectException(\Exception::class);
+        // Typed so the controller can offer to reassign and retry (#332).
+        $this->expectException(\OCA\Budget\Exception\CategoryInUseException::class);
         $this->expectExceptionMessage('has transactions assigned');
 
         $this->service->delete(1, 'user1');
+    }
+
+    public function testDeleteWithReassignClearsTransactionsThenDeletes(): void {
+        $category = $this->makeCategory(['id' => 1]);
+        $this->categoryMapper->method('find')->willReturn($category);
+        $this->categoryMapper->method('findChildren')->willReturn([]);
+        $this->tagSetMapper->method('findByCategory')->willReturn([]);
+        // After reassignment no transactions remain, so beforeDelete()'s guard passes.
+        $this->transactionMapper->method('findByCategory')->willReturn([]);
+
+        $this->transactionMapper->expects($this->once())
+            ->method('clearCategory')
+            ->with([1])
+            ->willReturn(3);
+
+        $this->categoryMapper->expects($this->once())->method('delete');
+
+        $this->service->deleteWithReassign(1, 'user1');
+    }
+
+    public function testDeleteWithReassignReassignsDescendantTransactions(): void {
+        // Deleting a parent reassigns its own AND its children's transactions (#332).
+        $parent = $this->makeCategory(['id' => 1]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+        $this->categoryMapper->method('find')
+            ->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+        $this->categoryMapper->method('findChildren')
+            ->willReturnCallback(fn (string $u, int $pid) => $pid === 1 ? [$child] : []);
+        $this->transactionMapper->method('findByCategory')->willReturn([]);
+        $this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+        $this->transactionMapper->expects($this->once())
+            ->method('clearCategory')
+            ->with([1, 2])
+            ->willReturn(5);
+
+        $this->categoryMapper->method('delete')->willReturnArgument(0);
+
+        $this->service->deleteWithReassign(1, 'user1');
     }
 
     public function testDeleteCascadesTagSetsAndTags(): void {
@@ -277,6 +317,33 @@ class CategoryServiceTest extends TestCase {
         $this->categoryMapper->expects($this->once())->method('delete');
 
         $this->service->delete(1, 'user1');
+    }
+
+    // ===== reorderCategory() =====
+
+    public function testReorderCategoryRenumbersSiblingsDeterministically(): void {
+        // Moving C above A must renumber the whole group (C,A,B → 0,1,2), not set
+        // one colliding sortOrder that the tiebreak then ignores (#328).
+        $a = $this->makeCategory(['id' => 1, 'sortOrder' => 0]);
+        $b = $this->makeCategory(['id' => 2, 'sortOrder' => 1]);
+        $c = $this->makeCategory(['id' => 3, 'sortOrder' => 2]);
+        $this->categoryMapper->method('find')->willReturnCallback(
+            fn (int $id) => [1 => $a, 2 => $b, 3 => $c][$id]
+        );
+        $this->categoryMapper->method('findRootCategories')->willReturn([$a, $b, $c]);
+
+        $saved = [];
+        $this->categoryMapper->method('update')->willReturnCallback(function (Category $cat) use (&$saved) {
+            $saved[$cat->getId()] = $cat->getSortOrder();
+            return $cat;
+        });
+
+        // Move C (id 3) above A (id 1).
+        $this->service->reorderCategory(3, 'user1', 1, 'above');
+
+        $this->assertSame(0, $saved[3]); // C first
+        $this->assertSame(1, $saved[1]); // A second
+        $this->assertSame(2, $saved[2]); // B third
     }
 
     // ===== findByType() =====

@@ -332,12 +332,10 @@ export default class CategoriesModule {
                 if (e.target.closest('.category-checkbox')) return;
                 if (e.target.closest('.category-delete-btn')) return;
                 if (e.target.closest('.category-mute-btn')) return;
-                // Read-shared categories are read-only references — no edit panel.
-                // Write-shared items carry data-write-shared="1" instead (set in
-                // renderCategoryNodes), so they pass through here and open the edit
-                // panel. Do not generalise this to a broad shared check.
-                if (item.dataset.shared === '1') return;
-
+                // Every category — own, write-shared and read-shared — opens the
+                // details panel. showCategoryDetails() hides the Edit/Delete actions
+                // for read-shared items, so selecting one is a safe read-only view of
+                // the owner's transactions and analytics (#328).
                 const categoryId = parseInt(item.dataset.categoryId);
                 this.selectCategory(categoryId);
             });
@@ -489,37 +487,32 @@ export default class CategoriesModule {
 
             if (!draggedCategory || !targetCategory) return;
 
-            // Shared categories belong to another user: they cannot be moved, and
-            // nothing may be reparented relative to them (the server also rejects
-            // this — parent validation is owner-scoped). Block at the client for
-            // clear UX instead of a generic failure.
+            // Shared categories belong to another user. A write-shared category may
+            // be REORDERED among its same-owner write-shared siblings (above/below);
+            // the server accepts only the sortOrder change (parentId/type stay
+            // owner-only). Everything else — read-shared, cross-owner, nesting
+            // (child), or mixing own and shared — is blocked for clear UX (#328).
             if (draggedCategory._shared || targetCategory._shared) {
-                showWarning(t('budget', 'Shared categories cannot be moved or reordered'));
-                return;
+                const bothWriteSharedSameOwner =
+                    draggedCategory._shared && targetCategory._shared &&
+                    draggedCategory._canWrite && targetCategory._canWrite &&
+                    draggedCategory._sharedBy === targetCategory._sharedBy;
+                if (!bothWriteSharedSameOwner || position === 'child') {
+                    showWarning(t('budget', 'Shared categories can only be reordered among themselves'));
+                    return;
+                }
             }
 
-            let newParentId = null;
-            let newSortOrder = 0;
-
-            if (position === 'child') {
-                newParentId = targetId;
-                newSortOrder = 0; // First child
-            } else {
-                newParentId = targetCategory.parentId;
-                newSortOrder = position === 'above' ? targetCategory.sortOrder : targetCategory.sortOrder + 1;
-            }
-
-            // Update via API
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${draggedId}`), {
-                method: 'PUT',
+            // The server renumbers the whole sibling group from (target, position)
+            // so the result is deterministic — setting a single sortOrder collided
+            // with a sibling and the move was silently dropped (#328).
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${draggedId}/reorder`), {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken
                 },
-                body: JSON.stringify({
-                    parentId: newParentId,
-                    sortOrder: newSortOrder
-                })
+                body: JSON.stringify({ targetId, position })
             });
 
             if (response.ok) {
@@ -527,7 +520,8 @@ export default class CategoriesModule {
                 await this.loadCategories();
                 showSuccess(t('budget', 'Category reordered successfully'));
             } else {
-                throw new Error(t('budget', 'Failed to reorder category'));
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || t('budget', 'Failed to reorder category'));
             }
 
         } catch (error) {
@@ -564,13 +558,17 @@ export default class CategoriesModule {
         // Store current category for refresh
         this._currentCategory = category;
 
+        // Read-shared categories show tag sets read-only; write-shared and own
+        // categories can edit them (#328).
+        const isReadShared = !!category._shared && !category._canWrite;
+
         // Load data from server in parallel
         const [detailsRes, transactionsRes] = await Promise.all([
             this.fetchCategoryDetails(category.id),
             fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/transactions?limit=5`), {
                 headers: { 'requesttoken': OC.requestToken }
             }),
-            this.app.renderCategoryTagSetsList(category.id),
+            this.app.renderCategoryTagSetsList(category.id, isReadShared),
         ]);
 
         if (detailsRes) {
@@ -604,10 +602,9 @@ export default class CategoriesModule {
         // Action button visibility by ownership/write access:
         //  - own category    → Edit + Delete
         //  - write-shared     → Edit only (delete is owner-only)
-        //  - read-shared      → neither (defensive; read-shared can't be selected)
+        //  - read-shared      → neither (read-only details view, #328)
         const editBtn = document.getElementById('edit-category-btn');
         const deleteBtn = document.getElementById('delete-category-btn');
-        const isReadShared = !!category._shared && !category._canWrite;
         const isWriteShared = !!category._shared && !!category._canWrite;
         if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
         if (deleteBtn) deleteBtn.style.display = (isReadShared || isWriteShared) ? 'none' : '';
@@ -1006,29 +1003,23 @@ export default class CategoriesModule {
             return;
         }
 
+        const categoryId = this.selectedCategory.id;
         const categoryName = this.selectedCategory.name;
         if (!confirm(t('budget', 'Are you sure you want to delete the category "{name}"? This action cannot be undone.', { name: categoryName }))) {
             return;
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${this.selectedCategory.id}`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            const { deleted, reassigned } = await this._deleteCategoryWithReassign(categoryId, categoryName);
+            if (!deleted) return;
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Category deleted successfully'));
-                this.selectedCategory = null;
-                await this.loadCategories();
-                await this.app.loadInitialData();
-                this.showCategoryDetailsEmpty();
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to delete category'));
-            }
+            showSuccess(reassigned
+                ? t('budget', 'Category deleted; its transactions are now Uncategorized')
+                : t('budget', 'Category deleted successfully'));
+            this.selectedCategory = null;
+            await this.loadCategories();
+            await this.app.loadInitialData();
+            this.showCategoryDetailsEmpty();
         } catch (error) {
             showError(error.message || t('budget', 'Failed to delete category'));
         }
@@ -1048,29 +1039,82 @@ export default class CategoriesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            const { deleted, reassigned } = await this._deleteCategoryWithReassign(categoryId, categoryName);
+            if (!deleted) return;
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Category deleted successfully'));
-                if (this.selectedCategory?.id === categoryId) {
-                    this.selectedCategory = null;
-                    this.showCategoryDetailsEmpty();
-                }
-                this.selectedCategoryIds.delete(categoryId);
-                await this.loadCategories();
-                await this.app.loadInitialData();
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to delete category'));
+            showSuccess(reassigned
+                ? t('budget', 'Category deleted; its transactions are now Uncategorized')
+                : t('budget', 'Category deleted successfully'));
+            if (this.selectedCategory?.id === categoryId) {
+                this.selectedCategory = null;
+                this.showCategoryDetailsEmpty();
             }
+            this.selectedCategoryIds.delete(categoryId);
+            await this.loadCategories();
+            await this.app.loadInitialData();
         } catch (error) {
             showError(error.message || t('budget', 'Failed to delete category'));
         }
+    }
+
+    /**
+     * Send the category DELETE request. When reassign is true, the server moves
+     * the category's (and descendants') transactions to No Category first (#332).
+     */
+    _sendCategoryDelete(categoryId, reassign) {
+        const url = OC.generateUrl(`/apps/budget/api/categories/${categoryId}`)
+            + (reassign ? '?reassign=true' : '');
+        return fetch(url, {
+            method: 'DELETE',
+            headers: { 'requesttoken': OC.requestToken }
+        });
+    }
+
+    /**
+     * Delete a category, offering to move its transactions to No Category when
+     * it (or a descendant) still has any (#332). Returns { deleted, reassigned }.
+     * The transaction count is checked up front so the normal case sends a single
+     * request; the 409 branch is a fallback for transactions the count map does
+     * not cover (e.g. in a report-excluded account).
+     */
+    async _deleteCategoryWithReassign(categoryId, categoryName) {
+        const reassignPrompt = t('budget', 'This category still has transactions assigned to it. Move them to Uncategorized and delete "{name}"?', { name: categoryName });
+
+        let reassign = this._categoryOrDescendantsHaveTransactions(categoryId);
+        if (reassign && !confirm(reassignPrompt)) {
+            return { deleted: false, reassigned: false };
+        }
+
+        let response = await this._sendCategoryDelete(categoryId, reassign);
+
+        if (!reassign && response.status === 409) {
+            const body = await response.json().catch(() => ({}));
+            if (body.code === 'has_transactions') {
+                if (!confirm(reassignPrompt)) {
+                    return { deleted: false, reassigned: false };
+                }
+                reassign = true;
+                response = await this._sendCategoryDelete(categoryId, true);
+            }
+        }
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || t('budget', 'Failed to delete category'));
+        }
+        return { deleted: true, reassigned: reassign };
+    }
+
+    /** Whether a category or any of its descendants has transactions (from the count map). */
+    _categoryOrDescendantsHaveTransactions(categoryId) {
+        const counts = this.serverTransactionCounts || {};
+        const ids = [categoryId];
+        const walk = (node) => (node?.children || []).forEach(child => {
+            ids.push(child.id);
+            walk(child);
+        });
+        walk(this.findCategoryById(categoryId));
+        return ids.some(id => (counts[id] || 0) > 0);
     }
 
     updateBulkCategoryActions() {

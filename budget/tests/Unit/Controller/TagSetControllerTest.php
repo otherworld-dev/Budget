@@ -23,6 +23,7 @@ class TagSetControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
+	private GranularShareService $granularShareService;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -44,14 +45,18 @@ class TagSetControllerTest extends TestCase {
 				return ['valid' => true, 'sanitized' => $color];
 			});
 
-		$granularShareService = $this->createMock(GranularShareService::class);
-		$granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		// Default: categories belong to the caller (own-category behaviour).
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		// Any tag set resolves to a category (owner-agnostic lookup).
+		$this->service->method('getTagSetCategoryId')->willReturn(1);
 
 		$this->controller = new TagSetController(
 			$this->request,
 			$this->service,
 			$this->validationService,
-			$granularShareService,
+			$this->granularShareService,
 			$this->l,
 			'user1',
 			$this->logger
@@ -71,6 +76,7 @@ class TagSetControllerTest extends TestCase {
 	private function controllerWithValidation(ValidationService $vs): TagSetController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
 		return new TagSetController(
 			$this->request,
 			$this->service,
@@ -654,5 +660,85 @@ class TagSetControllerTest extends TestCase {
 		$response = $this->controller->destroyTag(1, 999);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	// ── shared-category tag management resolves to the owner (#328) ──
+
+	private function controllerWithOwner(?string $owner, bool $canWrite = true): TagSetController {
+		$gss = $this->createMock(GranularShareService::class);
+		$gss->method('canAccess')->willReturn(true);
+		$gss->method('resolveOwner')->willReturn($owner);
+		if (!$canWrite) {
+			$gss->method('requireWriteAccess')
+				->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException('read only'));
+		}
+		return new TagSetController(
+			$this->request,
+			$this->service,
+			$this->validationService,
+			$gss,
+			$this->l,
+			'user1',
+			$this->logger
+		);
+	}
+
+	public function testCreateResolvesOwnerForWriteSharedCategory(): void {
+		$controller = $this->controllerWithOwner('owner1', true);
+		$this->mockInput('{"categoryId": 7, "name": "Priority"}');
+		$tagSet = new TagSet();
+		$tagSet->setId(1);
+		$this->service->expects($this->once())
+			->method('create')->with('owner1', 7, 'Priority', null, 0)
+			->willReturn($tagSet);
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateForbiddenOnReadSharedCategory(): void {
+		$controller = $this->controllerWithOwner('owner1', false);
+		$this->mockInput('{"categoryId": 7, "name": "Priority"}');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testCreateFailsWhenCategoryNotAccessible(): void {
+		$controller = $this->controllerWithOwner(null);
+		$this->mockInput('{"categoryId": 7, "name": "Priority"}');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertNotSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testIndexResolvesOwnerForSharedCategory(): void {
+		$controller = $this->controllerWithOwner('owner1');
+		$this->service->expects($this->once())
+			->method('getCategoryTagSetsWithTags')->with(7, 'owner1')
+			->willReturn([]);
+
+		$response = $controller->index(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreateTagResolvesOwnerForSharedCategory(): void {
+		$controller = $this->controllerWithOwner('owner1');
+		$this->mockInput('{"name": "urgent"}');
+		$tag = new Tag();
+		$tag->setId(5);
+		$this->service->expects($this->once())
+			->method('createTag')->with(3, 'owner1', 'urgent', null, 0)
+			->willReturn($tag);
+
+		$response = $controller->createTag(3);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 }

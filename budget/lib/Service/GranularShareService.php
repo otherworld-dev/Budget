@@ -324,13 +324,17 @@ class GranularShareService {
     public function getSharedCategories(string $userId): array {
         $ids = $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
         if (empty($ids)) return [];
-        $categories = $this->categoryMapper->findByIdsUnscoped($ids);
+        $categories = array_values($this->categoryMapper->findByIdsUnscoped($ids));
+        // Preserve the owner's ordering so recipients see shared categories in the
+        // same order the owner arranged them, not an arbitrary id/insertion order (#328).
+        usort($categories, static fn($a, $b) =>
+            [$a->getSortOrder() ?? 0, $a->getName()] <=> [$b->getSortOrder() ?? 0, $b->getName()]);
         return array_map(fn($c) => array_merge($c->jsonSerialize(), [
             '_shared' => true,
             '_sharedBy' => $c->getUserId(),
             '_sharedByName' => $this->displayNameFor($c->getUserId()),
             '_canWrite' => $this->canWrite($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
-        ]), array_values($categories));
+        ]), $categories);
     }
 
     /**

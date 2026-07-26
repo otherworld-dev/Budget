@@ -889,7 +889,8 @@ export default class TransactionsModule {
 
         // Populate category dropdown
         if (categorySelect && this.categories) {
-            categorySelect.innerHTML = `<option value="">${t('budget', 'Don\'t change')}</option>`;
+            categorySelect.innerHTML = `<option value="">${t('budget', 'Don\'t change')}</option>`
+                + `<option value="none">${t('budget', 'Uncategorized')}</option>`;
             dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
         }
 
@@ -907,9 +908,14 @@ export default class TransactionsModule {
         const reference = document.getElementById('bulk-edit-reference').value.trim();
         const notes = document.getElementById('bulk-edit-notes').value.trim();
 
-        // Build updates object with only non-empty fields
+        // Build updates object with only non-empty fields.
+        // '' = leave the category unchanged; 'none' = clear it to No Category (#332).
         const updates = {};
-        if (categoryId) updates.categoryId = parseInt(categoryId);
+        if (categoryId === 'none') {
+            updates.categoryId = null;
+        } else if (categoryId) {
+            updates.categoryId = parseInt(categoryId);
+        }
         if (vendor) updates.vendor = vendor;
         if (reference) updates.reference = reference;
         if (notes) updates.notes = notes;

@@ -4195,8 +4195,8 @@ class BudgetApp {
         return this.tagSetsModule.loadAndDisplayTransactionTags();
     }
 
-    async renderCategoryTagSetsList(categoryId) {
-        return this.tagSetsModule.renderCategoryTagSetsList(categoryId);
+    async renderCategoryTagSetsList(categoryId, readOnly = false) {
+        return this.tagSetsModule.renderCategoryTagSetsList(categoryId, readOnly);
     }
 
     async loadAllTransactionTags() {

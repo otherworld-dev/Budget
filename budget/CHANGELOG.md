@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Tag sets now work on shared categories.** Opening a category shared with you shows its tag sets; with write access you can add, edit and delete tag sets and tags on it just like your own categories, and read-only shares show them without edit controls. Previously any tag-set action on a shared category failed ([#328](https://github.com/otherworld-dev/Budget/issues/328))
+- **Bulk edit can now clear a transaction's category.** The *Bulk Edit Transactions* dialog's Category dropdown gained an **Uncategorized** option alongside *Don't change*, so you can un-categorize many transactions at once ([#332](https://github.com/otherworld-dev/Budget/issues/332))
+- **Deleting a category that still has transactions now offers to reassign them.** Instead of blocking with *"reassign or delete them first"*, the delete prompt offers to move the category's transactions — and any in its subcategories — to **Uncategorized** and remove it in one step ([#332](https://github.com/otherworld-dev/Budget/issues/332))
+
+### Fixed
+- **Shared categories keep the owner's order, and editors can reorder them.** Recipients saw shared categories in an arbitrary order and couldn't move them; they now appear in the owner's order, and a write-share recipient can drag to reorder (the new order applies for the owner and everyone it's shared with). Reordering no longer silently fails when sort positions collide — the whole sibling group is renumbered on each move ([#328](https://github.com/otherworld-dev/Budget/issues/328))
+- **Shared categories now open for the recipient instead of doing nothing.** A read-only shared category couldn't be selected in the list at all, and even when reached its detail/recent-transactions/spending endpoints returned `404` (they looked the category up under the viewer, so one owned by someone else was never found). Clicking a shared category now opens a read-only view showing the owner's transactions and analytics for it ([#328](https://github.com/otherworld-dev/Budget/issues/328))
+- **Recording a bill's payment failed when the bill used a shared account.** A bill can point at an account owned by another user — a partner's shared account — but marking it paid, and the one-click **Record transaction** repair, threw *"Failed to record payment"* (a `DoesNotExistException` in the log) because the transaction was booked against the person clicking rather than the account's owner. Bill payments are now recorded against the account owner, so a share recipient can mark shared bills paid; a bill whose account was since deleted now shows an actionable message instead of the generic failure ([#334](https://github.com/otherworld-dev/Budget/issues/334))
+- **A one-time bill marked paid without a recorded transaction could not be reached to fix it.** After a one-time bill is marked paid it deactivates and drops off the Bills list, yet it still appears in the *Payments without a recorded transaction* card telling you to assign an account first — with no way to open it. That prompt is now an **Assign an account** button that opens the bill for editing ([#333](https://github.com/otherworld-dev/Budget/issues/333))
+
 ## [2.39.1] - 2026-07-11
 
 ### Fixed

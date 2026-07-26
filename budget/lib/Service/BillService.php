@@ -160,6 +160,15 @@ class BillService {
             throw new \InvalidArgumentException($this->l->t('Assign an account to the bill first'));
         }
 
+        // The bill may reference an account that has since been deleted — give an
+        // actionable message instead of a raw lookup failure surfacing as the
+        // generic "Failed to record the payment" (#333, #334).
+        try {
+            $this->accountMapper->findById($bill->getAccountId());
+        } catch (DoesNotExistException $e) {
+            throw new \InvalidArgumentException($this->l->t('The account linked to this bill no longer exists. Edit the bill and choose an account.'));
+        }
+
         // Idempotence guard: refuse when a payment transaction already exists
         $existingDates = array_map(
             static fn($tx) => $tx->getDate(),
@@ -876,7 +885,11 @@ class BillService {
                 ];
             }, $splits);
 
-            $this->splitService->splitTransaction($transaction->getId(), $userId, $splitData);
+            // Splits are scoped to the transaction's account owner, which may
+            // differ from the acting user when the bill points at a shared
+            // account (#334).
+            $ownerUserId = $this->accountMapper->findById($transaction->getAccountId())->getUserId();
+            $this->splitService->splitTransaction($transaction->getId(), $ownerUserId, $splitData);
         } catch (\Exception $e) {
             $this->logger->warning("Failed to apply split template to transaction {$transaction->getId()}: {$e->getMessage()}");
         }

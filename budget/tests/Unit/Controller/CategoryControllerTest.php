@@ -281,6 +281,52 @@ class CategoryControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testWriteShareRecipientCanReorderButNotRestructure(): void {
+		// A write-share recipient may change sortOrder (reorder shared categories)
+		// but structural/budget fields are stripped (#328).
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$category = $this->makeCategory();
+		$this->service->expects($this->once())
+			->method('update')
+			->with(1, 'owner1', $this->callback(function ($updates) {
+				return array_key_exists('sortOrder', $updates)
+					&& !array_key_exists('type', $updates)
+					&& !array_key_exists('budgetAmount', $updates);
+			}))
+			->willReturn($category);
+
+		// Recipient sends type + budgetAmount + sortOrder; only sortOrder survives.
+		$response = $this->controller->update(1, null, 'income', null, null, null, 99.0, null, 5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	// ── reorder (#328) ──────────────────────────────────────────────
+
+	public function testReorderResolvesOwnerForSharedCategory(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'above']);
+		$category = $this->makeCategory();
+		$this->service->expects($this->once())
+			->method('reorderCategory')->with(1, 'owner1', 2, 'above')
+			->willReturn($category);
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testReorderBlocksNestingSharedCategory(): void {
+		// Reparenting (child) a category you don't own is owner-only.
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'child']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
 	// ── destroy ─────────────────────────────────────────────────────
 
 	public function testDestroySuccess(): void {
@@ -302,6 +348,31 @@ class CategoryControllerTest extends TestCase {
 		$response = $this->controller->destroy(999);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testDestroyReturnsConflictWithCodeWhenCategoryInUse(): void {
+		// A category with transactions returns a machine-readable code so the
+		// client can offer to reassign and retry (#332).
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->service->method('delete')
+			->willThrowException(new \OCA\Budget\Exception\CategoryInUseException('has transactions assigned'));
+
+		$response = $this->controller->destroy(1);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('has_transactions', $response->getData()['code']);
+	}
+
+	public function testDestroyReassignsWhenRequested(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->service->expects($this->once())
+			->method('deleteWithReassign')->with(1, 'user1');
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controller->destroy(1, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('success', $response->getData()['status']);
 	}
 
 	// ── per-viewer report mutes ─────────────────────────────────────
@@ -369,6 +440,7 @@ class CategoryControllerTest extends TestCase {
 	// ── spending ────────────────────────────────────────────────────
 
 	public function testSpendingReturnsAmountForCategory(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
 		$this->service->method('getCategorySpending')
 			->with(1, 'user1', '2025-01-01', '2025-03-31')
 			->willReturn(350.0);
@@ -380,11 +452,60 @@ class CategoryControllerTest extends TestCase {
 	}
 
 	public function testSpendingHandlesException(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
 		$this->service->method('getCategorySpending')
 			->willThrowException(new \RuntimeException('error'));
 
 		$response = $this->controller->spending(999, '2025-01-01', '2025-03-31');
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	// ── shared-category reads resolve to the owner (#328) ───────────
+
+	public function testDetailsResolvesOwnerForSharedCategory(): void {
+		// Category 137 is shared to user1 by owner1; details must query the owner.
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 137)->willReturn('owner1');
+		$this->service->expects($this->once())
+			->method('getCategoryDetails')
+			->with(137, 'owner1', null, null, null)
+			->willReturn(['count' => 3, 'total' => 60.0]);
+
+		$response = $this->controller->details(137);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(3, $response->getData()['count']);
+	}
+
+	public function testDetailsReturnsNotFoundWhenNoAccess(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn(null);
+		$this->service->expects($this->never())->method('getCategoryDetails');
+
+		$response = $this->controller->details(999);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testTransactionsResolvesOwnerForSharedCategory(): void {
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 137)->willReturn('owner1');
+		$this->service->expects($this->once())
+			->method('getCategoryTransactions')
+			->with(137, 'owner1', 5)
+			->willReturn([['id' => 1]]);
+
+		$response = $this->controller->transactions(137);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTransactionsReturnsNotFoundWhenNoAccess(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn(null);
+		$this->service->expects($this->never())->method('getCategoryTransactions');
+
+		$response = $this->controller->transactions(999);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 }

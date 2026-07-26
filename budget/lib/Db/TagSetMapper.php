@@ -34,6 +34,21 @@ class TagSetMapper extends QBMapper {
     }
 
     /**
+     * Find a tag set by ID without user scoping (for shared-category owner
+     * resolution — the caller checks access separately).
+     *
+     * @throws DoesNotExistException
+     */
+    public function findById(int $id): TagSet {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+        return $this->findEntity($qb);
+    }
+
+    /**
      * Find all tag sets for a specific category
      *
      * @return TagSet[]
