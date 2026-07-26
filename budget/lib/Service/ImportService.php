@@ -38,6 +38,9 @@ class ImportService {
     private ImportAccountLinkService $accountLinkService;
     private IL10N $l;
 
+    /** @var array<int,string> Cache of destination account id => type for the account/account_type rule fields */
+    private array $ruleAccountTypeCache = [];
+
     public function __construct(
         IAppData $appData,
         TransactionService $transactionService,
@@ -480,7 +483,7 @@ class ImportService {
                     }
 
                     if ($this->ruleApplicator) {
-                        $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
+                        $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, (int)$destAccountId, $userId));
                     }
 
                     $transactions[] = array_merge($transaction, [
@@ -625,7 +628,7 @@ class ImportService {
                         continue;
                     }
 
-                    $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
+                    $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
                     $transactions[] = array_merge($transaction, [
                         'rowIndex' => $index,
                         'isDuplicate' => $isDuplicate,
@@ -654,7 +657,9 @@ class ImportService {
                         continue;
                     }
 
-                    $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
+                    // Account doesn't exist yet, so $txAccountId is null and no
+                    // account context is added — an account-scoped rule won't match.
+                    $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
                     $transactions[] = array_merge($transaction, [
                         'rowIndex' => $index,
                         'isDuplicate' => $isDuplicate,
@@ -716,6 +721,34 @@ class ImportService {
         return $result;
     }
 
+    /**
+     * Add the destination account context ('account' id and 'account_type') to
+     * a parsed transaction so import rules can match on the account they are
+     * being imported into. When the account does not exist yet (a brand-new
+     * account created later in the same import) the keys are omitted, so an
+     * account-scoped rule simply doesn't match — which is the correct outcome.
+     *
+     * @param array $transaction Parsed transaction data
+     * @param int|null $accountId Resolved destination account id
+     * @param string $userId
+     * @return array Transaction data enriched for rule evaluation
+     */
+    private function withAccountContext(array $transaction, ?int $accountId, string $userId): array {
+        if (!$accountId) {
+            return $transaction;
+        }
+        $transaction['account'] = $accountId;
+        if (!array_key_exists($accountId, $this->ruleAccountTypeCache)) {
+            try {
+                $this->ruleAccountTypeCache[$accountId] = $this->accountMapper->find($accountId, $userId)->getType() ?? '';
+            } catch (\Exception $e) {
+                $this->ruleAccountTypeCache[$accountId] = '';
+            }
+        }
+        $transaction['account_type'] = $this->ruleAccountTypeCache[$accountId];
+        return $transaction;
+    }
+
     private function executeMultiAccountImport(string $userId, string $fileId, string $content, string $format, array $accountMapping, bool $skipDuplicates, bool $applyRules): array {
         $parsedData = $this->parserFactory->parseFull($content, $format);
         $imported = 0;
@@ -771,7 +804,7 @@ class ImportService {
                     }
 
                     if ($applyRules) {
-                        $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
+                        $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, (int)$destAccountId, $userId));
                     }
 
                     $createdTx = $this->transactionService->create(
@@ -981,7 +1014,7 @@ class ImportService {
                 }
 
                 if ($applyRules) {
-                    $transaction = $this->ruleApplicator->applyRules($userId, $transaction);
+                    $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
                 }
 
                 // Resolve category from preset or mapping metadata if no category already assigned

@@ -200,6 +200,18 @@
 	font-style: italic;
 }
 
+/* Shown in place of the value picker when a field (Account / Account Type)
+   has no options because the user has no accounts yet. */
+.condition-pattern-empty {
+	flex: 1;
+	min-width: 150px;
+	max-width: 300px;
+	padding: 6px 8px;
+	color: var(--color-text-maxcontrast, #999);
+	font-size: 13px;
+	font-style: italic;
+}
+
 .condition-pattern:focus,
 .condition-field:focus,
 .condition-match-type:focus {

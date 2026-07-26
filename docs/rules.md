@@ -18,13 +18,15 @@ Each criterion consists of three parts:
 
 | Component | Options |
 |-----------|---------|
-| **Field** | Description, Vendor, Amount, Date, Reference, Notes, Transaction Type |
+| **Field** | Description, Vendor, Amount, Date, Reference, Notes, Transaction Type, Account, Account Type, Import Source |
 | **Match type** | Contains, Equals, Starts with, Ends with, Regex, Greater than, Less than |
 | **Pattern** | The value to match against |
 
 > **Tip:** Use "Contains" for most text matching. Reserve "Regex" for complex patterns where simpler match types won't suffice.
 
 The **Transaction Type** field lets you filter by Income or Expense. This is useful when the same description appears as both inflow and outflow (e.g., internal transfers between accounts).
+
+The **Account** field scopes a rule to one of your accounts — pick the account from the dropdown and the rule only fires for transactions in it. Combine it with a NOT to mean "any account except this one." The related **Account Type** field matches by kind of account (Checking, Savings, Credit Card, and so on) rather than a specific one — handy for rules like "only on credit-card accounts." Both match when you run a rule over existing transactions and when importing into that account.
 
 ## Boolean Logic
 

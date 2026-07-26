@@ -26,6 +26,9 @@ class ImportRuleService extends AbstractCrudService {
     private CriteriaEvaluator $criteriaEvaluator;
     private RuleActionApplicator $actionApplicator;
 
+    /** @var array<int,string> Cache of account id => type for the account/account_type rule fields */
+    private array $accountTypeCache = [];
+
     public function __construct(
         ImportRuleMapper $mapper,
         CategoryMapper $categoryMapper,
@@ -443,7 +446,7 @@ class ImportRuleService extends AbstractCrudService {
         $matchCount = 0;
 
         foreach ($transactions as $transaction) {
-            $transactionData = $this->extractTransactionData($transaction);
+            $transactionData = $this->extractTransactionData($transaction, $userId);
 
             foreach ($rules as $rule) {
                 if ($this->testRule($rule, $transactionData)) {
@@ -510,7 +513,7 @@ class ImportRuleService extends AbstractCrudService {
         $applied = [];
 
         foreach ($transactions as $transaction) {
-            $transactionData = $this->extractTransactionData($transaction);
+            $transactionData = $this->extractTransactionData($transaction, $userId);
 
             // Find all matching rules
             $matchingRules = [];
@@ -594,9 +597,11 @@ class ImportRuleService extends AbstractCrudService {
      * Extract transaction data as array for rule evaluation
      *
      * @param Transaction $transaction
+     * @param string $userId Owner of the transactions being evaluated
      * @return array
      */
-    private function extractTransactionData(Transaction $transaction): array {
+    private function extractTransactionData(Transaction $transaction, string $userId): array {
+        $accountId = $transaction->getAccountId();
         return [
             'description' => $transaction->getDescription(),
             'vendor' => $transaction->getVendor() ?? '',
@@ -605,8 +610,34 @@ class ImportRuleService extends AbstractCrudService {
             'reference' => $transaction->getReference() ?? '',
             'notes' => $transaction->getNotes() ?? '',
             'date' => $transaction->getDate(),
-            'account_type' => '' // Could be enriched with account type if needed
+            'account' => $accountId,
+            'account_type' => $this->getAccountType($accountId, $userId),
         ];
+    }
+
+    /**
+     * Look up an account's type for the 'account_type' rule field, cached per
+     * request so applying rules across many transactions on the same account
+     * costs a single query.
+     *
+     * @param int|null $accountId
+     * @param string $userId
+     * @return string Account type, or '' when unknown
+     */
+    private function getAccountType(?int $accountId, string $userId): string {
+        if (!$accountId) {
+            return '';
+        }
+        if (!array_key_exists($accountId, $this->accountTypeCache)) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('type')
+                ->from('budget_accounts')
+                ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+                ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            $type = $qb->executeQuery()->fetchOne();
+            $this->accountTypeCache[$accountId] = $type !== false ? (string)$type : '';
+        }
+        return $this->accountTypeCache[$accountId];
     }
 
     /**
@@ -646,7 +677,7 @@ class ImportRuleService extends AbstractCrudService {
                 break;
             }
 
-            $transactionData = $this->extractTransactionData($transaction);
+            $transactionData = $this->extractTransactionData($transaction, $userId);
 
             // Test criteria against transaction
             $isMatch = false;

@@ -773,8 +773,11 @@ export default class RulesModule {
         // Clear previous instance
         container.innerHTML = '';
 
-        // Create new CriteriaBuilder instance
-        this.criteriaBuilder = new CriteriaBuilder(container, initialCriteria);
+        // Create new CriteriaBuilder instance (accounts power the Account /
+        // Account Type condition pickers)
+        this.criteriaBuilder = new CriteriaBuilder(container, initialCriteria, {
+            accounts: this.accounts,
+        });
     }
 
     initializeActionBuilder(initialActions) {

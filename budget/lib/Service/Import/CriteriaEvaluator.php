@@ -32,8 +32,11 @@ class CriteriaEvaluator {
 	/** Valid date match types */
 	private const DATE_MATCH_TYPES = ['equals', 'before', 'after', 'between'];
 
+	/** Valid account match types (exact account id only) */
+	private const ACCOUNT_MATCH_TYPES = ['equals'];
+
 	/** Valid fields for matching */
-	private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount', 'date', 'type', 'account_type', 'source'];
+	private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount', 'date', 'type', 'account', 'account_type', 'source'];
 
 	public function __construct(LoggerInterface $logger) {
 		$this->logger = $logger;
@@ -229,10 +232,41 @@ class CriteriaEvaluator {
 			return $this->matchNumeric((float)$value, $matchType, $pattern);
 		} elseif ($field === 'date') {
 			return $this->matchDate((string)$value, $matchType, $pattern);
+		} elseif ($field === 'account') {
+			return $this->matchAccount($value, $matchType, $pattern);
 		} else {
-			// String fields (description, vendor, reference, notes, account_type)
+			// String fields (description, vendor, reference, notes, type, account_type, source)
 			return $this->matchString((string)$value, $matchType, (string)$pattern);
 		}
+	}
+
+	/**
+	 * Match on the transaction's bank account by exact id.
+	 *
+	 * An account is an entity, not free text, so the only meaningful test is
+	 * exact id equality — the UI stores the chosen account's id as the pattern.
+	 * "is not this account" is expressed with the condition's negate flag, not a
+	 * separate match type. Account ids are positive integers, so a missing value
+	 * (e.g. an import into an account that doesn't exist yet) or a non-positive
+	 * pattern never matches.
+	 *
+	 * @param mixed $value Transaction account id
+	 * @param string $matchType Match type (only 'equals' is valid)
+	 * @param mixed $pattern Account id to match against
+	 * @return bool Match result
+	 */
+	private function matchAccount($value, string $matchType, $pattern): bool {
+		if (!in_array($matchType, self::ACCOUNT_MATCH_TYPES, true)) {
+			$this->logger->warning('Invalid account match type', ['matchType' => $matchType]);
+			return false;
+		}
+
+		$target = (int)$pattern;
+		if ($target <= 0) {
+			return false;
+		}
+
+		return (int)$value === $target;
 	}
 
 	/**
@@ -459,6 +493,8 @@ class CriteriaEvaluator {
 					$validTypes = self::NUMERIC_MATCH_TYPES;
 				} elseif ($field === 'date') {
 					$validTypes = self::DATE_MATCH_TYPES;
+				} elseif ($field === 'account') {
+					$validTypes = self::ACCOUNT_MATCH_TYPES;
 				} else {
 					$validTypes = self::STRING_MATCH_TYPES;
 				}

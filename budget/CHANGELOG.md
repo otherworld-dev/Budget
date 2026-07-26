@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Import rules can now match on the account.** A new **Account** condition scopes a rule to a specific bank account (with NOT for "any account except this one"), and a companion **Account Type** condition matches by kind of account (checking, savings, credit card, …). Both work when importing into an account and when running rules over existing transactions ([#322](https://github.com/otherworld-dev/Budget/issues/322))
 - **Tag sets now work on shared categories.** Opening a category shared with you shows its tag sets; with write access you can add, edit and delete tag sets and tags on it just like your own categories, and read-only shares show them without edit controls. Previously any tag-set action on a shared category failed ([#328](https://github.com/otherworld-dev/Budget/issues/328))
 - **Bulk edit can now clear a transaction's category.** The *Bulk Edit Transactions* dialog's Category dropdown gained an **Uncategorized** option alongside *Don't change*, so you can un-categorize many transactions at once ([#332](https://github.com/otherworld-dev/Budget/issues/332))
 - **Deleting a category that still has transactions now offers to reassign them.** Instead of blocking with *"reassign or delete them first"*, the delete prompt offers to move the category's transactions — and any in its subcategories — to **Uncategorized** and remove it in one step ([#332](https://github.com/otherworld-dev/Budget/issues/332))

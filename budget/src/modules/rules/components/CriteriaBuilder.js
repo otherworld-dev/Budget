@@ -1,5 +1,6 @@
 import './CriteriaBuilder.css';
 import { translate as t } from '@nextcloud/l10n';
+import { formatAccountType } from '../../../utils/formatters';
 
 /**
  * CriteriaBuilder - Visual query builder for complex boolean expression trees
@@ -12,10 +13,29 @@ import { translate as t } from '@nextcloud/l10n';
  * - Path-based node addressing
  */
 export class CriteriaBuilder {
-	constructor(containerEl, initialCriteria = null) {
+	constructor(containerEl, initialCriteria = null, options = {}) {
 		this.container = containerEl;
+		// Accounts power the Account / Account Type condition pickers; empty is fine
+		this.accounts = options.accounts || [];
 		this.criteria = this.normalizeCriteria(initialCriteria);
 		this.render();
+	}
+
+	/**
+	 * Distinct account types among the user's accounts, for the Account Type
+	 * condition picker. Derived from real accounts so users only see types they
+	 * actually have.
+	 * @returns {string[]}
+	 */
+	getAccountTypeOptions() {
+		const seen = [];
+		this.accounts.forEach(acc => {
+			const type = acc.type;
+			if (type && !seen.includes(type)) {
+				seen.push(type);
+			}
+		});
+		return seen;
 	}
 
 	/**
@@ -135,24 +155,59 @@ export class CriteriaBuilder {
 						<option value="reference" ${node.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
 						<option value="notes" ${node.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
 						<option value="date" ${node.field === 'date' ? 'selected' : ''}>${t('budget', 'Date')}</option>
+						<option value="account" ${node.field === 'account' ? 'selected' : ''}>${t('budget', 'Account')}</option>
+						<option value="account_type" ${node.field === 'account_type' ? 'selected' : ''}>${t('budget', 'Account Type')}</option>
 						<option value="source" ${node.field === 'source' ? 'selected' : ''}>${t('budget', 'Import Source')}</option>
 					</select>
 					<select class="condition-match-type" data-path="${pathStr}">
 						${this.renderMatchTypeOptions(node.field, node.matchType)}
 					</select>
-					${node.field === 'type'
-						? `<select class="condition-pattern" data-path="${pathStr}">
-							<option value="debit" ${node.pattern === 'debit' ? 'selected' : ''}>${t('budget', 'Expense')}</option>
-							<option value="credit" ${node.pattern === 'credit' ? 'selected' : ''}>${t('budget', 'Income')}</option>
-						</select>`
-						: `<input type="text" class="condition-pattern" data-path="${pathStr}"
-							value="${this.escapeHtml(node.pattern || '')}"
-							placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">`
-					}
+					${this.renderPatternWidget(node, pathStr)}
 					<button class="btn-remove-condition" type="button" data-path="${pathStr}" title="${t('budget', 'Remove this condition')}">✕</button>
 				</div>
 			</div>
 		`;
+	}
+
+	/**
+	 * Render the value widget for a condition. Most fields use a free-text
+	 * input, but entity/enum fields (Transaction Type, Account, Account Type)
+	 * use a dropdown so the stored pattern is always a valid value.
+	 */
+	renderPatternWidget(node, pathStr) {
+		if (node.field === 'type') {
+			return `<select class="condition-pattern" data-path="${pathStr}">
+				<option value="debit" ${node.pattern === 'debit' ? 'selected' : ''}>${t('budget', 'Expense')}</option>
+				<option value="credit" ${node.pattern === 'credit' ? 'selected' : ''}>${t('budget', 'Income')}</option>
+			</select>`;
+		}
+
+		if (node.field === 'account') {
+			if (this.accounts.length === 0) {
+				return `<span class="condition-pattern-empty">${t('budget', 'No accounts available')}</span>`;
+			}
+			return `<select class="condition-pattern" data-path="${pathStr}">
+				${this.accounts.map(acc =>
+					`<option value="${acc.id}" ${String(node.pattern) === String(acc.id) ? 'selected' : ''}>${this.escapeHtml(acc.name)}</option>`
+				).join('')}
+			</select>`;
+		}
+
+		if (node.field === 'account_type') {
+			const types = this.getAccountTypeOptions();
+			if (types.length === 0) {
+				return `<span class="condition-pattern-empty">${t('budget', 'No accounts available')}</span>`;
+			}
+			return `<select class="condition-pattern" data-path="${pathStr}">
+				${types.map(type =>
+					`<option value="${this.escapeHtml(type)}" ${node.pattern === type ? 'selected' : ''}>${this.escapeHtml(formatAccountType(type))}</option>`
+				).join('')}
+			</select>`;
+		}
+
+		return `<input type="text" class="condition-pattern" data-path="${pathStr}"
+			value="${this.escapeHtml(node.pattern || '')}"
+			placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">`;
 	}
 
 	renderMatchTypeOptions(field, currentMatchType) {
@@ -183,7 +238,8 @@ export class CriteriaBuilder {
 			types = numericTypes;
 		} else if (field === 'date') {
 			types = dateTypes;
-		} else if (field === 'type') {
+		} else if (field === 'type' || field === 'account' || field === 'account_type') {
+			// Entity/enum fields match by exact value only ("is"); negate covers "is not"
 			types = { 'equals': t('budget', 'is') };
 		}
 
@@ -346,6 +402,13 @@ export class CriteriaBuilder {
 			} else if (value === 'type') {
 				node.matchType = 'equals';
 				node.pattern = 'debit';
+			} else if (value === 'account') {
+				node.matchType = 'equals';
+				node.pattern = this.accounts.length ? String(this.accounts[0].id) : '';
+			} else if (value === 'account_type') {
+				node.matchType = 'equals';
+				const types = this.getAccountTypeOptions();
+				node.pattern = types.length ? types[0] : '';
 			} else {
 				node.matchType = 'contains';
 			}

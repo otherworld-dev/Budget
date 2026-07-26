@@ -716,4 +716,134 @@ class CriteriaEvaluatorTest extends TestCase {
 		$result = $this->evaluator->validate($criteria);
 		$this->assertTrue($result['valid']);
 	}
+
+	// ===== Account Field Tests =====
+
+	private function accountCriteria(string $matchType, $pattern, bool $negate = false): array {
+		return [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'account',
+				'matchType' => $matchType,
+				'pattern' => $pattern,
+				'negate' => $negate
+			]
+		];
+	}
+
+	public function testAccountEqualsById(): void {
+		$criteria = $this->accountCriteria('equals', '7');
+
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['account' => 7], 2));
+		// Id equality is type-insensitive (int value vs numeric-string pattern)
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['account' => '7'], 2));
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['account' => 8], 2));
+	}
+
+	public function testAccountNoMatchWhenAbsent(): void {
+		// A rule scoped to an account must not match a transaction with no
+		// account (e.g. an import into an account that doesn't exist yet)
+		$criteria = $this->accountCriteria('equals', '7');
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['description' => 'x'], 2));
+	}
+
+	public function testAccountNegateIsNot(): void {
+		// "is not account 7" — the negate flag expresses the inverse
+		$criteria = $this->accountCriteria('equals', '7', true);
+
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['account' => 9], 2));
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['account' => 7], 2));
+	}
+
+	public function testAccountNonPositivePatternNeverMatches(): void {
+		$criteria = $this->accountCriteria('equals', '0');
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['account' => 0], 2));
+	}
+
+	public function testAccountInvalidMatchTypeReturnsFalse(): void {
+		// Only exact id equality is meaningful for accounts; anything else logs
+		// and fails closed rather than matching unexpectedly
+		$this->logger->expects($this->once())->method('warning');
+
+		$criteria = $this->accountCriteria('contains', '7');
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['account' => 7], 2));
+	}
+
+	public function testAccountConditionInAndGroup(): void {
+		// The feature's core use case: scope an existing rule to one account.
+		// "description contains coffee AND account is 3"
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'operator' => 'AND',
+				'conditions' => [
+					[
+						'type' => 'condition',
+						'field' => 'description',
+						'matchType' => 'contains',
+						'pattern' => 'coffee',
+						'negate' => false
+					],
+					[
+						'type' => 'condition',
+						'field' => 'account',
+						'matchType' => 'equals',
+						'pattern' => '3',
+						'negate' => false
+					]
+				]
+			]
+		];
+
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['description' => 'Coffee shop', 'account' => 3], 2));
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['description' => 'Coffee shop', 'account' => 4], 2));
+	}
+
+	public function testValidateAcceptsAccountEquals(): void {
+		$result = $this->evaluator->validate($this->accountCriteria('equals', '7'));
+		$this->assertTrue($result['valid']);
+	}
+
+	public function testValidateRejectsAccountNonEqualsMatchType(): void {
+		$result = $this->evaluator->validate($this->accountCriteria('contains', '7'));
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('account', strtolower(implode(' ', $result['errors'])));
+	}
+
+	// ===== Account Type Field Tests =====
+
+	public function testAccountTypeEquals(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'account_type',
+				'matchType' => 'equals',
+				'pattern' => 'credit_card',
+				'negate' => false
+			]
+		];
+
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['account_type' => 'credit_card'], 2));
+		// String equality is case-insensitive
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['account_type' => 'CREDIT_CARD'], 2));
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['account_type' => 'checking'], 2));
+	}
+
+	public function testValidateAcceptsAccountTypeCondition(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'account_type',
+				'matchType' => 'equals',
+				'pattern' => 'savings',
+				'negate' => false
+			]
+		];
+
+		$result = $this->evaluator->validate($criteria);
+		$this->assertTrue($result['valid']);
+	}
 }
