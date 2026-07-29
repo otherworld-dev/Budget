@@ -2230,31 +2230,59 @@ export default class AccountsModule {
         this.showAccountModal(id);
     }
 
+    /**
+     * Send the account DELETE request. When deleteTransactions is true, the
+     * server clears the account's ledger before removing it (#336).
+     */
+    _sendAccountDelete(id, deleteTransactions) {
+        const url = OC.generateUrl(`/apps/budget/api/accounts/${id}`)
+            + (deleteTransactions ? '?deleteTransactions=true' : '');
+        return fetch(url, {
+            method: 'DELETE',
+            headers: { 'requesttoken': OC.requestToken }
+        });
+    }
+
     async deleteAccount(id) {
         if (!confirm(t('budget', 'Are you sure you want to delete this account? This action cannot be undone.'))) {
             return;
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${id}`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            let response = await this._sendAccountDelete(id, false);
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Account deleted successfully'));
-                await this.loadAccounts();
-                await this.loadInitialData(); // Refresh dropdowns
-
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
+            // The account still has transactions — offer to delete those too
+            // rather than making the user empty the ledger by hand (#336).
+            if (response.status === 409) {
+                const body = await response.json().catch(() => ({}));
+                if (body.code !== 'has_transactions') {
+                    throw new Error(body.error || t('budget', 'Failed to delete account'));
                 }
-            } else {
-                const error = await response.json();
+                const count = body.transactionCount || 0;
+                const prompt = count > 0
+                    ? t('budget', 'This account still has {count} transaction(s). Delete them along with the account? This cannot be undone.', { count })
+                    : t('budget', 'This account still has transactions. Delete them along with the account? This cannot be undone.');
+                if (!confirm(prompt)) {
+                    return;
+                }
+                response = await this._sendAccountDelete(id, true);
+            }
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
                 throw new Error(error.error || t('budget', 'Failed to delete account'));
+            }
+
+            const result = await response.json().catch(() => ({}));
+            showSuccess(result.deletedTransactions > 0
+                ? t('budget', 'Account and its {count} transaction(s) deleted', { count: result.deletedTransactions })
+                : t('budget', 'Account deleted successfully'));
+            await this.loadAccounts();
+            await this.loadInitialData(); // Refresh dropdowns
+
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to delete account:', error);

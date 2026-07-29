@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\AccountInUseException;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\GranularShareService;
@@ -484,7 +485,7 @@ class AccountController extends Controller {
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 10, period: 60)]
-    public function destroy(int $id): DataResponse {
+    public function destroy(int $id, bool $deleteTransactions = false): DataResponse {
         try {
             $this->requireWriteAccess('account', $id);
 
@@ -501,12 +502,40 @@ class AccountController extends Controller {
             }
             $accountName = $account->getName();
 
-            $this->service->delete($id, $ownerId);
+            // deleteTransactions=true clears the account's ledger first, so an
+            // account that still has transactions can be removed without
+            // emptying it by hand (#336).
+            $deletedTransactions = 0;
+            if ($deleteTransactions) {
+                $deletedTransactions = $this->service->deleteWithTransactions($id, $ownerId);
+            } else {
+                $this->service->delete($id, $ownerId);
+            }
 
             // Audit log the deletion
             $this->auditService->logAccountDeleted($this->getEffectiveUserId(), $id, $accountName);
+            if ($deletedTransactions > 0) {
+                $this->auditService->log(
+                    $this->getEffectiveUserId(),
+                    AuditService::ACTION_BULK_OPERATION,
+                    AuditService::ENTITY_ACCOUNT,
+                    $id,
+                    ['operation' => 'account_transactions_deleted', 'count' => $deletedTransactions]
+                );
+            }
 
-            return new DataResponse(['status' => 'success']);
+            return new DataResponse(['status' => 'success', 'deletedTransactions' => $deletedTransactions]);
+        } catch (AccountInUseException $e) {
+            // Machine-readable code lets the client offer to delete the
+            // transactions too and retry.
+            return new DataResponse(
+                [
+                    'error' => $e->getMessage(),
+                    'code' => 'has_transactions',
+                    'transactionCount' => $e->getTransactionCount(),
+                ],
+                Http::STATUS_CONFLICT
+            );
         } catch (DoesNotExistException $e) {
             return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
         } catch (\Exception $e) {

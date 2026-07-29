@@ -11,6 +11,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
@@ -21,10 +22,12 @@ class AccountServiceTest extends TestCase {
     private TransactionMapper $transactionMapper;
     private GranularShareService $granularShareService;
     private CurrencyConversionService $conversionService;
+    private TransactionService $transactionService;
 
     protected function setUp(): void {
         $this->accountMapper = $this->createMock(AccountMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
+        $this->transactionService = $this->createMock(TransactionService::class);
         $this->conversionService = $this->createMock(CurrencyConversionService::class);
         $this->granularShareService = $this->createMock(GranularShareService::class);
         $this->granularShareService->method('getSharedAccountIds')->willReturn([]);
@@ -44,6 +47,7 @@ class AccountServiceTest extends TestCase {
             $interestRateMapper,
             $this->conversionService,
             $this->granularShareService,
+            $this->transactionService,
             $l
         );
     }
@@ -154,10 +158,27 @@ class AccountServiceTest extends TestCase {
             ->with(1, 'user1', 1)
             ->willReturn([['id' => 1]]);
 
-        $this->expectException(\Exception::class);
+        // Typed so the controller can offer to delete the transactions too (#336).
+        $this->expectException(\OCA\Budget\Exception\AccountInUseException::class);
         $this->expectExceptionMessage('existing transactions');
 
         $this->service->delete(1, 'user1');
+    }
+
+    public function testDeleteReportsTransactionCountOnConflict(): void {
+        $account = $this->makeAccount();
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->transactionMapper->method('findByAccount')->willReturn([['id' => 1]]);
+        $this->transactionMapper->method('countByAccount')
+            ->with(1, 'user1')
+            ->willReturn(42);
+
+        try {
+            $this->service->delete(1, 'user1');
+            $this->fail('Expected AccountInUseException');
+        } catch (\OCA\Budget\Exception\AccountInUseException $e) {
+            $this->assertSame(42, $e->getTransactionCount());
+        }
     }
 
     public function testDeleteSucceedsWhenNoTransactions(): void {
@@ -173,6 +194,64 @@ class AccountServiceTest extends TestCase {
             ->with($account);
 
         $this->service->delete(1, 'user1');
+    }
+
+    // ===== deleteWithTransactions() (#336) =====
+
+    public function testDeleteWithTransactionsClearsLedgerThenDeletesAccount(): void {
+        $account = $this->makeAccount();
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $this->transactionMapper->method('findIdsByAccount')
+            ->with(1, 'user1')
+            ->willReturn([10, 11, 12]);
+        // The guard runs after the ledger is cleared, so it sees nothing left.
+        $this->transactionMapper->method('findByAccount')->willReturn([]);
+
+        // dismiss=false and recalculate=false: the account is going away, so
+        // neither dismissed import IDs nor its balance are worth maintaining.
+        $deleted = [];
+        $this->transactionService->expects($this->exactly(3))
+            ->method('delete')
+            ->willReturnCallback(function (int $id, string $userId, bool $dismiss, bool $recalculate) use (&$deleted): void {
+                $this->assertSame('user1', $userId);
+                $this->assertFalse($dismiss);
+                $this->assertFalse($recalculate);
+                $deleted[] = $id;
+            });
+
+        $this->accountMapper->expects($this->once())
+            ->method('delete')
+            ->with($account);
+
+        $count = $this->service->deleteWithTransactions(1, 'user1');
+
+        $this->assertSame(3, $count);
+        $this->assertSame([10, 11, 12], $deleted);
+    }
+
+    public function testDeleteWithTransactionsOnEmptyAccountJustDeletesIt(): void {
+        $account = $this->makeAccount();
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->transactionMapper->method('findIdsByAccount')->willReturn([]);
+        $this->transactionMapper->method('findByAccount')->willReturn([]);
+
+        $this->transactionService->expects($this->never())->method('delete');
+        $this->accountMapper->expects($this->once())->method('delete')->with($account);
+
+        $this->assertSame(0, $this->service->deleteWithTransactions(1, 'user1'));
+    }
+
+    public function testDeleteWithTransactionsRefusesAnotherUsersAccount(): void {
+        // find() is the ownership gate — it must run before the ledger is touched.
+        $this->accountMapper->method('find')
+            ->willThrowException(new DoesNotExistException('not found'));
+
+        $this->transactionService->expects($this->never())->method('delete');
+        $this->accountMapper->expects($this->never())->method('delete');
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service->deleteWithTransactions(1, 'user2');
     }
 
     // ===== findWithCurrentBalance() =====

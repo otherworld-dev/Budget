@@ -10,6 +10,7 @@ use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Exception\AccountInUseException;
 use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
@@ -22,6 +23,7 @@ class AccountService extends AbstractCrudService {
     private InterestRateMapper $interestRateMapper;
     private CurrencyConversionService $conversionService;
     private GranularShareService $granularShareService;
+    private TransactionService $transactionService;
     private IL10N $l;
     private ?AutoShareService $autoShareService;
 
@@ -31,6 +33,7 @@ class AccountService extends AbstractCrudService {
         InterestRateMapper $interestRateMapper,
         CurrencyConversionService $conversionService,
         GranularShareService $granularShareService,
+        TransactionService $transactionService,
         IL10N $l,
         ?AutoShareService $autoShareService = null
     ) {
@@ -39,6 +42,7 @@ class AccountService extends AbstractCrudService {
         $this->interestRateMapper = $interestRateMapper;
         $this->conversionService = $conversionService;
         $this->granularShareService = $granularShareService;
+        $this->transactionService = $transactionService;
         $this->l = $l;
         $this->autoShareService = $autoShareService;
     }
@@ -98,13 +102,45 @@ class AccountService extends AbstractCrudService {
      * @inheritDoc
      */
     protected function beforeDelete(Entity $entity, string $userId): void {
-        // Check if account has transactions
+        // Check if account has transactions. Typed and counted so the controller
+        // can offer to delete the ledger along with the account and retry (#336).
         $transactions = $this->transactionMapper->findByAccount($entity->getId(), $userId, 1);
         if (!empty($transactions)) {
-            throw new \Exception($this->l->t('Cannot delete account with existing transactions. Please delete all transactions first.'));
+            throw new AccountInUseException(
+                $this->l->t('Cannot delete account with existing transactions. Please delete all transactions first.'),
+                $this->transactionMapper->countByAccount($entity->getId(), $userId)
+            );
         }
         // Clean up interest rate records
         $this->interestRateMapper->deleteByAccount($entity->getId(), $userId);
+    }
+
+    /**
+     * Delete an account together with every transaction in it, so an account
+     * that came in through a bad import can be removed without emptying its
+     * ledger by hand first (#336).
+     *
+     * Each transaction goes through TransactionService::delete() so counterpart
+     * transfer legs get unlinked and tags, expense shares, attachment references
+     * and pension links are cleaned up the same way as a single delete. Import
+     * IDs are not dismissed and balances are not recomputed — both describe an
+     * account that is about to cease to exist.
+     *
+     * @return int Number of transactions deleted
+     */
+    public function deleteWithTransactions(int $id, string $userId): int {
+        // Ownership check (throws if not found / not the user's).
+        $this->find($id, $userId);
+
+        $transactionIds = $this->transactionMapper->findIdsByAccount($id, $userId);
+        foreach ($transactionIds as $transactionId) {
+            $this->transactionService->delete($transactionId, $userId, false, false);
+        }
+
+        // The ledger is empty now, so beforeDelete()'s guard passes.
+        $this->delete($id, $userId);
+
+        return count($transactionIds);
     }
 
     /**

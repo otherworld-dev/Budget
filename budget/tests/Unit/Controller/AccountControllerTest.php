@@ -686,6 +686,50 @@ class AccountControllerTest extends TestCase {
 		$this->assertSame('success', $response->getData()['status']);
 	}
 
+	public function testDestroyReturnsConflictWithCodeAndCountWhenAccountInUse(): void {
+		// An account with transactions returns a machine-readable code and the
+		// count so the client can offer to delete them too and retry (#336).
+		$this->service->method('find')->with(1, 'user1')->willReturn($this->makeAccount());
+		$this->service->method('delete')->willThrowException(
+			new \OCA\Budget\Exception\AccountInUseException('existing transactions', 7)
+		);
+
+		$response = $this->controller->destroy(1);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('has_transactions', $response->getData()['code']);
+		$this->assertSame(7, $response->getData()['transactionCount']);
+		$this->assertSame('existing transactions', $response->getData()['error']);
+	}
+
+	public function testDestroyDeletesTransactionsWhenRequested(): void {
+		$this->service->method('find')->with(1, 'user1')->willReturn($this->makeAccount());
+		$this->service->expects($this->never())->method('delete');
+		$this->service->expects($this->once())
+			->method('deleteWithTransactions')
+			->with(1, 'user1')
+			->willReturn(3);
+		$this->auditService->expects($this->once())->method('logAccountDeleted');
+		$this->auditService->expects($this->once())->method('log');
+
+		$response = $this->controller->destroy(1, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(3, $response->getData()['deletedTransactions']);
+	}
+
+	public function testDestroyWithoutTransactionsSkipsTheBulkAuditEntry(): void {
+		$this->service->method('find')->with(1, 'user1')->willReturn($this->makeAccount());
+		$this->service->method('deleteWithTransactions')->willReturn(0);
+		$this->auditService->expects($this->once())->method('logAccountDeleted');
+		$this->auditService->expects($this->never())->method('log');
+
+		$response = $this->controller->destroy(1, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(0, $response->getData()['deletedTransactions']);
+	}
+
 	public function testDestroyReturnsNotFoundOnError(): void {
 		$this->service->method('find')->willThrowException(
 			new \OCP\AppFramework\Db\DoesNotExistException('not found')

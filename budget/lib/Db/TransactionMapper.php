@@ -434,6 +434,48 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * How many transactions belong to an account. Reported alongside the
+     * "account still has transactions" conflict so the client can name the
+     * number before offering to delete them too (#336).
+     */
+    public function countByAccount(int $accountId, string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias($qb->createFunction('COUNT(*)'), 'cnt')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+
+        $result = $qb->executeQuery();
+        $count = (int) $result->fetchOne();
+        $result->closeCursor();
+
+        return $count;
+    }
+
+    /**
+     * IDs of every transaction in an account, so the whole ledger can be
+     * deleted along with the account (#336). User-scoped through the account
+     * ownership join, like findByAccount().
+     *
+     * @return int[]
+     */
+    public function findIdsByAccount(int $accountId, string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.id')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+
+        $result = $qb->executeQuery();
+        $ids = array_map('intval', array_column($result->fetchAll(), 'id'));
+        $result->closeCursor();
+
+        return $ids;
+    }
+
+    /**
      * @return Transaction[]
      */
     /**

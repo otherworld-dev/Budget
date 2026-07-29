@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Deleting an account that still has transactions now offers to delete them too, instead of failing with an unhelpful message.** The delete failed with *"Failed to delete account: Failed to delete account"* — the real reason (the account still has transactions) was being replaced by a generic message on its way to the browser. The prompt now says how many transactions the account has and offers to remove them along with it, which makes a bad import easy to undo; decline and nothing is deleted. Transfers pointing at the deleted transactions are unlinked, leaving the counterpart in the other account intact ([#336](https://github.com/otherworld-dev/Budget/issues/336))
+
 ## [2.40.0] - 2026-07-26
 
 ### Added

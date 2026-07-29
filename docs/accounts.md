@@ -160,6 +160,10 @@ The adjustment transaction is created with the description "Reconciliation Adjus
 
 To delete an account, open the account detail view and choose the delete option.
 
+If the account still has transactions, the app tells you how many and asks whether to delete them along with the account. Confirm to remove both in one step -- useful when an import went wrong and you want to start over. Decline, and nothing is deleted; you can then clean up the transactions yourself from the **Transactions** page (filter by the account, select all, and use **Delete Selected**).
+
+Deleting an account's transactions also unlinks any transfers that pointed at them. The counterpart transaction in the other account is kept -- it simply stops being marked as a transfer.
+
 > **Warning:** Deleting an account permanently removes the account and all of its transactions. This action cannot be undone. If you want to keep historical data, consider archiving the account by renaming it (e.g., "Old Checking - Closed") rather than deleting it.
 
 ## Related Features

@@ -574,7 +574,14 @@ class TransactionService {
         }
     }
 
-    public function delete(int $id, string $userId, bool $dismiss = true): void {
+    /**
+     * @param bool $recalculate Recompute the account balance afterwards. Only
+     *                          set false when the account itself is being
+     *                          deleted, so clearing its ledger doesn't run one
+     *                          SUM-and-update per row for a balance nobody will
+     *                          read again (#336).
+     */
+    public function delete(int $id, string $userId, bool $dismiss = true, bool $recalculate = true): void {
         $transaction = $this->find($id, $userId);
 
         // Deleting a reconciled transaction breaks past statement
@@ -621,7 +628,9 @@ class TransactionService {
         $this->mapper->delete($transaction);
 
         // Recompute from the ledger now that the row is gone
-        $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
+        if ($recalculate) {
+            $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
+        }
     }
 
     /**
