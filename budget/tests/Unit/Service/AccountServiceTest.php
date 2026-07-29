@@ -213,11 +213,12 @@ class AccountServiceTest extends TestCase {
         $deleted = [];
         $this->transactionService->expects($this->exactly(3))
             ->method('delete')
-            ->willReturnCallback(function (int $id, string $userId, bool $dismiss, bool $recalculate) use (&$deleted): void {
+            ->willReturnCallback(function (int $id, string $userId, bool $dismiss, bool $recalculate) use (&$deleted): int {
                 $this->assertSame('user1', $userId);
                 $this->assertFalse($dismiss);
                 $this->assertFalse($recalculate);
                 $deleted[] = $id;
+                return 1;
             });
 
         $this->accountMapper->expects($this->once())

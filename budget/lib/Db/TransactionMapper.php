@@ -909,6 +909,45 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * IDs of every transaction matching the given filters — the unpaginated
+     * counterpart of findWithFilters() (same user scope, same filter builder),
+     * used by the client's "select all matching" bulk selection. Also counts
+     * bill-generated rows so the delete confirmation can warn about them.
+     *
+     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+     * @return array{ids: int[], billCount: int}
+     */
+    public function findIdsWithFilters(string $userId, array $filters, ?array $visibleAccountIds = null): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.id', 't.bill_id')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // List/search views still show excluded accounts' transactions (#286)
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
+
+        $this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
+
+        $result = $qb->executeQuery();
+        // Deduplicate: the tag filter's inner join can emit a row per matching tag
+        $ids = [];
+        $billCount = 0;
+        while ($row = $result->fetch()) {
+            $id = (int)$row['id'];
+            if (isset($ids[$id])) {
+                continue;
+            }
+            $ids[$id] = true;
+            if (!empty($row['bill_id'])) {
+                $billCount++;
+            }
+        }
+        $result->closeCursor();
+
+        return ['ids' => array_keys($ids), 'billCount' => $billCount];
+    }
+
+    /**
      * Get spending summary by category for a period
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags

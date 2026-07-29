@@ -102,6 +102,7 @@ Bulk mode lets you act on multiple transactions at once. Click **Bulk Actions** 
 - Check individual transaction checkboxes to select specific transactions.
 - Use the **select all** checkbox in the table header to select all visible transactions on the current page.
 - The header checkbox shows an indeterminate state when some (but not all) transactions are selected.
+- When more transactions match the current filter than fit on the page, selecting the whole page offers **Select all N matching transactions** — click it to extend the selection to every matching transaction across all pages (useful for cleaning up a bad import in one pass). Changing the filter clears such a selection, so a bulk action never includes rows you are no longer looking at.
 
 ### Available Bulk Actions
 

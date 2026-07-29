@@ -121,6 +121,61 @@ class TransactionController extends Controller {
     }
 
     /**
+     * All transaction IDs matching the given filters (no pagination), for the
+     * transactions list's "select all matching" bulk selection. Same filter
+     * semantics and account scoping as index(). billCount reports how many of
+     * the matches were auto-generated from bills, so the client can warn
+     * before a bulk delete.
+     *
+     * @NoAdminRequired
+     */
+    public function ids(
+        ?int $accountId = null,
+        ?string $search = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        ?string $createdAtFrom = null,
+        ?string $createdAtTo = null,
+        ?string $category = null,
+        ?string $type = null,
+        ?float $amountMin = null,
+        ?float $amountMax = null,
+        ?string $status = null,
+        ?array $tagIds = null,
+        ?bool $reconciled = null,
+        ?bool $excludeShared = null
+    ): DataResponse {
+        try {
+            $filters = [
+                'accountId' => $accountId,
+                'search' => $search,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'createdAtFrom' => $createdAtFrom,
+                'createdAtTo' => $createdAtTo,
+                'category' => $category,
+                'type' => $type,
+                'amountMin' => $amountMin,
+                'amountMax' => $amountMax,
+                'status' => $status,
+                'tagIds' => $tagIds,
+                'reconciled' => $reconciled,
+            ];
+
+            $visibleAccountIds = $this->getEffectiveAccountIds((bool)$excludeShared);
+            $result = $this->service->findIdsWithFilters($this->userId, $filters, $visibleAccountIds);
+
+            return new DataResponse([
+                'ids' => $result['ids'],
+                'total' => count($result['ids']),
+                'billCount' => $result['billCount'],
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to retrieve transactions'));
+        }
+    }
+
+    /**
      * @NoAdminRequired
      */
     public function show(int $id): DataResponse {

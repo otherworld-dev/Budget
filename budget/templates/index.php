@@ -1592,6 +1592,12 @@ style('budget', 'budget-app');
                 </div>
             </div>
 
+            <!-- Cross-page "select all matching" offer/status (populated by JS) -->
+            <div id="select-all-matching-banner" class="select-all-matching-banner" style="display: none;">
+                <span id="select-all-matching-text"></span>
+                <button id="select-all-matching-btn" class="secondary"></button>
+            </div>
+
             <!-- Reconciliation Panel -->
             <div id="reconcile-panel" class="reconcile-panel" style="display: none;">
                 <div class="reconcile-info">

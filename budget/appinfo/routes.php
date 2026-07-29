@@ -52,6 +52,7 @@ return [
         ['name' => 'transaction#index', 'url' => '/api/transactions', 'verb' => 'GET'],
         ['name' => 'transaction#create', 'url' => '/api/transactions', 'verb' => 'POST'],
         ['name' => 'transaction#search', 'url' => '/api/transactions/search', 'verb' => 'GET'],
+        ['name' => 'transaction#ids', 'url' => '/api/transactions/ids', 'verb' => 'GET'],
         ['name' => 'transaction#uncategorized', 'url' => '/api/transactions/uncategorized', 'verb' => 'GET'],
         ['name' => 'transaction#bulkCategorize', 'url' => '/api/transactions/bulk-categorize', 'verb' => 'POST'],
         ['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],

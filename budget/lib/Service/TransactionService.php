@@ -537,9 +537,15 @@ class TransactionService {
         // Recompute affected account balances from the ledger. This replaces the
         // old hand-computed delta branches (account move / status flips / amount
         // or type edits), every one of which was a historical drift source.
-        $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
-        if ($accountChanging) {
-            $this->recalculateAccountBalance($oldAccountId, $userId);
+        // A balance is a function of amount, type, status and account only (see
+        // getNetChangeAll()), so metadata-only updates — category, vendor,
+        // reference, notes, reconciled, date — skip the full-ledger SUM; a
+        // cross-page bulk reconcile/edit would otherwise run it once per row.
+        if (array_intersect(['amount', 'type', 'accountId', 'status'], array_keys($updates)) !== []) {
+            $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
+            if ($accountChanging) {
+                $this->recalculateAccountBalance($oldAccountId, $userId);
+            }
         }
 
         return $transaction;
@@ -576,12 +582,14 @@ class TransactionService {
 
     /**
      * @param bool $recalculate Recompute the account balance afterwards. Only
-     *                          set false when the account itself is being
-     *                          deleted, so clearing its ledger doesn't run one
-     *                          SUM-and-update per row for a balance nobody will
-     *                          read again (#336).
+     *                          set false when the balance doesn't need it row by
+     *                          row: the account itself is being deleted (#336),
+     *                          or a bulk delete recomputes once per affected
+     *                          account at the end instead of once per row.
+     * @return int The deleted transaction's account ID, so bulk callers can
+     *             batch that one-recalculation-per-affected-account
      */
-    public function delete(int $id, string $userId, bool $dismiss = true, bool $recalculate = true): void {
+    public function delete(int $id, string $userId, bool $dismiss = true, bool $recalculate = true): int {
         $transaction = $this->find($id, $userId);
 
         // Deleting a reconciled transaction breaks past statement
@@ -631,6 +639,8 @@ class TransactionService {
         if ($recalculate) {
             $this->recalculateAccountBalance($transaction->getAccountId(), $userId);
         }
+
+        return $transaction->getAccountId();
     }
 
     /**
@@ -731,6 +741,17 @@ class TransactionService {
         return $result;
     }
 
+    /**
+     * IDs (plus bill-generated count) of all transactions matching the filters,
+     * for cross-page "select all matching" bulk selection.
+     *
+     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+     * @return array{ids: int[], billCount: int}
+     */
+    public function findIdsWithFilters(string $userId, array $filters, ?array $visibleAccountIds = null): array {
+        return $this->mapper->findIdsWithFilters($userId, $filters, $visibleAccountIds);
+    }
+
     public function bulkCategorize(string $userId, array $updates): array {
         $results = ['success' => 0, 'failed' => 0];
 
@@ -747,14 +768,20 @@ class TransactionService {
     }
 
     /**
-     * Bulk delete transactions
+     * Bulk delete transactions.
+     *
+     * Balances are recomputed once per affected account after all rows are
+     * gone, not per row — a per-row recompute is a SUM over the whole ledger,
+     * which made "select all matching" deletes of imported accounts crawl.
      */
     public function bulkDelete(string $userId, array $ids): array {
         $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+        $affectedAccountIds = [];
 
         foreach ($ids as $id) {
             try {
-                $this->delete($id, $userId);
+                $accountId = $this->delete($id, $userId, true, false);
+                $affectedAccountIds[$accountId] = true;
                 $results['success']++;
             } catch (\Exception $e) {
                 $results['failed']++;
@@ -763,6 +790,10 @@ class TransactionService {
                     'message' => $e->getMessage()
                 ];
             }
+        }
+
+        foreach (array_keys($affectedAccountIds) as $accountId) {
+            $this->recalculateAccountBalance($accountId, $userId);
         }
 
         return $results;

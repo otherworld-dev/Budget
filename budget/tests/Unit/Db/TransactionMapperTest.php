@@ -406,6 +406,32 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals('USD', $result['transactions'][0]['accountCurrency']);
     }
 
+    // ===== findIdsWithFilters =====
+
+    public function testFindIdsWithFiltersDedupesAndCountsBills(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            ['id' => 1, 'bill_id' => null],
+            ['id' => 2, 'bill_id' => 7],
+            // Duplicate row (the tag filter's join emits one per matching tag) —
+            // must not double-select or double-count the bill
+            ['id' => 2, 'bill_id' => 7],
+            ['id' => 3, 'bill_id' => null],
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $filters = ['accountId' => 10];
+        $this->filterBuilder->expects($this->once())
+            ->method('applyTransactionFilters')
+            ->with($this->qb, $filters, 't');
+
+        $result = $this->mapper->findIdsWithFilters('user1', $filters);
+
+        $this->assertSame([1, 2, 3], $result['ids']);
+        $this->assertSame(1, $result['billCount']);
+    }
+
     // ===== getSpendingByVendor =====
 
     public function testGetSpendingByVendorReturnsFormattedArray(): void {

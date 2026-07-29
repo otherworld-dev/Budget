@@ -27,6 +27,9 @@ export default class TransactionsModule {
         this.app.currentPage = 1;
         this.app.rowsPerPage = 25;
         this.selectedTransactions = new Set();
+        // Non-null while the selection covers every transaction matching the
+        // current filter (cross-page "select all matching"): { total, billCount }
+        this.allMatchingSelection = null;
         this.selectedFilterTags = new Set();
         this.allFilterTagSets = null;
         this.reconcileMode = false;
@@ -150,6 +153,19 @@ export default class TransactionsModule {
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', () => {
                 this.bulkDeleteTransactions();
+            });
+        }
+
+        // Cross-page selection banner: extends a full-page selection to every
+        // match, or clears the every-match selection once one is active
+        const selectAllMatchingBtn = document.getElementById('select-all-matching-btn');
+        if (selectAllMatchingBtn) {
+            selectAllMatchingBtn.addEventListener('click', () => {
+                if (this.allMatchingSelection) {
+                    this.cancelBulkMode();
+                } else {
+                    this.selectAllMatchingTransactions();
+                }
             });
         }
 
@@ -568,7 +584,23 @@ export default class TransactionsModule {
         }
     }
 
+    /**
+     * An every-match selection is defined by the filter it was made under —
+     * once the filter changes it would silently keep rows the user no longer
+     * sees, so drop the whole selection rather than risk a surprise bulk op.
+     */
+    resetAllMatchingSelectionOnFilterChange() {
+        if (this.allMatchingSelection) {
+            this.allMatchingSelection = null;
+            this.selectedTransactions.clear();
+            const selectAll = document.getElementById('select-all-transactions');
+            if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+            this.updateBulkActionsState();
+        }
+    }
+
     updateFilters() {
+        this.resetAllMatchingSelectionOnFilterChange();
         this.app.transactionFilters = {
             account: document.getElementById('filter-account')?.value || '',
             category: document.getElementById('filter-category')?.value || '',
@@ -594,6 +626,7 @@ export default class TransactionsModule {
     }
 
     clearFilters() {
+        this.resetAllMatchingSelectionOnFilterChange();
         const filterInputs = [
             'filter-account', 'filter-category', 'filter-type', 'filter-status', 'filter-reconciled',
             'filter-date-from', 'filter-date-to',
@@ -661,6 +694,7 @@ export default class TransactionsModule {
         bulkPanel.style.display = 'none';
         bulkBtn.classList.remove('active');
         this.selectedTransactions.clear();
+        this.allMatchingSelection = null;
         // Uncheck any selected rows in place. The select column is always
         // visible, so a full reload is unnecessary — and a reload here used
         // to desync the persistent header cell from regenerated rows,
@@ -669,10 +703,12 @@ export default class TransactionsModule {
         const selectAll = document.getElementById('select-all-transactions');
         if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
         this.updateBulkActionsState();
+        this.refreshSelectAllBanner();
     }
 
     toggleAllTransactionSelection(checked) {
         this.selectedTransactions.clear();
+        this.allMatchingSelection = null;
 
         if (checked) {
             // Select all visible transactions
@@ -688,9 +724,13 @@ export default class TransactionsModule {
         }
 
         this.updateBulkActionsState();
+        this.refreshSelectAllBanner();
     }
 
     toggleTransactionSelection(transactionId, checked) {
+        // Any manual change means the selection no longer covers every match
+        this.allMatchingSelection = null;
+
         if (checked) {
             this.selectedTransactions.add(transactionId);
         } else {
@@ -708,6 +748,93 @@ export default class TransactionsModule {
         }
 
         this.updateBulkActionsState();
+        this.refreshSelectAllBanner();
+    }
+
+    /**
+     * Select every transaction matching the current filter, across all pages —
+     * offered when the header checkbox has selected a full page but more rows
+     * match (#336: bulk-deleting a bad import was capped at one page per pass).
+     */
+    async selectAllMatchingTransactions() {
+        const btn = document.getElementById('select-all-matching-btn');
+        if (btn) { btn.disabled = true; }
+
+        try {
+            const params = this.app.buildTransactionFilterParams();
+            const url = '/apps/budget/api/transactions/ids'
+                + (params.toString() ? '?' + params.toString() : '');
+            const response = await fetch(OC.generateUrl(url), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            // The filter may have changed while the fetch was in flight —
+            // installing the stale id set would select rows the user is no
+            // longer looking at, so drop the response instead
+            if (params.toString() !== this.app.buildTransactionFilterParams().toString()) {
+                return;
+            }
+
+            this.selectedTransactions = new Set(result.ids);
+            this.allMatchingSelection = { total: result.total, billCount: result.billCount };
+
+            document.querySelectorAll('.transaction-checkbox').forEach(cb => { cb.checked = true; });
+            const selectAll = document.getElementById('select-all-transactions');
+            if (selectAll) { selectAll.checked = true; selectAll.indeterminate = false; }
+
+            this.updateBulkActionsState();
+            this.refreshSelectAllBanner();
+        } catch (error) {
+            console.error('Select all matching failed:', error);
+            showError(t('budget', 'Failed to select all matching transactions'));
+        } finally {
+            if (btn) { btn.disabled = false; }
+        }
+    }
+
+    /**
+     * Show, update or hide the cross-page selection banner. Two states:
+     * an offer to extend a full-page selection to every match, and a status
+     * line (with an undo) while the every-match selection is active.
+     */
+    refreshSelectAllBanner() {
+        const banner = document.getElementById('select-all-matching-banner');
+        const textEl = document.getElementById('select-all-matching-text');
+        const btn = document.getElementById('select-all-matching-btn');
+        if (!banner || !textEl || !btn) {
+            return;
+        }
+
+        if (this.allMatchingSelection) {
+            textEl.textContent = t('budget', 'All {total} transactions matching the current filter are selected.', { total: this.allMatchingSelection.total });
+            btn.textContent = t('budget', 'Clear selection');
+            banner.style.display = 'flex';
+            return;
+        }
+
+        const selectAll = document.getElementById('select-all-transactions');
+        const visibleCount = document.querySelectorAll('.transaction-checkbox').length;
+        // Count checked boxes in the DOM, not the selection Set — after a page
+        // change the Set can still hold the previous page's ids while the new
+        // page renders unchecked, and the offer must not appear then
+        const checkedCount = document.querySelectorAll('.transaction-checkbox:checked').length;
+        const total = this.app.totalTransactions || 0;
+
+        if (selectAll?.checked && visibleCount > 0 && total > visibleCount
+            && checkedCount === visibleCount) {
+            textEl.textContent = n('budget', 'All %n transaction on this page is selected.', 'All %n transactions on this page are selected.', visibleCount);
+            btn.textContent = t('budget', 'Select all {total} matching transactions', { total });
+            banner.style.display = 'flex';
+            return;
+        }
+
+        banner.style.display = 'none';
     }
 
     updateBulkActionsState() {
@@ -751,8 +878,12 @@ export default class TransactionsModule {
             return;
         }
 
+        // For an every-match selection the ids endpoint counted bill-generated
+        // rows across all pages; the visible-rows count only covers this page
         const selected = this.transactions.filter(tx => this.selectedTransactions.has(tx.id));
-        const billCount = selected.filter(tx => tx.billId).length;
+        const billCount = this.allMatchingSelection
+            ? this.allMatchingSelection.billCount
+            : selected.filter(tx => tx.billId).length;
         let message = n('budget', 'Are you sure you want to delete %n transaction? This action cannot be undone.', 'Are you sure you want to delete %n transactions? This action cannot be undone.', this.selectedTransactions.size);
 
         if (billCount > 0) {
@@ -780,6 +911,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully deleted %n transaction', 'Successfully deleted %n transactions', result.success));
                 this.selectedTransactions.clear();
+                this.allMatchingSelection = null;
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
@@ -820,6 +952,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully reconciled %n transaction', 'Successfully reconciled %n transactions', result.success));
                 this.selectedTransactions.clear();
+                this.allMatchingSelection = null;
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
@@ -860,6 +993,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully unreconciled %n transaction', 'Successfully unreconciled %n transactions', result.success));
                 this.selectedTransactions.clear();
+                this.allMatchingSelection = null;
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
             }
@@ -947,6 +1081,7 @@ export default class TransactionsModule {
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully updated %n transaction', 'Successfully updated %n transactions', result.success));
                 this.selectedTransactions.clear();
+                this.allMatchingSelection = null;
                 this.app.currentPage = 1;
                 this.app.loadTransactions();
 

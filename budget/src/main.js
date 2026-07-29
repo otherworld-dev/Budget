@@ -1328,6 +1328,63 @@ class BudgetApp {
         return this.transactionsModule.handleBulkMatchLink(transactionId, index);
     }
 
+    /**
+     * Current filter set as URL query params — shared by loadTransactions()
+     * and the "select all matching" ids fetch so the two can never disagree
+     * about what "matching" means.
+     */
+    buildTransactionFilterParams(accountId = null) {
+        const params = new URLSearchParams();
+
+        const filterAccountId = accountId || this.transactionFilters?.account;
+        if (filterAccountId) {
+            params.append('accountId', filterAccountId);
+        }
+
+        // All filter parameters supported by the backend
+        if (this.transactionFilters?.search) {
+            params.append('search', this.transactionFilters.search);
+        }
+        if (this.transactionFilters?.dateFrom) {
+            params.append('dateFrom', this.transactionFilters.dateFrom);
+        }
+        if (this.transactionFilters?.dateTo) {
+            params.append('dateTo', this.transactionFilters.dateTo);
+        }
+        if (this.transactionFilters?.createdAtFrom) {
+            params.append('createdAtFrom', this.transactionFilters.createdAtFrom);
+        }
+        if (this.transactionFilters?.createdAtTo) {
+            params.append('createdAtTo', this.transactionFilters.createdAtTo);
+        }
+        if (this.transactionFilters?.category) {
+            params.append('category', this.transactionFilters.category);
+        }
+        if (this.transactionFilters?.type) {
+            params.append('type', this.transactionFilters.type);
+        }
+        if (this.transactionFilters?.amountMin) {
+            params.append('amountMin', this.transactionFilters.amountMin);
+        }
+        if (this.transactionFilters?.amountMax) {
+            params.append('amountMax', this.transactionFilters.amountMax);
+        }
+        if (this.transactionFilters?.status) {
+            params.append('status', this.transactionFilters.status);
+        }
+        // Reconciliation-status filter (#301): 'yes' -> true, 'no' -> false, '' -> all
+        if (this.transactionFilters?.reconciled === 'yes' || this.transactionFilters?.reconciled === 'no') {
+            params.append('reconciled', this.transactionFilters.reconciled === 'yes' ? 'true' : 'false');
+        }
+        if (this.transactionFilters?.tagIds && this.transactionFilters.tagIds.length > 0) {
+            this.transactionFilters.tagIds.forEach(tagId => {
+                params.append('tagIds[]', tagId);
+            });
+        }
+
+        return params;
+    }
+
     async loadTransactions(accountId = null) {
         try {
             // Refresh tag filter if panel is open
@@ -1341,56 +1398,7 @@ class BudgetApp {
             // Build query parameters - start with basic compatibility
             let url = '/apps/budget/api/transactions?limit=' + this.rowsPerPage + '&page=' + this.currentPage;
 
-            // Add account filter if provided
-            if (accountId) {
-                url += `&accountId=${accountId}`;
-            } else if (this.transactionFilters?.account) {
-                url += `&accountId=${this.transactionFilters.account}`;
-            }
-
-            // Try to add enhanced parameters, but don't break if backend doesn't support them
-            const params = new URLSearchParams();
-
-            // All filter parameters supported by the backend
-            if (this.transactionFilters?.search) {
-                params.append('search', this.transactionFilters.search);
-            }
-            if (this.transactionFilters?.dateFrom) {
-                params.append('dateFrom', this.transactionFilters.dateFrom);
-            }
-            if (this.transactionFilters?.dateTo) {
-                params.append('dateTo', this.transactionFilters.dateTo);
-            }
-            if (this.transactionFilters?.createdAtFrom) {
-                params.append('createdAtFrom', this.transactionFilters.createdAtFrom);
-            }
-            if (this.transactionFilters?.createdAtTo) {
-                params.append('createdAtTo', this.transactionFilters.createdAtTo);
-            }
-            if (this.transactionFilters?.category) {
-                params.append('category', this.transactionFilters.category);
-            }
-            if (this.transactionFilters?.type) {
-                params.append('type', this.transactionFilters.type);
-            }
-            if (this.transactionFilters?.amountMin) {
-                params.append('amountMin', this.transactionFilters.amountMin);
-            }
-            if (this.transactionFilters?.amountMax) {
-                params.append('amountMax', this.transactionFilters.amountMax);
-            }
-            if (this.transactionFilters?.status) {
-                params.append('status', this.transactionFilters.status);
-            }
-            // Reconciliation-status filter (#301): 'yes' -> true, 'no' -> false, '' -> all
-            if (this.transactionFilters?.reconciled === 'yes' || this.transactionFilters?.reconciled === 'no') {
-                params.append('reconciled', this.transactionFilters.reconciled === 'yes' ? 'true' : 'false');
-            }
-            if (this.transactionFilters?.tagIds && this.transactionFilters.tagIds.length > 0) {
-                this.transactionFilters.tagIds.forEach(tagId => {
-                    params.append('tagIds[]', tagId);
-                });
-            }
+            const params = this.buildTransactionFilterParams(accountId);
 
             // Add sorting parameters
             if (this.currentSort) {
@@ -1415,6 +1423,9 @@ class BudgetApp {
             const result = await response.json();
             this.transactions = Array.isArray(result) ? result : (result.transactions || result);
             this.runningBalances = result.runningBalances ?? null;
+            // Total matching the current filter across all pages — drives the
+            // "select all N matching" offer in bulk selection
+            this.totalTransactions = result.total ?? this.transactions.length;
 
             // Load tags, shared status and attachment counts for all displayed transactions
             await Promise.all([
@@ -1437,6 +1448,10 @@ class BudgetApp {
             // Update enhanced UI elements if they exist
             this.updateTransactionsSummary(result);
             this.updatePagination(result);
+            // Keep the cross-page selection banner in step with the new page:
+            // an active every-match selection stays announced, a stale
+            // one-page offer disappears
+            this.transactionsModule.refreshSelectAllBanner();
 
         } catch (error) {
             console.error('Failed to load transactions:', error);

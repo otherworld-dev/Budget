@@ -101,6 +101,35 @@ class TransactionControllerTest extends TestCase {
 		$this->assertEquals(5, $data['totalPages']);
 	}
 
+	// ── ids ─────────────────────────────────────────────────────────
+
+	public function testIdsReturnsAllMatchingIds(): void {
+		$this->service->expects($this->once())
+			->method('findIdsWithFilters')
+			->with(
+				'user1',
+				$this->callback(fn ($filters) => $filters['accountId'] === 10 && $filters['type'] === 'debit'),
+				$this->anything()
+			)
+			->willReturn(['ids' => [1, 2, 3], 'billCount' => 2]);
+
+		$response = $this->controller->ids(accountId: 10, type: 'debit');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$data = $response->getData();
+		$this->assertSame([1, 2, 3], $data['ids']);
+		$this->assertSame(3, $data['total']);
+		$this->assertSame(2, $data['billCount']);
+	}
+
+	public function testIdsHandlesError(): void {
+		$this->service->method('findIdsWithFilters')->willThrowException(new \RuntimeException('error'));
+
+		$response = $this->controller->ids();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── show ────────────────────────────────────────────────────────
 
 	public function testShowReturnsTransaction(): void {

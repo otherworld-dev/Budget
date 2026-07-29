@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Select every transaction matching the current filter, not just one page.** Ticking the header checkbox on the Transactions list now offers *"Select all N matching transactions"* when more rows match than fit on the page, so a bulk delete or edit can cover thousands of rows in one go instead of 250 at a time. The selection is dropped if you change the filter, so a mass action can never silently include rows you're no longer looking at, and bulk deletes of many rows are much faster (the account balance is recomputed once per account instead of once per row) ([#336](https://github.com/otherworld-dev/Budget/issues/336))
+
 ### Fixed
 - **Deleting an account that still has transactions now offers to delete them too, instead of failing with an unhelpful message.** The delete failed with *"Failed to delete account: Failed to delete account"* — the real reason (the account still has transactions) was being replaced by a generic message on its way to the browser. The prompt now says how many transactions the account has and offers to remove them along with it, which makes a bad import easy to undo; decline and nothing is deleted. Transfers pointing at the deleted transactions are unlinked, leaving the counterpart in the other account intact ([#336](https://github.com/otherworld-dev/Budget/issues/336))
 

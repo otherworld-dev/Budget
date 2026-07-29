@@ -316,8 +316,9 @@ class TransactionServiceTest extends TestCase {
     }
 
     public function testUpdateRecalculatesBalanceFromLedger(): void {
-        // Any update recomputes from the ledger — amount/type/status edits all
-        // flow through the same recompute instead of separate delta branches.
+        // Balance-affecting updates recompute from the ledger — amount/type/
+        // status/account edits all flow through the same recompute instead of
+        // separate delta branches.
         $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
         $this->mapper->method('find')->willReturn($tx);
         $this->mapper->method('update')->willReturnArgument(0);
@@ -332,6 +333,37 @@ class TransactionServiceTest extends TestCase {
             ->with(10, '925.00', 'user1');
 
         $this->service->update(1, 'user1', ['amount' => 75.00]);
+    }
+
+    public function testUpdateMetadataOnlySkipsBalanceRecalc(): void {
+        // Category/vendor/notes/reconciled/date edits can't move a balance
+        // (it's a function of amount, type, status and account only — see
+        // getNetChangeAll()), so a cross-page bulk reconcile/edit must not run
+        // one full-ledger SUM per row.
+        $tx = $this->makeTransaction();
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $this->mapper->expects($this->never())->method('getNetChangeAll');
+        $this->accountMapper->expects($this->never())->method('updateBalance');
+
+        $this->service->update(1, 'user1', ['reconciled' => true, 'categoryId' => 5, 'vendor' => 'Shop']);
+    }
+
+    public function testUpdateDateOnScheduledRowStillRecalculates(): void {
+        // Moving a scheduled row's date to today auto-clears it — that status
+        // flip changes the balance, so the recompute must still run even
+        // though the caller only sent a date.
+        $tx = $this->makeTransaction();
+        $tx->setStatus('scheduled');
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+        $this->accountMapper->expects($this->once())->method('updateBalance');
+
+        $this->service->update(1, 'user1', ['date' => '2020-01-01']);
     }
 
     public function testRecalculateUsesAccountCurrencyPrecision(): void {
@@ -1067,6 +1099,70 @@ class TransactionServiceTest extends TestCase {
         $this->assertEquals(1, $result['failed']);
         $this->assertCount(1, $result['errors']);
         $this->assertEquals(999, $result['errors'][0]['id']);
+    }
+
+    public function testBulkDeleteRecalculatesOncePerAffectedAccount(): void {
+        $this->mapper->method('find')->willReturnCallback(function (int $id) {
+            return $this->makeTransaction([
+                'id' => $id,
+                'accountId' => $id === 3 ? 20 : 10,
+            ]);
+        });
+        $this->mapper->method('delete')->willReturnArgument(0);
+        $this->accountMapper->method('find')->willReturnCallback(
+            fn (int $accountId) => $this->makeAccount(['id' => $accountId])
+        );
+
+        // Three rows across two accounts → exactly two ledger SUMs, not
+        // one per deleted row ("select all matching" deletes whole imports)
+        $this->mapper->expects($this->exactly(2))
+            ->method('getNetChangeAll')
+            ->willReturn(0.0);
+        $this->accountMapper->expects($this->exactly(2))
+            ->method('updateBalance');
+
+        $result = $this->service->bulkDelete('user1', [1, 2, 3]);
+
+        $this->assertEquals(3, $result['success']);
+        $this->assertEquals(0, $result['failed']);
+    }
+
+    public function testBulkDeleteSkipsRecalcForFailedRowsAccount(): void {
+        $this->mapper->method('find')->willReturnCallback(function (int $id) {
+            if ($id === 999) {
+                throw new DoesNotExistException('Not found');
+            }
+            return $this->makeTransaction(['id' => $id]);
+        });
+        $this->mapper->method('delete')->willReturnArgument(0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+        // Only tx 1's account (10) gets recalculated; the failed id touches none
+        $this->mapper->expects($this->once())
+            ->method('getNetChangeAll')
+            ->with(10)
+            ->willReturn(0.0);
+        $this->accountMapper->expects($this->once())->method('updateBalance');
+
+        $result = $this->service->bulkDelete('user1', [1, 999]);
+
+        $this->assertEquals(1, $result['success']);
+        $this->assertEquals(1, $result['failed']);
+    }
+
+    // ===== findIdsWithFilters() =====
+
+    public function testFindIdsWithFiltersDelegatesToMapper(): void {
+        $filters = ['accountId' => 10, 'type' => 'debit'];
+        $this->mapper->expects($this->once())
+            ->method('findIdsWithFilters')
+            ->with('user1', $filters, [10, 20])
+            ->willReturn(['ids' => [1, 2, 3], 'billCount' => 1]);
+
+        $result = $this->service->findIdsWithFilters('user1', $filters, [10, 20]);
+
+        $this->assertSame([1, 2, 3], $result['ids']);
+        $this->assertSame(1, $result['billCount']);
     }
 
     // ===== bulkReconcile() =====
