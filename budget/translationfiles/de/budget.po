@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-29 21:12+0000\n"
-"PO-Revision-Date: 2026-07-25 04:01+0000\n"
+"PO-Revision-Date: 2026-07-31 15:01+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -4968,16 +4968,12 @@ msgstr ""
 "rückgängig gemacht werden."
 
 #: /app/src/modules/accounts/AccountsModule.js:2263
-#, fuzzy
-#| msgid ""
-#| "Are you sure you want to delete this account? This action cannot be "
-#| "undone."
 msgid ""
 "This account still has {count} transaction(s). Delete them along with the "
 "account? This cannot be undone."
 msgstr ""
-"Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
-"rückgängig gemacht werden."
+"Dieses Konto enthält noch {count} Transaktion(en). Möchtest du sie zusammen "
+"mit dem Konto löschen? Dieser Vorgang kann nicht rückgängig gemacht werden."
 
 #: /app/src/modules/accounts/AccountsModule.js:2264
 #, fuzzy
@@ -6218,12 +6214,10 @@ msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1017
 #: /app/src/modules/categories/CategoriesModule.js:1046
-#, fuzzy
-#| msgid "Create tags to classify your transactions across all categories."
 msgid "Category deleted; its transactions are now Uncategorized"
 msgstr ""
-"Erstelle Stichwörter, um deine Buchungen in allen Kategorien zu "
-"klassifizieren."
+"Die Kategorie wurde gelöscht. Die zugehörigen Transaktionen wurden nach „"
+"Nicht kategorisiert“ verschoben"
 
 #: /app/src/modules/categories/CategoriesModule.js:1018
 #: /app/src/modules/categories/CategoriesModule.js:1047
@@ -6248,16 +6242,12 @@ msgstr ""
 "gemacht werden."
 
 #: /app/src/modules/categories/CategoriesModule.js:1081
-#, fuzzy
-#| msgid ""
-#| "Cannot delete account with existing transactions. Please delete all "
-#| "transactions first."
 msgid ""
 "This category still has transactions assigned to it. Move them to "
 "Uncategorized and delete \"{name}\"?"
 msgstr ""
-"Konto mit existierenden Buchungen kann nicht gelöscht werden. Bitte lösche "
-"zuerst alle Buchungen."
+"Dieser Kategorie sind noch Transaktionen zugeordnet. Sollen sie in „Nicht "
+"kategorisiert“ verschoben und „{name}“ gelöscht werden?"
 
 #: /app/src/modules/categories/CategoriesModule.js:1129
 msgid "%n selected"
@@ -6559,7 +6549,7 @@ msgstr "Zum aktuellen Kurs in {currency} umgerechnet"
 #: /app/src/modules/dashboard/DashboardModule.js:1825
 #: /app/src/utils/formatters.js:220
 msgid "Checking"
-msgstr "Girokonto"
+msgstr "Prüfe"
 
 #: /app/src/modules/dashboard/DashboardModule.js:883
 #: /app/src/modules/dashboard/DashboardModule.js:1826
@@ -7286,10 +7276,8 @@ msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:182
 #: /app/src/modules/import/ImportModule.js:517
-#, fuzzy
-#| msgid "Exchange Rates"
 msgid "Manage templates"
-msgstr "Wechselkurse"
+msgstr "Vorlagen verwalten"
 
 #: /app/src/modules/import/ImportModule.js:223
 msgid ""
@@ -8548,18 +8536,14 @@ msgid "Error: ActionBuilder not initialized"
 msgstr "Fehler: \"ActionBuilder\" wurde nicht initialisiert"
 
 #: /app/src/modules/rules/RulesModule.js:1353
-#, fuzzy
-#| msgid "No transactions to export"
 msgid "You have no rules to export."
-msgstr "Keine Buchungen zum Exportieren vorhanden"
+msgstr "Es sind keine Regeln zum Exportieren vorhanden."
 
 #: /app/src/modules/rules/RulesModule.js:1375
-#, fuzzy
-#| msgid "Import rule"
 msgid "Exported %n rule"
 msgid_plural "Exported %n rules"
-msgstr[0] "Importregel"
-msgstr[1] "Importregel"
+msgstr[0] "%n Regel exportiert"
+msgstr[1] "%n Regeln exportiert"
 
 #: /app/src/modules/rules/RulesModule.js:1392
 #, fuzzy
@@ -8584,12 +8568,10 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:1423
-#, fuzzy
-#| msgid "Import rule"
 msgid "Imported %n rule"
 msgid_plural "Imported %n rules"
-msgstr[0] "Importregel"
-msgstr[1] "Importregel"
+msgstr[0] "%n Regel importiert"
+msgstr[1] "%n Regeln importiert"
 
 #: /app/src/modules/rules/RulesModule.js:1493
 msgid "Invalid JSON: {error}"
@@ -9798,18 +9780,14 @@ msgid "Clear selection"
 msgstr "Suche leeren"
 
 #: /app/src/modules/transactions/TransactionsModule.js:831
-#, fuzzy
-#| msgid "No transactions in this category yet."
 msgid "All %n transaction on this page is selected."
 msgid_plural "All %n transactions on this page are selected."
-msgstr[0] "Noch keine Buchungen in dieser Kategorie."
-msgstr[1] "Noch keine Buchungen in dieser Kategorie."
+msgstr[0] "Die %n Transaktion auf dieser Seite ist ausgewählt."
+msgstr[1] "Alle %n Transaktionen auf dieser Seite sind ausgewählt."
 
 #: /app/src/modules/transactions/TransactionsModule.js:832
-#, fuzzy
-#| msgid "Failed to bulk match transactions"
 msgid "Select all {total} matching transactions"
-msgstr "Massenabgleich von Buchungen fehlgeschlagen"
+msgstr "Alle {total} passenden Transaktionen auswählen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:887
 msgid ""
