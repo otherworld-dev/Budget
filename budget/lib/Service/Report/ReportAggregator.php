@@ -12,6 +12,7 @@ use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\BudgetCarryoverService;
+use OCA\Budget\Service\BudgetScope;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
 
@@ -420,14 +421,16 @@ class ReportAggregator {
             : [];
 
         // Collect category IDs that have budgets (considering snapshots and
-        // envelope carryover, excluding excluded). A non-zero carryover keeps
+        // envelope carryover, skipping categories excluded from reports and
+        // those the user doesn't budget against). A non-zero carryover keeps
         // the category in the report even when its base is 0 — a depleted
         // envelope must show as over budget, not vanish.
         $categoryIds = [];
         $resolvedBudgets = [];
         $resolvedBases = [];
+        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
         foreach ($categories as $category) {
-            if ($category->getExcludedFromReports()) {
+            if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $catId = $category->getId();

@@ -27,6 +27,31 @@ class TransactionNormalizer {
         'd.m.y',
     ];
 
+    /**
+     * Values a mapped "type" column may hold, and the internal type each means.
+     * Anything not listed falls back to the amount's sign.
+     */
+    private const TYPE_WORDS = [
+        'credit' => 'credit',
+        'cr' => 'credit',
+        'c' => 'credit',
+        'income' => 'credit',
+        'deposit' => 'credit',
+        'deposits' => 'credit',
+        'refund' => 'credit',
+        'in' => 'credit',
+        'debit' => 'debit',
+        'dr' => 'debit',
+        'd' => 'debit',
+        'expense' => 'debit',
+        'expenses' => 'debit',
+        'withdrawal' => 'debit',
+        'withdrawals' => 'debit',
+        'payment' => 'debit',
+        'purchase' => 'debit',
+        'out' => 'debit',
+    ];
+
     /** @var string|null Cached date format detected from batch analysis */
     private ?string $detectedDateFormat = null;
 
@@ -92,6 +117,20 @@ class TransactionNormalizer {
             $amount = $this->parseAmount($transaction['amount']);
             $type = $amount >= 0 ? 'credit' : 'debit';
             $amount = abs($amount);
+
+            // A mapped type column wins over the amount's sign. Exports that
+            // carry an explicit "Expense"/"Income" column usually write every
+            // amount unsigned, so going by the sign alone books the whole file
+            // as income (#333).
+            $mappedType = $this->parseTypeValue($transaction['type'] ?? null);
+            if ($mappedType !== null) {
+                $type = $mappedType;
+            } elseif ($this->mapsColumn($mapping, 'type')) {
+                // A type column was mapped but this row's value was blank or
+                // unrecognized, so the row falls back to the sign. Mark it so
+                // the preview can say how many rows are guessing.
+                $transaction['_typeUnresolved'] = true;
+            }
         }
 
         // Ensure we have an amount
@@ -368,6 +407,38 @@ class TransactionNormalizer {
         }
         $parsed = \DateTime::createFromFormat($format, $date);
         return $parsed->format('Y-m-d');
+    }
+
+    /**
+     * Whether the mapping points a field at a real column, using the same rule
+     * as mapRowToTransaction's mapping loop (column 0 is valid; false/null/''
+     * are config flags or "not mapped").
+     */
+    private function mapsColumn(array $mapping, string $field): bool {
+        $column = $mapping[$field] ?? null;
+        return !is_bool($column) && $column !== null && $column !== '';
+    }
+
+    /**
+     * Resolve a mapped type column's value to an internal type.
+     *
+     * @param mixed $value Raw value from the row's type column
+     * @return string|null 'credit', 'debit', or null when nothing was mapped
+     *                     or the value isn't one we recognize, in which case
+     *                     the caller falls back to the amount's sign.
+     */
+    private function parseTypeValue(mixed $value): ?string {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        // Exports pad these with case and punctuation: "Expense", "DR.", " debit "
+        $normalized = strtolower(trim((string) $value, " \t\n\r\0\x0B.:;-_\"'"));
+        if ($normalized === '') {
+            return null;
+        }
+
+        return self::TYPE_WORDS[$normalized] ?? null;
     }
 
     /**

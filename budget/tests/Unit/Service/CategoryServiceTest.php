@@ -84,6 +84,7 @@ class CategoryServiceTest extends TestCase {
         $category->setColor($data['color']);
         $category->setBudgetAmount($data['budgetAmount']);
         $category->setSortOrder($data['sortOrder']);
+        $category->setExcludedFromBudget($data['excludedFromBudget'] ?? false);
         $category->setCreatedAt('2026-01-01 00:00:00');
         $category->setUpdatedAt('2026-01-01 00:00:00');
         return $category;
@@ -499,6 +500,37 @@ class CategoryServiceTest extends TestCase {
         $this->assertEquals('warning', $result[1]['status']);
         $this->assertEquals('danger', $result[2]['status']);
         $this->assertEquals('over', $result[3]['status']);
+    }
+
+    public function testGetBudgetAnalysisSkipsCategoriesExcludedFromBudget(): void {
+        // 2 is flagged, 3 is its child — neither may reach the budget analysis
+        $categories = [
+            $this->makeCategory(['id' => 1, 'name' => 'Food', 'budgetAmount' => 500.00]),
+            $this->makeCategory(['id' => 2, 'name' => 'Gifts', 'budgetAmount' => 200.00, 'excludedFromBudget' => true]),
+            $this->makeCategory(['id' => 3, 'name' => 'Presents', 'parentId' => 2, 'budgetAmount' => 100.00]),
+        ];
+        $this->categoryMapper->method('findAll')->willReturn($categories);
+
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturn([1 => 250.0, 2 => 400.0, 3 => 90.0]);
+
+        $result = $this->service->getBudgetAnalysis('user1', '2026-01');
+
+        $this->assertCount(1, $result);
+        $this->assertSame(1, $result[0]['category']->getId());
+    }
+
+    public function testResolveEffectiveBudgetsOmitsCategoriesExcludedFromBudget(): void {
+        $categories = [
+            $this->makeCategory(['id' => 1, 'budgetAmount' => 500.00]),
+            $this->makeCategory(['id' => 2, 'budgetAmount' => 200.00, 'excludedFromBudget' => true]),
+            $this->makeCategory(['id' => 3, 'parentId' => 2, 'budgetAmount' => 100.00]),
+        ];
+        $this->categoryMapper->method('findAll')->willReturn($categories);
+
+        $budgets = $this->service->resolveEffectiveBudgets('user1', '2026-01');
+
+        $this->assertSame([1], array_keys($budgets));
     }
 
     public function testGetBudgetAnalysisDefaultsToCurrentMonth(): void {

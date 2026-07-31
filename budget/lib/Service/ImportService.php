@@ -560,6 +560,8 @@ class ImportService {
         $skippedByPreset = 0;
         $hashCounts = [];
         $seenImportIds = [];
+        $directionCounts = [];
+        $unresolvedTypes = [];
 
         // Detect date format from all rows before processing individually (unless preset set it)
         if (!$preset) {
@@ -633,6 +635,18 @@ class ImportService {
                         'rowIndex' => $index,
                         'isDuplicate' => $isDuplicate,
                     ]);
+
+                    // Tally the direction each row will land on, post-rules, so
+                    // the preview can flag a batch that is about to go in the
+                    // wrong way (#333). Only existing accounts have a history
+                    // worth comparing against.
+                    $rowType = $transaction['type'] ?? '';
+                    if ($rowType !== '') {
+                        $directionCounts[$txAccountId][$rowType] = ($directionCounts[$txAccountId][$rowType] ?? 0) + 1;
+                    }
+                    if (!empty($transaction['_typeUnresolved'])) {
+                        $unresolvedTypes[$txAccountId] = ($unresolvedTypes[$txAccountId] ?? 0) + 1;
+                    }
 
                     if ($isDuplicate) {
                         $duplicates++;
@@ -718,7 +732,119 @@ class ImportService {
             $result['categoriesToCreate'] = $categoriesPreview;
         }
 
+        $directionWarnings = $this->buildDirectionWarnings($userId, $directionCounts, $unresolvedTypes);
+        if (!empty($directionWarnings)) {
+            $result['directionWarnings'] = $directionWarnings;
+        }
+
         return $result;
+    }
+
+    /**
+     * Flag destination accounts where this batch would land almost entirely on
+     * one side while the account's own history sits firmly on the other, and
+     * rows that fell back to the amount's sign because the mapped type column
+     * held nothing usable.
+     *
+     * A file whose amounts are all unsigned reads as income unless something
+     * says otherwise, which silently doubled one user's balance error against
+     * their bank (#333). The preview says so before anything is written.
+     *
+     * @param array<int, array<string, int>> $directionCounts Per-account credit/debit tallies
+     * @param array<int, int> $unresolvedTypes Per-account count of rows with an unusable type value
+     * @return array[] One entry per suspicious account
+     */
+    private function buildDirectionWarnings(string $userId, array $directionCounts, array $unresolvedTypes = []): array {
+        // Deliberately conservative: a handful of salary rows into a current
+        // account is normal, so only a sustained, near-total one-way batch
+        // against a decisively opposite history is worth interrupting for.
+        $minIncoming = 10;
+        $minExisting = 20;
+        $incomingShare = 0.95;
+        $existingShare = 0.80;
+
+        $warnings = [];
+        $accountIds = array_unique(array_merge(array_keys($directionCounts), array_keys($unresolvedTypes)));
+
+        foreach ($accountIds as $accountId) {
+            $counts = $directionCounts[$accountId] ?? [];
+            $credit = $counts['credit'] ?? 0;
+            $debit = $counts['debit'] ?? 0;
+            $incoming = $credit + $debit;
+            if ($incoming === 0) {
+                continue;
+            }
+
+            $accountName = null;
+
+            // 1. Rows the type column couldn't answer for. Precise and always
+            //    worth saying — those rows are going in on the amount's sign.
+            $unresolved = $unresolvedTypes[$accountId] ?? 0;
+            if ($unresolved > 0) {
+                $accountName ??= $this->accountNameFor((int) $accountId, $userId);
+                $warnings[] = [
+                    'kind' => 'unresolved-type',
+                    'accountId' => (int) $accountId,
+                    'accountName' => $accountName,
+                    'matching' => $unresolved,
+                    'total' => $incoming,
+                ];
+            }
+
+            // 2. A batch going almost entirely against the account's history.
+            if ($incoming < $minIncoming) {
+                continue;
+            }
+
+            // Which way is this batch going, and is it lopsided enough?
+            $batchType = $credit >= $debit ? 'credit' : 'debit';
+            $batchCount = $batchType === 'credit' ? $credit : $debit;
+            if ($batchCount / $incoming < $incomingShare) {
+                continue;
+            }
+
+            try {
+                $existing = $this->transactionMapper->countByTypeForAccount((int) $accountId, $userId);
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            $existingTotal = $existing['credit'] + $existing['debit'];
+            if ($existingTotal < $minExisting) {
+                continue;
+            }
+
+            // The account has to lean the other way, and lean hard.
+            $oppositeType = $batchType === 'credit' ? 'debit' : 'credit';
+            if ($existing[$oppositeType] / $existingTotal < $existingShare) {
+                continue;
+            }
+
+            $accountName ??= $this->accountNameFor((int) $accountId, $userId);
+            $warnings[] = [
+                'kind' => 'direction',
+                'accountId' => (int) $accountId,
+                'accountName' => $accountName,
+                'type' => $batchType,
+                'matching' => $batchCount,
+                'total' => $incoming,
+                'existingOppositePercent' => (int) round(($existing[$oppositeType] / $existingTotal) * 100),
+            ];
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Account name for a warning, empty when it can't be read — a warning is
+     * never worth failing a preview over.
+     */
+    private function accountNameFor(int $accountId, string $userId): string {
+        try {
+            return $this->accountMapper->find($accountId, $userId)->getName() ?? '';
+        } catch (\Exception $e) {
+            return '';
+        }
     }
 
     /**

@@ -220,6 +220,29 @@ class BudgetCarryoverServiceTest extends TestCase {
         $this->assertArrayNotHasKey(1, $result);
     }
 
+    public function testExcludedFromBudgetExcluded(): void {
+        $this->directSpending = [1 => ['2026-03' => 100.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-06', [
+            $this->makeCategory(['excludedFromBudget' => true]),
+        ]);
+
+        $this->assertArrayNotHasKey(1, $result);
+    }
+
+    public function testChildOfExcludedFromBudgetParentExcluded(): void {
+        // The flag applies to the whole subtree, so a rollover-enabled child of
+        // an excluded parent carries nothing either
+        $this->directSpending = [2 => ['2026-03' => 100.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-06', [
+            $this->makeCategory(['id' => 1, 'excludedFromBudget' => true, 'budgetRollover' => false]),
+            $this->makeCategory(['id' => 2, 'parentId' => 1]),
+        ]);
+
+        $this->assertArrayNotHasKey(2, $result);
+    }
+
     public function testRecurringFallbackOnlyForCurrentAndFutureMonths(): void {
         // Manual budget 0; recurring 200/month. Chain Mar..Jun targeting July.
         // Past months (Mar–May) get base 0 (inactive), current month (June)

@@ -94,6 +94,8 @@ class BudgetAlertServiceTest extends TestCase {
         $cat->setType($data['type']);
         $cat->setBudgetAmount($data['budgetAmount']);
         $cat->setBudgetPeriod($data['budgetPeriod']);
+        $cat->setParentId($data['parentId'] ?? null);
+        $cat->setExcludedFromBudget($data['excludedFromBudget'] ?? false);
 
         return $cat;
     }
@@ -160,6 +162,30 @@ class BudgetAlertServiceTest extends TestCase {
         $alerts = $this->service->getAlerts(self::USER_ID);
         $this->assertCount(1, $alerts);
         $this->assertSame('danger', $alerts[0]['severity']);
+    }
+
+    // ===== Categories excluded from budgeting =====
+
+    public function testExcludedFromBudgetCategoryHasNoStatusOrAlert(): void {
+        // Over budget, but the user doesn't budget against it: no status, no alert
+        $category = $this->makeCategory(['budgetAmount' => 100.0, 'excludedFromBudget' => true]);
+        $this->setupMocksForBudgetStatus([$category], 500.0);
+
+        $this->assertSame([], $this->service->getBudgetStatus(self::USER_ID));
+        $this->assertSame([], $this->service->getAlerts(self::USER_ID));
+    }
+
+    public function testExcludedFromBudgetParentAlsoSilencesItsChildren(): void {
+        // Flagging a parent takes the whole subtree out of budgeting
+        $parent = $this->makeCategory(['id' => 1, 'excludedFromBudget' => true]);
+        $child = $this->makeCategory(['id' => 2, 'name' => 'Presents', 'parentId' => 1]);
+        $other = $this->makeCategory(['id' => 3, 'name' => 'Fuel']);
+        $this->setupMocksForBudgetStatus([$parent, $child, $other], 500.0);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame(3, $statuses[0]['categoryId']);
     }
 
     // ===== Over-budget boundary (#293) =====

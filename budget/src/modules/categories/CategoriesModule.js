@@ -925,9 +925,11 @@ export default class CategoriesModule {
         const parentSelect = document.getElementById('category-parent');
         const typeSelect = document.getElementById('category-type');
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
+        const notBudgetedCheckbox = document.getElementById('category-excluded-from-budget');
         if (parentSelect) parentSelect.disabled = false;
         if (typeSelect) typeSelect.disabled = false;
         if (excludedCheckbox) excludedCheckbox.disabled = false;
+        if (notBudgetedCheckbox) notBudgetedCheckbox.disabled = false;
 
         // Set category type BEFORE populating parent dropdown so it filters correctly
         if (typeSelect && this.currentCategoryType) {
@@ -976,13 +978,16 @@ export default class CategoriesModule {
 
         // For write-shared categories, lock fields that belong to the owner —
         // recipients may edit only name and colour. Structural fields (type,
-        // parent) and report-scope (excludedFromReports) stay owner-only.
+        // parent) and the scope flags (excludedFromReports, excludedFromBudget)
+        // stay owner-only.
         const parentSelect = document.getElementById('category-parent');
         const typeSelect = document.getElementById('category-type');
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
+        const notBudgetedCheckbox = document.getElementById('category-excluded-from-budget');
         if (parentSelect) parentSelect.disabled = isWriteShared;
         if (typeSelect) typeSelect.disabled = isWriteShared;
         if (excludedCheckbox) excludedCheckbox.disabled = isWriteShared;
+        if (notBudgetedCheckbox) notBudgetedCheckbox.disabled = isWriteShared;
 
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
@@ -1216,6 +1221,9 @@ export default class CategoriesModule {
 
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
         if (excludedCheckbox) excludedCheckbox.checked = false;
+
+        const notBudgetedCheckbox = document.getElementById('category-excluded-from-budget');
+        if (notBudgetedCheckbox) notBudgetedCheckbox.checked = false;
     }
 
     loadCategoryData(category) {
@@ -1228,6 +1236,11 @@ export default class CategoriesModule {
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
         if (excludedCheckbox) {
             excludedCheckbox.checked = category.excludedFromReports || false;
+        }
+
+        const notBudgetedCheckbox = document.getElementById('category-excluded-from-budget');
+        if (notBudgetedCheckbox) {
+            notBudgetedCheckbox.checked = category.excludedFromBudget || false;
         }
 
         // Load tag sets for this category
@@ -1265,12 +1278,14 @@ export default class CategoriesModule {
         }
 
         const excludedFromReports = document.getElementById('category-excluded-from-reports')?.checked || false;
+        const excludedFromBudget = document.getElementById('category-excluded-from-budget')?.checked || false;
 
         // When editing a write-shared category, the recipient may change only
         // cosmetic fields (name, colour). Structural fields (type, parent), budget
-        // fields and report-scope (excludedFromReports) belong to the owner and
-        // are stripped server-side too. Guard precisely on the category being
-        // edited so creating a new category is never affected by a stale selection.
+        // fields and the scope flags (excludedFromReports, excludedFromBudget)
+        // belong to the owner and are stripped server-side too. Guard precisely on
+        // the category being edited so creating a new category is never affected
+        // by a stale selection.
         const isEditingWriteShared = !!categoryId
             && this.selectedCategory
             && String(this.selectedCategory.id) === String(categoryId)
@@ -1282,6 +1297,7 @@ export default class CategoriesModule {
             categoryData.type = type;
             categoryData.parentId = parentId ? parseInt(parentId) : null;
             categoryData.excludedFromReports = excludedFromReports;
+            categoryData.excludedFromBudget = excludedFromBudget;
         }
 
         try {
@@ -1739,10 +1755,13 @@ export default class CategoriesModule {
      * Categories shown in the Budget view: the tree with categories that are
      * excluded from reports removed (and their subtrees). Budgets/spend for
      * excluded categories must not appear or count here (#266/#267).
+     *
+     * Categories flagged "exclude from budgeting" drop out the same way — they
+     * still count everywhere else, they're just not budgeted against.
      */
     filterBudgetCategories(categories) {
         return (categories || [])
-            .filter(cat => !cat.excludedFromReports)
+            .filter(cat => !cat.excludedFromReports && !cat.excludedFromBudget)
             .map(cat => ({ ...cat, children: this.filterBudgetCategories(cat.children || []) }));
     }
 
@@ -1751,7 +1770,8 @@ export default class CategoriesModule {
         this.categorySpending = {};
         this._ownSpending = {};
 
-        // Budget view excludes categories flagged "excluded from reports".
+        // Budget view excludes categories flagged "excluded from reports" or
+        // "excluded from budgeting".
         this._budgetTree = this.filterBudgetCategories(this.categoryTree || []);
 
         // Get all categories (not just ones with budgets — parents need children's spending)

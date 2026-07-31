@@ -1127,6 +1127,8 @@ export default class ImportModule {
         }
         document.getElementById('categorized-transactions').textContent = categorized;
 
+        this.renderDirectionWarnings(result.directionWarnings);
+
         // Show accounts to create for multi-account preset imports
         const accountsContainer = document.getElementById('accounts-to-create');
         if (result.accountsToCreate && result.accountsToCreate.length > 0) {
@@ -1181,6 +1183,69 @@ export default class ImportModule {
         } else if (categoriesContainer) {
             categoriesContainer.innerHTML = '';
         }
+    }
+
+    /**
+     * Say so up front when a batch is about to land on the opposite side from
+     * everything already in the account — the usual cause is an unmapped or
+     * ignored type column, which is invisible until the balances drift (#333).
+     */
+    renderDirectionWarnings(warnings) {
+        let container = document.getElementById('import-direction-warnings');
+
+        if (!warnings || warnings.length === 0) {
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        if (!container) {
+            const summarySection = document.querySelector('.import-summary');
+            if (!summarySection) return;
+            container = document.createElement('div');
+            container.id = 'import-direction-warnings';
+            // Ahead of the stats: this changes whether you should import at all.
+            summarySection.prepend(container);
+        }
+
+        container.innerHTML = warnings.map(warning => {
+            const account = warning.accountName || t('budget', 'this account');
+            let headline;
+            let context;
+
+            if (warning.kind === 'unresolved-type') {
+                headline = t('budget', '{matching} of {total} rows have no usable transaction type', {
+                    matching: warning.matching,
+                    total: warning.total,
+                });
+                context = t('budget', 'The type column is empty or unrecognized on those rows, so they will be added based on whether the amount is negative. Fill the type in, or check the mapping, if that is not what you want.');
+            } else if (warning.type === 'credit') {
+                headline = t('budget', '{matching} of {total} rows would be added as income', {
+                    matching: warning.matching,
+                    total: warning.total,
+                });
+                context = t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
+                    percent: warning.existingOppositePercent,
+                    account: account,
+                });
+            } else {
+                headline = t('budget', '{matching} of {total} rows would be added as an expense', {
+                    matching: warning.matching,
+                    total: warning.total,
+                });
+                context = t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
+                    percent: warning.existingOppositePercent,
+                    account: account,
+                });
+            }
+
+            return `<div class="import-direction-warning">
+                <span class="icon-error" aria-hidden="true"></span>
+                <div>
+                    <strong>${dom.escapeHtml(headline)}</strong>
+                    <p>${dom.escapeHtml(context)}</p>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     showTransactionPreview(transactions) {

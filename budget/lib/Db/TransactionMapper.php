@@ -454,6 +454,36 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * How an account's existing ledger splits between credit and debit, so an
+     * import preview can tell whether an all-one-way batch matches the account's
+     * habits or is a sign the direction got read wrong (#333).
+     *
+     * @return array{credit: int, debit: int}
+     */
+    public function countByTypeForAccount(int $accountId, string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.type')
+            ->selectAlias($qb->createFunction('COUNT(*)'), 'cnt')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->groupBy('t.type');
+
+        $result = $qb->executeQuery();
+        $counts = ['credit' => 0, 'debit' => 0];
+        while ($row = $result->fetch()) {
+            $type = $row['type'] ?? '';
+            if (isset($counts[$type])) {
+                $counts[$type] = (int) $row['cnt'];
+            }
+        }
+        $result->closeCursor();
+
+        return $counts;
+    }
+
+    /**
      * IDs of every transaction in an account, so the whole ledger can be
      * deleted along with the account (#336). User-scoped through the account
      * ownership join, like findByAccount().

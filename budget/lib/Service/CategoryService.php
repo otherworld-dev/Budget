@@ -128,7 +128,8 @@ class CategoryService extends AbstractCrudService {
         ?string $color = null,
         ?float $budgetAmount = null,
         int $sortOrder = 0,
-        bool $excludedFromReports = false
+        bool $excludedFromReports = false,
+        bool $excludedFromBudget = false
     ): Category {
         // Validate parent if provided
         if ($parentId !== null) {
@@ -150,6 +151,7 @@ class CategoryService extends AbstractCrudService {
         $category->setBudgetAmount($budgetAmount);
         $category->setSortOrder($sortOrder);
         $category->setExcludedFromReports($excludedFromReports);
+        $category->setExcludedFromBudget($excludedFromBudget);
         $this->setTimestamps($category, true);
 
         $category = $this->mapper->insert($category);
@@ -566,6 +568,8 @@ class CategoryService extends AbstractCrudService {
         $categories = $this->findAll($userId);
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $month);
         $carryovers = $this->carryoverService->getCarryovers($userId, $month, $categories);
+        // Categories the user doesn't budget against get no entry at all
+        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
         // Recurring fallback only applies to current/future months (#269)
         $recurring = $month >= date('Y-m')
@@ -575,6 +579,9 @@ class CategoryService extends AbstractCrudService {
         $result = [];
         foreach ($categories as $category) {
             $catId = $category->getId();
+            if (isset($notBudgeted[$catId])) {
+                continue;
+            }
             if (isset($snapshotOverrides[$catId])) {
                 $amount = $snapshotOverrides[$catId]['amount'];
                 $period = $snapshotOverrides[$catId]['period'];
@@ -619,11 +626,14 @@ class CategoryService extends AbstractCrudService {
         // Resolve effective budgets for this month (snapshot-aware)
         $effectiveBudgets = $this->resolveEffectiveBudgets($userId, $month);
 
+        // Categories excluded from reports, or not budgeted against
+        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
+
         // Split categories by type for correct transaction type queries
         $expenseCategoryIds = [];
         $incomeCategoryIds = [];
         foreach ($categories as $category) {
-            if ($category->getExcludedFromReports()) {
+            if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $catId = $category->getId();
@@ -648,7 +658,7 @@ class CategoryService extends AbstractCrudService {
 
         $analysis = [];
         foreach ($categories as $category) {
-            if ($category->getExcludedFromReports()) {
+            if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $catId = $category->getId();

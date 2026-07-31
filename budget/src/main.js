@@ -783,14 +783,28 @@ class BudgetApp {
                 this.options = await optionsResponse.json();
             }
 
-            if (!accountsResponse.ok) {
-                throw new Error(t('budget', 'Failed to load accounts: {status} {statusText}', { status: accountsResponse.status, statusText: accountsResponse.statusText }));
+            // Accounts and categories back the Account and Category columns on
+            // every transaction row. A failure here used to abort the whole
+            // load, leaving both arrays empty so the entire ledger rendered as
+            // "Unknown Account" / "Uncategorized" behind a generic toast (#333).
+            // Load them independently and name what actually failed.
+            if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                this.accounts = Array.isArray(accountsData) ? accountsData : [];
+                // A fresh list earns another recovery attempt later
+                this._accountRecoveryExhausted = false;
+            } else {
+                this.accounts = [];
+                this.reportReferenceDataFailure(accountsResponse, 'accounts');
             }
-            const accountsData = await accountsResponse.json();
-            this.accounts = Array.isArray(accountsData) ? accountsData : [];
 
-            const categoriesData = await categoriesResponse.json();
-            this.categories = Array.isArray(categoriesData) ? categoriesData : [];
+            if (categoriesResponse.ok) {
+                const categoriesData = await categoriesResponse.json();
+                this.categories = Array.isArray(categoriesData) ? categoriesData : [];
+            } else {
+                this.categories = [];
+                this.reportReferenceDataFailure(categoriesResponse, 'categories');
+            }
 
             if (categoryTreeResponse.ok) {
                 const treeData = await categoryTreeResponse.json();
@@ -808,6 +822,30 @@ class BudgetApp {
             console.error('Failed to load initial data:', error);
             showError(t('budget', 'Failed to load data'));
         }
+    }
+
+    /**
+     * Explain why accounts or categories are missing instead of letting every
+     * transaction quietly render as unknown/uncategorized (#333).
+     *
+     * @param {Response} response The failed response
+     * @param {'accounts'|'categories'} kind Which reference list failed
+     */
+    reportReferenceDataFailure(response, kind) {
+        console.error(`Failed to load ${kind}:`, response.status, response.statusText);
+
+        // 401/403/412 after an app update means the page is holding a stale
+        // request token; a reload fixes it.
+        if ([401, 403, 412].includes(response.status)) {
+            showError(kind === 'accounts'
+                ? t('budget', 'Your session has expired, so account names could not be loaded. Reload the page to restore them.')
+                : t('budget', 'Your session has expired, so categories could not be loaded. Reload the page to restore them.'));
+            return;
+        }
+
+        showError(kind === 'accounts'
+            ? t('budget', 'Accounts could not be loaded (error {status}). Transactions will show as "Unknown Account" until this is resolved.', { status: response.status })
+            : t('budget', 'Categories could not be loaded (error {status}). Transactions will show as "Uncategorized" until this is resolved.', { status: response.status }));
     }
 
     // ============================================
@@ -1248,6 +1286,50 @@ class BudgetApp {
                 </tr>
             `;
         }).join('');
+
+        this.recoverStaleAccounts();
+    }
+
+    /**
+     * Rows referencing an account id the cached list doesn't have mean the list
+     * is stale, not that the account is gone. Restoring a backup reassigns
+     * every account id, so any page still open — or a second tab — keeps the
+     * old ones and renders the whole ledger as "Unknown Account" with nothing
+     * in the console to explain it (#333). Refetch once and redraw.
+     */
+    async recoverStaleAccounts() {
+        if (this._recoveringAccounts || this._accountRecoveryExhausted) return;
+
+        const known = new Set((this.accounts || []).map(a => a.id));
+        const isMissing = t => t.accountId != null && !known.has(t.accountId);
+        if (!(this.transactions || []).some(isMissing)) return;
+
+        this._recoveringAccounts = true;
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
+                headers: this.getAuthHeaders(),
+            });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!Array.isArray(data)) return;
+
+            this.accounts = data;
+            this.populateAccountDropdowns();
+
+            // If a refetch still can't place those rows the account really is
+            // gone, so stop trying — redrawing would just loop.
+            const refreshed = new Set(data.map(a => a.id));
+            if ((this.transactions || []).some(t => t.accountId != null && !refreshed.has(t.accountId))) {
+                this._accountRecoveryExhausted = true;
+                return;
+            }
+            this.renderEnhancedTransactionsTable();
+        } catch (error) {
+            console.error('Failed to refresh a stale account list:', error);
+        } finally {
+            this._recoveringAccounts = false;
+        }
     }
 
     /**
@@ -2348,8 +2430,11 @@ class BudgetApp {
             `;
             result.style.display = 'block';
 
-            // Reload application data
-            this.loadInitialData();
+            // Reload application data. A restore reassigns every account and
+            // category id, so this must finish before anything renders against
+            // the old ones — otherwise the ledger shows "Unknown Account" on
+            // every row (#333).
+            await this.loadInitialData();
             showSuccess(t('budget', 'Import completed successfully'));
         } catch (error) {
             console.error('Import error:', error);

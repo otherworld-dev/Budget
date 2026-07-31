@@ -77,6 +77,22 @@ A **"Total"** hint appears below the input to indicate the aggregated value. The
 
 This means you can budget at whatever level of detail suits you — set individual amounts on children, or a single lump sum on the parent.
 
+## Leaving a Category Out of Budgeting
+
+Not everything you track is worth budgeting against. Tick **Exclude from budgeting** when creating or editing a category (see [Categories](categories.md#excluding-a-category)) and it disappears from:
+
+- the Budget page (Expenses and Income tabs)
+- the summary cards and any parent-category total
+- budget alerts and the dashboard budget tiles
+- the budget vs. actual report
+- [envelope rollover](envelope-budgets.md) -- an excluded category carries nothing forward
+
+Everything else is untouched: its transactions still count in reports, the dashboard, insights and every total. This is the difference between the two checkboxes -- **Exclude from reports** removes a category from *all* spending figures, while **Exclude from budgeting** removes it only from the budget surfaces.
+
+Excluding a parent also excludes its subcategories, so a whole branch can be taken out of budgeting in one click.
+
+> **Tip:** Reach for this on categories that swing wildly month to month -- gifts, medical bills, home repairs. You keep seeing the spending in reports without a red "over budget" bar on a figure you could never have predicted.
+
 ## Summary Cards
 
 At the top of the Budget page, four summary cards provide an at-a-glance overview:

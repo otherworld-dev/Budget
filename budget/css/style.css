@@ -6497,6 +6497,36 @@ button.danger:hover {
     margin-bottom: 20px;
 }
 
+/* Import preview: batch is going the opposite way to the account's history */
+.import-direction-warning {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: rgba(245, 124, 0, 0.1);
+    border: 1px solid rgba(245, 124, 0, 0.4);
+    border-radius: var(--border-radius-large);
+    color: var(--color-main-text);
+}
+
+.import-direction-warning .icon-error {
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.8;
+}
+
+.import-direction-warning strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #f57c00;
+}
+
+.import-direction-warning p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 .stat-item {
     display: flex;
     justify-content: space-between;

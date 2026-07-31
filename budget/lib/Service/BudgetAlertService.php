@@ -139,12 +139,13 @@ class BudgetAlertService {
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
         $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories);
+        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
         // Categories with a budget in play: base > 0, or a non-zero envelope
         // carryover (a fully depleted envelope must still alert)
         $categoriesWithBudgets = [];
         foreach ($categories as $category) {
-            if ($category->getExcludedFromReports()) {
+            if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -232,11 +233,12 @@ class BudgetAlertService {
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
         $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories);
+        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
         // Base budget > 0, or a non-zero envelope carryover (see getAlerts)
         $categoriesWithBudgets = [];
         foreach ($categories as $category) {
-            if ($category->getExcludedFromReports()) {
+            if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);

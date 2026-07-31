@@ -248,6 +248,9 @@ class ImportRuleApplicator {
                     if (isset($typeMap[$value])
                         && $this->shouldApply($behavior, $transaction['type'] ?? null)) {
                         $transaction['type'] = $typeMap[$value];
+                        // The rule answered what the type column couldn't, so
+                        // the preview shouldn't still flag this row (#333)
+                        unset($transaction['_typeUnresolved']);
                     }
                     break;
 

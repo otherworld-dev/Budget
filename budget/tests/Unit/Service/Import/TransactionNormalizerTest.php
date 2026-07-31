@@ -38,6 +38,85 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertSame('debit', $result['type']);
 	}
 
+	public function testMapRowTypeColumnOverridesUnsignedAmount(): void {
+		// #333: Nextcloud Tables exports carry an explicit "Expense"/"Income"
+		// column and write every amount unsigned. Going by the sign alone
+		// booked whole files as income.
+		$row = ['2026-07-28', '18.40', 'Expense', 'Zigaretten'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertEqualsWithDelta(18.40, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testMapRowTypeColumnIncomeStaysCredit(): void {
+		$row = ['2026-07-28', '2500.00', 'Income', 'Lohn'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testMapRowTypeColumnTolerantOfCaseAndPunctuation(): void {
+		// Headers and values from real exports arrive padded: " DR. ", "Debit:"
+		$row = ['2026-07-28', '42.00', ' DR. ', 'Fuel'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testMapRowTypeColumnWinsOverAmountSign(): void {
+		// An explicit type column is the user's mapping; honour it even when
+		// the amount also carries a sign.
+		$row = ['2026-07-28', '-60.00', 'Income', 'Refund'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertEqualsWithDelta(60.00, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testMapRowUnrecognizedTypeValueFallsBackToSign(): void {
+		$row = ['2026-07-28', '-75.00', 'SEPA-Lastschrift', 'Strom'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testMapRowEmptyTypeValueFallsBackToSign(): void {
+		// Half-filled exports leave the type blank on some rows (#333)
+		$row = ['2026-07-29', '12.00', '', 'No type given'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testMapRowDualColumnsIgnoreTypeColumn(): void {
+		// Income/expense columns already state the direction unambiguously
+		$row = ['2026-07-28', '', '75.00', 'Income', 'Electric bill'];
+		$mapping = [
+			'date' => 0,
+			'incomeColumn' => 1,
+			'expenseColumn' => 2,
+			'type' => 3,
+			'description' => 4,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('debit', $result['type']);
+	}
+
 	public function testMapRowDualColumnIncome(): void {
 		$row = ['2024-03-15', '1500.00', '', 'Salary'];
 		$mapping = [

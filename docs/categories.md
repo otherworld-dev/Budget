@@ -26,6 +26,8 @@ To create a new category:
 | **Parent** | No | Place this category under an existing one |
 | **Icon** | No | Emoji or icon to visually identify the category |
 | **Color** | No | Color used in charts and reports |
+| **Exclude from reports** | No | Leave this category out of reports, budgets and dashboard totals entirely |
+| **Exclude from budgeting** | No | Keep the category everywhere except the budget surfaces -- see [Excluding a category](#excluding-a-category) |
 
 > **Tip:** Assign distinct colors to your top-level categories. Child categories inherit their parent's color in charts, so setting colors at the top level keeps your reports visually consistent.
 
@@ -104,6 +106,21 @@ Click any category to open its detail view, which shows:
 - **Recent transactions** -- The most recent transactions assigned to this category
 
 This view helps you quickly understand your spending patterns for any category without navigating to the full reports.
+
+## Excluding a Category
+
+Two checkboxes on a category control how far it reaches. Both are set when you create or edit a category, and both apply to the category *and all of its subcategories*.
+
+| Option | What it does |
+|--------|--------------|
+| **Exclude from reports** | The category disappears from spending reports, dashboard totals, insights **and** budgets. Use it for money that shouldn't count as spending at all -- internal transfers, reimbursements you're only passing through, or a category you keep purely for record-keeping. |
+| **Exclude from budgeting** | The category keeps counting in reports, the dashboard and every total. It only drops out of the budget surfaces: the Budget page, budget alerts, the budget vs. actual report and envelope rollover. |
+
+**Exclude from budgeting** is for spending you want to see but never budget against -- irregular one-offs, a "Gifts" category that swings wildly month to month, or anything you'd rather not have skewing a budget you can't realistically set. The transactions still show up in reports and totals exactly as before; you just stop being told you're over budget on something you never budgeted.
+
+> **Note:** Excluding a parent excludes its whole subtree. If you want to budget a child of an excluded parent, put that child somewhere else in the tree.
+
+Both options are owner-only on a shared category: a recipient with **Edit** permission can rename it and change its colour, but cannot change what it counts toward for its owner.
 
 ## Shared Categories
 

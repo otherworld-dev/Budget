@@ -707,8 +707,32 @@ export default class TransactionsModule {
     }
 
     toggleAllTransactionSelection(checked) {
-        this.selectedTransactions.clear();
         this.allMatchingSelection = null;
+
+        // In a reconciliation session the checkboxes are the statement ticks:
+        // register each row whose state actually changes with the session,
+        // exactly like a manual tick (#337). Per-row delta so already-ticked
+        // rows aren't double-counted, and rows ticked on other pages are left
+        // alone — clearing them would desync the boxes from the server state.
+        if (this.reconcileMode && this.reconcileSession) {
+            document.querySelectorAll('.transaction-checkbox').forEach(checkbox => {
+                const transactionId = parseInt(checkbox.getAttribute('data-transaction-id'));
+                if (checkbox.checked !== checked) {
+                    checkbox.checked = checked;
+                    this.queueReconcileTick(transactionId, checked);
+                }
+                if (checked) {
+                    this.selectedTransactions.add(transactionId);
+                } else {
+                    this.selectedTransactions.delete(transactionId);
+                }
+            });
+            this.updateBulkActionsState();
+            this.refreshSelectAllBanner();
+            return;
+        }
+
+        this.selectedTransactions.clear();
 
         if (checked) {
             // Select all visible transactions
@@ -808,6 +832,13 @@ export default class TransactionsModule {
         const textEl = document.getElementById('select-all-matching-text');
         const btn = document.getElementById('select-all-matching-btn');
         if (!banner || !textEl || !btn) {
+            return;
+        }
+
+        // Never offer cross-page selection during a reconciliation session —
+        // off-page rows can't be registered as statement ticks (#337)
+        if (this.reconcileMode && this.reconcileSession) {
+            banner.style.display = 'none';
             return;
         }
 
@@ -1181,6 +1212,10 @@ export default class TransactionsModule {
         this.reconcileSession = state;
         this._reconTickQueue = new Set();
         this._reconUntickQueue = new Set();
+
+        // A leftover every-match selection must not survive into the session:
+        // the updateFilters() below would see it and wipe the restored ticks
+        this.allMatchingSelection = null;
 
         // Ticked transactions drive the select checkboxes (survives re-render)
         this.selectedTransactions = new Set(state.tickedIds || []);

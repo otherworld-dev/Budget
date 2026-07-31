@@ -16,7 +16,7 @@ From **Accounts > (account) > Reconcile**, or the reconcile button on the Transa
 | **Ticked** | The net of the transactions you've checked off so far. |
 | **Difference** | `statement − (starting + ticked)`. Reconciled when this is **0.00**. |
 
-3. Tick each transaction that appears on the statement using the row checkboxes — the difference updates live.
+3. Tick each transaction that appears on the statement using the row checkboxes — the difference updates live. The header checkbox ticks (or unticks) every transaction on the current page at once; ticks made on other pages are kept.
 4. When the difference is zero, **Finish** marks everything ticked as reconciled and stamps the account.
 
 ## If It Doesn't Balance

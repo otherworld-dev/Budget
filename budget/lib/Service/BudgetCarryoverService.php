@@ -59,8 +59,14 @@ class BudgetCarryoverService {
     public function getCarryovers(string $userId, string $targetMonth, ?array $categories = null): array {
         $categories ??= $this->categoryMapper->findAll($userId);
 
+        // A branch the user doesn't budget against has no envelope to carry
+        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
+
         $eligible = [];
         foreach ($categories as $category) {
+            if (isset($notBudgeted[$category->getId()])) {
+                continue;
+            }
             if ($this->isRolloverEligible($category, $targetMonth)) {
                 $eligible[$category->getId()] = $category;
             }
@@ -130,6 +136,9 @@ class BudgetCarryoverService {
     /**
      * Whether rollover applies to this category at all (v1: monthly-period
      * expense categories with the flag and an anchor before the target).
+     *
+     * Checks the category's own flags only; getCarryovers() additionally drops
+     * the descendants of a category excluded from budgeting.
      */
     public function isRolloverEligible(Category $category, string $targetMonth): bool {
         return ($category->getBudgetRollover() ?? false)
@@ -137,7 +146,8 @@ class BudgetCarryoverService {
             && $category->getRolloverStart() < $targetMonth
             && ($category->getBudgetPeriod() ?? 'monthly') === 'monthly'
             && $category->getType() === 'expense'
-            && !($category->getExcludedFromReports() ?? false);
+            && !($category->getExcludedFromReports() ?? false)
+            && !($category->getExcludedFromBudget() ?? false);
     }
 
     /**

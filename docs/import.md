@@ -39,6 +39,7 @@ Map each column in your CSV to the corresponding transaction field:
 | **Income Amount** | No | Separate column for credits/deposits |
 | **Expense Amount** | No | Separate column for debits/withdrawals |
 | **Description** | No | Transaction description or memo |
+| **Type** | No | Whether the row is income or an expense (see below) |
 | **Vendor** | No | Payee or merchant name |
 | **Reference** | No | Check number or reference ID |
 | **Category** | No | Category name; categories are auto-created if they do not exist |
@@ -46,6 +47,22 @@ Map each column in your CSV to the corresponding transaction field:
 | **Currency** | No | Currency code for the transaction |
 
 Select the appropriate column header from the dropdown for each field. Columns you do not map are ignored.
+
+#### Type Column
+
+Budget needs to know which way each row goes. By default it reads the sign of the amount: negative is an expense, positive is income.
+
+Plenty of exports do not sign their amounts — they write every value as a positive number and put the direction in a separate column instead. Nextcloud Tables does this, and so do several banks and budgeting apps. Map that column to **Type** and it decides the direction, overriding the sign.
+
+Recognized values (case and surrounding punctuation are ignored):
+
+| Means income | Means expense |
+|--------------|---------------|
+| `Income`, `Credit`, `CR`, `C`, `Deposit`, `Refund`, `In` | `Expense`, `Debit`, `DR`, `D`, `Withdrawal`, `Payment`, `Purchase`, `Out` |
+
+Rows where the Type column is blank or holds something not on this list fall back to the sign of the amount, and the preview tells you how many rows that applies to.
+
+> **Tip:** If your amounts are all positive and you do not map a Type column, every row is imported as income. The preview warns you when a batch is about to go in almost entirely one way while the account it is going into leans the other way — check that warning before confirming.
 
 #### Category Column
 
@@ -76,6 +93,13 @@ After mapping your columns, click **Preview** to see a table of parsed transacti
 - Check that descriptions and vendors look right
 
 Rows that match a transaction already in the account are flagged with a **Duplicate** badge. They are shown for review but skipped when you import — see [Duplicate Detection](#duplicate-detection). The **Show duplicates** and **Show uncategorized** checkboxes only filter what the preview displays; they do not change what is imported.
+
+The preview also warns, above the summary, when the direction looks doubtful:
+
+- **Rows with no usable transaction type** — you mapped a **Type** column but some rows are blank or hold a value Budget does not recognize. Those rows fall back to the sign of the amount.
+- **A batch heading the wrong way** — nearly every row would be added as income into an account whose history is nearly all expenses (or the other way round). This usually means the Type column is unmapped, so check the mapping before importing.
+
+Neither warning blocks the import; they are there to catch a mapping mistake before it reaches your balances.
 
 > **Tip:** If something looks wrong in the preview, go back and adjust your column mapping or delimiter settings. No data is saved until you execute the import.
 

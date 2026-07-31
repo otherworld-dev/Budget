@@ -6152,6 +6152,14 @@ style('budget', 'budget-app');
                 <small class="form-text"><?php p($l->t('Transactions in this category will not count toward budgets, spending reports, or dashboard totals.')); ?></small>
             </div>
 
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="category-excluded-from-budget">
+                    <?php p($l->t('Exclude from budgeting')); ?>
+                </label>
+                <small class="form-text"><?php p($l->t('For spending you track but never budget against. The category keeps counting in reports, the dashboard and every total — it just drops out of the Budget page, budget alerts and the budget report, along with its subcategories.')); ?></small>
+            </div>
+
             <!-- Tag Sets Container -->
             <div id="category-tag-sets-container"></div>
 

@@ -30,10 +30,10 @@ class CategoryController extends Controller {
     /**
      * Fields a write-shared recipient may change on a category they don't own:
      * cosmetic fields plus sortOrder (so they can reorder shared categories, #328).
-     * Remaining structural fields (type, parentId), budget fields, and report-scope
-     * (excludedFromReports — it alters the OWNER's report aggregates) stay
-     * owner-only. Any field not listed here is stripped from a recipient's update,
-     * so the restriction is fail-closed.
+     * Remaining structural fields (type, parentId), budget fields, and the scope
+     * flags (excludedFromReports/excludedFromBudget — they alter the OWNER's
+     * aggregates) stay owner-only. Any field not listed here is stripped from a
+     * recipient's update, so the restriction is fail-closed.
      */
     private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color', 'sortOrder'];
 
@@ -166,7 +166,8 @@ class CategoryController extends Controller {
         ?string $color = null,
         ?float $budgetAmount = null,
         int $sortOrder = 0,
-        bool $excludedFromReports = false
+        bool $excludedFromReports = false,
+        bool $excludedFromBudget = false
     ): DataResponse {
         try {
             // Validate name (required)
@@ -208,7 +209,8 @@ class CategoryController extends Controller {
                 $color,
                 $budgetAmount,
                 $sortOrder,
-                $excludedFromReports
+                $excludedFromReports,
+                $excludedFromBudget
             );
             return new DataResponse($category, Http::STATUS_CREATED);
         } catch (\Exception $e) {
@@ -294,6 +296,9 @@ class CategoryController extends Controller {
             }
             if (array_key_exists('excludedFromReports', $params)) {
                 $updates['excludedFromReports'] = (bool) $params['excludedFromReports'];
+            }
+            if (array_key_exists('excludedFromBudget', $params)) {
+                $updates['excludedFromBudget'] = (bool) $params['excludedFromBudget'];
             }
             if (array_key_exists('budgetRollover', $params)) {
                 $updates['budgetRollover'] = (bool) $params['budgetRollover'];
