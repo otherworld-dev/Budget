@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-07-29 21:12+0000\n"
-"PO-Revision-Date: 2026-07-31 15:01+0000\n"
+"PO-Revision-Date: 2026-07-31 23:49+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -2634,6 +2634,8 @@ msgid ""
 "The account linked to this bill no longer exists. Edit the bill and choose "
 "an account."
 msgstr ""
+"Das mit dieser Rechnung verknüpfte Konto existiert nicht mehr. Bearbeite die "
+"Rechnung und wähle ein Konto aus."
 
 #: /app/lib/Service/BillService.php:178
 #, fuzzy
@@ -3429,16 +3431,16 @@ msgstr "Buchung schnell erfassen"
 
 #: /app/src/core/KeyboardShortcuts.js:319
 msgid "Global"
-msgstr ""
+msgstr "Global"
 
 #: /app/src/core/KeyboardShortcuts.js:321
 #: /app/src/core/KeyboardShortcuts.js:322
 msgid "Focus search"
-msgstr ""
+msgstr "Suchfeld aktivieren"
 
 #: /app/src/core/KeyboardShortcuts.js:323
 msgid "Show this help"
-msgstr ""
+msgstr "Diese Hilfe anzeigen"
 
 #: /app/src/core/KeyboardShortcuts.js:324
 #, fuzzy
@@ -3448,11 +3450,11 @@ msgstr "Dialog schließen"
 
 #: /app/src/core/KeyboardShortcuts.js:325
 msgid "Go to a page (see below)"
-msgstr ""
+msgstr "Zu einer Seite wechseln (siehe unten)"
 
 #: /app/src/core/KeyboardShortcuts.js:329
 msgid "Go to (press g, then)"
-msgstr ""
+msgstr "Wechseln zu (drücke zuerst g, dann)"
 
 #: /app/src/core/KeyboardShortcuts.js:332 /app/src/main.js:869
 #: /app/templates/index.php:43
@@ -3586,7 +3588,7 @@ msgstr "Buchungen wurden verknüpft"
 
 #: /app/src/core/KeyboardShortcuts.js:359
 msgid "Move row cursor down / up"
-msgstr ""
+msgstr "Zeilencursor nach unten / oben bewegen"
 
 #: /app/src/core/KeyboardShortcuts.js:360
 #: /app/src/core/KeyboardShortcuts.js:361
