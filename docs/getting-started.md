@@ -103,5 +103,4 @@ Now that the basics are in place, explore these features to get more out of Budg
 - **[Savings Goals](savings-goals.md)** -- Set financial targets and track your progress
 - **[Reports](reports.md)** -- Generate year-over-year comparisons and spending breakdowns
 - **[Shared Expenses](shared-expenses.md)** -- Split costs with housemates, partners, or friends
-- **[Password Protection](password-protection.md)** -- Add an app-level password for extra security
 - **[Settings](settings.md)** -- Customize currency, date formats, and other preferences

@@ -68,26 +68,9 @@ Configure behavior for transaction imports:
 
 > **Note:** Duplicate detection uses a combination of date, amount, and description to identify potential duplicates.
 
-## Quick Add Page
+## Quick Add Page and System Info
 
-The **Quick Add Page** is a standalone, minimal page for entering a single transaction on the go — it shows only the entry form, with no balances, account details, or other sensitive information visible. This makes it safe to use in public (e.g. paying at a till) without revealing your finances.
-
-- The settings panel shows a copyable **Quick Add URL** (`/apps/budget/quick-add`) you can bookmark or add to a device home screen.
-- The Dashboard's **Quick Add Transaction** tile also has a **Standalone ↗** link that opens it in a new tab.
-
-> **iPhone/iPad tip:** iOS Safari always points "Add to Home Screen" at the site root, so it can't link directly to the Quick Add page. A community workaround using the Apple Shortcuts app is documented here: [Solution: iPhone and Home Screen Link for "Quick Add"](https://github.com/otherworld-dev/Budget/discussions/261).
-
-## System Info
-
-The System Info panel provides diagnostic information useful when reporting issues:
-
-- **App & Server Details** — Budget version, Nextcloud version, PHP version, database type
-- **Data Stats** — Account count, transaction count, category count, active rules, bills, bank sync connections, sharing status
-- **Browser & Screen** — Browser version and viewport dimensions
-- **Client Diagnostics** — Failed API requests and JavaScript errors captured during the current session
-- **Server Logs** (admin only) — Recent budget-related entries from the Nextcloud log
-
-Click **Copy to Clipboard** to copy all diagnostic info as plain text for pasting into bug reports.
+These two panels now live on the **Help & Docs** page rather than in Settings — see [Help & Docs](help.md).
 
 ## Data Migration
 

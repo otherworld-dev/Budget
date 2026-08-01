@@ -7,6 +7,41 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { translate as t } from '@nextcloud/l10n';
 
+// Which account attributes are rendered in the accounts view (tiles + list).
+// User-configurable through the gear menu in the accounts header, stored in
+// localStorage alongside the grid/list preference.
+const ACCOUNTS_DISPLAY_STORAGE_KEY = 'budget-accounts-display';
+
+// `column: true` attributes occupy a column of the list view and can be
+// reordered; `fixed: true` ones can't be hidden. Labels are functions so they
+// are translated at render time, not at module load.
+const ACCOUNT_ATTRIBUTES = [
+    { key: 'name', label: () => t('budget', 'Name'), column: true, fixed: true, width: 'minmax(0, 1fr)', mobileWidth: 'minmax(0, 1fr)' },
+    { key: 'type', label: () => t('budget', 'Account type'), column: true, width: '120px' },
+    { key: 'institution', label: () => t('budget', 'Institution'), column: true, width: '140px' },
+    { key: 'accountNumber', label: () => t('budget', 'Account number'), column: true, width: '120px' },
+    { key: 'lastReconciled', label: () => t('budget', 'Last reconciled'), column: true, width: '120px' },
+    { key: 'balance', label: () => t('budget', 'Balance'), column: true, fixed: true, width: '140px', mobileWidth: '100px' },
+    { key: 'convertedBalance', label: () => t('budget', 'Converted balance') },
+    { key: 'sparkline', label: () => t('budget', 'Balance trend (tiles only)') },
+    { key: 'status', label: () => t('budget', 'Status (tiles only)') }
+];
+const ACCOUNT_COLUMN_KEYS = ACCOUNT_ATTRIBUTES.filter(a => a.column).map(a => a.key);
+// Meta-line attributes of a tile, ordered by the same preference as the list
+const ACCOUNT_META_KEYS = ['type', 'institution', 'accountNumber', 'lastReconciled'];
+const ACCOUNT_ATTRIBUTE_DEFAULTS = {
+    type: true,
+    institution: true,
+    accountNumber: false,
+    lastReconciled: false,
+    convertedBalance: true,
+    sparkline: true,
+    status: true
+};
+const ACCOUNT_ORDER_DEFAULTS = [...ACCOUNT_COLUMN_KEYS];
+const ACCOUNT_SORT_FIELDS = ['name', 'balance', 'type', 'institution', 'lastReconciled', 'created'];
+const ACCOUNT_SORT_DEFAULTS = { field: 'name', direction: 'asc' };
+
 export default class AccountsModule {
     constructor(app) {
         this.app = app;
@@ -139,6 +174,8 @@ export default class AccountsModule {
 
             // Update the instance accounts array
             this.accounts = accounts;
+            // Kept so display-config changes can re-render without refetching
+            this.lastAccountsSummary = summary;
 
             // Render the accounts page with new layout
             this.renderAccountsPage(accounts, summary);
@@ -235,26 +272,33 @@ export default class AccountsModule {
 
         // Render account cards/rows for each section
         const viewMode = this.getAccountsViewMode();
+        const { attributes, order, sort } = this.getAccountsDisplayConfig();
         const renderFn = viewMode === 'list'
-            ? (account) => this.renderAccountRow(account, getField)
-            : (account) => this.renderAccountCard(account, getField);
+            ? (account) => this.renderAccountRow(account, getField, attributes, order)
+            : (account) => this.renderAccountCard(account, getField, attributes, order);
+
+        const sortedAssets = this.sortAccountsForDisplay(assets, getField, sort);
+        const sortedLiabilities = this.sortAccountsForDisplay(liabilities, getField, sort);
 
         const assetsGrid = document.getElementById('accounts-assets-grid');
         const liabilitiesGrid = document.getElementById('accounts-liabilities-grid');
         const assetsSection = document.getElementById('accounts-assets-section');
         const liabilitiesSection = document.getElementById('accounts-liabilities-section');
 
-        // Toggle grid/list CSS class
+        // Toggle grid/list CSS class + publish the list column template
+        const rowColumns = this.buildAccountRowColumns(attributes, order);
         [assetsGrid, liabilitiesGrid].forEach(el => {
             if (el) {
                 el.classList.toggle('accounts-grid', viewMode === 'grid');
                 el.classList.toggle('accounts-list', viewMode === 'list');
+                el.style.setProperty('--account-row-cols', rowColumns.full);
+                el.style.setProperty('--account-row-cols-mobile', rowColumns.mobile);
             }
         });
 
         if (assetsGrid) {
-            if (assets.length > 0) {
-                assetsGrid.innerHTML = assets.map(renderFn).join('');
+            if (sortedAssets.length > 0) {
+                assetsGrid.innerHTML = sortedAssets.map(renderFn).join('');
                 assetsSection.style.display = 'block';
             } else {
                 assetsGrid.innerHTML = '<div class="accounts-empty-state">' + t('budget', 'No asset accounts yet') + '</div>';
@@ -262,25 +306,177 @@ export default class AccountsModule {
         }
 
         if (liabilitiesGrid) {
-            if (liabilities.length > 0) {
-                liabilitiesGrid.innerHTML = liabilities.map(renderFn).join('');
+            if (sortedLiabilities.length > 0) {
+                liabilitiesGrid.innerHTML = sortedLiabilities.map(renderFn).join('');
                 liabilitiesSection.style.display = 'block';
             } else {
                 liabilitiesSection.style.display = 'none';
             }
         }
 
-        // Load sparklines asynchronously
-        this.loadAccountSparklines(accounts);
+        // Load sparklines asynchronously (tiles only, and only when enabled)
+        if (viewMode !== 'list' && attributes.sparkline) {
+            this.loadAccountSparklines(accounts);
+        }
     }
 
-    renderAccountCard(account, getField) {
+    // ============================================
+    // Accounts display configuration
+    // ============================================
+
+    /**
+     * Read the accounts display preferences (visible attributes + ordering),
+     * merged over the defaults so a partial/legacy payload stays usable.
+     */
+    getAccountsDisplayConfig() {
+        let stored = {};
+        try {
+            stored = JSON.parse(localStorage.getItem(ACCOUNTS_DISPLAY_STORAGE_KEY) || '{}') || {};
+        } catch (error) {
+            stored = {};
+        }
+
+        const attributes = { ...ACCOUNT_ATTRIBUTE_DEFAULTS };
+        Object.keys(ACCOUNT_ATTRIBUTE_DEFAULTS).forEach(key => {
+            if (typeof stored.attributes?.[key] === 'boolean') {
+                attributes[key] = stored.attributes[key];
+            }
+        });
+
+        // Keep only known keys, then append any column the stored order predates
+        const storedOrder = Array.isArray(stored.order) ? stored.order : [];
+        const order = storedOrder.filter((key, index) =>
+            ACCOUNT_COLUMN_KEYS.includes(key) && storedOrder.indexOf(key) === index
+        );
+        ACCOUNT_ORDER_DEFAULTS.forEach(key => {
+            if (!order.includes(key)) order.push(key);
+        });
+
+        const sort = { ...ACCOUNT_SORT_DEFAULTS };
+        if (ACCOUNT_SORT_FIELDS.includes(stored.sort?.field)) {
+            sort.field = stored.sort.field;
+        }
+        if (stored.sort?.direction === 'desc' || stored.sort?.direction === 'asc') {
+            sort.direction = stored.sort.direction;
+        }
+
+        return { attributes, order, sort };
+    }
+
+    setAccountsDisplayConfig(config) {
+        try {
+            localStorage.setItem(ACCOUNTS_DISPLAY_STORAGE_KEY, JSON.stringify(config));
+        } catch (error) {
+            console.error('Failed to save accounts display preferences:', error);
+        }
+    }
+
+    resetAccountsDisplayConfig() {
+        try {
+            localStorage.removeItem(ACCOUNTS_DISPLAY_STORAGE_KEY);
+        } catch (error) {
+            console.error('Failed to reset accounts display preferences:', error);
+        }
+    }
+
+    /**
+     * Re-render the accounts page from cached data (no refetch) after a
+     * display-config change.
+     */
+    rerenderAccounts() {
+        if (!Array.isArray(this.accounts)) {
+            return this.loadAccounts();
+        }
+        this.renderAccountsPage(this.accounts, this.lastAccountsSummary || null);
+        this.setupAccountCardClickHandlers();
+    }
+
+    sortAccountsForDisplay(accounts, getField, sort) {
+        const direction = sort.direction === 'desc' ? -1 : 1;
+
+        const textKey = (account) => {
+            switch (sort.field) {
+                case 'type':
+                    return this.getAccountTypeInfo(getField(account, 'type') || 'unknown').label || '';
+                case 'institution':
+                    return getField(account, 'institution') || '';
+                case 'lastReconciled':
+                    return this.accountField(account, 'lastReconciled') || '';
+                case 'created':
+                    return this.accountField(account, 'createdAt') || '';
+                default:
+                    return getField(account, 'name') || '';
+            }
+        };
+
+        return [...accounts].sort((a, b) => {
+            if (sort.field === 'balance') {
+                const diff = (parseFloat(getField(a, 'balance')) || 0) - (parseFloat(getField(b, 'balance')) || 0);
+                if (diff !== 0) return diff * direction;
+            } else {
+                const aKey = textKey(a);
+                const bKey = textKey(b);
+                // Accounts missing the sort attribute always sink to the bottom
+                if (aKey === '' || bKey === '') {
+                    if (aKey !== bKey) return aKey === '' ? 1 : -1;
+                } else {
+                    const cmp = aKey.localeCompare(bKey, undefined, { numeric: true, sensitivity: 'base' });
+                    if (cmp !== 0) return cmp * direction;
+                }
+            }
+            // Stable tie-break so equal keys keep a predictable order
+            return (getField(a, 'name') || '').localeCompare(getField(b, 'name') || '');
+        });
+    }
+
+    /**
+     * Columns that renderAccountRow() actually emits, in display order.
+     */
+    visibleAccountColumns(attributes, order) {
+        return order
+            .map(key => ACCOUNT_ATTRIBUTES.find(attr => attr.key === key))
+            .filter(attr => attr && (attr.fixed || attributes[attr.key]));
+    }
+
+    /**
+     * Grid templates for list rows, matching the cells rendered by
+     * renderAccountRow(). Published as --account-row-cols(-mobile) on the
+     * container. The narrow template keeps only the columns the ≤900px media
+     * query leaves visible.
+     */
+    buildAccountRowColumns(attributes, order) {
+        const visible = this.visibleAccountColumns(attributes, order);
+        return {
+            full: ['36px', ...visible.map(attr => attr.width), '80px'].join(' '),
+            mobile: ['36px', ...visible.filter(attr => attr.mobileWidth).map(attr => attr.mobileWidth), '70px'].join(' ')
+        };
+    }
+
+    /**
+     * camelCase/snake_case tolerant field read.
+     *
+     * Deliberately not the local getField() closure: minification renames that
+     * to a single letter, and xgettext then mistakes `t(obj, 'fieldName')` in
+     * the bundle for a translation call and dumps the field name into the .pot.
+     */
+    accountField(account, camelName) {
+        const snakeName = camelName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        return account[camelName] || account[snakeName] || null;
+    }
+
+    formatLastReconciled(account) {
+        const value = this.accountField(account, 'lastReconciled');
+        return value ? this.formatDate(value) : t('budget', 'Never reconciled');
+    }
+
+    renderAccountCard(account, getField, attributes = ACCOUNT_ATTRIBUTE_DEFAULTS, order = ACCOUNT_ORDER_DEFAULTS) {
         const accountType = getField(account, 'type') || 'unknown';
         const accountName = getField(account, 'name') || t('budget', 'Unnamed Account');
         const accountBalance = parseFloat(getField(account, 'balance')) || 0;
         const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
         const accountId = getField(account, 'id') || 0;
         const institution = getField(account, 'institution') || '';
+        const accountNumber = this.accountField(account, 'accountNumber') || '';
 
         const typeInfo = this.getAccountTypeInfo(accountType);
         const healthStatus = this.getAccountHealthStatus(account);
@@ -295,6 +491,14 @@ export default class AccountsModule {
             ? (accountBalance < 0 ? t('budget', 'Owed') : accountBalance > 0 ? t('budget', 'Credit') : t('budget', 'Balance'))
             : t('budget', 'Balance');
 
+        // Tiles show the same attributes in the same order as the list columns
+        const metaItems = {
+            type: () => `<span class="account-type-badge">${typeInfo.label}</span>`,
+            institution: () => (institution ? `<span class="account-institution">${institution}</span>` : ''),
+            accountNumber: () => (accountNumber ? `<span class="account-number">${accountNumber}</span>` : ''),
+            lastReconciled: () => `<span class="account-reconciled">${this.formatLastReconciled(account)}</span>`
+        };
+
         return `
             <div class="account-card" data-type="${accountType}" data-account-id="${accountId}">
                 <div class="account-card-header">
@@ -304,9 +508,8 @@ export default class AccountsModule {
                     <div class="account-details">
                         <h3 class="account-name">${accountName}</h3>
                         <div class="account-meta">
-                            <span class="account-type-badge">${typeInfo.label}</span>
                             ${account.excludedFromReports ? `<span class="account-excluded-badge" title="${t('budget', 'Excluded from reports, dashboard & forecast')}">${t('budget', 'Excluded')}</span>` : ''}
-                            ${institution ? `<span class="account-institution">${institution}</span>` : ''}
+                            ${order.filter(key => ACCOUNT_META_KEYS.includes(key) && attributes[key]).map(key => metaItems[key]()).join('')}
                         </div>
                     </div>
                 </div>
@@ -317,20 +520,22 @@ export default class AccountsModule {
                         <span class="balance-amount ${balanceClass}">
                             ${this.formatCurrency(displayBalance, accountCurrency)}
                         </span>
-                        ${account.convertedBalance != null ? `<span class="balance-converted">\u2248 ${this.formatCurrency(isLiability ? Math.abs(account.convertedBalance) : account.convertedBalance, account.baseCurrency)}</span>` : ''}
+                        ${attributes.convertedBalance && account.convertedBalance != null ? `<span class="balance-converted">\u2248 ${this.formatCurrency(isLiability ? Math.abs(account.convertedBalance) : account.convertedBalance, account.baseCurrency)}</span>` : ''}
                     </div>
+                    ${attributes.sparkline ? `
                     <div class="account-sparkline" data-account-id="${accountId}">
                         <svg viewBox="0 0 80 32" preserveAspectRatio="none">
                             <path class="sparkline-path neutral" d="M0,16 L80,16"></path>
                         </svg>
-                    </div>
+                    </div>` : ''}
                 </div>
 
                 <div class="account-card-footer">
+                    ${attributes.status ? `
                     <div class="account-status">
                         <span class="account-status-dot ${healthStatus.class}"></span>
                         <span>${healthStatus.tooltip}</span>
-                    </div>
+                    </div>` : '<div class="account-status-placeholder"></div>'}
                     <div class="account-actions">
                         <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
@@ -344,13 +549,14 @@ export default class AccountsModule {
         `;
     }
 
-    renderAccountRow(account, getField) {
+    renderAccountRow(account, getField, attributes = ACCOUNT_ATTRIBUTE_DEFAULTS, order = ACCOUNT_ORDER_DEFAULTS) {
         const accountType = getField(account, 'type') || 'unknown';
         const accountName = getField(account, 'name') || t('budget', 'Unnamed Account');
         const accountBalance = parseFloat(getField(account, 'balance')) || 0;
         const accountCurrency = getField(account, 'currency') || this.getPrimaryCurrency();
         const accountId = getField(account, 'id') || 0;
         const institution = getField(account, 'institution') || '';
+        const accountNumber = this.accountField(account, 'accountNumber') || '';
 
         const typeInfo = this.getAccountTypeInfo(accountType);
         const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(accountType);
@@ -359,15 +565,24 @@ export default class AccountsModule {
             ? (accountBalance <= 0 ? 'negative' : 'positive')
             : (accountBalance >= 0 ? 'positive' : 'negative');
 
+        const cells = {
+            name: () => `<div class="account-row-name">${accountName}</div>`,
+            type: () => `<div class="account-row-type">${typeInfo.label}</div>`,
+            institution: () => `<div class="account-row-institution">${institution || '—'}</div>`,
+            accountNumber: () => `<div class="account-row-number">${accountNumber || '—'}</div>`,
+            lastReconciled: () => `<div class="account-row-reconciled">${this.formatLastReconciled(account)}</div>`,
+            balance: () => `<div class="account-row-balance ${balanceClass}">
+                    ${this.formatCurrency(displayBalance, accountCurrency)}
+                    ${attributes.convertedBalance && account.convertedBalance != null ? `<span class="account-row-converted">≈ ${this.formatCurrency(isLiability ? Math.abs(account.convertedBalance) : account.convertedBalance, account.baseCurrency)}</span>` : ''}
+                </div>`
+        };
+
         return `
             <div class="account-row" data-type="${accountType}" data-account-id="${accountId}">
                 <div class="account-row-icon" style="background-color: ${typeInfo.color};">
                     <span class="${typeInfo.icon}" aria-hidden="true"></span>
                 </div>
-                <div class="account-row-name">${accountName}</div>
-                <div class="account-row-type">${typeInfo.label}</div>
-                <div class="account-row-institution">${institution || '—'}</div>
-                <div class="account-row-balance ${balanceClass}">${this.formatCurrency(displayBalance, accountCurrency)}</div>
+                ${this.visibleAccountColumns(attributes, order).map(attr => cells[attr.key]()).join('')}
                 <div class="account-row-actions">
                     <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}">
                         <span class="icon-rename" aria-hidden="true"></span>
@@ -386,6 +601,194 @@ export default class AccountsModule {
 
     setAccountsViewMode(mode) {
         localStorage.setItem('budget-accounts-view', mode);
+    }
+
+    /**
+     * Wire the accounts display gear menu (attribute toggles + ordering).
+     * Called once during app setup.
+     */
+    setupAccountsDisplayConfigUI() {
+        const btn = document.getElementById('accounts-config-btn');
+        const dropdown = document.getElementById('accounts-config-dropdown');
+        if (!btn || !dropdown) return;
+
+        this.syncAccountsDisplayConfigUI();
+
+        const close = () => {
+            dropdown.style.display = 'none';
+            btn.setAttribute('aria-expanded', 'false');
+        };
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isVisible = dropdown.style.display !== 'none';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+            btn.setAttribute('aria-expanded', isVisible ? 'false' : 'true');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+                close();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dropdown.style.display !== 'none') {
+                close();
+            }
+        });
+
+        // Attribute rows are re-rendered on every change, so the toggle and
+        // drag handlers are delegated from the two containers.
+        ['accounts-attr-list', 'accounts-attr-extras'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', (e) => {
+                const checkbox = e.target.closest('.account-attr-toggle');
+                if (!checkbox) return;
+                const config = this.getAccountsDisplayConfig();
+                config.attributes[checkbox.dataset.attr] = checkbox.checked;
+                this.setAccountsDisplayConfig(config);
+                this.rerenderAccounts();
+            });
+        });
+
+        this.setupAccountsAttributeDragAndDrop();
+
+        ['accounts-sort-field', 'accounts-sort-direction'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => {
+                const config = this.getAccountsDisplayConfig();
+                config.sort = {
+                    field: document.getElementById('accounts-sort-field')?.value || ACCOUNT_SORT_DEFAULTS.field,
+                    direction: document.getElementById('accounts-sort-direction')?.value || ACCOUNT_SORT_DEFAULTS.direction
+                };
+                this.setAccountsDisplayConfig(config);
+                this.rerenderAccounts();
+            });
+        });
+
+        document.getElementById('accounts-config-reset')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.resetAccountsDisplayConfig();
+            this.syncAccountsDisplayConfigUI();
+            this.rerenderAccounts();
+        });
+    }
+
+    syncAccountsDisplayConfigUI() {
+        const { sort } = this.getAccountsDisplayConfig();
+
+        this.renderAccountsAttributeList();
+
+        const fieldSelect = document.getElementById('accounts-sort-field');
+        const dirSelect = document.getElementById('accounts-sort-direction');
+        if (fieldSelect) fieldSelect.value = sort.field;
+        if (dirSelect) dirSelect.value = sort.direction;
+    }
+
+    /**
+     * Render the attribute rows of the config dropdown: the reorderable list
+     * columns first, then the attributes that have no column of their own.
+     */
+    renderAccountsAttributeList() {
+        const list = document.getElementById('accounts-attr-list');
+        const extras = document.getElementById('accounts-attr-extras');
+        if (!list || !extras) return;
+
+        const { attributes, order } = this.getAccountsDisplayConfig();
+
+        const row = (attr, draggable) => {
+            const checked = attr.fixed || attributes[attr.key] ? 'checked' : '';
+            const disabled = attr.fixed ? 'disabled' : '';
+            const title = attr.fixed ? ` title="${t('budget', 'Always shown')}"` : '';
+            return `
+                <div class="accounts-attr-row" data-attr="${attr.key}" ${draggable ? 'draggable="true" tabindex="0"' : ''}>
+                    ${draggable ? `<span class="accounts-attr-grip" aria-hidden="true">⠿</span>` : '<span class="accounts-attr-grip-spacer"></span>'}
+                    <label${title}>
+                        <input type="checkbox" class="account-attr-toggle" data-attr="${attr.key}" ${checked} ${disabled}>
+                        <span>${attr.label()}</span>
+                    </label>
+                </div>
+            `;
+        };
+
+        list.innerHTML = order
+            .map(key => ACCOUNT_ATTRIBUTES.find(attr => attr.key === key))
+            .filter(Boolean)
+            .map(attr => row(attr, true))
+            .join('');
+
+        extras.innerHTML = ACCOUNT_ATTRIBUTES
+            .filter(attr => !attr.column)
+            .map(attr => row(attr, false))
+            .join('');
+    }
+
+    /**
+     * Drag (or Alt+Arrow) reordering of the list columns. Handlers are bound
+     * once to the container; rows are moved in the DOM while dragging and the
+     * resulting order is persisted on drop.
+     */
+    setupAccountsAttributeDragAndDrop() {
+        const list = document.getElementById('accounts-attr-list');
+        if (!list) return;
+
+        const persistOrder = () => {
+            const config = this.getAccountsDisplayConfig();
+            config.order = [...list.querySelectorAll('.accounts-attr-row')].map(el => el.dataset.attr);
+            this.setAccountsDisplayConfig(config);
+            this.rerenderAccounts();
+        };
+
+        list.addEventListener('dragstart', (e) => {
+            const row = e.target.closest('.accounts-attr-row');
+            if (!row) return;
+            row.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            // Firefox ignores a drag that carries no payload
+            e.dataTransfer.setData('text/plain', row.dataset.attr);
+        });
+
+        list.addEventListener('dragover', (e) => {
+            const dragging = list.querySelector('.dragging');
+            if (!dragging) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const after = [...list.querySelectorAll('.accounts-attr-row:not(.dragging)')]
+                .find(row => e.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2);
+            if (after) {
+                list.insertBefore(dragging, after);
+            } else {
+                list.appendChild(dragging);
+            }
+        });
+
+        list.addEventListener('drop', (e) => e.preventDefault());
+
+        list.addEventListener('dragend', (e) => {
+            const row = e.target.closest('.accounts-attr-row');
+            if (!row) return;
+            row.classList.remove('dragging');
+            persistOrder();
+        });
+
+        // Keyboard equivalent, so reordering doesn't require a pointer
+        list.addEventListener('keydown', (e) => {
+            if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+            const row = e.target.closest('.accounts-attr-row');
+            if (!row) return;
+            e.preventDefault();
+
+            if (e.key === 'ArrowUp' && row.previousElementSibling) {
+                list.insertBefore(row, row.previousElementSibling);
+            } else if (e.key === 'ArrowDown' && row.nextElementSibling) {
+                list.insertBefore(row.nextElementSibling, row);
+            } else {
+                return;
+            }
+            row.focus();
+            persistOrder();
+        });
     }
 
     async loadAccountSparklines(accounts) {

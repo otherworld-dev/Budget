@@ -267,7 +267,7 @@ style('budget', 'budget-app');
                 </a>
             </li>
             <li class="app-navigation-entry" data-id="help">
-                <a href="https://github.com/otherworld-dev/budget/tree/master/docs#readme" target="_blank" rel="noopener" class="nav-icon-help svg">
+                <a href="#help" class="nav-icon-help svg">
                     <span class="app-navigation-entry-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.5 11.45,12.58 12.17,11.83L13.41,10.59C13.78,10.22 14,9.71 14,9.14C14,7.96 13.1,7 12,7C10.9,7 10,7.96 10,9.14H8C8,6.84 9.79,5 12,5C14.21,5 16,6.84 16,9.14C16,9.97 15.64,10.71 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
@@ -1034,6 +1034,36 @@ style('budget', 'budget-app');
                         <button class="view-toggle-btn" data-view="list" title="<?php p($l->t('List view')); ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3,4H21V8H3V4M3,10H21V14H3V10M3,16H21V20H3V16Z"/></svg>
                         </button>
+                    </div>
+                    <div class="accounts-display-config">
+                        <button id="accounts-config-btn" class="icon-button" title="<?php p($l->t('Configure accounts display')); ?>" aria-haspopup="true" aria-expanded="false">
+                            <span class="icon-settings" aria-hidden="true"></span>
+                        </button>
+                        <div id="accounts-config-dropdown" class="column-config-dropdown accounts-config-dropdown" style="display: none;">
+                            <div class="dropdown-content">
+                                <h4><?php p($l->t('Show attributes')); ?></h4>
+                                <p class="accounts-config-hint"><?php p($l->t('Drag to reorder the columns of the list view.')); ?></p>
+                                <!-- Rows rendered by AccountsModule.renderAccountsAttributeList() -->
+                                <div id="accounts-attr-list" class="accounts-attr-list"></div>
+                                <div id="accounts-attr-extras" class="accounts-attr-extras"></div>
+
+                                <h4 class="accounts-config-subhead"><?php p($l->t('Order accounts by')); ?></h4>
+                                <select id="accounts-sort-field" class="accounts-config-select">
+                                    <option value="name"><?php p($l->t('Name')); ?></option>
+                                    <option value="balance"><?php p($l->t('Balance')); ?></option>
+                                    <option value="type"><?php p($l->t('Account type')); ?></option>
+                                    <option value="institution"><?php p($l->t('Institution')); ?></option>
+                                    <option value="lastReconciled"><?php p($l->t('Last reconciled')); ?></option>
+                                    <option value="created"><?php p($l->t('Date added')); ?></option>
+                                </select>
+                                <select id="accounts-sort-direction" class="accounts-config-select">
+                                    <option value="asc"><?php p($l->t('Ascending')); ?></option>
+                                    <option value="desc"><?php p($l->t('Descending')); ?></option>
+                                </select>
+
+                                <button id="accounts-config-reset" class="accounts-config-reset"><?php p($l->t('Reset to defaults')); ?></button>
+                            </div>
+                        </div>
                     </div>
                     <button id="add-account-btn" class="primary" aria-label="<?php p($l->t('Add new account')); ?>">
                         <span class="icon-add" aria-hidden="true"></span>
@@ -4910,7 +4940,10 @@ style('budget', 'budget-app');
                         </div>
 
                         <div class="setting-item">
-                            <label for="setting-digest-frequency"><?php p($l->t('Digest Frequency')); ?></label>
+                            <label for="setting-digest-frequency">
+                                <strong><?php p($l->t('Digest Frequency')); ?></strong>
+                                <small><?php p($l->t('How often the budget digest is sent')); ?></small>
+                            </label>
                             <select id="setting-digest-frequency" class="setting-input">
                                 <option value="weekly"><?php p($l->t('Weekly')); ?></option>
                                 <option value="monthly"><?php p($l->t('Monthly')); ?></option>
@@ -5105,8 +5138,8 @@ style('budget', 'budget-app');
                 <div class="settings-section">
                     <h3><?php p($l->t('Maintenance')); ?></h3>
                     <div class="settings-group">
-                        <div class="danger-zone-item">
-                            <div class="danger-zone-info">
+                        <div class="settings-action-item">
+                            <div class="settings-action-info">
                                 <h4><?php p($l->t('Recalculate Account Balances')); ?></h4>
                                 <p><?php p($l->t('Recalculates all account balances from their opening balance and transaction history. Use this if account balances appear incorrect.')); ?></p>
                             </div>
@@ -5115,8 +5148,8 @@ style('budget', 'budget-app');
                                 <?php p($l->t('Recalculate')); ?>
                             </button>
                         </div>
-                        <div class="danger-zone-item">
-                            <div class="danger-zone-info">
+                        <div class="settings-action-item">
+                            <div class="settings-action-info">
                                 <h4><?php p($l->t('Repair Data')); ?></h4>
                                 <p><?php p($l->t('Scans for data integrity issues: duplicate auto-generated transactions, bills with stuck due dates, and balance inconsistencies. Shows findings for your review before making any changes.')); ?></p>
                             </div>
@@ -5174,7 +5207,7 @@ style('budget', 'budget-app');
                     </div>
                 </div>
 
-                <!-- Settings Actions -->
+                <!-- Settings Actions (mirrors the buttons in the view header) -->
                 <div class="settings-actions">
                     <button id="save-settings-btn-bottom" class="primary">
                         <span class="icon-checkmark" aria-hidden="true"></span>
@@ -5185,29 +5218,72 @@ style('budget', 'budget-app');
                         <?php p($l->t('Reset All to Defaults')); ?>
                     </button>
                 </div>
+            </div>
+        </div>
 
-                <!-- Quick Add URL Section -->
-                <div class="settings-section" style="margin-top: 25px;">
+        <!-- Help & Docs View -->
+        <div id="help-view" class="view">
+            <div class="view-header">
+                <h2><?php p($l->t('Help & Docs')); ?></h2>
+                <div class="view-controls">
+                    <button type="button" id="help-docs-site-btn" class="secondary">
+                        <span class="icon-external" aria-hidden="true"></span>
+                        <?php p($l->t('Open docs site')); ?>
+                    </button>
+                    <button type="button" id="help-report-issue-btn" class="secondary">
+                        <span class="icon-comment" aria-hidden="true"></span>
+                        <?php p($l->t('Report an Issue')); ?>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-container">
+                <!-- Documentation -->
+                <div class="settings-section">
+                    <h3><?php p($l->t('Documentation')); ?></h3>
+                    <p class="settings-description"><?php p($l->t('A guide for every part of the app. Each one opens the full page on the documentation site.')); ?></p>
+                    <!-- Cards rendered by HelpModule.renderDocLinks() from HELP_TOPICS -->
+                    <div id="help-docs-grid" class="help-docs-grid"></div>
+                </div>
+
+                <!-- Keyboard Shortcuts -->
+                <div class="settings-section">
+                    <h3><?php p($l->t('Keyboard Shortcuts')); ?></h3>
+                    <div class="settings-group">
+                        <div class="settings-action-item">
+                            <div class="settings-action-info">
+                                <h4><?php p($l->t('Drive Budget from the keyboard')); ?></h4>
+                                <p><?php p($l->t('Press ? anywhere in the app for the full cheat sheet. Jump between pages with g followed by a letter, focus search with /, and edit or select rows in the transaction list without reaching for the mouse.')); ?></p>
+                            </div>
+                            <button id="help-view-shortcuts-btn" class="secondary" type="button">
+                                <span class="icon-toggle" aria-hidden="true"></span>
+                                <?php p($l->t('Show shortcuts')); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Add Page -->
+                <div class="settings-section">
                     <h3><?php p($l->t('Quick Add Page')); ?></h3>
-                    <p class="section-description"><?php p($l->t('A minimal page for adding transactions on mobile. Bookmark this URL or add it to your home screen.')); ?></p>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" id="quick-add-url" readonly
-                            value="<?php echo \OCP\Server::get(\OCP\IURLGenerator::class)->getAbsoluteURL(\OCP\Server::get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.quickAdd')); ?>"
-                            style="flex: 1; font-size: 13px; padding: 6px 10px; background: var(--color-background-dark); border: 1px solid var(--color-border); border-radius: 4px; cursor: text;">
-                        <button type="button" id="copy-quick-add-url" class="secondary" style="white-space: nowrap;">
+                    <p class="settings-description"><?php p($l->t('A minimal page for adding transactions on mobile. Bookmark this URL or add it to your home screen.')); ?></p>
+                    <div class="quick-add-url-row">
+                        <input type="text" id="quick-add-url" class="quick-add-url-input" readonly
+                            value="<?php echo \OCP\Server::get(\OCP\IURLGenerator::class)->getAbsoluteURL(\OCP\Server::get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.quickAdd')); ?>">
+                        <button type="button" id="copy-quick-add-url" class="secondary">
                             <?php p($l->t('Copy URL')); ?>
                         </button>
                     </div>
                 </div>
 
-                <!-- System Info Section -->
-                <div class="settings-section" style="margin-top: 25px;">
+                <!-- System Info -->
+                <div class="settings-section">
                     <h3><?php p($l->t('System Info')); ?></h3>
-                    <p class="section-description"><?php p($l->t('Copy this information when reporting issues.')); ?></p>
+                    <p class="settings-description"><?php p($l->t('Copy this information when reporting issues.')); ?></p>
                     <div id="system-info-content" class="system-info-box">
                         <div class="system-info-loading"><?php p($l->t('Loading...')); ?></div>
                     </div>
-                    <button id="copy-system-info-btn" class="secondary" type="button" style="margin-top: 8px;">
+                    <button id="copy-system-info-btn" class="secondary system-info-copy-btn" type="button">
                         <span class="icon-clippy" aria-hidden="true"></span>
                         <?php p($l->t('Copy to Clipboard')); ?>
                     </button>
@@ -6808,7 +6884,7 @@ style('budget', 'budget-app');
         <!-- Populated dynamically based on current view -->
     </div>
     <div class="help-panel-footer">
-        <a href="https://github.com/otherworld-dev/budget/tree/master/docs#readme" target="_blank" rel="noopener"><?php p($l->t('Full Documentation')); ?> &rarr;</a>
+        <a href="#help" id="help-panel-all-docs"><?php p($l->t('Help & Docs')); ?> &rarr;</a>
         <a href="https://github.com/otherworld-dev/budget/issues" target="_blank" rel="noopener"><?php p($l->t('Report an Issue')); ?></a>
     </div>
 </div>

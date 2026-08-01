@@ -72,3 +72,4 @@
 |----------|-------------|
 | [Exchange Rates](exchange-rates.md) | Configure currency conversion rates for multi-currency accounts |
 | [Settings](settings.md) | Customize date formats, default currency, diagnostics, and app behavior |
+| [Help & Docs](help.md) | In-app guides, keyboard shortcuts, the Quick Add page URL, and system diagnostics |

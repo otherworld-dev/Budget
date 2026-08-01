@@ -121,6 +121,7 @@ export default class Router {
         'sharing': 'loadSharingView',
         'bank-sync': 'loadBankSyncView',
         'settings': 'loadSettingsView',
+        'help': 'loadHelpView',
     };
 
     /**

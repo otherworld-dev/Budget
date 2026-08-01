@@ -2652,7 +2652,9 @@ button.danger:hover {
 }
 .account-row {
     display: grid;
-    grid-template-columns: 36px 1fr 120px 120px 120px 80px;
+    /* Column template is published by AccountsModule.buildAccountRowColumns()
+       so hidden attributes don't leave empty tracks behind. */
+    grid-template-columns: var(--account-row-cols, 36px minmax(0, 1fr) 120px 140px 140px 80px);
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
@@ -2698,6 +2700,14 @@ button.danger:hover {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.account-row-number,
+.account-row-reconciled {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast, #888);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .account-row-balance {
     font-weight: 600;
     font-size: 14px;
@@ -2705,6 +2715,15 @@ button.danger:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Breathing room between the last data column and the action buttons
+       (on top of the row's 12px grid gap) */
+    padding-right: 10px;
+}
+.account-row-converted {
+    display: block;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast, #888);
 }
 .account-row-balance.positive {
     color: var(--budget-color-positive, #2e7d32);
@@ -2727,10 +2746,12 @@ button.danger:hover {
 
 @media (max-width: 900px) {
     .account-row {
-        grid-template-columns: 36px 1fr 100px 70px;
+        grid-template-columns: var(--account-row-cols-mobile, 36px minmax(0, 1fr) 100px 70px);
     }
     .account-row-type,
-    .account-row-institution {
+    .account-row-institution,
+    .account-row-number,
+    .account-row-reconciled {
         display: none;
     }
 }
@@ -2840,6 +2861,11 @@ button.danger:hover {
     background: var(--color-background-hover);
     padding: 2px 6px;
     border-radius: 4px;
+}
+
+.account-reconciled {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
 }
 
 /* Account Card Balance Section */
@@ -3317,6 +3343,11 @@ button.danger:hover {
 
 /* Enhanced Transactions Page Styles */
 
+#transactions-view .view-header h2 {
+    margin-top: 12px;
+    margin-right: 12px;
+}
+
 /* Filters Panel */
 .filters-panel {
     background: var(--color-background-hover);
@@ -3332,6 +3363,17 @@ button.danger:hover {
     color: var(--color-main-text);
     font-size: 16px;
     font-weight: 600;
+}
+
+/* Tighter filter panel on the transactions view only — the account details
+   view keeps the roomier defaults above. */
+#transactions-filters.filters-panel {
+    margin-bottom: 5px;
+    padding: 5px;
+}
+
+#transactions-filters .filters-section h3 {
+    padding: 5px;
 }
 
 .filters-grid {
@@ -3639,25 +3681,104 @@ button.danger:hover {
     display: inline-block;
 }
 
-#column-config-btn {
+#column-config-btn,
+#accounts-config-btn {
     background: var(--color-background-dark) !important;
     border: 1px solid var(--color-border) !important;
     opacity: 1 !important;
 }
 
-#column-config-btn .icon-settings {
+#column-config-btn .icon-settings,
+#accounts-config-btn .icon-settings {
     opacity: 1 !important;
     filter: var(--background-invert-if-dark) !important;
     font-size: 18px;
 }
 
-#column-config-btn:hover {
+#column-config-btn:hover,
+#accounts-config-btn:hover {
     background: var(--color-background-hover) !important;
     border-color: var(--color-primary-element) !important;
 }
 
-#column-config-btn:hover .icon-settings {
+#column-config-btn:hover .icon-settings,
+#accounts-config-btn:hover .icon-settings {
     filter: var(--background-invert-if-dark) !important;
+}
+
+/* Accounts view display config (attributes + ordering) */
+.accounts-display-config {
+    position: relative;
+    display: inline-block;
+}
+
+.accounts-config-dropdown {
+    min-width: 260px;
+}
+
+.accounts-config-dropdown .accounts-config-subhead {
+    margin-top: 12px;
+}
+
+.accounts-config-hint {
+    margin: 0 0 6px 0;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.accounts-attr-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 4px;
+}
+
+.accounts-attr-row[draggable="true"] {
+    cursor: grab;
+}
+
+.accounts-attr-row.dragging {
+    opacity: 0.5;
+    background: var(--color-background-hover);
+}
+
+.accounts-attr-row:focus-visible {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: -2px;
+}
+
+.accounts-attr-row label {
+    flex: 1;
+    min-width: 0;
+}
+
+.accounts-attr-grip {
+    font-size: 13px;
+    line-height: 1;
+    color: var(--color-text-maxcontrast);
+    flex-shrink: 0;
+}
+
+.accounts-attr-grip-spacer {
+    width: 13px;
+    flex-shrink: 0;
+}
+
+.accounts-attr-extras {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-border);
+}
+
+.accounts-config-select {
+    width: 100%;
+    margin-top: 6px;
+}
+
+.accounts-config-reset {
+    width: 100%;
+    margin-top: 12px;
+    font-size: 12px;
 }
 
 .column-config-dropdown {
@@ -5371,23 +5492,27 @@ button.danger:hover {
 .categories-tree-container {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 5px;
 }
 
 /* Categories Tree */
 .categories-tree {
     position: relative;
+    /* Spacing lives on .categories-tree-container; overrides the earlier
+       .categories-tree block */
+    padding: 0;
 }
 
 .category-node {
     position: relative;
-    margin: 2px 0;
+    margin: 0;
+    background: var(--color-main-background);
 }
 
 .category-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: 0 12px;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -5681,7 +5806,7 @@ button.danger:hover {
 }
 
 .category-details-header {
-    padding: 20px;
+    padding: 5px 20px;
     border-bottom: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
@@ -5701,7 +5826,7 @@ button.danger:hover {
 
 .category-details-content {
     flex: 1;
-    padding: 20px;
+    padding: 5px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -5849,7 +5974,7 @@ button.danger:hover {
 
 /* Recent Transactions */
 .recent-transactions-section h5 {
-    margin: 0 0 16px 0;
+    margin: 0 0 5px 0;
     font-size: 14px;
     font-weight: 600;
     color: var(--color-main-text);
@@ -5896,7 +6021,7 @@ button.danger:hover {
 
 /* Category Analytics */
 .category-analytics-section h5 {
-    margin: 0 0 16px 0;
+    margin: 0 0 5px 0;
     font-size: 14px;
     font-weight: 600;
     color: var(--color-main-text);
@@ -5999,11 +6124,19 @@ button.danger:hover {
     margin-bottom: 20px;
 }
 
+/* Outranks the .category-details-content > div + div divider rule below,
+   which would otherwise force padding-top: 20px on this section. */
+.category-details-content > .category-tag-sets-section {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
 .category-tag-sets-section .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    padding: 5px;
+    margin-bottom: 0;
 }
 
 .category-tag-sets-section .section-header h5 {
@@ -7759,8 +7892,8 @@ button.danger:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 16px;
-    padding-top: 16px;
+    margin-top: 0;
+    padding: 0;
     border-top: 1px solid var(--color-border);
 }
 
@@ -8541,13 +8674,87 @@ button.danger:hover {
 }
 
 /* Settings actions */
+/* Footer buttons, mirroring the ones in the view header. The sections above
+   are bordered cards and already provide the separation, so no divider here. */
 .settings-actions {
     display: flex;
     gap: 12px;
     justify-content: flex-start;
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+
+/* Quick Add Page section */
+.quick-add-url-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.quick-add-url-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    padding: 6px 10px;
+    background: var(--color-background-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    cursor: text;
+}
+
+.quick-add-url-row button {
+    white-space: nowrap;
+}
+
+.system-info-copy-btn {
+    margin-top: 8px;
+}
+
+.system-info-subhead {
+    margin: 16px 0 8px;
+    font-size: 13px;
+}
+
+.system-info-ok {
+    margin-top: 12px;
+    color: var(--color-success);
+    font-size: 12px;
+}
+
+/* Help & Docs view */
+.help-docs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.help-doc-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-large);
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.help-doc-card:hover,
+.help-doc-card:focus-visible {
+    background: var(--color-background-hover);
+    border-color: var(--color-primary-element);
+}
+
+.help-doc-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.help-doc-summary {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    line-height: 1.4;
 }
 
 /* Responsive settings */
@@ -17574,6 +17781,7 @@ button.secondary.compact {
     font-weight: 600;
 }
 
+.settings-action-item,
 .danger-zone-item {
     display: flex;
     justify-content: space-between;
@@ -17585,6 +17793,7 @@ button.secondary.compact {
     border-radius: 4px;
 }
 
+.settings-action-info h4,
 .danger-zone-info h4 {
     margin: 0 0 8px 0;
     font-size: 16px;
@@ -17592,6 +17801,7 @@ button.secondary.compact {
     color: var(--color-main-text, #000);
 }
 
+.settings-action-info p,
 .danger-zone-info p {
     margin: 0;
     color: var(--color-text-lighter, #757575);
@@ -17748,6 +17958,7 @@ button.secondary.compact {
 
 /* Responsive Danger Zone */
 @media (max-width: 768px) {
+    .settings-action-item,
     .danger-zone-item {
         flex-direction: column;
         align-items: stretch;

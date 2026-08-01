@@ -120,7 +120,7 @@ The app supports importing from various financial institutions:
 - **OFX Files**: Open Financial Exchange format from banks
 - **QIF Files**: Quicken Interchange Format
 
-See the [import guide](docs/import.md) and [auto-categorization rules guide](docs/rules.md) for details. Test rules with sample data before importing large files.
+See the [import guide](https://budget.otherworld.dev/docs/import.html) and [auto-categorization rules guide](https://budget.otherworld.dev/docs/rules.html) for details. Test rules with sample data before importing large files.
 
 ## Troubleshooting
 
@@ -156,7 +156,7 @@ Enable debug mode in Nextcloud config:
 ### Getting Help
 - Check the [GitHub Issues](https://github.com/otherworld-dev/Budget/issues)
 - Visit [Nextcloud Community](https://help.nextcloud.com)
-- Read the [User Documentation](docs/index.md)
+- Read the [User Documentation](https://budget.otherworld.dev/docs/)
 
 ## Uninstalling
 

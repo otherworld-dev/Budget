@@ -16,22 +16,22 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 - **Full-precision crypto** - Accounts and transactions now store up to 8 decimals, following each currency's native precision ([#331](https://github.com/otherworld-dev/Budget/issues/331))
 - Plus shared-category and shared-bill fixes, and the browser Back button now moves between pages inside Budget — see the [full changelog](budget/CHANGELOG.md)
 
-Earlier highlights: auto-share new entities, revamped pensions, consistent "Exclude from reports" (v2.36); envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](docs/nextcloud-integration.md) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
+Earlier highlights: auto-share new entities, revamped pensions, consistent "Exclude from reports" (v2.36); envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](https://budget.otherworld.dev/docs/nextcloud-integration.html) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
 
 ## Documentation
 
-Full user documentation is available in the [docs/](docs/index.md) directory:
+Full user documentation lives at [budget.otherworld.dev/docs](https://budget.otherworld.dev/docs/):
 
-- **[Quick Start Guide](docs/getting-started.md)** — Set up in 10 minutes
-- **[Full Documentation Index](docs/index.md)** — All features documented
+- **[Quick Start Guide](https://budget.otherworld.dev/docs/getting-started.html)** — Set up in 10 minutes
+- **[Full Documentation Index](https://budget.otherworld.dev/docs/)** — All features documented
 
 Popular topics:
-- [Importing bank statements](docs/import.md)
-- [Setting up auto-categorization rules](docs/rules.md)
-- [Budget tracking](docs/budget.md)
-- [Dashboard customization](docs/dashboard.md)
-- [Bills & recurring payments](docs/bills.md)
-- [Settings reference](docs/settings.md)
+- [Importing bank statements](https://budget.otherworld.dev/docs/import.html)
+- [Setting up auto-categorization rules](https://budget.otherworld.dev/docs/rules.html)
+- [Budget tracking](https://budget.otherworld.dev/docs/budget.html)
+- [Dashboard customization](https://budget.otherworld.dev/docs/dashboard.html)
+- [Bills & recurring payments](https://budget.otherworld.dev/docs/bills.html)
+- [Settings reference](https://budget.otherworld.dev/docs/settings.html)
 
 ## Support the Project
 
@@ -64,7 +64,7 @@ Sponsorship funds the time behind quick fixes, new features, and keeping the app
 
 ### Import & Automation
 - **Bank Sync (Beta)** - Connect external bank accounts for automatic transaction imports
-  - GoCardless provider for UK/Europe banks with guided setup wizard and bank selection (note: GoCardless no longer accepts new sign-ups — existing accounts keep working; see [docs](docs/bank-sync.md))
+  - GoCardless provider for UK/Europe banks with guided setup wizard and bank selection (note: GoCardless no longer accepts new sign-ups — existing accounts keep working; see [docs](https://budget.otherworld.dev/docs/bank-sync.html))
   - SimpleFIN provider for US/Canadian banks
   - Optional pending-transaction import with automatic reconciliation when they post
   - Daily background sync with duplicate detection
@@ -253,7 +253,7 @@ budget/
 
 ## Usage
 
-> See the [full documentation](docs/index.md) for detailed guides on every feature.
+> See the [full documentation](https://budget.otherworld.dev/docs/) for detailed guides on every feature.
 
 ### Getting Started
 

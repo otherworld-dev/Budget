@@ -52,6 +52,32 @@ The accounts page offers two layouts, toggled with the view switcher in the acco
 
 Your chosen view is saved automatically and restored the next time you visit the accounts page. In either view, click any card or row to open the account detail view.
 
+### Choosing What to Show
+
+The gear button next to the view switcher opens the display settings for the accounts page. These apply to both layouts (a couple of options only make sense on tiles) and are saved in your browser.
+
+**Show attributes** — tick the details you want on each tile/row:
+
+| Attribute | Default | Notes |
+|-----------|---------|-------|
+| Name | Always on | Can be reordered but not hidden. |
+| Account type | On | Type badge on a tile, type column in the list. |
+| Institution | On | The bank or provider. |
+| Account number | Off | Masked (last four digits only). |
+| Last reconciled | Off | Shows *Never reconciled* if the account has never been reconciled. |
+| Balance | Always on | Can be reordered but not hidden. |
+| Converted balance | On | The balance in your primary currency, for accounts held in another currency. Sits with the balance. |
+| Balance trend | On | The 7-day sparkline. Tiles only. |
+| Status | On | The health dot and its label. Tiles only. |
+
+Hiding an attribute in the list view also removes its column, so the remaining columns take up the space.
+
+**Reordering columns** — the attributes above the divider are the columns of the list view, and can be dragged into whatever order you want (or moved with `Alt`+`↑`/`Alt`+`↓` while a row has keyboard focus). Name and Balance take part in the ordering even though they can't be hidden. Tiles use the same order for the details under the account name, so the two layouts stay consistent. The account icon stays first and the edit/delete buttons stay last. On narrow screens the list drops to name and balance regardless, keeping whichever order you chose.
+
+**Order accounts by** — sort by name, balance, account type, institution, last reconciled, or date added, ascending or descending. The default is name, ascending. Assets and liabilities are still grouped into their own sections; the ordering applies within each. Accounts missing the attribute you sort by (no institution, never reconciled) go to the bottom of their section.
+
+**Reset to defaults** restores every option above.
+
 ## Creating an Account
 
 Navigate to **Accounts > Add Account** to create a new account.

@@ -34,7 +34,7 @@ Track your spending habits, manage savings, and forecast future account balances
 
 ## Documentation
 
-Full user documentation: https://github.com/otherworld-dev/budget/tree/master/docs
+Full user documentation: https://budget.otherworld.dev/docs/
 
 ## Requirements
 
@@ -46,8 +46,13 @@ Full user documentation: https://github.com/otherworld-dev/budget/tree/master/do
     <licence>AGPL-3.0-or-later</licence>
     <author mail="adam@otherworld.dev" homepage="https://otherworld.dev">Adam Morgan</author>
     <namespace>Budget</namespace>
+    <documentation>
+        <user>https://budget.otherworld.dev/docs/</user>
+        <admin>https://budget.otherworld.dev/install.html</admin>
+    </documentation>
     <category>office</category>
     <category>organization</category>
+    <website>https://budget.otherworld.dev/</website>
     <bugs>https://github.com/otherworld-dev/budget/issues</bugs>
     <repository>https://github.com/otherworld-dev/budget</repository>
     <screenshot small-thumbnail="https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard-thumb.png">https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard.png</screenshot>
