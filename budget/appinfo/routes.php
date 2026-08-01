@@ -404,4 +404,29 @@ return [
         ['name' => 'adminSetting#index', 'url' => '/api/admin/settings', 'verb' => 'GET'],
         ['name' => 'adminSetting#update', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
     ],
+
+    /*
+     * Public REST API (v1), served at /ocs/v2.php/apps/budget/api/v1/...
+     *
+     * The 'routes' block above is the web UI's own back end: session + CSRF
+     * only, and its shapes follow the database. These OCS routes are the
+     * documented, versioned surface for outside clients — the Android capture
+     * app, scripts, automation tooling — which authenticate with a Nextcloud
+     * app password (or a Login flow v2 token) and send `OCS-APIRequest: true`.
+     *
+     * Anything added here is a contract. See docs/api.md and openapi.json.
+     */
+    'ocs' => [
+        ['name' => 'apiV1#info', 'url' => '/api/v1', 'verb' => 'GET'],
+
+        ['name' => 'apiV1Account#index', 'url' => '/api/v1/accounts', 'verb' => 'GET'],
+
+        ['name' => 'apiV1Category#index', 'url' => '/api/v1/categories', 'verb' => 'GET'],
+
+        ['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
+        ['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],
+        ['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
+        ['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
+        ['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
+    ],
 ];

@@ -23,10 +23,11 @@ use Psr\Log\LoggerInterface;
  */
 class AttachmentService {
 
-    private const ALLOWED_MIMES = [
+    /** Public so the REST API can advertise the limits it enforces (v1 /info). */
+    public const ALLOWED_MIMES = [
         'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf',
     ];
-    private const MAX_SIZE = 26214400; // 25 MB
+    public const MAX_SIZE = 26214400; // 25 MB
     private const RECEIPTS_FOLDER = 'Budget/Receipts';
 
     public function __construct(

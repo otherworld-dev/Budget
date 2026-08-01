@@ -46,6 +46,7 @@
 | [Import](import.md) | Import bank statements in CSV, OFX, or QIF format |
 | [Rules](rules.md) | Auto-categorize transactions with pattern-matching rules |
 | [Bank Sync](bank-sync.md) | Connect directly to your bank for automatic transaction import |
+| [REST API](api.md) | Read your budget and record transactions from apps, scripts, and automation tools |
 
 ## Collaboration
 
