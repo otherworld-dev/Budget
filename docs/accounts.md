@@ -82,6 +82,19 @@ Hiding an attribute in the list view also removes its column, so the remaining c
 
 Navigate to **Accounts > Add Account** to create a new account.
 
+### Form Layout
+
+The account form lays its fields out in three columns, so everything is visible at once without scrolling:
+
+| Column | Contains |
+|--------|----------|
+| **Details** | Name, type, opening balance, current balance, currency and institution. |
+| **Banking** | Account holder name, account number, opening date, and the identifiers that apply to your account type (routing number, sort code, IBAN, SWIFT/BIC, or wallet address). |
+| **Rates & limits** | Interest rate, compounding frequency, credit limit, overdraft limit, minimum payment and interest tracking. Hidden entirely when the account type has no rates or limits to set — a Cash account, for example, has none. |
+| **Advanced** | Sits below Rates & limits and holds the **Exclude from reports, dashboard & forecast** option. |
+
+On narrower windows the columns reflow to two, then to a single stacked column on a phone. When you edit an existing account the current balance is shown as a read-only figure, since it is calculated from the account's transactions rather than typed in — change the **Opening Balance** instead and the current balance updates to match.
+
 ### Required Fields
 
 | Field | Description |

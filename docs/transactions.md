@@ -6,6 +6,18 @@
 
 Navigate to an account's transaction list and click **Add Transaction**, or use the global add button from any page.
 
+### Form Layout
+
+The transaction dialog lays its fields out in three columns, so everything is visible at once without scrolling:
+
+| Column | Contains |
+|--------|----------|
+| **Transaction** | Date, account, type, amount — plus the destination account and amount when the type is Transfer. |
+| **Details** | Description, vendor, category, the **Split across categories** toggle, and any tags. |
+| **Extras** | Receipts (on a saved transaction), notes, and the **Exclude from forecast** option. |
+
+Turning on **Split across categories** replaces the category field with a **Split Details** table spanning the full width of the dialog, below the columns. On narrower windows the columns reflow to two, then to a single stacked column on a phone.
+
 ### Transaction Fields
 
 | Field | Required | Description |

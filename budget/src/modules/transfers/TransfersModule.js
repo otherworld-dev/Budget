@@ -397,127 +397,138 @@ export default class TransfersModule {
         const title = isEdit ? t('budget', 'Edit Transfer') : t('budget', 'Add Transfer');
 
         const modalHtml = `
-            <div class="budget-modal-overlay">
-                <div class="budget-modal">
-                    <div class="budget-modal-header">
+            <div class="budget-modal-overlay modal-columns modal-columns-2">
+                <div class="budget-modal modal-content">
+                    <div class="budget-modal-header modal-head">
                         <h2>${title}</h2>
                         <button class="close-btn" id="close-transfer-modal">×</button>
                     </div>
-                    <form id="transfer-form" class="budget-modal-body">
-                        <div class="form-group">
-                            <label for="transfer-name">${t('budget', 'Name')} *</label>
-                            <input type="text" id="transfer-name" class="form-control"
-                                   placeholder="${t('budget', 'e.g., Monthly Savings')}" required
-                                   value="${isEdit ? dom.escapeHtml(transfer.name) : ''}">
-                        </div>
+                    <form id="transfer-form" class="wide-form">
+                        <div class="modal-scroll">
+                          <div class="form-columns form-columns-2">
+                            <div class="form-col">
+                              <div class="form-block">
+                                <h4>${t('budget', 'Transfer')}</h4>
+                                <div class="form-group">
+                                <label for="transfer-name">${t('budget', 'Name')} <span class="required">*</span></label>
+                                <input type="text" id="transfer-name"
+                                placeholder="${t('budget', 'e.g., Monthly Savings')}" required
+                                value="${isEdit ? dom.escapeHtml(transfer.name) : ''}">
+                                </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="transfer-amount">${t('budget', 'Amount')} *</label>
-                                <input type="number" id="transfer-amount" class="form-control"
-                                       step="0.01" min="0" required
-                                       value="${isEdit ? transfer.amount : ''}">
-                            </div>
-                            <div class="form-group">
-                                <label for="transfer-frequency">${t('budget', 'Frequency')} *</label>
-                                <select id="transfer-frequency" class="form-control" required>
-                                    <option value="one-time" ${isEdit && transfer.frequency === 'one-time' ? 'selected' : ''}>${t('budget', 'One-Time')}</option>
-                                    <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
-                                    <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
-                                    <option value="semi-monthly" ${isEdit && transfer.frequency === 'semi-monthly' ? 'selected' : ''}>${t('budget', 'Semi-Monthly')}</option>
-                                    <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
-                                    <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
-                                    <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
+                                <div class="form-group">
+                                <label for="transfer-amount">${t('budget', 'Amount')} <span class="required">*</span></label>
+                                <input type="number" id="transfer-amount"
+                                step="0.01" min="0" required
+                                value="${isEdit ? transfer.amount : ''}">
+                                </div>
+
+                                <div class="form-group">
+                                <label for="transfer-frequency">${t('budget', 'Frequency')} <span class="required">*</span></label>
+                                <select id="transfer-frequency" required>
+                                <option value="one-time" ${isEdit && transfer.frequency === 'one-time' ? 'selected' : ''}>${t('budget', 'One-Time')}</option>
+                                <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
+                                <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
+                                <option value="semi-monthly" ${isEdit && transfer.frequency === 'semi-monthly' ? 'selected' : ''}>${t('budget', 'Semi-Monthly')}</option>
+                                <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
+                                <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
+                                <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                                 </select>
-                            </div>
-                        </div>
+                                </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="recurring-transfer-from-account">${t('budget', 'From Account')} *</label>
-                                <select id="recurring-transfer-from-account" class="form-control" required>
-                                    <option value="">${t('budget', 'Select account...')}</option>
-                                    ${this.accounts.map(account => `
-                                        <option value="${account.id}" ${isEdit && transfer.accountId === account.id ? 'selected' : ''}>
-                                            ${dom.escapeHtml(account.name)}
-                                        </option>
-                                    `).join('')}
+                                <div class="form-group">
+                                <label for="recurring-transfer-from-account">${t('budget', 'From Account')} <span class="required">*</span></label>
+                                <select id="recurring-transfer-from-account" required>
+                                <option value="">${t('budget', 'Select account...')}</option>
+                                ${this.accounts.map(account => `
+                                <option value="${account.id}" ${isEdit && transfer.accountId === account.id ? 'selected' : ''}>
+                                ${dom.escapeHtml(account.name)}
+                                </option>
+                                `).join('')}
                                 </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="recurring-transfer-to-account">${t('budget', 'To Account')} *</label>
-                                <select id="recurring-transfer-to-account" class="form-control" required>
-                                    <option value="">${t('budget', 'Select account...')}</option>
-                                    ${this.accounts.map(account => `
-                                        <option value="${account.id}" ${isEdit && transfer.destinationAccountId === account.id ? 'selected' : ''}>
-                                            ${dom.escapeHtml(account.name)}
-                                        </option>
-                                    `).join('')}
+                                </div>
+
+                                <div class="form-group">
+                                <label for="recurring-transfer-to-account">${t('budget', 'To Account')} <span class="required">*</span></label>
+                                <select id="recurring-transfer-to-account" required>
+                                <option value="">${t('budget', 'Select account...')}</option>
+                                ${this.accounts.map(account => `
+                                <option value="${account.id}" ${isEdit && transfer.destinationAccountId === account.id ? 'selected' : ''}>
+                                ${dom.escapeHtml(account.name)}
+                                </option>
+                                `).join('')}
                                 </select>
+                                </div>
+
+                                <div class="form-group">
+                                <label for="transfer-due-day">${t('budget', 'Day of Month (1-31)')}</label>
+                                <input type="number" id="transfer-due-day"
+                                min="1" max="31" placeholder="${t('budget', 'e.g., 15')}"
+                                value="${isEdit && transfer.dueDay ? transfer.dueDay : ''}">
+                                <small class="form-text">${t('budget', 'Leave empty for weekly transfers')}</small>
+                                </div>
+                              </div>
                             </div>
-                        </div>
+                            <div class="form-col">
+                              <div class="form-block">
+                                <h4>${t('budget', 'Details')}</h4>
+                                <div class="form-group">
+                                <label for="transfer-description-pattern">${t('budget', 'Transaction Description Pattern (Optional)')}</label>
+                                <input type="text" id="transfer-description-pattern"
+                                placeholder="${t('budget', 'e.g., Savings Transfer')}"
+                                value="${isEdit && transfer.transferDescriptionPattern ? dom.escapeHtml(transfer.transferDescriptionPattern) : ''}">
+                                <small class="form-text">${t('budget', 'Used to match imported transactions')}</small>
+                                </div>
 
-                        <div class="form-group">
-                            <label for="transfer-due-day">${t('budget', 'Day of Month (1-31)')}</label>
-                            <input type="number" id="transfer-due-day" class="form-control"
-                                   min="1" max="31" placeholder="${t('budget', 'e.g., 15')}"
-                                   value="${isEdit && transfer.dueDay ? transfer.dueDay : ''}">
-                            <small class="form-hint">${t('budget', 'Leave empty for weekly transfers')}</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="transfer-description-pattern">${t('budget', 'Transaction Description Pattern (Optional)')}</label>
-                            <input type="text" id="transfer-description-pattern" class="form-control"
-                                   placeholder="${t('budget', 'e.g., Savings Transfer')}"
-                                   value="${isEdit && transfer.transferDescriptionPattern ? dom.escapeHtml(transfer.transferDescriptionPattern) : ''}">
-                            <small class="form-hint">${t('budget', 'Used to match imported transactions')}</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="transfer-category">${t('budget', 'Category')}</label>
-                            <select id="transfer-category" class="form-control">
+                                <div class="form-group">
+                                <label for="transfer-category">${t('budget', 'Category')}</label>
+                                <select id="transfer-category">
                                 <option value="">${t('budget', 'No category')}</option>
                                 ${dom.buildCategoryOptionsHtml(this.categoryTree || this.categories, { typeFilter: 'expense', selectedId: isEdit ? transfer.categoryId : null })}
-                            </select>
-                            <small class="form-hint">${t('budget', 'Category for created transactions (optional)')}</small>
-                        </div>
+                                </select>
+                                <small class="form-text">${t('budget', 'Category for created transactions (optional)')}</small>
+                                </div>
 
-                        <div id="transfer-tags-container"></div>
+                                <div id="transfer-tags-container"></div>
 
-                        <div class="form-group">
-                            <label for="transfer-notes">${t('budget', 'Notes')}</label>
-                            <textarea id="transfer-notes" class="form-control" rows="3"
-                                      placeholder="${t('budget', 'Optional notes...')}">${isEdit && transfer.notes ? dom.escapeHtml(transfer.notes) : ''}</textarea>
-                        </div>
+                                <div class="form-group">
+                                <label for="transfer-notes">${t('budget', 'Notes')}</label>
+                                <textarea id="transfer-notes" rows="3"
+                                placeholder="${t('budget', 'Optional notes...')}">${isEdit && transfer.notes ? dom.escapeHtml(transfer.notes) : ''}</textarea>
+                                </div>
 
-                        <div class="form-group">
-                            <label class="checkbox-label">
+                                <div class="form-group">
+                                <label class="form-check">
                                 <input type="checkbox" id="transfer-create-transaction"
-                                       ${isEdit ? '' : ''}>
+                                ${isEdit ? '' : ''}>
                                 <span>${t('budget', 'Also create transactions now')}</span>
-                            </label>
-                            <small class="form-hint">${t('budget', 'Creates paired debit/credit transactions immediately')}</small>
-                        </div>
+                                </label>
+                                <small class="form-text">${t('budget', 'Creates paired debit/credit transactions immediately')}</small>
+                                </div>
 
-                        <div class="form-group" id="transfer-transaction-date-group" style="display: none;">
-                            <label for="transfer-transaction-date">${t('budget', 'Transaction Date')}</label>
-                            <input type="date" id="transfer-transaction-date" class="form-control">
-                            <small class="form-hint">${t('budget', 'Leave empty to use next due date')}</small>
-                        </div>
+                                <div class="form-group" id="transfer-transaction-date-group" style="display: none;">
+                                <label for="transfer-transaction-date">${t('budget', 'Transaction Date')}</label>
+                                <input type="date" id="transfer-transaction-date">
+                                <small class="form-text">${t('budget', 'Leave empty to use next due date')}</small>
+                                </div>
 
-                        <div class="form-group">
-                            <label class="checkbox-label">
+                                <div class="form-group">
+                                <label class="form-check">
                                 <input type="checkbox" id="transfer-auto-pay"
-                                       ${isEdit && transfer.autoPayEnabled ? 'checked' : ''}>
+                                ${isEdit && transfer.autoPayEnabled ? 'checked' : ''}>
                                 <span>${t('budget', 'Enable auto-pay (automatically create transactions when due)')}</span>
-                            </label>
+                                </label>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        <div class="budget-modal-footer">
-                            <button type="button" class="button secondary" id="cancel-transfer">${t('budget', 'Cancel')}</button>
+                        <div class="modal-buttons">
                             <button type="submit" class="button primary">
                                 ${isEdit ? t('budget', 'Update Transfer') : t('budget', 'Add Transfer')}
                             </button>
+                            <button type="button" class="button secondary" id="cancel-transfer">${t('budget', 'Cancel')}</button>
                         </div>
                     </form>
                 </div>

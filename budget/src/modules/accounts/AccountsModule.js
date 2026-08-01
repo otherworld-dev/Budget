@@ -2521,6 +2521,10 @@ export default class AccountsModule {
             if (balanceLabel) {
                 balanceLabel.textContent = t('budget', 'Current Balance');
             }
+            const balanceHelp = document.getElementById('account-balance-help');
+            if (balanceHelp) {
+                balanceHelp.textContent = t('budget', 'Calculated from transactions');
+            }
 
             // Show opening balance field on edit with live current balance update
             const openingBalanceGroup = document.getElementById('opening-balance-group');
@@ -2528,11 +2532,15 @@ export default class AccountsModule {
             if (openingBalanceGroup && openingBalanceField) {
                 openingBalanceGroup.style.display = '';
 
-                // Update help text for liability accounts
+                // Update help text for liability accounts. The else branch matters:
+                // the dialog is reused, so without it an account opened after a
+                // credit card kept the liability wording.
                 const helpText = document.getElementById('account-opening-balance-help');
                 const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(account.type);
-                if (helpText && isLiability) {
-                    helpText.textContent = t('budget', 'Enter as negative for amount owed (e.g. -5000). Enter as positive for a credit/overpayment.');
+                if (helpText) {
+                    helpText.textContent = isLiability
+                        ? t('budget', 'Enter as negative for amount owed (e.g. -5000). Enter as positive for a credit/overpayment.')
+                        : t('budget', 'The starting balance when this account was created');
                 }
 
                 const originalOpening = parseFloat(account.openingBalance) || 0;
@@ -2565,12 +2573,15 @@ export default class AccountsModule {
             sensitiveFields.forEach(field => {
                 const element = document.getElementById(field.id);
                 if (element) {
-                    element.value = ''; // Don't populate with masked value
-                    if (field.hasValue) {
-                        element.placeholder = t('budget', '••••••••  (leave blank to keep current)');
-                    } else {
-                        element.placeholder = '';
+                    // Remember the authored hint (e.g. "9 digits (US banks)") so
+                    // the masked placeholder can be undone without losing it.
+                    if (element.dataset.placeholderDefault === undefined) {
+                        element.dataset.placeholderDefault = element.placeholder;
                     }
+                    element.value = ''; // Don't populate with masked value
+                    element.placeholder = field.hasValue
+                        ? t('budget', '••••••••  (leave blank to keep current)')
+                        : element.dataset.placeholderDefault;
                 }
             });
 
@@ -2617,6 +2628,19 @@ export default class AccountsModule {
         if (balanceLabel) {
             balanceLabel.textContent = t('budget', 'Starting Balance');
         }
+        const balanceHelp = document.getElementById('account-balance-help');
+        if (balanceHelp) {
+            balanceHelp.textContent = t('budget', 'The balance this account starts with');
+        }
+
+        // A reused form still carries the previous account's masked placeholders.
+        ['form-account-number', 'form-routing-number', 'form-sort-code',
+            'form-iban', 'form-swift-bic', 'form-wallet-address'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.placeholder = el.dataset.placeholderDefault ?? el.placeholder;
+            }
+        });
 
         // Hide opening balance field on new account form
         const openingBalanceGroup = document.getElementById('opening-balance-group');
@@ -2782,6 +2806,26 @@ export default class AccountsModule {
         ['account-balance', 'account-opening-balance'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.step = step;
+        });
+
+        // Field visibility just changed — a whole column block may now be empty
+        this.refreshAccountSections();
+    }
+
+    /**
+     * Hide a column block whose every field is hidden for the chosen account
+     * type — a Cash account has no rates or limits, so the heading and its
+     * dividing rule shouldn't be left stranded on screen.
+     *
+     * Visibility is read from the inline display that setupAccountTypeConditionals
+     * writes rather than from offsetParent, so this works while the dialog is
+     * still hidden.
+     */
+    refreshAccountSections() {
+        document.querySelectorAll('#account-form .form-block').forEach(block => {
+            const hasVisibleField = Array.from(block.querySelectorAll('.form-group'))
+                .some(group => group.style.display !== 'none');
+            block.style.display = hasVisibleField ? '' : 'none';
         });
     }
 

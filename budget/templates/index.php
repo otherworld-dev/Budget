@@ -2030,31 +2030,6 @@ style('budget', 'budget-app');
         </div>
 
         <!-- Global Tag Modal -->
-        <div id="global-tag-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="global-tag-modal-title" aria-hidden="true">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3 id="global-tag-modal-title"><?php p($l->t('Add Tag')); ?></h3>
-                </div>
-                <form id="global-tag-form" class="modal-form">
-                    <input type="hidden" id="global-tag-id" value="">
-                    <div class="form-group">
-                        <label for="global-tag-name"><?php p($l->t('Tag Name')); ?> <span class="required">*</span></label>
-                        <input type="text" id="global-tag-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., Business, Vacation, Groceries')); ?>">
-                    </div>
-                    <div class="form-group">
-                        <label for="global-tag-color"><?php p($l->t('Color')); ?></label>
-                        <div class="color-picker-row">
-                            <input type="color" id="global-tag-color" name="color" value="#4CAF50">
-                            <input type="text" id="global-tag-color-hex" maxlength="7" placeholder="#4CAF50" value="#4CAF50">
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary" id="global-tag-save-btn"><?php p($l->t('Save')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Budget View -->
         <div id="budget-view" class="view">
@@ -2844,133 +2819,12 @@ style('budget', 'budget-app');
         </div>
 
         <!-- Save Import Template Modal -->
-        <div id="import-save-template-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="import-save-template-title" aria-hidden="true">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3 id="import-save-template-title"><?php p($l->t('Save Import Template')); ?></h3>
-                    <button type="button" class="modal-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="import-save-template-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="import-template-name"><?php p($l->t('Template Name')); ?> <span class="required">*</span></label>
-                        <input type="text" id="import-template-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., My Bank Checking')); ?>">
-                        <p class="hint"><?php p($l->t('Saves the current import settings (column mapping or account routing, plus options) so you can reuse them for future imports.')); ?></p>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary" id="import-template-save-btn"><?php p($l->t('Save')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Manage Import Templates Modal -->
-        <div id="import-templates-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="import-templates-title" aria-hidden="true">
-            <div class="modal-content modal-medium">
-                <div class="modal-header">
-                    <h3 id="import-templates-title"><?php p($l->t('Manage Import Templates')); ?></h3>
-                    <button type="button" class="modal-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div id="import-templates-list" class="import-templates-list"></div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn"><?php p($l->t('Close')); ?></button>
-                </div>
-            </div>
-        </div>
 
         <!-- Goal Modal -->
-        <div id="goal-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-medium">
-                <div class="modal-header">
-                    <h3 id="goal-modal-title"><?php p($l->t('Add Savings Goal')); ?></h3>
-                </div>
-                <form id="goal-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="goal-name"><?php p($l->t('Goal Name')); ?> *</label>
-                        <input type="text" id="goal-name" name="name" required placeholder="<?php p($l->t('e.g., Emergency Fund, Vacation, New Car')); ?>">
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="goal-target"><?php p($l->t('Target Amount')); ?> *</label>
-                            <input type="number" id="goal-target" name="targetAmount" min="0" step="0.01" required placeholder="0.00">
-                        </div>
-                        <div class="form-group">
-                            <label for="goal-current"><?php p($l->t('Current Amount')); ?></label>
-                            <input type="number" id="goal-current" name="currentAmount" min="0" step="0.01" value="0" placeholder="0.00">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="goal-account"><?php p($l->t('Linked Account (optional)')); ?></label>
-                            <select id="goal-account" name="accountId">
-                                <option value=""><?php p($l->t('No linked account')); ?></option>
-                                <!-- Account options populated dynamically -->
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="goal-target-date"><?php p($l->t('Target Date (optional)')); ?></label>
-                            <input type="date" id="goal-target-date" name="targetDate">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="goal-tag"><?php p($l->t('Linked Tag (optional)')); ?></label>
-                        <select id="goal-tag" name="tagId">
-                            <option value=""><?php p($l->t('No linked tag')); ?></option>
-                            <!-- Tag options populated dynamically -->
-                        </select>
-                        <p class="form-hint" id="goal-tag-hint" style="display: none; margin-top: 4px; font-size: 12px; color: #888;">
-                            <?php p($l->t('Current amount will be automatically calculated from tagged transactions.')); ?>
-                        </p>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="goal-color"><?php p($l->t('Color')); ?></label>
-                        <div class="color-picker-row">
-                            <input type="color" id="goal-color" name="color" value="#0082c9">
-                            <span class="color-preview" id="goal-color-preview"></span>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="goal-notes"><?php p($l->t('Notes')); ?></label>
-                        <textarea id="goal-notes" name="notes" rows="3" placeholder="<?php p($l->t('Any notes about this goal...')); ?>"></textarea>
-                    </div>
-
-                    <input type="hidden" id="goal-id" name="id" value="">
-
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary" id="save-goal-btn"><?php p($l->t('Save Goal')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Add Money to Goal Modal -->
-        <div id="add-to-goal-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3><?php p($l->t('Add to')); ?> <span id="add-to-goal-name"><?php p($l->t('Goal')); ?></span></h3>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="add-to-goal-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="add-amount"><?php p($l->t('Amount to Add')); ?></label>
-                        <input type="number" id="add-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
-                    </div>
-                    <input type="hidden" id="add-to-goal-id" name="goalId" value="">
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary"><?php p($l->t('Add')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Forecast View -->
         <div id="forecast-view" class="view">
@@ -3797,267 +3651,14 @@ style('budget', 'budget-app');
         </div>
 
         <!-- Pension Modal (Add/Edit) -->
-        <div id="pension-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="pension-modal-title" aria-hidden="true">
-            <div class="modal-content">
-                <div class="pension-modal-header">
-                    <div class="pension-modal-title-row">
-                        <div class="pension-modal-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
-                            </svg>
-                        </div>
-                        <h3 id="pension-modal-title"><?php p($l->t('Add Pension')); ?></h3>
-                    </div>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="pension-form">
-                    <input type="hidden" id="pension-id" name="id" value="">
-
-                    <!-- Basic Information -->
-                    <div class="form-section">
-                        <h4><?php p($l->t('Basic Information')); ?></h4>
-
-                        <div class="form-group">
-                            <label for="pension-name"><?php p($l->t('Pension Name')); ?> <span class="required">*</span></label>
-                            <input type="text" id="pension-name" name="name" required placeholder="<?php p($l->t('e.g., Company Pension, Vanguard SIPP')); ?>" maxlength="255">
-                            <small class="form-text"><?php p($l->t('A descriptive name for this pension')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-type"><?php p($l->t('Pension Type')); ?> <span class="required">*</span></label>
-                            <select id="pension-type" name="type" required>
-                                <option value="workplace"><?php p($l->t('Workplace Pension')); ?></option>
-                                <option value="personal"><?php p($l->t('Personal Pension')); ?></option>
-                                <option value="sipp"><?php p($l->t('SIPP')); ?></option>
-                                <option value="defined_benefit"><?php p($l->t('Defined Benefit')); ?></option>
-                                <option value="state"><?php p($l->t('State Pension')); ?></option>
-                            </select>
-                            <small class="form-text"><?php p($l->t('Determines which fields are available below')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-provider"><?php p($l->t('Provider')); ?></label>
-                            <input type="text" id="pension-provider" name="provider" placeholder="<?php p($l->t('e.g., Scottish Widows, Aviva')); ?>" maxlength="255">
-                            <small class="form-text"><?php p($l->t('Pension provider or scheme administrator')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-currency"><?php p($l->t('Currency')); ?></label>
-                            <select id="pension-currency" name="currency">
-                                <!-- Populated dynamically from /api/settings/options -->
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- DC Pension Fields -->
-                    <div id="dc-pension-fields" class="form-section pension-fields-section">
-                        <h4><?php p($l->t('Financial Details')); ?></h4>
-
-                        <div class="form-group">
-                            <label for="pension-balance"><?php p($l->t('Current Balance')); ?></label>
-                            <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
-                            <small class="form-text"><?php p($l->t('Current total value of the pension pot')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-monthly"><?php p($l->t('Monthly Contribution')); ?></label>
-                            <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
-                            <small class="form-text"><?php p($l->t('Combined employee and employer contribution')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-return"><?php p($l->t('Expected Annual Return (%%)')); ?></label>
-                            <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
-                            <small class="form-text"><?php p($l->t('Estimated yearly growth rate for projections')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-retirement-age"><?php p($l->t('Retirement Age')); ?></label>
-                            <input type="number" id="pension-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
-                            <small class="form-text"><?php p($l->t('Age you plan to start drawing this pension')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-target"><?php p($l->t('Target Pot at Retirement')); ?></label>
-                            <input type="number" id="pension-target" name="projectionTarget" min="0" step="0.01" placeholder="500000.00">
-                            <small class="form-text"><?php p($l->t('Goal pot value used for the projection progress bar (leave blank for the default)')); ?></small>
-                        </div>
-                    </div>
-
-                    <!-- DB/State Pension Fields -->
-                    <div id="db-pension-fields" class="form-section pension-fields-section" style="display: none;">
-                        <h4><?php p($l->t('Income Details')); ?></h4>
-
-                        <div class="form-group">
-                            <label for="pension-income"><?php p($l->t('Projected Annual Income')); ?></label>
-                            <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
-                            <small class="form-text"><?php p($l->t('Expected yearly income at retirement')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-transfer"><?php p($l->t('Transfer Value')); ?></label>
-                            <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
-                            <small class="form-text"><?php p($l->t('Cash equivalent transfer value (CETV) if known')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="pension-db-retirement-age"><?php p($l->t('Retirement Age')); ?></label>
-                            <input type="number" id="pension-db-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
-                            <small class="form-text"><?php p($l->t('Normal retirement age for this scheme')); ?></small>
-                        </div>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary" id="save-pension-btn"><?php p($l->t('Save Pension')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Update Balance Modal -->
-        <div id="pension-balance-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3><?php p($l->t('Update Balance')); ?></h3>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="pension-balance-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="snapshot-balance"><?php p($l->t('Current Balance')); ?> *</label>
-                        <input type="number" id="snapshot-balance" name="balance" min="0" step="0.01" required placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="snapshot-date"><?php p($l->t('Date')); ?> *</label>
-                        <input type="date" id="snapshot-date" name="date" required>
-                    </div>
-                    <input type="hidden" id="snapshot-pension-id" name="pensionId" value="">
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary"><?php p($l->t('Update')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Log Contribution Modal -->
-        <div id="pension-contribution-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3><?php p($l->t('Log Contribution')); ?></h3>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="pension-contribution-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="contribution-amount"><?php p($l->t('Amount')); ?> *</label>
-                        <input type="number" id="contribution-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="contribution-date"><?php p($l->t('Date')); ?> *</label>
-                        <input type="date" id="contribution-date" name="date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="contribution-source-account"><?php p($l->t('Came from account')); ?></label>
-                        <select id="contribution-source-account" name="sourceAccountId">
-                            <option value=""><?php p($l->t('Not from a tracked account')); ?></option>
-                        </select>
-                        <small class="form-text"><?php p($l->t('Optional: records a matching withdrawal in that account and keeps it out of your spending')); ?></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="contribution-note"><?php p($l->t('Note')); ?></label>
-                        <input type="text" id="contribution-note" name="note" placeholder="<?php p($l->t('e.g., Bonus top-up')); ?>">
-                    </div>
-                    <input type="hidden" id="contribution-pension-id" name="pensionId" value="">
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary"><?php p($l->t('Log')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Record Withdrawal Modal -->
-        <div id="pension-withdrawal-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3><?php p($l->t('Record Withdrawal')); ?></h3>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="pension-withdrawal-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="withdrawal-amount"><?php p($l->t('Amount')); ?> *</label>
-                        <input type="number" id="withdrawal-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="withdrawal-date"><?php p($l->t('Date')); ?> *</label>
-                        <input type="date" id="withdrawal-date" name="date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="withdrawal-dest-account"><?php p($l->t('Paid into account')); ?></label>
-                        <select id="withdrawal-dest-account" name="destAccountId">
-                            <option value=""><?php p($l->t('Not into a tracked account')); ?></option>
-                        </select>
-                        <small class="form-text"><?php p($l->t('Optional: records a matching deposit in that account')); ?></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="withdrawal-note"><?php p($l->t('Note')); ?></label>
-                        <input type="text" id="withdrawal-note" name="note" placeholder="<?php p($l->t('e.g., Tax-free lump sum')); ?>">
-                    </div>
-                    <input type="hidden" id="withdrawal-pension-id" name="pensionId" value="">
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary"><?php p($l->t('Record')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Recurring Contribution Modal -->
-        <div id="pension-recurring-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h3><?php p($l->t('Scheduled Contribution')); ?></h3>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="pension-recurring-form" class="modal-form">
-                    <div class="form-group">
-                        <label for="recurring-amount"><?php p($l->t('Amount')); ?> *</label>
-                        <input type="number" id="recurring-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="recurring-frequency"><?php p($l->t('Frequency')); ?> *</label>
-                        <select id="recurring-frequency" name="frequency" required>
-                            <option value="monthly"><?php p($l->t('Monthly')); ?></option>
-                            <option value="quarterly"><?php p($l->t('Quarterly')); ?></option>
-                            <option value="yearly"><?php p($l->t('Yearly')); ?></option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurring-next-date"><?php p($l->t('Next Date')); ?> *</label>
-                        <input type="date" id="recurring-next-date" name="nextDueDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurring-source-account"><?php p($l->t('From account')); ?></label>
-                        <select id="recurring-source-account" name="sourceAccountId">
-                            <option value=""><?php p($l->t('Not from a tracked account')); ?></option>
-                        </select>
-                    </div>
-                    <div class="form-group form-group-checkbox">
-                        <label><input type="checkbox" name="autoPostEnabled"> <?php p($l->t('Auto-post when due')); ?></label>
-                        <small class="form-text"><?php p($l->t('Automatically record the contribution (and transfer, if an account is set) on the due date')); ?></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurring-note"><?php p($l->t('Note')); ?></label>
-                        <input type="text" id="recurring-note" name="note" placeholder="<?php p($l->t('Optional note')); ?>">
-                    </div>
-                    <input type="hidden" id="recurring-pension-id" name="pensionId" value="">
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary"><?php p($l->t('Save')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Assets View -->
         <div id="assets-view" class="view">
@@ -4254,131 +3855,8 @@ style('budget', 'budget-app');
         </div>
 
         <!-- Asset Modal (Add/Edit) -->
-        <div id="asset-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="asset-modal-title" aria-hidden="true">
-            <div class="modal-content">
-                <div class="asset-modal-header">
-                    <div class="asset-modal-title-row">
-                        <div class="asset-modal-icon">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
-                            </svg>
-                        </div>
-                        <h3 id="asset-modal-title"><?php p($l->t('Add Asset')); ?></h3>
-                    </div>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="asset-form">
-                    <input type="hidden" id="asset-id" name="id" value="">
-
-                    <!-- Asset Identity -->
-                    <div class="form-section">
-                        <h4><?php p($l->t('Asset Details')); ?></h4>
-
-                        <div class="form-group">
-                            <label for="asset-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>
-                            <input type="text" id="asset-name" name="name" required placeholder="<?php p($l->t('e.g., 42 Maple Street, Tesla Model 3')); ?>" maxlength="255">
-                            <small class="form-text"><?php p($l->t('A descriptive name for this asset')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="asset-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
-                            <select id="asset-type" name="type" required>
-                                <option value="real_estate"><?php p($l->t('Real Estate')); ?></option>
-                                <option value="vehicle"><?php p($l->t('Vehicle')); ?></option>
-                                <option value="jewelry"><?php p($l->t('Jewelry')); ?></option>
-                                <option value="collectibles"><?php p($l->t('Collectibles')); ?></option>
-                                <option value="other"><?php p($l->t('Other')); ?></option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label for="asset-description"><?php p($l->t('Description')); ?></label>
-                            <textarea id="asset-description" name="description" rows="2" placeholder="<?php p($l->t('Optional notes about this asset')); ?>"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Valuation -->
-                    <div class="form-section">
-                        <h4><?php p($l->t('Valuation')); ?></h4>
-
-                        <div class="form-group">
-                            <label for="asset-current-value"><?php p($l->t('Current Value')); ?></label>
-                            <input type="number" id="asset-current-value" name="currentValue" step="0.01" min="0" placeholder="0.00">
-                            <small class="form-text"><?php p($l->t("Today's estimated market value")); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="asset-currency"><?php p($l->t('Currency')); ?></label>
-                            <select id="asset-currency" name="currency">
-                                <!-- Populated dynamically from /api/settings/options -->
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="asset-purchase-price"><?php p($l->t('Purchase Price')); ?></label>
-                            <input type="number" id="asset-purchase-price" name="purchasePrice" step="0.01" min="0" placeholder="0.00">
-                            <small class="form-text"><?php p($l->t('Original acquisition cost')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="asset-purchase-date"><?php p($l->t('Purchase Date')); ?></label>
-                            <input type="date" id="asset-purchase-date" name="purchaseDate">
-                        </div>
-                    </div>
-
-                    <!-- Growth -->
-                    <div class="form-section">
-                        <h4><?php p($l->t('Growth / Depreciation')); ?></h4>
-
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label for="asset-annual-change-rate"><?php p($l->t('Annual Change Rate (%%)')); ?></label>
-                            <input type="number" id="asset-annual-change-rate" name="annualChangeRate" step="0.1" placeholder="<?php p($l->t('e.g., 3.5')); ?>">
-                            <small class="form-text"><?php p($l->t('Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., -15). Used for value projections.')); ?></small>
-                        </div>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary" id="save-asset-btn"><?php p($l->t('Save Asset')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Asset Value Update Modal -->
-        <div id="asset-value-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="asset-value-modal-title" aria-hidden="true">
-            <div class="modal-content">
-                <div class="asset-modal-header">
-                    <div class="asset-modal-title-row">
-                        <div class="asset-modal-icon asset-modal-icon-update">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
-                            </svg>
-                        </div>
-                        <h3 id="asset-value-modal-title"><?php p($l->t('Update Value')); ?></h3>
-                    </div>
-                    <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                </div>
-                <form id="asset-value-form">
-                    <div class="asset-value-form-body">
-                        <p class="asset-value-hint"><?php p($l->t('Record a new valuation for this asset. This creates a snapshot in the value history.')); ?></p>
-                        <div class="form-group">
-                            <label for="asset-value-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
-                            <input type="date" id="asset-value-date" name="date" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="asset-value-amount"><?php p($l->t('Value')); ?> <span class="required">*</span></label>
-                            <input type="number" id="asset-value-amount" name="value" step="0.01" min="0" required placeholder="0.00">
-                        </div>
-                        <input type="hidden" id="asset-value-asset-id" name="assetId" value="">
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button type="submit" class="primary"><?php p($l->t('Update Value')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Debt Payoff View -->
         <div id="debt-payoff-view" class="view">
@@ -4458,72 +3936,6 @@ style('budget', 'budget-app');
         </div>
 
         <!-- Scenario Modal (outside debt-payoff-view so it remains visible when view is hidden) -->
-        <div id="debt-scenario-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="scenario-modal-title" aria-hidden="true">
-            <div class="modal-content">
-                <h3 id="scenario-modal-title"><?php p($l->t('New Scenario')); ?></h3>
-                <form id="scenario-form">
-                    <div class="form-section">
-                        <div class="form-group">
-                            <label for="scenario-name"><?php p($l->t('Scenario Name')); ?> <span class="required">*</span></label>
-                            <input type="text" id="scenario-name" required maxlength="255" placeholder="<?php p($l->t('e.g., Aggressive Payoff')); ?>">
-                            <small class="form-text"><?php p($l->t('A descriptive name for this scenario')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="scenario-strategy"><?php p($l->t('Strategy')); ?></label>
-                            <select id="scenario-strategy">
-                                <option value="avalanche"><?php p($l->t('Avalanche (highest rate first)')); ?></option>
-                                <option value="snowball"><?php p($l->t('Snowball (smallest balance first)')); ?></option>
-                            </select>
-                            <small class="form-text"><?php p($l->t('Avalanche saves the most interest. Snowball pays off small debts first for motivation.')); ?></small>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <h4><?php p($l->t('Payments')); ?></h4>
-
-                        <div class="form-group">
-                            <label for="scenario-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
-                            <input type="number" id="scenario-extra-payment" min="0" step="0.01" value="0">
-                            <small class="form-text"><?php p($l->t('Additional amount paid each month beyond minimums')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="scenario-lump-sum"><?php p($l->t('One-Time Lump Sum')); ?></label>
-                            <input type="number" id="scenario-lump-sum" min="0" step="0.01" value="0">
-                            <small class="form-text"><?php p($l->t('A single extra payment applied once')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="scenario-lump-month"><?php p($l->t('Apply Lump Sum In Month')); ?></label>
-                            <input type="number" id="scenario-lump-month" min="1" value="1">
-                            <small class="form-text"><?php p($l->t('Which month to apply the lump sum (1 = immediately)')); ?></small>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <h4><?php p($l->t('Debts')); ?></h4>
-
-                        <div class="form-group">
-                            <label><?php p($l->t('Include Debts')); ?></label>
-                            <div id="scenario-debt-checkboxes" class="scenario-debt-list"></div>
-                            <small class="form-text"><?php p($l->t('Select which debts to include in this scenario')); ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label><?php p($l->t('Rate Overrides')); ?></label>
-                            <small class="form-text"><?php p($l->t('Optionally override interest rates for what-if analysis')); ?></small>
-                            <div id="scenario-rate-overrides" class="scenario-rate-list"></div>
-                        </div>
-                    </div>
-
-                    <div class="modal-buttons">
-                        <button type="button" id="scenario-modal-save" class="primary"><?php p($l->t('Save & Calculate')); ?></button>
-                        <button type="button" id="scenario-modal-cancel" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <!-- Shared Expenses View -->
         <div id="shared-expenses-view" class="view">
@@ -4654,35 +4066,7 @@ style('budget', 'budget-app');
             </div>
 
             <!-- Manual Rate Modal -->
-            <div id="manual-rate-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="manual-rate-modal-title" aria-hidden="true">
-                <div class="modal-content manual-rate-modal-content">
-                    <div class="manual-rate-modal-header">
-                        <div class="manual-rate-title-row">
-                            <div class="manual-rate-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M7.5,21.5C4.25,19.94 2,16.76 2,13.5C2,9.08 5.58,5.5 10,5.5C13.27,5.5 16.44,7.75 18,11H22L18.5,14.5L15,11H17.03C15.6,8.87 13,7.5 10,7.5C6.69,7.5 4,10.19 4,13.5C4,16 5.56,18.13 7.76,19.15L7.5,21.5M16.5,2.5C19.75,4.06 22,7.24 22,10.5C22,14.92 18.42,18.5 14,18.5C10.73,18.5 7.56,16.25 6,13H2L5.5,9.5L9,13H6.97C8.4,15.13 11,16.5 14,16.5C17.31,16.5 20,13.81 20,10.5C20,8 18.44,5.87 16.24,4.85L16.5,2.5Z"/>
-                                </svg>
-                            </div>
-                            <h3 id="manual-rate-modal-title"><?php p($l->t('Set Manual Rate')); ?></h3>
-                        </div>
-                        <button class="modal-close cancel-btn" id="manual-rate-close-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
-                    </div>
-                    <div class="manual-rate-body">
-                        <p id="manual-rate-currency" class="manual-rate-currency-name"></p>
-                        <div class="manual-rate-equation">
-                            <span id="manual-rate-base-label" class="manual-rate-eq-label"></span>
-                            <input type="number" id="manual-rate-value" step="any" min="0" class="manual-rate-eq-input" placeholder="0.00" />
-                            <span id="manual-rate-target-label" class="manual-rate-eq-label"></span>
-                        </div>
-                        <input type="hidden" id="manual-rate-currency-input" />
-                        <p class="manual-rate-hint"><?php p($l->t('This overrides the automatic rate for your account only.')); ?></p>
-                    </div>
-                    <div class="manual-rate-footer">
-                        <button id="manual-rate-cancel-btn" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
-                        <button id="manual-rate-save-btn" class="primary"><?php p($l->t('Save Rate')); ?></button>
-                    </div>
-                </div>
-            </div>
+
         </div>
 
         <!-- Settings View -->
@@ -5293,113 +4677,787 @@ style('budget', 'budget-app');
     </div>
 </div>
 
+<!-- Global Tag Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="global-tag-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="global-tag-modal-title" aria-hidden="true">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3 id="global-tag-modal-title"><?php p($l->t('Add Tag')); ?></h3>
+        </div>
+        <form id="global-tag-form" class="modal-form">
+            <input type="hidden" id="global-tag-id" value="">
+            <div class="form-group">
+                <label for="global-tag-name"><?php p($l->t('Tag Name')); ?> <span class="required">*</span></label>
+                <input type="text" id="global-tag-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., Business, Vacation, Groceries')); ?>">
+            </div>
+            <div class="form-group">
+                <label for="global-tag-color"><?php p($l->t('Color')); ?></label>
+                <div class="color-picker-row">
+                    <input type="color" id="global-tag-color" name="color" value="#4CAF50">
+                    <input type="text" id="global-tag-color-hex" maxlength="7" placeholder="#4CAF50" value="#4CAF50">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary" id="global-tag-save-btn"><?php p($l->t('Save')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Save Template Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="import-save-template-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="import-save-template-title" aria-hidden="true">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3 id="import-save-template-title"><?php p($l->t('Save Import Template')); ?></h3>
+            <button type="button" class="modal-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="import-save-template-form" class="modal-form">
+            <div class="form-group">
+                <label for="import-template-name"><?php p($l->t('Template Name')); ?> <span class="required">*</span></label>
+                <input type="text" id="import-template-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., My Bank Checking')); ?>">
+                <p class="hint"><?php p($l->t('Saves the current import settings (column mapping or account routing, plus options) so you can reuse them for future imports.')); ?></p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary" id="import-template-save-btn"><?php p($l->t('Save')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Templates Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="import-templates-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="import-templates-title" aria-hidden="true">
+    <div class="modal-content modal-medium">
+        <div class="modal-header">
+            <h3 id="import-templates-title"><?php p($l->t('Manage Import Templates')); ?></h3>
+            <button type="button" class="modal-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="import-templates-list" class="import-templates-list"></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="cancel-btn"><?php p($l->t('Close')); ?></button>
+        </div>
+    </div>
+</div>
+
+<!-- Goal Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="goal-modal" class="modal modal-columns modal-columns-2" style="display: none;">
+    <div class="modal-content">
+        <h3 id="goal-modal-title"><?php p($l->t('Add Savings Goal')); ?></h3>
+        <form id="goal-form" class="wide-form">
+            <input type="hidden" id="goal-id" name="id" value="">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-2">
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Goal')); ?></h4>
+                    <div class="form-group">
+                    <label for="goal-name"><?php p($l->t('Goal Name')); ?><span class="required">*</span></label>
+                    <input type="text" id="goal-name" name="name" required placeholder="<?php p($l->t('e.g., Emergency Fund, Vacation, New Car')); ?>">
+                    </div>
+
+                    <div class="form-group">
+                    <label for="goal-target"><?php p($l->t('Target Amount')); ?><span class="required">*</span></label>
+                    <input type="number" id="goal-target" name="targetAmount" min="0" step="0.01" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                    <label for="goal-current"><?php p($l->t('Current Amount')); ?></label>
+                    <input type="number" id="goal-current" name="currentAmount" min="0" step="0.01" value="0" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                    <label for="goal-target-date"><?php p($l->t('Target Date (optional)')); ?></label>
+                    <input type="date" id="goal-target-date" name="targetDate">
+                    </div>
+                  </div>
+                </div>
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Details')); ?></h4>
+                    <div class="form-group">
+                    <label for="goal-account"><?php p($l->t('Linked Account (optional)')); ?></label>
+                    <select id="goal-account" name="accountId">
+                    <option value=""><?php p($l->t('No linked account')); ?></option>
+                    <!-- Account options populated dynamically -->
+                    </select>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="goal-tag"><?php p($l->t('Linked Tag (optional)')); ?></label>
+                    <select id="goal-tag" name="tagId">
+                    <option value=""><?php p($l->t('No linked tag')); ?></option>
+                    <!-- Tag options populated dynamically -->
+                    </select>
+                    <p class="form-hint" id="goal-tag-hint" style="display: none; margin-top: 4px; font-size: 12px; color: #888;">
+                    <?php p($l->t('Current amount will be automatically calculated from tagged transactions.')); ?>
+                    </p>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="goal-color"><?php p($l->t('Color')); ?></label>
+                    <div class="color-picker-row">
+                    <input type="color" id="goal-color" name="color" value="#0082c9">
+                    <span class="color-preview" id="goal-color-preview"></span>
+                    </div>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="goal-notes"><?php p($l->t('Notes')); ?></label>
+                    <textarea id="goal-notes" name="notes" rows="3" placeholder="<?php p($l->t('Any notes about this goal...')); ?>"></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="submit" class="primary" id="save-goal-btn"><?php p($l->t('Save Goal')); ?></button>
+                <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add To Goal Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="add-to-goal-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><?php p($l->t('Add to')); ?> <span id="add-to-goal-name"><?php p($l->t('Goal')); ?></span></h3>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="add-to-goal-form" class="modal-form">
+            <div class="form-group">
+                <label for="add-amount"><?php p($l->t('Amount to Add')); ?></label>
+                <input type="number" id="add-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+            </div>
+            <input type="hidden" id="add-to-goal-id" name="goalId" value="">
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Add')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pension Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="pension-modal" class="modal modal-columns modal-columns-2" style="display: none;" role="dialog" aria-labelledby="pension-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <div class="pension-modal-header modal-head">
+            <div class="pension-modal-title-row">
+            <div class="pension-modal-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+            </svg>
+            </div>
+            <h3 id="pension-modal-title"><?php p($l->t('Add Pension')); ?></h3>
+            </div>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="pension-form" class="wide-form">
+            <input type="hidden" id="pension-id" name="id" value="">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-2">
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Basic Information')); ?></h4>
+                    <div class="form-group">
+                    <label for="pension-name"><?php p($l->t('Pension Name')); ?> <span class="required">*</span></label>
+                    <input type="text" id="pension-name" name="name" required placeholder="<?php p($l->t('e.g., Company Pension, Vanguard SIPP')); ?>" maxlength="255">
+                    <small class="form-text"><?php p($l->t('A descriptive name for this pension')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-type"><?php p($l->t('Pension Type')); ?> <span class="required">*</span></label>
+                    <select id="pension-type" name="type" required>
+                    <option value="workplace"><?php p($l->t('Workplace Pension')); ?></option>
+                    <option value="personal"><?php p($l->t('Personal Pension')); ?></option>
+                    <option value="sipp"><?php p($l->t('SIPP')); ?></option>
+                    <option value="defined_benefit"><?php p($l->t('Defined Benefit')); ?></option>
+                    <option value="state"><?php p($l->t('State Pension')); ?></option>
+                    </select>
+                    <small class="form-text"><?php p($l->t('Determines which fields are available below')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-provider"><?php p($l->t('Provider')); ?></label>
+                    <input type="text" id="pension-provider" name="provider" placeholder="<?php p($l->t('e.g., Scottish Widows, Aviva')); ?>" maxlength="255">
+                    <small class="form-text"><?php p($l->t('Pension provider or scheme administrator')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-currency"><?php p($l->t('Currency')); ?></label>
+                    <select id="pension-currency" name="currency">
+                    <!-- Populated dynamically from /api/settings/options -->
+                    </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-col">
+                  <div id="dc-pension-fields" class="form-block pension-fields-section">
+                    <h4><?php p($l->t('Financial Details')); ?></h4>
+
+                    <div class="form-group">
+                    <label for="pension-balance"><?php p($l->t('Current Balance')); ?></label>
+                    <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
+                    <small class="form-text"><?php p($l->t('Current total value of the pension pot')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-monthly"><?php p($l->t('Monthly Contribution')); ?></label>
+                    <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
+                    <small class="form-text"><?php p($l->t('Combined employee and employer contribution')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-return"><?php p($l->t('Expected Annual Return (%%)')); ?></label>
+                    <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
+                    <small class="form-text"><?php p($l->t('Estimated yearly growth rate for projections')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-retirement-age"><?php p($l->t('Retirement Age')); ?></label>
+                    <input type="number" id="pension-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                    <small class="form-text"><?php p($l->t('Age you plan to start drawing this pension')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-target"><?php p($l->t('Target Pot at Retirement')); ?></label>
+                    <input type="number" id="pension-target" name="projectionTarget" min="0" step="0.01" placeholder="500000.00">
+                    <small class="form-text"><?php p($l->t('Goal pot value used for the projection progress bar (leave blank for the default)')); ?></small>
+                    </div>
+                  </div>
+                  <div id="db-pension-fields" class="form-block pension-fields-section" style="display: none;">
+                    <h4><?php p($l->t('Income Details')); ?></h4>
+
+                    <div class="form-group">
+                    <label for="pension-income"><?php p($l->t('Projected Annual Income')); ?></label>
+                    <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
+                    <small class="form-text"><?php p($l->t('Expected yearly income at retirement')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-transfer"><?php p($l->t('Transfer Value')); ?></label>
+                    <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
+                    <small class="form-text"><?php p($l->t('Cash equivalent transfer value (CETV) if known')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="pension-db-retirement-age"><?php p($l->t('Retirement Age')); ?></label>
+                    <input type="number" id="pension-db-retirement-age" name="retirementAge" min="18" max="100" placeholder="65">
+                    <small class="form-text"><?php p($l->t('Normal retirement age for this scheme')); ?></small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="submit" class="primary" id="save-pension-btn"><?php p($l->t('Save Pension')); ?></button>
+                <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pension Balance Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="pension-balance-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><?php p($l->t('Update Balance')); ?></h3>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="pension-balance-form" class="modal-form">
+            <div class="form-group">
+                <label for="snapshot-balance"><?php p($l->t('Current Balance')); ?> *</label>
+                <input type="number" id="snapshot-balance" name="balance" min="0" step="0.01" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label for="snapshot-date"><?php p($l->t('Date')); ?> *</label>
+                <input type="date" id="snapshot-date" name="date" required>
+            </div>
+            <input type="hidden" id="snapshot-pension-id" name="pensionId" value="">
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Update')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pension Contribution Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="pension-contribution-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><?php p($l->t('Log Contribution')); ?></h3>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="pension-contribution-form" class="modal-form">
+            <div class="form-group">
+                <label for="contribution-amount"><?php p($l->t('Amount')); ?> *</label>
+                <input type="number" id="contribution-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label for="contribution-date"><?php p($l->t('Date')); ?> *</label>
+                <input type="date" id="contribution-date" name="date" required>
+            </div>
+            <div class="form-group">
+                <label for="contribution-source-account"><?php p($l->t('Came from account')); ?></label>
+                <select id="contribution-source-account" name="sourceAccountId">
+                    <option value=""><?php p($l->t('Not from a tracked account')); ?></option>
+                </select>
+                <small class="form-text"><?php p($l->t('Optional: records a matching withdrawal in that account and keeps it out of your spending')); ?></small>
+            </div>
+            <div class="form-group">
+                <label for="contribution-note"><?php p($l->t('Note')); ?></label>
+                <input type="text" id="contribution-note" name="note" placeholder="<?php p($l->t('e.g., Bonus top-up')); ?>">
+            </div>
+            <input type="hidden" id="contribution-pension-id" name="pensionId" value="">
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Log')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pension Withdrawal Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="pension-withdrawal-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><?php p($l->t('Record Withdrawal')); ?></h3>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="pension-withdrawal-form" class="modal-form">
+            <div class="form-group">
+                <label for="withdrawal-amount"><?php p($l->t('Amount')); ?> *</label>
+                <input type="number" id="withdrawal-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label for="withdrawal-date"><?php p($l->t('Date')); ?> *</label>
+                <input type="date" id="withdrawal-date" name="date" required>
+            </div>
+            <div class="form-group">
+                <label for="withdrawal-dest-account"><?php p($l->t('Paid into account')); ?></label>
+                <select id="withdrawal-dest-account" name="destAccountId">
+                    <option value=""><?php p($l->t('Not into a tracked account')); ?></option>
+                </select>
+                <small class="form-text"><?php p($l->t('Optional: records a matching deposit in that account')); ?></small>
+            </div>
+            <div class="form-group">
+                <label for="withdrawal-note"><?php p($l->t('Note')); ?></label>
+                <input type="text" id="withdrawal-note" name="note" placeholder="<?php p($l->t('e.g., Tax-free lump sum')); ?>">
+            </div>
+            <input type="hidden" id="withdrawal-pension-id" name="pensionId" value="">
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Record')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pension Recurring Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="pension-recurring-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><?php p($l->t('Scheduled Contribution')); ?></h3>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="pension-recurring-form" class="modal-form">
+            <div class="form-group">
+                <label for="recurring-amount"><?php p($l->t('Amount')); ?> *</label>
+                <input type="number" id="recurring-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label for="recurring-frequency"><?php p($l->t('Frequency')); ?> *</label>
+                <select id="recurring-frequency" name="frequency" required>
+                    <option value="monthly"><?php p($l->t('Monthly')); ?></option>
+                    <option value="quarterly"><?php p($l->t('Quarterly')); ?></option>
+                    <option value="yearly"><?php p($l->t('Yearly')); ?></option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="recurring-next-date"><?php p($l->t('Next Date')); ?> *</label>
+                <input type="date" id="recurring-next-date" name="nextDueDate" required>
+            </div>
+            <div class="form-group">
+                <label for="recurring-source-account"><?php p($l->t('From account')); ?></label>
+                <select id="recurring-source-account" name="sourceAccountId">
+                    <option value=""><?php p($l->t('Not from a tracked account')); ?></option>
+                </select>
+            </div>
+            <div class="form-group form-group-checkbox">
+                <label><input type="checkbox" name="autoPostEnabled"> <?php p($l->t('Auto-post when due')); ?></label>
+                <small class="form-text"><?php p($l->t('Automatically record the contribution (and transfer, if an account is set) on the due date')); ?></small>
+            </div>
+            <div class="form-group">
+                <label for="recurring-note"><?php p($l->t('Note')); ?></label>
+                <input type="text" id="recurring-note" name="note" placeholder="<?php p($l->t('Optional note')); ?>">
+            </div>
+            <input type="hidden" id="recurring-pension-id" name="pensionId" value="">
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Save')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Asset Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="asset-modal" class="modal modal-columns modal-columns-2" style="display: none;" role="dialog" aria-labelledby="asset-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <div class="asset-modal-header modal-head">
+            <div class="asset-modal-title-row">
+            <div class="asset-modal-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10,2V4.26L12,5.59V4H22V19H17V21H24V2H10M7.5,5L0,10V21H15V10L7.5,5M14,6V6.93L15.61,8H16V6H14M18,6V8H20V6H18M7.5,7.5L13,11V19H10V13H5V19H2V11L7.5,7.5M18,10V12H20V10H18M18,14V16H20V14H18Z"/>
+            </svg>
+            </div>
+            <h3 id="asset-modal-title"><?php p($l->t('Add Asset')); ?></h3>
+            </div>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="asset-form" class="wide-form">
+            <input type="hidden" id="asset-id" name="id" value="">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-2">
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Asset Details')); ?></h4>
+                    <div class="form-group">
+                    <label for="asset-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>
+                    <input type="text" id="asset-name" name="name" required placeholder="<?php p($l->t('e.g., 42 Maple Street, Tesla Model 3')); ?>" maxlength="255">
+                    <small class="form-text"><?php p($l->t('A descriptive name for this asset')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="asset-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
+                    <select id="asset-type" name="type" required>
+                    <option value="real_estate"><?php p($l->t('Real Estate')); ?></option>
+                    <option value="vehicle"><?php p($l->t('Vehicle')); ?></option>
+                    <option value="jewelry"><?php p($l->t('Jewelry')); ?></option>
+                    <option value="collectibles"><?php p($l->t('Collectibles')); ?></option>
+                    <option value="other"><?php p($l->t('Other')); ?></option>
+                    </select>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="asset-description"><?php p($l->t('Description')); ?></label>
+                    <textarea id="asset-description" name="description" rows="2" placeholder="<?php p($l->t('Optional notes about this asset')); ?>"></textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Valuation')); ?></h4>
+                    <div class="form-group">
+                    <label for="asset-current-value"><?php p($l->t('Current Value')); ?></label>
+                    <input type="number" id="asset-current-value" name="currentValue" step="0.01" min="0" placeholder="0.00">
+                    <small class="form-text"><?php p($l->t("Today's estimated market value")); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="asset-currency"><?php p($l->t('Currency')); ?></label>
+                    <select id="asset-currency" name="currency">
+                    <!-- Populated dynamically from /api/settings/options -->
+                    </select>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="asset-purchase-price"><?php p($l->t('Purchase Price')); ?></label>
+                    <input type="number" id="asset-purchase-price" name="purchasePrice" step="0.01" min="0" placeholder="0.00">
+                    <small class="form-text"><?php p($l->t('Original acquisition cost')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="asset-purchase-date"><?php p($l->t('Purchase Date')); ?></label>
+                    <input type="date" id="asset-purchase-date" name="purchaseDate">
+                    </div>
+                  </div>
+                  <div class="form-block">
+                    <h4><?php p($l->t('Growth / Depreciation')); ?></h4>
+                    <div class="form-group">
+                    <label for="asset-annual-change-rate"><?php p($l->t('Annual Change Rate (%%)')); ?></label>
+                    <input type="number" id="asset-annual-change-rate" name="annualChangeRate" step="0.1" placeholder="<?php p($l->t('e.g., 3.5')); ?>">
+                    <small class="form-text"><?php p($l->t('Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., -15). Used for value projections.')); ?></small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="submit" class="primary" id="save-asset-btn"><?php p($l->t('Save Asset')); ?></button>
+                <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Asset Value Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="asset-value-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="asset-value-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <div class="asset-modal-header">
+            <div class="asset-modal-title-row">
+                <div class="asset-modal-icon asset-modal-icon-update">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                    </svg>
+                </div>
+                <h3 id="asset-value-modal-title"><?php p($l->t('Update Value')); ?></h3>
+            </div>
+            <button class="modal-close cancel-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <form id="asset-value-form">
+            <div class="asset-value-form-body">
+                <p class="asset-value-hint"><?php p($l->t('Record a new valuation for this asset. This creates a snapshot in the value history.')); ?></p>
+                <div class="form-group">
+                    <label for="asset-value-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
+                    <input type="date" id="asset-value-date" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="asset-value-amount"><?php p($l->t('Value')); ?> <span class="required">*</span></label>
+                    <input type="number" id="asset-value-amount" name="value" step="0.01" min="0" required placeholder="0.00">
+                </div>
+                <input type="hidden" id="asset-value-asset-id" name="assetId" value="">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Update Value')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Debt Scenario Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="debt-scenario-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="scenario-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="scenario-modal-title"><?php p($l->t('New Scenario')); ?></h3>
+        <form id="scenario-form" class="wide-form">
+            <div class="modal-scroll">
+              <div class="form-columns">
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Scenario')); ?></h4>
+                    <div class="form-group">
+                    <label for="scenario-name"><?php p($l->t('Scenario Name')); ?> <span class="required">*</span></label>
+                    <input type="text" id="scenario-name" required maxlength="255" placeholder="<?php p($l->t('e.g., Aggressive Payoff')); ?>">
+                    <small class="form-text"><?php p($l->t('A descriptive name for this scenario')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="scenario-strategy"><?php p($l->t('Strategy')); ?></label>
+                    <select id="scenario-strategy">
+                    <option value="avalanche"><?php p($l->t('Avalanche (highest rate first)')); ?></option>
+                    <option value="snowball"><?php p($l->t('Snowball (smallest balance first)')); ?></option>
+                    </select>
+                    <small class="form-text"><?php p($l->t('Avalanche saves the most interest. Snowball pays off small debts first for motivation.')); ?></small>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Payments')); ?></h4>
+                    <div class="form-group">
+                    <label for="scenario-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
+                    <input type="number" id="scenario-extra-payment" min="0" step="0.01" value="0">
+                    <small class="form-text"><?php p($l->t('Additional amount paid each month beyond minimums')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="scenario-lump-sum"><?php p($l->t('One-Time Lump Sum')); ?></label>
+                    <input type="number" id="scenario-lump-sum" min="0" step="0.01" value="0">
+                    <small class="form-text"><?php p($l->t('A single extra payment applied once')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="scenario-lump-month"><?php p($l->t('Apply Lump Sum In Month')); ?></label>
+                    <input type="number" id="scenario-lump-month" min="1" value="1">
+                    <small class="form-text"><?php p($l->t('Which month to apply the lump sum (1 = immediately)')); ?></small>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Debts')); ?></h4>
+                    <div class="form-group">
+                    <label><?php p($l->t('Include Debts')); ?></label>
+                    <div id="scenario-debt-checkboxes" class="scenario-debt-list"></div>
+                    <small class="form-text"><?php p($l->t('Select which debts to include in this scenario')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label><?php p($l->t('Rate Overrides')); ?></label>
+                    <small class="form-text"><?php p($l->t('Optionally override interest rates for what-if analysis')); ?></small>
+                    <div id="scenario-rate-overrides" class="scenario-rate-list"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="scenario-modal-save" class="primary"><?php p($l->t('Save & Calculate')); ?></button>
+                <button type="button" id="scenario-modal-cancel" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Manual Rate Modal (moved out of #app-content so it can sit above the app navigation) -->
+<div id="manual-rate-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="manual-rate-modal-title" aria-hidden="true">
+    <div class="modal-content manual-rate-modal-content">
+        <div class="manual-rate-modal-header">
+            <div class="manual-rate-title-row">
+                <div class="manual-rate-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7.5,21.5C4.25,19.94 2,16.76 2,13.5C2,9.08 5.58,5.5 10,5.5C13.27,5.5 16.44,7.75 18,11H22L18.5,14.5L15,11H17.03C15.6,8.87 13,7.5 10,7.5C6.69,7.5 4,10.19 4,13.5C4,16 5.56,18.13 7.76,19.15L7.5,21.5M16.5,2.5C19.75,4.06 22,7.24 22,10.5C22,14.92 18.42,18.5 14,18.5C10.73,18.5 7.56,16.25 6,13H2L5.5,9.5L9,13H6.97C8.4,15.13 11,16.5 14,16.5C17.31,16.5 20,13.81 20,10.5C20,8 18.44,5.87 16.24,4.85L16.5,2.5Z"/>
+                    </svg>
+                </div>
+                <h3 id="manual-rate-modal-title"><?php p($l->t('Set Manual Rate')); ?></h3>
+            </div>
+            <button class="modal-close cancel-btn" id="manual-rate-close-btn" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
+        </div>
+        <div class="manual-rate-body">
+            <p id="manual-rate-currency" class="manual-rate-currency-name"></p>
+            <div class="manual-rate-equation">
+                <span id="manual-rate-base-label" class="manual-rate-eq-label"></span>
+                <input type="number" id="manual-rate-value" step="any" min="0" class="manual-rate-eq-input" placeholder="0.00" />
+                <span id="manual-rate-target-label" class="manual-rate-eq-label"></span>
+            </div>
+            <input type="hidden" id="manual-rate-currency-input" />
+            <p class="manual-rate-hint"><?php p($l->t('This overrides the automatic rate for your account only.')); ?></p>
+        </div>
+        <div class="manual-rate-footer">
+            <button id="manual-rate-cancel-btn" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            <button id="manual-rate-save-btn" class="primary"><?php p($l->t('Save Rate')); ?></button>
+        </div>
+    </div>
+</div>
+
 <!-- Modals -->
-<div id="transaction-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
+<div id="transaction-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="transaction-modal-title"><?php p($l->t('Add/Edit Transaction')); ?></h3>
-        <form id="transaction-form">
+        <form id="transaction-form" class="wide-form">
             <input type="hidden" id="transaction-id">
-            <div class="form-group">
-                <label for="transaction-date"><?php p($l->t('Date')); ?></label>
-                <input type="date" id="transaction-date" required aria-describedby="transaction-date-help">
-                <small id="transaction-date-help" class="form-text"><?php p($l->t('Select the transaction date')); ?></small>
-            </div>
-            <div class="form-group">
-                <label for="transaction-account"><?php p($l->t('Account')); ?></label>
-                <select id="transaction-account" required aria-describedby="transaction-account-help">
-                    <option value=""><?php p($l->t('Choose an account')); ?></option>
-                </select>
-                <small id="transaction-account-help" class="form-text"><?php p($l->t('Select which account this transaction belongs to')); ?></small>
-            </div>
-            <div class="form-group">
-                <label for="transaction-type"><?php p($l->t('Type')); ?></label>
-                <select id="transaction-type" required aria-describedby="transaction-type-help">
-                    <option value=""><?php p($l->t('Choose transaction type')); ?></option>
-                    <option value="debit"><?php p($l->t('Expense')); ?></option>
-                    <option value="credit"><?php p($l->t('Income')); ?></option>
-                    <option value="transfer"><?php p($l->t('Transfer')); ?></option>
-                </select>
-                <small id="transaction-type-help" class="form-text"><?php p($l->t('Whether this is money coming in or going out')); ?></small>
-            </div>
-            <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
-                <label for="transfer-to-account"><?php p($l->t('To Account')); ?></label>
-                <select id="transfer-to-account" aria-describedby="transfer-to-account-help">
-                    <option value=""><?php p($l->t('Choose destination account')); ?></option>
-                </select>
-                <small id="transfer-to-account-help" class="form-text"><?php p($l->t('Select the account to transfer money to')); ?></small>
-            </div>
-            <div class="form-group">
-                <label for="transaction-amount"><span id="transaction-amount-label"><?php p($l->t('Amount')); ?></span></label>
-                <input type="number" id="transaction-amount" step="0.01" required aria-describedby="transaction-amount-help" min="0">
-                <small id="transaction-amount-help" class="form-text"><?php p($l->t('Enter the transaction amount (positive number)')); ?></small>
-            </div>
-            <div id="transfer-dest-amount-wrapper" class="form-group" style="display: none;">
-                <label for="transfer-dest-amount"><span id="transfer-dest-amount-label"><?php p($l->t('Destination Amount')); ?></span></label>
-                <input type="number" id="transfer-dest-amount" step="0.01" min="0" aria-describedby="transfer-dest-amount-help">
-                <small id="transfer-dest-amount-help" class="form-text"><?php p($l->t('Amount in destination currency (auto-filled from exchange rate, editable)')); ?></small>
-            </div>
-            <div class="form-group">
-                <label for="transaction-description"><?php p($l->t('Description')); ?></label>
-                <input type="text" id="transaction-description" required aria-describedby="transaction-description-help" maxlength="255">
-                <small id="transaction-description-help" class="form-text"><?php p($l->t('Brief description of the transaction')); ?></small>
-            </div>
-            <div class="form-group">
-                <label for="transaction-vendor"><?php p($l->t('Vendor')); ?></label>
-                <input type="text" id="transaction-vendor" aria-describedby="transaction-vendor-help" maxlength="255">
-                <small id="transaction-vendor-help" class="form-text"><?php p($l->t('Name of the merchant or person (optional)')); ?></small>
-            </div>
-            <div id="transaction-category-group" class="form-group">
-                <label for="transaction-category"><?php p($l->t('Category')); ?></label>
-                <select id="transaction-category" aria-describedby="transaction-category-help">
-                    <option value=""><?php p($l->t('No category')); ?></option>
-                </select>
-                <small id="transaction-category-help" class="form-text"><?php p($l->t('Organize this transaction by category (optional)')); ?></small>
-            </div>
 
-            <!-- Inline Split Toggle -->
-            <div id="split-toggle-group" class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal;">
-                    <input type="checkbox" id="transaction-split-toggle" style="width: auto; min-height: auto;">
-                    <?php p($l->t('Split across categories')); ?>
-                </label>
-            </div>
-
-            <!-- Inline Split Rows (hidden by default) -->
-            <div id="inline-splits-section" style="display: none;">
-                <div class="inline-splits-header">
-                    <span class="inline-splits-label"><?php p($l->t('Split Details')); ?></span>
-                    <span id="inline-split-remaining" class="inline-splits-remaining"></span>
+            <div class="modal-scroll">
+              <div class="form-columns">
+                <!-- Column 1 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Transaction')); ?></h4>
+                    <div class="form-group">
+                        <label for="transaction-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
+                        <input type="date" id="transaction-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-account"><?php p($l->t('Account')); ?> <span class="required">*</span></label>
+                        <select id="transaction-account" required>
+                            <option value=""><?php p($l->t('Choose an account')); ?></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
+                        <select id="transaction-type" required>
+                            <option value=""><?php p($l->t('Choose transaction type')); ?></option>
+                            <option value="debit"><?php p($l->t('Expense')); ?></option>
+                            <option value="credit"><?php p($l->t('Income')); ?></option>
+                            <option value="transfer"><?php p($l->t('Transfer')); ?></option>
+                        </select>
+                    </div>
+                    <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
+                        <label for="transfer-to-account"><?php p($l->t('To Account')); ?></label>
+                        <select id="transfer-to-account">
+                            <option value=""><?php p($l->t('Choose destination account')); ?></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-amount"><span id="transaction-amount-label"><?php p($l->t('Amount')); ?></span> <span class="required">*</span></label>
+                        <input type="number" id="transaction-amount" step="0.01" required min="0" placeholder="0.00">
+                    </div>
+                    <div id="transfer-dest-amount-wrapper" class="form-group" style="display: none;">
+                        <label for="transfer-dest-amount"><span id="transfer-dest-amount-label"><?php p($l->t('Destination Amount')); ?></span></label>
+                        <input type="number" id="transfer-dest-amount" step="0.01" min="0" aria-describedby="transfer-dest-amount-help">
+                        <small id="transfer-dest-amount-help" class="form-text"><?php p($l->t('Auto-filled from the exchange rate, editable')); ?></small>
+                    </div>
+                  </div>
                 </div>
-                <div id="inline-splits-container"></div>
-                <button type="button" id="inline-add-split-btn" class="btn-small btn-secondary">+ <?php p($l->t('Add Row')); ?></button>
-            </div>
 
-            <!-- Transaction Tags Container -->
-            <div id="transaction-tags-container"></div>
+                <!-- Column 2 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Details')); ?></h4>
+                    <div class="form-group">
+                        <label for="transaction-description"><?php p($l->t('Description')); ?> <span class="required">*</span></label>
+                        <input type="text" id="transaction-description" required maxlength="255">
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-vendor"><?php p($l->t('Vendor')); ?></label>
+                        <input type="text" id="transaction-vendor" maxlength="255" placeholder="<?php p($l->t('Merchant or person')); ?>">
+                    </div>
+                    <div id="transaction-category-group" class="form-group">
+                        <label for="transaction-category"><?php p($l->t('Category')); ?></label>
+                        <select id="transaction-category">
+                            <option value=""><?php p($l->t('No category')); ?></option>
+                        </select>
+                    </div>
 
-            <div id="transaction-attachments-group" class="form-group" style="display: none;">
-                <label><?php p($l->t('Receipts')); ?></label>
-                <div id="transaction-attachments-list" class="attachments-list"></div>
-                <div class="attachment-actions">
-                    <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
-                    <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
-                    <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
+                    <!-- Inline Split Toggle -->
+                    <div id="split-toggle-group" class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="transaction-split-toggle">
+                            <span><?php p($l->t('Split across categories')); ?></span>
+                        </label>
+                    </div>
+
+                    <!-- Transaction Tags Container -->
+                    <div id="transaction-tags-container"></div>
+                  </div>
                 </div>
-                <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>
+
+                <!-- Column 3 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Extras')); ?></h4>
+                    <div id="transaction-attachments-group" class="form-group" style="display: none;">
+                        <label><?php p($l->t('Receipts')); ?></label>
+                        <div id="transaction-attachments-list" class="attachments-list"></div>
+                        <div class="attachment-actions">
+                            <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
+                            <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
+                            <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
+                        </div>
+                        <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transaction-notes"><?php p($l->t('Notes')); ?></label>
+                        <textarea id="transaction-notes" maxlength="500" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="transaction-excluded-from-forecast">
+                            <span><?php p($l->t('Exclude from forecast (extraordinary / one-time)')); ?></span>
+                        </label>
+                        <small class="form-text"><?php p($l->t('Keeps this one-off amount out of forecast averages. It still affects your account balance.')); ?></small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Inline Split Rows (hidden by default). Full width — a split row
+                   is a four-column grid that doesn't fit a single form column. -->
+              <div id="inline-splits-section" class="form-block form-block-full" style="display: none;">
+                    <div class="inline-splits-header">
+                        <span class="inline-splits-label"><?php p($l->t('Split Details')); ?></span>
+                        <span id="inline-split-remaining" class="inline-splits-remaining"></span>
+                    </div>
+                    <div id="inline-splits-container"></div>
+                    <button type="button" id="inline-add-split-btn" class="btn-small btn-secondary">+ <?php p($l->t('Add Row')); ?></button>
+              </div>
             </div>
 
-            <div class="form-group">
-                <label for="transaction-notes"><?php p($l->t('Notes')); ?></label>
-                <textarea id="transaction-notes" aria-describedby="transaction-notes-help" maxlength="500" rows="3"></textarea>
-                <small id="transaction-notes-help" class="form-text"><?php p($l->t('Additional notes or details (optional)')); ?></small>
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="transaction-excluded-from-forecast">
-                    <span><?php p($l->t('Exclude from forecast (extraordinary / one-time)')); ?></span>
-                </label>
-                <small class="form-text"><?php p($l->t('Keeps this one-off amount out of forecast averages. It still affects your account balance.')); ?></small>
-            </div>
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="<?php p($l->t('Save transaction')); ?>"><?php p($l->t('Save')); ?></button>
                 <button type="button" class="secondary cancel-btn" aria-label="<?php p($l->t('Cancel and close dialog')); ?>"><?php p($l->t('Cancel')); ?></button>
@@ -5409,180 +5467,169 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Account Modal -->
-<div id="account-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="account-modal-title" aria-hidden="true">
+<div id="account-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="account-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="account-modal-title"><?php p($l->t('Add/Edit Account')); ?></h3>
-        <form id="account-form">
+        <form id="account-form" class="wide-form">
             <input type="hidden" id="account-id">
 
-            <!-- Basic Account Information -->
-            <div class="form-section">
-                <h4><?php p($l->t('Basic Information')); ?></h4>
+            <div class="modal-scroll">
+              <div class="form-columns">
+                <!-- Column 1 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Details')); ?></h4>
+                    <div class="form-group">
+                        <label for="account-name"><?php p($l->t('Account Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="account-name" required maxlength="255" autocomplete="off" placeholder="<?php p($l->t('e.g. Everyday Current')); ?>">
+                    </div>
 
-                <div class="form-group">
-                    <label for="account-name"><?php p($l->t('Account Name')); ?> <span class="required">*</span></label>
-                    <input type="text" id="account-name" required aria-describedby="account-name-help" maxlength="255" autocomplete="off">
-                    <small id="account-name-help" class="form-text"><?php p($l->t('Enter a descriptive name for this account')); ?></small>
+                    <div class="form-group">
+                        <label for="account-type"><?php p($l->t('Account Type')); ?> <span class="required">*</span></label>
+                        <select id="account-type" required>
+                            <option value=""><?php p($l->t('Choose account type')); ?></option>
+                            <option value="checking"><?php p($l->t('Checking Account')); ?></option>
+                            <option value="savings"><?php p($l->t('Savings Account')); ?></option>
+                            <option value="credit_card"><?php p($l->t('Credit Card')); ?></option>
+                            <option value="investment"><?php p($l->t('Investment Account')); ?></option>
+                            <option value="loan"><?php p($l->t('Loan Account')); ?></option>
+                            <option value="mortgage"><?php p($l->t('Mortgage')); ?></option>
+                            <option value="line_of_credit"><?php p($l->t('Line of Credit')); ?></option>
+                            <option value="cash"><?php p($l->t('Cash')); ?></option>
+                            <option value="cryptocurrency"><?php p($l->t('Cryptocurrency')); ?></option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="opening-balance-group" style="display: none;">
+                        <label for="account-opening-balance"><?php p($l->t('Opening Balance')); ?></label>
+                        <input type="number" id="account-opening-balance" step="0.01" aria-describedby="account-opening-balance-help">
+                        <small id="account-opening-balance-help" class="form-text"><?php p($l->t('The starting balance when this account was created')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="account-balance" id="account-balance-label"><?php p($l->t('Starting Balance')); ?></label>
+                        <input type="number" id="account-balance" step="0.01" aria-describedby="account-balance-help">
+                        <small id="account-balance-help" class="form-text"><?php p($l->t('The balance this account starts with')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="account-currency"><?php p($l->t('Currency')); ?></label>
+                        <select id="account-currency">
+                            <!-- Populated dynamically from /api/settings/options -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-institution"><?php p($l->t('Institution')); ?></label>
+                        <input type="text" id="form-institution" maxlength="255" autocomplete="off" placeholder="<?php p($l->t('e.g. Chase, NatWest')); ?>">
+                        <div id="institution-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="account-type"><?php p($l->t('Account Type')); ?> <span class="required">*</span></label>
-                    <select id="account-type" required aria-describedby="account-type-help">
-                        <option value=""><?php p($l->t('Choose account type')); ?></option>
-                        <option value="checking"><?php p($l->t('Checking Account')); ?></option>
-                        <option value="savings"><?php p($l->t('Savings Account')); ?></option>
-                        <option value="credit_card"><?php p($l->t('Credit Card')); ?></option>
-                        <option value="investment"><?php p($l->t('Investment Account')); ?></option>
-                        <option value="loan"><?php p($l->t('Loan Account')); ?></option>
-                        <option value="mortgage"><?php p($l->t('Mortgage')); ?></option>
-                        <option value="line_of_credit"><?php p($l->t('Line of Credit')); ?></option>
-                        <option value="cash"><?php p($l->t('Cash')); ?></option>
-                        <option value="cryptocurrency"><?php p($l->t('Cryptocurrency')); ?></option>
-                    </select>
-                    <small id="account-type-help" class="form-text"><?php p($l->t('Select the type of account')); ?></small>
+                <!-- Column 2 -->
+                <div class="form-col">
+                  <div class="form-block" id="banking-details-section">
+                    <h4><?php p($l->t('Banking')); ?></h4>
+                        <div class="form-group">
+                            <label for="account-holder-name"><?php p($l->t('Account Holder Name')); ?></label>
+                            <input type="text" id="account-holder-name" maxlength="255" autocomplete="off">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-account-number"><?php p($l->t('Account Number')); ?></label>
+                            <input type="text" id="form-account-number" maxlength="100" autocomplete="off">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="account-opening-date"><?php p($l->t('Opening Date')); ?></label>
+                            <input type="date" id="account-opening-date">
+                        </div>
+
+                        <div class="form-group conditional" id="routing-number-group">
+                            <label for="form-routing-number"><?php p($l->t('Routing Number')); ?></label>
+                            <input type="text" id="form-routing-number" maxlength="20" autocomplete="off" placeholder="<?php p($l->t('9 digits (US banks)')); ?>">
+                        </div>
+
+                        <div class="form-group conditional" id="sort-code-group">
+                            <label for="form-sort-code"><?php p($l->t('Sort Code')); ?></label>
+                            <input type="text" id="form-sort-code" maxlength="10" autocomplete="off" placeholder="<?php p($l->t('6 digits (UK banks)')); ?>">
+                        </div>
+
+                        <div class="form-group conditional" id="iban-group">
+                            <label for="form-iban"><?php p($l->t('IBAN')); ?></label>
+                            <input type="text" id="form-iban" maxlength="34" autocomplete="off">
+                        </div>
+
+                        <div class="form-group conditional" id="swift-bic-group">
+                            <label for="form-swift-bic"><?php p($l->t('SWIFT/BIC Code')); ?></label>
+                            <input type="text" id="form-swift-bic" maxlength="11" autocomplete="off">
+                        </div>
+
+                        <div class="form-group conditional" id="wallet-address-group">
+                            <label for="form-wallet-address"><?php p($l->t('Wallet Address')); ?></label>
+                            <input type="text" id="form-wallet-address" maxlength="255" autocomplete="off" aria-describedby="form-wallet-address-help">
+                            <small id="form-wallet-address-help" class="form-text"><?php p($l->t('Stored encrypted')); ?></small>
+                        </div>
+                  </div>
                 </div>
 
-                <div class="form-group" id="opening-balance-group" style="display: none;">
-                    <label for="account-opening-balance"><?php p($l->t('Opening Balance')); ?></label>
-                    <input type="number" id="account-opening-balance" step="0.01" aria-describedby="account-opening-balance-help">
-                    <small id="account-opening-balance-help" class="form-text"><?php p($l->t('The starting balance when this account was created')); ?></small>
+                <!-- Column 3 -->
+                <div class="form-col">
+                  <!-- Hidden entirely when the account type has no rates or limits -->
+                  <div class="form-block" id="limits-section">
+                    <h4><?php p($l->t('Rates & limits')); ?></h4>
+                        <div class="form-group conditional" id="interest-rate-group">
+                            <label for="account-interest-rate"><?php p($l->t('Interest Rate (%%)')); ?></label>
+                            <input type="number" id="account-interest-rate" step="0.0001" min="0" max="100">
+                        </div>
+
+                        <div class="form-group conditional" id="compounding-frequency-group">
+                            <label for="account-compounding-frequency"><?php p($l->t('Compounding Frequency')); ?></label>
+                            <select id="account-compounding-frequency">
+                                <option value="daily"><?php p($l->t('Daily')); ?></option>
+                                <option value="monthly"><?php p($l->t('Monthly')); ?></option>
+                                <option value="yearly"><?php p($l->t('Yearly')); ?></option>
+                                <option value="simple"><?php p($l->t('Simple (no compounding)')); ?></option>
+                            </select>
+                        </div>
+
+                        <div class="form-group conditional" id="credit-limit-group">
+                            <label for="account-credit-limit"><?php p($l->t('Credit Limit')); ?></label>
+                            <input type="number" id="account-credit-limit" step="0.01" min="0">
+                        </div>
+
+                        <div class="form-group conditional" id="overdraft-limit-group">
+                            <label for="account-overdraft-limit"><?php p($l->t('Overdraft Limit')); ?></label>
+                            <input type="number" id="account-overdraft-limit" step="0.01" min="0">
+                        </div>
+
+                        <div class="form-group conditional" id="minimum-payment-group">
+                            <label for="account-minimum-payment"><?php p($l->t('Minimum Payment')); ?></label>
+                            <input type="number" id="account-minimum-payment" step="0.01" min="0" aria-describedby="account-minimum-payment-help">
+                            <small id="account-minimum-payment-help" class="form-text"><?php p($l->t('Used for debt payoff calculations')); ?></small>
+                        </div>
+
+                        <div class="form-group conditional" id="interest-enabled-group">
+                            <label class="form-check">
+                                <input type="checkbox" id="account-interest-enabled">
+                                <span><?php p($l->t('Track accrued interest over time, with variable rate support')); ?></span>
+                            </label>
+                        </div>
+                  </div>
+
+                  <div class="form-block" id="account-advanced-section">
+                    <h4><?php p($l->t('Advanced')); ?></h4>
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="account-excluded-from-reports">
+                            <span><?php p($l->t('Exclude from reports, dashboard & forecast')); ?></span>
+                        </label>
+                        <small class="form-text"><?php p($l->t('Keep tracking this account, but leave its transactions and balance out of every "all accounts" total — reports, the dashboard, forecast, net worth and budgets. The account still appears in your accounts list and on its own page.')); ?></small>
+                    </div>
+                  </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="account-balance" id="account-balance-label"><?php p($l->t('Starting Balance')); ?></label>
-                    <input type="number" id="account-balance" step="0.01" aria-describedby="account-balance-help">
-                    <small id="account-balance-help" class="form-text"><?php p($l->t('The balance this account starts with')); ?></small>
-                </div>
-
-                <div class="form-group">
-                    <label for="account-currency"><?php p($l->t('Currency')); ?></label>
-                    <select id="account-currency" aria-describedby="account-currency-help">
-                        <!-- Populated dynamically from /api/settings/options -->
-                    </select>
-                    <small id="account-currency-help" class="form-text"><?php p($l->t('Select the account currency')); ?></small>
-                </div>
-            </div>
-
-            <!-- Bank Information -->
-            <div class="form-section">
-                <h4><?php p($l->t('Bank Information')); ?></h4>
-
-                <div class="form-group">
-                    <label for="form-institution"><?php p($l->t('Institution')); ?></label>
-                    <input type="text" id="form-institution" aria-describedby="form-institution-help" maxlength="255" autocomplete="off">
-                    <div id="institution-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
-                    <small id="form-institution-help" class="form-text"><?php p($l->t('Bank or financial institution name')); ?></small>
-                </div>
-
-                <div class="form-group">
-                    <label for="account-holder-name"><?php p($l->t('Account Holder Name')); ?></label>
-                    <input type="text" id="account-holder-name" aria-describedby="account-holder-name-help" maxlength="255" autocomplete="off">
-                    <small id="account-holder-name-help" class="form-text"><?php p($l->t('Name on the account')); ?></small>
-                </div>
-
-                <div class="form-group">
-                    <label for="form-account-number"><?php p($l->t('Account Number')); ?></label>
-                    <input type="text" id="form-account-number" aria-describedby="form-account-number-help" maxlength="100" autocomplete="off">
-                    <small id="form-account-number-help" class="form-text"><?php p($l->t('Your account number')); ?></small>
-                </div>
-
-                <div class="form-group">
-                    <label for="account-opening-date"><?php p($l->t('Opening Date')); ?></label>
-                    <input type="date" id="account-opening-date" aria-describedby="account-opening-date-help">
-                    <small id="account-opening-date-help" class="form-text"><?php p($l->t('When the account was opened')); ?></small>
-                </div>
-            </div>
-
-            <!-- Banking Details (conditional) -->
-            <div class="form-section" id="banking-details-section">
-                <h4><?php p($l->t('Banking Details')); ?></h4>
-
-                <div class="form-group conditional" id="routing-number-group">
-                    <label for="form-routing-number"><?php p($l->t('Routing Number')); ?></label>
-                    <input type="text" id="form-routing-number" aria-describedby="form-routing-number-help" maxlength="20" autocomplete="off">
-                    <small id="form-routing-number-help" class="form-text"><?php p($l->t('9-digit routing number (US banks)')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="sort-code-group">
-                    <label for="form-sort-code"><?php p($l->t('Sort Code')); ?></label>
-                    <input type="text" id="form-sort-code" aria-describedby="form-sort-code-help" maxlength="10" autocomplete="off">
-                    <small id="form-sort-code-help" class="form-text"><?php p($l->t('6-digit sort code (UK banks)')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="iban-group">
-                    <label for="form-iban"><?php p($l->t('IBAN')); ?></label>
-                    <input type="text" id="form-iban" aria-describedby="form-iban-help" maxlength="34" autocomplete="off">
-                    <small id="form-iban-help" class="form-text"><?php p($l->t('International Bank Account Number')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="swift-bic-group">
-                    <label for="form-swift-bic"><?php p($l->t('SWIFT/BIC Code')); ?></label>
-                    <input type="text" id="form-swift-bic" aria-describedby="form-swift-bic-help" maxlength="11" autocomplete="off">
-                    <small id="form-swift-bic-help" class="form-text"><?php p($l->t('SWIFT/BIC code for international transfers')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="wallet-address-group">
-                    <label for="form-wallet-address"><?php p($l->t('Wallet Address')); ?></label>
-                    <input type="text" id="form-wallet-address" aria-describedby="form-wallet-address-help" maxlength="255" autocomplete="off">
-                    <small id="form-wallet-address-help" class="form-text"><?php p($l->t('Your wallet or exchange address (stored encrypted)')); ?></small>
-                </div>
-            </div>
-
-            <!-- Account Limits (conditional) -->
-            <div class="form-section" id="limits-section">
-                <h4><?php p($l->t('Account Limits & Rates')); ?></h4>
-
-                <div class="form-group conditional" id="interest-rate-group">
-                    <label for="account-interest-rate"><?php p($l->t('Interest Rate (%%)')); ?></label>
-                    <input type="number" id="account-interest-rate" step="0.0001" min="0" max="100" aria-describedby="account-interest-rate-help">
-                    <small id="account-interest-rate-help" class="form-text"><?php p($l->t('Annual interest rate percentage')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="interest-enabled-group">
-                    <label for="account-interest-enabled"><?php p($l->t('Interest Tracking')); ?></label>
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
-                        <input type="checkbox" id="account-interest-enabled" style="width: 18px; height: 18px; margin: 0;">
-                        <?php p($l->t('Enable')); ?>
-                    </label>
-                    <small class="form-text"><?php p($l->t('Track accrued interest over time with variable rate support')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="compounding-frequency-group">
-                    <label for="account-compounding-frequency"><?php p($l->t('Compounding Frequency')); ?></label>
-                    <select id="account-compounding-frequency">
-                        <option value="daily"><?php p($l->t('Daily')); ?></option>
-                        <option value="monthly"><?php p($l->t('Monthly')); ?></option>
-                        <option value="yearly"><?php p($l->t('Yearly')); ?></option>
-                        <option value="simple"><?php p($l->t('Simple (no compounding)')); ?></option>
-                    </select>
-                    <small class="form-text"><?php p($l->t('How often interest compounds on this account')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="credit-limit-group">
-                    <label for="account-credit-limit"><?php p($l->t('Credit Limit')); ?></label>
-                    <input type="number" id="account-credit-limit" step="0.01" min="0" aria-describedby="account-credit-limit-help">
-                    <small id="account-credit-limit-help" class="form-text"><?php p($l->t('Maximum credit limit for credit cards')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="overdraft-limit-group">
-                    <label for="account-overdraft-limit"><?php p($l->t('Overdraft Limit')); ?></label>
-                    <input type="number" id="account-overdraft-limit" step="0.01" min="0" aria-describedby="account-overdraft-limit-help">
-                    <small id="account-overdraft-limit-help" class="form-text"><?php p($l->t('Maximum overdraft amount')); ?></small>
-                </div>
-
-                <div class="form-group conditional" id="minimum-payment-group">
-                    <label for="account-minimum-payment"><?php p($l->t('Minimum Payment')); ?></label>
-                    <input type="number" id="account-minimum-payment" step="0.01" min="0" aria-describedby="account-minimum-payment-help">
-                    <small id="account-minimum-payment-help" class="form-text"><?php p($l->t('Minimum monthly payment for debt payoff calculations')); ?></small>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
-                    <input type="checkbox" id="account-excluded-from-reports" style="width: 18px; height: 18px; margin: 0;">
-                    <?php p($l->t('Exclude from reports, dashboard & forecast')); ?>
-                </label>
-                <small class="form-text"><?php p($l->t('Keep tracking this account, but leave its transactions and balance out of every "all accounts" total — reports, the dashboard, forecast, net worth and budgets. The account still appears in your accounts list and on its own page.')); ?></small>
+              </div>
             </div>
 
             <div class="modal-buttons">
@@ -5594,33 +5641,39 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Bill Modal -->
-<div id="bill-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="bill-modal-title" aria-hidden="true">
+<div id="bill-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="bill-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="bill-modal-title"><?php p($l->t('Add/Edit Bill')); ?></h3>
-        <form id="bill-form">
+        <form id="bill-form" class="wide-form">
             <input type="hidden" id="bill-id">
 
-            <div class="form-group">
-                <label for="bill-name"><?php p($l->t('Bill Name / Vendor')); ?> <span class="required">*</span></label>
-                <input type="text" id="bill-name" required aria-describedby="bill-name-help" maxlength="255" placeholder="<?php p($l->t('e.g., Netflix, Rent, Electric Bill')); ?>">
-                <small id="bill-name-help" class="form-text"><?php p($l->t('Name of the vendor or recurring bill')); ?></small>
-            </div>
+            <div class="modal-scroll">
+              <div class="form-columns">
+                <!-- Column 1 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Bill')); ?></h4>
+                    <div class="form-group">
+                    <label for="bill-name"><?php p($l->t('Bill Name / Vendor')); ?> <span class="required">*</span></label>
+                    <input type="text" id="bill-name" required aria-describedby="bill-name-help" maxlength="255" placeholder="<?php p($l->t('e.g., Netflix, Rent, Electric Bill')); ?>">
+                    <small id="bill-name-help" class="form-text"><?php p($l->t('Name of the vendor or recurring bill')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="bill-description"><?php p($l->t('Description')); ?></label>
-                <input type="text" id="bill-description" aria-describedby="bill-description-help" maxlength="255" placeholder="<?php p($l->t('Transaction description (optional)')); ?>">
-                <small id="bill-description-help" class="form-text"><?php p($l->t('Used as the description when transactions are auto-generated')); ?></small>
-            </div>
+                    <div class="form-group">
+                    <label for="bill-description"><?php p($l->t('Description')); ?></label>
+                    <input type="text" id="bill-description" aria-describedby="bill-description-help" maxlength="255" placeholder="<?php p($l->t('Transaction description (optional)')); ?>">
+                    <small id="bill-description-help" class="form-text"><?php p($l->t('Used as the description when transactions are auto-generated')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="bill-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
-                <input type="number" id="bill-amount" step="0.01" required min="0" aria-describedby="bill-amount-help" placeholder="0.00">
-                <small id="bill-amount-help" class="form-text"><?php p($l->t('Expected bill amount')); ?></small>
-            </div>
+                    <div class="form-group">
+                    <label for="bill-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
+                    <input type="number" id="bill-amount" step="0.01" required min="0" aria-describedby="bill-amount-help" placeholder="0.00">
+                    <small id="bill-amount-help" class="form-text"><?php p($l->t('Expected bill amount')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="bill-frequency"><?php p($l->t('Frequency')); ?> <span class="required">*</span></label>
-                <select id="bill-frequency" required aria-describedby="bill-frequency-help">
+                    <div class="form-group">
+                    <label for="bill-frequency"><?php p($l->t('Frequency')); ?> <span class="required">*</span></label>
+                    <select id="bill-frequency" required aria-describedby="bill-frequency-help">
                     <option value="weekly"><?php p($l->t('Weekly')); ?></option>
                     <option value="biweekly"><?php p($l->t('Bi-Weekly')); ?></option>
                     <option value="semi-monthly"><?php p($l->t('Semi-Monthly')); ?></option>
@@ -5630,13 +5683,13 @@ style('budget', 'budget-app');
                     <option value="yearly"><?php p($l->t('Yearly')); ?></option>
                     <option value="one-time"><?php p($l->t('One-Time')); ?></option>
                     <option value="custom"><?php p($l->t('Custom')); ?></option>
-                </select>
-                <small id="bill-frequency-help" class="form-text"><?php p($l->t('How often this bill is due')); ?></small>
-            </div>
+                    </select>
+                    <small id="bill-frequency-help" class="form-text"><?php p($l->t('How often this bill is due')); ?></small>
+                    </div>
 
-            <div class="form-group" id="custom-months-group" style="display: none;">
-                <label><?php p($l->t('Select Months')); ?> <span class="required">*</span></label>
-                <div id="bill-custom-months" class="custom-months-selector">
+                    <div class="form-group" id="custom-months-group" style="display: none;">
+                    <label><?php p($l->t('Select Months')); ?> <span class="required">*</span></label>
+                    <div id="bill-custom-months" class="custom-months-selector">
                     <label><input type="checkbox" value="1"> <?php p($l->t('Jan')); ?></label>
                     <label><input type="checkbox" value="2"> <?php p($l->t('Feb')); ?></label>
                     <label><input type="checkbox" value="3"> <?php p($l->t('Mar')); ?></label>
@@ -5649,19 +5702,19 @@ style('budget', 'budget-app');
                     <label><input type="checkbox" value="10"> <?php p($l->t('Oct')); ?></label>
                     <label><input type="checkbox" value="11"> <?php p($l->t('Nov')); ?></label>
                     <label><input type="checkbox" value="12"> <?php p($l->t('Dec')); ?></label>
-                </div>
-                <small class="form-text"><?php p($l->t('Select which months this bill occurs')); ?></small>
-            </div>
+                    </div>
+                    <small class="form-text"><?php p($l->t('Select which months this bill occurs')); ?></small>
+                    </div>
 
-            <div class="form-group" id="due-day-group">
-                <label for="bill-due-day"><?php p($l->t('Due Day')); ?></label>
-                <input type="number" id="bill-due-day" min="1" max="31" aria-describedby="bill-due-day-help" placeholder="1-31">
-                <small id="bill-due-day-help" class="form-text"><?php p($l->t('Day of the month when bill is due')); ?></small>
-            </div>
+                    <div class="form-group" id="due-day-group">
+                    <label for="bill-due-day"><?php p($l->t('Due Day')); ?></label>
+                    <input type="number" id="bill-due-day" min="1" max="31" aria-describedby="bill-due-day-help" placeholder="1-31">
+                    <small id="bill-due-day-help" class="form-text"><?php p($l->t('Day of the month when bill is due')); ?></small>
+                    </div>
 
-            <div class="form-group" id="due-month-group" style="display: none;">
-                <label for="bill-due-month"><?php p($l->t('Due Month')); ?></label>
-                <select id="bill-due-month" aria-describedby="bill-due-month-help">
+                    <div class="form-group" id="due-month-group" style="display: none;">
+                    <label for="bill-due-month"><?php p($l->t('Due Month')); ?></label>
+                    <select id="bill-due-month" aria-describedby="bill-due-month-help">
                     <option value=""><?php p($l->t('Select month...')); ?></option>
                     <option value="1"><?php p($l->t('January')); ?></option>
                     <option value="2"><?php p($l->t('February')); ?></option>
@@ -5675,78 +5728,82 @@ style('budget', 'budget-app');
                     <option value="10"><?php p($l->t('October')); ?></option>
                     <option value="11"><?php p($l->t('November')); ?></option>
                     <option value="12"><?php p($l->t('December')); ?></option>
-                </select>
-                <small id="bill-due-month-help" class="form-text"><?php p($l->t('Month when yearly bill is due')); ?></small>
-            </div>
-
-            <div class="form-group">
-                <label for="bill-category"><?php p($l->t('Category')); ?></label>
-                <select id="bill-category" aria-describedby="bill-category-help">
-                    <option value=""><?php p($l->t('No category')); ?></option>
-                </select>
-                <small id="bill-category-help" class="form-text"><?php p($l->t('Categorize this bill (optional)')); ?></small>
-            </div>
-
-            <div id="bill-tags-container"></div>
-
-            <!-- Split Template Section -->
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="bill-split-enabled" style="width: 18px; height: 18px; cursor: pointer;">
-                    <span><?php p($l->t('Split across categories')); ?></span>
-                </label>
-                <small class="form-text"><?php p($l->t('Define how this bill should be split across categories when paid')); ?></small>
-            </div>
-
-            <div id="bill-split-container" style="display: none;">
-                <div id="bill-split-rows"></div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0;">
-                    <button type="button" id="bill-add-split-btn" class="secondary" style="font-size: 0.85em;">+ <?php p($l->t('Add Split')); ?></button>
-                    <span id="bill-split-remaining" class="form-text" style="font-weight: 500;"></span>
+                    </select>
+                    <small id="bill-due-month-help" class="form-text"><?php p($l->t('Month when yearly bill is due')); ?></small>
+                    </div>
+                  </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="bill-account"><?php p($l->t('Pay From Account')); ?></label>
-                <select id="bill-account" aria-describedby="bill-account-help">
+                <!-- Column 2 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Payment')); ?></h4>
+                    <div class="form-group">
+                    <label for="bill-category"><?php p($l->t('Category')); ?></label>
+                    <select id="bill-category" aria-describedby="bill-category-help">
+                    <option value=""><?php p($l->t('No category')); ?></option>
+                    </select>
+                    <small id="bill-category-help" class="form-text"><?php p($l->t('Categorize this bill (optional)')); ?></small>
+                    </div>
+
+                    <div id="bill-tags-container"></div>
+
+                    <!-- Split Template Section -->
+                    <div class="form-group">
+                    <label class="form-check">
+                    <input type="checkbox" id="bill-split-enabled">
+                    <span><?php p($l->t('Split across categories')); ?></span>
+                    </label>
+                    <small class="form-text"><?php p($l->t('Define how this bill should be split across categories when paid')); ?></small>
+                    </div>
+
+                    <div class="form-group">
+                    <label for="bill-account"><?php p($l->t('Pay From Account')); ?></label>
+                    <select id="bill-account" aria-describedby="bill-account-help">
                     <option value=""><?php p($l->t('No specific account')); ?></option>
-                </select>
-                <small id="bill-account-help" class="form-text"><?php p($l->t('Account used to pay this bill (optional)')); ?></small>
-            </div>
+                    </select>
+                    <small id="bill-account-help" class="form-text"><?php p($l->t('Account used to pay this bill (optional)')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="bill-auto-pattern"><?php p($l->t('Auto-detect Pattern')); ?></label>
-                <input type="text" id="bill-auto-pattern" aria-describedby="bill-auto-pattern-help" maxlength="255" placeholder="<?php p($l->t('e.g., NETFLIX, SPOTIFY')); ?>">
-                <small id="bill-auto-pattern-help" class="form-text"><?php p($l->t('Imported transactions matching this pattern (similar amount, near the due date) automatically mark the bill as paid')); ?></small>
-            </div>
+                    <div class="form-group">
+                    <label for="bill-auto-pattern"><?php p($l->t('Auto-detect Pattern')); ?></label>
+                    <input type="text" id="bill-auto-pattern" aria-describedby="bill-auto-pattern-help" maxlength="255" placeholder="<?php p($l->t('e.g., NETFLIX, SPOTIFY')); ?>">
+                    <small id="bill-auto-pattern-help" class="form-text"><?php p($l->t('Imported transactions matching this pattern (similar amount, near the due date) automatically mark the bill as paid')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="bill-notes"><?php p($l->t('Notes')); ?></label>
-                <textarea id="bill-notes" aria-describedby="bill-notes-help" maxlength="500" rows="2" placeholder="<?php p($l->t('Additional notes...')); ?>"></textarea>
-                <small id="bill-notes-help" class="form-text"><?php p($l->t('Any additional notes (optional)')); ?></small>
-            </div>
+                    <div class="form-group">
+                    <label for="bill-notes"><?php p($l->t('Notes')); ?></label>
+                    <textarea id="bill-notes" aria-describedby="bill-notes-help" maxlength="500" rows="2" placeholder="<?php p($l->t('Additional notes...')); ?>"></textarea>
+                    <small id="bill-notes-help" class="form-text"><?php p($l->t('Any additional notes (optional)')); ?></small>
+                    </div>
+                  </div>
+                </div>
 
-            <div class="form-group" id="start-date-group">
-                <label for="bill-start-date"><?php p($l->t('Start Date')); ?></label>
-                <input type="date" id="bill-start-date" aria-describedby="bill-start-date-help">
-                <small id="bill-start-date-help" class="form-text"><?php p($l->t('Bill only occurs on or after this date (optional)')); ?></small>
-            </div>
+                <!-- Column 3 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Schedule')); ?></h4>
+                    <div class="form-group" id="start-date-group">
+                    <label for="bill-start-date"><?php p($l->t('Start Date')); ?></label>
+                    <input type="date" id="bill-start-date" aria-describedby="bill-start-date-help">
+                    <small id="bill-start-date-help" class="form-text"><?php p($l->t('Bill only occurs on or after this date (optional)')); ?></small>
+                    </div>
 
-            <div class="form-group" id="end-date-group">
-                <label for="bill-end-date"><?php p($l->t('End Date')); ?></label>
-                <input type="date" id="bill-end-date" aria-describedby="bill-end-date-help">
-                <small id="bill-end-date-help" class="form-text"><?php p($l->t('Bill will automatically stop after this date (optional)')); ?></small>
-            </div>
+                    <div class="form-group" id="end-date-group">
+                    <label for="bill-end-date"><?php p($l->t('End Date')); ?></label>
+                    <input type="date" id="bill-end-date" aria-describedby="bill-end-date-help">
+                    <small id="bill-end-date-help" class="form-text"><?php p($l->t('Bill will automatically stop after this date (optional)')); ?></small>
+                    </div>
 
-            <div class="form-group" id="remaining-payments-group">
-                <label for="bill-remaining-payments"><?php p($l->t('Remaining Payments')); ?></label>
-                <input type="number" id="bill-remaining-payments" min="1" aria-describedby="bill-remaining-payments-help" placeholder="<?php p($l->t('e.g., 10')); ?>">
-                <small id="bill-remaining-payments-help" class="form-text"><?php p($l->t('Number of payments left before bill auto-deactivates (optional)')); ?></small>
-            </div>
+                    <div class="form-group" id="remaining-payments-group">
+                    <label for="bill-remaining-payments"><?php p($l->t('Remaining Payments')); ?></label>
+                    <input type="number" id="bill-remaining-payments" min="1" aria-describedby="bill-remaining-payments-help" placeholder="<?php p($l->t('e.g., 10')); ?>">
+                    <small id="bill-remaining-payments-help" class="form-text"><?php p($l->t('Number of payments left before bill auto-deactivates (optional)')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="bill-reminder-days"><?php p($l->t('Reminder')); ?></label>
-                <select id="bill-reminder-days" aria-describedby="bill-reminder-help">
+                    <div class="form-group">
+                    <label for="bill-reminder-days"><?php p($l->t('Reminder')); ?></label>
+                    <select id="bill-reminder-days" aria-describedby="bill-reminder-help">
                     <option value=""><?php p($l->t('No reminder')); ?></option>
                     <option value="0"><?php p($l->t('On due date')); ?></option>
                     <option value="1"><?php p($l->t('1 day before')); ?></option>
@@ -5755,44 +5812,57 @@ style('budget', 'budget-app');
                     <option value="5"><?php p($l->t('5 days before')); ?></option>
                     <option value="7"><?php p($l->t('1 week before')); ?></option>
                     <option value="14"><?php p($l->t('2 weeks before')); ?></option>
-                </select>
-                <small id="bill-reminder-help" class="form-text"><?php p($l->t('Receive a notification before bill is due')); ?></small>
-            </div>
+                    </select>
+                    <small id="bill-reminder-help" class="form-text"><?php p($l->t('Receive a notification before bill is due')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="bill-create-transaction" style="width: 18px; height: 18px; cursor: pointer;">
+                    <div class="form-group">
+                    <label class="form-check">
+                    <input type="checkbox" id="bill-create-transaction">
                     <span><?php p($l->t('Create future transaction for this bill')); ?></span>
-                </label>
-                <small class="form-text"><?php p($l->t("Keeps a scheduled transaction for the next due date so the upcoming payment shows in the transaction list and forecasts. Untick to never pre-create transactions for this bill.")); ?></small>
-            </div>
+                    </label>
+                    <small class="form-text"><?php p($l->t("Keeps a scheduled transaction for the next due date so the upcoming payment shows in the transaction list and forecasts. Untick to never pre-create transactions for this bill.")); ?></small>
+                    </div>
 
-            <div class="form-group" id="transaction-date-group" style="display: none;">
-                <label for="bill-transaction-date"><?php p($l->t('Transaction Date')); ?></label>
-                <input type="date" id="bill-transaction-date" aria-describedby="bill-transaction-date-help">
-                <small id="bill-transaction-date-help" class="form-text"><?php p($l->t('Leave empty to use next due date')); ?></small>
-            </div>
+                    <div class="form-group" id="transaction-date-group" style="display: none;">
+                    <label for="bill-transaction-date"><?php p($l->t('Transaction Date')); ?></label>
+                    <input type="date" id="bill-transaction-date" aria-describedby="bill-transaction-date-help">
+                    <small id="bill-transaction-date-help" class="form-text"><?php p($l->t('Leave empty to use next due date')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="bill-auto-pay" style="width: 18px; height: 18px; cursor: pointer;">
+                    <div class="form-group">
+                    <label class="form-check">
+                    <input type="checkbox" id="bill-auto-pay">
                     <span><?php p($l->t('Auto-pay when due')); ?></span>
-                </label>
-                <small class="form-text"><?php p($l->t('Automatically mark this bill as paid when due date arrives (requires account)')); ?></small>
-            </div>
+                    </label>
+                    <small class="form-text"><?php p($l->t('Automatically mark this bill as paid when due date arrives (requires account)')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="bill-excluded-from-forecast" style="width: 18px; height: 18px; cursor: pointer;">
+                    <div class="form-group">
+                    <label class="form-check">
+                    <input type="checkbox" id="bill-excluded-from-forecast">
                     <span><?php p($l->t('Exclude from forecast (extraordinary)')); ?></span>
-                </label>
-                <small class="form-text"><?php p($l->t('Transactions generated by this bill are left out of forecast averages.')); ?></small>
-            </div>
+                    </label>
+                    <small class="form-text"><?php p($l->t('Transactions generated by this bill are left out of forecast averages.')); ?></small>
+                    </div>
 
-            <div class="form-group" id="auto-pay-failed-warning" style="display: none;">
-                <div style="padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; color: #856404;">
+                    <div class="form-group" id="auto-pay-failed-warning" style="display: none;">
+                    <div style="padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; color: #856404;">
                     <strong><?php p($l->t('Auto-pay failed!')); ?></strong> <?php p($l->t('Auto-pay has been disabled. Please check the bill details and re-enable if needed.')); ?>
+                    </div>
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              <!-- Split rows: full width below the columns, like the transaction dialog -->
+              <div id="bill-split-container" class="form-block form-block-full" style="display: none;">
+              <div id="bill-split-rows"></div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0;">
+              <button type="button" id="bill-add-split-btn" class="secondary" style="font-size: 0.85em;">+ <?php p($l->t('Add Split')); ?></button>
+              <span id="bill-split-remaining" class="form-text" style="font-weight: 500;"></span>
+              </div>
+              </div>
             </div>
 
             <div class="modal-buttons">
@@ -6185,59 +6255,74 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Category Modal -->
-<div id="category-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="category-modal-title" aria-hidden="true">
+<div id="category-modal" class="modal modal-columns modal-columns-2" style="display: none;" role="dialog" aria-labelledby="category-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="category-modal-title"><?php p($l->t('Add/Edit Category')); ?></h3>
-        <form id="category-form">
+        <form id="category-form" class="wide-form">
             <input type="hidden" id="category-id">
 
-            <div class="form-group">
-                <label for="category-name"><?php p($l->t('Category Name')); ?> <span class="required">*</span></label>
-                <input type="text" id="category-name" required aria-describedby="category-name-help" maxlength="255">
-                <small id="category-name-help" class="form-text"><?php p($l->t('Name for this category')); ?></small>
-            </div>
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-2">
+                <!-- Column 1 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Details')); ?></h4>
+                    <div class="form-group">
+                        <label for="category-name"><?php p($l->t('Category Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="category-name" required maxlength="255">
+                    </div>
 
-            <div class="form-group">
-                <label for="category-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
-                <select id="category-type" required aria-describedby="category-type-help">
-                    <option value="expense"><?php p($l->t('Expense')); ?></option>
-                    <option value="income"><?php p($l->t('Income')); ?></option>
-                </select>
-                <small id="category-type-help" class="form-text"><?php p($l->t('Whether this is for income or expenses')); ?></small>
-            </div>
+                    <div class="form-group">
+                        <label for="category-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
+                        <select id="category-type" required>
+                            <option value="expense"><?php p($l->t('Expense')); ?></option>
+                            <option value="income"><?php p($l->t('Income')); ?></option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="category-parent"><?php p($l->t('Parent Category')); ?></label>
-                <select id="category-parent" aria-describedby="category-parent-help">
-                    <option value=""><?php p($l->t('None (Top Level)')); ?></option>
-                </select>
-                <small id="category-parent-help" class="form-text"><?php p($l->t('Make this a subcategory (optional)')); ?></small>
-            </div>
+                    <div class="form-group">
+                        <label for="category-parent"><?php p($l->t('Parent Category')); ?></label>
+                        <select id="category-parent" aria-describedby="category-parent-help">
+                            <option value=""><?php p($l->t('None (Top Level)')); ?></option>
+                        </select>
+                        <small id="category-parent-help" class="form-text"><?php p($l->t('Make this a subcategory (optional)')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="category-color"><?php p($l->t('Color')); ?></label>
-                <input type="color" id="category-color" value="#3b82f6" aria-describedby="category-color-help">
-                <small id="category-color-help" class="form-text"><?php p($l->t('Color for charts and display')); ?></small>
-            </div>
+                    <div class="form-group">
+                        <label for="category-color"><?php p($l->t('Color')); ?></label>
+                        <input type="color" id="category-color" value="#3b82f6" aria-describedby="category-color-help">
+                        <small id="category-color-help" class="form-text"><?php p($l->t('Color for charts and display')); ?></small>
+                    </div>
+                  </div>
+                </div>
 
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="category-excluded-from-reports">
-                    <?php p($l->t('Exclude from reports')); ?>
-                </label>
-                <small class="form-text"><?php p($l->t('Transactions in this category will not count toward budgets, spending reports, or dashboard totals.')); ?></small>
-            </div>
+                <!-- Column 2 -->
+                <div class="form-col">
+                  <div class="form-block">
+                    <h4><?php p($l->t('Options')); ?></h4>
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="category-excluded-from-reports">
+                            <span><?php p($l->t('Exclude from reports')); ?></span>
+                        </label>
+                        <small class="form-text"><?php p($l->t('Transactions in this category will not count toward budgets, spending reports, or dashboard totals.')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="category-excluded-from-budget">
-                    <?php p($l->t('Exclude from budgeting')); ?>
-                </label>
-                <small class="form-text"><?php p($l->t('For spending you track but never budget against. The category keeps counting in reports, the dashboard and every total — it just drops out of the Budget page, budget alerts and the budget report, along with its subcategories.')); ?></small>
-            </div>
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="category-excluded-from-budget">
+                            <span><?php p($l->t('Exclude from budgeting')); ?></span>
+                        </label>
+                        <small class="form-text"><?php p($l->t('For spending you track but never budget against. The category keeps counting in reports, the dashboard and every total — it just drops out of the Budget page, budget alerts and the budget report, along with its subcategories.')); ?></small>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-            <!-- Tag Sets Container -->
-            <div id="category-tag-sets-container"></div>
+              <!-- Tag Sets Container. Full width below the columns — the tag set
+                   list is a table-like layout that doesn't fit a form column. -->
+              <div id="category-tag-sets-container" class="form-block form-block-full"></div>
+            </div>
 
             <div class="modal-buttons">
                 <button type="submit" class="primary" aria-label="<?php p($l->t('Save category')); ?>"><?php p($l->t('Save')); ?></button>
@@ -6248,22 +6333,28 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Add Tag Set Modal -->
-<div id="add-tag-set-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h3><?php p($l->t('Add Tag Set')); ?></h3>
-        </div>
-        <form id="add-tag-set-form" class="modal-form">
+<div id="add-tag-set-modal" class="modal modal-columns modal-columns-1" style="display: none;">
+    <div class="modal-content">
+        <h3><?php p($l->t('Add Tag Set')); ?></h3>
+        <form id="add-tag-set-form" class="wide-form">
             <input type="hidden" id="tag-set-category-id" name="categoryId">
-            <div class="form-group">
-                <label for="tag-set-name"><?php p($l->t('Tag Set Name')); ?> *</label>
-                <input type="text" id="tag-set-name" name="name" required placeholder="<?php p($l->t('e.g., Activity, Equipment, Location')); ?>">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-1">
+                <div class="form-col">
+                  <div class="form-block">
+                    <div class="form-group">
+                        <label for="tag-set-name"><?php p($l->t('Tag Set Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="tag-set-name" name="name" required placeholder="<?php p($l->t('e.g., Activity, Equipment, Location')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="tag-set-description"><?php p($l->t('Description')); ?></label>
+                        <input type="text" id="tag-set-description" name="description" placeholder="<?php p($l->t('Optional description')); ?>">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-                <label for="tag-set-description"><?php p($l->t('Description')); ?></label>
-                <input type="text" id="tag-set-description" name="description" placeholder="<?php p($l->t('Optional description')); ?>">
-            </div>
-            <div class="modal-actions">
+            <div class="modal-buttons">
                 <button type="submit" class="primary"><?php p($l->t('Add Tag Set')); ?></button>
                 <button type="button" class="secondary cancel-tag-set-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
@@ -6272,23 +6363,29 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Add Tag Modal -->
-<div id="add-tag-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h3><?php p($l->t('Add Tag')); ?></h3>
-        </div>
-        <form id="add-tag-form" class="modal-form">
+<div id="add-tag-modal" class="modal modal-columns modal-columns-1" style="display: none;">
+    <div class="modal-content">
+        <h3><?php p($l->t('Add Tag')); ?></h3>
+        <form id="add-tag-form" class="wide-form">
             <input type="hidden" id="tag-set-id" name="tagSetId">
             <input type="hidden" id="tag-category-id" name="categoryId">
-            <div class="form-group">
-                <label for="tag-name"><?php p($l->t('Tag Name')); ?> *</label>
-                <input type="text" id="tag-name" name="name" required placeholder="<?php p($l->t('e.g., Fishing, Rods, Online')); ?>">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-1">
+                <div class="form-col">
+                  <div class="form-block">
+                    <div class="form-group">
+                        <label for="tag-name"><?php p($l->t('Tag Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="tag-name" name="name" required placeholder="<?php p($l->t('e.g., Fishing, Rods, Online')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="tag-color"><?php p($l->t('Color')); ?></label>
+                        <input type="color" id="tag-color" name="color" value="#4A90E2">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-                <label for="tag-color"><?php p($l->t('Color')); ?></label>
-                <input type="color" id="tag-color" name="color" value="#4A90E2">
-            </div>
-            <div class="modal-actions">
+            <div class="modal-buttons">
                 <button type="submit" class="primary"><?php p($l->t('Add Tag')); ?></button>
                 <button type="button" class="secondary cancel-tag-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
@@ -6297,24 +6394,30 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Edit Tag Modal -->
-<div id="edit-tag-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h3><?php p($l->t('Edit Tag')); ?></h3>
-        </div>
-        <form id="edit-tag-form" class="modal-form">
+<div id="edit-tag-modal" class="modal modal-columns modal-columns-1" style="display: none;">
+    <div class="modal-content">
+        <h3><?php p($l->t('Edit Tag')); ?></h3>
+        <form id="edit-tag-form" class="wide-form">
             <input type="hidden" id="edit-tag-id" name="tagId">
             <input type="hidden" id="edit-tag-tag-set-id" name="tagSetId">
             <input type="hidden" id="edit-tag-category-id" name="categoryId">
-            <div class="form-group">
-                <label for="edit-tag-name"><?php p($l->t('Tag Name')); ?> *</label>
-                <input type="text" id="edit-tag-name" name="name" required placeholder="<?php p($l->t('e.g., Fishing, Rods, Online')); ?>">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-1">
+                <div class="form-col">
+                  <div class="form-block">
+                    <div class="form-group">
+                        <label for="edit-tag-name"><?php p($l->t('Tag Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="edit-tag-name" name="name" required placeholder="<?php p($l->t('e.g., Fishing, Rods, Online')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-tag-color"><?php p($l->t('Color')); ?></label>
+                        <input type="color" id="edit-tag-color" name="color" value="#4A90E2">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-                <label for="edit-tag-color"><?php p($l->t('Color')); ?></label>
-                <input type="color" id="edit-tag-color" name="color" value="#4A90E2">
-            </div>
-            <div class="modal-actions">
+            <div class="modal-buttons">
                 <button type="submit" class="primary"><?php p($l->t('Save Changes')); ?></button>
                 <button type="button" class="secondary cancel-tag-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
@@ -6323,23 +6426,29 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Edit Tag Set Modal -->
-<div id="edit-tag-set-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h3><?php p($l->t('Edit Tag Set')); ?></h3>
-        </div>
-        <form id="edit-tag-set-form" class="modal-form">
+<div id="edit-tag-set-modal" class="modal modal-columns modal-columns-1" style="display: none;">
+    <div class="modal-content">
+        <h3><?php p($l->t('Edit Tag Set')); ?></h3>
+        <form id="edit-tag-set-form" class="wide-form">
             <input type="hidden" id="edit-tag-set-id" name="tagSetId">
             <input type="hidden" id="edit-tag-set-category-id" name="categoryId">
-            <div class="form-group">
-                <label for="edit-tag-set-name"><?php p($l->t('Tag Set Name')); ?> *</label>
-                <input type="text" id="edit-tag-set-name" name="name" required placeholder="<?php p($l->t('e.g., Activity, Equipment, Location')); ?>">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-1">
+                <div class="form-col">
+                  <div class="form-block">
+                    <div class="form-group">
+                        <label for="edit-tag-set-name"><?php p($l->t('Tag Set Name')); ?> <span class="required">*</span></label>
+                        <input type="text" id="edit-tag-set-name" name="name" required placeholder="<?php p($l->t('e.g., Activity, Equipment, Location')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-tag-set-description"><?php p($l->t('Description')); ?></label>
+                        <input type="text" id="edit-tag-set-description" name="description" placeholder="<?php p($l->t('Optional description')); ?>">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-                <label for="edit-tag-set-description"><?php p($l->t('Description')); ?></label>
-                <input type="text" id="edit-tag-set-description" name="description" placeholder="<?php p($l->t('Optional description')); ?>">
-            </div>
-            <div class="modal-actions">
+            <div class="modal-buttons">
                 <button type="submit" class="primary"><?php p($l->t('Save Changes')); ?></button>
                 <button type="button" class="secondary cancel-tag-set-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
@@ -6540,31 +6649,37 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Contact Modal -->
-<div id="contact-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="contact-modal-title" aria-hidden="true">
+<div id="contact-modal" class="modal modal-columns modal-columns-1" style="display: none;" role="dialog" aria-labelledby="contact-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="contact-modal-title"><?php p($l->t('Add Contact')); ?></h3>
-        <form id="contact-form" aria-label="<?php p($l->t('Contact form')); ?>">
+        <form id="contact-form" class="wide-form" aria-label="<?php p($l->t('Contact form')); ?>">
             <input type="hidden" id="contact-id" name="id">
             <input type="hidden" id="contact-nextcloud-user-id" name="nextcloudUserId">
-
-            <div class="form-group">
-                <label for="contact-user-select"><?php p($l->t('Nextcloud User')); ?></label>
-                <select id="contact-user-select">
+            <div class="modal-scroll">
+              <div class="form-columns form-columns-1">
+                <div class="form-col">
+                  <div class="form-block">
+                    <div class="form-group">
+                    <label for="contact-user-select"><?php p($l->t('Nextcloud User')); ?></label>
+                    <select id="contact-user-select">
                     <option value=""><?php p($l->t('— None (enter details manually) —')); ?></option>
-                </select>
-                <small class="form-text"><?php p($l->t('Select a Nextcloud user to link this contact, or choose manual for non-Nextcloud contacts')); ?></small>
-            </div>
+                    </select>
+                    <small class="form-text"><?php p($l->t('Select a Nextcloud user to link this contact, or choose manual for non-Nextcloud contacts')); ?></small>
+                    </div>
 
-            <div class="form-group">
-                <label for="contact-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>
-                <input type="text" id="contact-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., John, Roommate, Partner')); ?>">
-            </div>
+                    <div class="form-group">
+                    <label for="contact-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>
+                    <input type="text" id="contact-name" name="name" required maxlength="255" placeholder="<?php p($l->t('e.g., John, Roommate, Partner')); ?>">
+                    </div>
 
-            <div class="form-group">
-                <label for="contact-email"><?php p($l->t('Email')); ?></label>
-                <input type="email" id="contact-email" name="email" maxlength="255" placeholder="<?php p($l->t('Optional email address')); ?>">
+                    <div class="form-group">
+                    <label for="contact-email"><?php p($l->t('Email')); ?></label>
+                    <input type="email" id="contact-email" name="email" maxlength="255" placeholder="<?php p($l->t('Optional email address')); ?>">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
             <div class="modal-buttons">
                 <button type="submit" class="primary"><?php p($l->t('Save')); ?></button>
                 <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>

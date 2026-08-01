@@ -29,6 +29,8 @@ To create a new category:
 | **Exclude from reports** | No | Leave this category out of reports, budgets and dashboard totals entirely |
 | **Exclude from budgeting** | No | Keep the category everywhere except the budget surfaces -- see [Excluding a category](#excluding-a-category) |
 
+The dialog puts the naming fields under **Details** on the left and the two exclusion options under **Options** on the right, with everything visible at once. On a saved category, **Tag Sets** spans the full width below both columns. The columns stack into one on narrow windows and phones.
+
 > **Tip:** Assign distinct colors to your top-level categories. Child categories inherit their parent's color in charts, so setting colors at the top level keeps your reports visually consistent.
 
 ## Category Hierarchy

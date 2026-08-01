@@ -2270,7 +2270,7 @@ export default class TransactionsModule {
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
                 <input type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
-                       value="${existingSplit?.description || ''}"
+                       value="${existingSplit?.description || ''}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"

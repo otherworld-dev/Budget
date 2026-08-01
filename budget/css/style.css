@@ -2374,11 +2374,239 @@ button.danger:hover {
     position: relative;
 }
 
-/* Enhanced Modal Styling for Account Forms */
-#account-modal .modal-content {
-    max-width: 700px;
+/* ============================================
+   Wide desktop form dialogs (.modal-columns + .wide-form)
+   Three columns side by side, nothing hidden, with a
+   pinned action bar. Used by the account and
+   transaction dialogs.
+   ============================================ */
+
+.modal-columns .modal-content {
+    width: min(1120px, 94vw);
+    max-width: min(1120px, 94vw);
     max-height: 90vh;
+    /* header / scrolling body / pinned footer */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+}
+
+.modal-columns .modal-content > h3 {
+    flex: 0 0 auto;
+    padding: 24px 30px 16px;
+    margin: 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Dialogs with a custom header (icon + close button) keep their own padding
+   and layout; they only need the header to stay put while the body scrolls. */
+.modal-columns .modal-content > .modal-head {
+    flex: 0 0 auto;
+    position: static;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.wide-form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.wide-form .modal-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
+    padding: 20px 30px;
+}
+
+.wide-form .modal-buttons {
+    flex: 0 0 auto;
+    margin-top: 0;
+    padding: 14px 30px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-main-background);
+}
+
+/* Three columns side by side. Stretch (not start) so the dividing rules
+   between columns run the full height of the tallest one. */
+.wide-form .form-columns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+}
+
+/* Two-column variant, for forms without enough fields to fill three */
+.wide-form .form-columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modal-columns-2 .modal-content {
+    width: min(880px, 94vw);
+    max-width: min(880px, 94vw);
+}
+
+/* Compact single-column variant. Two-field dialogs (the tag ones) take the
+   same chrome — header rule, pinned right-aligned footer — without pretending
+   they need a wide layout. */
+.wide-form .form-columns-1 {
+    grid-template-columns: 1fr;
+}
+
+.modal-columns-1 .modal-content {
+    width: min(460px, 94vw);
+    max-width: min(460px, 94vw);
+}
+
+.modal-columns-1 .modal-content h3 {
+    padding: 20px 24px 14px;
+}
+
+.modal-columns-1 .wide-form .modal-scroll {
+    padding: 18px 24px;
+}
+
+.modal-columns-1 .wide-form .modal-buttons {
+    padding: 14px 24px;
+}
+
+.wide-form .form-col {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-width: 0;
+    padding: 0 26px;
+}
+
+.wide-form .form-col:first-child {
+    padding-left: 0;
+}
+
+.wide-form .form-col:last-child {
+    padding-right: 0;
+}
+
+.wide-form .form-col + .form-col {
+    border-left: 1px solid var(--color-border);
+}
+
+/* A column whose only block is hidden would otherwise leave a stray rule */
+.wide-form .form-col:not(:has(.form-block:not([style*="display: none"]))) {
+    border-left: none;
+}
+
+/* A block that sits below the columns and spans the full dialog width —
+   for content too wide for a single column, such as the split rows. */
+.wide-form .form-block-full {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+}
+
+/* The tag-sets panel renders its own header rather than a plain <h4>, so give
+   it the same section-heading treatment with its Add button on the same row. */
+.wide-form .form-block-full .tag-sets-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.wide-form .form-block-full .tag-sets-header h4 {
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-maxcontrast);
+}
+
+/* Direct child only — blocks whose rendered contents carry their own h4
+   (the tag-sets panel) must not pick up the section-heading treatment. */
+.wide-form .form-block > h4 {
+    margin: 0 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-maxcontrast);
+}
+
+.wide-form .form-block .form-group {
+    margin-bottom: 12px;
+    min-width: 0;
+}
+
+.wide-form .form-block .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.wide-form .form-group label {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.wide-form .form-text {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+/* Balance is derived from transactions on edit — show it as a readout rather
+   than an input the user is failing to type into, but keep the box so the
+   field rows stay level with the neighbouring columns. */
+.wide-form input:disabled,
+.wide-form input[readonly] {
+    background: var(--color-background-hover);
+    border-color: transparent;
+    font-weight: bold;
+    color: var(--color-main-text);
+    cursor: default;
+}
+
+/* Checkbox rows. The .form-group label selector is repeated so this still wins
+   inside .budget-modal, which styles its own `.form-group label` as a block. */
+.wide-form .form-group label.form-check,
+.wide-form .form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-weight: normal;
+    cursor: pointer;
+    margin-bottom: 0;
+    color: var(--color-main-text);
+}
+
+.wide-form .form-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 1px 0 0;
+    flex: 0 0 auto;
+}
+
+/* Below three-column width: two columns, then one. The dividing rules only
+   make sense while the columns actually sit side by side. */
+@media (max-width: 1099px) {
+    .wide-form .form-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wide-form .form-col:nth-child(odd) {
+        padding-left: 0;
+    }
+
+    .wide-form .form-col:nth-child(even) {
+        padding-right: 0;
+    }
+
+    .wide-form .form-col:nth-child(odd) {
+        border-left: none;
+    }
 }
 
 /* Form Grid Layout for Better Organization */
@@ -2457,8 +2685,35 @@ button.danger:hover {
         gap: 0;
     }
 
-    #account-modal .modal-content {
-        padding: 15px;
+    .modal-columns .modal-content {
+        padding: 0;
+    }
+
+    .modal-columns .modal-content > h3 {
+        padding: 16px 16px 12px;
+    }
+
+    .wide-form .modal-scroll {
+        padding: 14px 16px;
+    }
+
+    .wide-form .modal-buttons {
+        padding: 12px 16px;
+    }
+
+    /* Single column on narrow screens — no dividing rules, stacked blocks */
+    .wide-form .form-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .wide-form .form-col {
+        padding: 0;
+        border-left: none;
+        gap: 20px;
+    }
+
+    .wide-form .form-col + .form-col {
+        border-left: none;
     }
 
     .autocomplete-dropdown {
@@ -3337,10 +3592,6 @@ button.danger:hover {
 }
 
 #credit-limit-group,
-#account-form .form-section .form-group {
-    margin-top: 15px;
-}
-
 /* Enhanced Transactions Page Styles */
 
 #transactions-view .view-header h2 {
@@ -13248,13 +13499,6 @@ button.secondary.compact {
 }
 
 /* Pension Modal Styles */
-#pension-modal .modal-content {
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 0;
-}
-
 .pension-modal-header {
     display: flex;
     justify-content: space-between;
@@ -13291,39 +13535,6 @@ button.secondary.compact {
     font-weight: 600;
 }
 
-#pension-modal form {
-    padding: 24px;
-}
-
-#pension-modal .form-section {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-border-dark);
-}
-
-#pension-modal .form-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-#pension-modal .form-section h4 {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-primary-element);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-#pension-form > div:nth-child(2) > div:nth-child(3) {
-    margin-top: 15px;
-}
-
-#dc-pension-fields.form-section > .form-group {
-    margin-top: 15px;
-}
-
 /* Pension field sections - animated toggle */
 .pension-fields-section {
     overflow: hidden;
@@ -13339,31 +13550,7 @@ button.secondary.compact {
     border: none !important;
 }
 
-/* Two-column grid for form sections on wider screens */
-@media (min-width: 500px) {
-    #pension-modal .form-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0 20px;
-        align-items: start;
-    }
-
-    #pension-modal .form-section h4 {
-        grid-column: 1 / -1;
-    }
-
-    #pension-modal .form-section .form-group {
-        margin-bottom: 15px;
-    }
-}
-
 /* Modal actions - sticky at bottom */
-#pension-modal .modal-actions {
-    padding-top: 16px;
-    border-top: 1px solid var(--color-border);
-    margin-top: 8px;
-}
-
 /* Responsive */
 @media (max-width: 900px) {
     .pension-detail-panel {
@@ -13381,29 +13568,15 @@ button.secondary.compact {
         grid-template-columns: 1fr;
     }
 
-    #pension-modal .modal-content {
-        padding: 0;
-    }
-
     .pension-modal-header {
         padding: 16px;
     }
 
-    #pension-modal form {
-        padding: 16px;
-    }
 }
 
 /* ========================================
    Asset Modal Styles
    ======================================== */
-
-#asset-modal .modal-content {
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 0;
-}
 
 .asset-modal-header {
     display: flex;
@@ -13441,61 +13614,7 @@ button.secondary.compact {
     font-weight: 600;
 }
 
-#asset-modal form {
-    padding: 24px;
-}
-
-#asset-modal .form-section {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-border-dark);
-}
-
-#asset-modal .form-section .form-group {
-    margin-top: 15px;
-}
-
-#asset-modal .form-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-#asset-modal .form-section h4 {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-primary-element);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Two-column grid for form sections on wider screens */
-@media (min-width: 500px) {
-    #asset-modal .form-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0 20px;
-        align-items: start;
-    }
-
-    #asset-modal .form-section h4 {
-        grid-column: 1 / -1;
-    }
-
-    #asset-modal .form-section .form-group {
-        margin-top: 15px;
-        margin-bottom: 15px;
-    }
-}
-
 /* Modal actions - sticky at bottom */
-#asset-modal .modal-actions {
-    padding-top: 16px;
-    border-top: 1px solid var(--color-border);
-    margin-top: 8px;
-}
-
 /* Value Update Modal */
 #asset-value-modal .modal-content {
     max-width: 420px;
@@ -13524,17 +13643,10 @@ button.secondary.compact {
 
 /* Responsive */
 @media (max-width: 768px) {
-    #asset-modal .modal-content {
-        padding: 0;
-    }
-
     .asset-modal-header {
         padding: 16px;
     }
 
-    #asset-modal form {
-        padding: 16px;
-    }
 }
 
 /* ==========================================
@@ -14075,7 +14187,8 @@ button.secondary.compact {
     cursor: pointer;
 }
 #inline-splits-section .split-row {
-    grid-template-columns: 80px 1fr 1fr 30px;
+    /* 80px made the "Amount (remaining)" label wrap onto three lines */
+    grid-template-columns: 130px minmax(0, 1fr) minmax(0, 1.2fr) 40px;
 }
 
 .split-row {
