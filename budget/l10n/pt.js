@@ -4,6 +4,7 @@ OC.L10N.register(
     "widget" : "Orçamento",
     "transaction-account" : "transações",
     "transfer-to-account" : "Falha ao atualizar a conta financeira",
+    "custom" : "Personalizado",
     "institution" : "Instituição",
     "balance" : "Saldo",
     "currency" : "Criptomoeda",

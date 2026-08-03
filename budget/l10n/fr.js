@@ -445,6 +445,7 @@ OC.L10N.register(
     "Budget Sharing" : "Budget",
     "Account Mappings" : "Compte",
     "Budget Digest" : "Budget",
+    "Save receipt scanning settings" : "Impossible de récupérer les actifs",
     "Save Import Template" : "Impossible de récupérer les modèles d’import",
     "Paid into account" : "Impossible de créer le compte",
     "Scheduled Contribution" : "Impossible de supprimer la contribution",

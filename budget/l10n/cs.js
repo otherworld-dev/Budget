@@ -224,6 +224,7 @@ OC.L10N.register(
     "Budget Digest" : "Rozpočet",
     "Scheduled Reports" : "Naplánováno",
     "Admin Settings" : "nastavení",
+    "Save receipt scanning settings" : "Nepodařilo se získat účty",
     "Paid into account" : "Nepodařilo se získat účty",
     "Next Date" : "Datum",
     "From account" : "účty",
