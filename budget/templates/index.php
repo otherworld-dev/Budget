@@ -4567,6 +4567,58 @@ style('budget', 'budget-app');
                             </label>
                         </div>
                     </div>
+
+                    <h4><?php p($l->t('Receipt scanning')); ?></h4>
+                    <p class="settings-description">
+                        <?php p($l->t('Read a photographed receipt and fill in the transaction for the user. Off by default: while it is off, this app sends receipt images nowhere.')); ?>
+                        <?php p($l->t('The scan buttons themselves arrive with the next update — settings saved now take effect the moment they do.')); ?>
+                    </p>
+                    <div class="settings-group">
+                        <div class="setting-item">
+                            <label for="setting-ocr-provider"><strong><?php p($l->t('Provider')); ?></strong></label>
+                            <select id="setting-ocr-provider">
+                                <option value="none"><?php p($l->t('Off — no receipt scanning')); ?></option>
+                                <option value="nextcloud"><?php p($l->t('Nextcloud AI (uses this server\'s configured AI provider)')); ?></option>
+                                <option value="custom"><?php p($l->t('Custom endpoint (OpenAI-compatible, e.g. a local Ollama)')); ?></option>
+                                <option value="relay"><?php p($l->t('Otherworld hosted relay (license key)')); ?></option>
+                            </select>
+                            <small id="setting-ocr-provider-hint"></small>
+                        </div>
+
+                        <div class="setting-item" id="setting-ocr-endpoint-row" style="display: none;">
+                            <label for="setting-ocr-endpoint"><strong><?php p($l->t('Endpoint URL')); ?></strong></label>
+                            <input type="url" id="setting-ocr-endpoint" placeholder="http://192.168.1.10:11434/v1">
+                            <small><?php p($l->t('The base URL of an OpenAI-compatible server. This server makes the request, so an address only reachable on your local network works — and keeps receipts in the building.')); ?></small>
+                        </div>
+
+                        <div class="setting-item" id="setting-ocr-model-row" style="display: none;">
+                            <label for="setting-ocr-model"><strong><?php p($l->t('Model')); ?></strong></label>
+                            <input type="text" id="setting-ocr-model" placeholder="qwen2.5vl">
+                            <small><?php p($l->t('The vision model to ask for, exactly as the endpoint names it. It must be able to read images.')); ?></small>
+                        </div>
+
+                        <div class="setting-item" id="setting-ocr-key-row" style="display: none;">
+                            <label for="setting-ocr-api-key"><strong id="setting-ocr-key-label"><?php p($l->t('API key')); ?></strong></label>
+                            <input type="password" id="setting-ocr-api-key" autocomplete="new-password" placeholder="<?php p($l->t('Leave blank to keep the saved key')); ?>">
+                            <small id="setting-ocr-key-hint"><?php p($l->t('Stored encrypted, and never shown again after saving. Leave blank to keep the current key; clear it with the Remove key button.')); ?></small>
+                            <button type="button" class="secondary" id="setting-ocr-clear-key" style="display: none;"><?php p($l->t('Remove key')); ?></button>
+                        </div>
+
+                        <div class="setting-item" id="setting-ocr-privacy" style="display: none;">
+                            <div class="bank-sync-warning">
+                                <span class="icon-info" aria-hidden="true"></span>
+                                <div>
+                                    <strong><?php p($l->t('What gets sent')); ?></strong>
+                                    <p id="setting-ocr-privacy-text"></p>
+                                    <a href="https://budget.otherworld.dev/docs/receipt-scanning.html" target="_blank" rel="noopener"><?php p($l->t('Receipt scanning documentation')); ?> &rarr;</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <button type="button" class="primary" id="setting-ocr-save"><?php p($l->t('Save receipt scanning settings')); ?></button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Danger Zone Section -->

@@ -97,11 +97,13 @@ Permanently delete ALL your budget data:
 These settings are only visible to Nextcloud administrators:
 
 - **Enable Bank Sync** - Toggle the [Bank Sync](bank-sync.md) feature on or off for all users on the instance. An experimental feature warning is displayed when this section is visible.
+- **Receipt scanning** - Choose which OCR provider reads photographed receipts, or leave it off. Off by default, and while it is off no receipt image is sent anywhere. The choice is server-wide, and the API key is stored encrypted and never shown again after saving. See [Receipt Scanning](receipt-scanning.md).
 
 > **Note:** Admin settings affect all users on the Nextcloud instance, not just the administrator's own account.
 
 ## Related Features
 
 - [Bank Sync](bank-sync.md) - Automatic transaction imports from external banks
+- [Receipt Scanning](receipt-scanning.md) - Turning photographed receipts into transactions
 - [Import](import.md) - Manual transaction import from files
 - [Exchange Rates](exchange-rates.md) - Multi-currency support configuration

@@ -139,7 +139,9 @@ class ApiV1TransactionController extends OCSController {
      * Record a transaction.
      *
      * @param string $date YYYY-MM-DD. A future date is stored as scheduled.
-     * @param float $amount Always positive; $type carries the direction.
+     * @param float $amount Always positive; $type carries the direction. Sent
+     *   as either a number or a decimal string ('42.50') — both are accepted,
+     *   and it comes back as a string, like every amount this API returns.
      * @param string $type 'debit' (money out) or 'credit' (money in).
      */
     #[NoAdminRequired]

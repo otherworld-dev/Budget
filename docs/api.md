@@ -103,6 +103,18 @@ Errors carry a human-readable message:
            "data": { "error": "Date must be in YYYY-MM-DD format" } } }
 ```
 
+## Money
+
+**Every amount is a string, never a JSON number** — `"42.50"`, `"-1246.50"`, `"0.00"`. Always two decimal places, and no currency symbol or thousands separator.
+
+This is deliberate. Budget stores money as an exact decimal and does its arithmetic accordingly, so a penny cannot go astray. JSON numbers are floating point in most parsers, which would quietly undo that at the last step: add `0.1` and `0.2` as JSON numbers and you get `0.30000000000000004`.
+
+Parse them into whatever exact decimal type your language offers — `BigDecimal` in Java and Kotlin, `decimal` in C#, `decimal.Decimal` in Python, `BigDecimal` in Ruby. If you are only displaying the figure, print it as it arrives. Avoid parsing amounts into a float or a double, and never do money arithmetic in one.
+
+The currency itself is a property of the **account**, not the amount: read `currency` from `GET /accounts`, or `accountCurrency` on a transaction from a list response.
+
+When sending an amount, either form is accepted — `amount=42.50` and `amount=42.5` mean the same thing. It always comes back as `"42.50"`.
+
 ## Endpoints
 
 All paths below are relative to `/ocs/v2.php/apps/budget/api/v1`.
@@ -122,7 +134,7 @@ Every account you own, plus every account [shared with you](sharing.md). Balance
     "name": "Current Account",
     "type": "checking",
     "currency": "GBP",
-    "balance": -1246.5,
+    "balance": "-1246.50",
     "balanceInBaseCurrency": null,
     "baseCurrency": null,
     "institution": "NatWest",
@@ -173,7 +185,7 @@ Most recent first, across every account you can see.
     {
       "id": 20070, "accountId": 36, "categoryId": 427,
       "date": "2026-08-08", "description": "Monthly plan", "vendor": "Practice Plan",
-      "amount": 15, "type": "debit", "reference": null, "notes": null,
+      "amount": "15.00", "type": "debit", "reference": null, "notes": null,
       "status": "scheduled", "reconciled": false, "isSplit": false,
       "createdAt": "2026-07-31 22:49:45", "updatedAt": "2026-07-31 22:49:45",
       "accountName": "Current Account", "accountCurrency": "GBP",
@@ -188,7 +200,7 @@ Most recent first, across every account you can see.
 
 `total` is the full match count, not the page size — use it to drive paging. `accountName`, `accountCurrency`, and `categoryName` are conveniences so a list view needs no second round-trip; `categoryName` is absent on uncategorised rows.
 
-`amount` is always positive. `type` carries the direction: `debit` is money out, `credit` is money in.
+`amount` is always positive, and a string — see [Money](#money). `type` carries the direction: `debit` is money out, `credit` is money in.
 
 ### `GET /transactions/{id}`
 
@@ -203,7 +215,7 @@ Record a transaction. Send `application/x-www-form-urlencoded` or `multipart/for
 | `accountId` | int | yes | Must be an account you can write to. |
 | `date` | date | yes | `YYYY-MM-DD`. A future date is stored as `scheduled`. |
 | `description` | string | yes | |
-| `amount` | float | yes | Always positive. |
+| `amount` | decimal | yes | Always positive. `42.50` or `"42.50"`; returned as a string. |
 | `type` | string | yes | `debit` (money out) or `credit` (money in). |
 | `categoryId` | int | no | Leave empty to file it as uncategorised. |
 | `vendor` | string | no | |
@@ -276,7 +288,7 @@ The response id is at `{{ $json.ocs.data.id }}` — feed it into a second HTTP R
 BASE='https://cloud.example.com/ocs/v2.php/apps/budget/api/v1'
 curl -s -u "$USER:$APP_PASSWORD" -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
   "$BASE/transactions?dateFrom=$(date +%Y-%m-01)&limit=200" |
-  jq '[.ocs.data.transactions[] | select(.type == "debit") | .amount] | add'
+  jq '[.ocs.data.transactions[] | select(.type == "debit") | (.amount | tonumber)] | add'
 ```
 
 ## Stability

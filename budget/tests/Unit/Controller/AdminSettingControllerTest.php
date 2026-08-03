@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\AdminSettingController;
 use OCA\Budget\Service\AdminSettingService;
+use OCA\Budget\Service\OcrSettingsService;
 use OCP\AppFramework\Http;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
@@ -13,28 +14,34 @@ use PHPUnit\Framework\TestCase;
 class AdminSettingControllerTest extends TestCase {
 	private AdminSettingController $controller;
 	private AdminSettingService $service;
+	private OcrSettingsService $ocrSettings;
 	private IRequest $request;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(AdminSettingService::class);
+		$this->ocrSettings = $this->createMock(OcrSettingsService::class);
+		$this->ocrSettings->method('getSettings')->willReturn(['provider' => 'none']);
 
 		$this->controller = new AdminSettingController(
 			$this->request,
-			$this->service
+			$this->service,
+			$this->ocrSettings
 		);
 	}
 
 	// ── index ───────────────────────────────────────────────────────
 
 	public function testIndexReturnsAllSettings(): void {
-		$settings = ['bankSyncEnabled' => true];
-		$this->service->method('getAll')->willReturn($settings);
+		$this->service->method('getAll')->willReturn(['bankSyncEnabled' => true]);
 
 		$response = $this->controller->index();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($settings, $response->getData());
+		$this->assertSame(
+			['bankSyncEnabled' => true, 'ocr' => ['provider' => 'none']],
+			$response->getData()
+		);
 	}
 
 	// ── update ──────────────────────────────────────────────────────
@@ -48,13 +55,12 @@ class AdminSettingControllerTest extends TestCase {
 			->method('setBankSyncEnabled')
 			->with(true);
 
-		$updatedSettings = ['bankSyncEnabled' => true];
-		$this->service->method('getAll')->willReturn($updatedSettings);
+		$this->service->method('getAll')->willReturn(['bankSyncEnabled' => true]);
 
 		$response = $this->controller->update();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($updatedSettings, $response->getData());
+		$this->assertTrue($response->getData()['bankSyncEnabled']);
 	}
 
 	public function testUpdateWithoutRelevantParamsDoesNotCallService(): void {
@@ -65,13 +71,12 @@ class AdminSettingControllerTest extends TestCase {
 		$this->service->expects($this->never())
 			->method('setBankSyncEnabled');
 
-		$settings = ['bankSyncEnabled' => false];
-		$this->service->method('getAll')->willReturn($settings);
+		$this->service->method('getAll')->willReturn(['bankSyncEnabled' => false]);
 
 		$response = $this->controller->update();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($settings, $response->getData());
+		$this->assertFalse($response->getData()['bankSyncEnabled']);
 	}
 
 	public function testUpdateCastsBankSyncEnabledToBoolean(): void {
@@ -97,11 +102,86 @@ class AdminSettingControllerTest extends TestCase {
 
 		$this->service->method('setBankSyncEnabled');
 
-		$expected = ['bankSyncEnabled' => true, 'otherSetting' => 'value'];
-		$this->service->method('getAll')->willReturn($expected);
+		$this->service->method('getAll')->willReturn(['bankSyncEnabled' => true, 'otherSetting' => 'value']);
 
 		$response = $this->controller->update();
 
-		$this->assertSame($expected, $response->getData());
+		$this->assertSame(
+			['bankSyncEnabled' => true, 'otherSetting' => 'value', 'ocr' => ['provider' => 'none']],
+			$response->getData()
+		);
+	}
+
+	// ── receipt scanning (OCR) ──────────────────────────────────────
+
+	public function testUpdatePassesOcrFieldsToTheOcrService(): void {
+		$this->request->method('getParams')->willReturn([
+			'ocr' => ['provider' => 'custom', 'endpoint' => 'http://ollama.lan:11434/v1', 'model' => 'qwen2.5vl'],
+		]);
+		$this->service->method('getAll')->willReturn([]);
+
+		$this->ocrSettings->expects($this->once())
+			->method('update')
+			->with(['provider' => 'custom', 'endpoint' => 'http://ollama.lan:11434/v1', 'model' => 'qwen2.5vl']);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+	}
+
+	public function testUpdateDropsUnknownOcrFields(): void {
+		$this->request->method('getParams')->willReturn([
+			'ocr' => ['provider' => 'relay', 'configured' => true, 'apiKeySet' => true],
+		]);
+		$this->service->method('getAll')->willReturn([]);
+
+		// configured/apiKeySet are reported by the server, never set by the
+		// client — accepting them back would let the UI lie about its state.
+		$this->ocrSettings->expects($this->once())
+			->method('update')
+			->with(['provider' => 'relay']);
+
+		$this->controller->update();
+	}
+
+	public function testUpdateAnswersBadRequestWhenTheOcrValuesAreRejected(): void {
+		$this->request->method('getParams')->willReturn([
+			'ocr' => ['provider' => 'custom', 'endpoint' => 'not-a-url'],
+		]);
+		$this->service->method('getAll')->willReturn([]);
+
+		$this->ocrSettings->method('update')
+			->willThrowException(new \InvalidArgumentException('The endpoint must be a valid http:// or https:// URL'));
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(
+			'The endpoint must be a valid http:// or https:// URL',
+			$response->getData()['error']
+		);
+	}
+
+	public function testUpdateDoesNotApplyBankSyncWhenTheOcrValuesAreRejected(): void {
+		$this->request->method('getParams')->willReturn([
+			'bankSyncEnabled' => true,
+			'ocr' => ['provider' => 'custom', 'endpoint' => 'not-a-url'],
+		]);
+
+		$this->ocrSettings->method('update')
+			->willThrowException(new \InvalidArgumentException('The endpoint must be a valid http:// or https:// URL'));
+
+		// The 400 says "nothing was saved" — so nothing may be, including the
+		// bank-sync flag riding in the same payload.
+		$this->service->expects($this->never())->method('setBankSyncEnabled');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->update()->getStatus());
+	}
+
+	public function testUpdateIgnoresANonArrayOcrValue(): void {
+		$this->request->method('getParams')->willReturn(['ocr' => 'custom']);
+		$this->service->method('getAll')->willReturn([]);
+
+		$this->ocrSettings->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
 	}
 }

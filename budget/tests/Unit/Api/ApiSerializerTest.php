@@ -40,7 +40,14 @@ class ApiSerializerTest extends TestCase {
 		]);
 
 		$this->assertSame(42, $result['id']);
-		$this->assertSame(1234.5, $result['balance']);
+		$this->assertSame('1234.50', $result['balance']);
+	}
+
+	public function testAccountBalanceIsAlwaysATwoPlaceDecimalString(): void {
+		// Money never crosses the wire as a JSON number — see ApiSerializer::money().
+		$this->assertSame('0.00', ApiSerializer::account(['id' => 1])['balance']);
+		$this->assertSame('-12.50', ApiSerializer::account(['id' => 1, 'balance' => -12.5])['balance']);
+		$this->assertSame('1000000.00', ApiSerializer::account(['id' => 1, 'balance' => 1000000])['balance']);
 	}
 
 	public function testAccountNeverLeaksBankingDetails(): void {
@@ -73,7 +80,7 @@ class ApiSerializerTest extends TestCase {
 			'baseCurrency' => 'GBP',
 		]);
 
-		$this->assertSame(85.25, $result['balanceInBaseCurrency']);
+		$this->assertSame('85.25', $result['balanceInBaseCurrency']);
 		$this->assertSame('GBP', $result['baseCurrency']);
 	}
 
@@ -152,8 +159,15 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertSame(99, $result['id']);
 		$this->assertSame('2026-08-01', $result['date']);
-		$this->assertSame(42.5, $result['amount']);
+		$this->assertSame('42.50', $result['amount']);
 		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testTransactionAmountIsATwoPlaceDecimalString(): void {
+		$this->assertSame('0.00', ApiSerializer::transaction(['id' => 1])['amount']);
+		$this->assertSame('7.05', ApiSerializer::transaction(['id' => 1, 'amount' => 7.05])['amount']);
+		// A DECIMAL column reaches the serializer as a string on some drivers.
+		$this->assertSame('15.00', ApiSerializer::transaction(['id' => 1, 'amount' => '15'])['amount']);
 	}
 
 	public function testTransactionIncludesJoinedFieldsOnlyWhenPresent(): void {

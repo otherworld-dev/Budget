@@ -56,29 +56,182 @@ export default class SettingsModule {
             const toggle = document.getElementById('setting-bank-sync-enabled');
             if (toggle) {
                 toggle.checked = adminSettings.bankSyncEnabled || false;
-                toggle.addEventListener('change', async () => {
-                    try {
-                        await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'requesttoken': OC.requestToken
-                            },
-                            body: JSON.stringify({ bankSyncEnabled: toggle.checked })
-                        });
-                        showSuccess(t('budget', 'Admin settings saved'));
-                        // Update bank sync nav visibility
-                        if (this.app.bankSyncModule) {
-                            this.app.bankSyncModule.checkStatus();
+                // This view's DOM is permanent and this loader runs on every
+                // navigation to Settings — bind once or handlers stack and a
+                // single toggle fires one PUT per visit.
+                if (!this.bankSyncToggleBound) {
+                    this.bankSyncToggleBound = true;
+                    toggle.addEventListener('change', async () => {
+                        try {
+                            await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'requesttoken': OC.requestToken
+                                },
+                                body: JSON.stringify({ bankSyncEnabled: toggle.checked })
+                            });
+                            showSuccess(t('budget', 'Admin settings saved'));
+                            // Update bank sync nav visibility
+                            if (this.app.bankSyncModule) {
+                                this.app.bankSyncModule.checkStatus();
+                            }
+                        } catch (error) {
+                            showError(t('budget', 'Failed to save admin settings'));
+                            toggle.checked = !toggle.checked;
                         }
-                    } catch (error) {
-                        showError(t('budget', 'Failed to save admin settings'));
-                        toggle.checked = !toggle.checked;
-                    }
-                });
+                    });
+                }
             }
+
+            this.setupOcrSettings(adminSettings.ocr || {});
         } catch (error) {
             // Silently ignore — non-admin users won't see admin settings
+        }
+    }
+
+    /**
+     * Receipt scanning (admin, server-wide). The API key is deliberately never
+     * sent to the browser — the server reports only whether one is stored, so
+     * a blank field means "keep what is saved" rather than "clear it".
+     */
+    setupOcrSettings(ocr) {
+        const provider = document.getElementById('setting-ocr-provider');
+        const saveButton = document.getElementById('setting-ocr-save');
+        if (!provider || !saveButton) return;
+
+        const endpoint = document.getElementById('setting-ocr-endpoint');
+        const model = document.getElementById('setting-ocr-model');
+        const apiKey = document.getElementById('setting-ocr-api-key');
+        const clearKey = document.getElementById('setting-ocr-clear-key');
+
+        provider.value = ocr.provider || 'none';
+        endpoint.value = ocr.endpoint || '';
+        model.value = ocr.model || '';
+        apiKey.value = '';
+
+        this.ocrState = { apiKeySet: !!ocr.apiKeySet, nextcloudAiAvailable: !!ocr.nextcloudAiAvailable };
+        this.renderOcrFields();
+
+        // Values repopulate on every visit to Settings; listeners must not,
+        // or each visit adds another handler and one click on Save fires one
+        // PUT (and one toast, and one confirm dialog on Remove key) per visit.
+        if (this.ocrListenersBound) return;
+        this.ocrListenersBound = true;
+
+        provider.addEventListener('change', () => this.renderOcrFields());
+
+        clearKey.addEventListener('click', async () => {
+            if (!confirm(t('budget', 'Remove the stored key? Receipt scanning stops working until a new one is saved.'))) return;
+            await this.saveOcrSettings({ apiKey: '' });
+        });
+
+        saveButton.addEventListener('click', () => this.saveOcrSettings());
+    }
+
+    /** Show only the fields the selected provider actually uses. */
+    renderOcrFields() {
+        const provider = document.getElementById('setting-ocr-provider').value;
+        const show = (id, visible) => {
+            const row = document.getElementById(id);
+            if (row) row.style.display = visible ? '' : 'none';
+        };
+
+        show('setting-ocr-endpoint-row', provider === 'custom');
+        show('setting-ocr-model-row', provider === 'custom');
+        show('setting-ocr-key-row', provider === 'custom' || provider === 'relay');
+        show('setting-ocr-privacy', provider !== 'none');
+
+        const keyLabel = document.getElementById('setting-ocr-key-label');
+        if (keyLabel) {
+            keyLabel.textContent = provider === 'relay'
+                ? t('budget', 'License key')
+                : t('budget', 'API key (leave blank if the endpoint needs none)');
+        }
+
+        const clearKey = document.getElementById('setting-ocr-clear-key');
+        if (clearKey) {
+            clearKey.style.display = this.ocrState?.apiKeySet ? '' : 'none';
+        }
+
+        const hint = document.getElementById('setting-ocr-provider-hint');
+        if (hint) {
+            hint.textContent = provider === 'nextcloud' && !this.ocrState?.nextcloudAiAvailable
+                ? t('budget', 'No AI provider on this Nextcloud can read images yet, so this option will not work until one is set up. Install an AI app with image support and configure it in the Nextcloud admin settings.')
+                : '';
+        }
+
+        const privacy = document.getElementById('setting-ocr-privacy-text');
+        if (privacy) {
+            privacy.textContent = this.ocrPrivacyText(provider);
+        }
+    }
+
+    /** Plain-language statement of where receipt images actually go. */
+    ocrPrivacyText(provider) {
+        switch (provider) {
+            case 'nextcloud':
+                return t('budget', 'The receipt image is passed to whichever AI provider this Nextcloud is configured to use. Where it goes from there depends on that provider — if it is a local model, the image never leaves this server; if it is a cloud service, the image is sent to that company.');
+            case 'custom':
+                return t('budget', 'The receipt image is sent from this server to the endpoint below, along with the API key if you set one. Nothing else is sent: no account names, balances, or other transactions. If the endpoint is a machine on your own network, the image never leaves your network.');
+            case 'relay':
+                return t('budget', 'The receipt image is sent from this server to Otherworld\'s hosted service, which reads it and returns the figures. Images are processed and discarded, not stored or used for training. Nothing else is sent: no account names, balances, or other transactions.');
+            default:
+                return '';
+        }
+    }
+
+    async saveOcrSettings(overrides = null) {
+        const ocr = overrides || {
+            provider: document.getElementById('setting-ocr-provider').value,
+            endpoint: document.getElementById('setting-ocr-endpoint').value.trim(),
+            model: document.getElementById('setting-ocr-model').value.trim(),
+        };
+
+        // An untouched key field means "keep the stored one", so it is only
+        // sent when the admin actually typed something. Trimmed, because the
+        // server trims too and a whitespace-only value would arrive there as
+        // the empty string — which is the CLEAR sentinel. A stray space must
+        // not delete a credential the deliberate path guards with a confirm.
+        if (!overrides) {
+            const typed = document.getElementById('setting-ocr-api-key').value;
+            if (typed.trim() !== '') ocr.apiKey = typed;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ ocr })
+            });
+
+            // Check ok before parsing: an error body is not always JSON (a
+            // maintenance-mode page, a proxy 502), and a JSON parse error
+            // must not replace the translated failure message in the toast.
+            if (!response.ok) {
+                let message = '';
+                try {
+                    message = (await response.json()).error || '';
+                } catch (parseError) {
+                    // Non-JSON error body — fall through to the generic text.
+                }
+                throw new Error(message || t('budget', 'Failed to save admin settings'));
+            }
+
+            const body = await response.json();
+
+            this.ocrState = {
+                apiKeySet: !!body.ocr?.apiKeySet,
+                nextcloudAiAvailable: !!body.ocr?.nextcloudAiAvailable
+            };
+            document.getElementById('setting-ocr-api-key').value = '';
+            this.renderOcrFields();
+
+            showSuccess(body.ocr?.configured
+                ? t('budget', 'Receipt scanning is on')
+                : t('budget', 'Receipt scanning settings saved'));
+        } catch (error) {
+            showError(error.message || t('budget', 'Failed to save admin settings'));
         }
     }
 

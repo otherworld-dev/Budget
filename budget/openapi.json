@@ -614,16 +614,17 @@
           },
           "currency": { "type": "string", "example": "GBP" },
           "balance": {
-            "type": "number",
-            "format": "double",
-            "example": -1246.5,
-            "description": "As of today; future-dated transactions are excluded."
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "example": "-1246.50",
+            "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Parse into an exact decimal type, never a float."
           },
           "balanceInBaseCurrency": {
-            "type": "number",
-            "format": "double",
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
             "nullable": true,
-            "description": "Set only when the account is not already in the user's base currency."
+            "example": "-1465.20",
+            "description": "Decimal string, two places. Set only when the account is not already in the user's base currency."
           },
           "baseCurrency": { "type": "string", "nullable": true },
           "institution": { "type": "string", "nullable": true, "example": "NatWest" },
@@ -662,10 +663,10 @@
           "description": { "type": "string", "example": "Monthly plan" },
           "vendor": { "type": "string", "nullable": true, "example": "Practice Plan" },
           "amount": {
-            "type": "number",
-            "format": "double",
-            "example": 15,
-            "description": "Always positive; type carries the direction."
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "example": "15.00",
+            "description": "Decimal string, two places. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
           },
           "type": {
             "type": "string",
@@ -731,9 +732,10 @@
           },
           "description": { "type": "string" },
           "amount": {
-            "type": "number",
-            "format": "double",
-            "description": "Always positive."
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,2})?$",
+            "example": "42.50",
+            "description": "Always positive. Accepted as a number or a decimal string; always returned as a two-place string."
           },
           "type": { "type": "string", "enum": ["debit", "credit"] },
           "categoryId": {

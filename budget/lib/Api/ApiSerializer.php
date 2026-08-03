@@ -32,9 +32,9 @@ final class ApiSerializer {
             'name' => (string)($a['name'] ?? ''),
             'type' => (string)($a['type'] ?? ''),
             'currency' => (string)($a['currency'] ?? ''),
-            'balance' => (float)($a['balance'] ?? 0),
+            'balance' => self::money($a['balance'] ?? 0),
             // Only set when the account is not in the user's base currency.
-            'balanceInBaseCurrency' => isset($a['convertedBalance']) ? (float)$a['convertedBalance'] : null,
+            'balanceInBaseCurrency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance']) : null,
             'baseCurrency' => $a['baseCurrency'] ?? null,
             'institution' => $a['institution'] ?? null,
             'shared' => (bool)($a['_shared'] ?? false),
@@ -66,7 +66,7 @@ final class ApiSerializer {
             'date' => $t['date'] ?? null,
             'description' => (string)($t['description'] ?? ''),
             'vendor' => $t['vendor'] ?? null,
-            'amount' => (float)($t['amount'] ?? 0),
+            'amount' => self::money($t['amount'] ?? 0),
             'type' => (string)($t['type'] ?? ''),
             'reference' => $t['reference'] ?? null,
             'notes' => $t['notes'] ?? null,
@@ -107,6 +107,26 @@ final class ApiSerializer {
     /** @param callable(Entity|array): array $mapper */
     public static function map(array $items, callable $mapper): array {
         return array_values(array_map($mapper, $items));
+    }
+
+    /**
+     * Money as a fixed-point decimal string, never a JSON number.
+     *
+     * Every amount in this app is stored as DECIMAL(15,2) and calculated with
+     * BCMath through MoneyCalculator, precisely so that a penny cannot go
+     * missing. Handing a client a JSON number throws that away at the last
+     * step: JSON numbers are IEEE doubles in most parsers, so 0.1 + 0.2 stops
+     * being 0.30 the moment the client does arithmetic of its own.
+     *
+     * A string preserves what the database guarantees all the way to the
+     * client, and drops straight into the exact decimal type every platform
+     * has — BigDecimal on Android, Decimal in .NET, decimal.Decimal in Python.
+     * Clients that only display the figure can print it unchanged.
+     *
+     * Always two decimal places, matching the column scale: '0.00', '-12.50'.
+     */
+    private static function money(float|int|string $value): string {
+        return number_format((float)$value, 2, '.', '');
     }
 
     private static function toArray(Entity|array $value): array {
