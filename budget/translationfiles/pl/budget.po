@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-03 22:35+0000\n"
+"POT-Creation-Date: 2026-08-03 23:34+0000\n"
 "PO-Revision-Date: 2026-06-06 22:43+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -261,6 +261,25 @@ msgstr ""
 msgid "Failed to retrieve categories"
 msgstr ""
 
+#: /app/lib/Controller/ApiV1ReceiptController.php:58
+#: /app/lib/Controller/ApiV1TransactionController.php:247
+#: /app/lib/Controller/AttachmentController.php:91
+#: /app/lib/Controller/ImportController.php:94
+#: /app/lib/Controller/MigrationController.php:83
+#: /app/lib/Controller/MigrationController.php:118
+msgid "No file uploaded"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1ReceiptController.php:67
+msgid "Receipt scanning is not set up on this server"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1ReceiptController.php:72
+msgid ""
+"The receipt could not be read — the OCR provider failed. Try again, or enter "
+"the transaction manually"
+msgstr ""
+
 #: /app/lib/Controller/ApiV1TransactionController.php:89
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr ""
@@ -318,14 +337,6 @@ msgstr ""
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to load attachments"
 msgstr "Nie udało się pobrać kont"
-
-#: /app/lib/Controller/ApiV1TransactionController.php:247
-#: /app/lib/Controller/AttachmentController.php:91
-#: /app/lib/Controller/ImportController.php:94
-#: /app/lib/Controller/MigrationController.php:83
-#: /app/lib/Controller/MigrationController.php:118
-msgid "No file uploaded"
-msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:259
 #: /app/lib/Controller/AttachmentController.php:101
@@ -12345,7 +12356,9 @@ msgstr ""
 msgid ""
 "The base URL of an OpenAI-compatible server. This server makes the request, "
 "so an address only reachable on your local network works — and keeps "
-"receipts in the building."
+"receipts in the building. Note a LAN or local address also needs "
+"allow_local_remote_servers enabled in config.php, or Nextcloud will refuse "
+"to call it."
 msgstr ""
 
 #: /app/templates/index.php:4595
