@@ -66,6 +66,7 @@ curl -u 'USER:APP_PASSWORD' \
       "limits": {
         "maxReceiptBytes": 26214400,
         "receiptMimeTypes": ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"],
+        "receiptOcrMimeTypes": ["image/jpeg", "image/png", "image/webp"],
         "transactionsMaxLimit": 200
       }
     }
@@ -73,7 +74,7 @@ curl -u 'USER:APP_PASSWORD' \
 }
 ```
 
-Call this endpoint first. It confirms the app is installed and your credentials work, and it tells you which optional features this particular server has — so a client can hide a flow the server cannot serve instead of failing halfway through it.
+Call this endpoint first. It confirms the app is installed and your credentials work, and it tells you which optional features this particular server has — so a client can hide a flow the server cannot serve instead of failing halfway through it. `receiptOcr` is `true` only when the administrator has [configured an OCR provider](https://budget.otherworld.dev/docs/receipt-scanning.html); it can flip either way as the server's configuration changes, so re-check it rather than caching it forever.
 
 ## Responses
 
@@ -260,12 +261,61 @@ The file is stored in **your own Files** under `Budget/Receipts/<year>/` and ref
 
 These two receipt endpoints are **owner-only**. Receipts live in the owner's Files, which a share recipient cannot resolve, so a transaction in a shared account returns `404` here even though `GET /transactions/{id}` can read it.
 
+### `POST /receipts/extract`
+
+Turn a receipt photo into a **draft transaction** — the capture-before-save flow. Send the image as `multipart/form-data` under `file` (JPEG, PNG or WebP; the size cap is the same 25 MB as uploads). Nothing is recorded: show the draft to the user, let them correct it, then record it with `POST /transactions` and attach the photo with `POST /transactions/{id}/receipts`.
+
+Check `features.receiptOcr` on `GET /` first — it is `true` only when the server's administrator has [set up an OCR provider](https://budget.otherworld.dev/docs/receipt-scanning.html). Calling without one configured returns `501`.
+
+```bash
+curl -u 'USER:APP_PASSWORD' \
+     -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
+     -F 'file=@receipt.jpg' \
+     'https://cloud.example.com/ocs/v2.php/apps/budget/api/v1/receipts/extract'
+```
+
+```json
+{
+  "merchant": "Tesco Express",
+  "date": "2026-08-01",
+  "currency": "GBP",
+  "total": "9.75",
+  "lineItems": [
+    { "description": "Milk 2L", "amount": "1.65" },
+    { "description": "Bread", "amount": "1.10" }
+  ],
+  "suggestedCategoryId": 427,
+  "suggestedCategoryName": "Groceries",
+  "warnings": []
+}
+```
+
+Every field the provider could not read is `null` (or `[]`) rather than a guess — the user fills those in, exactly as they would have typed the whole thing before. Amounts are [money strings](#money). `currency` is the code printed on the receipt when one was legible, which a client can compare against the target account's currency before saving.
+
+The category suggestion is produced **locally** by running your own [rules](rules.md) against the extracted merchant — the provider never sees your categories, accounts, or anything else in your ledger. Only the image is sent to it.
+
+`warnings` is a list of machine-readable flags:
+
+| Warning | Meaning |
+|---------|---------|
+| `no-total` | No total could be read. |
+| `no-date` | No date could be read. |
+| `line-items-sum-mismatch` | The line items do not add up to the printed total. The printed total is reported anyway — a till adds better than an OCR reads — but show the user. |
+
+Two statuses are specific to this endpoint:
+
+| Status | Meaning |
+|--------|---------|
+| `501` | No OCR provider is configured on this server. Tell the user it is not set up, and hide the flow (`features.receiptOcr` is `false`). |
+| `502` | The configured provider failed — unreachable, timed out, or returned nonsense. Retrying is safe; extraction has no side effects. |
+
 ## Rate limits
 
 | Endpoint | Limit |
 |----------|-------|
 | `POST /transactions` | 60 per minute, per user |
 | `POST /transactions/{id}/receipts` | 10 per minute, per user |
+| `POST /receipts/extract` | 10 per minute, per user |
 
 Reads are not rate limited by the app. Exceeding a limit returns `429`; wait and retry.
 
@@ -311,7 +361,7 @@ The internal endpoints the web UI itself calls (under `/apps/budget/api/...`, wi
 | Editing or deleting transactions | The web UI. A capture client only appends; anything it gets wrong is fixable there. |
 | Creating accounts or categories | The web UI — see [Accounts](accounts.md) and [Categories](categories.md). |
 | Budgets, bills, reports, forecasts | The web UI. |
-| Receipt OCR | Not built yet. `features.receiptOcr` will report it when it lands. |
+| Receipt OCR on an unconfigured server | Ask the administrator to [set up a provider](https://budget.otherworld.dev/docs/receipt-scanning.html); `features.receiptOcr` reports whether this server has one. |
 | Webhooks / push | The API is poll-based by design. To react to changes, poll `GET /transactions` — every few minutes is ample, since transactions arrive at human speed. |
 
 ## Troubleshooting

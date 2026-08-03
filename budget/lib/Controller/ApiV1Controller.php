@@ -7,6 +7,8 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\Ocr\ReceiptExtractionService;
+use OCA\Budget\Service\OcrSettingsService;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
@@ -34,6 +36,7 @@ class ApiV1Controller extends OCSController {
         IRequest $request,
         private IAppManager $appManager,
         private CurrencyConversionService $conversionService,
+        private OcrSettingsService $ocrSettings,
         ?string $userId,
     ) {
         parent::__construct(Application::APP_ID, $request);
@@ -58,13 +61,15 @@ class ApiV1Controller extends OCSController {
                 'transactions' => true,
                 'createTransaction' => true,
                 'receiptUpload' => true,
-                // Server-side receipt extraction (#531). Always false in v1;
-                // clients must keep working when it flips to true.
-                'receiptOcr' => false,
+                // Server-side receipt extraction (#533): true only when this
+                // instance has an OCR provider configured AND usable, so the
+                // capture flow never appears on a server that would 501 it.
+                'receiptOcr' => $this->ocrSettings->isConfigured(),
             ],
             'limits' => [
                 'maxReceiptBytes' => AttachmentService::MAX_SIZE,
                 'receiptMimeTypes' => AttachmentService::ALLOWED_MIMES,
+                'receiptOcrMimeTypes' => ReceiptExtractionService::EXTRACT_MIMES,
                 'transactionsMaxLimit' => ApiV1TransactionController::MAX_LIMIT,
             ],
         ]);

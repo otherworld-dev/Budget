@@ -243,6 +243,36 @@ class ApiSerializerTest extends TestCase {
 		$this->assertTrue($result['missing']);
 	}
 
+	// ── receipt drafts ──────────────────────────────────────────────
+
+	public function testReceiptDraftKeysAreFixed(): void {
+		$result = ApiSerializer::receiptDraft([]);
+
+		$this->assertSame([
+			'merchant', 'date', 'currency', 'total', 'lineItems',
+			'suggestedCategoryId', 'suggestedCategoryName', 'warnings',
+		], array_keys($result));
+	}
+
+	public function testReceiptDraftEmptyInputIsAllNulls(): void {
+		$result = ApiSerializer::receiptDraft([]);
+
+		$this->assertNull($result['merchant']);
+		$this->assertNull($result['total']);
+		$this->assertSame([], $result['lineItems']);
+		$this->assertSame([], $result['warnings']);
+	}
+
+	public function testReceiptDraftLineItemsAreReindexedAndStringed(): void {
+		$result = ApiSerializer::receiptDraft([
+			'lineItems' => [2 => ['description' => 'Milk', 'amount' => '1.65']],
+		]);
+
+		// json_encode must produce an array of {description, amount} objects
+		// with money as strings, like everything else in v1.
+		$this->assertSame([['description' => 'Milk', 'amount' => '1.65']], $result['lineItems']);
+	}
+
 	// ── map ─────────────────────────────────────────────────────────
 
 	public function testMapReindexesSparseArrays(): void {

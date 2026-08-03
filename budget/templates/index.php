@@ -4588,7 +4588,7 @@ style('budget', 'budget-app');
                         <div class="setting-item" id="setting-ocr-endpoint-row" style="display: none;">
                             <label for="setting-ocr-endpoint"><strong><?php p($l->t('Endpoint URL')); ?></strong></label>
                             <input type="url" id="setting-ocr-endpoint" placeholder="http://192.168.1.10:11434/v1">
-                            <small><?php p($l->t('The base URL of an OpenAI-compatible server. This server makes the request, so an address only reachable on your local network works — and keeps receipts in the building.')); ?></small>
+                            <small><?php p($l->t('The base URL of an OpenAI-compatible server. This server makes the request, so an address only reachable on your local network works — and keeps receipts in the building. Note a LAN or local address also needs allow_local_remote_servers enabled in config.php, or Nextcloud will refuse to call it.')); ?></small>
                         </div>
 
                         <div class="setting-item" id="setting-ocr-model-row" style="display: none;">

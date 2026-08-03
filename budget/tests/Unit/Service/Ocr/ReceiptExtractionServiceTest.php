@@ -1,0 +1,325 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\Budget\Tests\Unit\Service\Ocr;
+
+use OCA\Budget\Db\Category;
+use OCA\Budget\Service\CategoryService;
+use OCA\Budget\Service\ImportRuleService;
+use OCA\Budget\Service\Ocr\NextcloudOcrBackend;
+use OCA\Budget\Service\Ocr\OcrNotConfiguredException;
+use OCA\Budget\Service\Ocr\OcrProviderException;
+use OCA\Budget\Service\Ocr\ReceiptExtractionService;
+use OCA\Budget\Service\Ocr\ReceiptParser;
+use OCA\Budget\Service\OcrSettingsService;
+use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\Http\Client\IClient;
+use OCP\Http\Client\IClientService;
+use OCP\Http\Client\IResponse;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+
+class ReceiptExtractionServiceTest extends TestCase {
+	/** 1×1 transparent PNG — real bytes, because the service sniffs them. */
+	private const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+	private ReceiptExtractionService $service;
+	private OcrSettingsService $settings;
+	private IClientService $clientService;
+	private IClient $client;
+	private NextcloudOcrBackend $backend;
+	private ImportRuleService $ruleService;
+	private CategoryService $categoryService;
+
+	/** Captured options of the last HTTP POST the service made. */
+	private ?array $lastRequest = null;
+
+	/** @var string[] temp files to unlink */
+	private array $tmpFiles = [];
+
+	protected function setUp(): void {
+		$this->settings = $this->createMock(OcrSettingsService::class);
+		$this->clientService = $this->createMock(IClientService::class);
+		$this->client = $this->createMock(IClient::class);
+		$this->clientService->method('newClient')->willReturn($this->client);
+		$this->backend = $this->createMock(NextcloudOcrBackend::class);
+		$this->ruleService = $this->createMock(ImportRuleService::class);
+		$this->categoryService = $this->createMock(CategoryService::class);
+
+		$this->service = new ReceiptExtractionService(
+			$this->settings,
+			$this->clientService,
+			$this->backend,
+			new ReceiptParser(),
+			$this->ruleService,
+			$this->categoryService,
+			$this->createMock(LoggerInterface::class)
+		);
+	}
+
+	protected function tearDown(): void {
+		foreach ($this->tmpFiles as $file) {
+			@unlink($file);
+		}
+	}
+
+	// ── gates ───────────────────────────────────────────────────────
+
+	public function testThrowsWhenNoProviderIsConfigured(): void {
+		$this->settings->method('isConfigured')->willReturn(false);
+
+		$this->expectException(OcrNotConfiguredException::class);
+
+		$this->service->extract('user1', $this->pngUpload());
+	}
+
+	public function testRejectsAFailedUpload(): void {
+		$this->configureCustom();
+
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->extract('user1', ['error' => UPLOAD_ERR_PARTIAL]);
+	}
+
+	public function testRejectsNonImageBytesWhateverTheClientClaims(): void {
+		$this->configureCustom();
+		$upload = $this->upload('%PDF-1.4 not an image', 'image/png');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('JPEG, PNG or WebP');
+
+		$this->service->extract('user1', $upload);
+	}
+
+	// ── the OpenAI-compatible path ──────────────────────────────────
+
+	public function testExtractsADraftFromAModelResponse(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Tesco Express',
+			'date' => '2026-08-01',
+			'currency' => 'gbp',
+			'total' => 9.75,
+			'lineItems' => [
+				['description' => 'Milk 2L', 'amount' => 1.65],
+				['description' => 'Bread', 'amount' => '8.10'],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('Tesco Express', $draft['merchant']);
+		$this->assertSame('2026-08-01', $draft['date']);
+		$this->assertSame('GBP', $draft['currency']);
+		$this->assertSame('9.75', $draft['total']);
+		$this->assertSame([
+			['description' => 'Milk 2L', 'amount' => '1.65'],
+			['description' => 'Bread', 'amount' => '8.10'],
+		], $draft['lineItems']);
+		$this->assertSame([], $draft['warnings']);
+	}
+
+	public function testStripsCodeFencesFromTheModelAnswer(): void {
+		$this->configureCustom();
+		$this->modelAnswers("```json\n{\"merchant\": \"Shop\", \"total\": 5}\n```");
+
+		$this->assertSame('5.00', $this->service->extract('user1', $this->pngUpload())['total']);
+	}
+
+	public function testUnusableFieldsBecomeNullNotGuesses(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => '',
+			'date' => '31/12/2026',      // not the requested format
+			'currency' => 'pounds',       // not ISO 4217
+			'total' => 'about nine',
+			'lineItems' => 'n/a',
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['merchant']);
+		$this->assertNull($draft['date']);
+		$this->assertNull($draft['currency']);
+		$this->assertNull($draft['total']);
+		$this->assertSame([], $draft['lineItems']);
+		$this->assertContains('no-total', $draft['warnings']);
+		$this->assertContains('no-date', $draft['warnings']);
+	}
+
+	public function testWarnsWhenLineItemsDoNotSumToTheTotal(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop',
+			'date' => '2026-08-01',
+			'total' => 10.00,
+			'lineItems' => [['description' => 'Thing', 'amount' => 3.00]],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		// The printed total is kept — the warning tells the client to look.
+		$this->assertSame('10.00', $draft['total']);
+		$this->assertSame(['line-items-sum-mismatch'], $draft['warnings']);
+	}
+
+	public function testProviderHttpFailureBecomesAProviderException(): void {
+		$this->configureCustom();
+		$this->client->method('post')->willThrowException(new \RuntimeException('cURL error 7'));
+
+		$this->expectException(OcrProviderException::class);
+
+		$this->service->extract('user1', $this->pngUpload());
+	}
+
+	public function testProviderProseBecomesAProviderException(): void {
+		$this->configureCustom();
+		$this->modelAnswers('I am sorry, I cannot read this image.');
+
+		$this->expectException(OcrProviderException::class);
+
+		$this->service->extract('user1', $this->pngUpload());
+	}
+
+	public function testCustomEndpointWithoutAKeySendsNoAuthorizationHeader(): void {
+		$this->configureCustom(apiKey: '');
+		$this->modelAnswers('{"merchant": "Shop"}');
+
+		$this->service->extract('user1', $this->pngUpload());
+
+		$this->assertArrayNotHasKey('Authorization', $this->lastRequest['options']['headers']);
+	}
+
+	public function testRelaySendsTheLicenseKeyAndADefaultModel(): void {
+		$this->settings->method('isConfigured')->willReturn(true);
+		$this->settings->method('getProvider')->willReturn(OcrSettingsService::PROVIDER_RELAY);
+		$this->settings->method('getEndpoint')->willReturn(OcrSettingsService::RELAY_ENDPOINT);
+		$this->settings->method('getModel')->willReturn('');
+		$this->settings->method('getApiKey')->willReturn('lic_123');
+		$this->modelAnswers('{"merchant": "Shop"}');
+
+		$this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('Bearer lic_123', $this->lastRequest['options']['headers']['Authorization']);
+		$body = json_decode($this->lastRequest['options']['body'], true);
+		$this->assertSame('receipt-v1', $body['model']);
+		$this->assertStringStartsWith(OcrSettingsService::RELAY_ENDPOINT, $this->lastRequest['url']);
+	}
+
+	public function testOnlyTheImageIsSentToTheProvider(): void {
+		// The privacy contract: no categories, no accounts, no ledger.
+		$this->configureCustom();
+		$this->modelAnswers('{"merchant": "Shop"}');
+
+		$this->service->extract('user1', $this->pngUpload());
+
+		$body = $this->lastRequest['options']['body'];
+		$this->assertStringNotContainsString('categor', strtolower($body));
+		$this->assertStringNotContainsString('account', strtolower($body));
+		$this->assertStringContainsString(self::PNG_BASE64, $body);
+	}
+
+	// ── the Nextcloud TaskProcessing path ───────────────────────────
+
+	public function testNextcloudProviderParsesTheRawText(): void {
+		$this->settings->method('isConfigured')->willReturn(true);
+		$this->settings->method('getProvider')->willReturn(OcrSettingsService::PROVIDER_NEXTCLOUD);
+		$this->backend->method('extractText')->willReturn("CORNER SHOP\n2026-08-02\nApples 2.00\nTOTAL 2.00");
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('Corner Shop', $draft['merchant']);
+		$this->assertSame('2026-08-02', $draft['date']);
+		$this->assertSame('2.00', $draft['total']);
+		$this->assertNull($draft['currency']);
+		$this->assertSame([['description' => 'Apples', 'amount' => '2.00']], $draft['lineItems']);
+	}
+
+	// ── the local category suggestion ───────────────────────────────
+
+	public function testSuggestsACategoryFromTheUsersOwnRules(): void {
+		$this->configureCustom();
+		$this->modelAnswers('{"merchant": "Tesco Express", "total": 9.75, "date": "2026-08-01"}');
+
+		$this->ruleService->method('testRules')->willReturn([
+			['ruleId' => 1, 'categoryId' => 42, 'priority' => 10],
+		]);
+		$category = new Category();
+		$category->setId(42);
+		$category->setName('Groceries');
+		$this->categoryService->method('find')->with(42, 'user1')->willReturn($category);
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame(42, $draft['suggestedCategoryId']);
+		$this->assertSame('Groceries', $draft['suggestedCategoryName']);
+	}
+
+	public function testARuleForADeletedCategorySuggestsNothing(): void {
+		$this->configureCustom();
+		$this->modelAnswers('{"merchant": "Shop"}');
+
+		$this->ruleService->method('testRules')->willReturn([
+			['ruleId' => 1, 'categoryId' => 99, 'priority' => 10],
+		]);
+		$this->categoryService->method('find')->willThrowException(new DoesNotExistException('gone'));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['suggestedCategoryId']);
+		$this->assertNull($draft['suggestedCategoryName']);
+	}
+
+	public function testARuleEngineFailureDoesNotSinkTheExtraction(): void {
+		$this->configureCustom();
+		$this->modelAnswers('{"merchant": "Shop", "total": 5, "date": "2026-08-01"}');
+		$this->ruleService->method('testRules')->willThrowException(new \RuntimeException('boom'));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('5.00', $draft['total']);
+		$this->assertNull($draft['suggestedCategoryId']);
+	}
+
+	// ── helpers ─────────────────────────────────────────────────────
+
+	private function configureCustom(string $apiKey = 'sk-test'): void {
+		$this->settings->method('isConfigured')->willReturn(true);
+		$this->settings->method('getProvider')->willReturn(OcrSettingsService::PROVIDER_CUSTOM);
+		$this->settings->method('getEndpoint')->willReturn('http://ollama.lan:11434/v1');
+		$this->settings->method('getModel')->willReturn('qwen2.5vl');
+		$this->settings->method('getApiKey')->willReturn($apiKey);
+	}
+
+	/** Makes the mocked endpoint answer with the given assistant content. */
+	private function modelAnswers(string $content): void {
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn(json_encode([
+			'choices' => [['message' => ['role' => 'assistant', 'content' => $content]]],
+		]));
+		$this->client->method('post')->willReturnCallback(function (string $url, array $options) use ($response) {
+			$this->lastRequest = ['url' => $url, 'options' => $options];
+
+			return $response;
+		});
+	}
+
+	private function pngUpload(): array {
+		return $this->upload(base64_decode(self::PNG_BASE64), 'image/png');
+	}
+
+	private function upload(string $bytes, string $claimedType): array {
+		$path = tempnam(sys_get_temp_dir(), 'ocr-test-');
+		file_put_contents($path, $bytes);
+		$this->tmpFiles[] = $path;
+
+		return [
+			'name' => 'receipt.png',
+			'type' => $claimedType,
+			'tmp_name' => $path,
+			'error' => UPLOAD_ERR_OK,
+			'size' => strlen($bytes),
+		];
+	}
+}

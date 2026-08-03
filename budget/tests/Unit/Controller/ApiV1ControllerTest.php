@@ -7,6 +7,8 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\ApiV1Controller;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\Ocr\ReceiptExtractionService;
+use OCA\Budget\Service\OcrSettingsService;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Http;
 use OCP\IRequest;
@@ -16,16 +18,19 @@ class ApiV1ControllerTest extends TestCase {
 	private ApiV1Controller $controller;
 	private IAppManager $appManager;
 	private CurrencyConversionService $conversionService;
+	private OcrSettingsService $ocrSettings;
 
 	protected function setUp(): void {
 		$this->appManager = $this->createMock(IAppManager::class);
 		$this->conversionService = $this->createMock(CurrencyConversionService::class);
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->ocrSettings = $this->createMock(OcrSettingsService::class);
 
 		$this->controller = new ApiV1Controller(
 			$this->createMock(IRequest::class),
 			$this->appManager,
 			$this->conversionService,
+			$this->ocrSettings,
 			'user1'
 		);
 	}
@@ -50,16 +55,27 @@ class ApiV1ControllerTest extends TestCase {
 
 		$this->assertSame(AttachmentService::MAX_SIZE, $limits['maxReceiptBytes']);
 		$this->assertSame(AttachmentService::ALLOWED_MIMES, $limits['receiptMimeTypes']);
+		$this->assertSame(ReceiptExtractionService::EXTRACT_MIMES, $limits['receiptOcrMimeTypes']);
 	}
 
-	public function testInfoReportsOcrOffUntilItIsBuilt(): void {
+	public function testInfoReportsOcrFromTheConfiguredState(): void {
+		// This flag is what makes the capture flow appear in clients — it must
+		// track the server's actual ability to serve an extraction request.
 		$this->appManager->method('getAppVersion')->willReturn('2.40.0');
+		$this->ocrSettings->method('isConfigured')->willReturn(true);
 
 		$features = $this->controller->info()->getData()['features'];
 
-		$this->assertFalse($features['receiptOcr']);
+		$this->assertTrue($features['receiptOcr']);
 		$this->assertTrue($features['receiptUpload']);
 		$this->assertTrue($features['createTransaction']);
+	}
+
+	public function testInfoReportsOcrOffWhenNoProviderIsConfigured(): void {
+		$this->appManager->method('getAppVersion')->willReturn('2.40.0');
+		$this->ocrSettings->method('isConfigured')->willReturn(false);
+
+		$this->assertFalse($this->controller->info()->getData()['features']['receiptOcr']);
 	}
 
 	public function testInfoSurvivesAnUnresolvableAppVersion(): void {
@@ -82,6 +98,7 @@ class ApiV1ControllerTest extends TestCase {
 			$this->createMock(IRequest::class),
 			$this->appManager,
 			$this->conversionService,
+			$this->ocrSettings,
 			null
 		);
 

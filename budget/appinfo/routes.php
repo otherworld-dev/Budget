@@ -428,5 +428,9 @@ return [
         ['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
         ['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
         ['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
+
+        // Receipt extraction (#533): image in, draft transaction out. No
+        // side effects — the client records the draft via POST /transactions.
+        ['name' => 'apiV1Receipt#extract', 'url' => '/api/v1/receipts/extract', 'verb' => 'POST'],
     ],
 ];

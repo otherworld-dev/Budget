@@ -2,7 +2,7 @@
 
 > Photograph a receipt and have the transaction filled in for you. **Off by default** — a Nextcloud administrator has to turn it on and choose who reads the images.
 
-> **The settings ship ahead of the feature.** This release contains the configuration described on this page; the scan buttons themselves arrive in the next release. Anything you configure now simply takes effect the moment they do — there is nothing else to redo.
+> **Rolling out in stages.** This release contains the configuration described on this page and the [REST API endpoint](api.md) that capture apps use — so once a provider is configured, scanning works for API clients immediately. The scan button in the web interface arrives in the next release.
 
 ## Overview
 
@@ -60,6 +60,8 @@ You need:
 - **API key** — optional. A local Ollama usually needs none; a commercial API will.
 
 A vision model on your own hardware is the only arrangement where receipt images never leave your control at all.
+
+> **Private addresses need one server setting.** Nextcloud's HTTP client refuses to call private and local addresses by default — a security measure against request forgery. If your endpoint lives on a LAN address (`192.168.x.x`, `10.x.x.x`, a `.local`/`.lan` hostname), the administrator must add `'allow_local_remote_servers' => true,` to `config/config.php`, or every scan will fail with a provider error even though the settings look correct. Endpoints on public hostnames are unaffected.
 
 ### Otherworld relay
 

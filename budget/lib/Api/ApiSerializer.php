@@ -104,6 +104,31 @@ final class ApiSerializer {
         ];
     }
 
+    /**
+     * The draft a receipt extraction produces (#533). Not an entity — the
+     * extraction service already normalises every field — but the shape is
+     * pinned here (and in ApiSerializerTest) like every other v1 shape, so
+     * the contract survives refactors of the service.
+     */
+    public static function receiptDraft(array $draft): array {
+        return [
+            'merchant' => $draft['merchant'] ?? null,
+            'date' => $draft['date'] ?? null,
+            'currency' => $draft['currency'] ?? null,
+            'total' => $draft['total'] ?? null,
+            'lineItems' => array_values(array_map(
+                static fn (array $item) => [
+                    'description' => (string)$item['description'],
+                    'amount' => (string)$item['amount'],
+                ],
+                $draft['lineItems'] ?? []
+            )),
+            'suggestedCategoryId' => $draft['suggestedCategoryId'] ?? null,
+            'suggestedCategoryName' => $draft['suggestedCategoryName'] ?? null,
+            'warnings' => array_values($draft['warnings'] ?? []),
+        ];
+    }
+
     /** @param callable(Entity|array): array $mapper */
     public static function map(array $items, callable $mapper): array {
         return array_values(array_map($mapper, $items));

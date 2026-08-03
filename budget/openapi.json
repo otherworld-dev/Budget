@@ -20,17 +20,39 @@
       }
     }
   ],
-  "security": [{ "basicAuth": [] }],
+  "security": [
+    {
+      "basicAuth": []
+    }
+  ],
   "tags": [
-    { "name": "discovery", "description": "Server and capability discovery" },
-    { "name": "accounts", "description": "Read-only account reference data" },
-    { "name": "categories", "description": "Read-only category reference data" },
-    { "name": "transactions", "description": "Browse and record transactions" }
+    {
+      "name": "discovery",
+      "description": "Server and capability discovery"
+    },
+    {
+      "name": "accounts",
+      "description": "Read-only account reference data"
+    },
+    {
+      "name": "categories",
+      "description": "Read-only category reference data"
+    },
+    {
+      "name": "transactions",
+      "description": "Browse and record transactions"
+    },
+    {
+      "name": "receipts",
+      "description": "Receipt extraction (capture-before-save)"
+    }
   ],
   "paths": {
     "/": {
       "get": {
-        "tags": ["discovery"],
+        "tags": [
+          "discovery"
+        ],
         "operationId": "getInfo",
         "summary": "Server info and capabilities",
         "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has.",
@@ -39,18 +61,26 @@
             "description": "Server info",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InfoEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/InfoEnvelope"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
         }
       }
     },
     "/accounts": {
       "get": {
-        "tags": ["accounts"],
+        "tags": [
+          "accounts"
+        ],
         "operationId": "listAccounts",
         "summary": "List accounts",
         "description": "Every account the user owns plus every account shared with them. Balances are as of today; future-dated transactions are excluded.",
@@ -61,7 +91,9 @@
               "application/json": {
                 "schema": {
                   "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
                     {
                       "type": "object",
                       "properties": {
@@ -70,7 +102,9 @@
                           "properties": {
                             "data": {
                               "type": "array",
-                              "items": { "$ref": "#/components/schemas/Account" }
+                              "items": {
+                                "$ref": "#/components/schemas/Account"
+                              }
                             }
                           }
                         }
@@ -81,14 +115,20 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
         }
       }
     },
     "/categories": {
       "get": {
-        "tags": ["categories"],
+        "tags": [
+          "categories"
+        ],
         "operationId": "listCategories",
         "summary": "List categories",
         "description": "Flat list; build the tree from parentId. Includes categories shared with the user.",
@@ -97,7 +137,13 @@
             "name": "type",
             "in": "query",
             "required": false,
-            "schema": { "type": "string", "enum": ["expense", "income"] },
+            "schema": {
+              "type": "string",
+              "enum": [
+                "expense",
+                "income"
+              ]
+            },
             "description": "Restrict to one category type. Note categories are typed expense/income while transactions are typed debit/credit."
           }
         ],
@@ -108,7 +154,9 @@
               "application/json": {
                 "schema": {
                   "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
                     {
                       "type": "object",
                       "properties": {
@@ -117,7 +165,9 @@
                           "properties": {
                             "data": {
                               "type": "array",
-                              "items": { "$ref": "#/components/schemas/Category" }
+                              "items": {
+                                "$ref": "#/components/schemas/Category"
+                              }
                             }
                           }
                         }
@@ -128,15 +178,23 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
         }
       }
     },
     "/transactions": {
       "get": {
-        "tags": ["transactions"],
+        "tags": [
+          "transactions"
+        ],
         "operationId": "listTransactions",
         "summary": "List transactions",
         "description": "Most recent first, across every account the user can see.",
@@ -144,43 +202,64 @@
           {
             "name": "accountId",
             "in": "query",
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Restrict to one account."
           },
           {
             "name": "categoryId",
             "in": "query",
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Restrict to one category."
           },
           {
             "name": "dateFrom",
             "in": "query",
-            "schema": { "type": "string", "format": "date" },
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
             "description": "Inclusive lower bound, YYYY-MM-DD."
           },
           {
             "name": "dateTo",
             "in": "query",
-            "schema": { "type": "string", "format": "date" },
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
             "description": "Inclusive upper bound, YYYY-MM-DD."
           },
           {
             "name": "search",
             "in": "query",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "Free-text match on description and vendor."
           },
           {
             "name": "limit",
             "in": "query",
-            "schema": { "type": "integer", "default": 50, "minimum": 1, "maximum": 200 },
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            },
             "description": "Values above the maximum are clamped, not rejected."
           },
           {
             "name": "offset",
             "in": "query",
-            "schema": { "type": "integer", "default": 0, "minimum": 0 }
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -190,14 +269,18 @@
               "application/json": {
                 "schema": {
                   "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
                     {
                       "type": "object",
                       "properties": {
                         "ocs": {
                           "type": "object",
                           "properties": {
-                            "data": { "$ref": "#/components/schemas/TransactionPage" }
+                            "data": {
+                              "$ref": "#/components/schemas/TransactionPage"
+                            }
                           }
                         }
                       }
@@ -207,13 +290,21 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
         }
       },
       "post": {
-        "tags": ["transactions"],
+        "tags": [
+          "transactions"
+        ],
         "operationId": "createTransaction",
         "summary": "Record a transaction",
         "description": "Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner's ledger.",
@@ -221,10 +312,14 @@
           "required": true,
           "content": {
             "application/x-www-form-urlencoded": {
-              "schema": { "$ref": "#/components/schemas/NewTransaction" }
+              "schema": {
+                "$ref": "#/components/schemas/NewTransaction"
+              }
             },
             "multipart/form-data": {
-              "schema": { "$ref": "#/components/schemas/NewTransaction" }
+              "schema": {
+                "$ref": "#/components/schemas/NewTransaction"
+              }
             }
           }
         },
@@ -235,98 +330,9 @@
               "application/json": {
                 "schema": {
                   "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
                     {
-                      "type": "object",
-                      "properties": {
-                        "ocs": {
-                          "type": "object",
-                          "properties": {
-                            "data": { "$ref": "#/components/schemas/Transaction" }
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "403": { "$ref": "#/components/responses/ReadOnly" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" },
-          "429": { "$ref": "#/components/responses/RateLimited" }
-        }
-      }
-    },
-    "/transactions/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": { "type": "integer" }
-        }
-      ],
-      "get": {
-        "tags": ["transactions"],
-        "operationId": "getTransaction",
-        "summary": "Get one transaction",
-        "description": "From any account the user can see. The joined accountName / accountCurrency / categoryName fields are not included here.",
-        "responses": {
-          "200": {
-            "description": "The transaction",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "ocs": {
-                          "type": "object",
-                          "properties": {
-                            "data": { "$ref": "#/components/schemas/Transaction" }
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" }
-        }
-      }
-    },
-    "/transactions/{id}/receipts": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": { "type": "integer" }
-        }
-      ],
-      "get": {
-        "tags": ["transactions"],
-        "operationId": "listReceipts",
-        "summary": "List a transaction's receipts",
-        "description": "Owner-only: receipts live in the owner's Files, so a transaction in a shared account returns 404 here even though GET /transactions/{id} can read it.",
-        "responses": {
-          "200": {
-            "description": "Receipts",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
                     {
                       "type": "object",
                       "properties": {
@@ -334,8 +340,7 @@
                           "type": "object",
                           "properties": {
                             "data": {
-                              "type": "array",
-                              "items": { "$ref": "#/components/schemas/Receipt" }
+                              "$ref": "#/components/schemas/Transaction"
                             }
                           }
                         }
@@ -346,13 +351,149 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "getTransaction",
+        "summary": "Get one transaction",
+        "description": "From any account the user can see. The joined accountName / accountCurrency / categoryName fields are not included here.",
+        "responses": {
+          "200": {
+            "description": "The transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
+    "/transactions/{id}/receipts": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "listReceipts",
+        "summary": "List a transaction's receipts",
+        "description": "Owner-only: receipts live in the owner's Files, so a transaction in a shared account returns 404 here even though GET /transactions/{id} can read it.",
+        "responses": {
+          "200": {
+            "description": "Receipts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Receipt"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
         }
       },
       "post": {
-        "tags": ["transactions"],
+        "tags": [
+          "transactions"
+        ],
         "operationId": "uploadReceipt",
         "summary": "Attach a receipt photo",
         "description": "Owner-only. The file is stored in the user's own Files under Budget/Receipts/<year>/ and referenced from the transaction. Rate limited to 10 per minute per user.",
@@ -362,7 +503,9 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": ["file"],
+                "required": [
+                  "file"
+                ],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -381,14 +524,18 @@
               "application/json": {
                 "schema": {
                   "allOf": [
-                    { "$ref": "#/components/schemas/OcsEnvelope" },
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
                     {
                       "type": "object",
                       "properties": {
                         "ocs": {
                           "type": "object",
                           "properties": {
-                            "data": { "$ref": "#/components/schemas/Receipt" }
+                            "data": {
+                              "$ref": "#/components/schemas/Receipt"
+                            }
                           }
                         }
                       }
@@ -398,11 +545,112 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorised" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "412": { "$ref": "#/components/responses/MissingOcsHeader" },
-          "429": { "$ref": "#/components/responses/RateLimited" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/receipts/extract": {
+      "post": {
+        "tags": [
+          "receipts"
+        ],
+        "operationId": "extractReceipt",
+        "summary": "Extract a draft transaction from a receipt photo",
+        "description": "Capture-before-save: the image is read by the server's configured OCR provider and a draft comes back for the user to confirm. Nothing is recorded — record the draft with POST /transactions. No side effects, so retrying is always safe. Only the image is sent to the provider; the category suggestion is computed locally from the user's own rules. Rate limited to 10 per minute per user. Check features.receiptOcr on GET / before showing this flow.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG, PNG or WebP, up to 25 MB. The authoritative list is receiptOcrMimeTypes in GET / limits. Detected from the bytes, not the declared type."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The extracted draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/ReceiptDraft"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "501": {
+            "description": "No OCR provider is configured on this server. features.receiptOcr is false; show 'not set up on your server'.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The configured OCR provider failed (unreachable, timed out, or returned an unusable response). Safe to retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -420,7 +668,12 @@
         "name": "OCS-APIRequest",
         "in": "header",
         "required": true,
-        "schema": { "type": "string", "enum": ["true"] },
+        "schema": {
+          "type": "string",
+          "enum": [
+            "true"
+          ]
+        },
         "description": "Required on every request."
       }
     },
@@ -429,7 +682,9 @@
         "description": "Not authenticated, or the app password has been revoked.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/OcsFailure" }
+            "schema": {
+              "$ref": "#/components/schemas/OcsFailure"
+            }
           }
         }
       },
@@ -437,7 +692,9 @@
         "description": "Invalid input; ocs.data.error says what.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
           }
         }
       },
@@ -445,7 +702,9 @@
         "description": "No such record, or one the user cannot see.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
           }
         }
       },
@@ -453,7 +712,9 @@
         "description": "The account is visible but not writable — a read-only share.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
           }
         }
       },
@@ -461,7 +722,9 @@
         "description": "Too many requests; wait and retry.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/OcsFailure" }
+            "schema": {
+              "$ref": "#/components/schemas/OcsFailure"
+            }
           }
         }
       },
@@ -472,36 +735,60 @@
     "schemas": {
       "OcsMeta": {
         "type": "object",
-        "required": ["status", "statuscode"],
+        "required": [
+          "status",
+          "statuscode"
+        ],
         "properties": {
-          "status": { "type": "string", "example": "ok" },
-          "statuscode": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "OK" }
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "statuscode": {
+            "type": "integer",
+            "example": 200
+          },
+          "message": {
+            "type": "string",
+            "example": "OK"
+          }
         }
       },
       "OcsEnvelope": {
         "type": "object",
-        "required": ["ocs"],
+        "required": [
+          "ocs"
+        ],
         "properties": {
           "ocs": {
             "type": "object",
-            "required": ["meta", "data"],
+            "required": [
+              "meta",
+              "data"
+            ],
             "properties": {
-              "meta": { "$ref": "#/components/schemas/OcsMeta" }
+              "meta": {
+                "$ref": "#/components/schemas/OcsMeta"
+              }
             }
           }
         }
       },
       "OcsFailure": {
         "allOf": [
-          { "$ref": "#/components/schemas/OcsEnvelope" },
+          {
+            "$ref": "#/components/schemas/OcsEnvelope"
+          },
           {
             "type": "object",
             "properties": {
               "ocs": {
                 "type": "object",
                 "properties": {
-                  "data": { "type": "array", "items": {} }
+                  "data": {
+                    "type": "array",
+                    "items": {}
+                  }
                 }
               }
             }
@@ -510,14 +797,18 @@
       },
       "ErrorEnvelope": {
         "allOf": [
-          { "$ref": "#/components/schemas/OcsEnvelope" },
+          {
+            "$ref": "#/components/schemas/OcsEnvelope"
+          },
           {
             "type": "object",
             "properties": {
               "ocs": {
                 "type": "object",
                 "properties": {
-                  "data": { "$ref": "#/components/schemas/Error" }
+                  "data": {
+                    "$ref": "#/components/schemas/Error"
+                  }
                 }
               }
             }
@@ -526,7 +817,9 @@
       },
       "Error": {
         "type": "object",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
           "error": {
             "type": "string",
@@ -541,14 +834,18 @@
       },
       "InfoEnvelope": {
         "allOf": [
-          { "$ref": "#/components/schemas/OcsEnvelope" },
+          {
+            "$ref": "#/components/schemas/OcsEnvelope"
+          },
           {
             "type": "object",
             "properties": {
               "ocs": {
                 "type": "object",
                 "properties": {
-                  "data": { "$ref": "#/components/schemas/Info" }
+                  "data": {
+                    "$ref": "#/components/schemas/Info"
+                  }
                 }
               }
             }
@@ -557,7 +854,13 @@
       },
       "Info": {
         "type": "object",
-        "required": ["apiVersion", "userId", "baseCurrency", "features", "limits"],
+        "required": [
+          "apiVersion",
+          "userId",
+          "baseCurrency",
+          "features",
+          "limits"
+        ],
         "properties": {
           "apiVersion": {
             "type": "string",
@@ -570,49 +873,107 @@
             "example": "2.40.0",
             "description": "Advisory only — never gate on it."
           },
-          "userId": { "type": "string", "example": "alice" },
-          "baseCurrency": { "type": "string", "example": "GBP" },
+          "userId": {
+            "type": "string",
+            "example": "alice"
+          },
+          "baseCurrency": {
+            "type": "string",
+            "example": "GBP"
+          },
           "features": {
             "type": "object",
             "description": "Optional capabilities of this instance. Values may flip from false to true as features land; clients must tolerate that.",
             "properties": {
-              "accounts": { "type": "boolean" },
-              "categories": { "type": "boolean" },
-              "transactions": { "type": "boolean" },
-              "createTransaction": { "type": "boolean" },
-              "receiptUpload": { "type": "boolean" },
+              "accounts": {
+                "type": "boolean"
+              },
+              "categories": {
+                "type": "boolean"
+              },
+              "transactions": {
+                "type": "boolean"
+              },
+              "createTransaction": {
+                "type": "boolean"
+              },
+              "receiptUpload": {
+                "type": "boolean"
+              },
               "receiptOcr": {
                 "type": "boolean",
-                "description": "Server-side receipt extraction. Always false in v1."
+                "description": "Server-side receipt extraction (POST /receipts/extract). True only when the administrator has configured an OCR provider; can flip either way as the server's configuration changes."
               }
             }
           },
           "limits": {
             "type": "object",
             "properties": {
-              "maxReceiptBytes": { "type": "integer", "example": 26214400 },
+              "maxReceiptBytes": {
+                "type": "integer",
+                "example": 26214400
+              },
               "receiptMimeTypes": {
                 "type": "array",
-                "items": { "type": "string" },
-                "example": ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"]
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "image/jpeg",
+                  "image/png",
+                  "image/webp",
+                  "image/heic",
+                  "application/pdf"
+                ]
               },
-              "transactionsMaxLimit": { "type": "integer", "example": 200 }
+              "receiptOcrMimeTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Image types POST /receipts/extract accepts — narrower than receiptMimeTypes because OCR backends read bitmaps.",
+                "example": [
+                  "image/jpeg",
+                  "image/png",
+                  "image/webp"
+                ]
+              },
+              "transactionsMaxLimit": {
+                "type": "integer",
+                "example": 200
+              }
             }
           }
         }
       },
       "Account": {
         "type": "object",
-        "required": ["id", "name", "type", "currency", "balance", "shared"],
+        "required": [
+          "id",
+          "name",
+          "type",
+          "currency",
+          "balance",
+          "shared"
+        ],
         "properties": {
-          "id": { "type": "integer", "example": 36 },
-          "name": { "type": "string", "example": "Current Account" },
+          "id": {
+            "type": "integer",
+            "example": 36
+          },
+          "name": {
+            "type": "string",
+            "example": "Current Account"
+          },
           "type": {
             "type": "string",
             "example": "checking",
             "description": "checking, savings, credit_card, cash, investment, crypto, loan, other."
           },
-          "currency": { "type": "string", "example": "GBP" },
+          "currency": {
+            "type": "string",
+            "example": "GBP"
+          },
           "balance": {
             "type": "string",
             "pattern": "^-?\\d+\\.\\d{2}$",
@@ -626,42 +987,106 @@
             "example": "-1465.20",
             "description": "Decimal string, two places. Set only when the account is not already in the user's base currency."
           },
-          "baseCurrency": { "type": "string", "nullable": true },
-          "institution": { "type": "string", "nullable": true, "example": "NatWest" },
+          "baseCurrency": {
+            "type": "string",
+            "nullable": true
+          },
+          "institution": {
+            "type": "string",
+            "nullable": true,
+            "example": "NatWest"
+          },
           "shared": {
             "type": "boolean",
             "description": "True for an account another user shared. It may be read-only — handle 403 on create."
           },
-          "updatedAt": { "type": "string", "nullable": true, "example": "2026-08-01 03:20:02" }
+          "updatedAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-08-01 03:20:02"
+          }
         }
       },
       "Category": {
         "type": "object",
-        "required": ["id", "name", "type", "shared"],
+        "required": [
+          "id",
+          "name",
+          "type",
+          "shared"
+        ],
         "properties": {
-          "id": { "type": "integer", "example": 415 },
-          "name": { "type": "string", "example": "Bank Fees" },
-          "type": { "type": "string", "enum": ["expense", "income"] },
+          "id": {
+            "type": "integer",
+            "example": 415
+          },
+          "name": {
+            "type": "string",
+            "example": "Bank Fees"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "income"
+            ]
+          },
           "parentId": {
             "type": "integer",
             "nullable": true,
             "description": "Null for a top-level category."
           },
-          "icon": { "type": "string", "nullable": true },
-          "color": { "type": "string", "nullable": true, "example": "#ef4444" },
-          "shared": { "type": "boolean" }
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "example": "#ef4444"
+          },
+          "shared": {
+            "type": "boolean"
+          }
         }
       },
       "Transaction": {
         "type": "object",
-        "required": ["id", "accountId", "date", "description", "amount", "type"],
+        "required": [
+          "id",
+          "accountId",
+          "date",
+          "description",
+          "amount",
+          "type"
+        ],
         "properties": {
-          "id": { "type": "integer", "example": 20070 },
-          "accountId": { "type": "integer", "example": 36 },
-          "categoryId": { "type": "integer", "nullable": true },
-          "date": { "type": "string", "format": "date", "example": "2026-08-08" },
-          "description": { "type": "string", "example": "Monthly plan" },
-          "vendor": { "type": "string", "nullable": true, "example": "Practice Plan" },
+          "id": {
+            "type": "integer",
+            "example": 20070
+          },
+          "accountId": {
+            "type": "integer",
+            "example": 36
+          },
+          "categoryId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-08-08"
+          },
+          "description": {
+            "type": "string",
+            "example": "Monthly plan"
+          },
+          "vendor": {
+            "type": "string",
+            "nullable": true,
+            "example": "Practice Plan"
+          },
           "amount": {
             "type": "string",
             "pattern": "^\\d+\\.\\d{2}$",
@@ -670,23 +1095,40 @@
           },
           "type": {
             "type": "string",
-            "enum": ["debit", "credit"],
+            "enum": [
+              "debit",
+              "credit"
+            ],
             "description": "debit is money out, credit is money in."
           },
-          "reference": { "type": "string", "nullable": true },
-          "notes": { "type": "string", "nullable": true },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
           "status": {
             "type": "string",
             "example": "cleared",
             "description": "cleared, pending, or scheduled (a future-dated transaction)."
           },
-          "reconciled": { "type": "boolean" },
+          "reconciled": {
+            "type": "boolean"
+          },
           "isSplit": {
             "type": "boolean",
             "description": "True when the transaction is split across categories in the web UI. Splits are not exposed in v1."
           },
-          "createdAt": { "type": "string", "nullable": true },
-          "updatedAt": { "type": "string", "nullable": true },
+          "createdAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true
+          },
           "accountName": {
             "type": "string",
             "description": "List responses only."
@@ -703,23 +1145,40 @@
       },
       "TransactionPage": {
         "type": "object",
-        "required": ["transactions", "total", "limit", "offset"],
+        "required": [
+          "transactions",
+          "total",
+          "limit",
+          "offset"
+        ],
         "properties": {
           "transactions": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/Transaction" }
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
           },
           "total": {
             "type": "integer",
             "description": "Full match count, not the page size."
           },
-          "limit": { "type": "integer" },
-          "offset": { "type": "integer" }
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
         }
       },
       "NewTransaction": {
         "type": "object",
-        "required": ["accountId", "date", "description", "amount", "type"],
+        "required": [
+          "accountId",
+          "date",
+          "description",
+          "amount",
+          "type"
+        ],
         "properties": {
           "accountId": {
             "type": "integer",
@@ -730,40 +1189,157 @@
             "format": "date",
             "description": "YYYY-MM-DD. A future date is stored as scheduled."
           },
-          "description": { "type": "string" },
+          "description": {
+            "type": "string"
+          },
           "amount": {
             "type": "string",
             "pattern": "^\\d+(\\.\\d{1,2})?$",
             "example": "42.50",
             "description": "Always positive. Accepted as a number or a decimal string; always returned as a two-place string."
           },
-          "type": { "type": "string", "enum": ["debit", "credit"] },
+          "type": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
           "categoryId": {
             "type": "integer",
             "nullable": true,
             "description": "Omit to file it as uncategorised."
           },
-          "vendor": { "type": "string", "nullable": true },
-          "reference": { "type": "string", "nullable": true },
-          "notes": { "type": "string", "nullable": true }
+          "vendor": {
+            "type": "string",
+            "nullable": true
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
         }
       },
       "Receipt": {
         "type": "object",
-        "required": ["id", "transactionId", "fileId", "missing"],
+        "required": [
+          "id",
+          "transactionId",
+          "fileId",
+          "missing"
+        ],
         "properties": {
-          "id": { "type": "integer" },
-          "transactionId": { "type": "integer" },
+          "id": {
+            "type": "integer"
+          },
+          "transactionId": {
+            "type": "integer"
+          },
           "fileId": {
             "type": "integer",
             "description": "Nextcloud file id in the owner's Files — usable with WebDAV."
           },
-          "fileName": { "type": "string", "nullable": true },
-          "mimeType": { "type": "string", "nullable": true },
-          "createdAt": { "type": "string", "nullable": true },
+          "fileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "mimeType": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "nullable": true
+          },
           "missing": {
             "type": "boolean",
             "description": "True when the underlying file has been deleted from Files; the reference survives."
+          }
+        }
+      },
+      "ReceiptDraft": {
+        "type": "object",
+        "description": "A draft transaction extracted from a receipt image. Every field the provider could not read is null (or an empty list) rather than a guess — the user fills those in.",
+        "required": [
+          "merchant",
+          "date",
+          "currency",
+          "total",
+          "lineItems",
+          "suggestedCategoryId",
+          "suggestedCategoryName",
+          "warnings"
+        ],
+        "properties": {
+          "merchant": {
+            "type": "string",
+            "nullable": true,
+            "example": "Tesco Express"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2026-08-01"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "description": "ISO 4217 code printed on the receipt, when legible. Compare with the target account's currency before saving.",
+            "example": "GBP"
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "nullable": true,
+            "description": "Decimal string, two places. The printed total — kept even when the line items disagree (see warnings).",
+            "example": "9.75"
+          },
+          "lineItems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "description",
+                "amount"
+              ],
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "example": "Milk 2L"
+                },
+                "amount": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d{2}$",
+                  "example": "1.65"
+                }
+              }
+            }
+          },
+          "suggestedCategoryId": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Computed locally from the user's own categorisation rules; the provider never sees the category tree."
+          },
+          "suggestedCategoryName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Groceries"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "no-total",
+                "no-date",
+                "line-items-sum-mismatch"
+              ]
+            }
           }
         }
       }
