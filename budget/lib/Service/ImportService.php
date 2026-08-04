@@ -139,7 +139,7 @@ class ImportService {
         $content = $file->getContent();
 
         if (($format === 'ofx' || $format === 'qif') && !empty($accountMapping)) {
-            return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates);
+            return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates, $mapping);
         }
 
         return $this->previewSingleAccountImport($userId, $content, $format, $mapping, $accountId, $skipDuplicates, $delimiter, $presetId);
@@ -164,7 +164,7 @@ class ImportService {
         $content = $file->getContent();
 
         if (($format === 'ofx' || $format === 'qif') && !empty($accountMapping)) {
-            $result = $this->executeMultiAccountImport($userId, $fileId, $content, $format, $accountMapping, $skipDuplicates, $applyRules);
+            $result = $this->executeMultiAccountImport($userId, $fileId, $content, $format, $accountMapping, $skipDuplicates, $applyRules, $mapping);
         } else {
             $result = $this->executeSingleAccountImport($userId, $fileId, $content, $format, $mapping, $accountId, $skipDuplicates, $applyRules, $delimiter, $presetId);
         }
@@ -353,21 +353,25 @@ class ImportService {
             $parsedQif = $this->parserFactory->parseFull($content, 'qif');
             foreach ($parsedQif['accounts'] as $account) {
                 $sourceAccounts[] = [
-                    'accountId' => $account['name'] ?? $account['accountId'] ?? 'Unknown',
+                    'accountId' => $account['accountId'] ?? $account['name'] ?? 'Unknown',
                     'type' => $account['type'] ?? 'unknown',
                     'transactionCount' => count($account['transactions'] ?? []),
                 ];
             }
-            $columns = ['date', 'amount', 'payee', 'memo', 'category', 'reference'];
+            // Column names must be the keys QifParser actually emits, or the
+            // preview cell is blank and the mapping cannot resolve it (#338).
+            // The QIF payee arrives under 'description'; 'category' is an array.
+            $columns = ['date', 'amount', 'description', 'memo', 'category', 'reference'];
             $rawPreview = [$columns];
             foreach ($preview as $row) {
+                $category = $row['category'] ?? null;
                 $rawPreview[] = [
                     $row['date'] ?? '',
                     $row['amount'] ?? '',
-                    $row['payee'] ?? '',
+                    $row['description'] ?? '',
                     $row['memo'] ?? '',
-                    $row['category'] ?? '',
-                    $row['reference'] ?? $row['number'] ?? '',
+                    is_array($category) ? ($category['name'] ?? '') : ($category ?? ''),
+                    $row['reference'] ?? '',
                 ];
             }
         } else {
@@ -436,7 +440,21 @@ class ImportService {
         return $candidate;
     }
 
-    private function previewMultiAccountImport(string $userId, string $content, string $format, array $accountMapping, bool $skipDuplicates): array {
+    /**
+     * The value the "Import Source" rule criterion matches on.
+     *
+     * Deliberately an untranslated literal, like the CSV and bank-sync ones:
+     * it is compared against a pattern the user typed, so translating it would
+     * break their rules whenever they changed language.
+     */
+    private function importSourceLabel(string $format): string {
+        return match ($format) {
+            'qif' => 'QIF Import',
+            default => 'OFX Import',
+        };
+    }
+
+    private function previewMultiAccountImport(string $userId, string $content, string $format, array $accountMapping, bool $skipDuplicates, array $mapping = []): array {
         $parsedData = $this->parserFactory->parseFull($content, $format);
         $transactions = [];
         $duplicates = 0;
@@ -462,9 +480,12 @@ class ImportService {
 
             foreach ($sourceAccount['transactions'] as $index => $txn) {
                 try {
-                    $transaction = $this->normalizer->mapOfxTransaction($txn);
+                    $transaction = $this->normalizer->mapOfxTransaction($txn, $mapping);
+                    $transaction['source'] = $this->importSourceLabel($format);
+                    // The ID is derived from the unmapped row on purpose — see
+                    // TransactionNormalizer::ofxImportIdentity (#338).
                     $importId = $this->occurrenceAwareImportId(
-                        $this->normalizer->generateImportId('preview', $sourceId . '_' . $index, $transaction),
+                        $this->normalizer->generateImportId('preview', $sourceId . '_' . $index, $this->normalizer->ofxImportIdentity($txn)),
                         (int)$destAccountId,
                         $hashCounts
                     );
@@ -875,7 +896,7 @@ class ImportService {
         return $transaction;
     }
 
-    private function executeMultiAccountImport(string $userId, string $fileId, string $content, string $format, array $accountMapping, bool $skipDuplicates, bool $applyRules): array {
+    private function executeMultiAccountImport(string $userId, string $fileId, string $content, string $format, array $accountMapping, bool $skipDuplicates, bool $applyRules, array $mapping = []): array {
         $parsedData = $this->parserFactory->parseFull($content, $format);
         $imported = 0;
         $skipped = 0;
@@ -912,9 +933,12 @@ class ImportService {
 
             foreach ($sourceAccount['transactions'] as $index => $txn) {
                 try {
-                    $transaction = $this->normalizer->mapOfxTransaction($txn);
+                    $transaction = $this->normalizer->mapOfxTransaction($txn, $mapping);
+                    $transaction['source'] = $this->importSourceLabel($format);
+                    // The ID is derived from the unmapped row on purpose — see
+                    // TransactionNormalizer::ofxImportIdentity (#338).
                     $importId = $this->occurrenceAwareImportId(
-                        $this->normalizer->generateImportId($fileId, $sourceId . '_' . $index, $transaction),
+                        $this->normalizer->generateImportId($fileId, $sourceId . '_' . $index, $this->normalizer->ofxImportIdentity($txn)),
                         (int)$destAccountId,
                         $hashCounts
                     );

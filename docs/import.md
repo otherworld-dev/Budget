@@ -7,10 +7,10 @@
 | Format | Best For | Notes |
 |--------|----------|-------|
 | **CSV** | Most banks, custom exports | Most flexible; requires column mapping |
-| **OFX** | US/Canadian banks, direct downloads | Automatic field parsing, no mapping needed |
+| **OFX** | US/Canadian banks, direct downloads | Fields are detected automatically; the text fields can be adjusted |
 | **QIF** | Quicken exports, older software | Legacy format with basic field support |
 
-> **Tip:** If your bank offers multiple export formats, OFX is usually the easiest since it requires no manual column mapping. Use CSV when you need full control over how fields are interpreted.
+> **Tip:** If your bank offers multiple export formats, OFX is usually the easiest since its fields are detected for you. Use CSV when you need full control over how fields are interpreted.
 
 ## CSV Import Step-by-Step
 
@@ -39,6 +39,7 @@ Map each column in your CSV to the corresponding transaction field:
 | **Income Amount** | No | Separate column for credits/deposits |
 | **Expense Amount** | No | Separate column for debits/withdrawals |
 | **Description** | No | Transaction description or memo |
+| **Notes** | No | Column stored in the transaction's notes field |
 | **Type** | No | Whether the row is income or an expense (see below) |
 | **Vendor** | No | Payee or merchant name |
 | **Reference** | No | Check number or reference ID |
@@ -47,6 +48,19 @@ Map each column in your CSV to the corresponding transaction field:
 | **Currency** | No | Currency code for the transaction |
 
 Select the appropriate column header from the dropdown for each field. Columns you do not map are ignored.
+
+#### How a negative amount is written
+
+Exports disagree about how to write a negative, so Budget reads all the usual notations. Every one of these is an expense of 1,234.56:
+
+| Notation | Example |
+|----------|---------|
+| Leading minus | `-1234.56` |
+| Trailing minus | `1234.56-` |
+| Brackets (the accounting convention) | `(1234.56)` |
+| A typographic minus or dash instead of a hyphen | `−1234.56` |
+
+Currency symbols, spaces and thousands separators around the number are ignored, so `-€1.234,56` and `($1,234.56)` are read the same way. A lone `-` in an amount column means "nothing here" and is read as zero, not as a negative.
 
 #### Type Column
 
@@ -89,7 +103,7 @@ If your bank uses European number formatting (e.g., `1.234,56` instead of `1,234
 After mapping your columns, click **Preview** to see a table of parsed transactions before anything is written to the database. Review the preview carefully:
 
 - Verify dates are parsed correctly
-- Confirm amounts have the right sign (positive for income, negative for expenses)
+- Confirm amounts have the right sign — expenses are shown in red with a minus, income in green without one
 - Check that descriptions and vendors look right
 
 Rows that match a transaction already in the account are flagged with a **Duplicate** badge. They are shown for review but skipped when you import — see [Duplicate Detection](#duplicate-detection). The **Show duplicates** and **Show uncategorized** checkboxes only filter what the preview displays; they do not change what is imported.
@@ -112,20 +126,64 @@ When the preview looks correct, click **Execute Import** to save the transaction
 OFX (Open Financial Exchange) files are structured financial data files that many banks offer as a download option, sometimes labeled as "Microsoft Money" or "Quicken" format.
 
 1. Navigate to **Import > Upload File** and select your `.ofx` file
-2. The app parses the file automatically -- no column mapping is needed
+2. The app parses the file automatically and fills in the field mapping for you
 3. If the file contains an account identifier, the app attempts to match it to one of your existing accounts
 4. Review the parsed transactions in the **Preview** step
 5. Click **Execute Import** to save
 
-> **Note:** OFX files contain standardized field names, so the date, amount, and description are extracted automatically.
+> **Note:** OFX files contain standardized field names, so the date, amount, and type are always taken from the file's own structure and cannot be remapped.
+
+### Choosing which OFX field becomes the description
+
+An OFX transaction carries two pieces of text: a **name** and a **memo**. Most
+banks put the payee in the name, so that is what the app uses by default, and
+the memo is kept in the transaction's notes.
+
+Some banks do the opposite and put the useful text in the memo. In the mapping
+step, set **Description** to `memo` and the app will use that instead. The
+available fields for OFX are:
+
+| Field | Default source | Notes |
+|-------|----------------|-------|
+| **Description** | `description` (the OFX name) | Falls back to the memo when the name is empty |
+| **Notes** | `memo` | Left empty when the memo is already the description |
+| **Vendor** | `description` (the OFX name) | |
+| **Reference** | `reference` | Falls back to the bank's transaction ID |
+
+> **Note:** Changing the mapping only affects transactions you import from then
+> on; it does not rewrite transactions you have already imported. Re-importing
+> the same statement will not update them either, because duplicate detection
+> recognises them as already imported. Delete them first if you want them
+> re-created with the new mapping.
 
 ## QIF Import
 
 QIF (Quicken Interchange Format) is a legacy format still exported by some banks and financial software.
 
 1. Navigate to **Import > Upload File** and select your `.qif` file
-2. Map the detected fields to transaction fields (similar to CSV mapping)
-3. Review the preview and click **Execute Import**
+2. Adjust the field mapping if you want different text in the description or notes
+3. Route each account in the file to one of your accounts
+4. Review the preview and click **Execute Import**
+
+A QIF file often holds several accounts, and can also contain your category
+list and other non-transaction sections. Only the accounts are offered for
+import; everything else is ignored.
+
+### QIF fields
+
+Accounts are identified by the name in the file. A file that does not name its
+accounts shows them as *Account 1*, *Account 2* and so on, in the order they
+appear.
+
+| Field | Default source | Notes |
+|-------|----------------|-------|
+| **Description** | `description` | The payee line |
+| **Notes** | `memo` | Left empty when the memo is already the description |
+| **Vendor** | `description` | |
+| **Reference** | `reference` | The check number |
+
+As with OFX, the date, amount and type come from the file's structure and
+cannot be remapped.
 
 > **Tip:** QIF has limited field support compared to OFX and CSV. If your bank offers OFX as an alternative, prefer that format for more complete data.
 
@@ -173,7 +231,7 @@ To reuse it, upload a CSV file and pick your template from the **My Templates** 
 
 ### OFX / QIF: saving account routing
 
-OFX and QIF files have no columns to map — their fields are standardized. What is repetitive is **routing**: a single file can contain several accounts, and each import you re-pick which of your accounts each one maps to.
+OFX and QIF fields are standardized, so their mapping is filled in for you and rarely needs saving. What is repetitive is **routing**: a single file can contain several accounts, and each import you re-pick which of your accounts each one maps to.
 
 1. Upload an OFX or QIF file and reach the **Review & Import** step.
 2. In **Map Source Accounts to Destination Accounts**, set each source account's destination.

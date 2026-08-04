@@ -52,6 +52,15 @@ class TransactionNormalizer {
         'out' => 'debit',
     ];
 
+    /**
+     * Destination column widths, so an imported value can never be rejected
+     * by the insert or by a later edit through the UI/API.
+     * notes is TEXT in the DB but ValidationService caps edits at 2000.
+     */
+    private const MAX_NOTES_LENGTH = 2000;
+    private const MAX_VENDOR_LENGTH = 255;
+    private const MAX_REFERENCE_LENGTH = 100;
+
     /** @var string|null Cached date format detected from batch analysis */
     private ?string $detectedDateFormat = null;
 
@@ -168,26 +177,122 @@ class TransactionNormalizer {
     /**
      * Map an OFX transaction to standard format.
      *
+     * QIF rows are mapped through here too (ImportService routes both formats
+     * to this method), so every source key is resolved defensively.
+     *
+     * Date, amount and type are structural in these formats and are not
+     * remappable; only the text fields below follow the user's mapping.
+     *
      * @param array $txn OFX transaction data
+     * @param array $mapping Field to source-column mapping (empty = defaults)
      * @return array Normalized transaction data
      */
-    public function mapOfxTransaction(array $txn): array {
+    public function mapOfxTransaction(array $txn, array $mapping = []): array {
         $amount = (float) ($txn['rawAmount'] ?? $txn['amount'] ?? 0);
+
+        // <NAME> first, then <MEMO>: OfxParser writes '' rather than null for a
+        // missing NAME, so the old `??` chain could never fall through and
+        // memo-only banks imported blank descriptions (#338).
+        $description = $this->pickSource($txn, $mapping, 'description', ['description', 'name', 'memo']) ?? '';
+        $vendor = $this->pickSource($txn, $mapping, 'vendor', ['description', 'name', 'memo']) ?? '';
+        $reference = $this->pickSource($txn, $mapping, 'reference', ['reference', 'id']);
+        $notes = $this->pickSource($txn, $mapping, 'notes', ['memo']);
+
+        // Repeating the description verbatim in notes helps nobody.
+        if ($notes !== null && $notes === $description) {
+            $notes = null;
+        }
 
         return [
             'date' => $txn['date'] ?? '',
             'amount' => abs($amount),
             'type' => $amount >= 0 ? 'credit' : 'debit',
-            'description' => $txn['description'] ?? $txn['name'] ?? '',
+            'description' => $description,
             'memo' => $txn['memo'] ?? null,
-            'reference' => $txn['reference'] ?? $txn['id'] ?? null,
-            'vendor' => $txn['description'] ?? $txn['name'] ?? '',
+            'reference' => $this->clampLength($reference, self::MAX_REFERENCE_LENGTH),
+            'vendor' => $this->clampLength($vendor, self::MAX_VENDOR_LENGTH),
+            'notes' => $this->clampLength($notes, self::MAX_NOTES_LENGTH),
             'id' => $txn['id'] ?? null, // Preserve FITID for duplicate detection
         ];
     }
 
     /**
+     * The subset of an OFX/QIF row the import ID has always been derived from.
+     *
+     * Deliberately frozen and independent of the user's column mapping: the
+     * content-hash branch of generateImportId() hashes description and
+     * reference, so letting a mapping reach it would re-key every row and
+     * re-import a whole statement as new transactions the first time someone
+     * changed their mapping (#338).
+     *
+     * @param array $txn OFX/QIF transaction data, straight from the parser
+     * @return array Identity fields for generateImportId()
+     */
+    public function ofxImportIdentity(array $txn): array {
+        $amount = (float) ($txn['rawAmount'] ?? $txn['amount'] ?? 0);
+
+        return [
+            'date' => $txn['date'] ?? '',
+            'amount' => abs($amount),
+            'description' => $txn['description'] ?? $txn['name'] ?? '',
+            'reference' => $txn['reference'] ?? $txn['id'] ?? null,
+            'id' => $txn['id'] ?? null,
+        ];
+    }
+
+    /**
+     * Resolve one target field to a value from a parsed OFX/QIF row.
+     *
+     * An unset, blank or unresolvable choice falls back through $defaults
+     * rather than blanking the field. That matters because the offered column
+     * lists advertise names the parsers do not all emit, and because any one
+     * row may be missing the tag the user picked.
+     *
+     * @param array $txn Parsed transaction row
+     * @param array $mapping Field to source-column mapping
+     * @param string $target Field being resolved
+     * @param string[] $defaults Source keys to try when the mapping misses
+     */
+    private function pickSource(array $txn, array $mapping, string $target, array $defaults): ?string {
+        $chosen = $mapping[$target] ?? null;
+        $candidates = is_string($chosen) && $chosen !== '' ? [$chosen] : [];
+        $candidates = array_merge($candidates, $defaults);
+
+        foreach ($candidates as $key) {
+            // QIF's 'category' is an array, so a scalar check is required.
+            if (!isset($txn[$key]) || !is_scalar($txn[$key])) {
+                continue;
+            }
+            $value = trim((string) $txn[$key]);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Trim a value to its destination column width.
+     *
+     * Without this, routing a long MEMO into vendor or reference throws on
+     * insert; ImportService catches that per row, so the user silently loses
+     * transactions to an opaque error.
+     */
+    private function clampLength(?string $value, int $max): ?string {
+        if ($value === null) {
+            return null;
+        }
+
+        return mb_strlen($value) > $max ? mb_substr($value, 0, $max) : $value;
+    }
+
+    /**
      * Map a QIF transaction to standard format.
+     *
+     * Unused: ImportService routes QIF through mapOfxTransaction(), which is
+     * what preserves the parser's synthesised 'id'. Wiring this method up
+     * would drop that id and re-import every previously imported QIF row.
      *
      * @param array $txn QIF transaction data
      * @return array Normalized transaction data
@@ -450,6 +555,10 @@ class TransactionNormalizer {
      * - 1234,56 (European format)
      * - 1.234,56 (European format with thousands separator)
      *
+     * The sign is resolved first and the magnitude parsed unsigned, because
+     * every way of writing a negative other than a leading ASCII hyphen used
+     * to be thrown away — see extractSign() (#339).
+     *
      * @param string|float $amount The amount to parse
      * @return float Parsed amount
      */
@@ -462,14 +571,69 @@ class TransactionNormalizer {
         // Convert to string and trim
         $amount = trim((string) $amount);
 
-        // Remove currency symbols and whitespace
-        $amount = preg_replace('/[^\d,.\-+]/', '', $amount);
+        [$negative, $amount] = $this->extractSign($amount);
 
         // If empty after cleanup, return 0
-        if ($amount === '' || $amount === '-' || $amount === '+') {
+        if ($amount === '') {
             return 0.0;
         }
 
+        $value = $this->parseUnsignedAmount($amount);
+
+        return $negative ? -$value : $value;
+    }
+
+    /**
+     * Split an amount string into its sign and its unsigned digits.
+     *
+     * Only a leading ASCII hyphen ever survived: the cleanup regex dropped a
+     * typographic minus with the currency symbols, brackets are not a
+     * character it keeps, and a trailing minus was both ignored by the cast
+     * and — worse — left in place, pushing the decimal separator out of the
+     * last three characters so "91,29-" parsed as 9129 (#339).
+     *
+     * @param string $amount Trimmed raw value from the file
+     * @return array{0: bool, 1: string} Whether it is negative, and the
+     *                                   value stripped of signs and currency
+     */
+    private function extractSign(string $amount): array {
+        // Typographic minus signs, none of which are an ASCII hyphen.
+        $amount = strtr($amount, [
+            "\u{2212}" => '-', // MINUS SIGN
+            "\u{2013}" => '-', // EN DASH
+            "\u{2014}" => '-', // EM DASH
+            "\u{2010}" => '-', // HYPHEN
+            "\u{2011}" => '-', // NON-BREAKING HYPHEN
+            "\u{FF0D}" => '-', // FULLWIDTH HYPHEN-MINUS
+        ]);
+
+        // (1,234.56): the accounting convention, and what a number of US and
+        // UK exports write instead of a minus. Both brackets are required, so
+        // a stray one stays a typo rather than silently flipping a row.
+        $negative = false;
+        if (strlen($amount) > 2 && str_starts_with($amount, '(') && str_ends_with($amount, ')')) {
+            $negative = true;
+            $amount = substr($amount, 1, -1);
+        }
+
+        // Remove currency symbols and whitespace
+        $amount = preg_replace('/[^\d,.\-+]/', '', $amount);
+
+        // A minus at either end means the same thing, and "(-42.50)" is one
+        // negative written twice rather than a positive.
+        if (str_contains($amount, '-')) {
+            $negative = true;
+        }
+
+        return [$negative, str_replace(['-', '+'], '', $amount)];
+    }
+
+    /**
+     * Parse the magnitude of an amount, deciding which separator is decimal.
+     *
+     * @param string $amount Digits and separators only, no sign
+     */
+    private function parseUnsignedAmount(string $amount): float {
         // Count periods and commas to determine format
         $periodCount = substr_count($amount, '.');
         $commaCount = substr_count($amount, ',');

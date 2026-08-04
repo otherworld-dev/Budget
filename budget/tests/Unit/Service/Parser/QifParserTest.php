@@ -312,4 +312,318 @@ QIF;
         $this->assertEquals(10.0, $transaction['quantity']);
         $this->assertEquals(9.99, $transaction['commission']);
     }
+
+    // ===== account definition blocks =====
+
+    // Every account came back with name === null because case 'N' appeared
+    // twice in the field switch and PHP takes the first arm, so the account
+    // name was only ever read as a transaction's check number.
+    public function testParseReadsAccountNameFromAccountBlock(): void {
+        $qif = <<<'QIF'
+!Account
+NMy Checking
+TBank
+DEveryday account
+^
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop
+N1001
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertCount(1, $result['accounts']);
+        $this->assertEquals('My Checking', $result['accounts'][0]['name']);
+        $this->assertEquals('Everyday account', $result['accounts'][0]['description']);
+    }
+
+    // The !Account record's own N/T/D lines used to fall through the
+    // transaction switch, so the header itself was emitted as a transaction
+    // dated "Everyday account".
+    public function testParseDoesNotTurnAccountBlockIntoATransaction(): void {
+        $qif = <<<'QIF'
+!Account
+NMy Checking
+TBank
+DEveryday account
+^
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $transactions = $result['accounts'][0]['transactions'];
+        $this->assertCount(1, $transactions);
+        $this->assertEquals('2025-01-02', $transactions[0]['date']);
+        $this->assertEquals('Shop', $transactions[0]['description']);
+    }
+
+    // A transaction's own N line is still its check number.
+    public function testParseStillReadsCheckNumberOutsideAccountBlock(): void {
+        $qif = <<<'QIF'
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop
+N1001
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertEquals('1001', $result['accounts'][0]['transactions'][0]['reference']);
+    }
+
+    public function testParseReadsAccountTypeFromAccountBlock(): void {
+        $qif = <<<'QIF'
+!Account
+NVisa
+TCCard
+^
+!Type:CCard
+D1/2/2025
+T-10.00
+PShop
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertEquals('Visa', $result['accounts'][0]['name']);
+        $this->assertEquals('credit_card', $result['accounts'][0]['type']);
+    }
+
+    // ===== non-transaction sections =====
+
+    // parseAccountType defaulted anything it did not recognise to 'bank', so a
+    // real Quicken export's leading category list became a fake account whose
+    // "transactions" were the category names.
+    public function testParseIgnoresCategoryListSection(): void {
+        $qif = <<<'QIF'
+!Type:Cat
+NGroceries
+DFood shopping
+E
+^
+NSalary
+DPay
+I
+^
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop A
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertCount(1, $result['accounts']);
+        $this->assertEquals('bank', $result['accounts'][0]['type']);
+        $this->assertCount(1, $result['accounts'][0]['transactions']);
+        $this->assertEquals('Shop A', $result['accounts'][0]['transactions'][0]['description']);
+    }
+
+    public function testParseIgnoresMemorizedAndClassSections(): void {
+        $qif = <<<'QIF'
+!Type:Class
+NHoliday
+^
+!Type:Memorized
+PSome Payee
+T-5.00
+^
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop A
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertCount(1, $result['accounts']);
+        $this->assertCount(1, $result['accounts'][0]['transactions']);
+    }
+
+    // ===== account identity =====
+
+    // ImportService's multi-account loop reads $sourceAccount['accountId'] for
+    // both formats. QIF never emitted that key, so every account was skipped
+    // and a QIF import silently imported nothing at all.
+    public function testParseGivesEveryAccountAnIdentity(): void {
+        $result = $this->parser->parse($this->getSampleBankQif());
+
+        $this->assertArrayHasKey('accountId', $result['accounts'][0]);
+        $this->assertNotSame('', $result['accounts'][0]['accountId']);
+    }
+
+    public function testParseIdentityUsesTheAccountName(): void {
+        $qif = <<<'QIF'
+!Account
+NMy Checking
+TBank
+^
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertEquals('My Checking', $result['accounts'][0]['accountId']);
+    }
+
+    // Two unnamed sections must not collapse onto one routing key, or the user
+    // can only ever route both to the same destination account.
+    public function testParseGivesUnnamedAccountsDistinctIdentities(): void {
+        $qif = <<<'QIF'
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop
+^
+!Type:CCard
+D1/3/2025
+T-20.00
+POther
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertCount(2, $result['accounts']);
+        $this->assertNotEquals(
+            $result['accounts'][0]['accountId'],
+            $result['accounts'][1]['accountId']
+        );
+    }
+
+    public function testParseMultiAccountAutoSwitchExport(): void {
+        $qif = <<<'QIF'
+!Option:AutoSwitch
+!Account
+NChecking
+TBank
+^
+NVisa
+TCCard
+^
+!Clear:AutoSwitch
+!Account
+NChecking
+TBank
+^
+!Type:Bank
+D1/2/2025
+T-10.00
+PShop A
+^
+!Account
+NVisa
+TCCard
+^
+!Type:CCard
+D1/3/2025
+T-20.00
+PShop B
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertCount(2, $result['accounts']);
+        $this->assertEquals('Checking', $result['accounts'][0]['name']);
+        $this->assertEquals('Visa', $result['accounts'][1]['name']);
+        $this->assertCount(1, $result['accounts'][0]['transactions']);
+        $this->assertCount(1, $result['accounts'][1]['transactions']);
+        $this->assertEquals('Shop A', $result['accounts'][0]['transactions'][0]['description']);
+        $this->assertEquals('Shop B', $result['accounts'][1]['transactions'][0]['description']);
+    }
+
+    // ===== date validation =====
+
+    // Reachable only now that QIF imports at all: an impossible date used to
+    // be handed straight to the insert.
+    // Quicken pads date components to a fixed width, which matches none of the
+    // formats below and used to be handed to the date column verbatim.
+    public function testParseHandlesQuickenSpacePaddedDates(): void {
+        $qif = <<<'QIF'
+!Type:Bank
+D12/ 4'98
+T-20.00
+PPadded with apostrophe year
+^
+D 8/ 6' 3
+T-30.00
+PPadded everywhere
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+        $transactions = $result['accounts'][0]['transactions'];
+
+        $this->assertCount(2, $transactions);
+        $this->assertEquals('1998-12-04', $transactions[0]['date']);
+        $this->assertEquals('2003-08-06', $transactions[1]['date']);
+    }
+
+    // Better to drop the row than to write a non-date into a date column.
+    public function testParseDropsRowWithUnparseableDate(): void {
+        $qif = <<<'QIF'
+!Type:Bank
+Dnot a date at all
+T-20.00
+PBroken
+^
+D1/2/2025
+T-30.00
+PFine
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+        $transactions = $result['accounts'][0]['transactions'];
+
+        $this->assertCount(1, $transactions);
+        $this->assertEquals('2025-01-02', $transactions[0]['date']);
+    }
+
+    // Textual dates still parse - the padding fix must not break them.
+    public function testParseStillHandlesTextualDates(): void {
+        $qif = <<<'QIF'
+!Type:Bank
+DJan 15 2025
+T-20.00
+PTextual
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertEquals('2025-01-15', $result['accounts'][0]['transactions'][0]['date']);
+    }
+
+    public function testParseRejectsImpossibleDate(): void {
+        $qif = <<<'QIF'
+!Type:Bank
+D13/45/2025
+T-10.00
+PShop
+^
+QIF;
+
+        $result = $this->parser->parse($qif);
+
+        $this->assertCount(0, $result['accounts'][0]['transactions'] ?? []);
+    }
 }

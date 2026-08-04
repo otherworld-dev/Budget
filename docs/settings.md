@@ -62,7 +62,7 @@ Both can be enabled independently; with both off the feature is inactive.
 
 Configure behavior for transaction imports:
 
-- **Auto-Apply Import Rules** - When enabled, import rules are automatically applied to categorize transactions during CSV imports
+- **Auto-Apply Import Rules** - When enabled, import rules are automatically applied to categorize transactions during file imports (CSV, OFX and QIF)
 - **Skip Duplicate Transactions** - When enabled, transactions that appear to be duplicates are automatically skipped during import
 - **Default Export Format** - Set the default file format for data exports
 

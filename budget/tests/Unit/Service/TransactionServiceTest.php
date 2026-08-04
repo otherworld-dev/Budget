@@ -19,6 +19,7 @@ use PHPUnit\Framework\TestCase;
 
 class TransactionServiceTest extends TestCase {
     private TransactionService $service;
+    private \OCA\Budget\Service\UserClock $userClock;
     private TransactionMapper $mapper;
     private AccountMapper $accountMapper;
     private TransactionTagMapper $transactionTagMapper;
@@ -43,6 +44,10 @@ class TransactionServiceTest extends TestCase {
         $this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
         $auditService = $this->createMock(\OCA\Budget\Service\AuditService::class);
         $pensionContributionMapper = $this->createMock(\OCA\Budget\Db\PensionContributionMapper::class);
+        // Real UserClock over a config that stores no timezone: "today" is
+        // the server's, which is what these tests have always assumed.
+        // TransactionServiceTimezoneTest covers the user-timezone behaviour.
+        $this->userClock = new \OCA\Budget\Service\UserClock($this->createMock(\OCP\IConfig::class));
 
         $this->service = new TransactionService(
             $this->mapper,
@@ -53,7 +58,8 @@ class TransactionServiceTest extends TestCase {
             $dismissedImportMapper,
             $this->attachmentMapper,
             $auditService,
-            $pensionContributionMapper
+            $pensionContributionMapper,
+            $this->userClock
         );
     }
 

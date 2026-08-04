@@ -2211,20 +2211,20 @@ style('budget', 'budget-app');
 
                         <div class="mapping-container">
                             <div class="mapping-fields">
-                                <div class="mapping-field required">
+                                <div class="mapping-field required" data-map-field="date">
                                     <label><?php p($l->t('Date')); ?> <span class="required">*</span></label>
                                     <select id="map-date" required>
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field required">
+                                <div class="mapping-field required" data-map-field="amount">
                                     <label><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
                                     <select id="map-amount">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                     <p class="hint"><?php p($l->t('Or use separate income/expense columns below')); ?></p>
                                 </div>
-                                <div class="mapping-field-group">
+                                <div class="mapping-field-group" data-map-field="incomeExpense">
                                     <div class="mapping-field">
                                         <label><?php p($l->t('Income Column')); ?></label>
                                         <select id="map-income">
@@ -2239,43 +2239,50 @@ style('budget', 'budget-app');
                                     </div>
                                     <p class="hint"><?php p($l->t('For files with separate income and expense columns')); ?></p>
                                 </div>
-                                <div class="mapping-field required">
+                                <div class="mapping-field required" data-map-field="description">
                                     <label><?php p($l->t('Description')); ?> <span class="required">*</span></label>
                                     <select id="map-description" required>
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field">
+                                <div class="mapping-field" data-map-field="notes">
+                                    <label><?php p($l->t('Notes')); ?></label>
+                                    <select id="map-notes">
+                                        <option value=""><?php p($l->t('Select column...')); ?></option>
+                                    </select>
+                                    <p class="hint"><?php p($l->t('Where the memo from your file is stored')); ?></p>
+                                </div>
+                                <div class="mapping-field" data-map-field="type">
                                     <label><?php p($l->t('Transaction Type')); ?></label>
                                     <select id="map-type">
                                         <option value=""><?php p($l->t('Auto-detect from amount')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field">
+                                <div class="mapping-field" data-map-field="vendor">
                                     <label><?php p($l->t('Vendor/Payee')); ?></label>
                                     <select id="map-vendor">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field">
+                                <div class="mapping-field" data-map-field="reference">
                                     <label><?php p($l->t('Reference/Check Number')); ?></label>
                                     <select id="map-reference">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field">
+                                <div class="mapping-field" data-map-field="category">
                                     <label><?php p($l->t('Category')); ?></label>
                                     <select id="map-category">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field">
+                                <div class="mapping-field" data-map-field="account">
                                     <label><?php p($l->t('Account')); ?></label>
                                     <select id="map-account">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
-                                <div class="mapping-field">
+                                <div class="mapping-field" data-map-field="currency">
                                     <label><?php p($l->t('Currency')); ?></label>
                                     <select id="map-currency">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
@@ -2295,7 +2302,7 @@ style('budget', 'budget-app');
                         </div>
 
                         <div class="mapping-options">
-                            <label>
+                            <label data-map-field="skipFirstRow">
                                 <input type="checkbox" id="skip-first-row">
                                 <?php p($l->t('Skip first row (headers)')); ?>
                             </label>

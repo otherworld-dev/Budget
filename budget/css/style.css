@@ -7074,6 +7074,31 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
+/* Money reads as money: right-aligned, aligned digits, and coloured by
+   direction so the row that says -91,29 in the file cannot look like income
+   (#339). The minus carries the meaning on its own for anyone who can't
+   tell the two colours apart. */
+#preview-table td.positive,
+#preview-table td.negative {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* The Amount column, so the header sits over its own figures. */
+#preview-table th:nth-child(3) {
+    text-align: right;
+}
+
+#preview-table td.positive {
+    color: var(--budget-color-positive);
+}
+
+#preview-table td.negative {
+    color: var(--budget-color-negative);
+}
+
 /* Wizard Navigation */
 .wizard-navigation {
     display: flex;

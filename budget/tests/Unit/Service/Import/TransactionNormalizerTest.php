@@ -338,6 +338,150 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertSame('debit', $result['type']);
 	}
 
+	// ── parseAmount: signs written the way exports actually write them (#339) ──
+
+	public function testParseAmountTrailingMinusIsDebit(): void {
+		// A trailing minus was not just dropped: it also pushed the decimal
+		// comma out of the last three characters, so "91,29-" parsed as
+		// nine thousand one hundred and twenty nine, as income.
+		$row = ['2024-01-01', '91,29-', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(91.29, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountTrailingMinusUsFormat(): void {
+		$row = ['2024-01-01', '1,234.56-', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(1234.56, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountTrailingMinusAfterCurrency(): void {
+		$row = ['2024-01-01', '1.234,56 EUR-', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(1234.56, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountUnicodeMinusIsDebit(): void {
+		// U+2212 MINUS SIGN, not a hyphen. Stripped with the currency symbols.
+		$row = ['2024-01-01', "\u{2212}91,29", 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(91.29, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountEnDashIsDebit(): void {
+		$row = ['2024-01-01', "\u{2013}1.234,56", 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(1234.56, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountParenthesesAreDebit(): void {
+		// The accounting convention, and what a good few US/UK exports write.
+		$row = ['2024-01-01', '(1,234.56)', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(1234.56, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountParenthesesWithCurrencySymbol(): void {
+		$row = ['2024-01-01', '($42.50)', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(42.50, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountUnbalancedParenthesisIsNotNegated(): void {
+		// A stray bracket is a typo, not a sign.
+		$row = ['2024-01-01', '(42.50', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(42.50, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountDoubleNegativeStaysNegative(): void {
+		// "(-42.50)" is one negative written twice over, not a positive.
+		$row = ['2024-01-01', '(-42.50)', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(42.50, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountBareDashIsZeroNotNegative(): void {
+		// Exports write "-" for "nothing here"; it is a placeholder, not a sign.
+		$row = ['2024-01-01', '-', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(0.0, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountLeadingPlusStaysCredit(): void {
+		$row = ['2024-01-01', '+1.234,56', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(1234.56, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountTrailingPlusStaysCredit(): void {
+		$row = ['2024-01-01', '1.234,56+', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(1234.56, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountTypeColumnStillWinsOverTrailingMinus(): void {
+		// #333's rule is unchanged: an explicit type column decides.
+		$row = ['2024-01-01', '91,29-', 'Income', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'type' => 2, 'description' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(91.29, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountDualColumnParenthesesAreNotZero(): void {
+		// The dual-column path skips a column that parses to zero; a
+		// parenthesised value must not be mistaken for one.
+		$row = ['2024-01-01', '', '(75.00)', 'Test'];
+		$mapping = [
+			'date' => 0,
+			'incomeColumn' => 1,
+			'expenseColumn' => 2,
+			'description' => 3,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(75.00, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
 	// ── mapOfxTransaction ───────────────────────────────────────────
 
 	public function testMapOfxTransactionCredit(): void {
@@ -393,6 +537,294 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertNull($result['memo']);
 		$this->assertNull($result['reference']);
 		$this->assertNull($result['id']);
+	}
+
+	// ── mapOfxTransaction column mapping (#338) ─────────────────────
+
+	// #338: the user's column mapping was dropped on the floor for OFX/QIF,
+	// so "description = Memo" did nothing. Banks that put the real payee in
+	// <MEMO> could not be imported usefully.
+	public function testMapOfxTransactionHonoursDescriptionMapping(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POINT OF SALE PURCHASE',
+			'memo' => 'SOBEYS #4471 HALIFAX NS',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => 'memo']);
+
+		$this->assertSame('SOBEYS #4471 HALIFAX NS', $result['description']);
+	}
+
+	public function testMapOfxTransactionHonoursVendorAndReferenceMapping(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POS PURCHASE',
+			'memo' => 'SOBEYS #4471',
+			'checkNumber' => '000812',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, [
+			'vendor' => 'memo',
+			'reference' => 'checkNumber',
+		]);
+
+		$this->assertSame('SOBEYS #4471', $result['vendor']);
+		$this->assertSame('000812', $result['reference']);
+	}
+
+	// An empty mapping must be byte-identical to the no-argument call, or
+	// every existing import silently changes shape.
+	public function testMapOfxTransactionEmptyMappingMatchesLegacyOutput(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POS PURCHASE',
+			'memo' => 'SOBEYS #4471',
+			'reference' => 'REF9',
+			'id' => 'FIT1',
+		];
+
+		$this->assertSame(
+			$this->normalizer->mapOfxTransaction($txn),
+			$this->normalizer->mapOfxTransaction($txn, [])
+		);
+	}
+
+	// QIF rows run through this same mapper but carry different keys, and the
+	// QIF column list advertises names the parser never emits. An unresolvable
+	// source column must fall back to the default, never blank the field.
+	public function testMapOfxTransactionUnknownSourceColumnFallsBackToDefault(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'GROCERY STORE',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => 'payee']);
+
+		$this->assertSame('GROCERY STORE', $result['description']);
+	}
+
+	// A row whose chosen source is empty falls back rather than importing blank.
+	public function testMapOfxTransactionMappedSourceEmptyFallsBackToDefault(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'GROCERY STORE',
+			'memo' => '   ',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => 'memo']);
+
+		$this->assertSame('GROCERY STORE', $result['description']);
+	}
+
+	// ── mapOfxTransaction memo persistence (#338) ───────────────────
+
+	// #338: <MEMO> was parsed, shown in the preview, then discarded — create()
+	// is handed $transaction['notes'], which nothing ever populated.
+	public function testMapOfxTransactionKeepsMemoAsNotes(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POINT OF SALE PURCHASE',
+			'memo' => 'SOBEYS #4471 HALIFAX NS',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn);
+
+		$this->assertSame('SOBEYS #4471 HALIFAX NS', $result['notes']);
+	}
+
+	public function testMapOfxTransactionNotesNullWhenNoMemo(): void {
+		$txn = ['date' => '2026-07-03', 'rawAmount' => -42.17, 'description' => 'X', 'id' => 'F'];
+
+		$result = $this->normalizer->mapOfxTransaction($txn);
+
+		$this->assertNull($result['notes']);
+	}
+
+	// Storing the same string in both fields is never useful.
+	public function testMapOfxTransactionDoesNotRepeatMemoInNotesWhenItIsTheDescription(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POINT OF SALE PURCHASE',
+			'memo' => 'SOBEYS #4471 HALIFAX NS',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => 'memo']);
+
+		$this->assertSame('SOBEYS #4471 HALIFAX NS', $result['description']);
+		$this->assertNull($result['notes']);
+	}
+
+	public function testMapOfxTransactionHonoursNotesMapping(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POS PURCHASE',
+			'memo' => 'SOBEYS #4471',
+			'transactionType' => 'POS',
+			'id' => 'FIT1',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['notes' => 'transactionType']);
+
+		$this->assertSame('POS', $result['notes']);
+	}
+
+	// ── mapOfxTransaction blank NAME fallback (#338) ────────────────
+
+	// OfxParser writes '' (not null) when <NAME> is absent, so the old
+	// `?? $txn['name']` chain could never fire and the row imported blank.
+	public function testMapOfxTransactionFallsBackToMemoWhenNameIsEmpty(): void {
+		$txn = [
+			'date' => '2026-07-05',
+			'rawAmount' => -118.40,
+			'description' => '',
+			'memo' => 'NOVA SCOTIA POWER BILL PMT',
+			'id' => 'FIT2',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn);
+
+		$this->assertSame('NOVA SCOTIA POWER BILL PMT', $result['description']);
+		$this->assertSame('NOVA SCOTIA POWER BILL PMT', $result['vendor']);
+		$this->assertNull($result['notes']);
+	}
+
+	public function testMapOfxTransactionStillBlankWhenNeitherNameNorMemo(): void {
+		$txn = ['date' => '2026-07-05', 'rawAmount' => -10.0, 'description' => '', 'id' => 'F'];
+
+		$result = $this->normalizer->mapOfxTransaction($txn);
+
+		$this->assertSame('', $result['description']);
+	}
+
+	// ── mapOfxTransaction length clamping (#338) ────────────────────
+
+	// vendor is VARCHAR(255) and reference VARCHAR(100); routing a long MEMO
+	// into either would throw on insert and lose the row behind a per-row error.
+	public function testMapOfxTransactionClampsVendorAndReferenceToColumnWidths(): void {
+		$long = str_repeat('A', 400);
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -1.0,
+			'description' => 'X',
+			'memo' => $long,
+			'id' => 'F',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, [
+			'vendor' => 'memo',
+			'reference' => 'memo',
+		]);
+
+		$this->assertSame(255, mb_strlen($result['vendor']));
+		$this->assertSame(100, mb_strlen($result['reference']));
+	}
+
+	public function testMapOfxTransactionClampsNotesToValidationLimit(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -1.0,
+			'description' => 'X',
+			'memo' => str_repeat('B', 2500),
+			'id' => 'F',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn);
+
+		$this->assertSame(2000, mb_strlen($result['notes']));
+	}
+
+	// ── ofxImportIdentity (#338 dedup safety) ───────────────────────
+
+	// The import id is derived from description + reference. If the user's
+	// mapping fed that derivation, re-importing a statement after changing the
+	// mapping would re-key every row and import the whole file a second time.
+	public function testOfxImportIdentityIsUnaffectedByMapping(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POS PURCHASE',
+			'memo' => 'SOBEYS #4471',
+			'reference' => 'REF9',
+		];
+
+		$identity = $this->normalizer->ofxImportIdentity($txn);
+
+		$this->assertSame('POS PURCHASE', $identity['description']);
+		$this->assertSame('REF9', $identity['reference']);
+	}
+
+	// The blank-NAME fallback must not leak into the identity either.
+	public function testOfxImportIdentityKeepsEmptyDescriptionWhenNameAbsent(): void {
+		$txn = ['date' => '2026-07-05', 'rawAmount' => -118.40, 'description' => '', 'memo' => 'POWER BILL'];
+
+		$identity = $this->normalizer->ofxImportIdentity($txn);
+
+		$this->assertSame('', $identity['description']);
+	}
+
+	public function testImportIdIsIdenticalAcrossEveryDescriptionMapping(): void {
+		// No FITID, so generateImportId takes the content-hash branch — the
+		// only branch a mapping could disturb.
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POS PURCHASE',
+			'memo' => 'SOBEYS #4471',
+			'reference' => 'REF9',
+		];
+
+		$baseline = $this->normalizer->generateImportId('f', 0, $this->normalizer->ofxImportIdentity($txn));
+
+		foreach ([[], ['description' => 'memo'], ['description' => 'description'], ['notes' => 'memo']] as $mapping) {
+			$this->normalizer->mapOfxTransaction($txn, $mapping);
+			$this->assertSame(
+				$baseline,
+				$this->normalizer->generateImportId('f', 0, $this->normalizer->ofxImportIdentity($txn)),
+				'import id changed under mapping ' . json_encode($mapping)
+			);
+		}
+	}
+
+	// The identity must reproduce today's ids exactly, not merely be stable.
+	public function testOfxImportIdentityReproducesLegacyImportId(): void {
+		$txn = [
+			'date' => '2026-07-03',
+			'rawAmount' => -42.17,
+			'description' => 'POS PURCHASE',
+			'memo' => 'SOBEYS #4471',
+			'reference' => 'REF9',
+		];
+
+		$legacy = 'hash_' . md5('2026-07-03' . 42.17 . 'POS PURCHASE' . 'REF9');
+
+		$this->assertSame(
+			$legacy,
+			$this->normalizer->generateImportId('f', 0, $this->normalizer->ofxImportIdentity($txn))
+		);
+	}
+
+	public function testOfxImportIdentityPrefersFitId(): void {
+		$txn = ['date' => '2026-07-03', 'rawAmount' => -42.17, 'description' => 'X', 'id' => 'FIT1'];
+
+		$this->assertSame(
+			'ofx_fitid_FIT1',
+			$this->normalizer->generateImportId('f', 0, $this->normalizer->ofxImportIdentity($txn))
+		);
 	}
 
 	// ── mapQifTransaction ───────────────────────────────────────────

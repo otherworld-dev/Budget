@@ -26,6 +26,10 @@ Each criterion consists of three parts:
 
 The **Transaction Type** field lets you filter by Income or Expense. This is useful when the same description appears as both inflow and outflow (e.g., internal transfers between accounts).
 
+The **Import Source** field matches how a transaction arrived. The value is one of a fixed set of labels the importer writes, so the pattern must match one of them exactly: `CSV Import`, `OFX Import`, `QIF Import`, `Bank Sync`, or `Toshl` for the Toshl preset. Use it to categorize differently depending on where the data came from — for example, treating bank-sync rows as already reconciled.
+
+> **Note:** The source is only known while a transaction is being imported. It is not stored on the transaction afterwards, so an Import Source condition never matches when you run a rule over existing transactions — see [Run on Existing Transactions](#run-on-existing-transactions).
+
 The **Account** field scopes a rule to one of your accounts — pick the account from the dropdown and the rule only fires for transactions in it. Combine it with a NOT to mean "any account except this one." The related **Account Type** field matches by kind of account (Checking, Savings, Credit Card, and so on) rather than a specific one — handy for rules like "only on credit-card accounts." Both match when you run a rule over existing transactions and when importing into that account.
 
 ## Boolean Logic
@@ -72,7 +76,7 @@ Example rule for automatic transfer linking:
 - **Criteria:** Transaction Type is Expense AND Description contains "Pot Transfer"
 - **Action:** Auto-Link as Transfer
 
-This works when applying rules manually, during CSV import, and during bank sync.
+This works when applying rules manually, during file import, and during bank sync.
 
 ## Priority
 
@@ -109,6 +113,8 @@ Rules normally apply during import, but you can also apply them retroactively:
 4. Confirm to apply
 
 > **Warning:** Running a rule with "Always" behavior on existing transactions will overwrite any manual categorization you've previously done on matching transactions.
+
+> **Note:** A rule whose criteria include **Import Source** will not match anything here. The source describes how a transaction arrived and is not kept on the transaction, so it is only available while an import is running.
 
 ## Editing a Rule as JSON
 

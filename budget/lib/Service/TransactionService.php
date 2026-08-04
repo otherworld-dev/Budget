@@ -35,7 +35,8 @@ class TransactionService {
         DismissedImportMapper $dismissedImportMapper,
         private \OCA\Budget\Db\AttachmentMapper $attachmentMapper,
         private AuditService $auditService,
-        private \OCA\Budget\Db\PensionContributionMapper $pensionContributionMapper
+        private \OCA\Budget\Db\PensionContributionMapper $pensionContributionMapper,
+        private UserClock $userClock
     ) {
         $this->mapper = $mapper;
         $this->accountMapper = $accountMapper;
@@ -126,8 +127,11 @@ class TransactionService {
         $transaction->setNotes($notes);
         $transaction->setImportId($importId);
         $transaction->setBillId($billId);
-        // Auto-set status based on date: future transactions are scheduled
-        $effectiveStatus = $status ?? (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
+        // Auto-set status based on date: future transactions are scheduled.
+        // "Future" is judged in the USER's timezone — the date came from their
+        // calendar, and using the server's would misfile everything they
+        // record while their local date runs ahead of it (see UserClock).
+        $effectiveStatus = $status ?? ($this->userClock->isFutureDate($date, $userId) ? 'scheduled' : 'cleared');
         $transaction->setStatus($effectiveStatus);
         $transaction->setExcludedFromForecast($excludedFromForecast);
         $transaction->setReconciled(false);
@@ -182,7 +186,7 @@ class TransactionService {
         if ($status === null) {
             $status = $transactionDate === null
                 ? 'scheduled'
-                : (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
+                : ($this->userClock->isFutureDate($date, $ownerUserId) ? 'scheduled' : 'cleared');
         }
 
         // Handle transfers - create paired transactions
@@ -289,7 +293,7 @@ class TransactionService {
         }
 
         $date = $transactionDate ?? $income->getNextExpectedDate();
-        $status = $status ?? (($date > date('Y-m-d')) ? 'scheduled' : 'cleared');
+        $status = $status ?? ($this->userClock->isFutureDate($date, $userId) ? 'scheduled' : 'cleared');
 
         return $this->create(
             userId: $userId,
@@ -488,7 +492,7 @@ class TransactionService {
 
         // Auto-clear scheduled transactions when date is moved to today or past
         if (isset($updates['date']) && $oldStatus === 'scheduled' && !isset($updates['status'])) {
-            if ($updates['date'] <= date('Y-m-d')) {
+            if (!$this->userClock->isFutureDate($updates['date'], $userId)) {
                 $updates['status'] = 'cleared';
             }
         }

@@ -19,6 +19,14 @@ class QifParser {
     private const TYPE_LIABILITY = 'liability';
 
     /**
+     * !Type: sections that hold transactions. Anything else in a QIF file —
+     * the category list, classes, memorised payees, security prices — has the
+     * same record shape and would otherwise be parsed as an account full of
+     * transactions, because a real Quicken export leads with !Type:Cat.
+     */
+    private const TRANSACTION_SECTIONS = ['bank', 'cash', 'ccard', 'invst', 'oth a', 'oth l'];
+
+    /**
      * Parse QIF content and return structured data with accounts and transactions.
      *
      * @param string $content Raw QIF file content
@@ -43,6 +51,15 @@ class QifParser {
         $currentSplit = [];
         $inSplit = false;
 
+        // An !Account record defines or selects an account; its N/T/D lines are
+        // not transaction fields, and its terminating ^ ends a definition
+        // rather than a transaction.
+        $accountRecord = null;
+        $pendingAccount = null;
+        $inAutoSwitchList = false;
+        $skipSection = false;
+        $accountOrdinal = 0;
+
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) {
@@ -54,45 +71,74 @@ class QifParser {
                 $header = strtolower($line);
 
                 if (str_starts_with($header, '!type:')) {
+                    $accountRecord = null;
+                    $sectionType = strtolower(trim(substr($line, 6)));
+                    $skipSection = !in_array($sectionType, self::TRANSACTION_SECTIONS, true);
+
+                    if ($skipSection) {
+                        continue;
+                    }
+
                     // Save previous account if exists
                     if ($currentAccount !== null) {
                         $accounts[] = $currentAccount;
                     }
 
                     // Start new account section
-                    $currentAccountType = $this->parseAccountType(substr($line, 6));
-                    $currentAccount = [
-                        'name' => null,
-                        'type' => $currentAccountType,
-                        'description' => null,
-                        'transactions' => [],
-                    ];
+                    $currentAccountType = $this->parseAccountType($sectionType);
+                    $currentAccount = $this->newAccount($pendingAccount, $currentAccountType, ++$accountOrdinal);
+                    $pendingAccount = null;
                     $currentTransaction = [];
                 } elseif ($header === '!account') {
-                    // Account definition follows - will be parsed in subsequent lines
-                    continue;
+                    // Account definition record follows
+                    $skipSection = false;
+                    $accountRecord = ['name' => null, 'type' => null, 'description' => null];
                 } elseif ($header === '!option:autoswitch') {
-                    // AutoSwitch option - accounts will follow
-                    continue;
+                    // A directory of every account in the file, not data
+                    $inAutoSwitchList = true;
                 } elseif ($header === '!clear:autoswitch') {
-                    // End of AutoSwitch
+                    $inAutoSwitchList = false;
+                    $accountRecord = null;
+                }
+                continue;
+            }
+
+            if ($skipSection) {
+                continue;
+            }
+
+            $code = $line[0];
+            $value = strlen($line) > 1 ? substr($line, 1) : '';
+
+            // Inside an !Account record: account fields, not transaction fields
+            if ($accountRecord !== null) {
+                if ($code === '^') {
+                    // The AutoSwitch block only lists the accounts that exist;
+                    // the record that selects one comes after !Clear:AutoSwitch.
+                    if (!$inAutoSwitchList) {
+                        $pendingAccount = $accountRecord;
+                        $accountRecord = null;
+                    } else {
+                        $accountRecord = ['name' => null, 'type' => null, 'description' => null];
+                    }
                     continue;
                 }
+
+                match ($code) {
+                    'N' => $accountRecord['name'] = $value,
+                    'T' => $accountRecord['type'] = $this->parseAccountType($value),
+                    'D' => $accountRecord['description'] = $value,
+                    default => null,
+                };
                 continue;
             }
 
             // If no account context yet, create default bank account
             if ($currentAccount === null) {
-                $currentAccount = [
-                    'name' => null,
-                    'type' => self::TYPE_BANK,
-                    'description' => null,
-                    'transactions' => [],
-                ];
+                $currentAccount = $this->newAccount($pendingAccount, self::TYPE_BANK, ++$accountOrdinal);
+                $pendingAccount = null;
+                $currentAccountType = $currentAccount['type'];
             }
-
-            $code = $line[0];
-            $value = strlen($line) > 1 ? substr($line, 1) : '';
 
             // Handle end of transaction
             if ($code === '^') {
@@ -100,7 +146,6 @@ class QifParser {
                     // Finalize splits if any
                     if (!empty($currentSplit)) {
                         $currentTransaction['splits'][] = $currentSplit;
-                        $currentSplit = [];
                     }
 
                     // Process and add transaction
@@ -110,6 +155,7 @@ class QifParser {
                     }
                 }
                 $currentTransaction = [];
+                $currentSplit = [];
                 $inSplit = false;
                 continue;
             }
@@ -185,15 +231,6 @@ class QifParser {
                 case 'O': // Commission
                     $currentTransaction['commission'] = $this->parseAmount($value);
                     break;
-
-                // Account definition fields (after !Account header)
-                case 'N': // Account name (in account context)
-                    if (empty($currentAccount['transactions'])) {
-                        $currentAccount['name'] = $value;
-                    } else {
-                        $currentTransaction['reference'] = $value;
-                    }
-                    break;
             }
         }
 
@@ -213,6 +250,34 @@ class QifParser {
         }
 
         return ['accounts' => $accounts];
+    }
+
+    /**
+     * Build an account, taking its identity from a preceding !Account record.
+     *
+     * QIF has no account numbers, so the name is the only real identity a file
+     * offers. ImportService keys the destination routing (and the user's saved
+     * routing templates) on 'accountId', so unnamed sections still need
+     * something stable and distinct — otherwise several accounts collapse onto
+     * one key and can only be routed to a single destination.
+     *
+     * @param array|null $definition Fields from an !Account record
+     * @param string $sectionType Account type from the !Type: header
+     * @param int $ordinal 1-based position of this account in the file
+     */
+    private function newAccount(?array $definition, string $sectionType, int $ordinal): array {
+        $name = $definition['name'] ?? null;
+        if ($name !== null && trim($name) === '') {
+            $name = null;
+        }
+
+        return [
+            'accountId' => $name ?? 'Account ' . $ordinal,
+            'name' => $name,
+            'type' => $definition['type'] ?? $sectionType,
+            'description' => $definition['description'] ?? null,
+            'transactions' => [],
+        ];
     }
 
     /**
@@ -345,8 +410,15 @@ class QifParser {
         // Handle M/D'YY format (apostrophe separator for year)
         $date = str_replace("'", "/", $date);
 
+        // Quicken pads date components to a fixed width ("12/ 4'98", " 8/ 6' 3").
+        // Only the numeric form is de-padded; textual dates keep their spaces
+        // so strtotime can still read them further down.
+        $compact = preg_replace('/\s+/', '', $date);
+
         // Extract numeric parts to help with disambiguation
-        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $date, $parts)) {
+        // The year accepts 1 digit because Quicken's padded 2-char year field
+        // ("' 3" = 2003) loses its space above
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{1,4})$/', $compact, $parts)) {
             $first = (int) $parts[1];
             $second = (int) $parts[2];
             $year = (int) $parts[3];
@@ -359,14 +431,20 @@ class QifParser {
             // Disambiguate based on which values are valid for month (1-12)
             if ($first > 12 && $second <= 12) {
                 // First number > 12, must be D/M/Y format
-                return sprintf('%04d-%02d-%02d', $year, $second, $first);
-            } elseif ($second > 12 && $first <= 12) {
-                // Second number > 12, must be M/D/Y format
-                return sprintf('%04d-%02d-%02d', $year, $first, $second);
+                [$month, $day] = [$second, $first];
             } else {
-                // Both could be month - default to M/D/Y (US format, Quicken's native format)
-                return sprintf('%04d-%02d-%02d', $year, $first, $second);
+                // Second number > 12 means M/D/Y; when both could be a month,
+                // default to M/D/Y (Quicken's native format)
+                [$month, $day] = [$first, $second];
             }
+
+            // Reject the impossible rather than handing e.g. 2025-13-45 to the
+            // insert, which fails as an opaque per-row error
+            if (!checkdate($month, $day, $year)) {
+                return '';
+            }
+
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
         }
 
         // Try various date formats for other patterns
@@ -393,8 +471,9 @@ class QifParser {
             return date('Y-m-d', $timestamp);
         }
 
-        // Return as-is if we can't parse
-        return $date;
+        // Blank rather than returning the raw string: the caller drops the row,
+        // which beats writing a non-date into a date column
+        return '';
     }
 
     /**
@@ -406,10 +485,16 @@ class QifParser {
             return null;
         }
 
+        // parseQifDate blanks a date it cannot make sense of
+        $date = $this->parseQifDate($raw['date']);
+        if ($date === '') {
+            return null;
+        }
+
         $amount = $this->parseAmount($raw['amount']);
 
         $transaction = [
-            'date' => $this->parseQifDate($raw['date']),
+            'date' => $date,
             'amount' => abs($amount),
             'rawAmount' => $amount,
             'type' => $amount >= 0 ? 'credit' : 'debit',

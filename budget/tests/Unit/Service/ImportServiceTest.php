@@ -523,6 +523,230 @@ class ImportServiceTest extends TestCase {
         $this->assertSame(['hash_abc', 'hash_abc_occ2'], $checkedIds);
     }
 
+    // ===== OFX/QIF column mapping (#338) =====
+
+    /**
+     * @param array $txn One parsed OFX row
+     */
+    private function mockOfxFile(array $txn): void {
+        $this->mockImportFile('statement.ofx', 'ofx data');
+        $this->parserFactory->method('detectFormat')->willReturn('ofx');
+        $this->parserFactory->method('parseFull')->willReturn([
+            'accounts' => [
+                ['accountId' => '1234567', 'transactions' => [$txn]],
+            ],
+        ]);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Checking'));
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->duplicateDetector->method('isDuplicate')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+        $this->normalizer->method('generateImportId')->willReturn('ofx_fitid_FIT1');
+    }
+
+    private function sampleOfxRow(): array {
+        return [
+            'date' => '2026-07-03',
+            'rawAmount' => -42.17,
+            'description' => 'POINT OF SALE PURCHASE',
+            'memo' => 'SOBEYS #4471 HALIFAX NS',
+            'id' => 'FIT1',
+        ];
+    }
+
+    public function testProcessImportPassesColumnMappingToOfxMapper(): void {
+        // #338: the multi-account path dropped the mapping entirely, so
+        // choosing "description = memo" did nothing for OFX files.
+        $this->mockOfxFile($this->sampleOfxRow());
+
+        $seenMapping = null;
+        $this->normalizer->method('mapOfxTransaction')
+            ->willReturnCallback(function ($row, $mapping = []) use (&$seenMapping) {
+                $seenMapping = $mapping;
+                return ['date' => '2026-07-03', 'amount' => 42.17, 'type' => 'debit', 'description' => 'SOBEYS'];
+            });
+        $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+
+        $this->service->processImport(
+            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+        );
+
+        $this->assertSame(['description' => 'memo'], $seenMapping);
+    }
+
+    public function testPreviewImportPassesColumnMappingToOfxMapper(): void {
+        // Preview must agree with execute or the user is shown one thing and
+        // gets another.
+        $this->mockOfxFile($this->sampleOfxRow());
+
+        $seenMapping = null;
+        $this->normalizer->method('mapOfxTransaction')
+            ->willReturnCallback(function ($row, $mapping = []) use (&$seenMapping) {
+                $seenMapping = $mapping;
+                return ['date' => '2026-07-03', 'amount' => 42.17, 'type' => 'debit', 'description' => 'SOBEYS'];
+            });
+        $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+
+        $this->service->previewImport(
+            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+        );
+
+        $this->assertSame(['description' => 'memo'], $seenMapping);
+    }
+
+    public function testProcessImportDerivesImportIdFromUnmappedRow(): void {
+        // The content-hash branch of generateImportId hashes the description.
+        // If the mapped value reached it, changing the mapping would re-key
+        // every row and re-import the whole statement (#338).
+        $row = $this->sampleOfxRow();
+        $this->mockOfxFile($row);
+
+        $this->normalizer->method('mapOfxTransaction')->willReturn([
+            'date' => '2026-07-03', 'amount' => 42.17, 'type' => 'debit', 'description' => 'SOBEYS',
+        ]);
+        $this->normalizer->expects($this->once())
+            ->method('ofxImportIdentity')
+            ->with($row)
+            ->willReturn(['description' => 'POINT OF SALE PURCHASE']);
+
+        $seenIdentity = null;
+        $this->normalizer->method('generateImportId')
+            ->willReturnCallback(function ($fileId, $index, $transaction) use (&$seenIdentity) {
+                $seenIdentity = $transaction;
+                return 'ofx_fitid_FIT1';
+            });
+
+        $this->service->processImport(
+            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+        );
+
+        $this->assertSame(['description' => 'POINT OF SALE PURCHASE'], $seenIdentity);
+    }
+
+    public function testProcessImportStoresMappedDescriptionAndNotes(): void {
+        // The memo used to be parsed, previewed, then dropped: create() is
+        // handed $transaction['notes'], which nothing populated (#338).
+        $this->mockOfxFile($this->sampleOfxRow());
+
+        $this->normalizer->method('mapOfxTransaction')->willReturn([
+            'date' => '2026-07-03',
+            'amount' => 42.17,
+            'type' => 'debit',
+            'description' => 'SOBEYS #4471 HALIFAX NS',
+            'notes' => 'POINT OF SALE PURCHASE',
+        ]);
+        $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+
+        $this->transactionService->expects($this->once())
+            ->method('create')
+            ->with(
+                'user1',
+                7,
+                '2026-07-03',
+                'SOBEYS #4471 HALIFAX NS',
+                42.17,
+                'debit',
+                null,
+                null,
+                null,
+                'POINT OF SALE PURCHASE'
+            );
+
+        $this->service->processImport(
+            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+        );
+    }
+
+    // ===== QIF multi-account import, and the import source =====
+
+    public function testProcessImportRoutesQifAccountsByTheirParsedIdentity(): void {
+        // QifParser emitted no 'accountId', but the shared multi-account loop
+        // reads exactly that key — so every QIF account was skipped and a QIF
+        // import silently imported nothing at all.
+        $this->mockImportFile('statement.qif', 'qif data');
+        $this->parserFactory->method('detectFormat')->willReturn('qif');
+        $this->parserFactory->method('parseFull')->willReturn([
+            'accounts' => [
+                [
+                    'accountId' => 'My Checking',
+                    'name' => 'My Checking',
+                    'type' => 'bank',
+                    'transactions' => [
+                        ['date' => '2026-07-03', 'rawAmount' => -10.0, 'description' => 'Shop', 'id' => 'qif_abc'],
+                    ],
+                ],
+            ],
+        ]);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Checking'));
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+        $this->normalizer->method('mapOfxTransaction')->willReturn([
+            'date' => '2026-07-03', 'amount' => 10.0, 'type' => 'debit', 'description' => 'Shop',
+        ]);
+        $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+        $this->normalizer->method('generateImportId')->willReturn('ofx_fitid_qif_abc');
+
+        $this->transactionService->expects($this->once())->method('create');
+
+        $result = $this->service->processImport(
+            'user1', 'statement.qif', [], null, ['My Checking' => 7]
+        );
+
+        $this->assertEquals(1, $result['imported']);
+    }
+
+    public function testProcessImportSetsOfxImportSource(): void {
+        // Without a 'source' key CriteriaEvaluator treats the field as absent,
+        // so every "Import Source" rule condition was false for OFX and QIF —
+        // and true for every negated one.
+        $this->mockOfxFile($this->sampleOfxRow());
+        $this->normalizer->method('mapOfxTransaction')->willReturn([
+            'date' => '2026-07-03', 'amount' => 42.17, 'type' => 'debit', 'description' => 'SOBEYS',
+        ]);
+        $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+
+        $seenSource = null;
+        $this->ruleApplicator->method('applyRules')
+            ->willReturnCallback(function ($userId, $transaction) use (&$seenSource) {
+                $seenSource = $transaction['source'] ?? null;
+                return $transaction;
+            });
+
+        $this->service->processImport('user1', 'statement.ofx', [], null, ['1234567' => 7]);
+
+        $this->assertSame('OFX Import', $seenSource);
+    }
+
+    public function testProcessImportSetsQifImportSource(): void {
+        $this->mockImportFile('statement.qif', 'qif data');
+        $this->parserFactory->method('detectFormat')->willReturn('qif');
+        $this->parserFactory->method('parseFull')->willReturn([
+            'accounts' => [
+                [
+                    'accountId' => 'My Checking',
+                    'transactions' => [['date' => '2026-07-03', 'rawAmount' => -10.0, 'id' => 'qif_abc']],
+                ],
+            ],
+        ]);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Checking'));
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->normalizer->method('mapOfxTransaction')->willReturn([
+            'date' => '2026-07-03', 'amount' => 10.0, 'type' => 'debit', 'description' => 'Shop',
+        ]);
+        $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+        $this->normalizer->method('generateImportId')->willReturn('ofx_fitid_qif_abc');
+
+        $seenSource = null;
+        $this->ruleApplicator->method('applyRules')
+            ->willReturnCallback(function ($userId, $transaction) use (&$seenSource) {
+                $seenSource = $transaction['source'] ?? null;
+                return $transaction;
+            });
+
+        $this->service->processImport('user1', 'statement.qif', [], null, ['My Checking' => 7]);
+
+        $this->assertSame('QIF Import', $seenSource);
+    }
+
     public function testProcessImportCleansUpFile(): void {
         $file = $this->createMock(ISimpleFile::class);
         $file->method('getContent')->willReturn('csv data');

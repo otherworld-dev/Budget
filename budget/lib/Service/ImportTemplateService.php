@@ -26,7 +26,7 @@ class ImportTemplateService extends AbstractCrudService {
      */
     private const COLUMN_FIELDS = [
         'date', 'amount', 'incomeColumn', 'expenseColumn', 'description',
-        'type', 'vendor', 'reference', 'category', 'account', 'currency',
+        'notes', 'type', 'vendor', 'reference', 'category', 'account', 'currency',
     ];
 
     /**

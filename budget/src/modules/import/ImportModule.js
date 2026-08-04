@@ -6,6 +6,19 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
+/**
+ * Mapping targets each format can actually resolve (#338).
+ *
+ * OFX and QIF take date, amount and type from the file's own structure, and
+ * have no per-row account, currency or dual-amount columns. Those selects are
+ * hidden for them rather than left on screen implying an effect they cannot
+ * have. A format missing here maps everything, which is what CSV wants.
+ */
+const MAPPABLE_FIELDS = {
+    ofx: ['description', 'notes', 'vendor', 'reference'],
+    qif: ['description', 'notes', 'vendor', 'reference']
+};
+
 export default class ImportModule {
     constructor(app) {
         this.app = app;
@@ -135,6 +148,7 @@ export default class ImportModule {
         if (!step2) return;
 
         let presetGroup = document.getElementById('import-preset-group');
+        if (presetGroup) presetGroup.style.display = '';
         if (!presetGroup) {
             presetGroup = document.createElement('div');
             presetGroup.className = 'form-group';
@@ -250,6 +264,7 @@ export default class ImportModule {
         setSelect('map-income', mapping.incomeColumn);
         setSelect('map-expense', mapping.expenseColumn);
         setSelect('map-description', mapping.description);
+        setSelect('map-notes', mapping.notes);
         setSelect('map-type', mapping.type);
         setSelect('map-vendor', mapping.vendor);
         setSelect('map-reference', mapping.reference);
@@ -720,6 +735,8 @@ export default class ImportModule {
 
         // Populate column mapping dropdowns
         this.populateColumnMappings(uploadResult.columns);
+        this.applyFormatDefaults(uploadResult.format, uploadResult.columns || []);
+        this.applyFormatFieldVisibility(uploadResult.format);
 
         // Show preview data
         this.showMappingPreview(uploadResult.preview);
@@ -735,6 +752,23 @@ export default class ImportModule {
                 await this.loadPresets();
             }
             this.showPresetSelector();
+        } else {
+            // Presets are CSV-only. Without this an OFX/QIF upload that follows
+            // a preset-driven CSV import in the same page session inherits a
+            // hidden mapping block and a stale bank dropdown (#338).
+            this.selectedPreset = null;
+            this.selectedTemplate = null;
+            // Clear the control too, not just the state: renderPresetSelector
+            // restores its selection from this element, so leaving it set would
+            // show a later CSV import a preset that is no longer being applied.
+            const presetSelect = document.getElementById('import-preset');
+            if (presetSelect) presetSelect.value = '';
+            const presetGroup = document.getElementById('import-preset-group');
+            if (presetGroup) presetGroup.style.display = 'none';
+            const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
+            const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
+            if (mappingContainer) mappingContainer.style.display = '';
+            if (mappingOptions) mappingOptions.style.display = '';
         }
 
         // Move to step 2
@@ -756,6 +790,7 @@ export default class ImportModule {
             'map-income': document.getElementById('map-income'),
             'map-expense': document.getElementById('map-expense'),
             'map-description': document.getElementById('map-description'),
+            'map-notes': document.getElementById('map-notes'),
             'map-type': document.getElementById('map-type'),
             'map-vendor': document.getElementById('map-vendor'),
             'map-reference': document.getElementById('map-reference'),
@@ -790,6 +825,9 @@ export default class ImportModule {
             'map-income': ['income', 'credit', 'deposits', 'deposit', 'credits', 'receipts'],
             'map-expense': ['expense', 'debit', 'withdrawals', 'withdrawal', 'debits', 'payments', 'payment'],
             'map-description': ['description', 'memo', 'details', 'transaction details'],
+            // Deliberately not 'memo': for CSV that column is usually already
+            // the description. OFX/QIF get memo->notes from applyFormatDefaults.
+            'map-notes': ['notes', 'note'],
             'map-type': ['type', 'transaction type', 'debit/credit', 'dr/cr'],
             'map-vendor': ['vendor', 'payee', 'merchant', 'counterparty'],
             'map-reference': ['reference', 'ref', 'check number', 'transaction id'],
@@ -811,6 +849,60 @@ export default class ImportModule {
             if (matchingColumn) {
                 select.value = matchingColumn;
             }
+        });
+    }
+
+    /**
+     * Preselect the source each field actually uses today, for formats whose
+     * columns are fixed. Without this the OFX memo would stay unmapped and
+     * keep being discarded (#338).
+     */
+    applyFormatDefaults(format, columns) {
+        if (format !== 'ofx' && format !== 'qif') return;
+
+        const defaults = {
+            'map-description': 'description',
+            'map-notes': 'memo',
+            'map-reference': 'reference'
+        };
+
+        Object.entries(defaults).forEach(([fieldId, column]) => {
+            const select = document.getElementById(fieldId);
+            if (select && columns.includes(column)) {
+                select.value = column;
+            }
+        });
+    }
+
+    /**
+     * Show only the mapping fields the current format can resolve.
+     *
+     * Hidden selects are cleared so a value left over from an earlier CSV
+     * import in the same page session cannot change the import silently — a
+     * stale income/expense column fails the amount check, and a stale account
+     * column reroutes the whole file down the single-account path. Date and
+     * amount keep their values because validateMappingStep still requires them.
+     */
+    applyFormatFieldVisibility(format) {
+        const step2 = document.getElementById('import-step-2');
+        if (!step2) return;
+
+        const mappable = MAPPABLE_FIELDS[format] || null;
+
+        step2.querySelectorAll('[data-map-field]').forEach(wrapper => {
+            const field = wrapper.dataset.mapField;
+            const visible = !mappable || mappable.includes(field);
+
+            wrapper.style.display = visible ? '' : 'none';
+
+            if (visible || field === 'date' || field === 'amount') return;
+
+            wrapper.querySelectorAll('select').forEach(select => {
+                select.value = '';
+            });
+            wrapper.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
         });
     }
 
@@ -878,6 +970,7 @@ export default class ImportModule {
             incomeColumn: document.getElementById('map-income')?.value || null,
             expenseColumn: document.getElementById('map-expense')?.value || null,
             description: document.getElementById('map-description')?.value || null,
+            notes: document.getElementById('map-notes')?.value || null,
             type: document.getElementById('map-type')?.value || null,
             vendor: document.getElementById('map-vendor')?.value || null,
             reference: document.getElementById('map-reference')?.value || null,
@@ -1264,19 +1357,23 @@ export default class ImportModule {
 
         transactions.slice(0, 50).forEach((transaction) => {
             const row = document.createElement('tr');
-            const amount = parseFloat(transaction.amount) || 0;
+            // Every amount arrives unsigned with the direction in `type`, so
+            // reading the sign off the number showed an expense as income —
+            // a file of nothing but "-91,29" previewed as all positive (#339).
+            const magnitude = Math.abs(parseFloat(transaction.amount) || 0);
+            const amount = transaction.type === 'debit' ? -magnitude : magnitude;
             const isDuplicate = transaction.isDuplicate || false;
             const statusBadge = isDuplicate
                 ? `<span class="status-badge status-error">${t('budget', 'Duplicate')}</span>`
                 : `<span class="status-badge status-success">${t('budget', 'New')}</span>`;
 
             row.innerHTML = `
-                <td>${transaction.date || ''}</td>
-                <td>${transaction.description || ''}</td>
-                <td class="${amount >= 0 ? 'positive' : 'negative'}">
+                <td>${dom.escapeHtml(transaction.date || '')}</td>
+                <td>${dom.escapeHtml(transaction.description || '')}</td>
+                <td class="${amount < 0 ? 'negative' : 'positive'}">
                     ${this.formatCurrency(amount)}
                 </td>
-                <td>${this.getCategoryLabel(transaction)}</td>
+                <td>${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
                 <td>
                     ${statusBadge}
                 </td>
@@ -1636,6 +1733,10 @@ export default class ImportModule {
         document.querySelectorAll('#import-step-2 select').forEach(select => {
             select.selectedIndex = 0;
         });
+
+        // Restore the full field set, or the next CSV import inherits the
+        // reduced OFX/QIF one (#338)
+        this.applyFormatFieldVisibility(null);
 
         // Importing duplicates is a per-import opt-in — never carry it over
         const importDuplicates = document.getElementById('import-duplicates');

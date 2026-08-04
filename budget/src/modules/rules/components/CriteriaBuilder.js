@@ -267,6 +267,12 @@ export class CriteriaBuilder {
 			return t('budget', 'e.g., ^ORDER-\\d+');
 		}
 
+		// The source values are fixed literals the importer writes, so the
+		// placeholder has to name one or there is no way to guess them
+		if (field === 'source') {
+			return t('budget', 'e.g., OFX Import');
+		}
+
 		return t('budget', 'e.g., amazon');
 	}
 
