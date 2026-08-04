@@ -51,27 +51,41 @@ class ApiV1Controller extends OCSController {
     #[NoAdminRequired]
     public function info(): DataResponse {
         return new DataResponse([
-            'apiVersion' => self::API_VERSION,
-            'appVersion' => $this->appVersion(),
-            'userId' => $this->userId,
-            'baseCurrency' => $this->conversionService->getBaseCurrency($this->userId),
+            'api_version' => self::API_VERSION,
+            'app_version' => $this->appVersion(),
+            'user_id' => $this->userId,
+            'base_currency' => $this->conversionService->getBaseCurrency($this->userId),
             'features' => [
                 'accounts' => true,
                 'categories' => true,
                 'transactions' => true,
-                'createTransaction' => true,
-                'receiptUpload' => true,
+                'create_transaction' => true,
+                'receipt_upload' => true,
                 // Server-side receipt extraction (#533): true only when this
                 // instance has an OCR provider configured AND usable, so the
-                // capture flow never appears on a server that would 501 it.
-                'receiptOcr' => $this->ocrSettings->isConfigured(),
+                // capture flow never appears on a server that cannot serve it.
+                'receipt_ocr' => $this->ocrSettings->isConfigured(),
             ],
             'limits' => [
-                'maxReceiptBytes' => AttachmentService::MAX_SIZE,
-                'receiptMimeTypes' => AttachmentService::ALLOWED_MIMES,
-                'receiptOcrMimeTypes' => ReceiptExtractionService::EXTRACT_MIMES,
-                'transactionsMaxLimit' => ApiV1TransactionController::MAX_LIMIT,
+                'max_receipt_bytes' => AttachmentService::MAX_SIZE,
+                'receipt_mime_types' => AttachmentService::ALLOWED_MIMES,
+                'receipt_ocr_mime_types' => ReceiptExtractionService::EXTRACT_MIMES,
+                'transactions_max_limit' => ApiV1TransactionController::MAX_LIMIT,
             ],
+        ]);
+    }
+
+    /**
+     * The capture app's first call, shaped exactly as its handoff contract
+     * specifies. GET / (info) carries the same facts and more — this stays
+     * the app's minimal, stable view of them.
+     */
+    #[NoAdminRequired]
+    public function capabilities(): DataResponse {
+        return new DataResponse([
+            'ocr_available' => $this->ocrSettings->isConfigured(),
+            'currency' => $this->conversionService->getBaseCurrency($this->userId),
+            'version' => $this->appVersion(),
         ]);
     }
 

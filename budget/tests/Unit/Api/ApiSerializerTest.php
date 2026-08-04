@@ -25,8 +25,8 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::account(['id' => 1, 'name' => 'Current', 'type' => 'checking']);
 
 		$this->assertSame([
-			'id', 'name', 'type', 'currency', 'balance', 'balanceInBaseCurrency',
-			'baseCurrency', 'institution', 'shared', 'updatedAt',
+			'id', 'name', 'type', 'currency', 'balance', 'balance_in_base_currency',
+			'base_currency', 'institution', 'shared', 'updated_at',
 		], array_keys($result));
 	}
 
@@ -68,8 +68,8 @@ class ApiSerializerTest extends TestCase {
 	public function testAccountConvertedBalanceIsNullWhenAbsent(): void {
 		$result = ApiSerializer::account(['id' => 1, 'balance' => 10.0]);
 
-		$this->assertNull($result['balanceInBaseCurrency']);
-		$this->assertNull($result['baseCurrency']);
+		$this->assertNull($result['balance_in_base_currency']);
+		$this->assertNull($result['base_currency']);
 	}
 
 	public function testAccountExposesConvertedBalanceWhenPresent(): void {
@@ -80,8 +80,8 @@ class ApiSerializerTest extends TestCase {
 			'baseCurrency' => 'GBP',
 		]);
 
-		$this->assertSame('85.25', $result['balanceInBaseCurrency']);
-		$this->assertSame('GBP', $result['baseCurrency']);
+		$this->assertSame('85.25', $result['balance_in_base_currency']);
+		$this->assertSame('GBP', $result['base_currency']);
 	}
 
 	public function testAccountSharedFlagComesFromInternalMarker(): void {
@@ -95,7 +95,7 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::category(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
 
 		$this->assertSame(
-			['id', 'name', 'type', 'parentId', 'icon', 'color', 'shared'],
+			['id', 'name', 'type', 'parent_id', 'icon', 'color', 'shared'],
 			array_keys($result)
 		);
 	}
@@ -112,7 +112,7 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertSame(7, $result['id']);
 		$this->assertSame('Groceries', $result['name']);
-		$this->assertSame(3, $result['parentId']);
+		$this->assertSame(3, $result['parent_id']);
 		$this->assertSame('#ef4444', $result['color']);
 	}
 
@@ -131,7 +131,7 @@ class ApiSerializerTest extends TestCase {
 	}
 
 	public function testCategoryTopLevelHasNullParent(): void {
-		$this->assertNull(ApiSerializer::category(['id' => 1, 'parentId' => null])['parentId']);
+		$this->assertNull(ApiSerializer::category(['id' => 1, 'parentId' => null])['parent_id']);
 	}
 
 	// ── transactions ────────────────────────────────────────────────
@@ -140,9 +140,9 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::transaction(['id' => 1, 'accountId' => 2]);
 
 		$this->assertSame([
-			'id', 'accountId', 'categoryId', 'date', 'description', 'vendor',
+			'id', 'account_id', 'category_id', 'date', 'description', 'vendor',
 			'amount', 'type', 'reference', 'notes', 'status', 'reconciled',
-			'isSplit', 'createdAt', 'updatedAt',
+			'is_split', 'created_at', 'updated_at',
 		], array_keys($result));
 	}
 
@@ -179,14 +179,14 @@ class ApiSerializerTest extends TestCase {
 			'categoryName' => 'Groceries',
 		]);
 
-		$this->assertSame('Current Account', $withJoins['accountName']);
-		$this->assertSame('GBP', $withJoins['accountCurrency']);
-		$this->assertSame('Groceries', $withJoins['categoryName']);
+		$this->assertSame('Current Account', $withJoins['account_name']);
+		$this->assertSame('GBP', $withJoins['account_currency']);
+		$this->assertSame('Groceries', $withJoins['category_name']);
 
 		// An uncategorised row has no category name to report — the key is
 		// absent rather than an invented empty string.
 		$uncategorised = ApiSerializer::transaction(['id' => 1, 'accountId' => 2]);
-		$this->assertArrayNotHasKey('categoryName', $uncategorised);
+		$this->assertArrayNotHasKey('category_name', $uncategorised);
 	}
 
 	public function testTransactionDefaultsStatusToCleared(): void {
@@ -216,7 +216,7 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::attachment(['id' => 1, 'transactionId' => 2, 'fileId' => 3]);
 
 		$this->assertSame(
-			['id', 'transactionId', 'fileId', 'fileName', 'mimeType', 'createdAt', 'missing'],
+			['id', 'transaction_id', 'file_id', 'file_name', 'mime_type', 'created_at', 'missing'],
 			array_keys($result)
 		);
 	}
@@ -231,8 +231,8 @@ class ApiSerializerTest extends TestCase {
 
 		$result = ApiSerializer::attachment($attachment);
 
-		$this->assertSame(85, $result['fileId']);
-		$this->assertSame('receipt.png', $result['fileName']);
+		$this->assertSame(85, $result['file_id']);
+		$this->assertSame('receipt.png', $result['file_name']);
 		// A freshly created row carries no missing flag; absent means present.
 		$this->assertFalse($result['missing']);
 	}
@@ -249,8 +249,8 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::receiptDraft([]);
 
 		$this->assertSame([
-			'merchant', 'date', 'currency', 'total', 'lineItems',
-			'suggestedCategoryId', 'suggestedCategoryName', 'warnings',
+			'merchant', 'date', 'total', 'currency',
+			'suggested_category_id', 'suggested_category_name', 'line_items', 'warnings',
 		], array_keys($result));
 	}
 
@@ -259,7 +259,7 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertNull($result['merchant']);
 		$this->assertNull($result['total']);
-		$this->assertSame([], $result['lineItems']);
+		$this->assertSame([], $result['line_items']);
 		$this->assertSame([], $result['warnings']);
 	}
 
@@ -282,11 +282,11 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame([
 			'merchant' => 'Tesco Express',
 			'date' => '2026-08-01',
-			'currency' => 'GBP',
 			'total' => '9.75',
-			'lineItems' => [['description' => 'Milk 2L', 'amount' => '1.65']],
-			'suggestedCategoryId' => 42,
-			'suggestedCategoryName' => 'Groceries',
+			'currency' => 'GBP',
+			'suggested_category_id' => 42,
+			'suggested_category_name' => 'Groceries',
+			'line_items' => [['description' => 'Milk 2L', 'amount' => '1.65']],
 			'warnings' => ['line-items-sum-mismatch'],
 		], $result);
 	}
@@ -298,7 +298,7 @@ class ApiSerializerTest extends TestCase {
 
 		// json_encode must produce an array of {description, amount} objects
 		// with money as strings, like everything else in v1.
-		$this->assertSame([['description' => 'Milk', 'amount' => '1.65']], $result['lineItems']);
+		$this->assertSame([['description' => 'Milk', 'amount' => '1.65']], $result['line_items']);
 	}
 
 	// ── map ─────────────────────────────────────────────────────────

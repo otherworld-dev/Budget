@@ -234,6 +234,29 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->service->extract('user1', $this->pngUpload());
 	}
 
+	public function testAProvider429BecomesAQuotaException(): void {
+		// A metered backend saying "quota spent" is its own condition — the
+		// app tells the user to top up, not to retry.
+		$this->configureCustom();
+		$response = $this->createMock(IResponse::class);
+		$response->method('getStatusCode')->willReturn(429);
+		$this->client->method('post')->willThrowException(
+			new class('rate limited', $response) extends \RuntimeException {
+				public function __construct(string $message, private object $response) {
+					parent::__construct($message);
+				}
+
+				public function getResponse(): object {
+					return $this->response;
+				}
+			}
+		);
+
+		$this->expectException(\OCA\Budget\Service\Ocr\OcrQuotaExhaustedException::class);
+
+		$this->service->extract('user1', $this->pngUpload());
+	}
+
 	public function testProviderProseBecomesAProviderException(): void {
 		$this->configureCustom();
 		$this->modelAnswers('I am sorry, I cannot read this image.');

@@ -418,6 +418,8 @@ return [
      */
     'ocs' => [
         ['name' => 'apiV1#info', 'url' => '/api/v1', 'verb' => 'GET'],
+        // The capture app's minimal discovery call (its handoff contract).
+        ['name' => 'apiV1#capabilities', 'url' => '/api/v1/capabilities', 'verb' => 'GET'],
 
         ['name' => 'apiV1Account#index', 'url' => '/api/v1/accounts', 'verb' => 'GET'],
 
@@ -425,12 +427,14 @@ return [
 
         ['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
         ['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],
+        // Specific before {id}, as everywhere else in this file.
+        ['name' => 'apiV1Transaction#recent', 'url' => '/api/v1/transactions/recent', 'verb' => 'GET'],
         ['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
         ['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
         ['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
 
         // Receipt extraction (#533): image in, draft transaction out. No
         // side effects — the client records the draft via POST /transactions.
-        ['name' => 'apiV1Receipt#extract', 'url' => '/api/v1/receipts/extract', 'verb' => 'POST'],
+        ['name' => 'apiV1Receipt#extract', 'url' => '/api/v1/ocr/extract', 'verb' => 'POST'],
     ],
 ];

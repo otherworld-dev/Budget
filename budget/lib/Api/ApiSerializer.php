@@ -19,6 +19,10 @@ use OCP\AppFramework\Db\Entity;
  * Inputs are accepted as either entities or the array rows the services
  * return, because the same record reaches the controllers both ways
  * (owned records as entities, shared ones as pre-serialized arrays).
+ *
+ * Wire naming is snake_case throughout — fixed by the Android capture app's
+ * contract (its handoff document is the authority for v1's shapes) and
+ * matching the wider OCS ecosystem. The internal camelCase never leaks.
  */
 final class ApiSerializer {
     private function __construct() {
@@ -34,11 +38,11 @@ final class ApiSerializer {
             'currency' => (string)($a['currency'] ?? ''),
             'balance' => self::money($a['balance'] ?? 0),
             // Only set when the account is not in the user's base currency.
-            'balanceInBaseCurrency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance']) : null,
-            'baseCurrency' => $a['baseCurrency'] ?? null,
+            'balance_in_base_currency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance']) : null,
+            'base_currency' => $a['baseCurrency'] ?? null,
             'institution' => $a['institution'] ?? null,
             'shared' => (bool)($a['_shared'] ?? false),
-            'updatedAt' => $a['updatedAt'] ?? null,
+            'updated_at' => $a['updatedAt'] ?? null,
         ];
     }
 
@@ -49,7 +53,7 @@ final class ApiSerializer {
             'id' => (int)($c['id'] ?? 0),
             'name' => (string)($c['name'] ?? ''),
             'type' => (string)($c['type'] ?? ''),
-            'parentId' => isset($c['parentId']) ? (int)$c['parentId'] : null,
+            'parent_id' => isset($c['parentId']) ? (int)$c['parentId'] : null,
             'icon' => $c['icon'] ?? null,
             'color' => $c['color'] ?? null,
             'shared' => (bool)($c['_shared'] ?? false),
@@ -61,8 +65,8 @@ final class ApiSerializer {
 
         $out = [
             'id' => (int)($t['id'] ?? 0),
-            'accountId' => (int)($t['accountId'] ?? 0),
-            'categoryId' => isset($t['categoryId']) ? (int)$t['categoryId'] : null,
+            'account_id' => (int)($t['accountId'] ?? 0),
+            'category_id' => isset($t['categoryId']) ? (int)$t['categoryId'] : null,
             'date' => $t['date'] ?? null,
             'description' => (string)($t['description'] ?? ''),
             'vendor' => $t['vendor'] ?? null,
@@ -72,17 +76,17 @@ final class ApiSerializer {
             'notes' => $t['notes'] ?? null,
             'status' => $t['status'] ?? 'cleared',
             'reconciled' => (bool)($t['reconciled'] ?? false),
-            'isSplit' => (bool)($t['isSplit'] ?? false),
-            'createdAt' => $t['createdAt'] ?? null,
-            'updatedAt' => $t['updatedAt'] ?? null,
+            'is_split' => (bool)($t['isSplit'] ?? false),
+            'created_at' => $t['createdAt'] ?? null,
+            'updated_at' => $t['updatedAt'] ?? null,
         ];
 
         // List queries join these in; single-record lookups do not. Present
         // only when known, so a client can render a list without a second
         // round-trip per row but never sees an invented value.
-        foreach (['accountName', 'accountCurrency', 'categoryName'] as $joined) {
+        foreach (['accountName' => 'account_name', 'accountCurrency' => 'account_currency', 'categoryName' => 'category_name'] as $joined => $wire) {
             if (isset($t[$joined])) {
-                $out[$joined] = $t[$joined];
+                $out[$wire] = $t[$joined];
             }
         }
 
@@ -94,11 +98,11 @@ final class ApiSerializer {
 
         return [
             'id' => (int)($a['id'] ?? 0),
-            'transactionId' => (int)($a['transactionId'] ?? 0),
-            'fileId' => (int)($a['fileId'] ?? 0),
-            'fileName' => $a['fileName'] ?? null,
-            'mimeType' => $a['mimeType'] ?? null,
-            'createdAt' => $a['createdAt'] ?? null,
+            'transaction_id' => (int)($a['transactionId'] ?? 0),
+            'file_id' => (int)($a['fileId'] ?? 0),
+            'file_name' => $a['fileName'] ?? null,
+            'mime_type' => $a['mimeType'] ?? null,
+            'created_at' => $a['createdAt'] ?? null,
             // listForTransaction() flags rows whose file the user has deleted.
             'missing' => (bool)($a['missing'] ?? false),
         ];
@@ -114,18 +118,42 @@ final class ApiSerializer {
         return [
             'merchant' => $draft['merchant'] ?? null,
             'date' => $draft['date'] ?? null,
-            'currency' => $draft['currency'] ?? null,
             'total' => $draft['total'] ?? null,
-            'lineItems' => array_values(array_map(
+            'currency' => $draft['currency'] ?? null,
+            'suggested_category_id' => $draft['suggestedCategoryId'] ?? null,
+            'suggested_category_name' => $draft['suggestedCategoryName'] ?? null,
+            'line_items' => array_values(array_map(
                 static fn (array $item) => [
                     'description' => (string)$item['description'],
                     'amount' => (string)$item['amount'],
                 ],
                 $draft['lineItems'] ?? []
             )),
-            'suggestedCategoryId' => $draft['suggestedCategoryId'] ?? null,
-            'suggestedCategoryName' => $draft['suggestedCategoryName'] ?? null,
             'warnings' => array_values($draft['warnings'] ?? []),
+        ];
+    }
+
+    /**
+     * One row of GET /transactions/recent — the capture app's glanceable
+     * list, shaped exactly as its handoff specifies. merchant is the vendor
+     * when one was recorded, else the description: the app shows a shop
+     * name, not bank-statement prose.
+     *
+     * @param Entity|array $transaction A LIST-query row (the account joins
+     *                                  must be present).
+     */
+    public static function recentTransaction(Entity|array $transaction): array {
+        $t = self::toArray($transaction);
+
+        $vendor = $t['vendor'] ?? null;
+
+        return [
+            'id' => (int)($t['id'] ?? 0),
+            'merchant' => is_string($vendor) && $vendor !== '' ? $vendor : (string)($t['description'] ?? ''),
+            'date' => $t['date'] ?? null,
+            'amount' => self::money($t['amount'] ?? 0),
+            'currency' => $t['accountCurrency'] ?? null,
+            'account_name' => $t['accountName'] ?? null,
         ];
     }
 

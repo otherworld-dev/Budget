@@ -131,7 +131,7 @@
         ],
         "operationId": "listCategories",
         "summary": "List categories",
-        "description": "Flat list; build the tree from parentId. Includes categories shared with the user.",
+        "description": "Flat list; build the tree from parent_id. Includes categories shared with the user.",
         "parameters": [
           {
             "name": "type",
@@ -307,7 +307,7 @@
         ],
         "operationId": "createTransaction",
         "summary": "Record a transaction",
-        "description": "Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner's ledger.",
+        "description": "Record a transaction. Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner ledger. An idempotency_key (or Idempotency-Key header) makes retries safe: a repeat within 7 days answers 201 with the transaction the first attempt recorded. An optional multipart photo is attached after recording; if attaching fails the response still succeeds and carries photo_error.",
         "requestBody": {
           "required": true,
           "content": {
@@ -340,7 +340,20 @@
                           "type": "object",
                           "properties": {
                             "data": {
-                              "$ref": "#/components/schemas/Transaction"
+                              "allOf": [
+                                {
+                                  "$ref": "#/components/schemas/Transaction"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "photo_error": {
+                                      "type": "string",
+                                      "description": "Present only when the transaction was recorded but the inline photo could not be attached. Never re-post in that case; retry with the same idempotency_key (which heals the photo) or attach via POST /transactions/{id}/receipts."
+                                    }
+                                  }
+                                }
+                              ]
                             }
                           }
                         }
@@ -368,6 +381,16 @@
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
+          },
+          "409": {
+            "description": "error_code idempotency_key_conflict: the key was already used for a DIFFERENT transaction (another account or amount) - a client bug, not a retry. error_code request_in_flight: the original request carrying this key is still executing and did not finish within the wait - retry shortly, nothing was duplicated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -563,14 +586,117 @@
         }
       }
     },
-    "/receipts/extract": {
+    "/capabilities": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "operationId": "getCapabilities",
+        "summary": "Minimal discovery for capture clients",
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Capabilities"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
+    "/transactions/recent": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "listRecentTransactions",
+        "summary": "Newest transactions, flat and merchant-first",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200
+            },
+            "description": "Clamped, not rejected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/RecentTransaction"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
+    "/ocr/extract": {
       "post": {
         "tags": [
           "receipts"
         ],
         "operationId": "extractReceipt",
         "summary": "Extract a draft transaction from a receipt photo",
-        "description": "Capture-before-save: the image is read by the server's configured OCR provider and a draft comes back for the user to confirm. Nothing is recorded — record the draft with POST /transactions. No side effects, so retrying is always safe. Only the image is sent to the provider; the category suggestion is computed locally from the user's own rules. Rate limited to 10 per minute per user. Check features.receiptOcr on GET / before showing this flow.",
+        "description": "Capture-before-save: the image (multipart field image; file accepted too) is read by the configured OCR provider and a draft comes back for the user to confirm. Nothing is recorded; record the draft with POST /transactions. No side effects, so retrying is always safe. Only the image is sent to the provider; the category suggestion is computed locally from the user own rules. Rate limited to 10 per minute per user. Check ocr_available on GET /capabilities before showing this flow. A draft with no readable total is answered as 422 ocr_extraction_failed - total is the one field the contract requires.",
         "requestBody": {
           "required": true,
           "content": {
@@ -578,13 +704,13 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "file"
+                  "image"
                 ],
                 "properties": {
-                  "file": {
+                  "image": {
                     "type": "string",
                     "format": "binary",
-                    "description": "JPEG, PNG or WebP, up to 25 MB. The authoritative list is receiptOcrMimeTypes in GET / limits. Detected from the bytes, not the declared type."
+                    "description": "JPEG, PNG or WebP, up to 25 MB. The authoritative list is receipt_ocr_mime_types in GET / limits. Detected from the bytes, not the declared type. The field name file is accepted as an alias."
                   }
                 }
               }
@@ -626,13 +752,7 @@
             "$ref": "#/components/responses/Unauthorised"
           },
           "412": {
-            "$ref": "#/components/responses/MissingOcsHeader"
-          },
-          "429": {
-            "$ref": "#/components/responses/RateLimited"
-          },
-          "501": {
-            "description": "No OCR provider is configured on this server. features.receiptOcr is false; show 'not set up on your server'.",
+            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header.",
             "content": {
               "application/json": {
                 "schema": {
@@ -641,8 +761,18 @@
               }
             }
           },
-          "502": {
-            "description": "The configured OCR provider failed (unreachable, timed out, or returned an unusable response). Safe to retry.",
+          "429": {
+            "description": "error_code ocr_quota_exhausted: the provider meter ran out. Without the code it is this API own rate limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "error_code ocr_extraction_failed: the provider failed, or no total was readable. Safe to retry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -829,6 +959,10 @@
           "detail": {
             "type": "string",
             "description": "Present only for database faults, to make them diagnosable."
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight. Switch on this, never on the error text."
           }
         }
       },
@@ -855,29 +989,29 @@
       "Info": {
         "type": "object",
         "required": [
-          "apiVersion",
-          "userId",
-          "baseCurrency",
+          "api_version",
+          "user_id",
+          "base_currency",
           "features",
           "limits"
         ],
         "properties": {
-          "apiVersion": {
+          "api_version": {
             "type": "string",
             "example": "1.0",
             "description": "Contract version. Bumped only for a breaking change."
           },
-          "appVersion": {
+          "app_version": {
             "type": "string",
             "nullable": true,
             "example": "2.40.0",
             "description": "Advisory only — never gate on it."
           },
-          "userId": {
+          "user_id": {
             "type": "string",
             "example": "alice"
           },
-          "baseCurrency": {
+          "base_currency": {
             "type": "string",
             "example": "GBP"
           },
@@ -894,26 +1028,26 @@
               "transactions": {
                 "type": "boolean"
               },
-              "createTransaction": {
+              "create_transaction": {
                 "type": "boolean"
               },
-              "receiptUpload": {
+              "receipt_upload": {
                 "type": "boolean"
               },
-              "receiptOcr": {
+              "receipt_ocr": {
                 "type": "boolean",
-                "description": "Server-side receipt extraction (POST /receipts/extract). True only when the administrator has configured an OCR provider; can flip either way as the server's configuration changes."
+                "description": "Server-side receipt extraction (POST /ocr/extract). True only when the administrator has configured an OCR provider; can flip either way as the server configuration changes."
               }
             }
           },
           "limits": {
             "type": "object",
             "properties": {
-              "maxReceiptBytes": {
+              "max_receipt_bytes": {
                 "type": "integer",
                 "example": 26214400
               },
-              "receiptMimeTypes": {
+              "receipt_mime_types": {
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -926,19 +1060,19 @@
                   "application/pdf"
                 ]
               },
-              "receiptOcrMimeTypes": {
+              "receipt_ocr_mime_types": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Image types POST /receipts/extract accepts — narrower than receiptMimeTypes because OCR backends read bitmaps.",
+                "description": "Image types POST /ocr/extract accepts - narrower than receipt_mime_types because OCR backends read bitmaps.",
                 "example": [
                   "image/jpeg",
                   "image/png",
                   "image/webp"
                 ]
               },
-              "transactionsMaxLimit": {
+              "transactions_max_limit": {
                 "type": "integer",
                 "example": 200
               }
@@ -980,14 +1114,14 @@
             "example": "-1246.50",
             "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Parse into an exact decimal type, never a float."
           },
-          "balanceInBaseCurrency": {
+          "balance_in_base_currency": {
             "type": "string",
             "pattern": "^-?\\d+\\.\\d{2}$",
             "nullable": true,
             "example": "-1465.20",
             "description": "Decimal string, two places. Set only when the account is not already in the user's base currency."
           },
-          "baseCurrency": {
+          "base_currency": {
             "type": "string",
             "nullable": true
           },
@@ -1000,7 +1134,7 @@
             "type": "boolean",
             "description": "True for an account another user shared. It may be read-only — handle 403 on create."
           },
-          "updatedAt": {
+          "updated_at": {
             "type": "string",
             "nullable": true,
             "example": "2026-08-01 03:20:02"
@@ -1031,7 +1165,7 @@
               "income"
             ]
           },
-          "parentId": {
+          "parent_id": {
             "type": "integer",
             "nullable": true,
             "description": "Null for a top-level category."
@@ -1054,7 +1188,7 @@
         "type": "object",
         "required": [
           "id",
-          "accountId",
+          "account_id",
           "date",
           "description",
           "amount",
@@ -1065,11 +1199,11 @@
             "type": "integer",
             "example": 20070
           },
-          "accountId": {
+          "account_id": {
             "type": "integer",
             "example": 36
           },
-          "categoryId": {
+          "category_id": {
             "type": "integer",
             "nullable": true
           },
@@ -1117,27 +1251,27 @@
           "reconciled": {
             "type": "boolean"
           },
-          "isSplit": {
+          "is_split": {
             "type": "boolean",
             "description": "True when the transaction is split across categories in the web UI. Splits are not exposed in v1."
           },
-          "createdAt": {
+          "created_at": {
             "type": "string",
             "nullable": true
           },
-          "updatedAt": {
+          "updated_at": {
             "type": "string",
             "nullable": true
           },
-          "accountName": {
+          "account_name": {
             "type": "string",
             "description": "List responses only."
           },
-          "accountCurrency": {
+          "account_currency": {
             "type": "string",
             "description": "List responses only."
           },
-          "categoryName": {
+          "category_name": {
             "type": "string",
             "description": "List responses only, and absent on uncategorised rows."
           }
@@ -1172,15 +1306,14 @@
       },
       "NewTransaction": {
         "type": "object",
+        "description": "Body of POST /transactions (form-urlencoded, or multipart when a photo rides along).",
         "required": [
-          "accountId",
+          "account_id",
           "date",
-          "description",
-          "amount",
-          "type"
+          "amount"
         ],
         "properties": {
-          "accountId": {
+          "account_id": {
             "type": "integer",
             "description": "Must be an account the user can write to."
           },
@@ -1189,8 +1322,9 @@
             "format": "date",
             "description": "YYYY-MM-DD. A future date is stored as scheduled."
           },
-          "description": {
-            "type": "string"
+          "merchant": {
+            "type": "string",
+            "description": "Becomes both the description and the vendor. One of merchant/description is required."
           },
           "amount": {
             "type": "string",
@@ -1203,24 +1337,36 @@
             "enum": [
               "debit",
               "credit"
-            ]
+            ],
+            "default": "debit"
           },
-          "categoryId": {
+          "category_id": {
             "type": "integer",
-            "nullable": true,
-            "description": "Omit to file it as uncategorised."
+            "description": "Omit to file as uncategorised."
+          },
+          "description": {
+            "type": "string",
+            "description": "Wins over merchant for the description when both are sent."
           },
           "vendor": {
             "type": "string",
-            "nullable": true
+            "description": "Wins over merchant for the vendor when both are sent."
           },
           "reference": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "notes": {
+            "type": "string"
+          },
+          "photo": {
             "type": "string",
-            "nullable": true
+            "format": "binary",
+            "description": "Optional receipt image, attached after the transaction is recorded. Omit the part entirely when there is none. If attaching fails the response still succeeds and carries photo_error."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing. Also accepted as an Idempotency-Key header."
           }
         }
       },
@@ -1228,30 +1374,30 @@
         "type": "object",
         "required": [
           "id",
-          "transactionId",
-          "fileId",
+          "transaction_id",
+          "file_id",
           "missing"
         ],
         "properties": {
           "id": {
             "type": "integer"
           },
-          "transactionId": {
+          "transaction_id": {
             "type": "integer"
           },
-          "fileId": {
+          "file_id": {
             "type": "integer",
             "description": "Nextcloud file id in the owner's Files — usable with WebDAV."
           },
-          "fileName": {
+          "file_name": {
             "type": "string",
             "nullable": true
           },
-          "mimeType": {
+          "mime_type": {
             "type": "string",
             "nullable": true
           },
-          "createdAt": {
+          "created_at": {
             "type": "string",
             "nullable": true
           },
@@ -1267,11 +1413,11 @@
         "required": [
           "merchant",
           "date",
-          "currency",
           "total",
-          "lineItems",
-          "suggestedCategoryId",
-          "suggestedCategoryName",
+          "currency",
+          "suggested_category_id",
+          "suggested_category_name",
+          "line_items",
           "warnings"
         ],
         "properties": {
@@ -1286,20 +1432,30 @@
             "nullable": true,
             "example": "2026-08-01"
           },
+          "total": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "nullable": false,
+            "description": "Decimal string, two places. The one field a draft always has: with no readable total the endpoint answers 422 ocr_extraction_failed instead. Kept even when the line items disagree (see warnings).",
+            "example": "9.75"
+          },
           "currency": {
             "type": "string",
             "nullable": true,
             "description": "ISO 4217 code printed on the receipt, when legible. Compare with the target account's currency before saving. The Nextcloud AI provider never reports one — treat null as unknown, not as matching the account.",
             "example": "GBP"
           },
-          "total": {
-            "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
+          "suggested_category_id": {
+            "type": "integer",
             "nullable": true,
-            "description": "Decimal string, two places. The printed total — kept even when the line items disagree (see warnings).",
-            "example": "9.75"
+            "description": "Computed locally from the user's own categorisation rules; the provider never sees the category tree."
           },
-          "lineItems": {
+          "suggested_category_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Groceries"
+          },
+          "line_items": {
             "type": "array",
             "items": {
               "type": "object",
@@ -1320,16 +1476,6 @@
               }
             }
           },
-          "suggestedCategoryId": {
-            "type": "integer",
-            "nullable": true,
-            "description": "Computed locally from the user's own categorisation rules; the provider never sees the category tree."
-          },
-          "suggestedCategoryName": {
-            "type": "string",
-            "nullable": true,
-            "example": "Groceries"
-          },
           "warnings": {
             "type": "array",
             "items": {
@@ -1340,6 +1486,75 @@
                 "line-items-sum-mismatch"
               ]
             }
+          }
+        }
+      },
+      "Capabilities": {
+        "type": "object",
+        "description": "Minimal discovery for capture clients: three keys, exactly. GET / (Info) carries the same facts and more.",
+        "required": [
+          "ocr_available",
+          "currency",
+          "version"
+        ],
+        "properties": {
+          "ocr_available": {
+            "type": "boolean",
+            "description": "Mirrors features.receipt_ocr on GET /."
+          },
+          "currency": {
+            "type": "string",
+            "example": "GBP",
+            "description": "The base currency of the requesting user."
+          },
+          "version": {
+            "type": "string",
+            "nullable": true,
+            "example": "2.41.0",
+            "description": "Installed app version; advisory, never a gate."
+          }
+        }
+      },
+      "RecentTransaction": {
+        "type": "object",
+        "description": "One row of GET /transactions/recent: flat and merchant-first, for a capture client to render a glanceable list.",
+        "required": [
+          "id",
+          "merchant",
+          "date",
+          "amount",
+          "currency",
+          "account_name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 20070
+          },
+          "merchant": {
+            "type": "string",
+            "example": "Tesco",
+            "description": "The recorded vendor when there is one, else the description."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "example": "15.00"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "GBP"
+          },
+          "account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Current Account"
           }
         }
       }

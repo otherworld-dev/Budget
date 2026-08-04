@@ -160,6 +160,15 @@ class ReceiptExtractionService {
             ]);
             $payload = json_decode((string)$response->getBody(), true);
         } catch (\Throwable $e) {
+            // A metered backend saying "quota spent" is its own condition,
+            // not a failure — the capture app tells the user to top up, not
+            // to retry. Guzzle-style client exceptions carry the response.
+            if (method_exists($e, 'getResponse') && $e->getResponse() !== null
+                && method_exists($e->getResponse(), 'getStatusCode')
+                && $e->getResponse()->getStatusCode() === 429) {
+                throw new OcrQuotaExhaustedException('The OCR provider reported its quota exhausted', 0, $e);
+            }
+
             // The key must never end up in a log line; the exception message
             // from an HTTP client can embed request headers.
             $this->logger->warning('Receipt OCR provider request failed: ' . $e->getMessage(), [

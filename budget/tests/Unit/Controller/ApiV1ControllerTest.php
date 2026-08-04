@@ -42,10 +42,10 @@ class ApiV1ControllerTest extends TestCase {
 		$data = $response->getData();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame('1.0', $data['apiVersion']);
-		$this->assertSame('2.40.0', $data['appVersion']);
-		$this->assertSame('user1', $data['userId']);
-		$this->assertSame('GBP', $data['baseCurrency']);
+		$this->assertSame('1.0', $data['api_version']);
+		$this->assertSame('2.40.0', $data['app_version']);
+		$this->assertSame('user1', $data['user_id']);
+		$this->assertSame('GBP', $data['base_currency']);
 	}
 
 	public function testInfoAdvertisesTheLimitsTheUploadPathActuallyEnforces(): void {
@@ -53,9 +53,9 @@ class ApiV1ControllerTest extends TestCase {
 
 		$limits = $this->controller->info()->getData()['limits'];
 
-		$this->assertSame(AttachmentService::MAX_SIZE, $limits['maxReceiptBytes']);
-		$this->assertSame(AttachmentService::ALLOWED_MIMES, $limits['receiptMimeTypes']);
-		$this->assertSame(ReceiptExtractionService::EXTRACT_MIMES, $limits['receiptOcrMimeTypes']);
+		$this->assertSame(AttachmentService::MAX_SIZE, $limits['max_receipt_bytes']);
+		$this->assertSame(AttachmentService::ALLOWED_MIMES, $limits['receipt_mime_types']);
+		$this->assertSame(ReceiptExtractionService::EXTRACT_MIMES, $limits['receipt_ocr_mime_types']);
 	}
 
 	public function testInfoReportsOcrFromTheConfiguredState(): void {
@@ -66,16 +66,16 @@ class ApiV1ControllerTest extends TestCase {
 
 		$features = $this->controller->info()->getData()['features'];
 
-		$this->assertTrue($features['receiptOcr']);
-		$this->assertTrue($features['receiptUpload']);
-		$this->assertTrue($features['createTransaction']);
+		$this->assertTrue($features['receipt_ocr']);
+		$this->assertTrue($features['receipt_upload']);
+		$this->assertTrue($features['create_transaction']);
 	}
 
 	public function testInfoReportsOcrOffWhenNoProviderIsConfigured(): void {
 		$this->appManager->method('getAppVersion')->willReturn('2.40.0');
 		$this->ocrSettings->method('isConfigured')->willReturn(false);
 
-		$this->assertFalse($this->controller->info()->getData()['features']['receiptOcr']);
+		$this->assertFalse($this->controller->info()->getData()['features']['receipt_ocr']);
 	}
 
 	public function testInfoSurvivesAnUnresolvableAppVersion(): void {
@@ -87,7 +87,21 @@ class ApiV1ControllerTest extends TestCase {
 		// The version is advisory; failing to read it must not take out the
 		// endpoint a client uses to decide whether the API is usable at all.
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertNull($response->getData()['appVersion']);
+		$this->assertNull($response->getData()['app_version']);
+	}
+
+	public function testCapabilitiesIsExactlyTheHandoffShape(): void {
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+		$this->ocrSettings->method('isConfigured')->willReturn(true);
+
+		$data = $this->controller->capabilities()->getData();
+
+		// The capture app's first call — three keys, exactly these names.
+		$this->assertSame([
+			'ocr_available' => true,
+			'currency' => 'GBP',
+			'version' => '2.41.0',
+		], $data);
 	}
 
 	public function testUnauthenticatedConstructionDoesNotFatal(): void {
