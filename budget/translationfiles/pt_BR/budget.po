@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-03 23:34+0000\n"
+"POT-Creation-Date: 2026-08-04 12:43+0000\n"
 "PO-Revision-Date: 2026-07-03 23:24+0000\n"
 "Last-Translator: Rods Kaden <services.effects831@passfwd.com>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -81,7 +81,7 @@ msgstr "Falha ao buscar as contas financeiras"
 
 #: /app/lib/Controller/AccountController.php:93
 #: /app/lib/Controller/AccountController.php:559
-#: /app/lib/Controller/ApiV1TransactionController.php:212
+#: /app/lib/Controller/ApiV1TransactionController.php:347
 msgid "Account not found"
 msgstr "Conta financeira não encontrada"
 
@@ -257,8 +257,8 @@ msgstr "Tipo de categoria inválido. Deve ser renda ou despesa"
 msgid "Failed to retrieve categories"
 msgstr "Falha ao buscar as categorias"
 
-#: /app/lib/Controller/ApiV1ReceiptController.php:58
-#: /app/lib/Controller/ApiV1TransactionController.php:247
+#: /app/lib/Controller/ApiV1ReceiptController.php:73
+#: /app/lib/Controller/ApiV1TransactionController.php:517
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:94
 #: /app/lib/Controller/MigrationController.php:83
@@ -266,35 +266,57 @@ msgstr "Falha ao buscar as categorias"
 msgid "No file uploaded"
 msgstr "Nenhum arquivo carregado"
 
-#: /app/lib/Controller/ApiV1ReceiptController.php:67
+#: /app/lib/Controller/ApiV1ReceiptController.php:84
+msgid ""
+"No total could be read from this receipt. Enter the transaction manually"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1ReceiptController.php:92
 msgid "Receipt scanning is not set up on this server"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1ReceiptController.php:72
+#: /app/lib/Controller/ApiV1ReceiptController.php:97
+msgid "The OCR provider's quota is used up. Try again later"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:89
+#: /app/lib/Controller/ApiV1TransactionController.php:96
 #, fuzzy
 #| msgid "Invalid date format. Use YYYY-MM-DD"
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr "Formato de data inválido. Use AAAA-MM-DD"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:121
+#: /app/lib/Controller/ApiV1TransactionController.php:128
+#: /app/lib/Controller/ApiV1TransactionController.php:165
 #: /app/lib/Controller/TransactionController.php:119
 #: /app/lib/Controller/TransactionController.php:174
 msgid "Failed to retrieve transactions"
 msgstr "Falha ao buscar as transações"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:134
+#: /app/lib/Controller/ApiV1TransactionController.php:178
 #, fuzzy
 #| msgid "Failed to retrieve transactions"
 msgid "Failed to retrieve transaction"
 msgstr "Falha ao buscar as transações"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:162
+#: /app/lib/Controller/ApiV1TransactionController.php:226
+#, fuzzy
+#| msgid "Amount must be greater than zero"
+msgid "Amount must be a number"
+msgstr "O valor deve ser maior que zero"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:231
+#, fuzzy
+#| msgid "Name is required"
+msgid "An account is required"
+msgstr "O preenchimento do nome é obrigatório"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:236
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:356
 #: /app/lib/Controller/PensionController.php:428
@@ -316,32 +338,49 @@ msgstr "Falha ao buscar as transações"
 msgid "Date"
 msgstr "Data"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:182
+#: /app/lib/Controller/ApiV1TransactionController.php:256
 #: /app/lib/Controller/TransactionController.php:228
 #: /app/lib/Controller/TransactionController.php:329
 msgid "Invalid transaction type. Must be credit or debit"
 msgstr "Tipo de transação inválido. Deve ser crédito ou débito"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:214
+#: /app/lib/Controller/ApiV1TransactionController.php:268
+msgid "Idempotency key too long (64 characters maximum)"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:341
+#: /app/lib/Controller/ApiV1TransactionController.php:463
+msgid "The transaction was recorded, but the photo could not be attached"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:349
 #: /app/lib/Controller/TransactionController.php:280
 msgid "Failed to create transaction"
 msgstr "Falha na criação da transação"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:234
+#: /app/lib/Controller/ApiV1TransactionController.php:428
+msgid "This idempotency key was already used for a different transaction"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:437
+msgid "This request is still being processed. Try again shortly"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:504
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:1879
 msgid "Failed to load attachments"
 msgstr "Falha ao carregar os anexos"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:259
+#: /app/lib/Controller/ApiV1TransactionController.php:529
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:1892
 #: /app/src/modules/transactions/TransactionsModule.js:1895
 msgid "Failed to upload receipt"
 msgstr "Falha ao enviar o comprovante"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:265
+#: /app/lib/Controller/ApiV1TransactionController.php:535
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3361

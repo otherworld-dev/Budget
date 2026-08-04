@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-03 23:34+0000\n"
+"POT-Creation-Date: 2026-08-04 12:43+0000\n"
 "PO-Revision-Date: 2026-06-06 22:46+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -74,7 +74,7 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:93
 #: /app/lib/Controller/AccountController.php:559
-#: /app/lib/Controller/ApiV1TransactionController.php:212
+#: /app/lib/Controller/ApiV1TransactionController.php:347
 msgid "Account not found"
 msgstr ""
 
@@ -250,8 +250,8 @@ msgstr ""
 msgid "Failed to retrieve categories"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1ReceiptController.php:58
-#: /app/lib/Controller/ApiV1TransactionController.php:247
+#: /app/lib/Controller/ApiV1ReceiptController.php:73
+#: /app/lib/Controller/ApiV1TransactionController.php:517
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:94
 #: /app/lib/Controller/MigrationController.php:83
@@ -259,31 +259,49 @@ msgstr ""
 msgid "No file uploaded"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1ReceiptController.php:67
+#: /app/lib/Controller/ApiV1ReceiptController.php:84
+msgid ""
+"No total could be read from this receipt. Enter the transaction manually"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1ReceiptController.php:92
 msgid "Receipt scanning is not set up on this server"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1ReceiptController.php:72
+#: /app/lib/Controller/ApiV1ReceiptController.php:97
+msgid "The OCR provider's quota is used up. Try again later"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:89
+#: /app/lib/Controller/ApiV1TransactionController.php:96
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:121
+#: /app/lib/Controller/ApiV1TransactionController.php:128
+#: /app/lib/Controller/ApiV1TransactionController.php:165
 #: /app/lib/Controller/TransactionController.php:119
 #: /app/lib/Controller/TransactionController.php:174
 msgid "Failed to retrieve transactions"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:134
+#: /app/lib/Controller/ApiV1TransactionController.php:178
 msgid "Failed to retrieve transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:162
+#: /app/lib/Controller/ApiV1TransactionController.php:226
+msgid "Amount must be a number"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:231
+msgid "An account is required"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:236
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:356
 #: /app/lib/Controller/PensionController.php:428
@@ -305,32 +323,49 @@ msgstr ""
 msgid "Date"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:182
+#: /app/lib/Controller/ApiV1TransactionController.php:256
 #: /app/lib/Controller/TransactionController.php:228
 #: /app/lib/Controller/TransactionController.php:329
 msgid "Invalid transaction type. Must be credit or debit"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:214
+#: /app/lib/Controller/ApiV1TransactionController.php:268
+msgid "Idempotency key too long (64 characters maximum)"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:341
+#: /app/lib/Controller/ApiV1TransactionController.php:463
+msgid "The transaction was recorded, but the photo could not be attached"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:349
 #: /app/lib/Controller/TransactionController.php:280
 msgid "Failed to create transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:234
+#: /app/lib/Controller/ApiV1TransactionController.php:428
+msgid "This idempotency key was already used for a different transaction"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:437
+msgid "This request is still being processed. Try again shortly"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:504
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:1879
 msgid "Failed to load attachments"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:259
+#: /app/lib/Controller/ApiV1TransactionController.php:529
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:1892
 #: /app/src/modules/transactions/TransactionsModule.js:1895
 msgid "Failed to upload receipt"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:265
+#: /app/lib/Controller/ApiV1TransactionController.php:535
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3361
