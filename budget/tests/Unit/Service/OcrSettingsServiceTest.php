@@ -99,15 +99,17 @@ class OcrSettingsServiceTest extends TestCase {
 		$this->assertFalse($this->service->isConfigured());
 	}
 
-	public function testNextcloudAiRequiresAnImageCapableTaskType(): void {
-		// A server whose only AI integration is speech-to-text or translation
-		// cannot read a receipt photo — it must not report as available.
+	public function testNextcloudAiRequiresTheExactOcrTaskType(): void {
+		// The backend runs core:image2text:ocr and nothing else, so nothing
+		// else may satisfy the check: not speech-to-text, not translation,
+		// and not image CAPTIONING (core:image2text) — a captioning-only
+		// server would advertise scanning and then fail every request.
 		$this->assertFalse($this->serviceWithTaskTypes([])->isNextcloudAiAvailable());
 		$this->assertFalse($this->serviceWithTaskTypes(['core:audio2text' => []])->isNextcloudAiAvailable());
-		$this->assertFalse($this->serviceWithTaskTypes(['core:translate' => [], 'core:text2text' => []])->isNextcloudAiAvailable());
+		$this->assertFalse($this->serviceWithTaskTypes(['core:image2text' => []])->isNextcloudAiAvailable());
 
 		$this->assertTrue($this->serviceWithTaskTypes(['core:image2text:ocr' => []])->isNextcloudAiAvailable());
-		$this->assertTrue($this->serviceWithTaskTypes(['core:audio2text' => [], 'core:image2text' => []])->isNextcloudAiAvailable());
+		$this->assertTrue($this->serviceWithTaskTypes(['core:audio2text' => [], 'core:image2text:ocr' => []])->isNextcloudAiAvailable());
 	}
 
 	public function testARejectedUpdateWritesNothing(): void {

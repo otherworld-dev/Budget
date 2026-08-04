@@ -84,6 +84,14 @@ class ReceiptParserTest extends TestCase {
 		$this->assertNull($this->parser->parse('Est. 01/02/1987')['date']);
 	}
 
+	public function testDottedTimesAreNotDates(): void {
+		// A POS timestamp "12.30.15" once swapped itself into 2015-12-30.
+		// Dotted forms are strictly day-first: an impossible one is a time.
+		$result = $this->parser->parse("SHOP\nServed 12.30.15\n01/08/2026\nTOTAL 2.00");
+
+		$this->assertSame('2026-08-01', $result['date']);
+	}
+
 	// ── totals ──────────────────────────────────────────────────────
 
 	public function testTheLastTotalMarkerWins(): void {
@@ -91,6 +99,14 @@ class ReceiptParserTest extends TestCase {
 		$result = $this->parser->parse("TOTAL 10.00\nMore items 2.50\nTOTAL 12.50");
 
 		$this->assertSame('12.50', $result['total']);
+	}
+
+	public function testASubtotalLineIsNotTheTotal(): void {
+		// "subtotal" ends in "total" — it must not satisfy the marker, and
+		// with no real marker the paid amount wins as the largest.
+		$result = $this->parser->parse("SHOP\nWidget 45.00\nSubtotal 45.00\nVAT 2.50\nBalance 47.50");
+
+		$this->assertSame('47.50', $result['total']);
 	}
 
 	public function testAmountDueCountsAsATotalMarker(): void {
@@ -106,10 +122,63 @@ class ReceiptParserTest extends TestCase {
 	public function testEuropeanDecimalCommaAmounts(): void {
 		$this->assertSame('1234.56', $this->parser->parse('TOTAL 1.234,56')['total']);
 		$this->assertSame('12.34', $this->parser->parse('TOTAL 12,34')['total']);
+		$this->assertSame('1234.56', $this->parser->parse('TOTAL 1 234,56')['total']);
 	}
 
 	public function testThousandsGroupingWithoutDecimals(): void {
 		$this->assertSame('1234.00', $this->parser->parse('TOTAL 1,234.00')['total']);
+	}
+
+	public function testAdjacentNumbersAreNotMergedIntoOneAmount(): void {
+		// A quantity column next to the price once produced 10-100x amounts
+		// ("Coffee 2 2.50" -> 22.50). The LAST number on the line is the price.
+		$result = $this->parser->parse("CORNER SHOP\nCoffee 2 2.50\nTea 1 1.80\nTOTAL 4.30");
+
+		$this->assertSame('4.30', $result['total']);
+		$this->assertSame([
+			['description' => 'Coffee 2', 'amount' => '2.50'],
+			['description' => 'Tea 1', 'amount' => '1.80'],
+		], $result['lineItems']);
+	}
+
+	public function testADateBeforeAnAmountDoesNotInflateTheTotal(): void {
+		// "01/02/2026 12.50" once tokenised as "2026 12.50" -> total 202612.50.
+		$result = $this->parser->parse("SHOP\n01/02/2026 12.50\nWidget 4.00\nSumme 16.50");
+
+		$this->assertSame('2026-02-01', $result['date']);
+		$this->assertSame('16.50', $result['total']);
+	}
+
+	public function testDottedDatesAndVersionsAreNotAmounts(): void {
+		// "31.12.26" is a date (and parses as one); it must never be 3112.26.
+		$result = $this->parser->parse("REWE MARKT\nDatum: 31.12.26\nMilch 1,19\nBrot 2,49\nSumme 3,68");
+
+		$this->assertSame('2026-12-31', $result['date']);
+		$this->assertSame('3.68', $result['total'], 'the largest-amount fallback must not pick a date');
+		$this->assertSame([
+			['description' => 'Milch', 'amount' => '1.19'],
+			['description' => 'Brot', 'amount' => '2.49'],
+		], $result['lineItems']);
+	}
+
+	public function testThreeDecimalDigitsAreAmbiguousAndRejected(): void {
+		// "1.499" is a per-litre price as often as a thousands group; either
+		// reading is wrong half the time, so neither is made.
+		$result = $this->parser->parse("PETROL STATION\nPRICE/LTR 1.499\nFuel 68.46\nTOTAL 68.46");
+
+		$this->assertSame('68.46', $result['total']);
+		$this->assertSame([['description' => 'Fuel', 'amount' => '68.46']], $result['lineItems']);
+
+		// Same for a half-kilo weight on its own line.
+		$weighed = $this->parser->parse("GROCER\nBananas 0.500\nApples 2.10\nTOTAL 2.60");
+		$this->assertSame([['description' => 'Apples', 'amount' => '2.10']], $weighed['lineItems']);
+	}
+
+	public function testAmountsLongerThanADecimalColumnAreRejected(): void {
+		// DECIMAL(15,2) holds 13 integer digits; an OCR-misread card number
+		// must not become a total.
+		$this->assertSame('2.00', $this->parser->parse("SHOP\nThing 2.00\nRef 12345678901234.00")['lineItems'][0]['amount']);
+		$this->assertNull($this->parser->parse('TOTAL 12345678901234.00')['total']);
 	}
 
 	// ── line items ──────────────────────────────────────────────────
@@ -122,10 +191,31 @@ class ReceiptParserTest extends TestCase {
 			'Subtotal 2.00',
 			'Cash 5.00',
 			'Change due 3.00',
-			'Loyalty points 250',
+			'Loyalty points 2.50',
 		]));
 
 		$this->assertSame([['description' => 'Apples', 'amount' => '2.00']], $result['lineItems']);
+	}
+
+	public function testNamesEndingInXKeepTheirX(): void {
+		// trim('x') once turned "Weetabix" into "Weetabi"; only a standalone
+		// trailing quantity marker (" x") is stripped.
+		$result = $this->parser->parse("SHOP\nWeetabix 3.49\nCoffee x 2.50\nTOTAL 5.99");
+
+		$this->assertSame([
+			['description' => 'Weetabix', 'amount' => '3.49'],
+			['description' => 'Coffee', 'amount' => '2.50'],
+		], $result['lineItems']);
+	}
+
+	public function testAWallOfPricesProducesNoItemsAtAll(): void {
+		$lines = ['SHOP'];
+		for ($i = 1; $i <= 51; $i++) {
+			$lines[] = sprintf('Item %d 1.%02d', $i, $i % 100);
+		}
+
+		// Past a sane basket size the structure is noise: trust nothing.
+		$this->assertSame([], $this->parser->parse(implode("\n", $lines))['lineItems']);
 	}
 
 	public function testBareIntegersAreQuantitiesNotPrices(): void {

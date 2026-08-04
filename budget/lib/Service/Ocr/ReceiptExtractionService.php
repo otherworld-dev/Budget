@@ -83,7 +83,7 @@ class ReceiptExtractionService {
 
         $raw = match ($this->settings->getProvider()) {
             OcrSettingsService::PROVIDER_NEXTCLOUD => $this->parser->parse(
-                $this->nextcloudBackend->extractText(base64_encode($imageBytes), $userId)
+                $this->nextcloudBackend->extractText($imageBytes, $mime, $userId)
             ) + ['currency' => null],
             default => $this->openAiExtract($imageBytes, $mime),
         };
@@ -212,6 +212,12 @@ class ReceiptExtractionService {
         $date = $this->cleanDate($raw['date'] ?? null);
         $currency = $this->cleanCurrency($raw['currency'] ?? null);
         $total = $this->cleanAmount($raw['total'] ?? null);
+        if ($total !== null && (float)$total <= 0) {
+            // A refund receipt or a misread sign. The v1 contract says total
+            // is "the amount actually paid" and pins it non-negative — and a
+            // missing total the user types beats a wrong one they trust.
+            $total = null;
+        }
 
         $lineItems = [];
         foreach (is_array($raw['lineItems'] ?? null) ? $raw['lineItems'] : [] as $item) {
@@ -305,8 +311,15 @@ class ReceiptExtractionService {
         if (!is_string($value)) {
             return null;
         }
-        // Strip control characters; OCR text and model output both carry them.
+        // Unicode format characters (\p{Cf}) are removed outright: a
+        // right-to-left override renders spoofed text on the user's own
+        // confirmation screen, and zero-width characters defeat comparisons
+        // while displaying as nothing — so nothing is what they become.
+        // Control characters become spaces (they usually separate words in
+        // OCR text), then runs of whitespace collapse.
+        $value = preg_replace('/\p{Cf}/u', '', $value) ?? $value;
         $value = trim(preg_replace('/[\x00-\x1F\x7F]/u', ' ', $value) ?? '');
+        $value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
 
         return $value === '' ? null : mb_substr($value, 0, $maxLength);
     }

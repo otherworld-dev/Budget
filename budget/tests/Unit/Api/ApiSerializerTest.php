@@ -263,6 +263,34 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame([], $result['warnings']);
 	}
 
+	public function testReceiptDraftPassesEveryPopulatedFieldThrough(): void {
+		// Every read in receiptDraft() has a '?? null' fallback, so a typo'd
+		// key degrades to null instead of failing — this test feeds a fully
+		// populated service-shaped draft and asserts nothing is lost, which
+		// is the only thing that catches that class of regression.
+		$result = ApiSerializer::receiptDraft([
+			'merchant' => 'Tesco Express',
+			'date' => '2026-08-01',
+			'currency' => 'GBP',
+			'total' => '9.75',
+			'lineItems' => [['description' => 'Milk 2L', 'amount' => '1.65']],
+			'suggestedCategoryId' => 42,
+			'suggestedCategoryName' => 'Groceries',
+			'warnings' => ['line-items-sum-mismatch'],
+		]);
+
+		$this->assertSame([
+			'merchant' => 'Tesco Express',
+			'date' => '2026-08-01',
+			'currency' => 'GBP',
+			'total' => '9.75',
+			'lineItems' => [['description' => 'Milk 2L', 'amount' => '1.65']],
+			'suggestedCategoryId' => 42,
+			'suggestedCategoryName' => 'Groceries',
+			'warnings' => ['line-items-sum-mismatch'],
+		], $result);
+	}
+
 	public function testReceiptDraftLineItemsAreReindexedAndStringed(): void {
 		$result = ApiSerializer::receiptDraft([
 			'lineItems' => [2 => ['description' => 'Milk', 'amount' => '1.65']],

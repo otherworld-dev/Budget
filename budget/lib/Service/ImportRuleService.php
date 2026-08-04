@@ -290,14 +290,14 @@ class ImportRuleService extends AbstractCrudService {
     public function testRules(string $userId, array $transactionData): array {
         $rules = $this->mapper->findActive($userId);
         $results = [];
-        
+
         foreach ($rules as $rule) {
             $matches = $this->testRule($rule, $transactionData);
             if ($matches) {
                 $results[] = [
                     'ruleId' => $rule->getId(),
                     'ruleName' => $rule->getName(),
-                    'categoryId' => $rule->getCategoryId(),
+                    'categoryId' => $this->effectiveCategoryId($rule),
                     'vendorName' => $rule->getVendorName(),
                     'priority' => $rule->getPriority()
                 ];
@@ -310,6 +310,30 @@ class ImportRuleService extends AbstractCrudService {
         });
         
         return $results;
+    }
+
+    /**
+     * The category a rule actually assigns, wherever it stores it.
+     *
+     * Legacy (schema v1) rules keep it in the category_id column; rules made
+     * in the current builder (schema v2) keep it as a set_category action in
+     * the actions JSON and leave the column NULL. Anything reporting "which
+     * category would this rule apply" must look in both places, or every
+     * modern rule reads as category-less — which is how the receipt draft's
+     * category suggestion silently returned null for every real user.
+     */
+    public function effectiveCategoryId(ImportRule $rule): ?int {
+        if ($rule->getCategoryId() !== null) {
+            return $rule->getCategoryId();
+        }
+
+        foreach ($rule->getParsedActions() as $action) {
+            if (is_array($action) && ($action['type'] ?? null) === 'set_category' && isset($action['value'])) {
+                return (int)$action['value'];
+            }
+        }
+
+        return null;
     }
 
     private function testRule(ImportRule $rule, array $data): bool {

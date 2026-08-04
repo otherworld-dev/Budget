@@ -148,6 +148,67 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertContains('no-date', $draft['warnings']);
 	}
 
+	public function testANegativeTotalBecomesNullNotARefundGuess(): void {
+		// The v1 contract pins total non-negative ("the amount actually
+		// paid"); a refund receipt or misread sign must not violate it.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode(['merchant' => 'Shop', 'date' => '2026-08-01', 'total' => -5.0]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['total']);
+		$this->assertContains('no-total', $draft['warnings']);
+	}
+
+	public function testFormatCharactersAreStrippedFromStrings(): void {
+		// U+202E flips rendering direction — spoofed text on the user's own
+		// confirmation screen. Zero-width characters defeat comparisons.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => "PAY\u{202E}dnufer\u{202C}",
+			'total' => 5,
+			'lineItems' => [['description' => "Mi\u{200B}lk", 'amount' => 1.65]],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('PAYdnufer', $draft['merchant']);
+		$this->assertSame('Milk', $draft['lineItems'][0]['description']);
+	}
+
+	public function testLineItemsAreCappedAtFifty(): void {
+		$items = [];
+		for ($i = 1; $i <= 60; $i++) {
+			$items[] = ['description' => "Item $i", 'amount' => 1.00];
+		}
+		$this->configureCustom();
+		$this->modelAnswers(json_encode(['merchant' => 'Shop', 'lineItems' => $items]));
+
+		$this->assertCount(50, $this->service->extract('user1', $this->pngUpload())['lineItems']);
+	}
+
+	public function testAmountsBeyondTheDecimalColumnAreDropped(): void {
+		// DECIMAL(15,2) holds 13 integer digits; an OCR-misread card number
+		// must not survive as a total.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode(['merchant' => 'Shop', 'total' => 12345678901234.00]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['total']);
+	}
+
+	public function testRejectsAnOversizedUpload(): void {
+		$this->configureCustom();
+		$upload = $this->pngUpload();
+		$upload['size'] = 26214400 + 1;
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('25 MB');
+
+		$this->service->extract('user1', $upload);
+	}
+
 	public function testWarnsWhenLineItemsDoNotSumToTheTotal(): void {
 		$this->configureCustom();
 		$this->modelAnswers(json_encode([

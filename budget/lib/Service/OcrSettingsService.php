@@ -124,9 +124,10 @@ class OcrSettingsService {
      *
      * A non-empty task-type list is not enough: a server whose only AI
      * integration is speech-to-text or translation would pass that test and
-     * then fail on the first receipt. Reading a photo needs an image-to-text
-     * task type specifically (core:image2text:ocr, or another image2text
-     * variant), so that is what is required here.
+     * then fail on the first receipt. The backend runs exactly ONE task type
+     * (NextcloudOcrBackend::TASK_TYPE, core:image2text:ocr), so exactly that
+     * type must be available — an image-CAPTIONING provider would flip the
+     * flag and still fail every scan.
      */
     public function isNextcloudAiAvailable(): bool {
         if (!interface_exists(\OCP\TaskProcessing\IManager::class)) {
@@ -136,13 +137,10 @@ class OcrSettingsService {
         try {
             $manager = $this->container->get(\OCP\TaskProcessing\IManager::class);
 
-            foreach (array_keys($manager->getAvailableTaskTypes()) as $typeId) {
-                if (str_starts_with((string)$typeId, 'core:image2text')) {
-                    return true;
-                }
-            }
-
-            return false;
+            return array_key_exists(
+                \OCA\Budget\Service\Ocr\NextcloudOcrBackend::TASK_TYPE,
+                $manager->getAvailableTaskTypes()
+            );
         } catch (\Throwable $e) {
             $this->logger->debug('TaskProcessing unavailable: ' . $e->getMessage(), ['app' => Application::APP_ID]);
 

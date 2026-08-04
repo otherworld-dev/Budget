@@ -28,11 +28,16 @@ class ReceiptParser {
         'service', 'cash', 'card', 'credit', 'debit', 'visa', 'mastercard', 'amex',
         'change', 'change due', 'tendered', 'payment', 'paid', 'rounding', 'discount',
         'savings', 'loyalty', 'points',
+        // German — this app's user base skews European, and a Summe line
+        // must no more become a line item than a TOTAL line does.
+        'summe', 'zwischensumme', 'gesamt', 'gesamtbetrag', 'betrag', 'zu zahlen',
+        'mwst', 'ust', 'netto', 'brutto', 'rückgeld', 'gegeben',
     ];
 
     /** Words that mark the line carrying the printed total. */
     private const TOTAL_MARKERS = [
         'grand total', 'amount due', 'balance due', 'total due', 'to pay', 'total',
+        'summe', 'gesamtbetrag', 'gesamt', 'zu zahlen', 'betrag',
     ];
 
     /**
@@ -106,20 +111,34 @@ class ReceiptParser {
                 }
             }
 
-            // 31/12/2026, 31.12.26, 31-12-2026 — day first.
-            if (preg_match('~\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b~', $line, $m)) {
-                $year = (int)$m[3];
+            // 31/12/2026, 31-12-26 — day first, same separator both times.
+            if (preg_match('~\b(\d{1,2})([/\-])(\d{1,2})\2(\d{2,4})\b~', $line, $m)) {
+                $year = (int)$m[4];
                 if ($year < 100) {
                     $year += 2000;
                 }
                 $day = (int)$m[1];
-                $month = (int)$m[2];
+                $month = (int)$m[3];
                 // 12/31/2026 can only be month-first; accept the receipt's word for it.
                 if ($month > 12 && $day <= 12) {
                     [$day, $month] = [$month, $day];
                 }
                 if ($this->isRealDate($year, $month, $day)) {
                     return sprintf('%04d-%02d-%02d', $year, $month, $day);
+                }
+            }
+
+            // 31.12.26 — the dotted form is read strictly day-first, with NO
+            // month/day swap: a POS timestamp printed hh.mm.ss ("12.30.15")
+            // would otherwise swap itself into a plausible date years off.
+            // An impossible dotted date is a time; skip it, don't rescue it.
+            if (preg_match('~\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b~', $line, $m)) {
+                $year = (int)$m[3];
+                if ($year < 100) {
+                    $year += 2000;
+                }
+                if ($this->isRealDate($year, (int)$m[2], (int)$m[1])) {
+                    return sprintf('%04d-%02d-%02d', $year, $m[2], $m[1]);
                 }
             }
         }
@@ -149,10 +168,19 @@ class ReceiptParser {
 
             $prefix = mb_strtolower(trim(mb_substr($line, 0, mb_strpos($line, $token) ?: 0)));
             $prefix = trim($prefix, " \t:.-*");
-            foreach (self::TOTAL_MARKERS as $marker) {
-                if ($prefix !== '' && str_ends_with($prefix, $marker)) {
-                    $marked = $amount;
-                    break;
+            // A subtotal is expressly NOT the total, but "subtotal" ends in
+            // "total" — rule it out before the marker match, and require the
+            // marker to be a whole word so no other compound sneaks through.
+            $isSubtotal = str_contains($prefix, 'subtotal')
+                || str_contains($prefix, 'sub-total')
+                || str_contains($prefix, 'sub total')
+                || str_contains($prefix, 'zwischensumme');
+            if (!$isSubtotal) {
+                foreach (self::TOTAL_MARKERS as $marker) {
+                    if ($prefix === $marker || str_ends_with($prefix, ' ' . $marker)) {
+                        $marked = $amount;
+                        break;
+                    }
                 }
             }
 
@@ -184,7 +212,11 @@ class ReceiptParser {
             }
 
             $description = trim(mb_substr($line, 0, mb_strpos($line, $token) ?: 0));
-            $description = trim($description, " \t:.-*x");
+            $description = trim($description, " \t:.-*");
+            // Strip a trailing standalone quantity marker ("Coffee x") but
+            // never letters that belong to the name — trim('x') once ate the
+            // end of "Weetabix".
+            $description = preg_replace('/\s+x$/i', '', $description) ?? $description;
             if ($description === '' || mb_strlen($description) < 2) {
                 continue;
             }
@@ -214,9 +246,17 @@ class ReceiptParser {
      * symbols and sign stripped. Receipts right-align prices, so the last
      * numeric token is the price even when the description contains numbers
      * ("2x Coffee 250ml   7.00").
+     *
+     * A token is digits with optional THREE-digit groups (space, dot or
+     * comma separated) and an optional one-or-two-digit decimal part. The
+     * group width is enforced in the pattern itself: two numbers that merely
+     * sit next to each other on the line ("Qty 2   2.50", a date before a
+     * price) tokenise separately instead of being glued into one giant
+     * amount — which is exactly how a quantity column once became a 100x
+     * total.
      */
     private function amountToken(string $line): ?string {
-        if (!preg_match_all('/-?[\p{Sc}]?\s*\d[\d.,\s]*\d|\d/u', $line, $m)) {
+        if (!preg_match_all('/-?[\p{Sc}]?\s?\d+(?:[ .,]\d{3})*(?:[.,]\d{1,2})?/u', $line, $m)) {
             return null;
         }
         $token = trim(end($m[0]));
@@ -225,9 +265,16 @@ class ReceiptParser {
     }
 
     /**
-     * "1,234.56", "1.234,56", "12,34", "£12.34" → "1234.56" | "12.34".
-     * A bare integer ("2") is rejected: on a receipt that is a quantity, not
-     * a price, and guessing prices is how drafts go wrong.
+     * "1,234.56", "1.234,56", "1 234,56", "12,34", "£12.34" → "1234.56" |
+     * "12.34". Two hard rules, both in service of missing-beats-wrong:
+     *
+     * - A bare integer ("2") is rejected: on a receipt that is a quantity,
+     *   not a price.
+     * - A single separator followed by exactly three digits ("1.499",
+     *   "0.500") is rejected as AMBIGUOUS: it is a per-litre price or a
+     *   weight as often as it is a thousands group, and both readings are
+     *   wrong half the time. (With both separators present — "1.234,56" —
+     *   the roles are unambiguous and thousands grouping is honoured.)
      */
     private function parseAmount(string $token): ?string {
         $token = preg_replace('/[\p{Sc}\s]/u', '', $token) ?? '';
@@ -245,37 +292,25 @@ class ReceiptParser {
             // Both present: the later one is the decimal separator.
             $decimalPos = max($lastComma, $lastDot);
         } elseif ($lastComma !== false || $lastDot !== false) {
-            $pos = $lastComma !== false ? $lastComma : $lastDot;
-            $digitsAfter = strlen($token) - $pos - 1;
-            // "1.234" / "1,234" is a thousands group, not one-tenth of a cent.
-            $decimalPos = ($digitsAfter === 3 && strlen($token) > 4) || $digitsAfter === 0 ? null : $pos;
-            if ($digitsAfter === 3 && strlen($token) <= 4) {
-                $decimalPos = null;
-            }
+            $decimalPos = $lastComma !== false ? $lastComma : $lastDot;
         } else {
             return null; // Bare integer: quantity, not price.
         }
 
-        $digits = preg_replace('/\D/', '', $token) ?? '';
-        if ($digits === '' || strlen($digits) > 13) {
+        $decimals = substr($token, $decimalPos + 1);
+        if (!preg_match('/^\d{1,2}$/', $decimals)) {
+            return null; // Zero or three-plus decimals: ambiguous, not a price.
+        }
+
+        $whole = preg_replace('/\D/', '', substr($token, 0, $decimalPos)) ?? '0';
+        if (strlen($whole) > 13) {
             return null;
         }
-
-        if ($decimalPos === null) {
-            $whole = $digits;
-            $cents = '00';
-        } else {
-            $decimals = preg_replace('/\D/', '', substr($token, $decimalPos + 1)) ?? '';
-            if (strlen($decimals) > 2) {
-                return null; // Three-plus decimals is a weight or a unit price.
-            }
-            $whole = preg_replace('/\D/', '', substr($token, 0, $decimalPos)) ?? '0';
-            $cents = str_pad($decimals, 2, '0');
-        }
-
         $whole = ltrim($whole, '0');
 
-        return ($negative ? '-' : '') . ($whole === '' ? '0' : $whole) . '.' . $cents;
+        return ($negative ? '-' : '')
+            . ($whole === '' ? '0' : $whole)
+            . '.' . str_pad($decimals, 2, '0');
     }
 
     private function isRealDate(int $year, int $month, int $day): bool {

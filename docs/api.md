@@ -74,7 +74,7 @@ curl -u 'USER:APP_PASSWORD' \
 }
 ```
 
-Call this endpoint first. It confirms the app is installed and your credentials work, and it tells you which optional features this particular server has — so a client can hide a flow the server cannot serve instead of failing halfway through it. `receiptOcr` is `true` only when the administrator has [configured an OCR provider](https://budget.otherworld.dev/docs/receipt-scanning.html); it can flip either way as the server's configuration changes, so re-check it rather than caching it forever.
+Call this endpoint first. It confirms the app is installed and your credentials work, and it tells you which optional features this particular server has — so a client can hide a flow the server cannot serve instead of failing halfway through it. `receiptOcr` is `true` only when the administrator has [configured an OCR provider](receipt-scanning.md); it can flip either way as the server's configuration changes, so re-check it rather than caching it forever.
 
 ## Responses
 
@@ -89,7 +89,7 @@ The payload you want is always `ocs.data`. The HTTP status matches `ocs.meta.sta
 | Status | Meaning |
 |--------|---------|
 | `200` | Success. |
-| `201` | Created — returned by the two `POST` endpoints. |
+| `201` | Created — returned by the recording `POST`s (`/transactions` and receipt upload). The extract endpoint returns `200`: it creates nothing. |
 | `400` | Invalid input. `ocs.data.error` says what. |
 | `401` | Not authenticated, or the app password has been revoked. |
 | `403` | You can see that account but cannot write to it (a read-only [share](sharing.md)). |
@@ -265,7 +265,7 @@ These two receipt endpoints are **owner-only**. Receipts live in the owner's Fil
 
 Turn a receipt photo into a **draft transaction** — the capture-before-save flow. Send the image as `multipart/form-data` under `file` (JPEG, PNG or WebP; the size cap is the same 25 MB as uploads). Nothing is recorded: show the draft to the user, let them correct it, then record it with `POST /transactions` and attach the photo with `POST /transactions/{id}/receipts`.
 
-Check `features.receiptOcr` on `GET /` first — it is `true` only when the server's administrator has [set up an OCR provider](https://budget.otherworld.dev/docs/receipt-scanning.html). Calling without one configured returns `501`.
+Check `features.receiptOcr` on `GET /` first — it is `true` only when the server's administrator has [set up an OCR provider](receipt-scanning.md). Calling without one configured returns `501`.
 
 ```bash
 curl -u 'USER:APP_PASSWORD' \
@@ -290,7 +290,7 @@ curl -u 'USER:APP_PASSWORD' \
 }
 ```
 
-Every field the provider could not read is `null` (or `[]`) rather than a guess — the user fills those in, exactly as they would have typed the whole thing before. Amounts are [money strings](#money). `currency` is the code printed on the receipt when one was legible, which a client can compare against the target account's currency before saving.
+Every field the provider could not read is `null` (or `[]`) rather than a guess — the user fills those in, exactly as they would have typed the whole thing before. Amounts are [money strings](#money). `currency` is the code printed on the receipt when one was legible, which a client can compare against the target account's currency before saving — note the **Nextcloud AI** provider never reports one (its OCR returns plain text and the parser does not guess currencies), so treat `null` as "unknown", not "same as the account".
 
 The category suggestion is produced **locally** by running your own [rules](rules.md) against the extracted merchant — the provider never sees your categories, accounts, or anything else in your ledger. Only the image is sent to it.
 
@@ -361,7 +361,7 @@ The internal endpoints the web UI itself calls (under `/apps/budget/api/...`, wi
 | Editing or deleting transactions | The web UI. A capture client only appends; anything it gets wrong is fixable there. |
 | Creating accounts or categories | The web UI — see [Accounts](accounts.md) and [Categories](categories.md). |
 | Budgets, bills, reports, forecasts | The web UI. |
-| Receipt OCR on an unconfigured server | Ask the administrator to [set up a provider](https://budget.otherworld.dev/docs/receipt-scanning.html); `features.receiptOcr` reports whether this server has one. |
+| Receipt OCR on an unconfigured server | Ask the administrator to [set up a provider](receipt-scanning.md); `features.receiptOcr` reports whether this server has one. |
 | Webhooks / push | The API is poll-based by design. To react to changes, poll `GET /transactions` — every few minutes is ample, since transactions arrive at human speed. |
 
 ## Troubleshooting

@@ -1289,7 +1289,7 @@
           "currency": {
             "type": "string",
             "nullable": true,
-            "description": "ISO 4217 code printed on the receipt, when legible. Compare with the target account's currency before saving.",
+            "description": "ISO 4217 code printed on the receipt, when legible. Compare with the target account's currency before saving. The Nextcloud AI provider never reports one — treat null as unknown, not as matching the account.",
             "example": "GBP"
           },
           "total": {

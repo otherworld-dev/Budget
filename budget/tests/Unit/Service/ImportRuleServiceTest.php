@@ -280,6 +280,35 @@ class ImportRuleServiceTest extends TestCase {
         $this->assertEquals('Grocery', $result[0]['ruleName']);
     }
 
+    public function testTestRulesReportsTheCategoryOfAV2ActionsRule(): void {
+        // Rules from the current builder (schema v2) keep their category in a
+        // set_category action and leave the legacy column NULL. testRules
+        // must report the EFFECTIVE category, or every modern rule reads as
+        // category-less — which silently broke the receipt-draft suggestion.
+        $rule = $this->makeRule(['id' => 7, 'name' => 'Fuel', 'categoryId' => null, 'priority' => 55]);
+        $rule->setSchemaVersion(2);
+        $rule->setActions(json_encode([
+            ['type' => 'set_vendor', 'value' => 'Tesco'],
+            ['type' => 'set_category', 'value' => 423],
+        ]));
+
+        $this->mapper->method('findActive')->willReturn([$rule]);
+        $this->criteriaEvaluator->method('evaluate')->willReturn(true);
+
+        $result = $this->service->testRules('user1', ['description' => 'TESCO PAY AT PUMP']);
+
+        $this->assertSame(423, $result[0]['categoryId']);
+    }
+
+    public function testEffectiveCategoryIdPrefersTheLegacyColumn(): void {
+        $legacy = $this->makeRule(['categoryId' => 5]);
+        $this->assertSame(5, $this->service->effectiveCategoryId($legacy));
+
+        $none = $this->makeRule(['categoryId' => null]);
+        $none->setActions(json_encode([['type' => 'set_vendor', 'value' => 'X']]));
+        $this->assertNull($this->service->effectiveCategoryId($none));
+    }
+
     public function testTestRulesSortsByPriority(): void {
         $rule1 = $this->makeRule(['id' => 1, 'name' => 'Low', 'priority' => 5]);
         $rule2 = $this->makeRule(['id' => 2, 'name' => 'High', 'priority' => 20]);
