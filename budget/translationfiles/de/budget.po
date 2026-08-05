@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-04 22:39+0000\n"
-"PO-Revision-Date: 2026-07-31 23:49+0000\n"
+"PO-Revision-Date: 2026-08-06 00:05+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.8.dev0\n"
+"X-Generator: Weblate 2026.8.1.dev0\n"
 
 #: /app/js/budget-app.js:2
 msgid "hero"
@@ -28,10 +28,8 @@ msgid "widget"
 msgstr "Kachel"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "transactions"
 msgid "transaction-account"
-msgstr "buchungen"
+msgstr "Transaktionskonto"
 
 #: /app/js/budget-app.js:2
 #, fuzzy
@@ -10497,7 +10495,7 @@ msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1964
 msgid "Please select destination account"
-msgstr "Bitte wähle ein Zielkonto"
+msgstr "Bitte Zielkonto auswählen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1968
 msgid "Cannot transfer to same account"
