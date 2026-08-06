@@ -28,6 +28,8 @@ class AlertControllerTest extends TestCase {
 
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('getVisibleAccountIds')->willReturn([7, 9]);
+		$granularShareService->method('getOwnAccountIds')->willReturn([7]);
 
 		$this->controller = new AlertController(
 			$request,
@@ -103,5 +105,32 @@ class AlertControllerTest extends TestCase {
 		$response = $this->controller->summary();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	// ── shared-account scope reaches the service (#341) ──────────────
+
+	/**
+	 * Budget alerts have to measure spending and carryover over the accounts
+	 * the user can SEE, not only the ones they own, or a category funded from
+	 * a shared account never depletes and never alerts. Asserted with the exact
+	 * argument list: `->with('user1')` alone still matches a two-argument call,
+	 * so it would not have caught the parameter being dropped.
+	 */
+	public function testIndexPassesVisibleAccountScope(): void {
+		$this->service->expects($this->once())
+			->method('getAlerts')
+			->with('user1', [7, 9])
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->index()->getStatus());
+	}
+
+	public function testStatusPassesVisibleAccountScope(): void {
+		$this->service->expects($this->once())
+			->method('getBudgetStatus')
+			->with('user1', [7, 9])
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->status()->getStatus());
 	}
 }

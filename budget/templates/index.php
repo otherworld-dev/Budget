@@ -2250,7 +2250,7 @@ style('budget', 'budget-app');
                                     <select id="map-notes">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
-                                    <p class="hint"><?php p($l->t('Where the memo from your file is stored')); ?></p>
+                                    <p class="hint"><?php p($l->t('Column stored in the transaction\'s notes field')); ?></p>
                                 </div>
                                 <div class="mapping-field" data-map-field="type">
                                     <label><?php p($l->t('Transaction Type')); ?></label>
@@ -2385,7 +2385,8 @@ style('budget', 'budget-app');
                                         <tr>
                                             <th><?php p($l->t('Date')); ?></th>
                                             <th><?php p($l->t('Description')); ?></th>
-                                            <th><?php p($l->t('Amount')); ?></th>
+                                            <th id="preview-th-notes" style="display: none;"><?php p($l->t('Notes')); ?></th>
+                                            <th class="preview-col-amount"><?php p($l->t('Amount')); ?></th>
                                             <th><?php p($l->t('Category')); ?></th>
                                             <th><?php p($l->t('Status')); ?></th>
                                         </tr>

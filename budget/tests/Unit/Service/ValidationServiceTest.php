@@ -149,6 +149,17 @@ class ValidationServiceTest extends TestCase {
 		$this->assertFalse($result['valid']);
 	}
 
+	/**
+	 * The cap has to be the transactions.reference column width (VARCHAR(100)),
+	 * not a rounder number: anything longer passes validation and then fails
+	 * the insert on a database that enforces widths.
+	 */
+	public function testValidateReferenceCapMatchesColumnWidth(): void {
+		$this->assertSame(100, ValidationService::MAX_REFERENCE_LENGTH);
+		$this->assertTrue($this->service->validateReference(str_repeat('x', 100))['valid']);
+		$this->assertFalse($this->service->validateReference(str_repeat('x', 101))['valid']);
+	}
+
 	// ── validateIcon ────────────────────────────────────────────────
 
 	public function testValidateIconValid(): void {

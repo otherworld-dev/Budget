@@ -7086,8 +7086,10 @@ button.danger:hover {
     white-space: nowrap;
 }
 
-/* The Amount column, so the header sits over its own figures. */
-#preview-table th:nth-child(3) {
+/* The Amount column, so the header sits over its own figures. Named, not
+   positional: as :nth-child(3) this silently started aligning the Notes header
+   instead the moment a column was inserted before Amount (#340). */
+#preview-table th.preview-col-amount {
     text-align: right;
 }
 

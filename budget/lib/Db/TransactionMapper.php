@@ -2547,8 +2547,7 @@ class TransactionMapper extends QBMapper {
         $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
@@ -2557,15 +2556,15 @@ class TransactionMapper extends QBMapper {
                 $qb->expr()->isNull('t.is_split')
             ));
 
+        // The account list REPLACES the owner predicate rather than narrowing
+        // it. Added as an extra AND (#299), it could only ever shrink the
+        // owner's own accounts, so passing a scope that included an account
+        // shared with the user still returned nothing from it (#341).
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-        // Multi-account report scope (#299): restrict to the selected accounts.
-        if (!empty($visibleAccountIds)) {
-            $qb->andWhere($qb->expr()->in('t.account_id', $qb->createNamedParameter($visibleAccountIds, IQueryBuilder::PARAM_INT_ARRAY)));
         }
 
         $result = $qb->executeQuery();
@@ -2583,7 +2582,7 @@ class TransactionMapper extends QBMapper {
      *
      * @return array<int, array<string, float>> categoryId => bucket => total
      */
-    public function getCategorySpendingByBucketBatch(string $userId, string $startDate, string $endDate, bool $byDay = false): array {
+    public function getCategorySpendingByBucketBatch(string $userId, string $startDate, string $endDate, bool $byDay = false, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : $this->monthExpr();
@@ -2593,8 +2592,7 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->sum('t.amount'), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->isNotNull('t.category_id'))
+            ->where($qb->expr()->isNotNull('t.category_id'))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
@@ -2605,8 +2603,13 @@ class TransactionMapper extends QBMapper {
             ->groupBy('t.category_id')
             ->addGroupBy($qb->createFunction($bucketExpr));
 
+        // Scope by the accounts the user can actually see, not just the ones
+        // they own: envelope budgets counted spending from a shared account
+        // everywhere except here, so a category funded out of a shared account
+        // carried its whole budget forward (#341). applyUserScope also drops
+        // report-excluded accounts, as the explicit call here used to.
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $totals = [];
@@ -2672,20 +2675,21 @@ class TransactionMapper extends QBMapper {
      *
      * @return int[]
      */
-    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate): array {
+    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('t.id')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
 
+        // Same visible-account scope as the rest of a budget surface, so a
+        // split booked in a shared account is not silently dropped (#341).
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $data = $result->fetchAll();

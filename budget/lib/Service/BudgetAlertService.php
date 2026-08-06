@@ -130,7 +130,7 @@ class BudgetAlertService {
      *
      * @return array Array of alerts with category info, spent, budget, percentage, and severity
      */
-    public function getAlerts(string $userId): array {
+    public function getAlerts(string $userId, ?array $visibleAccountIds = null): array {
         $alerts = [];
 
         // Get all categories and resolve effective budgets for current month
@@ -138,7 +138,7 @@ class BudgetAlertService {
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
-        $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories);
+        $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
         // Categories with a budget in play: base > 0, or a non-zero envelope
@@ -179,7 +179,8 @@ class BudgetAlertService {
                 $userId,
                 $category->getId(),
                 $range['start'],
-                $range['end']
+                $range['end'],
+                $visibleAccountIds
             );
 
             // Classify: exactly meeting the budget is "fully used", not over (#293).
@@ -225,14 +226,14 @@ class BudgetAlertService {
      *
      * @return array Array of all categories with budget status
      */
-    public function getBudgetStatus(string $userId): array {
+    public function getBudgetStatus(string $userId, ?array $visibleAccountIds = null): array {
         $statuses = [];
 
         $categories = $this->categoryMapper->findAll($userId);
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
-        $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories);
+        $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
         // Base budget > 0, or a non-zero envelope carryover (see getAlerts)
@@ -270,7 +271,8 @@ class BudgetAlertService {
                 $userId,
                 $category->getId(),
                 $range['start'],
-                $range['end']
+                $range['end'],
+                $visibleAccountIds
             );
 
             // Classify: exactly meeting the budget is "fully used", not over (#293).
@@ -303,8 +305,8 @@ class BudgetAlertService {
     /**
      * Get summary statistics for budget alerts.
      */
-    public function getSummary(string $userId): array {
-        $statuses = $this->getBudgetStatus($userId);
+    public function getSummary(string $userId, ?array $visibleAccountIds = null): array {
+        $statuses = $this->getBudgetStatus($userId, $visibleAccountIds);
 
         $totalBudget = 0;
         $totalSpent = 0;
@@ -469,13 +471,15 @@ class BudgetAlertService {
      * Get total spending for a category within a date range.
      * Includes both direct transactions and split allocations.
      */
-    private function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate): float {
+    private function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
         // Get direct spending (non-split transactions)
         $directSpending = $this->transactionMapper->getCategorySpending(
             $userId,
             $categoryId,
             $startDate,
-            $endDate
+            $endDate,
+            null,
+            $visibleAccountIds
         );
 
         // Get spending from splits
@@ -483,7 +487,8 @@ class BudgetAlertService {
             $userId,
             $categoryId,
             $startDate,
-            $endDate
+            $endDate,
+            $visibleAccountIds
         );
 
         return $directSpending + $splitSpending;
@@ -492,9 +497,9 @@ class BudgetAlertService {
     /**
      * Get spending from transaction splits for a category.
      */
-    private function getSplitCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate): float {
+    private function getSplitCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
         // Get split transactions in date range
-        $splitTransactionIds = $this->transactionMapper->getSplitTransactionIds($userId, $startDate, $endDate);
+        $splitTransactionIds = $this->transactionMapper->getSplitTransactionIds($userId, $startDate, $endDate, $visibleAccountIds);
 
         if (empty($splitTransactionIds)) {
             return 0.0;

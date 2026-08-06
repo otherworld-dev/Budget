@@ -39,6 +39,8 @@ class BudgetCarryoverServiceTest extends TestCase {
     private array $snapshots = [];
     /** @var array<int, float> */
     private array $recurring = [];
+    /** @var array<int, int[]|null> every visible-account scope the mappers were called with */
+    private array $seenAccountScopes = [];
 
     protected function setUp(): void {
         $categoryMapper = $this->createMock(CategoryMapper::class);
@@ -46,10 +48,16 @@ class BudgetCarryoverServiceTest extends TestCase {
         $this->snapshotMapper->method('findAll')->willReturnCallback(fn() => $this->snapshots);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->transactionMapper->method('getCategorySpendingByBucketBatch')
-            ->willReturnCallback(fn() => $this->directSpending);
+            ->willReturnCallback(function (string $u, string $s, string $e, bool $byDay = false, ?array $visible = null) {
+                $this->seenAccountScopes[] = $visible;
+                return $this->directSpending;
+            });
         $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
         $this->splitMapper->method('getCategoryTotalsByBucket')
-            ->willReturnCallback(fn() => $this->splitSpending);
+            ->willReturnCallback(function (string $u, string $s, string $e, bool $byDay = false, ?array $visible = null) {
+                $this->seenAccountScopes[] = $visible;
+                return $this->splitSpending;
+            });
         $this->settingService = $this->createMock(SettingService::class);
         $this->settingService->method('get')->willReturn(null); // start day 1
         $this->recurringBudgetService = $this->createMock(RecurringBudgetService::class);
@@ -332,5 +340,233 @@ class BudgetCarryoverServiceTest extends TestCase {
 
         // Mar period: 300 − 100 = 200; Apr period: 300 + 200 − 50 = 450
         $this->assertSame(450.0, $result[1]);
+    }
+
+    // ── the envelope covers the whole branch (#341) ─────────────────
+
+    /**
+     * The reported bug: budget the parent, file the transactions under a
+     * subcategory. Spending was looked up by the envelope category's own id
+     * only, so it found nothing and the full base carried forward every month.
+     */
+    public function testSubcategorySpendingCountsAgainstTheParentEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1]);
+        $child = $this->makeCategory([
+            'id' => 2,
+            'parentId' => 1,
+            'budgetAmount' => null,
+            'budgetRollover' => false,
+            'rolloverStart' => null,
+        ]);
+        $this->directSpending = [2 => ['2026-03' => 250.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $child]);
+
+        $this->assertSame(50.0, $result[1]);
+    }
+
+    public function testDeepDescendantSpendingCountsAgainstTheParentEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1, 'budgetAmount' => null, 'budgetRollover' => false, 'rolloverStart' => null]);
+        $grandchild = $this->makeCategory(['id' => 3, 'parentId' => 2, 'budgetAmount' => null, 'budgetRollover' => false, 'rolloverStart' => null]);
+        $this->directSpending = [3 => ['2026-03' => 120.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $child, $grandchild]);
+
+        $this->assertSame(180.0, $result[1]);
+    }
+
+    /** A subcategory's own budget is part of the branch's envelope too. */
+    public function testSubcategoryBudgetCountsTowardsTheParentEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1, 'budgetAmount' => 100.0, 'budgetRollover' => false, 'rolloverStart' => null]);
+        $this->directSpending = [1 => ['2026-03' => 50.0], 2 => ['2026-03' => 250.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $child]);
+
+        // Branch base 400 − branch spend 300 = 100
+        $this->assertSame(100.0, $result[1]);
+    }
+
+    /**
+     * A subcategory running its own envelope keeps its own chain, and the
+     * parent must not double-count it — the Budget view already shows the
+     * child's figures on both rows.
+     */
+    public function testSubcategoryWithItsOwnEnvelopeIsNotCountedByTheParent(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1, 'budgetAmount' => 100.0]);
+        $this->directSpending = [1 => ['2026-03' => 200.0], 2 => ['2026-03' => 40.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $child]);
+
+        $this->assertSame(100.0, $result[1]);
+        $this->assertSame(60.0, $result[2]);
+    }
+
+    /** Before the child's envelope starts, its spending belongs to the parent. */
+    public function testSubcategorySpendingBelongsToTheParentBeforeItsOwnAnchor(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0, 'rolloverStart' => '2026-03']);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1, 'budgetAmount' => null, 'rolloverStart' => '2026-04']);
+        $this->directSpending = [2 => ['2026-03' => 250.0, '2026-04' => 30.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-05', [$parent, $child]);
+
+        // March: child has no envelope yet, so the parent absorbs it → 300 − 250 = 50.
+        // April: the child runs its own, so the parent keeps its full 300 → 350.
+        $this->assertSame(350.0, $result[1]);
+    }
+
+    /** A branch member no budget surface counts must not reach the envelope. */
+    public function testExcludedSubcategoryDoesNotAffectTheParentEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $excludedFromBudget = $this->makeCategory([
+            'id' => 2, 'parentId' => 1, 'budgetAmount' => 500.0,
+            'budgetRollover' => false, 'rolloverStart' => null, 'excludedFromBudget' => true,
+        ]);
+        $excludedFromReports = $this->makeCategory([
+            'id' => 3, 'parentId' => 1, 'budgetAmount' => 500.0,
+            'budgetRollover' => false, 'rolloverStart' => null, 'excludedFromReports' => true,
+        ]);
+        $this->directSpending = [
+            1 => ['2026-03' => 100.0],
+            2 => ['2026-03' => 400.0],
+            3 => ['2026-03' => 400.0],
+        ];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $excludedFromBudget, $excludedFromReports]);
+
+        $this->assertSame(200.0, $result[1]);
+    }
+
+    /**
+     * A subcategory budgeting over a different span is not part of a monthly
+     * envelope: its amount covers a quarter, so adding it to every month of
+     * the chain would invent three times the money.
+     */
+    public function testNonMonthlySubcategoryBudgetStaysOutOfTheEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $quarterly = $this->makeCategory([
+            'id' => 2, 'parentId' => 1, 'budgetAmount' => 900.0, 'budgetPeriod' => 'quarterly',
+            'budgetRollover' => false, 'rolloverStart' => null,
+        ]);
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $quarterly]);
+
+        $this->assertSame(300.0, $result[1]);
+    }
+
+    /** An income subcategory holds a target, not a budget to spend against. */
+    public function testIncomeSubcategoryStaysOutOfTheEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $income = $this->makeCategory([
+            'id' => 2, 'parentId' => 1, 'type' => 'income', 'budgetAmount' => 2000.0,
+            'budgetRollover' => false, 'rolloverStart' => null,
+        ]);
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $income]);
+
+        $this->assertSame(300.0, $result[1]);
+    }
+
+    /**
+     * excluded_from_reports has no cascade of its own (unlike the budget flag,
+     * which BudgetScope inherits down the tree), so it has to be tested on
+     * every ancestor or a grandchild slips back into the envelope.
+     */
+    public function testDescendantOfAReportExcludedSubcategoryStaysOutOfTheEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $excluded = $this->makeCategory([
+            'id' => 2, 'parentId' => 1, 'budgetAmount' => null,
+            'budgetRollover' => false, 'rolloverStart' => null, 'excludedFromReports' => true,
+        ]);
+        $grandchild = $this->makeCategory([
+            'id' => 3, 'parentId' => 2, 'budgetAmount' => 500.0,
+            'budgetRollover' => false, 'rolloverStart' => null,
+        ]);
+        $this->directSpending = [3 => ['2026-03' => 400.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $excluded, $grandchild]);
+
+        $this->assertSame(300.0, $result[1]);
+    }
+
+    /** The same cascade for the budget flag, which BudgetScope inherits. */
+    public function testDescendantOfABudgetExcludedSubcategoryStaysOutOfTheEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1, 'budgetAmount' => 300.0]);
+        $excluded = $this->makeCategory([
+            'id' => 2, 'parentId' => 1, 'budgetAmount' => null,
+            'budgetRollover' => false, 'rolloverStart' => null, 'excludedFromBudget' => true,
+        ]);
+        $grandchild = $this->makeCategory([
+            'id' => 3, 'parentId' => 2, 'budgetAmount' => 500.0,
+            'budgetRollover' => false, 'rolloverStart' => null,
+        ]);
+        $this->directSpending = [3 => ['2026-03' => 400.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $excluded, $grandchild]);
+
+        $this->assertSame(300.0, $result[1]);
+    }
+
+    /** Split allocations booked on a subcategory count for the branch too. */
+    public function testSubcategorySplitSpendingCountsAgainstTheParentEnvelope(): void {
+        $parent = $this->makeCategory(['id' => 1]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1, 'budgetAmount' => null, 'budgetRollover' => false, 'rolloverStart' => null]);
+        $this->splitSpending = [2 => ['2026-03' => 120.0]];
+
+        $result = $this->service->getCarryovers('alice', '2026-04', [$parent, $child]);
+
+        $this->assertSame(180.0, $result[1]);
+    }
+
+    // ── shared accounts are in scope (#341) ─────────────────────────
+
+    /**
+     * Spending in an account shared with the user counts towards their
+     * envelope: the chain's two spending queries were scoped to the accounts
+     * the user OWNS while every other budget surface scopes to the ones they
+     * can SEE, so a category funded out of a shared account carried its whole
+     * budget forward every month.
+     */
+    public function testVisibleAccountScopeReachesBothSpendingQueries(): void {
+        $this->service->getCarryovers('alice', '2026-04', [$this->makeCategory()], [7, 9]);
+
+        $this->assertNotEmpty($this->seenAccountScopes);
+        foreach ($this->seenAccountScopes as $scope) {
+            $this->assertSame([7, 9], $scope);
+        }
+    }
+
+    /** Callers that pass no scope keep the own-accounts-only behaviour. */
+    public function testOmittedAccountScopeLeavesTheQueriesUnscoped(): void {
+        $this->service->getCarryovers('alice', '2026-04', [$this->makeCategory()]);
+
+        $this->assertNotEmpty($this->seenAccountScopes);
+        foreach ($this->seenAccountScopes as $scope) {
+            $this->assertNull($scope);
+        }
+    }
+
+    /** The custom-start-day path uses the same two queries, so it must too. */
+    public function testVisibleAccountScopeReachesTheCustomStartDayPath(): void {
+        $settingService = $this->createMock(SettingService::class);
+        $settingService->method('get')->willReturn('15');
+        $service = new TestableBudgetCarryoverService(
+            $this->createMock(CategoryMapper::class),
+            $this->snapshotMapper,
+            $this->transactionMapper,
+            $this->splitMapper,
+            $this->recurringBudgetService,
+            $settingService
+        );
+        $service->currentMonth = '2026-06';
+
+        $service->getCarryovers('alice', '2026-05', [$this->makeCategory()], [7, 9]);
+
+        $this->assertNotEmpty($this->seenAccountScopes);
+        foreach ($this->seenAccountScopes as $scope) {
+            $this->assertSame([7, 9], $scope);
+        }
     }
 }

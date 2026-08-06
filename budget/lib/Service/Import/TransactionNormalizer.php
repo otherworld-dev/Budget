@@ -55,11 +55,24 @@ class TransactionNormalizer {
     /**
      * Destination column widths, so an imported value can never be rejected
      * by the insert or by a later edit through the UI/API.
-     * notes is TEXT in the DB but ValidationService caps edits at 2000.
+     * description and notes are TEXT in the DB but ValidationService caps
+     * edits at 1000 and 2000; vendor and reference are VARCHAR(255)/VARCHAR(100),
+     * which a length-enforcing database rejects outright.
      */
+    private const MAX_DESCRIPTION_LENGTH = 1000;
     private const MAX_NOTES_LENGTH = 2000;
     private const MAX_VENDOR_LENGTH = 255;
     private const MAX_REFERENCE_LENGTH = 100;
+
+    /**
+     * Free-text fields and the width each one's destination accepts.
+     */
+    private const TEXT_LIMITS = [
+        'description' => self::MAX_DESCRIPTION_LENGTH,
+        'notes' => self::MAX_NOTES_LENGTH,
+        'vendor' => self::MAX_VENDOR_LENGTH,
+        'reference' => self::MAX_REFERENCE_LENGTH,
+    ];
 
     /** @var string|null Cached date format detected from batch analysis */
     private ?string $detectedDateFormat = null;
@@ -165,11 +178,62 @@ class TransactionNormalizer {
             $transaction['_currency'] = strtoupper(trim($row[$mapping['currency']]));
         }
 
-        // Clean description
-        $transaction['description'] = trim($transaction['description'] ?? '');
+        // Freeze the two fields generateImportId() hashes, exactly as earlier
+        // versions saw them, BEFORE the cleaning below touches them. The
+        // content hash is md5(date.amount.description.reference), so trimming a
+        // padded reference column or truncating a long description would
+        // re-key every row and re-import the user's whole statement as new
+        // transactions the first time they imported after upgrading — the same
+        // trap the OFX path avoids with ofxImportIdentity() (#338, #340).
+        $transaction['_hashDescription'] = trim((string) ($transaction['description'] ?? ''));
+        if (array_key_exists('reference', $transaction)) {
+            $transaction['_hashReference'] = (string) $transaction['reference'];
+        }
+
+        // Clean the free-text fields. The OFX path trims in pickSource and
+        // clamps on the way out; the CSV path did neither, so a long column
+        // mapped to Notes stored a row that could never be edited again and an
+        // over-long Vendor/Reference failed the insert on any database that
+        // enforces VARCHAR widths — the very outcome the MAX_* constants above
+        // exist to prevent (#340).
+        $transaction['description'] = trim((string) ($transaction['description'] ?? ''));
+        foreach (['notes', 'vendor', 'reference'] as $field) {
+            if (!isset($transaction[$field]) || !is_scalar($transaction[$field])) {
+                continue;
+            }
+            $value = trim((string) $transaction[$field]);
+            // A mapped-but-blank cell has to store null like every other
+            // creation path does, not an empty string.
+            $transaction[$field] = $value === '' ? null : $value;
+        }
+
+        $transaction = $this->clampTransactionText($transaction);
 
         // Set import source for rule matching
         $transaction['source'] = 'CSV Import';
+
+        return $transaction;
+    }
+
+    /**
+     * Trim every free-text field to the width its destination will accept.
+     *
+     * Applied twice on purpose: here from the mapping methods, so the preview
+     * shows exactly what will be stored, and again from ImportService
+     * immediately before the insert, because an import rule's "append to
+     * notes" action runs after mapping and can push a clamped value back over
+     * the limit.
+     *
+     * @param array $transaction Mapped transaction data
+     * @return array The same data with over-long text fields truncated
+     */
+    public function clampTransactionText(array $transaction): array {
+        foreach (self::TEXT_LIMITS as $field => $max) {
+            if (!isset($transaction[$field]) || !is_scalar($transaction[$field])) {
+                continue;
+            }
+            $transaction[$field] = $this->clampLength((string) $transaction[$field], $max);
+        }
 
         return $transaction;
     }
@@ -203,17 +267,17 @@ class TransactionNormalizer {
             $notes = null;
         }
 
-        return [
+        return $this->clampTransactionText([
             'date' => $txn['date'] ?? '',
             'amount' => abs($amount),
             'type' => $amount >= 0 ? 'credit' : 'debit',
             'description' => $description,
             'memo' => $txn['memo'] ?? null,
-            'reference' => $this->clampLength($reference, self::MAX_REFERENCE_LENGTH),
-            'vendor' => $this->clampLength($vendor, self::MAX_VENDOR_LENGTH),
-            'notes' => $this->clampLength($notes, self::MAX_NOTES_LENGTH),
+            'reference' => $reference,
+            'vendor' => $vendor,
+            'notes' => $notes,
             'id' => $txn['id'] ?? null, // Preserve FITID for duplicate detection
-        ];
+        ]);
     }
 
     /**
@@ -436,12 +500,18 @@ class TransactionNormalizer {
         }
 
         // Content-based hash for CSV/QIF imports (no fileId to ensure same transaction = same hash)
-        // This allows duplicate detection across multiple imports of the same statement
+        // This allows duplicate detection across multiple imports of the same statement.
+        //
+        // _hashDescription/_hashReference hold those two fields as they were
+        // before mapRowToTransaction started trimming and clamping them, so
+        // the cleaning cannot change an ID and turn a re-imported statement
+        // into a second copy of itself (#340). Rows from any other source
+        // (OFX/QIF via ofxImportIdentity) carry neither and hash as before.
         return 'hash_' . md5(
             ($transaction['date'] ?? '') .
             ($transaction['amount'] ?? '') .
-            ($transaction['description'] ?? '') .
-            ($transaction['reference'] ?? '')
+            ($transaction['_hashDescription'] ?? $transaction['description'] ?? '') .
+            ($transaction['_hashReference'] ?? $transaction['reference'] ?? '')
         );
     }
 

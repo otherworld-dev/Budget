@@ -15,6 +15,18 @@ available this month = monthly budget + last month's leftover (or overspend)
 
 The chain continues month over month from the day you enable it.
 
+### Subcategories are part of the envelope
+
+An envelope covers the category **and everything filed underneath it**, which is what the Budget view has always shown on a parent row. So you can budget €300 on *Groceries* and file the actual transactions under *Groceries › Supermarket* and *Groceries › Bakery* — all of it comes out of the one envelope, and the leftover carried into next month is the whole branch's.
+
+The exception is a subcategory with its own envelope switched on: it keeps its own chain from the month you enabled it, and its parent stops counting it (it would otherwise be counted twice).
+
+These subcategories stay out of a parent's envelope entirely, along with anything filed under them:
+
+- ones you've **excluded from budgeting or from reports**;
+- ones budgeting on a **different period** — a quarterly or yearly subcategory budget covers a different span, so it can't be added to a monthly envelope;
+- **income** subcategories, which hold a target rather than a budget to spend against.
+
 ## Enabling Rollover
 
 On the **Budget** view, each monthly expense category row has a circular-arrow toggle (↻) next to the period selector. Click it to enable envelope behavior for that category.
@@ -25,6 +37,7 @@ On the **Budget** view, each monthly expense category row has a circular-arrow t
 
 ## Things Worth Knowing
 
+- **Shared accounts count.** Spending in an account someone has shared with you comes out of your envelope like any other spending, matching what the rest of the Budget view already counts.
 - **Derived, never stored.** The carried amount is recomputed from your actual budgets and spending every time it's shown. Edit or delete a transaction in a past month and every later month's carryover updates automatically — there is no cached number to go stale.
 - **Negative carryover is real.** A depleted envelope (available ≤ 0) still appears in budget alerts and reports as over budget — it doesn't silently vanish.
 - **Auto-derived budgets ([#269](budget.md)) compose:** months with no manual budget use the recurring-bills fallback for the current and future months, exactly as the Budget view displays them. Past months in the chain use only what was actually set (manual or snapshot) for that month.

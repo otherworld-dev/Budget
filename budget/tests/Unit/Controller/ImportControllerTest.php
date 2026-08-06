@@ -86,6 +86,47 @@ class ImportControllerTest extends TestCase {
 		$this->assertSame($preview, $response->getData());
 	}
 
+	// ── applyTemplate (exercised through preview) ───────────────────
+
+	// #340: an OFX/QIF template now carries the text-target mapping as well as
+	// the account routing, so selecting one has to apply both.
+	public function testPreviewAppliesStoredMappingFromOfxTemplate(): void {
+		$this->templateService->method('find')->willReturn(
+			$this->makeTemplate('ofx', ['notes' => 'transactionType'], ['1234567' => 5])
+		);
+
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file123', ['notes' => 'transactionType'], null, ['1234567' => 5], true, ',')
+			->willReturn([]);
+
+		$this->controller->preview('file123', ['notes' => 'memo'], null, null, true, ',', null, 4);
+	}
+
+	// Templates saved before mappings were stored for these formats have none;
+	// blanking the request's mapping would undo the format defaults.
+	public function testPreviewKeepsRequestMappingWhenOfxTemplateHasNone(): void {
+		$this->templateService->method('find')->willReturn(
+			$this->makeTemplate('ofx', [], ['1234567' => 5])
+		);
+
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file123', ['notes' => 'memo'], null, ['1234567' => 5], true, ',')
+			->willReturn([]);
+
+		$this->controller->preview('file123', ['notes' => 'memo'], null, null, true, ',', null, 4);
+	}
+
+	private function makeTemplate(string $format, array $mapping, array $accountMapping): \OCA\Budget\Db\ImportTemplate {
+		$template = new \OCA\Budget\Db\ImportTemplate();
+		$template->setFormat($format);
+		$template->setMappingFromArray($mapping);
+		$template->setAccountMappingFromArray($accountMapping);
+		$template->setDelimiter(',');
+		return $template;
+	}
+
 	public function testPreviewHandlesError(): void {
 		$this->service->method('previewImport')
 			->willThrowException(new \RuntimeException('error'));

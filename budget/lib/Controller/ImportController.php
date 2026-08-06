@@ -75,6 +75,13 @@ class ImportController extends Controller {
             // Union (+) not array_merge: numeric account-number keys must be preserved.
             $requested = is_array($params['accountMapping'] ?? null) ? $params['accountMapping'] : [];
             $params['accountMapping'] = $requested + $template->getParsedAccountMapping();
+
+            // A template saved before OFX/QIF mappings were stored has none;
+            // leaving the request's mapping alone keeps those working.
+            $storedMapping = $template->getParsedMapping();
+            if (!empty($storedMapping)) {
+                $params['mapping'] = $storedMapping;
+            }
         }
 
         if (($params['accountId'] ?? null) === null) {

@@ -16,6 +16,7 @@ use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
 use OCP\IL10N;
+use Psr\Log\LoggerInterface;
 
 /**
  * Orchestrates the import process for financial data files.
@@ -37,6 +38,7 @@ class ImportService {
     private TransactionTagService $transactionTagService;
     private ImportAccountLinkService $accountLinkService;
     private IL10N $l;
+    private LoggerInterface $logger;
 
     /** @var array<int,string> Cache of destination account id => type for the account/account_type rule fields */
     private array $ruleAccountTypeCache = [];
@@ -58,7 +60,8 @@ class ImportService {
         TransactionTagService $transactionTagService,
         ImportAccountLinkService $accountLinkService,
         private \OCA\Budget\Service\BillService $billService,
-        IL10N $l
+        IL10N $l,
+        LoggerInterface $logger
     ) {
         $this->appData = $appData;
         $this->transactionService = $transactionService;
@@ -76,6 +79,23 @@ class ImportService {
         $this->transactionTagService = $transactionTagService;
         $this->accountLinkService = $accountLinkService;
         $this->l = $l;
+        $this->logger = $logger;
+    }
+
+    /**
+     * Record a row that could not be imported.
+     *
+     * The user is told "%n rows could not be imported — check the server log
+     * for details", so the detail has to actually reach the log — until this
+     * existed the only copy was in the browser console (#340).
+     *
+     * @param array<string, mixed> $context Extra fields to log alongside
+     */
+    private function logRowFailure(\Throwable $e, array $context = []): void {
+        $this->logger->warning(
+            'Budget import: row could not be imported — ' . $e->getMessage(),
+            $context + ['app' => 'budget', 'exception' => $e]
+        );
     }
 
     /**
@@ -507,6 +527,11 @@ class ImportService {
                         $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, (int)$destAccountId, $userId));
                     }
 
+                    // Preview what will actually be stored: the execute loop
+                    // clamps after the rules run, so without this an
+                    // append-to-notes rule previews text the import truncates.
+                    $transaction = $this->normalizer->clampTransactionText($transaction);
+
                     $transactions[] = array_merge($transaction, [
                         'rowIndex' => $index,
                         'sourceAccountId' => $sourceId,
@@ -652,6 +677,9 @@ class ImportService {
                     }
 
                     $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
+                    // Preview what will actually be stored — see the identical
+                    // clamp in executeSingleAccountImport (#340).
+                    $transaction = $this->normalizer->clampTransactionText($transaction);
                     $transactions[] = array_merge($transaction, [
                         'rowIndex' => $index,
                         'isDuplicate' => $isDuplicate,
@@ -695,6 +723,9 @@ class ImportService {
                     // Account doesn't exist yet, so $txAccountId is null and no
                     // account context is added — an account-scoped rule won't match.
                     $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
+                    // Preview what will actually be stored — see the identical
+                    // clamp in executeSingleAccountImport (#340).
+                    $transaction = $this->normalizer->clampTransactionText($transaction);
                     $transactions[] = array_merge($transaction, [
                         'rowIndex' => $index,
                         'isDuplicate' => $isDuplicate,
@@ -957,6 +988,10 @@ class ImportService {
                         $transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, (int)$destAccountId, $userId));
                     }
 
+                    // Re-clamp: an "append to notes" rule action runs after the
+                    // mapping clamp and can push a field back over its limit.
+                    $transaction = $this->normalizer->clampTransactionText($transaction);
+
                     $createdTx = $this->transactionService->create(
                         $userId,
                         (int)$destAccountId,
@@ -998,6 +1033,7 @@ class ImportService {
                     $imported++;
                     $accountResults[$sourceId]['imported']++;
                 } catch (\Exception $e) {
+                    $this->logRowFailure($e, ['row' => $index + 1, 'sourceAccountId' => $sourceId, 'format' => $format]);
                     $errors[] = ['row' => $index + 1, 'sourceAccountId' => $sourceId, 'error' => $e->getMessage()];
                 }
             }
@@ -1013,6 +1049,7 @@ class ImportService {
                 try {
                     $this->transactionService->recalculateAccountBalance($touchedAccountId, $userId);
                 } catch (\Exception $e) {
+                    $this->logRowFailure($e, ['accountId' => $touchedAccountId, 'stage' => 'balance-recalculation']);
                     $errors[] = ['error' => $this->l->t('Failed to recalculate balance for account %1$s', [(string)$touchedAccountId])];
                 }
             }
@@ -1142,6 +1179,12 @@ class ImportService {
                 if ($hasAccountColumn) {
                     $txAccountName = $transaction['_accountName'] ?? '';
                     if ($txAccountName === '' || !isset($resolvedAccounts[$txAccountName])) {
+                        $this->logger->warning('Budget import: could not resolve account for row', [
+                            'app' => 'budget',
+                            'row' => $index + 1,
+                            'accountName' => $txAccountName,
+                            'fileId' => $fileId,
+                        ]);
                         $errors[] = ['row' => $index + 1, 'error' => $this->l->t('Could not resolve account: %1$s', [$txAccountName])];
                         continue;
                     }
@@ -1179,6 +1222,10 @@ class ImportService {
                         $transaction['categoryId'] = $categoryId;
                     }
                 }
+
+                // Re-clamp: an "append to notes" rule action runs after the
+                // mapping clamp and can push a field back over its limit.
+                $transaction = $this->normalizer->clampTransactionText($transaction);
 
                 $createdTx = $this->transactionService->create(
                     $userId,
@@ -1251,6 +1298,7 @@ class ImportService {
                     $perAccountResults[$txAccountName]['imported']++;
                 }
             } catch (\Exception $e) {
+                $this->logRowFailure($e, ['row' => $index + 1, 'fileId' => $fileId, 'format' => $format]);
                 $errors[] = ['row' => $index + 1, 'error' => $e->getMessage()];
             }
         }

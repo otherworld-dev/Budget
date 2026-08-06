@@ -574,14 +574,21 @@ class CategoryController extends Controller {
      * Get resolved effective budgets for a given month.
      * @NoAdminRequired
      */
-    public function effectiveBudgets(string $month): DataResponse {
+    public function effectiveBudgets(string $month, ?bool $excludeShared = null): DataResponse {
         try {
             if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
                 return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
             }
 
             $hasSnapshot = $this->service->hasSnapshot($this->userId, $month);
-            $budgets = $this->service->resolveEffectiveBudgets($this->userId, $month);
+            // Same account scope the Budget view's spending call uses, so the
+            // envelope carryover counts a shared account like everything else
+            // on the page (#341).
+            $budgets = $this->service->resolveEffectiveBudgets(
+                $this->userId,
+                $month,
+                $this->getEffectiveAccountIds((bool) $excludeShared)
+            );
             return new DataResponse([
                 'month' => $month,
                 'hasSnapshot' => $hasSnapshot,

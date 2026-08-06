@@ -200,7 +200,8 @@ class ReportController extends Controller {
     public function budget(
         ?string $startDate = null,
         ?string $endDate = null,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?bool $excludeShared = null
     ): DataResponse {
         try {
             if (!$startDate) {
@@ -214,7 +215,11 @@ class ReportController extends Controller {
                 $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                // The dashboard's Budget Progress tile can be set to exclude
+                // shared accounts; honour it here or the carryover would pull
+                // them back in behind the tile's own setting.
+                $this->getEffectiveAccountIds((bool) $excludeShared)
             );
             return new DataResponse($budget);
         } catch (\Exception $e) {

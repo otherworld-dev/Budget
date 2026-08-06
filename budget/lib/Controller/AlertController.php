@@ -45,7 +45,7 @@ class AlertController extends Controller {
      */
     public function index(): DataResponse {
         try {
-            $alerts = $this->alertService->getAlerts($this->getEffectiveUserId());
+            $alerts = $this->alertService->getAlerts($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
             return new DataResponse($alerts);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve budget alerts'));
@@ -58,7 +58,7 @@ class AlertController extends Controller {
      */
     public function status(): DataResponse {
         try {
-            $status = $this->alertService->getBudgetStatus($this->getEffectiveUserId());
+            $status = $this->alertService->getBudgetStatus($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
             return new DataResponse($status);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve budget status'));

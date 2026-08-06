@@ -391,7 +391,7 @@ class ReportAggregator {
      * Generate budget report with category-by-category breakdown.
      * OPTIMIZED: Uses single batch query instead of N queries for N categories.
      */
-    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null): array {
+    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
         $categories = $this->categoryMapper->findAll($userId);
         $budgetReport = [];
         $totals = [
@@ -417,7 +417,7 @@ class ReportAggregator {
         $isSingleMonth = $startDate === $reportMonth . '-01'
             && $endDate === date('Y-m-t', strtotime($startDate));
         $carryovers = $isSingleMonth
-            ? $this->carryoverService->getCarryovers($userId, $reportMonth, $categories)
+            ? $this->carryoverService->getCarryovers($userId, $reportMonth, $categories, $visibleAccountIds)
             : [];
 
         // Collect category IDs that have budgets (considering snapshots and

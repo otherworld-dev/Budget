@@ -142,7 +142,7 @@ class TransactionSplitMapper extends QBMapper {
      *
      * @return array<int, array<string, float>> categoryId => bucket => total
      */
-    public function getCategoryTotalsByBucket(string $userId, string $startDate, string $endDate, bool $byDay = false): array {
+    public function getCategoryTotalsByBucket(string $userId, string $startDate, string $endDate, bool $byDay = false, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : 'SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)';
@@ -154,7 +154,12 @@ class TransactionSplitMapper extends QBMapper {
             ->from($this->getTableName(), 's')
             ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            // Scope by the accounts the user can see rather than only the ones
+            // they own — a split booked in a shared account belongs in their
+            // envelope like any other spending (#341).
+            ->where($visibleAccountIds !== null && !empty($visibleAccountIds)
+                ? $qb->expr()->in('a.id', $qb->createNamedParameter($visibleAccountIds, IQueryBuilder::PARAM_INT_ARRAY))
+                : $qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             // Exclude accounts flagged out of reports/budgets (#286)
             ->andWhere($qb->expr()->orX(
                 $qb->expr()->isNull('a.excluded_from_reports'),

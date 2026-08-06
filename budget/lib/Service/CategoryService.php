@@ -564,10 +564,10 @@ class CategoryService extends AbstractCrudService {
      *
      * Returns map of categoryId => array.
      */
-    public function resolveEffectiveBudgets(string $userId, string $month): array {
+    public function resolveEffectiveBudgets(string $userId, string $month, ?array $visibleAccountIds = null): array {
         $categories = $this->findAll($userId);
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $month);
-        $carryovers = $this->carryoverService->getCarryovers($userId, $month, $categories);
+        $carryovers = $this->carryoverService->getCarryovers($userId, $month, $categories, $visibleAccountIds);
         // Categories the user doesn't budget against get no entry at all
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
@@ -613,7 +613,7 @@ class CategoryService extends AbstractCrudService {
         return $result;
     }
 
-    public function getBudgetAnalysis(string $userId, ?string $month = null): array {
+    public function getBudgetAnalysis(string $userId, ?string $month = null, ?array $visibleAccountIds = null): array {
         if (!$month) {
             $month = date('Y-m');
         }
@@ -624,7 +624,7 @@ class CategoryService extends AbstractCrudService {
         $categories = $this->findAll($userId);
 
         // Resolve effective budgets for this month (snapshot-aware)
-        $effectiveBudgets = $this->resolveEffectiveBudgets($userId, $month);
+        $effectiveBudgets = $this->resolveEffectiveBudgets($userId, $month, $visibleAccountIds);
 
         // Categories excluded from reports, or not budgeted against
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);

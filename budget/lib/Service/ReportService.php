@@ -214,8 +214,8 @@ class ReportService {
     /**
      * Generate a budget report with category-by-category breakdown.
      */
-    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null): array {
-        return $this->aggregator->getBudgetReport($userId, $startDate, $endDate, $accountId);
+    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
+        return $this->aggregator->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds);
     }
 
     /**
@@ -404,7 +404,7 @@ class ReportService {
             'spending' => $this->getSpendingReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
             'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
             'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
-            'budget' => $this->getBudgetReport($userId, $startDate, $endDate),
+            'budget' => $this->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
             'category-monthly' => $this->getCategoryMonthlyReport($userId, $startDate, $endDate, $accountId, 'alpha', $visibleAccountIds),
             default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
         };

@@ -30,6 +30,16 @@ class ImportTemplateService extends AbstractCrudService {
     ];
 
     /**
+     * The subset an OFX/QIF template may carry.
+     *
+     * Date, amount and type are structural in those formats and they have no
+     * per-row account, currency or dual-amount columns, so only the four text
+     * targets are worth storing — the same set the mapping step offers for
+     * them (MAPPABLE_FIELDS in ImportModule.js).
+     */
+    private const OFX_COLUMN_FIELDS = ['description', 'notes', 'vendor', 'reference'];
+
+    /**
      * Mapping keys that hold a boolean option.
      */
     private const BOOLEAN_FIELDS = ['skipFirstRow', 'applyRules'];
@@ -82,7 +92,11 @@ class ImportTemplateService extends AbstractCrudService {
             $accountMapping = $this->sanitizeAccountMapping($accountMapping);
             $this->assertAccountMappingValid($accountMapping);
             $template->setAccountMappingFromArray($accountMapping);
-            $template->setMappingFromArray([]);
+            // The routing is the point of an OFX/QIF template, but since #338
+            // made the four text targets mappable for those formats too, a
+            // non-default choice has to be stored or it is silently reset to
+            // the format defaults on every later import (#340).
+            $template->setMappingFromArray($this->sanitizeMapping($mapping, self::OFX_COLUMN_FIELDS));
         }
 
         $template->setDelimiter($delimiter !== '' ? $delimiter : ',');
@@ -128,8 +142,15 @@ class ImportTemplateService extends AbstractCrudService {
         $entity = $this->find($id, $userId);
 
         if ($hasMapping) {
-            $mapping = $this->sanitizeMapping((array) $updates['mapping']);
-            $this->assertMappingValid($mapping);
+            // OFX/QIF templates carry only the text targets, and none of them
+            // is required — the CSV date/amount/description rules would reject
+            // every one of them.
+            if (($entity->getFormat() ?? 'csv') === 'csv') {
+                $mapping = $this->sanitizeMapping((array) $updates['mapping']);
+                $this->assertMappingValid($mapping);
+            } else {
+                $mapping = $this->sanitizeMapping((array) $updates['mapping'], self::OFX_COLUMN_FIELDS);
+            }
             $entity->setMappingFromArray($mapping);
             unset($updates['mapping']);
         }
@@ -177,20 +198,30 @@ class ImportTemplateService extends AbstractCrudService {
      * Keep only recognised mapping keys and coerce their value types.
      *
      * @param array<string, mixed> $mapping
+     * @param string[]|null $columnFields Column keys to keep (all CSV keys by default)
      * @return array<string, mixed>
      */
-    private function sanitizeMapping(array $mapping): array {
+    private function sanitizeMapping(array $mapping, ?array $columnFields = null): array {
         $clean = [];
-        foreach (self::COLUMN_FIELDS as $field) {
+        foreach ($columnFields ?? self::COLUMN_FIELDS as $field) {
             if (isset($mapping[$field]) && $mapping[$field] !== '' && $mapping[$field] !== null) {
                 $clean[$field] = (string) $mapping[$field];
             }
         }
-        foreach (self::BOOLEAN_FIELDS as $field) {
-            if (isset($mapping[$field])) {
-                $clean[$field] = (bool) $mapping[$field];
+
+        // Only on the full CSV mapping. The booleans are CSV import options,
+        // and keeping them on a restricted mapping would leave an OFX template
+        // with no text targets holding a non-empty mapping — which is exactly
+        // what ImportController::applyTemplate tests to decide whether the
+        // template has a mapping to apply at all.
+        if ($columnFields === null) {
+            foreach (self::BOOLEAN_FIELDS as $field) {
+                if (isset($mapping[$field])) {
+                    $clean[$field] = (bool) $mapping[$field];
+                }
             }
         }
+
         return $clean;
     }
 

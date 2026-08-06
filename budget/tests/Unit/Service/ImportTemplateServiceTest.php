@@ -84,6 +84,37 @@ class ImportTemplateServiceTest extends TestCase {
         ]);
     }
 
+    // #340: sanitizeMapping is a strict allowlist, so an optional target that
+    // falls out of COLUMN_FIELDS is dropped silently — a saved template would
+    // quietly stop mapping it with the whole suite still green.
+    public function testCreateCsvRoundTripsEveryOptionalTarget(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = $this->validMapping() + [
+            'notes' => 'Info',
+            'vendor' => 'Payee',
+            'reference' => 'Ref',
+            'type' => 'Dr/Cr',
+            'category' => 'Category',
+            'account' => 'Account',
+            'currency' => 'Currency',
+        ];
+
+        $template = $this->service->create('user1', 'Full mapping', 'csv', $mapping);
+
+        $this->assertEquals($mapping, $template->getParsedMapping());
+    }
+
+    public function testCreateCsvDropsUnknownMappingKeys(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $template = $this->service->create('user1', 'Bank', 'csv', $this->validMapping() + ['bogus' => 'X']);
+
+        $this->assertArrayNotHasKey('bogus', $template->getParsedMapping());
+    }
+
     // ── OFX/QIF account-routing templates ───────────────────────────
 
     public function testCreateOfxPersistsAccountRouting(): void {
@@ -114,6 +145,75 @@ class ImportTemplateServiceTest extends TestCase {
         $template = $this->service->create('user1', 'OFX', 'ofx', [], $routing);
 
         $this->assertEquals(['good' => 5], $template->getParsedAccountMapping());
+    }
+
+    // #340: since #338 made the four text targets mappable for OFX/QIF, the
+    // template has to carry them — it used to store [] for any non-CSV format,
+    // so a non-default Notes choice was reset on every later import.
+    public function testCreateOfxPersistsTextTargetMapping(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $template = $this->service->create('user1', 'OFX', 'ofx', [
+            'description' => 'memo',
+            'notes' => 'transactionType',
+            'vendor' => 'name',
+            'reference' => 'reference',
+        ], ['1234567' => 5]);
+
+        $this->assertEquals([
+            'description' => 'memo',
+            'notes' => 'transactionType',
+            'vendor' => 'name',
+            'reference' => 'reference',
+        ], $template->getParsedMapping());
+    }
+
+    // Date/amount/type are structural in OFX and QIF, and these formats have no
+    // per-row account, currency or dual-amount columns — storing a leftover CSV
+    // selection would apply a mapping the format cannot honour.
+    public function testCreateOfxDropsMappingKeysTheFormatCannotResolve(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $template = $this->service->create('user1', 'OFX', 'ofx', [
+            'date' => 'Date',
+            'amount' => 'Amount',
+            'incomeColumn' => 'Credit',
+            'account' => 'Account',
+            'currency' => 'Currency',
+            'notes' => 'memo',
+        ], ['1234567' => 5]);
+
+        $this->assertEquals(['notes' => 'memo'], $template->getParsedMapping());
+    }
+
+    // ImportController::applyTemplate uses "mapping is non-empty" to decide
+    // whether the template has a mapping worth applying, so an OFX template
+    // with no text targets must not be left holding stray boolean options.
+    public function testCreateOfxWithNoTextTargetsStoresAnEmptyMapping(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $template = $this->service->create('user1', 'OFX', 'ofx', [
+            'skipFirstRow' => false,
+            'applyRules' => true,
+            'date' => 'Date',
+        ], ['1234567' => 5]);
+
+        $this->assertSame([], $template->getParsedMapping());
+    }
+
+    // The CSV rules demand date/amount/description; applying them to an OFX
+    // template would reject every legitimate text-only mapping.
+    public function testUpdateOfxMappingSkipsTheCsvRequiredColumnRules(): void {
+        $existing = $this->makeOfxEntity();
+        $this->mapper->method('find')->willReturn($existing);
+        $this->mapper->method('update')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $updated = $this->service->update(1, 'user1', ['mapping' => ['notes' => 'transactionType']]);
+
+        $this->assertEquals(['notes' => 'transactionType'], $updated->getParsedMapping());
     }
 
     // ── Updates ─────────────────────────────────────────────────────

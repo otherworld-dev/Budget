@@ -626,6 +626,171 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertSame('GROCERY STORE', $result['description']);
 	}
 
+	// ── mapRowToTransaction notes mapping (#340) ────────────────────
+
+	// The whole point of #340: a CSV column pointed at Notes has to reach the
+	// stored transaction. Nothing covered the CSV side of this.
+	public function testMapRowKeepsMappedNotesColumn(): void {
+		$row = ['2026-08-04', '-12.34', 'Coffee shop', 'Verwendungszweck: Kartenzahlung'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2, 'notes' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Verwendungszweck: Kartenzahlung', $result['notes']);
+		$this->assertSame('Coffee shop', $result['description']);
+	}
+
+	public function testMapRowTrimsMappedTextColumns(): void {
+		$row = ['2026-08-04', '-12.34', ' Coffee shop ', "  padded note \n", '  ACME  ', ' REF-9 '];
+		$mapping = [
+			'date' => 0, 'amount' => 1, 'description' => 2,
+			'notes' => 3, 'vendor' => 4, 'reference' => 5,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Coffee shop', $result['description']);
+		$this->assertSame('padded note', $result['notes']);
+		$this->assertSame('ACME', $result['vendor']);
+		$this->assertSame('REF-9', $result['reference']);
+	}
+
+	// A mapped column whose cell is blank must store null, like every other
+	// creation path, rather than an empty string.
+	public function testMapRowBlankMappedTextColumnBecomesNull(): void {
+		$row = ['2026-08-04', '-12.34', 'Coffee shop', '   ', '', ''];
+		$mapping = [
+			'date' => 0, 'amount' => 1, 'description' => 2,
+			'notes' => 3, 'vendor' => 4, 'reference' => 5,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertNull($result['notes']);
+		$this->assertNull($result['vendor']);
+		$this->assertNull($result['reference']);
+	}
+
+	// #340: the CSV path never clamped. Over-long notes imported fine and then
+	// failed ValidationService on the first edit, leaving an uneditable row;
+	// over-long vendor/reference blew up the insert on MySQL/Postgres.
+	public function testMapRowClampsOverlongTextToColumnWidths(): void {
+		$row = [
+			'2026-08-04',
+			'-12.34',
+			str_repeat('d', 1500),
+			str_repeat('n', 2500),
+			str_repeat('v', 400),
+			str_repeat('r', 150),
+		];
+		$mapping = [
+			'date' => 0, 'amount' => 1, 'description' => 2,
+			'notes' => 3, 'vendor' => 4, 'reference' => 5,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame(1000, mb_strlen($result['description']));
+		$this->assertSame(2000, mb_strlen($result['notes']));
+		$this->assertSame(255, mb_strlen($result['vendor']));
+		$this->assertSame(100, mb_strlen($result['reference']));
+	}
+
+	// ── import-ID stability across the #340 cleaning ────────────────
+
+	// The CSV import ID is md5(date.amount.description.reference). Trimming a
+	// padded reference column would re-key every row, so a user re-importing
+	// their statement after upgrading would get a second copy of all of it.
+	public function testMapRowImportIdIgnoresTheNewTrimming(): void {
+		$row = ['2026-08-04', '-12.34', 'Coffee shop', '  REF-9  '];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2, 'reference' => 3];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$legacy = 'hash_' . md5('2026-08-04' . 12.34 . 'Coffee shop' . '  REF-9  ');
+
+		$this->assertSame('REF-9', $result['reference']);
+		$this->assertSame($legacy, $this->normalizer->generateImportId('f', 0, $result));
+	}
+
+	// Same guarantee for a description long enough to be truncated.
+	public function testMapRowImportIdIgnoresTheNewDescriptionClamp(): void {
+		$description = str_repeat('d', 1500);
+		$row = ['2026-08-04', '-12.34', $description];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$legacy = 'hash_' . md5('2026-08-04' . 12.34 . $description . '');
+
+		$this->assertSame(1000, mb_strlen($result['description']));
+		$this->assertSame($legacy, $this->normalizer->generateImportId('f', 0, $result));
+	}
+
+	// An unmapped reference must keep hashing as the empty string, and a
+	// mapped-but-blank one must not start hashing as null.
+	public function testMapRowImportIdUnchangedForUnmappedAndBlankReference(): void {
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2, 'reference' => 3];
+		$legacy = 'hash_' . md5('2026-08-04' . 12.34 . 'Coffee shop' . '');
+
+		$unmapped = $this->normalizer->mapRowToTransaction(
+			['2026-08-04', '-12.34', 'Coffee shop'],
+			['date' => 0, 'amount' => 1, 'description' => 2]
+		);
+		$blank = $this->normalizer->mapRowToTransaction(['2026-08-04', '-12.34', 'Coffee shop', ''], $mapping);
+
+		$this->assertSame($legacy, $this->normalizer->generateImportId('f', 0, $unmapped));
+		$this->assertSame($legacy, $this->normalizer->generateImportId('f', 0, $blank));
+	}
+
+	// OFX rows reach generateImportId through ofxImportIdentity(), which
+	// carries no _hash* keys — that path must be untouched.
+	public function testGenerateImportIdStillHashesPlainDescriptionAndReference(): void {
+		$identity = [
+			'date' => '2026-08-04',
+			'amount' => 12.34,
+			'description' => 'Coffee shop',
+			'reference' => 'REF-9',
+			'id' => null,
+		];
+
+		$this->assertSame(
+			'hash_' . md5('2026-08-04' . 12.34 . 'Coffee shop' . 'REF-9'),
+			$this->normalizer->generateImportId('f', 0, $identity)
+		);
+	}
+
+	// ── clampTransactionText (#340) ─────────────────────────────────
+
+	// ImportService calls this again just before the insert, because an import
+	// rule's "append to notes" action runs after the mapping clamp.
+	public function testClampTransactionTextTruncatesEveryTextField(): void {
+		$result = $this->normalizer->clampTransactionText([
+			'description' => str_repeat('d', 1200),
+			'notes' => str_repeat('n', 3000),
+			'vendor' => str_repeat('v', 300),
+			'reference' => str_repeat('r', 120),
+			'amount' => 12.34,
+		]);
+
+		$this->assertSame(1000, mb_strlen($result['description']));
+		$this->assertSame(2000, mb_strlen($result['notes']));
+		$this->assertSame(255, mb_strlen($result['vendor']));
+		$this->assertSame(100, mb_strlen($result['reference']));
+		$this->assertSame(12.34, $result['amount']);
+	}
+
+	public function testClampTransactionTextLeavesNullAndShortValuesAlone(): void {
+		$result = $this->normalizer->clampTransactionText([
+			'description' => 'Coffee shop',
+			'notes' => null,
+			'vendor' => 'ACME',
+		]);
+
+		$this->assertSame('Coffee shop', $result['description']);
+		$this->assertNull($result['notes']);
+		$this->assertSame('ACME', $result['vendor']);
+		$this->assertArrayNotHasKey('reference', $result);
+	}
+
 	// ── mapOfxTransaction memo persistence (#338) ───────────────────
 
 	// #338: <MEMO> was parsed, shown in the preview, then discarded — create()

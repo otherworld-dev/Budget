@@ -19,8 +19,17 @@ use OCA\Budget\Db\TransactionSplitMapper;
  * transaction in a past month changes every downstream month's carryover
  * automatically, with nothing to invalidate.
  *
+ * An envelope covers a whole BRANCH: the category plus every descendant,
+ * because the Budget view has always shown a parent row as its own figures
+ * plus its children's. Keyed on the category's own id alone, the chain saw
+ * none of the spending filed under subcategories — budget the parent, file
+ * under the children, and the untouched base carried forward every month
+ * while the same row read "spent 30 of 100" (#341). Descending stops at a
+ * descendant running its own envelope that month: it keeps its own chain, and
+ * counting it twice would inflate the parent's.
+ *
  * Chain recurrence, month by month from the category's anchor
- * (rollover_start, set when the flag was enabled):
+ * (rollover_start, set when the flag was enabled), over the branch it owns:
  *
  *   carry(m+1) = base(m) + carry(m) − spent(m)   if base(m) > 0 or carry(m) ≠ 0
  *   carry(m+1) = 0                               otherwise (inactive month)
@@ -38,6 +47,9 @@ class BudgetCarryoverService {
     /** Hard cap on chain length — keeps multi-year anchors bounded */
     private const MAX_CHAIN_MONTHS = 60;
 
+    /** Guard against a parent cycle in corrupt data, as in BudgetScope */
+    private const MAX_DEPTH = 64;
+
     public function __construct(
         private CategoryMapper $categoryMapper,
         private BudgetSnapshotMapper $budgetSnapshotMapper,
@@ -54,25 +66,54 @@ class BudgetCarryoverService {
      * callers treat missing keys as 0.
      *
      * @param Category[]|null $categories pass when already loaded (saves a query)
+     * @param int[]|null $visibleAccountIds accounts in scope (own + shared);
+     *        null falls back to the user's own accounts only
      * @return array<int, float> categoryId => carried amount
      */
-    public function getCarryovers(string $userId, string $targetMonth, ?array $categories = null): array {
+    public function getCarryovers(string $userId, string $targetMonth, ?array $categories = null, ?array $visibleAccountIds = null): array {
         $categories ??= $this->categoryMapper->findAll($userId);
 
         // A branch the user doesn't budget against has no envelope to carry
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
         $eligible = [];
+        $parents = [];
+        $byId = [];
         foreach ($categories as $category) {
-            if (isset($notBudgeted[$category->getId()])) {
+            $catId = $category->getId();
+            $byId[$catId] = $category;
+            $parents[$catId] = $category->getParentId();
+            if (isset($notBudgeted[$catId])) {
                 continue;
             }
             if ($this->isRolloverEligible($category, $targetMonth)) {
-                $eligible[$category->getId()] = $category;
+                $eligible[$catId] = $category;
             }
         }
         if (empty($eligible)) {
             return [];
+        }
+
+        // What may join a branch's envelope. Type and period are the chain's
+        // own v1 scope, applied to members as well as owners: a quarterly or
+        // yearly subcategory budget is an amount measured over a different
+        // span, and folding it into a monthly chain would add it again every
+        // month; an income subcategory holds a target, not a budget to spend
+        // against. The reports flag is handled on the way up in
+        // envelopeOwner() so it takes a whole subtree with it.
+        $contributors = [];
+        foreach ($categories as $category) {
+            $catId = $category->getId();
+            if (isset($notBudgeted[$catId])) {
+                continue;
+            }
+            if ($category->getType() !== 'expense') {
+                continue;
+            }
+            if (($category->getBudgetPeriod() ?? 'monthly') !== 'monthly') {
+                continue;
+            }
+            $contributors[$catId] = $category;
         }
 
         // Chain start: earliest anchor across eligible categories, capped
@@ -91,8 +132,10 @@ class BudgetCarryoverService {
         $currentMonth = $this->getCurrentMonth();
         $startDay = $this->getBudgetStartDay($userId);
 
-        // Spending per category per chain month (direct + splits), batched
-        $spentByMonth = $this->loadSpending($userId, array_keys($eligible), $months, $startDay);
+        // Spending per category per chain month (direct + splits), batched.
+        // Every contributor, not just the envelope categories: a branch's
+        // spending usually sits on its subcategories (#341).
+        $spentByMonth = $this->loadSpending($userId, array_keys($contributors), $months, $startDay, $visibleAccountIds);
 
         // Snapshot bases: all snapshots up to the last chain month, folded
         // per category into a sorted (effectiveFrom => [amount, period]) list
@@ -101,13 +144,18 @@ class BudgetCarryoverService {
         // Recurring fallback applies to current/future chain months only
         $recurring = null; // lazy — most chains are entirely in the past
 
-        $carryovers = [];
-        foreach ($eligible as $catId => $category) {
-            $anchor = $category->getRolloverStart();
-            $carry = 0.0;
+        // Month-major, because which envelope owns a branch member can change
+        // from month to month — a subcategory that switches its own envelope on
+        // stops counting towards its parent's from that month.
+        $carryovers = array_fill_keys(array_keys($eligible), 0.0);
 
-            foreach ($months as $month) {
-                if ($month < $anchor) {
+        foreach ($months as $month) {
+            $branchBase = [];
+            $branchSpent = [];
+
+            foreach ($contributors as $catId => $category) {
+                $ownerId = $this->envelopeOwner($catId, $month, $byId, $parents);
+                if ($ownerId === null || !isset($eligible[$ownerId])) {
                     continue;
                 }
 
@@ -119,18 +167,79 @@ class BudgetCarryoverService {
                     $base = (float) ($recurring[$catId] ?? 0);
                 }
 
-                if ($base > 0 || abs($carry) >= 0.005) {
-                    $spent = $spentByMonth[$catId][$month] ?? 0.0;
-                    $carry = round($base + $carry - $spent, 2);
-                } else {
-                    $carry = 0.0;
-                }
+                $branchBase[$ownerId] = ($branchBase[$ownerId] ?? 0.0) + $base;
+                $branchSpent[$ownerId] = ($branchSpent[$ownerId] ?? 0.0) + ($spentByMonth[$catId][$month] ?? 0.0);
             }
 
-            $carryovers[$catId] = $carry;
+            foreach ($eligible as $catId => $category) {
+                if ($month < $category->getRolloverStart()) {
+                    continue;
+                }
+
+                $base = $branchBase[$catId] ?? 0.0;
+                if ($base > 0 || abs($carryovers[$catId]) >= 0.005) {
+                    $carryovers[$catId] = round(
+                        $base + $carryovers[$catId] - ($branchSpent[$catId] ?? 0.0),
+                        2
+                    );
+                } else {
+                    $carryovers[$catId] = 0.0;
+                }
+            }
         }
 
         return $carryovers;
+    }
+
+    /**
+     * The envelope a category's budget and spending belong to in $month: the
+     * nearest ancestor-or-self running one. Null when nothing in the ancestry
+     * does, so the row simply belongs to no envelope.
+     *
+     * @param array<int, Category> $byId
+     * @param array<int, int|null> $parents
+     */
+    private function envelopeOwner(int $catId, string $month, array $byId, array $parents): ?int {
+        $cursor = $catId;
+        for ($depth = 0; $cursor !== null && $depth < self::MAX_DEPTH; $depth++) {
+            if (!isset($byId[$cursor])) {
+                return null; // parent outside this list (e.g. shared)
+            }
+
+            // Tested on every ancestor, so a branch hidden from reports takes
+            // its descendants with it — the Budget view drops an excluded node
+            // and everything under it, and excluded_from_reports has no
+            // cascade of its own the way BudgetScope gives the budget flag.
+            if ($byId[$cursor]->getExcludedFromReports() ?? false) {
+                return null;
+            }
+
+            if ($this->envelopeRunsIn($byId[$cursor], $month)) {
+                return $cursor;
+            }
+            $cursor = $parents[$cursor] ?? null;
+        }
+        return null;
+    }
+
+    /**
+     * Whether this category's own envelope is accruing in $month.
+     *
+     * Same conditions as isRolloverEligible(), except the anchor is compared
+     * against a chain month it may equal: an envelope starts accruing IN its
+     * anchor month, while eligibility is judged against a target month it has
+     * to precede.
+     */
+    private function envelopeRunsIn(Category $category, string $month): bool {
+        $anchor = $category->getRolloverStart();
+
+        return ($category->getBudgetRollover() ?? false)
+            && $anchor !== null
+            && $anchor <= $month
+            && ($category->getBudgetPeriod() ?? 'monthly') === 'monthly'
+            && $category->getType() === 'expense'
+            && !($category->getExcludedFromReports() ?? false)
+            && !($category->getExcludedFromBudget() ?? false);
     }
 
     /**
@@ -229,9 +338,10 @@ class BudgetCarryoverService {
      * shifted period of each chain month.
      *
      * @param string[] $months ascending chain months
+     * @param int[]|null $visibleAccountIds accounts in scope (own + shared)
      * @return array<int, array<string, float>> categoryId => month => spent
      */
-    private function loadSpending(string $userId, array $categoryIds, array $months, int $startDay): array {
+    private function loadSpending(string $userId, array $categoryIds, array $months, int $startDay, ?array $visibleAccountIds = null): array {
         $firstMonth = $months[0];
         $lastMonth = end($months);
 
@@ -239,8 +349,8 @@ class BudgetCarryoverService {
             $startDate = $firstMonth . '-01';
             $endDate = date('Y-m-t', strtotime($lastMonth . '-01'));
 
-            $direct = $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate);
-            $splits = $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate);
+            $direct = $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate, false, $visibleAccountIds);
+            $splits = $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate, false, $visibleAccountIds);
 
             return $this->mergeSpending($categoryIds, $direct, $splits);
         }
@@ -253,8 +363,8 @@ class BudgetCarryoverService {
         $startDate = $ranges[$firstMonth][0];
         $endDate = $ranges[$lastMonth][1];
 
-        $direct = $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate, true);
-        $splits = $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate, true);
+        $direct = $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate, true, $visibleAccountIds);
+        $splits = $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate, true, $visibleAccountIds);
 
         $spent = [];
         foreach ([$direct, $splits] as $source) {

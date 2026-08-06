@@ -49,6 +49,10 @@ Map each column in your CSV to the corresponding transaction field:
 
 Select the appropriate column header from the dropdown for each field. Columns you do not map are ignored.
 
+If your bank export carries extra transaction information that does not belong in the description, map that column to **Notes** and it is kept on the transaction rather than discarded. Notes appear as their own column in the import preview whenever something is mapped into them, so you can check the right column was picked before anything is written.
+
+Very long values are truncated to what the field can hold: 1,000 characters for the description, 2,000 for notes, 255 for the vendor and 100 for the reference.
+
 #### How a negative amount is written
 
 Exports disagree about how to write a negative, so Budget reads all the usual notations. Every one of these is an expense of 1,234.56:
@@ -215,7 +219,7 @@ To import from Toshl Finance, export your data as CSV from Toshl and upload the 
 If you import from the same bank regularly, you can save your import configuration as a reusable template instead of repeating the setup on every import. Templates are private to your account, and what a template stores depends on the file format:
 
 - **CSV** — the **column mapping**, the CSV delimiter, and the "skip first row" option (plus an optional default destination account).
-- **OFX / QIF** — the **account routing**, i.e. which destination account each source account in the file maps to.
+- **OFX / QIF** — the **account routing**, i.e. which destination account each source account in the file maps to, together with the Description / Notes / Vendor / Reference mapping if you changed it from the defaults.
 
 All templates also remember the import options (skip duplicates, apply rules). When you upload a file, only templates matching that file's format are offered.
 
@@ -238,6 +242,8 @@ OFX and QIF fields are standardized, so their mapping is filled in for you and r
 3. Click **Save routing as template…** above the list and name it.
 
 To reuse it, upload a file of the same format and pick your template from the **Saved Account Routing** dropdown; the destinations are filled in automatically. You can still change any destination before importing.
+
+If you changed the Description / Notes / Vendor / Reference mapping before saving, that is stored with the routing and restored alongside it, so a bank that puts the payee in the memo does not have to be re-mapped on every import.
 
 > **Note:** OFX already auto-matches source accounts to your accounts by account number; a saved routing template is most useful for QIF (which has no auto-match) or when the auto-match is wrong or incomplete.
 

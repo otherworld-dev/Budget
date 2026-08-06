@@ -43,7 +43,10 @@ class ValidationService {
     public const MAX_DESCRIPTION_LENGTH = 1000;
     public const MAX_NOTES_LENGTH = 2000;
     public const MAX_VENDOR_LENGTH = 255;
-    public const MAX_REFERENCE_LENGTH = 255;
+    // 100, not 255: transactions.reference is VARCHAR(100). At 255 a reference
+    // between 101 and 255 characters passed validation and was then rejected by
+    // any database that enforces the width, turning a clean 400 into a 500.
+    public const MAX_REFERENCE_LENGTH = 100;
     public const MAX_PATTERN_LENGTH = 500;
     public const MAX_ICON_LENGTH = 50;
     public const MAX_COLOR_LENGTH = 20;

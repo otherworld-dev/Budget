@@ -19,6 +19,26 @@ const MAPPABLE_FIELDS = {
     qif: ['description', 'notes', 'vendor', 'reference']
 };
 
+/**
+ * Mapping target -> the select that holds it. One list, so the mapping the UI
+ * reads (getCurrentMapping) and the one it writes back from a saved template
+ * cannot drift apart.
+ */
+const MAPPING_SELECT_IDS = {
+    date: 'map-date',
+    amount: 'map-amount',
+    incomeColumn: 'map-income',
+    expenseColumn: 'map-expense',
+    description: 'map-description',
+    notes: 'map-notes',
+    type: 'map-type',
+    vendor: 'map-vendor',
+    reference: 'map-reference',
+    category: 'map-category',
+    account: 'map-account',
+    currency: 'map-currency'
+};
+
 export default class ImportModule {
     constructor(app) {
         this.app = app;
@@ -255,22 +275,7 @@ export default class ImportModule {
      */
     applyTemplateToForm(template) {
         const mapping = template.mapping || {};
-        const setSelect = (id, value) => {
-            const el = document.getElementById(id);
-            if (el) el.value = value ?? '';
-        };
-        setSelect('map-date', mapping.date);
-        setSelect('map-amount', mapping.amount);
-        setSelect('map-income', mapping.incomeColumn);
-        setSelect('map-expense', mapping.expenseColumn);
-        setSelect('map-description', mapping.description);
-        setSelect('map-notes', mapping.notes);
-        setSelect('map-type', mapping.type);
-        setSelect('map-vendor', mapping.vendor);
-        setSelect('map-reference', mapping.reference);
-        setSelect('map-category', mapping.category);
-        setSelect('map-account', mapping.account);
-        setSelect('map-currency', mapping.currency);
+        this.applyColumnMappingToForm(mapping, Object.keys(MAPPING_SELECT_IDS));
 
         const skipFirstRow = document.getElementById('skip-first-row');
         if (skipFirstRow) skipFirstRow.checked = !!mapping.skipFirstRow;
@@ -284,6 +289,27 @@ export default class ImportModule {
 
         this.highlightMappedColumns(this.getCurrentMapping());
         this.validateMappingStep();
+    }
+
+    /**
+     * Write a saved column mapping into the step-2 selects.
+     *
+     * `fields` is the set the mapping is authoritative for — anything in it the
+     * mapping does not carry is blanked, so a template can never leave a column
+     * from an earlier file selected. An empty mapping is left alone entirely:
+     * OFX/QIF templates saved before mappings were stored for them have none,
+     * and blanking would wipe the format defaults instead (#340).
+     *
+     * @param {object} mapping Stored mapping (target -> column name)
+     * @param {string[]} fields Mapping targets this call owns
+     */
+    applyColumnMappingToForm(mapping, fields) {
+        if (!mapping || !Object.keys(mapping).length) return;
+
+        fields.forEach(field => {
+            const el = document.getElementById(MAPPING_SELECT_IDS[field]);
+            if (el) el.value = mapping[field] ?? '';
+        });
     }
 
     /**
@@ -353,6 +379,11 @@ export default class ImportModule {
         } else {
             // OFX/QIF: the reusable payload is the source->destination account routing.
             requestBody.accountMapping = this.getAccountMapping();
+            // Since #338 these formats have their own text-target mapping, so
+            // carry it along or a non-default Notes/Vendor choice is lost on
+            // every later import. The server keeps only the four fields these
+            // formats can resolve (#340).
+            requestBody.mapping = this.getCurrentMapping();
             requestBody.applyRules = true;
         }
 
@@ -563,6 +594,13 @@ export default class ImportModule {
                 if (select.value === String(mapping[sourceKey])) appliedAny = true;
             }
         });
+
+        // Restore the text-target mapping too, before the re-preview below, so
+        // the step-2 controls agree with what the server is about to apply.
+        this.applyColumnMappingToForm(
+            template.mapping || {},
+            MAPPABLE_FIELDS[template.format] || Object.keys(MAPPING_SELECT_IDS)
+        );
 
         this.applyTemplateOptions(template);
 
@@ -784,6 +822,10 @@ export default class ImportModule {
     }
 
     populateColumnMappings(columns) {
+        // Kept for highlightMappedColumns, which has to turn a select's column
+        // name back into its position in the preview table.
+        this.previewColumns = Array.isArray(columns) ? columns.slice() : [];
+
         const mappingSelects = {
             'map-date': document.getElementById('map-date'),
             'map-amount': document.getElementById('map-amount'),
@@ -917,6 +959,10 @@ export default class ImportModule {
         thead.innerHTML = '';
         tbody.innerHTML = '';
 
+        // The rendered header row is what highlightMappedColumns indexes into,
+        // so take the column order from it rather than from the upload response.
+        this.previewColumns = previewData[0].map(header => String(header));
+
         const headerRow = document.createElement('tr');
         previewData[0].forEach((header, index) => {
             const th = document.createElement('th');
@@ -984,17 +1030,20 @@ export default class ImportModule {
 
     highlightMappedColumns(mapping) {
         const table = document.getElementById('mapping-preview-table');
-        const headers = table.querySelectorAll('th');
+        if (!table) return;
+        const headers = Array.from(table.querySelectorAll('th'));
 
         // Reset highlighting
         headers.forEach(th => th.classList.remove('mapped-column'));
 
-        // Highlight mapped columns
-        Object.values(mapping).forEach(columnIndex => {
-            if (columnIndex !== null && columnIndex !== '') {
-                const header = headers[parseInt(columnIndex)];
-                if (header) header.classList.add('mapped-column');
-            }
+        // A select's value is the column NAME, not its index — parseInt on a
+        // name is NaN, so headers[NaN] was always undefined and this highlight
+        // never fired for any ordinary CSV header.
+        const columns = this.previewColumns || [];
+        Object.values(mapping).forEach(column => {
+            if (typeof column !== 'string' || column === '') return;
+            const header = headers[columns.indexOf(column)];
+            if (header) header.classList.add('mapped-column');
         });
     }
 
@@ -1347,15 +1396,23 @@ export default class ImportModule {
 
         tbody.innerHTML = '';
 
+        // The notes column earns its space only when something is mapped into
+        // it — otherwise the step whose job is "check this before it is
+        // written" gains an empty column for everyone (#340).
+        const rows = (transactions || []).slice(0, 50);
+        const showNotes = rows.some(transaction => (transaction.notes ?? '') !== '');
+        const notesHeader = document.getElementById('preview-th-notes');
+        if (notesHeader) notesHeader.style.display = showNotes ? '' : 'none';
+
         if (!transactions || transactions.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="5" style="text-align: center; padding: 20px;">${t('budget', 'No transactions to import')}</td>`;
+            row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">${t('budget', 'No transactions to import')}</td>`;
             tbody.appendChild(row);
             document.getElementById('preview-info').textContent = t('budget', 'No transactions found');
             return;
         }
 
-        transactions.slice(0, 50).forEach((transaction) => {
+        rows.forEach((transaction) => {
             const row = document.createElement('tr');
             // Every amount arrives unsigned with the direction in `type`, so
             // reading the sign off the number showed an expense as income —
@@ -1367,13 +1424,15 @@ export default class ImportModule {
                 ? `<span class="status-badge status-error">${t('budget', 'Duplicate')}</span>`
                 : `<span class="status-badge status-success">${t('budget', 'New')}</span>`;
 
+            const notes = transaction.notes ?? '';
             row.innerHTML = `
                 <td>${dom.escapeHtml(transaction.date || '')}</td>
                 <td>${dom.escapeHtml(transaction.description || '')}</td>
+                <td class="preview-notes"${showNotes ? '' : ' style="display: none;"'} title="${dom.escapeHtml(notes)}">${dom.escapeHtml(notes)}</td>
                 <td class="${amount < 0 ? 'negative' : 'positive'}">
                     ${this.formatCurrency(amount)}
                 </td>
-                <td>${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
+                <td data-preview-cell="category">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
                 <td>
                     ${statusBadge}
                 </td>
@@ -1399,7 +1458,8 @@ export default class ImportModule {
 
         rows.forEach(row => {
             const statusBadge = row.querySelector('.status-badge');
-            const category = row.cells[3]?.textContent?.trim();
+            // By cell name, not position: the notes column shifts the indexes.
+            const category = row.querySelector('[data-preview-cell="category"]')?.textContent?.trim();
 
             const isDuplicate = statusBadge?.textContent?.trim() === t('budget', 'Duplicate');
             const isUncategorized = category === t('budget', 'Uncategorized');

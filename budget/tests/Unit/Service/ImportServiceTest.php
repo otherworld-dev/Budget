@@ -26,6 +26,7 @@ use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class ImportServiceTest extends TestCase {
     private ImportService $service;
@@ -47,6 +48,9 @@ class ImportServiceTest extends TestCase {
         $this->normalizer = $this->createMock(TransactionNormalizer::class);
         $this->duplicateDetector = $this->createMock(DuplicateDetector::class);
         $this->ruleApplicator = $this->createMock(ImportRuleApplicator::class);
+        // Both import loops re-clamp immediately before the insert (#340);
+        // the real implementation is exercised in TransactionNormalizerTest.
+        $this->normalizer->method('clampTransactionText')->willReturnArgument(0);
 
         $l = $this->createMock(IL10N::class);
         $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
@@ -81,7 +85,8 @@ class ImportServiceTest extends TestCase {
             $transactionTagService,
             $accountLinkService,
             $this->createMock(\OCA\Budget\Service\BillService::class),
-            $l
+            $l,
+            $this->createMock(LoggerInterface::class)
         );
     }
 
@@ -262,6 +267,56 @@ class ImportServiceTest extends TestCase {
         $this->assertEquals(1, $result['imported']);
         $this->assertEquals(0, $result['skipped']);
         $this->assertEquals(1, $result['totalProcessed']);
+    }
+
+    // #340: the CSV branch of the import loop is a different call site from the
+    // OFX one below, and nothing asserted it forwarded notes at all — the
+    // existing single-account test matches no arguments, so dropping the notes
+    // argument from create() would have left the suite green.
+    public function testProcessSingleAccountImportStoresMappedNotes(): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['Date' => '2026-08-04', 'Amount' => '-12.34', 'Details' => 'Coffee shop', 'Info' => 'Kartenzahlung'],
+        ]);
+
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2026-08-04',
+            'amount' => 12.34,
+            'description' => 'Coffee shop',
+            'type' => 'debit',
+            'vendor' => 'ACME',
+            'reference' => 'REF-9',
+            'notes' => 'Kartenzahlung',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_notes');
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $this->transactionService->expects($this->once())
+            ->method('create')
+            ->with(
+                'user1',
+                1,
+                '2026-08-04',
+                'Coffee shop',
+                12.34,
+                'debit',
+                null,
+                'ACME',
+                'REF-9',
+                'Kartenzahlung'
+            );
+
+        $result = $this->service->processImport(
+            'user1',
+            'file.csv',
+            ['date' => 'Date', 'amount' => 'Amount', 'description' => 'Details', 'notes' => 'Info'],
+            1
+        );
+
+        $this->assertEquals(1, $result['imported']);
     }
 
     public function testProcessSingleAccountSkipsDuplicates(): void {
