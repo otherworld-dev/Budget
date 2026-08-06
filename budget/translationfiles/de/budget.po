@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-05 00:37+0000\n"
-"PO-Revision-Date: 2026-08-06 00:05+0000\n"
+"PO-Revision-Date: 2026-08-07 10:52+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -32,10 +32,8 @@ msgid "transaction-account"
 msgstr "Transaktionskonto"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Cannot transfer to same account"
 msgid "transfer-to-account"
-msgstr "Eine Umbuchung auf dasselbe Konto ist nicht möglich"
+msgstr "Überweisen auf"
 
 #: /app/js/budget-app.js:2
 #, fuzzy
