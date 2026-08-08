@@ -329,7 +329,7 @@ The category suggestion is produced **locally** by running your own [rules](rule
 |---------|---------|
 | `no-total` | No total could be read. |
 | `no-date` | No date could be read. |
-| `line-items-sum-mismatch` | The line items do not add up to the printed total. The printed total is reported anyway — a till adds better than an OCR reads — but show the user. |
+| `line-items-sum-mismatch` | The line items do not account for the total, and the receipt's own subtotal and tax lines do not explain the gap — so something was probably misread. The printed total is reported anyway (a till adds better than an OCR reads), but show the user. Tax added on top of the items is **not** flagged: a receipt whose items sum to the subtotal is reconciled through its tax line, so US-style sales tax and ex-VAT invoices come back clean. |
 
 Three failures are specific to this endpoint, each with a stable machine code in `data.error_code` — switch on that, never on the message text:
 

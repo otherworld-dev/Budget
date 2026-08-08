@@ -34,6 +34,12 @@ class ReceiptParser {
         'mwst', 'ust', 'netto', 'brutto', 'rückgeld', 'gegeben',
     ];
 
+    /** Labels for the pre-tax figure, kept to reconcile the line items. */
+    private const SUBTOTAL_MARKERS = ['subtotal', 'sub-total', 'sub total', 'zwischensumme', 'nettosumme'];
+
+    /** Labels for a tax line added to (or stated within) the total. */
+    private const TAX_MARKERS = ['tax', 'sales tax', 'vat', 'gst', 'hst', 'mwst', 'ust'];
+
     /** Words that mark the line carrying the printed total. */
     private const TOTAL_MARKERS = [
         'grand total', 'amount due', 'balance due', 'total due', 'to pay', 'total',
@@ -58,8 +64,44 @@ class ReceiptParser {
             'merchant' => $this->findMerchant($lines),
             'date' => $this->findDate($lines),
             'total' => $this->findTotal($lines),
+            // Not draft fields: the extraction service uses these to tell a
+            // tax-exclusive receipt (items sum to the subtotal, correctly)
+            // from genuinely misread line items.
+            'subtotal' => $this->findLabelled($lines, self::SUBTOTAL_MARKERS),
+            'tax' => $this->findLabelled($lines, self::TAX_MARKERS),
             'lineItems' => $this->findLineItems($lines),
         ];
+    }
+
+    /**
+     * The amount on the last line whose label ends in one of $markers.
+     * Used for the subtotal and tax lines, which findLineItems already
+     * recognises well enough to exclude — this just keeps their values.
+     */
+    private function findLabelled(array $lines, array $markers): ?string {
+        $found = null;
+
+        foreach ($lines as $line) {
+            $token = $this->amountToken($line);
+            if ($token === null) {
+                continue;
+            }
+            $amount = $this->parseAmount($token);
+            if ($amount === null) {
+                continue;
+            }
+
+            $prefix = mb_strtolower(trim(mb_substr($line, 0, mb_strpos($line, $token) ?: 0)));
+            $prefix = trim($prefix, " \t:.-*");
+            foreach ($markers as $marker) {
+                if ($prefix === $marker || str_ends_with($prefix, ' ' . $marker) || str_starts_with($prefix, $marker . ' ')) {
+                    $found = $amount;
+                    break;
+                }
+            }
+        }
+
+        return $found;
     }
 
     /**

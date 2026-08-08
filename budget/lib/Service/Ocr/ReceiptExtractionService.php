@@ -46,8 +46,11 @@ class ReceiptExtractionService {
 
     private const PROMPT = 'Read this till receipt. Reply with ONLY a JSON object — no code fences, no commentary: '
         . '{"merchant": string|null, "date": "YYYY-MM-DD"|null, "currency": "ISO 4217 code"|null, '
-        . '"total": number|null, "lineItems": [{"description": string, "amount": number}]}. '
+        . '"total": number|null, "subtotal": number|null, "tax": number|null, '
+        . '"lineItems": [{"description": string, "amount": number}]}. '
         . 'Use null for anything unreadable rather than guessing. "total" is the amount actually paid. '
+        . '"subtotal" is the pre-tax figure and "tax" the VAT/sales tax line, each only if the receipt '
+        . 'prints them — they are what makes the item prices add up to the total. '
         . 'Amounts are plain positive numbers without currency symbols. List purchased items only — '
         . 'not subtotals, tax lines, change, or payment rows.';
 
@@ -82,6 +85,8 @@ class ReceiptExtractionService {
         [$imageBytes, $mime] = $this->readUpload($uploadedFile);
 
         $raw = match ($this->settings->getProvider()) {
+            // The parser also returns subtotal/tax, which buildDraft() uses
+            // to reconcile the line items but never puts on the wire.
             OcrSettingsService::PROVIDER_NEXTCLOUD => $this->parser->parse(
                 $this->nextcloudBackend->extractText($imageBytes, $mime, $userId)
             ) + ['currency' => null],
@@ -251,13 +256,10 @@ class ReceiptExtractionService {
         if ($date === null) {
             $warnings[] = 'no-date';
         }
-        if ($total !== null && $lineItems !== []) {
-            $sum = MoneyCalculator::sum(array_column($lineItems, 'amount'));
-            if (!MoneyCalculator::equals($sum, $total)) {
-                // The printed total wins — a till adds better than an OCR
-                // reads — but the client is told the arithmetic is off.
-                $warnings[] = 'line-items-sum-mismatch';
-            }
+        if ($total !== null && $lineItems !== [] && !$this->itemsReconcile($lineItems, $total, $raw)) {
+            // The printed total wins — a till adds better than an OCR
+            // reads — but the client is told the arithmetic is off.
+            $warnings[] = 'line-items-sum-mismatch';
         }
 
         [$categoryId, $categoryName] = $this->suggestCategory($userId, $merchant, $total);
@@ -272,6 +274,55 @@ class ReceiptExtractionService {
             'suggestedCategoryName' => $categoryName,
             'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * Do the line items account for the total?
+     *
+     * Naively that is sum(items) === total, and on a UK high-street receipt
+     * it is: shelf prices include VAT, and the VAT line is only ever stated
+     * "of which". But plenty of receipts add tax ON TOP — US sales tax, an
+     * ex-VAT trade invoice, a service charge — and there the items correctly
+     * sum to the SUBTOTAL while the total is larger. Warning on those cries
+     * wolf on a perfectly-read receipt, and a warning that fires constantly
+     * is one the user learns to ignore, which costs us the misread items it
+     * exists to catch.
+     *
+     * So the printed subtotal and tax are used when the receipt states them,
+     * and only an otherwise-unexplained gap is reported.
+     *
+     * @param list<array{description: string, amount: string}> $lineItems
+     * @param array $raw The provider's own fields, for subtotal/tax.
+     */
+    private function itemsReconcile(array $lineItems, string $total, array $raw): bool {
+        $sum = MoneyCalculator::sum(array_column($lineItems, 'amount'));
+
+        // Tax-inclusive pricing: the items already are the total.
+        if (MoneyCalculator::equals($sum, $total)) {
+            return true;
+        }
+
+        $subtotal = $this->cleanAmount($raw['subtotal'] ?? null);
+        $tax = $this->cleanAmount($raw['tax'] ?? null);
+
+        // Items make up the stated subtotal, and subtotal + tax is the total.
+        if ($subtotal !== null && MoneyCalculator::equals($sum, $subtotal)) {
+            if ($tax === null) {
+                // No tax line to check against, but the items demonstrably
+                // account for the subtotal — the gap is the receipt's own.
+                return true;
+            }
+            if (MoneyCalculator::equals(MoneyCalculator::add($subtotal, $tax), $total)) {
+                return true;
+            }
+        }
+
+        // No subtotal printed, but the tax line closes the gap exactly.
+        if ($tax !== null && MoneyCalculator::equals(MoneyCalculator::add($sum, $tax), $total)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

@@ -209,6 +209,106 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->service->extract('user1', $upload);
 	}
 
+	// ── reconciling items against the total ─────────────────────────
+
+	public function testTaxAddedOnTopIsNotAMismatch(): void {
+		// THE FALSE POSITIVE. Items sum to the SUBTOTAL and tax is added on
+		// top — a US receipt, an ex-VAT trade invoice. The items are read
+		// perfectly; warning here trains the user to ignore the warning.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'The Corner Deli',
+			'date' => '2026-08-05',
+			'total' => 23.77,
+			'subtotal' => 22.35,
+			'tax' => 1.42,
+			'lineItems' => [
+				['description' => 'Flat White', 'amount' => 3.40],
+				['description' => 'Sourdough Loaf', 'amount' => 18.95],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('23.77', $draft['total']);
+		$this->assertSame([], $draft['warnings']);
+	}
+
+	public function testTaxClosingTheGapWithoutAStatedSubtotalIsNotAMismatch(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05',
+			'total' => 11.00, 'tax' => 1.00,
+			'lineItems' => [['description' => 'Thing', 'amount' => 10.00]],
+		]));
+
+		$this->assertSame([], $this->service->extract('user1', $this->pngUpload())['warnings']);
+	}
+
+	public function testTaxInclusivePricingIsStillTheSimpleCase(): void {
+		// UK high street: shelf prices include VAT, items == total.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05',
+			'total' => 10.00, 'tax' => 1.67,
+			'lineItems' => [['description' => 'Thing', 'amount' => 10.00]],
+		]));
+
+		$this->assertSame([], $this->service->extract('user1', $this->pngUpload())['warnings']);
+	}
+
+	public function testAMissedItemStillWarnsEvenWithATaxLine(): void {
+		// The warning must survive the fix: subtotal is stated, the items do
+		// NOT add up to it, so something was misread or dropped.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05',
+			'total' => 23.77, 'subtotal' => 22.35, 'tax' => 1.42,
+			'lineItems' => [['description' => 'Only one item', 'amount' => 3.40]],
+		]));
+
+		$this->assertSame(['line-items-sum-mismatch'], $this->service->extract('user1', $this->pngUpload())['warnings']);
+	}
+
+	public function testAnUnexplainedGapStillWarns(): void {
+		// No subtotal, no tax, and the items do not reach the total.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05', 'total' => 50.00,
+			'lineItems' => [['description' => 'Thing', 'amount' => 3.00]],
+		]));
+
+		$this->assertSame(['line-items-sum-mismatch'], $this->service->extract('user1', $this->pngUpload())['warnings']);
+	}
+
+	public function testAStatedSubtotalThatDoesNotAddUpToTheTotalStillWarns(): void {
+		// Items match the subtotal, but subtotal + tax != total: the receipt
+		// itself was misread somewhere, so say so.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05',
+			'total' => 99.00, 'subtotal' => 10.00, 'tax' => 1.00,
+			'lineItems' => [['description' => 'Thing', 'amount' => 10.00]],
+		]));
+
+		$this->assertSame(['line-items-sum-mismatch'], $this->service->extract('user1', $this->pngUpload())['warnings']);
+	}
+
+	public function testSubtotalAndTaxAreNotPutOnTheWire(): void {
+		// They are reconciliation inputs, not part of the v1 draft contract.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05',
+			'total' => 11.00, 'subtotal' => 10.00, 'tax' => 1.00,
+			'lineItems' => [['description' => 'Thing', 'amount' => 10.00]],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertArrayNotHasKey('subtotal', $draft);
+		$this->assertArrayNotHasKey('tax', $draft);
+	}
+
 	public function testWarnsWhenLineItemsDoNotSumToTheTotal(): void {
 		$this->configureCustom();
 		$this->modelAnswers(json_encode([

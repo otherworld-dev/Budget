@@ -101,6 +101,30 @@ class ReceiptParserTest extends TestCase {
 		$this->assertSame('12.50', $result['total']);
 	}
 
+	public function testCapturesTheSubtotalAndTaxLines(): void {
+		// Not draft fields — the extraction service uses them to tell a
+		// tax-exclusive receipt from genuinely misread line items.
+		$result = $this->parser->parse(implode("\n", [
+			'THE CORNER DELI',
+			'Flat White 3.40',
+			'Sourdough Loaf 18.95',
+			'SUBTOTAL 22.35',
+			'VAT @ 20% 1.42',
+			'TOTAL 23.77',
+		]));
+
+		$this->assertSame('22.35', $result['subtotal']);
+		$this->assertSame('1.42', $result['tax']);
+		$this->assertSame('23.77', $result['total']);
+	}
+
+	public function testSubtotalAndTaxAreNullWhenTheReceiptDoesNotPrintThem(): void {
+		$result = $this->parser->parse("SHOP\nThing 4.00\nTOTAL 4.00");
+
+		$this->assertNull($result['subtotal']);
+		$this->assertNull($result['tax']);
+	}
+
 	public function testASubtotalLineIsNotTheTotal(): void {
 		// "subtotal" ends in "total" — it must not satisfy the marker, and
 		// with no real marker the paid amount wins as the largest.
