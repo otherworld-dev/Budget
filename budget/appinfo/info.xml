@@ -77,6 +77,7 @@ Full user documentation: https://budget.otherworld.dev/docs/
     </background-jobs>
     <commands>
         <command>OCA\Budget\Command\SeedDemo</command>
+        <command>OCA\Budget\Command\OcrConfig</command>
     </commands>
     <navigations>
         <navigation>

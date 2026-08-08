@@ -8,13 +8,15 @@
 import { showSuccess } from '../../utils/notifications.js';
 import { translate as t } from '@nextcloud/l10n';
 
-// The docs site is generated from this repo's docs/*.md by the separate site
-// repo's build, so a topic's `doc` slug is both its .md source and its .html page.
+// The documentation lives in the website project, not here — this app only
+// links to the published pages. A topic's `doc` slug is the page name, so
+// `dashboard` becomes https://budget.otherworld.dev/docs/dashboard.html.
 const DOCS_BASE = 'https://budget.otherworld.dev/docs';
 
 /**
  * Keyed by view name so the floating panel can look up the current view.
- * `doc` is the docs/<name>.md file the "Read full guide" link points at.
+ * `doc` is the published page the "Read full guide" link points at; adding a
+ * topic here means the page must exist on the site, or the link 404s.
  */
 export const HELP_TOPICS = {
     dashboard: { title: () => t('budget', 'Dashboard'), summary: () => t('budget', 'Your financial overview with customizable tiles. Unlock the dashboard to rearrange, add, or remove tiles. Click the gear icon on the Accounts tile to reorder or hide accounts.'), doc: 'dashboard' },

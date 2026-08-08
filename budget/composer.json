@@ -16,7 +16,8 @@
     "require-dev": {
         "nextcloud/ocp": "dev-stable30",
         "phpunit/phpunit": "^10.0",
-        "psalm/phar": "^5.0"
+        "psalm/phar": "^5.0",
+        "symfony/console": "^6.4 || ^7.0"
     },
     "scripts": {
         "lint": "find . -name \\*.php -not -path './vendor/*' -print0 | xargs -0 -n1 php -l",

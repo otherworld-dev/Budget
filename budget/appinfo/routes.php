@@ -414,7 +414,9 @@ return [
      * app, scripts, automation tooling — which authenticate with a Nextcloud
      * app password (or a Login flow v2 token) and send `OCS-APIRequest: true`.
      *
-     * Anything added here is a contract. See docs/api.md and openapi.json.
+     * Anything added here is a contract. See openapi.json here, and the REST
+     * API guide at https://budget.otherworld.dev/docs/api.html (its source
+     * lives in the website project, not this repo).
      */
     'ocs' => [
         ['name' => 'apiV1#info', 'url' => '/api/v1', 'verb' => 'GET'],
