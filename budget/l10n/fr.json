@@ -34,6 +34,8 @@
     "Failed to retrieve categories" : "Impossible de récupérer les catégories",
     "No file uploaded" : "Aucun fichier téléchargé",
     "Failed to retrieve transaction" : "Impossible de récupérer le nombre de transactions",
+    "Amount must be a number" : "Le montant doit être supérieur à zéro",
+    "An account is required" : "Le nom et le type sont obligatoire",
     "Date" : "Date",
     "Failed to load attachments" : "Impossible de charger les taux de change",
     "Failed to upload receipt" : "Impossible de télécharger le fichier",

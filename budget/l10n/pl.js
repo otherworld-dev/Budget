@@ -17,6 +17,8 @@ OC.L10N.register(
     "Failed to complete reconciliation" : "Nie udało się pobrać kont",
     "Failed to delete interest rate" : "Nie udało się pobrać kont",
     "Failed to retrieve transaction" : "Nie udało się pobrać kont",
+    "Amount must be a number" : "Nazwa właściciela konta",
+    "An account is required" : "Nazwa właściciela konta",
     "Failed to load attachments" : "Nie udało się pobrać kont",
     "File not found" : "Nie znaleziono konta",
     "Attachment not found" : "Nie znaleziono konta",

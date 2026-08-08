@@ -17,6 +17,8 @@ OC.L10N.register(
     "Failed to complete reconciliation" : "Nepodařilo se získat účty",
     "Failed to delete interest rate" : "Nepodařilo se získat účty",
     "Failed to retrieve transaction" : "Nepodařilo se získat účty",
+    "Amount must be a number" : "Účet",
+    "An account is required" : "Účty",
     "Date" : "Datum",
     "Failed to load attachments" : "Nepodařilo se získat účty",
     "Asset" : "Majetek",

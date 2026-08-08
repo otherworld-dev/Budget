@@ -49,6 +49,8 @@ OC.L10N.register(
     "Invalid date. Use the YYYY-MM-DD format" : "Formato de data inválido. Use AAAA-MM-DD",
     "Failed to retrieve transactions" : "Falha ao buscar as transações",
     "Failed to retrieve transaction" : "Falha ao buscar as transações",
+    "Amount must be a number" : "O valor deve ser maior que zero",
+    "An account is required" : "O preenchimento do nome é obrigatório",
     "Date" : "Data",
     "Invalid transaction type. Must be credit or debit" : "Tipo de transação inválido. Deve ser crédito ou débito",
     "Failed to create transaction" : "Falha na criação da transação",
