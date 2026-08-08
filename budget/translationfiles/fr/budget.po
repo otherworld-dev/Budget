@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-01 23:15+0000\n"
-"PO-Revision-Date: 2026-08-07 12:37+0200\n"
+"PO-Revision-Date: 2026-08-08 10:38+0200\n"
 "Last-Translator: Matyu9 <mathieu.degueurce@icloud.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -1580,7 +1580,7 @@ msgstr "Échec de la génération du rapport d'évolution des balises"
 
 #: /app/lib/Controller/ReportController.php:466
 msgid "Failed to generate tag set breakdown"
-msgstr "Échec de la génération du détail de l'ensemble de balises"
+msgstr "Échec de la génération du détail du jeu d'étiquettes"
 
 #: /app/lib/Controller/ReportController.php:502
 msgid "Failed to generate category monthly report"
@@ -1956,11 +1956,11 @@ msgstr "Échec de la suppression du règlement"
 
 #: /app/lib/Controller/TagSetController.php:101
 msgid "Failed to retrieve tag sets"
-msgstr "Échec de la récupération des ensembles de balises"
+msgstr "Échec de la récupération des jeux d'étiquettes"
 
 #: /app/lib/Controller/TagSetController.php:114
 msgid "Tag set"
-msgstr "Étiquettes"
+msgstr "Jeu d'étiquettes"
 
 #: /app/lib/Controller/TagSetController.php:128
 msgid "Category ID and name are required"
@@ -1971,20 +1971,20 @@ msgstr "L'ID et le nom de la catégorie sont requis"
 #: /app/src/modules/tagsets/TagSetsModule.js:559
 #: /app/src/modules/tagsets/TagSetsModule.js:924
 msgid "Failed to create tag set"
-msgstr "Échec de la création des étiquettes"
+msgstr "Échec de la création du jeu d'étiquettes"
 
 #: /app/lib/Controller/TagSetController.php:193
 #: /app/src/modules/tagsets/TagSetsModule.js:942
 #: /app/src/modules/tagsets/TagSetsModule.js:1001
 msgid "Failed to update tag set"
-msgstr "Échec de la mise à jour des étiquettes"
+msgstr "Échec de la mise à jour du jeu d'étiquettes"
 
 #: /app/lib/Controller/TagSetController.php:207
 #: /app/src/modules/tagsets/TagSetsModule.js:475
 #: /app/src/modules/tagsets/TagSetsModule.js:577
 #: /app/src/modules/tagsets/TagSetsModule.js:858
 msgid "Failed to delete tag set"
-msgstr "Échec de la suppression des étiquettes"
+msgstr "Échec de la suppression du jeu d'étiquettes"
 
 #: /app/lib/Controller/TagSetController.php:220
 msgid "Failed to retrieve tags"
@@ -2444,6 +2444,8 @@ msgid ""
 "The account linked to this bill no longer exists. Edit the bill and choose an "
 "account."
 msgstr ""
+"Le compte associé à cette facture n'existe plus. Modifiez la facture et "
+"choisissez un compte."
 
 #: /app/lib/Service/BillService.php:178
 msgid "A transaction for this payment already exists"
@@ -3461,7 +3463,7 @@ msgstr "Le budget peut être géré depuis le clavier — appuyez sur"
 
 #: /app/src/main.js:924
 msgid "anytime to see the full list."
-msgstr ""
+msgstr "à tout moment pour consulter la liste complète."
 
 #: /app/src/main.js:925
 msgid "Show keyboard shortcuts"
@@ -5952,7 +5954,7 @@ msgstr "{percent} % par rapport au mois dernier"
 #: /app/src/modules/dashboard/DashboardModule.js:443
 #, fuzzy, javascript-format
 msgid "{percent}% savings rate"
-msgstr "taux d'épargne {percent}%"
+msgstr "taux d'épargne de {percent} %"
 
 #: /app/src/modules/dashboard/DashboardModule.js:463
 msgid "Great"
@@ -8148,7 +8150,7 @@ msgstr "Règle mise à jour avec succès"
 
 #: /app/src/modules/rules/RulesModule.js:1229
 msgid "Rule created successfully"
-msgstr ""
+msgstr "Règle créée avec succès"
 
 #: /app/src/modules/rules/RulesModule.js:1238
 msgid "Failed to save rule: {error}"
@@ -8689,9 +8691,8 @@ msgid "Condition at {path} has no match type selected"
 msgstr "La condition à {path} n'a aucun type de correspondance sélectionné"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:493
-#, fuzzy
 msgid "Condition at {path} has no pattern value"
-msgstr "La condition à {path} ne possède pas de valeur de motif"
+msgstr "La condition à {path} ne possède pas de valeur d'occurence"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:501
 msgid "Condition at {path} has invalid regex pattern: {error}"
@@ -9211,12 +9212,12 @@ msgstr "Enregistrez d'abord la catégorie pour gérer les jeux d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:383 /app/templates/index.php:1953
 msgid "Tag Sets"
-msgstr "Ensembles d'étiquettes"
+msgstr "Jeux d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:385 /app/templates/index.php:6338
 #: /app/templates/index.php:6358
 msgid "Add Tag Set"
-msgstr "Ajouter un jeux d'étiquettes"
+msgstr "Ajouter un jeu d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:391
 msgid ""
@@ -9232,7 +9233,7 @@ msgstr "Ajouter une étiquette"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:405
 msgid "Delete tag set"
-msgstr "Supprimer un jeux d'étiquettes"
+msgstr "Supprimer un jeu d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:415
 #: /app/src/modules/tagsets/TagSetsModule.js:769
@@ -9242,7 +9243,7 @@ msgstr "Modifier l'étiquette"
 #: /app/src/modules/tagsets/TagSetsModule.js:438
 msgid "Enter tag set name (e.g., \"Priority\", \"Status\"):"
 msgstr ""
-"Saisissez le nom de l'jeu d'étiquettes (par ex. « Priorité », « Statut ») :"
+"Saisissez le nom du jeu d'étiquettes (par ex. « Priorité », « Statut ») :"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:446
 #: /app/src/modules/tagsets/TagSetsModule.js:913
@@ -9257,7 +9258,7 @@ msgstr "Saisissez une description (facultatif) :"
 #: /app/src/modules/tagsets/TagSetsModule.js:455
 #: /app/src/modules/tagsets/TagSetsModule.js:921
 msgid "Tag set created successfully"
-msgstr ""
+msgstr "Jeu d'étiquettes créé avec succès"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:467
 msgid ""
@@ -9269,7 +9270,7 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:472
 #: /app/src/modules/tagsets/TagSetsModule.js:855
 msgid "Tag set deleted"
-msgstr "Ensemble d'étiquettes supprimé"
+msgstr "Jeu d'étiquettes supprimé"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:484
 msgid "Enter tag name:"
@@ -9279,7 +9280,7 @@ msgstr "Saisissez le nom de l'étiquette :"
 #: /app/src/modules/tagsets/TagSetsModule.js:1133
 #: /app/src/modules/tagsets/TagSetsModule.js:1215
 msgid "A tag named \"{name}\" already exists in this tag set"
-msgstr "Une étiquette nommée « {name} » existe déjà dans cet jeu d'étiquettes"
+msgstr "Une étiquette nommée « {name} » existe déjà dans ce jeu d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:499
 msgid "Enter color (e.g., #FF5733):"
@@ -9304,25 +9305,25 @@ msgstr "Supprimer l'étiquette"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:780 /app/templates/index.php:6431
 msgid "Edit Tag Set"
-msgstr "Modifier l'jeu d'étiquettes"
+msgstr "Modifier le jeu d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:783
 msgid "Delete Tag Set"
-msgstr "Supprimer l'jeu d'étiquettes"
+msgstr "Supprimer le jeu d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:801
 msgid "Failed to load tag sets"
-msgstr "Échec du chargement de l'jeu d'étiquettes"
+msgstr "Échec du chargement des jeux d'étiquettes"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:851
 msgid "Delete this tag set? All tags in this set will be removed."
 msgstr ""
-"Supprimer cet jeu d'étiquettes ? Toutes les étiquettes de cet ensemble seront "
+"Supprimer ce jeu d'étiquettes ? Toutes les étiquettes de ce jeu seront "
 "supprimées."
 
 #: /app/src/modules/tagsets/TagSetsModule.js:998
 msgid "Tag set updated successfully"
-msgstr "Ensemble d'étiquettes mis à jour avec succès"
+msgstr "Jeu d'étiquettes mis à jour avec succès"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:1224
 msgid "Tag updated successfully"
@@ -10163,7 +10164,7 @@ msgstr "Utilisé pour faire correspondre les opérations importées"
 
 #: /app/src/modules/transfers/TransfersModule.js:489
 msgid "Category for created transactions (optional)"
-msgstr ""
+msgstr "Catégorie pour les opérations créées (facultatif)"
 
 #: /app/src/modules/transfers/TransfersModule.js:497
 msgid "Optional notes..."
