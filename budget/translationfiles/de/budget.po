@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-05 00:37+0000\n"
-"PO-Revision-Date: 2026-08-07 10:52+0000\n"
+"PO-Revision-Date: 2026-08-11 03:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.8.1.dev0\n"
+"X-Generator: Weblate 2026.9.dev0\n"
 
 #: /app/js/budget-app.js:2
 msgid "hero"
@@ -36,14 +36,12 @@ msgid "transfer-to-account"
 msgstr "Überweisen auf"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Custom"
 msgid "custom"
 msgstr "Benutzerdefiniert"
 
 #: /app/js/budget-app.js:2
 msgid "none"
-msgstr ""
+msgstr "kein"
 
 #: /app/js/budget-app.js:2
 msgid "type"
@@ -266,26 +264,29 @@ msgstr "Keine Datei hochgeladen"
 msgid ""
 "No total could be read from this receipt. Enter the transaction manually"
 msgstr ""
+"Auf diesem Beleg konnte kein Gesamtbetrag erkannt werden. Erfasse die "
+"Transaktion manuell"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:92
 msgid "Receipt scanning is not set up on this server"
-msgstr ""
+msgstr "Die Belegerkennung ist auf diesem Server nicht eingerichtet"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:97
 msgid "The OCR provider's quota is used up. Try again later"
 msgstr ""
+"Das Kontingent des OCR-Anbieters ist aufgebraucht. Versuche es später erneut"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
+"Der Beleg konnte nicht gelesen werden – die Texterkennung ist "
+"fehlgeschlagen. Versuche es erneut oder erfasse die Transaktion manuell"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:96
-#, fuzzy
-#| msgid "Invalid date format. Use YYYY-MM-DD"
 msgid "Invalid date. Use the YYYY-MM-DD format"
-msgstr "Ungültiges Datumsformat. Verwende YYYY-MM-DD"
+msgstr "Ungültiges Datum. Verwende das Format YYYY-MM-DD"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:128
 #: /app/lib/Controller/ApiV1TransactionController.php:165
@@ -295,22 +296,16 @@ msgid "Failed to retrieve transactions"
 msgstr "Abruf der Buchungen fehlgeschlagen"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:178
-#, fuzzy
-#| msgid "Failed to retrieve transactions"
 msgid "Failed to retrieve transaction"
-msgstr "Abruf der Buchungen fehlgeschlagen"
+msgstr "Abruf der Buchung fehlgeschlagen"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:226
-#, fuzzy
-#| msgid "%1$s must be a number"
 msgid "Amount must be a number"
-msgstr "%1$s muss eine Zahl sein"
+msgstr "Betrag muss eine Zahl sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:231
-#, fuzzy
-#| msgid "Date is required"
 msgid "An account is required"
-msgstr "Datum wird benötigt"
+msgstr "Ein Konto ist erforderlich"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:236
 #: /app/lib/Controller/AssetController.php:326
@@ -342,12 +337,13 @@ msgstr "Ungültiger Buchungstyp. Dieser muss Kredit oder Debit sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:268
 msgid "Idempotency key too long (64 characters maximum)"
-msgstr ""
+msgstr "Idempotenzschlüssel ist zu lang (maximal 64 Zeichen)"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:341
 #: /app/lib/Controller/ApiV1TransactionController.php:463
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
+"Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:349
 #: /app/lib/Controller/TransactionController.php:280
@@ -357,10 +353,12 @@ msgstr "Erstellen der Buchung fehlgeschlagen"
 #: /app/lib/Controller/ApiV1TransactionController.php:428
 msgid "This idempotency key was already used for a different transaction"
 msgstr ""
+"Dieser Idempotenzschlüssel wurde bereits für eine andere Transaktion "
+"verwendet"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:437
 msgid "This request is still being processed. Try again shortly"
-msgstr ""
+msgstr "Diese Anfrage wird noch verarbeitet. Versuche es in Kürze erneut"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:504
 #: /app/lib/Controller/AttachmentController.php:46
@@ -373,10 +371,8 @@ msgstr "Anhänge konnten nicht geladen werden"
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:1892
 #: /app/src/modules/transactions/TransactionsModule.js:1895
-#, fuzzy
-#| msgid "Failed to upload file"
 msgid "Failed to upload receipt"
-msgstr "Fehler beim Hochladen der Datei"
+msgstr "Beleg konnte nicht hochgeladen werden"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:535
 #: /app/lib/Controller/AttachmentController.php:57
@@ -3751,7 +3747,7 @@ msgstr "Laufende Einnahme bearbeiten"
 
 #: /app/src/core/KeyboardShortcuts.js:362
 msgid "Select / deselect the current row"
-msgstr ""
+msgstr "Aktuelle Zeile auswählen / Auswahl aufheben"
 
 #: /app/src/core/KeyboardShortcuts.js:372
 #: /app/src/core/KeyboardShortcuts.js:392 /app/src/main.js:923
