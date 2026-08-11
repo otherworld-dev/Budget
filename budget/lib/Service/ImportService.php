@@ -329,7 +329,7 @@ class ImportService {
                     continue;
                 }
                 if (empty($headers)) {
-                    $headers = array_map('trim', $row);
+                    $headers = $this->parserFactory->sanitizeHeaders(array_map('trim', $row));
                     $columns = $headers;
                     $rawPreview[] = $headers;
                 } else {
