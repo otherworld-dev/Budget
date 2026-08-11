@@ -264,4 +264,57 @@ class ParserFactoryTest extends TestCase {
         $this->assertEmpty($result['accounts']);
         $this->assertCount(1, $result['transactions']);
     }
+
+    // ===== sanitizeHeaders & untitled columns =====
+
+    public function testSanitizeHeadersWithUntitledColumns(): void {
+        $raw = ['Date', '', 'Amount', '  ', 'Notes'];
+        $sanitized = $this->factory->sanitizeHeaders($raw);
+
+        $this->assertEquals(['Date', 'Column 2', 'Amount', 'Column 4', 'Notes'], $sanitized);
+    }
+
+    public function testSanitizeHeadersUsesL10nPlaceholder(): void {
+        $l = $this->createMock(\OCP\IL10N::class);
+        $l->expects($this->once())
+            ->method('t')
+            ->with('Column %d', [2])
+            ->willReturn('Spalte 2');
+
+        $factory = new ParserFactory($l);
+        $sanitized = $factory->sanitizeHeaders(['Date', '']);
+
+        $this->assertEquals(['Date', 'Spalte 2'], $sanitized);
+    }
+
+    public function testSanitizeHeadersWithDuplicateHeaders(): void {
+        $raw = ['Date', 'Amount', 'Date', 'Amount'];
+        $sanitized = $this->factory->sanitizeHeaders($raw);
+
+        $this->assertEquals(['Date', 'Amount', 'Column 3', 'Column 4'], $sanitized);
+    }
+
+    public function testParseCsvWithUntitledColumns(): void {
+        $csv = "Date,,Amount,,Notes\n2026-01-01,Extra,100.00,Foo,Groceries\n";
+
+        $result = $this->factory->parse($csv, 'csv');
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('2026-01-01', $result[0]['Date']);
+        $this->assertEquals('Extra', $result[0]['Column 2']);
+        $this->assertEquals('100.00', $result[0]['Amount']);
+        $this->assertEquals('Foo', $result[0]['Column 4']);
+        $this->assertEquals('Groceries', $result[0]['Notes']);
+    }
+
+    public function testParseCsvWithAllUntitledColumns(): void {
+        $csv = ",,\n2026-01-01,100.00,Groceries\n";
+
+        $result = $this->factory->parse($csv, 'csv');
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('2026-01-01', $result[0]['Column 1']);
+        $this->assertEquals('100.00', $result[0]['Column 2']);
+        $this->assertEquals('Groceries', $result[0]['Column 3']);
+    }
 }

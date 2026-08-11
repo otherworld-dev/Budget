@@ -2650,6 +2650,11 @@ msgid ""
 "(^)."
 msgstr ""
 
+#: /app/lib/Service/Import/ParserFactory.php:155
+#, php-format
+msgid "Column %d"
+msgstr ""
+
 #: /app/lib/Service/ImportService.php:140
 #, php-format
 msgid "Failed to process upload: %1$s"

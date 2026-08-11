@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\Import;
 
 use OCA\Budget\Service\Parser\OfxParser;
 use OCA\Budget\Service\Parser\QifParser;
+use OCP\IL10N;
 
 /**
  * Factory for creating file format parsers.
@@ -13,6 +14,11 @@ use OCA\Budget\Service\Parser\QifParser;
 class ParserFactory {
     private ?OfxParser $ofxParser = null;
     private ?QifParser $qifParser = null;
+    private ?IL10N $l = null;
+
+    public function __construct(?IL10N $l = null) {
+        $this->l = $l;
+    }
 
     /**
      * Detect file format from filename.
@@ -114,7 +120,7 @@ class ParserFactory {
             }
 
             if ($headers === null) {
-                $headers = array_map('trim', $row);
+                $headers = $this->sanitizeHeaders(array_map('trim', $row));
                 continue;
             }
 
@@ -127,6 +133,33 @@ class ParserFactory {
         }
 
         return $data;
+    }
+
+    /**
+     * Sanitize raw header strings by assigning synthetic column names ('Column 1', 'Column 2', etc.)
+     * to empty, blank, or duplicate header cells.
+     *
+     * @param string[] $rawHeaders
+     * @return string[] Unique, non-empty header names
+     */
+    public function sanitizeHeaders(array $rawHeaders): array {
+        $headers = [];
+        $seen = [];
+
+        foreach ($rawHeaders as $i => $rawHeader) {
+            $header = trim((string) $rawHeader);
+            $candidate = $header;
+
+            if ($candidate === '' || isset($seen[$candidate])) {
+                $columnNum = $i + 1;
+                $candidate = $this->l ? $this->l->t('Column %d', [$columnNum]) : ('Column ' . $columnNum);
+            }
+
+            $seen[$candidate] = true;
+            $headers[] = $candidate;
+        }
+
+        return $headers;
     }
 
     /**

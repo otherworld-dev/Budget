@@ -869,4 +869,34 @@ class ImportServiceTest extends TestCase {
 
         $this->assertSame(2, $ref->invoke($this->service, $transactions));
     }
+
+    // ===== buildUploadResponse with untitled headers =====
+
+    public function testBuildUploadResponseSanitizesUntitledHeaders(): void {
+        $realParserFactory = new ParserFactory();
+        $refParser = new \ReflectionProperty(ImportService::class, 'parserFactory');
+        $refParser->setAccessible(true);
+        $refParser->setValue($this->service, $realParserFactory);
+
+        $refMethod = new \ReflectionMethod(ImportService::class, 'buildUploadResponse');
+        $refMethod->setAccessible(true);
+
+        $csv = "Date,,Amount,,Notes\n2026-01-01,Extra,100.00,Foo,Groceries\n";
+        $result = $refMethod->invoke(
+            $this->service,
+            'user1',
+            'file_123.csv',
+            'file.csv',
+            'csv',
+            $csv,
+            [],
+            100,
+            ','
+        );
+
+        $this->assertEquals(['Date', 'Column 2', 'Amount', 'Column 4', 'Notes'], $result['columns']);
+        $this->assertEquals('Date', $result['preview'][0][0]);
+        $this->assertEquals('Column 2', $result['preview'][0][1]);
+        $this->assertEquals('Column 4', $result['preview'][0][3]);
+    }
 }
