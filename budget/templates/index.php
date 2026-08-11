@@ -5479,6 +5479,26 @@ style('budget', 'budget-app');
                 <div class="form-col">
                   <div class="form-block">
                     <h4><?php p($l->t('Extras')); ?></h4>
+
+                    <!-- Receipt scanning (#535). Hidden unless an admin has
+                         configured an OCR provider — see ReceiptScanController. -->
+                    <div id="transaction-scan-group" class="form-group" style="display: none;">
+                        <label><?php p($l->t('Scan a receipt')); ?></label>
+                        <div id="transaction-scan-drop" class="receipt-scan-drop" tabindex="0" role="button"
+                             aria-describedby="transaction-scan-help">
+                            <span class="receipt-scan-idle">
+                                <?php p($l->t('Drop a photo here, or click to choose one')); ?>
+                            </span>
+                            <span class="receipt-scan-busy" hidden>
+                                <span class="icon-loading-small"></span>
+                                <?php p($l->t('Reading the receipt…')); ?>
+                            </span>
+                        </div>
+                        <input type="file" id="transaction-scan-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
+                        <div id="transaction-scan-result" class="receipt-scan-result" hidden></div>
+                        <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read on your server and fills in the fields below for you to check. It is attached to the transaction when you save.')); ?></small>
+                    </div>
+
                     <div id="transaction-attachments-group" class="form-group" style="display: none;">
                         <label><?php p($l->t('Receipts')); ?></label>
                         <div id="transaction-attachments-list" class="attachments-list"></div>

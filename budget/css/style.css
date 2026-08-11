@@ -12503,11 +12503,97 @@ tr.scheduled-transaction:hover {
     cursor: default;
 }
 
+/* ── Receipt scanning (#535) ─────────────────────────────────────── */
+
+.receipt-scan-drop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 62px;
+    padding: 10px 12px;
+    border: 2px dashed var(--color-border-dark);
+    border-radius: var(--border-radius-large, 8px);
+    background: var(--color-background-hover);
+    color: var(--color-text-maxcontrast);
+    font-size: 13px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.receipt-scan-drop:hover,
+.receipt-scan-drop:focus-visible {
+    border-color: var(--color-primary-element);
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+}
+
+/* Dragging a file over it */
+.receipt-scan-drop.is-over {
+    border-color: var(--color-primary-element);
+    border-style: solid;
+    background: var(--color-primary-element-light);
+    color: var(--color-main-text);
+}
+
+/* Reading — not clickable again until it comes back */
+.receipt-scan-drop.is-busy {
+    cursor: progress;
+    border-style: solid;
+    pointer-events: none;
+}
+
+/* A photo is held and will be attached on save */
+.receipt-scan-drop.has-file {
+    border-style: solid;
+    border-color: var(--color-success, #46ba61);
+}
+
+.receipt-scan-busy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* A display rule beats the `hidden` attribute, so say so explicitly —
+   without this the "Reading the receipt…" line never goes away. */
+.receipt-scan-idle[hidden],
+.receipt-scan-busy[hidden] {
+    display: none;
+}
+
+.receipt-scan-result {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: var(--border-radius, 4px);
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
 .attachments-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-bottom: 8px;
+}
+
+/* Chosen but not yet attached — the transaction has no id until it is saved. */
+.attachment-item.attachment-pending {
+    opacity: 0.85;
+    border-style: dashed;
+}
+
+.attachment-pending-tag {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--color-background-darker);
+    color: var(--color-text-maxcontrast);
+    font-size: 11px;
+    white-space: nowrap;
 }
 
 .attachment-item {

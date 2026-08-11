@@ -21,6 +21,12 @@ export default class TransactionsModule {
     constructor(app) {
         this.app = app;
 
+        // Receipts chosen before a new transaction exists. Initialised here
+        // because the save path flushes it for edits too, where the dialog's
+        // new-transaction branch never runs.
+        this._pendingAttachments = [];
+        this._scannedReceiptFile = null;
+
         // Transaction state - store on app for shared access
         this.app.transactionFilters = {};
         this.app.currentSort = { field: 'date', direction: 'desc' };
@@ -1645,6 +1651,10 @@ export default class TransactionsModule {
                 // Receipt attachments (only on saved transactions)
                 this.setupAttachmentsSection(transaction.id);
 
+                // Scanning can still fill gaps on an existing transaction —
+                // it only writes into fields that are empty.
+                this.setupReceiptScan(false);
+
                 // Load tag selectors for this transaction
                 this.app.renderTransactionTagSelectors(transaction.categoryId, transaction.id);
             } else {
@@ -1653,9 +1663,14 @@ export default class TransactionsModule {
                 document.getElementById('transaction-id').value = '';
                 setDateValue('transaction-date', formatters.getTodayDateString());
 
-                // Attachments are only available once the transaction is saved
-                const attachmentsGroup = document.getElementById('transaction-attachments-group');
-                if (attachmentsGroup) attachmentsGroup.style.display = 'none';
+                // Receipts can be chosen before saving: they are held and
+                // attached as soon as the transaction has an id.
+                this._pendingAttachments = [];
+                this.setupAttachmentsSection(null);
+
+                // Scanning IS available before saving: it fills the form, and
+                // the photo is attached after the transaction is created.
+                this.setupReceiptScan(true);
 
                 // Reset cross-currency transfer fields
                 const destWrapper = document.getElementById('transfer-dest-amount-wrapper');
@@ -1803,10 +1818,199 @@ export default class TransactionsModule {
     }
 
     // ===========================
+    // Receipt scanning (#535)
+    // ===========================
+
+    /**
+     * Show the scan box when the server can actually scan, and wire it once.
+     *
+     * Whether OCR works is a server-wide choice an admin makes, so the UI has
+     * to ask rather than assume. The answer is cached for the session: it
+     * cannot change without an admin editing settings.
+     *
+     * @param {boolean} isNewTransaction blank form, so prefill may fill everything
+     */
+    async setupReceiptScan(isNewTransaction) {
+        const group = document.getElementById('transaction-scan-group');
+        if (!group) return;
+
+        this._scannedReceiptFile = null;
+        this.clearScanResult();
+
+        if (this._ocrAvailable === undefined) {
+            try {
+                const res = await fetch(OC.generateUrl('/apps/budget/api/receipts/ocr-status'), {
+                    headers: { 'requesttoken': OC.requestToken }
+                });
+                this._ocrAvailable = res.ok ? !!(await res.json()).available : false;
+            } catch (e) {
+                this._ocrAvailable = false;
+            }
+        }
+
+        group.style.display = this._ocrAvailable ? '' : 'none';
+        if (!this._ocrAvailable) return;
+
+        this._scanIsNewTransaction = isNewTransaction;
+
+        if (this._scanBound) return;
+        this._scanBound = true;
+
+        const drop = document.getElementById('transaction-scan-drop');
+        const input = document.getElementById('transaction-scan-input');
+
+        drop.addEventListener('click', () => input.click());
+        drop.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+        });
+        input.addEventListener('change', () => {
+            if (input.files[0]) this.scanReceipt(input.files[0]);
+            input.value = '';
+        });
+
+        ['dragenter', 'dragover'].forEach((evt) =>
+            drop.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.add('is-over'); }));
+        ['dragleave', 'drop'].forEach((evt) =>
+            drop.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.remove('is-over'); }));
+        drop.addEventListener('drop', (e) => {
+            const file = e.dataTransfer?.files?.[0];
+            if (file) this.scanReceipt(file);
+        });
+    }
+
+    clearScanResult() {
+        const result = document.getElementById('transaction-scan-result');
+        if (result) { result.hidden = true; result.textContent = ''; }
+        const drop = document.getElementById('transaction-scan-drop');
+        if (drop) drop.classList.remove('has-file');
+    }
+
+    /** Toggle the box between "drop a photo" and "reading…". */
+    setScanBusy(busy) {
+        const drop = document.getElementById('transaction-scan-drop');
+        if (!drop) return;
+        drop.classList.toggle('is-busy', busy);
+        drop.querySelector('.receipt-scan-idle').hidden = busy;
+        drop.querySelector('.receipt-scan-busy').hidden = !busy;
+    }
+
+    async scanReceipt(file) {
+        this.clearScanResult();
+        this.setScanBusy(true);
+
+        try {
+            const body = new FormData();
+            body.append('image', file);
+
+            const response = await fetch(OC.generateUrl('/apps/budget/api/receipts/extract'), {
+                method: 'POST',
+                headers: { 'requesttoken': OC.requestToken },
+                body
+            });
+
+            if (!response.ok) {
+                let message = '';
+                try { message = (await response.json()).error || ''; } catch (e) { /* non-JSON error page */ }
+                throw new Error(message || t('budget', 'The receipt could not be read'));
+            }
+
+            const draft = await response.json();
+            const filled = this.applyReceiptDraft(draft);
+
+            // Keep the photo so saving attaches it — the attachment endpoint
+            // needs a transaction id, which a new transaction does not have yet.
+            this._scannedReceiptFile = file;
+            document.getElementById('transaction-scan-drop')?.classList.add('has-file');
+
+            this.showScanResult(draft, filled);
+        } catch (error) {
+            showError(error.message || t('budget', 'The receipt could not be read'));
+        } finally {
+            this.setScanBusy(false);
+        }
+    }
+
+    /**
+     * Put the draft into the form.
+     *
+     * On a blank form everything read is filled in. When editing, only empty
+     * fields are touched: the user already has values there and a scan is a
+     * suggestion, not an authority.
+     *
+     * @returns {string[]} labels of the fields actually filled
+     */
+    applyReceiptDraft(draft) {
+        const filled = [];
+        const isNew = this._scanIsNewTransaction;
+        const setIfAllowed = (el, value, label) => {
+            if (!el || value === null || value === undefined || value === '') return;
+            if (!isNew && el.value !== '') return;
+            el.value = value;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            filled.push(label);
+        };
+
+        if (draft.date) {
+            const dateEl = document.getElementById('transaction-date');
+            if (dateEl && (isNew || dateEl.value === '')) {
+                setDateValue('transaction-date', draft.date);
+                filled.push(t('budget', 'date'));
+            }
+        }
+        if (draft.total) {
+            setIfAllowed(document.getElementById('transaction-amount'), draft.total, t('budget', 'amount'));
+        }
+        if (draft.merchant) {
+            setIfAllowed(document.getElementById('transaction-description'), draft.merchant, t('budget', 'description'));
+            setIfAllowed(document.getElementById('transaction-vendor'), draft.merchant, t('budget', 'vendor'));
+        }
+        if (draft.suggestedCategoryId) {
+            const categoryEl = document.getElementById('transaction-category');
+            // Only if that category is actually in this user's list.
+            if (categoryEl && [...categoryEl.options].some((o) => o.value === String(draft.suggestedCategoryId))) {
+                setIfAllowed(categoryEl, String(draft.suggestedCategoryId), t('budget', 'category'));
+            }
+        }
+
+        return filled;
+    }
+
+    /** Say what was filled, and pass on anything the reader was unsure about. */
+    showScanResult(draft, filled) {
+        const result = document.getElementById('transaction-scan-result');
+        if (!result) return;
+
+        const lines = [];
+        lines.push(filled.length
+            ? t('budget', 'Filled in: {fields}. Check them before saving.', { fields: filled.join(', ') })
+            : t('budget', 'Nothing was filled in — the fields already had values. Clear one and scan again to use the receipt.'));
+
+        const items = draft.lineItems?.length || 0;
+        if (items) {
+            lines.push(t('budget', 'Read {count} items from the receipt.', { count: items }));
+        }
+        if (draft.warnings?.includes('line-items-sum-mismatch')) {
+            lines.push(t('budget', 'The items do not add up to the total — worth a look.'));
+        }
+        if (draft.currency && draft.currency !== '') {
+            lines.push(t('budget', 'Receipt currency: {currency}.', { currency: draft.currency }));
+        }
+        lines.push(t('budget', 'The photo will be attached when you save.'));
+
+        result.textContent = lines.join(' ');
+        result.hidden = false;
+    }
+
+    // ===========================
     // Receipt attachments
     // ===========================
 
-    /** Show the receipts section for a saved transaction and wire its buttons (once). */
+    /**
+     * Show the receipts section and wire its buttons (once).
+     *
+     * @param {?number} transactionId null while adding — the transaction does
+     *   not exist yet, so chosen receipts are held and attached after save.
+     */
     setupAttachmentsSection(transactionId) {
         const group = document.getElementById('transaction-attachments-group');
         if (!group) return;
@@ -1818,6 +2022,15 @@ export default class TransactionsModule {
             const fileInput = document.getElementById('attachment-file-input');
             document.getElementById('attachment-upload-btn')?.addEventListener('click', () => fileInput?.click());
             fileInput?.addEventListener('change', async () => {
+                if (!this._attachmentTxId) {
+                    // Adding: hold them until the transaction has an id.
+                    for (const file of fileInput.files) {
+                        this._pendingAttachments.push({ kind: 'file', file, name: file.name });
+                    }
+                    fileInput.value = '';
+                    this.renderPendingAttachments();
+                    return;
+                }
                 for (const file of fileInput.files) {
                     await this.uploadAttachment(this._attachmentTxId, file);
                 }
@@ -1828,6 +2041,13 @@ export default class TransactionsModule {
                 OC.dialogs.filepicker(
                     t('budget', 'Select receipt'),
                     async (path) => {
+                        if (!this._attachmentTxId) {
+                            this._pendingAttachments.push({
+                                kind: 'path', path, name: path.split('/').pop() || path,
+                            });
+                            this.renderPendingAttachments();
+                            return;
+                        }
                         await this.attachExistingFile(this._attachmentTxId, path);
                         await this.loadAttachments(this._attachmentTxId);
                     },
@@ -1838,7 +2058,71 @@ export default class TransactionsModule {
             });
         }
 
-        this.loadAttachments(transactionId);
+        if (transactionId) {
+            this.loadAttachments(transactionId);
+        } else {
+            this.renderPendingAttachments();
+        }
+    }
+
+    /**
+     * The receipts chosen before the transaction exists.
+     *
+     * They cannot be uploaded yet — the attach endpoints key off a
+     * transaction id — so they are listed here and flushed by
+     * flushPendingAttachments() once the save returns one.
+     */
+    renderPendingAttachments() {
+        const list = document.getElementById('transaction-attachments-list');
+        if (!list) return;
+
+        if (!this._pendingAttachments.length) {
+            list.innerHTML = `<span class="form-text">${t('budget', 'No receipts yet — they are attached when you save.')}</span>`;
+            return;
+        }
+
+        list.innerHTML = this._pendingAttachments.map((p, i) => `
+            <div class="attachment-item attachment-pending" data-pending-index="${i}">
+                <span class="attachment-thumb">${p.kind === 'path' ? '🗂️' : '📄'}</span>
+                <span>${dom.escapeHtml(p.name)}</span>
+                <span class="attachment-pending-tag">${t('budget', 'on save')}</span>
+                <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" data-pending-index="${i}">✕</button>
+            </div>`).join('');
+
+        list.querySelectorAll('.attachment-remove').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                this._pendingAttachments.splice(parseInt(btn.dataset.pendingIndex), 1);
+                this.renderPendingAttachments();
+            });
+        });
+    }
+
+    /**
+     * Attach everything that was chosen before the transaction existed.
+     *
+     * Never throws: the transaction is already saved by this point, and
+     * failing the save over a receipt would be the wrong trade — the user
+     * would re-submit and duplicate it.
+     *
+     * @returns {number} how many failed
+     */
+    async flushPendingAttachments(transactionId) {
+        let failed = 0;
+
+        for (const pending of this._pendingAttachments) {
+            try {
+                if (pending.kind === 'path') {
+                    await this.attachExistingFile(transactionId, pending.path);
+                } else {
+                    await this.uploadAttachment(transactionId, pending.file);
+                }
+            } catch (e) {
+                failed++;
+            }
+        }
+
+        this._pendingAttachments = [];
+        return failed;
     }
 
     async loadAttachments(transactionId) {
@@ -2134,6 +2418,25 @@ export default class TransactionsModule {
                 const splitToggle = document.getElementById('transaction-split-toggle');
                 if (splitToggle?.checked && txId) {
                     await this.saveInlineSplits(txId);
+                }
+
+                // Receipts chosen before the transaction existed — a scanned
+                // photo, or ones picked by hand — are attached now that it has
+                // an id. Failing here must not fail the save: the transaction
+                // is already recorded, and a re-submit would duplicate it.
+                if (txId) {
+                    if (this._scannedReceiptFile) {
+                        this._pendingAttachments.push({
+                            kind: 'file',
+                            file: this._scannedReceiptFile,
+                            name: this._scannedReceiptFile.name,
+                        });
+                        this._scannedReceiptFile = null;
+                    }
+                    const failed = await this.flushPendingAttachments(txId);
+                    if (failed > 0) {
+                        showWarning(t('budget', 'The transaction was saved, but {count} receipt(s) could not be attached', { count: failed }));
+                    }
                 }
 
                 showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));

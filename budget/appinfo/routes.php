@@ -79,6 +79,11 @@ return [
         ['name' => 'transaction#setTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'PUT'],
         ['name' => 'transaction#clearTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'DELETE'],
 
+        // Receipt scanning for the web UI (#535). Separate from the public
+        // v1 endpoint on purpose — see ReceiptScanController.
+        ['name' => 'receiptScan#status', 'url' => '/api/receipts/ocr-status', 'verb' => 'GET'],
+        ['name' => 'receiptScan#extract', 'url' => '/api/receipts/extract', 'verb' => 'POST'],
+
         // Transaction receipt attachments
         ['name' => 'attachment#counts', 'url' => '/api/attachments/transaction-ids', 'verb' => 'GET'],
         ['name' => 'attachment#index', 'url' => '/api/transactions/{id}/attachments', 'verb' => 'GET'],
