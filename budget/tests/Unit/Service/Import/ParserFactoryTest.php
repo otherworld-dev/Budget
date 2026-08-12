@@ -274,17 +274,23 @@ class ParserFactoryTest extends TestCase {
         $this->assertEquals(['Date', 'Column 2', 'Amount', 'Column 4', 'Notes'], $sanitized);
     }
 
-    public function testSanitizeHeadersUsesL10nPlaceholder(): void {
-        $l = $this->createMock(\OCP\IL10N::class);
-        $l->expects($this->once())
-            ->method('t')
-            ->with('Column %d', [2])
-            ->willReturn('Spalte 2');
+    public function testSanitizeHeadersAvoidsClashWithARealColumnName(): void {
+        $raw = ['Column 2', '', 'Amount'];
+        $sanitized = $this->factory->sanitizeHeaders($raw);
 
-        $factory = new ParserFactory($l);
-        $sanitized = $factory->sanitizeHeaders(['Date', '']);
+        $this->assertEquals(['Column 2', 'Column 2 (2)', 'Amount'], $sanitized);
+        $this->assertCount(3, array_unique($sanitized));
+    }
 
-        $this->assertEquals(['Date', 'Spalte 2'], $sanitized);
+    public function testParseCsvKeepsEveryColumnWhenAHeaderClashes(): void {
+        $csv = "Column 2,,Amount\n2026-01-01,Extra,100.00\n";
+
+        $result = $this->factory->parse($csv, 'csv');
+
+        $this->assertCount(3, $result[0]);
+        $this->assertEquals('2026-01-01', $result[0]['Column 2']);
+        $this->assertEquals('Extra', $result[0]['Column 2 (2)']);
+        $this->assertEquals('100.00', $result[0]['Amount']);
     }
 
     public function testSanitizeHeadersWithDuplicateHeaders(): void {
