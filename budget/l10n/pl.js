@@ -89,6 +89,7 @@ OC.L10N.register(
     "Failed to select all matching transactions" : "Nie udało się pobrać kont",
     "Failed to start reconciliation" : "Nie udało się pobrać kont",
     "Failed to create adjustment" : "Nie udało się pobrać kont",
+    "amount" : "Konto",
     "Failed to detect recurring transfers" : "Nie udało się pobrać kont",
     "Order accounts by" : "Konto",
     "Account Mappings" : "Konto",
