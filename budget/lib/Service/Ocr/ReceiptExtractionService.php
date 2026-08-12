@@ -46,13 +46,16 @@ class ReceiptExtractionService {
 
     private const PROMPT = 'Read this till receipt. Reply with ONLY a JSON object — no code fences, no commentary: '
         . '{"merchant": string|null, "date": "YYYY-MM-DD"|null, "currency": "ISO 4217 code"|null, '
-        . '"total": number|null, "subtotal": number|null, "tax": number|null, '
+        . '"total": number|null, "subtotal": number|null, "tax": number|null, "discount": number|null, '
         . '"lineItems": [{"description": string, "amount": number}]}. '
         . 'Use null for anything unreadable rather than guessing. "total" is the amount actually paid. '
         . '"subtotal" is the pre-tax figure and "tax" the VAT/sales tax line, each only if the receipt '
         . 'prints them — they are what makes the item prices add up to the total. '
+        . '"discount" is the TOTAL money taken off — loyalty savings, coupons, staff discount, '
+        . 'multibuy offers — as a positive number, only if the receipt prints such a figure; it is '
+        . 'subtracted from the items to reach the total. '
         . 'Amounts are plain positive numbers without currency symbols. List purchased items only — '
-        . 'not subtotals, tax lines, change, or payment rows.';
+        . 'not subtotals, tax lines, discount lines, change, or payment rows.';
 
     public function __construct(
         private OcrSettingsService $settings,
@@ -269,6 +272,17 @@ class ReceiptExtractionService {
             'date' => $date,
             'currency' => $currency,
             'total' => $total,
+            // Reported, not just used internally for the reconciliation check:
+            // a consumer turning the items into per-item splits needs the tax
+            // to make them sum to the total, since splits must reconcile
+            // exactly and most receipts print tax as its own line.
+            'subtotal' => $this->cleanAmount($raw['subtotal'] ?? null),
+            'tax' => $this->cleanAmount($raw['tax'] ?? null),
+            // Money taken off: loyalty savings, coupons, multibuy. Reported as
+            // a positive figure, as printed; a consumer subtracts it. Without
+            // this a supermarket receipt can never reconcile, because its
+            // items legitimately sum higher than what was paid.
+            'discount' => $this->discountAmount($raw),
             'lineItems' => $lineItems,
             'suggestedCategoryId' => $categoryId,
             'suggestedCategoryName' => $categoryName,
@@ -294,6 +308,42 @@ class ReceiptExtractionService {
      * @param list<array{description: string, amount: string}> $lineItems
      * @param array $raw The provider's own fields, for subtotal/tax.
      */
+    /**
+     * Do the line items account for the total?
+     *
+     * Four shapes reconcile, and a real receipt is usually one of them:
+     *
+     *   items                    = total   tax-inclusive prices, no offers
+     *   items + tax              = total   tax printed separately
+     *   items − discount         = total   loyalty savings, coupons, multibuy
+     *   items − discount + tax   = total   both
+     *
+     * The discount case is why a supermarket receipt used to be declined: a
+     * Clubcard or coupon line means the items sum HIGHER than what was paid,
+     * which is not a misread and should not be reported as one.
+     *
+     * (See discountAmount() below for the sign normalisation.)
+     */
+    /**
+     * The discount, always as positive money taken off.
+     *
+     * Models and receipts both write it either way — "3.50" and "-3.50" mean
+     * the same money off — so the sign is normalised once, here. Both the
+     * reconciliation check and the reported draft read through this, or they
+     * could disagree about whether a receipt adds up.
+     */
+    private function discountAmount(array $raw): ?string {
+        $discount = $this->cleanAmount($raw['discount'] ?? null);
+        if ($discount === null) {
+            return null;
+        }
+
+        $positive = ltrim($discount, '-');
+        // A stated zero is not a discount; treat it as absent so a consumer
+        // does not render a pointless "0.00 savings" line.
+        return $positive === '' || MoneyCalculator::equals($positive, '0') ? null : $positive;
+    }
+
     private function itemsReconcile(array $lineItems, string $total, array $raw): bool {
         $sum = MoneyCalculator::sum(array_column($lineItems, 'amount'));
 
@@ -304,6 +354,14 @@ class ReceiptExtractionService {
 
         $subtotal = $this->cleanAmount($raw['subtotal'] ?? null);
         $tax = $this->cleanAmount($raw['tax'] ?? null);
+        $discount = $this->discountAmount($raw);
+
+        // Money taken off comes out of the items before anything else.
+        $net = $discount !== null ? MoneyCalculator::subtract($sum, $discount) : $sum;
+
+        if ($discount !== null && MoneyCalculator::equals($net, $total)) {
+            return true;
+        }
 
         // Items make up the stated subtotal, and subtotal + tax is the total.
         if ($subtotal !== null && MoneyCalculator::equals($sum, $subtotal)) {
@@ -317,8 +375,8 @@ class ReceiptExtractionService {
             }
         }
 
-        // No subtotal printed, but the tax line closes the gap exactly.
-        if ($tax !== null && MoneyCalculator::equals(MoneyCalculator::add($sum, $tax), $total)) {
+        // The tax line closes the gap, with or without a discount first.
+        if ($tax !== null && MoneyCalculator::equals(MoneyCalculator::add($net, $tax), $total)) {
             return true;
         }
 

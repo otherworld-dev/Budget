@@ -40,6 +40,20 @@ class ReceiptParser {
     /** Labels for a tax line added to (or stated within) the total. */
     private const TAX_MARKERS = ['tax', 'sales tax', 'vat', 'gst', 'hst', 'mwst', 'ust'];
 
+    /**
+     * Labels for money taken off the items.
+     *
+     * Deliberately broad, because supermarkets all name it differently and a
+     * missed discount is what makes a receipt look misread: the items sum
+     * higher than what was paid and the gap looks like an OCR error.
+     * "you saved" and "total savings" are the common UK loyalty wordings.
+     */
+    private const DISCOUNT_MARKERS = [
+        'total savings', 'total saving', 'you saved', 'you save', 'savings', 'saving',
+        'discount', 'discounts', 'coupon', 'coupons', 'voucher', 'vouchers',
+        'offer', 'offers', 'promotion', 'rabatt', 'reduction',
+    ];
+
     /** Words that mark the line carrying the printed total. */
     private const TOTAL_MARKERS = [
         'grand total', 'amount due', 'balance due', 'total due', 'to pay', 'total',
@@ -64,19 +78,37 @@ class ReceiptParser {
             'merchant' => $this->findMerchant($lines),
             'date' => $this->findDate($lines),
             'total' => $this->findTotal($lines),
-            // Not draft fields: the extraction service uses these to tell a
-            // tax-exclusive receipt (items sum to the subtotal, correctly)
-            // from genuinely misread line items.
+            // The extraction service uses these to tell a receipt that
+            // reconciles perfectly well — tax added on, or savings taken off —
+            // from genuinely misread line items, and to offer per-item splits.
             'subtotal' => $this->findLabelled($lines, self::SUBTOTAL_MARKERS),
             'tax' => $this->findLabelled($lines, self::TAX_MARKERS),
+            // Reported positive however the receipt writes it: "-3.50",
+            // "3.50-" and "3.50" all mean the same money off.
+            'discount' => $this->absolute($this->findLabelled($lines, self::DISCOUNT_MARKERS)),
             'lineItems' => $this->findLineItems($lines),
         ];
     }
 
     /**
+     * Strip the sign from a parsed amount.
+     *
+     * A discount is reported as the positive money taken off, so the consumer
+     * subtracts it once. Receipts write it every way going — "-3.50", "3.50-",
+     * or plain "3.50" under a "Savings" label — and keeping the sign would
+     * make the same receipt reconcile or not depending on its typography.
+     */
+    private function absolute(?string $amount): ?string {
+        if ($amount === null) {
+            return null;
+        }
+        return ltrim($amount, '-') ?: null;
+    }
+
+    /**
      * The amount on the last line whose label ends in one of $markers.
-     * Used for the subtotal and tax lines, which findLineItems already
-     * recognises well enough to exclude — this just keeps their values.
+     * Used for the subtotal, tax and discount lines, which findLineItems
+     * already recognises well enough to exclude — this just keeps their values.
      */
     private function findLabelled(array $lines, array $markers): ?string {
         $found = null;

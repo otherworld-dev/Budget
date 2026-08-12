@@ -712,13 +712,22 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Invalid splits data')], Http::STATUS_BAD_REQUEST);
             }
 
-            // Validate each split
+            // Validate each split.
+            //
+            // A part may be NEGATIVE: a receipt's savings or coupon line is a
+            // real allocation, and the items either side of it sum higher than
+            // the amount actually paid. Rejecting negatives here refused every
+            // supermarket receipt — the parts arrived correct and summing to
+            // the total, and were turned away one at a time. What must hold is
+            // the SUM, which splitTransaction() enforces; a single part's sign
+            // is not the invariant. Zero is still refused: an empty row is not
+            // an allocation.
             foreach ($data['splits'] as $i => $split) {
                 if (!isset($split['amount']) || !is_numeric($split['amount'])) {
                     return new DataResponse(['error' => $this->l->t('Split %1$s: amount is required', [$i])], Http::STATUS_BAD_REQUEST);
                 }
-                if ($split['amount'] <= 0) {
-                    return new DataResponse(['error' => $this->l->t('Split %1$s: amount must be positive', [$i])], Http::STATUS_BAD_REQUEST);
+                if (abs((float)$split['amount']) < 0.005) {
+                    return new DataResponse(['error' => $this->l->t('Split %1$s: amount cannot be zero', [$i])], Http::STATUS_BAD_REQUEST);
                 }
             }
 

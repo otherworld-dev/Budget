@@ -84,6 +84,14 @@ class ApiV1Controller extends OCSController {
     public function capabilities(): DataResponse {
         return new DataResponse([
             'ocr_available' => $this->ocrSettings->isConfigured(),
+            // Whether this server accepts per-item splits (a `splits` field on
+            // create, and POST /transactions/{id}/splits). A hard-coded true
+            // on purpose: it is a property of the code that is answering, so a
+            // client can gate its per-item UI on one boolean instead of
+            // parsing `version` — which is documented as advisory, never a
+            // gate. An older server omits the key entirely, and a client
+            // reading it as false gets exactly the right behaviour.
+            'splits_available' => true,
             'currency' => $this->conversionService->getBaseCurrency($this->userId),
             'version' => $this->appVersion(),
         ]);

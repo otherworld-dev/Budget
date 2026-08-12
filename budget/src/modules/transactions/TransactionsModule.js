@@ -26,6 +26,9 @@ export default class TransactionsModule {
         // new-transaction branch never runs.
         this._pendingAttachments = [];
         this._scannedReceiptFile = null;
+        // Set only while a receipt-driven split carries a negative part (a
+        // savings line); see recomputeRemainderRow().
+        this._allowNegativeRemainder = false;
 
         // Transaction state - store on app for shared access
         this.app.transactionFilters = {};
@@ -1835,6 +1838,7 @@ export default class TransactionsModule {
         if (!group) return;
 
         this._scannedReceiptFile = null;
+        this._allowNegativeRemainder = false;
         this.clearScanResult();
 
         if (this._ocrAvailable === undefined) {
@@ -1975,6 +1979,142 @@ export default class TransactionsModule {
         return filled;
     }
 
+    /**
+     * Can the receipt's items become splits?
+     *
+     * Splits must sum exactly to the transaction amount and there must be at
+     * least two, so this only offers when the arithmetic actually works out.
+     * Four shapes do, which between them cover most real receipts:
+     *
+     *   items                     === total   tax-inclusive lines
+     *   items + tax               === total   tax printed separately
+     *   items − discount          === total   loyalty savings, coupons
+     *   items − discount + tax    === total   both
+     *
+     * The discount case matters more than it sounds: a supermarket receipt
+     * with a Clubcard or coupon line has items that legitimately sum HIGHER
+     * than what was paid, and without accounting for that every such receipt
+     * was refused.
+     *
+     * Anything else (an unreadable item, a partial refund) is declined rather
+     * than forced — a set that doesn't reconcile is rejected on save anyway.
+     *
+     * @returns {?{rows: Array, tax: ?number, discount: ?number}} null when not viable
+     */
+    receiptSplitPlan(draft) {
+        const total = Number(draft.total);
+        const items = (draft.lineItems || [])
+            .map((item) => ({ description: String(item.description ?? '').slice(0, 255), amount: Number(item.amount) }))
+            .filter((item) => Number.isFinite(item.amount) && item.amount > 0);
+
+        if (items.length < 2 || !Number.isFinite(total) || total <= 0) return null;
+
+        // Compare in pence: 3.40 + 0.40 in floating point is not 3.80.
+        const pence = (n) => Math.round(n * 100);
+        const itemsPence = items.reduce((sum, item) => sum + pence(item.amount), 0);
+        const totalPence = pence(total);
+        const taxPence = pence(Number(draft.tax) || 0);
+        // Reported positive, as printed. Taken off the items.
+        const discountPence = pence(Math.abs(Number(draft.discount) || 0));
+
+        const discount = discountPence > 0 ? Math.abs(Number(draft.discount)) : null;
+        const tax = taxPence > 0 ? Number(draft.tax) : null;
+
+        // Try each shape, cheapest explanation first.
+        if (itemsPence === totalPence) {
+            return { rows: items, tax: null, discount: null };
+        }
+        if (taxPence > 0 && itemsPence + taxPence === totalPence) {
+            return { rows: items, tax, discount: null };
+        }
+        if (discountPence > 0 && itemsPence - discountPence === totalPence) {
+            return { rows: items, tax: null, discount };
+        }
+        if (discountPence > 0 && taxPence > 0 && itemsPence - discountPence + taxPence === totalPence) {
+            return { rows: items, tax, discount };
+        }
+        return null;
+    }
+
+    /**
+     * Turn the receipt's items into inline splits.
+     *
+     * Reuses the dialog's existing split rows rather than inventing a parallel
+     * mechanism, which means the usual validation, remainder handling and save
+     * path all apply unchanged. The LAST row is the read-only remainder, so
+     * when tax is separate it is appended last and the remainder arithmetic
+     * lands on it naturally.
+     */
+    applyReceiptSplits(plan) {
+        const toggle = document.getElementById('transaction-split-toggle');
+        const splitsSection = document.getElementById('inline-splits-section');
+        const container = document.getElementById('inline-splits-container');
+        const categoryGroup = document.getElementById('transaction-category-group');
+        if (!toggle || !splitsSection || !container) return;
+
+        toggle.checked = true;
+        splitsSection.style.display = '';
+        if (categoryGroup) categoryGroup.style.display = 'none';
+
+        // A savings line is a negative part, so the remainder row must be
+        // allowed below zero for this set.
+        this._allowNegativeRemainder = plan.discount !== null;
+
+        container.innerHTML = '';
+        const rows = [...plan.rows];
+        if (plan.discount !== null) {
+            // Money off, as its own NEGATIVE line — the receipt says
+            // "Savings 3.50", so the split says -3.50. Spreading it across the
+            // items would give tidier category totals but amounts that match
+            // nothing printed, which makes checking a receipt impossible.
+            rows.push({ description: t('budget', 'Savings / discount'), amount: -plan.discount });
+        }
+        if (plan.tax !== null) {
+            // Its own line, at the amount the receipt printed. Left
+            // uncategorised: where tax belongs is the user's call.
+            rows.push({ description: t('budget', 'VAT / tax'), amount: plan.tax });
+        }
+
+        // Create the rows before filling any amounts. Adding a row recomputes
+        // the remainder, which rewrites whichever row is currently last — so
+        // passing amounts in row-by-row makes each new row clobber the one
+        // before it, and only the first survives.
+        rows.forEach((row, index) => {
+            this.addInlineSplitRow(index === 0, {
+                amount: '',
+                categoryId: null,
+                description: row.description,
+            });
+        });
+
+        // Now the amounts, skipping the final row: that one is the read-only
+        // remainder and derives itself from the transaction total. When tax is
+        // separate it is the last row, so the remainder lands on the tax; when
+        // the items already sum to the total it is the last item, and the
+        // remainder equals that item's own amount either way.
+        const rowEls = [...container.querySelectorAll('.split-row')];
+        rowEls.forEach((el, index) => {
+            if (index >= rowEls.length - 1) return;
+            const input = el.querySelector('.inline-split-amount');
+            if (!input) return;
+            input.value = rows[index].amount.toFixed(2);
+            // A savings line is negative, and the row template carries
+            // min="0.01" — which silently blocks the form from submitting at
+            // all. A read-only remainder row is exempt from validation, but a
+            // discount row is not the last row whenever tax follows it, so the
+            // constraint has to be lifted here rather than left to row order.
+            if (rows[index].amount < 0) {
+                input.removeAttribute('min');
+            }
+        });
+
+        this.refreshInlineSplitRows();
+        this.recomputeRemainderRow();
+        showSuccess(
+            t('budget', 'Split into {count} lines from the receipt. Set a category on each.', { count: rows.length }),
+        );
+    }
+
     /** Say what was filled, and pass on anything the reader was unsure about. */
     showScanResult(draft, filled) {
         const result = document.getElementById('transaction-scan-result');
@@ -1997,7 +2137,46 @@ export default class TransactionsModule {
         }
         lines.push(t('budget', 'The photo will be attached when you save.'));
 
+        // textContent, not innerHTML: every string above contains model output
+        // (merchant names, currency codes) and a receipt is attacker-supplied
+        // as far as this app is concerned.
         result.textContent = lines.join(' ');
+
+        // Offer splits only when the items actually reconcile to the total —
+        // opt-in, because most receipts want one category, not eight.
+        const plan = this.receiptSplitPlan(draft);
+
+        // When there are items but they don't add up, say so. Silently
+        // showing no button leaves the user unable to tell "this receipt
+        // can't be split" from "the feature is broken" — which is exactly
+        // how it reads the first time it happens.
+        if (!plan && items >= 2) {
+            result.textContent += ' ' + t(
+                'budget',
+                'These items cannot be split individually: they do not add up to the total, so the parts would not balance.',
+            );
+        }
+
+        if (plan) {
+            const count = plan.rows.length + (plan.tax !== null ? 1 : 0) + (plan.discount !== null ? 1 : 0);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'secondary receipt-scan-split-btn';
+            button.textContent = t('budget', 'Split into {count} lines', { count });
+            const extras = [];
+            if (plan.discount !== null) extras.push(t('budget', 'the savings as a negative line'));
+            if (plan.tax !== null) extras.push(t('budget', 'the tax as its own line'));
+            button.title = extras.length
+                ? t('budget', 'One line per item, plus {extras}', { extras: extras.join(t('budget', ' and ')) })
+                : t('budget', 'One line per item on the receipt');
+            button.addEventListener('click', () => {
+                this.applyReceiptSplits(plan);
+                button.disabled = true;
+            });
+            result.appendChild(document.createElement('br'));
+            result.appendChild(button);
+        }
+
         result.hidden = false;
     }
 
@@ -2541,6 +2720,9 @@ export default class TransactionsModule {
     initInlineSplitRows() {
         const container = document.getElementById('inline-splits-container');
         if (!container) return;
+        // Hand-built splits have no negative part; restore the clamp so an
+        // over-allocation still shows as a problem.
+        this._allowNegativeRemainder = false;
         container.innerHTML = '';
         this.addInlineSplitRow(true);
         this.addInlineSplitRow(false);
@@ -2663,7 +2845,15 @@ export default class TransactionsModule {
                 sumOthers += parseFloat(r.querySelector('.inline-split-amount')?.value) || 0;
             });
             const remainder = Math.round((totalAmount - sumOthers) * 100) / 100;
-            lastInput.value = remainder > 0 ? remainder.toFixed(2) : '0.00';
+            // Normally a negative remainder means the user has over-allocated
+            // by hand, and clamping to 0.00 keeps "Remaining: -5.00" as the
+            // signal that something is wrong. But a receipt with a savings
+            // line has a legitimately negative part — the items sum higher
+            // than what was paid — so the clamp is lifted only for that case,
+            // rather than changing what manual over-allocation looks like.
+            lastInput.value = (remainder > 0 || this._allowNegativeRemainder)
+                ? remainder.toFixed(2)
+                : '0.00';
         }
         this.updateInlineSplitRemaining();
     }
@@ -2676,9 +2866,16 @@ export default class TransactionsModule {
      */
     validateInlineSplits() {
         const total = parseFloat(document.getElementById('transaction-amount')?.value) || 0;
+        // Keep every part that carries a figure, including negative ones: a
+        // receipt's savings line is a real part of the split, and dropping it
+        // made the remaining items sum higher than the total, so a perfectly
+        // valid set was refused before it was ever sent. Only blank and zero
+        // rows are ignored — those are just unfilled rows.
         const amounts = Array.from(
             document.querySelectorAll('#inline-splits-container .split-row .inline-split-amount')
-        ).map(i => parseFloat(i.value) || 0).filter(a => a > 0);
+        )
+            .map(i => parseFloat(i.value))
+            .filter(a => Number.isFinite(a) && Math.abs(a) >= 0.005);
 
         if (amounts.length < 2) {
             return { ok: false, message: t('budget', 'A split needs at least two parts with an amount.') };
@@ -2726,15 +2923,19 @@ export default class TransactionsModule {
     async saveInlineSplits(transactionId) {
         const rows = document.querySelectorAll('#inline-splits-container .split-row');
         const splits = Array.from(rows).map(row => ({
-            amount: parseFloat(row.querySelector('.inline-split-amount')?.value) || 0,
+            amount: parseFloat(row.querySelector('.inline-split-amount')?.value),
             categoryId: parseInt(row.querySelector('.inline-split-category')?.value) || null,
             description: row.querySelector('.inline-split-description')?.value?.trim() || null,
-        })).filter(s => s.amount > 0);
+        }))
+            // Negative parts count: a receipt's savings line is one. Dropping
+            // it left the rest summing higher than the total, so the server
+            // refused the whole set. Blank and zero rows are still ignored.
+            .filter(s => Number.isFinite(s.amount) && Math.abs(s.amount) >= 0.005);
 
         if (splits.length < 2) return;
 
         try {
-            await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2742,8 +2943,22 @@ export default class TransactionsModule {
                 },
                 body: JSON.stringify({ splits })
             });
+
+            // The result was previously ignored entirely, so a rejected set
+            // left the transaction silently unsplit after telling the user it
+            // had saved — the failure was invisible in the UI and in the
+            // console alike. The transaction itself is fine, so this warns
+            // rather than throwing.
+            if (!response.ok) {
+                let reason = '';
+                try { reason = (await response.json()).error || ''; } catch (e) { /* non-JSON error */ }
+                showWarning(reason
+                    ? t('budget', 'The transaction was saved, but not split: {reason}', { reason })
+                    : t('budget', 'The transaction was saved, but its splits could not be stored'));
+            }
         } catch (error) {
             console.error('Failed to save inline splits:', error);
+            showWarning(t('budget', 'The transaction was saved, but its splits could not be stored'));
         }
     }
 

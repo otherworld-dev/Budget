@@ -10,10 +10,12 @@ use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\IdempotencyKey;
 use OCA\Budget\Db\IdempotencyKeyMapper;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -26,6 +28,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 	private ApiV1TransactionController $controller;
 	private TransactionService $service;
 	private AttachmentService $attachmentService;
+	private TransactionSplitService $splitService;
 	private ValidationService $validationService;
 	private GranularShareService $granularShareService;
 	private IdempotencyKeyMapper $idempotencyKeys;
@@ -47,6 +50,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->service = $this->createMock(TransactionService::class);
 		$this->attachmentService = $this->createMock(AttachmentService::class);
+		$this->splitService = $this->createMock(TransactionSplitService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->granularShareService = $this->createMock(GranularShareService::class);
 		$this->idempotencyKeys = $this->createMock(IdempotencyKeyMapper::class);
@@ -80,6 +84,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->attachmentService,
+			$this->splitService,
 			$validation,
 			$this->granularShareService,
 			$keys,
@@ -640,7 +645,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$keys = $this->heldKeyMapper(0);
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(fn ($text, $parameters = []) => vsprintf($text, $parameters));
-		$controller = new class($this->request, $this->service, $this->attachmentService, $this->validationService, $this->granularShareService, $keys, $l, 'user1', $this->createMock(LoggerInterface::class)) extends ApiV1TransactionController {
+		$controller = new class($this->request, $this->service, $this->attachmentService, $this->splitService, $this->validationService, $this->granularShareService, $keys, $l, 'user1', $this->createMock(LoggerInterface::class)) extends ApiV1TransactionController {
 			protected function waitForInFlightWinner(): void {
 				// No sleeping in unit tests.
 			}
@@ -776,6 +781,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 			$this->request,
 			$this->service,
 			$this->attachmentService,
+			$this->splitService,
 			$this->validationService,
 			$this->granularShareService,
 			$this->idempotencyKeys,
@@ -785,5 +791,215 @@ class ApiV1TransactionControllerTest extends TestCase {
 		);
 
 		$this->assertInstanceOf(ApiV1TransactionController::class, $controller);
+	}
+
+	// ── v1 per-item splits (for capture apps) ───────────────────────
+
+	private function splitTransaction(int $id = 5, int $accountId = 1, string $amount = '23.77'): Transaction {
+		$transaction = new Transaction();
+		$transaction->setId($id);
+		$transaction->setAccountId($accountId);
+		$transaction->setAmount($amount);
+		return $transaction;
+	}
+
+	/** Wire the owner-resolution chain the endpoint walks. */
+	private function expectOwnerResolution(string $ownerId = 'owner1', int $id = 5): void {
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId($ownerId);
+		$this->service->method('find')->willReturn($this->splitTransaction($id));
+		$this->service->method('findAccountById')->willReturn($account);
+	}
+
+	public function testSplitsAreCreatedFromSnakeCaseJson(): void {
+		$this->expectOwnerResolution();
+		$this->params = $this->captureParams([
+			'splits' => json_encode([
+				['amount' => '3.40', 'category_id' => 12, 'description' => 'Flat White'],
+				['amount' => '20.37', 'category_id' => 13, 'description' => 'Rest'],
+			]),
+		]);
+
+		$created = [];
+		foreach ([['3.40', 12, 'Flat White'], ['20.37', 13, 'Rest']] as $i => [$amt, $cat, $desc]) {
+			$split = new TransactionSplit();
+			$split->setId($i + 1);
+			$split->setTransactionId(5);
+			$split->setAmount($amt);
+			$split->setCategoryId($cat);
+			$split->setDescription($desc);
+			$created[] = $split;
+		}
+
+		$this->splitService->expects($this->once())
+			->method('splitTransaction')
+			// Owner-scoped, never the acting user: a shared-account write must
+			// land in the owner's ledger (#333/#334).
+			->with(5, 'owner1', $this->callback(function (array $splits): bool {
+				return count($splits) === 2
+					&& $splits[0]['amount'] === 3.40
+					&& $splits[0]['categoryId'] === 12
+					&& $splits[0]['description'] === 'Flat White';
+			}))
+			->willReturn($created);
+
+		$response = $this->controller->createSplits(5);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$splits = $response->getData()['splits'];
+		$this->assertCount(2, $splits);
+		// Money on the wire is a string, like every other figure in v1.
+		$this->assertSame('3.40', $splits[0]['amount']);
+		$this->assertSame(12, $splits[0]['category_id']);
+	}
+
+	public function testSplitsAcceptCamelCaseCategoryIdToo(): void {
+		$this->expectOwnerResolution();
+		$this->params = $this->captureParams([
+			'splits' => json_encode([
+				['amount' => '1.00', 'categoryId' => 7],
+				['amount' => '2.00', 'categoryId' => 8],
+			]),
+		]);
+
+		$this->splitService->expects($this->once())
+			->method('splitTransaction')
+			->with(5, 'owner1', $this->callback(
+				static fn (array $s): bool => $s[0]['categoryId'] === 7 && $s[1]['categoryId'] === 8
+			))
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->createSplits(5)->getStatus());
+	}
+
+	public function testAnUncategorisedSplitIsAllowed(): void {
+		// The tax line often has no sensible category; forcing one would make
+		// the user invent a bucket.
+		$this->expectOwnerResolution();
+		$this->params = $this->captureParams([
+			'splits' => json_encode([
+				['amount' => '1.42', 'description' => 'VAT'],
+				['amount' => '22.35', 'category_id' => ''],
+			]),
+		]);
+
+		$this->splitService->expects($this->once())
+			->method('splitTransaction')
+			->with(5, 'owner1', $this->callback(
+				static fn (array $s): bool => $s[0]['categoryId'] === null && $s[1]['categoryId'] === null
+			))
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->createSplits(5)->getStatus());
+	}
+
+	public function testPartsThatDoNotSumAreRejectedWithTheReason(): void {
+		// The client's arithmetic is the client's to fix, so the service's
+		// message is returned rather than a generic failure.
+		$this->expectOwnerResolution();
+		$this->params = $this->captureParams([
+			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
+		]);
+
+		$this->splitService->method('splitTransaction')
+			->willThrowException(new \InvalidArgumentException('Split amounts (3.00) must equal transaction amount (23.77)'));
+
+		$response = $this->controller->createSplits(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('must equal transaction amount', $response->getData()['message']);
+	}
+
+	public function testMissingOrUnusableSplitsIsABadRequest(): void {
+		$this->expectOwnerResolution();
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		foreach (['', 'not json', json_encode([]), json_encode(['nope']), json_encode([['category_id' => 3]])] as $payload) {
+			$this->params = $this->captureParams($payload === '' ? [] : ['splits' => $payload]);
+			$this->assertSame(
+				Http::STATUS_BAD_REQUEST,
+				$this->controller->createSplits(5)->getStatus(),
+				'payload: ' . var_export($payload, true)
+			);
+		}
+	}
+
+	public function testSplittingAnUnknownTransactionIsNotFound(): void {
+		$this->params = $this->captureParams([
+			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
+		]);
+		$this->service->method('find')->willThrowException(new DoesNotExistException('nope'));
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->createSplits(5)->getStatus());
+	}
+
+	public function testARejectedSplitSetDoesNotFailTheCreate(): void {
+		// The transaction is already recorded and idempotency-keyed by this
+		// point. Failing the request would invite a retry that duplicates the
+		// very thing the key protects, so the failure is reported instead and
+		// the transaction stands, correctly, unsplit.
+		$this->params = $this->captureParams([
+			'date' => '2026-08-05',
+			'account_id' => '1',
+			'amount' => '23.77',
+			'description' => 'Corner Deli',
+			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
+		]);
+		$this->service->method('create')->willReturn($this->splitTransaction());
+		$this->splitService->method('splitTransaction')
+			->willThrowException(new \InvalidArgumentException('Split amounts (3.00) must equal transaction amount (23.77)'));
+
+		$response = $this->controller->create();
+		$data = $response->getData();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertArrayHasKey('splits_error', $data);
+		$this->assertStringContainsString('must equal transaction amount', $data['splits_error']);
+		// The transaction itself is still returned in full.
+		$this->assertSame(5, $data['id']);
+	}
+
+	public function testCreateWithoutSplitsSaysNothingAboutThem(): void {
+		$this->params = $this->captureParams([
+			'date' => '2026-08-05',
+			'account_id' => '1',
+			'amount' => '23.77',
+			'description' => 'Corner Deli',
+		]);
+		$this->service->method('create')->willReturn($this->splitTransaction());
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$data = $this->controller->create()->getData();
+
+		$this->assertArrayNotHasKey('splits', $data);
+		$this->assertArrayNotHasKey('splits_error', $data);
+	}
+
+	public function testCreateResponseReportsTheTransactionAsSplit(): void {
+		// The transaction is serialised before the split runs, so is_split and
+		// category_id are stale in that snapshot. A client trusting them would
+		// believe the split never happened — caught against a live server,
+		// where the DB said is_split=1 and the response said false.
+		$this->params = $this->captureParams([
+			'date' => '2026-08-05',
+			'account_id' => '1',
+			'amount' => '23.77',
+			'description' => 'Corner Deli',
+			'category_id' => '12',
+			'splits' => json_encode([['amount' => '20.00'], ['amount' => '3.77']]),
+		]);
+
+		$transaction = $this->splitTransaction();
+		$transaction->setCategoryId(12);
+		$transaction->setIsSplit(false);
+		$this->service->method('create')->willReturn($transaction);
+		$this->splitService->method('splitTransaction')->willReturn([]);
+
+		$data = $this->controller->create()->getData();
+
+		$this->assertTrue($data['is_split']);
+		// Splitting clears the transaction's own category; the parts carry it.
+		$this->assertNull($data['category_id']);
 	}
 }

@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\AttachmentMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
@@ -112,13 +113,17 @@ class AttachmentService {
         $this->assertAllowedMime($mime);
 
         $userFolder = $this->rootFolder->getUserFolder($userId);
-        $year = substr($transaction->getDate(), 0, 4) ?: date('Y');
+        // Year AND month: a year folder holding several hundred receipts is
+        // no easier to browse than one flat pile.
+        $date = (string)$transaction->getDate();
+        $year = substr($date, 0, 4) ?: date('Y');
+        $month = substr($date, 5, 2) ?: date('m');
         $folder = $userFolder;
-        foreach ([...explode('/', self::RECEIPTS_FOLDER), $year] as $segment) {
+        foreach ([...explode('/', self::RECEIPTS_FOLDER), $year, $month] as $segment) {
             $folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
         }
 
-        $name = $this->uniqueName($folder, $uploadedFile['name'] ?? 'receipt');
+        $name = $this->uniqueName($folder, $this->receiptFileName($transaction, (string)($uploadedFile['name'] ?? ''), $mime));
         try {
             $stream = fopen($uploadedFile['tmp_name'], 'rb');
             $node = $folder->newFile($name, $stream);
@@ -176,6 +181,74 @@ class AttachmentService {
         if (!in_array($mime, self::ALLOWED_MIMES, true)) {
             throw new \InvalidArgumentException('File type not allowed — use an image or PDF');
         }
+    }
+
+    /**
+     * Name an uploaded receipt after the transaction it belongs to.
+     *
+     * The client's own filename is not kept: a browser sends whatever the
+     * camera called it and the capture app sends a UUID, so a receipts folder
+     * ends up full of names that match nothing you would ever search for.
+     * Naming from the transaction — which exists by the time a receipt is
+     * attached — gives "2026-08-05 The Corner Deli 23.77.jpg": chronological
+     * within the folder, and findable by shop or by amount.
+     *
+     * This applies to uploads only. A file attached from the user's own Files
+     * keeps its name — it is their file, and renaming it would be a
+     * side effect they never asked for.
+     */
+    private function receiptFileName(Transaction $transaction, string $originalName, string $mime): string {
+        $parts = [];
+
+        $date = substr((string)$transaction->getDate(), 0, 10);
+        if ($date !== '') {
+            $parts[] = $date;
+        }
+
+        // Vendor is the shop; description is what the user typed. Either is a
+        // better search term than "IMG_20260805_181233".
+        $merchant = trim((string)($transaction->getVendor() ?: $transaction->getDescription()));
+        if ($merchant !== '') {
+            // Long merchant strings would push the name past the filesystem
+            // limit once the date and amount are added.
+            $parts[] = mb_substr($merchant, 0, 60);
+        }
+
+        $amount = (float)$transaction->getAmount();
+        if ($amount > 0) {
+            $parts[] = number_format($amount, 2, '.', '');
+        }
+
+        $base = $this->sanitiseFileName(implode(' ', $parts)) ?: 'receipt';
+
+        // Prefer the original extension; fall back to the detected type so a
+        // client that sent no filename still produces something openable.
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+            $ext = match ($mime) {
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                'application/pdf' => 'pdf',
+                default => 'jpg',
+            };
+        }
+
+        return "{$base}.{$ext}";
+    }
+
+    /**
+     * Strip anything that would be illegal, invisible or surprising in a
+     * filename on any platform the user might sync this folder to.
+     */
+    private function sanitiseFileName(string $name): string {
+        // Reserved on Windows and/or meaningful to a path parser.
+        $name = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], ' ', $name);
+        // Control characters and Unicode format characters (a receipt read by
+        // a model can carry a stray zero-width space).
+        $name = preg_replace('/[\x00-\x1F\x7F]|\p{Cf}/u', '', $name) ?? $name;
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        // Windows rejects a name ending in a dot or a space.
+        return trim($name, " .\t\n\r\0\x0B");
     }
 
     private function uniqueName($folder, string $name): string {

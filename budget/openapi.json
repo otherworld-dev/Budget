@@ -783,6 +783,111 @@
           }
         }
       }
+    },
+    "/transactions/{id}/splits": {
+      "post": {
+        "summary": "Split a transaction into per-category parts",
+        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts.",
+        "operationId": "createSplits",
+        "tags": [
+          "transactions"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "splits"
+                ],
+                "properties": {
+                  "splits": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "$ref": "#/components/schemas/NewSplit"
+                    }
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "splits"
+                ],
+                "properties": {
+                  "splits": {
+                    "type": "string",
+                    "description": "JSON array of NewSplit objects."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Splits created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/SplitsEnvelope"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The parts do not sum to the transaction amount, there are fewer than two, or `splits` is not a usable array. The message states which.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such transaction for this user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1274,6 +1379,18 @@
           "category_name": {
             "type": "string",
             "description": "List responses only, and absent on uncategorised rows."
+          },
+          "splits": {
+            "type": "array",
+            "description": "Present on a create that supplied splits and they were accepted.",
+            "items": {
+              "$ref": "#/components/schemas/Split"
+            }
+          },
+          "splits_error": {
+            "type": "string",
+            "description": "Present when the transaction was created but its splits were rejected. The transaction is correct and unsplit; do not retry the create.",
+            "example": "Split amounts (3.00) must equal transaction amount (23.77)"
           }
         }
       },
@@ -1367,6 +1484,11 @@
             "type": "string",
             "maxLength": 64,
             "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing. Also accepted as an Idempotency-Key header."
+          },
+          "splits": {
+            "type": "string",
+            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
+            "example": "[{\"amount\":\"3.40\",\"category_id\":12},{\"amount\":\"20.37\",\"category_id\":13}]"
           }
         }
       },
@@ -1486,6 +1608,24 @@
                 "line-items-sum-mismatch"
               ]
             }
+          },
+          "subtotal": {
+            "type": "string",
+            "nullable": true,
+            "description": "Pre-tax figure, only when the receipt prints one. Needed to reconcile line items against the total when tax is listed separately.",
+            "example": "22.35"
+          },
+          "tax": {
+            "type": "string",
+            "nullable": true,
+            "description": "The VAT/sales tax line, only when the receipt prints one. Add it to the line items to reach the total; send it as its own split.",
+            "example": "1.42"
+          },
+          "discount": {
+            "type": "string",
+            "nullable": true,
+            "description": "Total money taken off — loyalty savings, coupons, multibuy — as a POSITIVE figure, only when the receipt prints one. Subtract it from the line items to reach the total; send it as a negative split.",
+            "example": "4.50"
           }
         }
       },
@@ -1501,6 +1641,11 @@
           "ocr_available": {
             "type": "boolean",
             "description": "Mirrors features.receipt_ocr on GET /."
+          },
+          "splits_available": {
+            "type": "boolean",
+            "description": "Whether this server accepts per-item splits. Absent on older servers; treat absence as false.",
+            "example": true
           },
           "currency": {
             "type": "string",
@@ -1555,6 +1700,76 @@
             "type": "string",
             "nullable": true,
             "example": "Current Account"
+          }
+        }
+      },
+      "Split": {
+        "type": "object",
+        "description": "One category allocation of a split transaction.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 41
+          },
+          "transaction_id": {
+            "type": "integer",
+            "example": 66
+          },
+          "amount": {
+            "type": "string",
+            "description": "Fixed-point decimal string, as everywhere else in v1.",
+            "example": "3.40"
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 12
+          },
+          "category_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Groceries"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Flat White"
+          }
+        }
+      },
+      "NewSplit": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Decimal string or number. MAY be negative for a savings or coupon line; zero is refused. The parts must sum to the transaction amount.",
+            "example": "3.40"
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Omit or null to leave the part uncategorised (useful for a tax line).",
+            "example": 12
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255,
+            "example": "Flat White"
+          }
+        }
+      },
+      "SplitsEnvelope": {
+        "type": "object",
+        "properties": {
+          "splits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Split"
+            }
           }
         }
       }

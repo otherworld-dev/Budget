@@ -192,4 +192,100 @@ class AttachmentServiceTest extends TestCase {
 
         $this->assertSame([5 => 2, 7 => 1], $this->service->getCounts('alice'));
     }
+
+    // ── receipt filing: month folders and searchable names ──────────
+
+    /** Reach the private naming helper without touching a filesystem. */
+    private function nameFor(Transaction $transaction, string $originalName, string $mime = 'image/jpeg'): string {
+        $method = new \ReflectionMethod(AttachmentService::class, 'receiptFileName');
+        $method->setAccessible(true);
+        return $method->invoke($this->service, $transaction, $originalName, $mime);
+    }
+
+    private function transactionFor(string $date, string $vendor, string $description, string $amount): Transaction {
+        $transaction = new Transaction();
+        $transaction->setDate($date);
+        $transaction->setVendor($vendor);
+        $transaction->setDescription($description);
+        $transaction->setAmount($amount);
+        return $transaction;
+    }
+
+    public function testReceiptIsNamedAfterTheTransactionNotTheUpload(): void {
+        // A camera filename or a capture-app UUID matches nothing anyone would
+        // search for; the transaction's own details do.
+        $name = $this->nameFor(
+            $this->transactionFor('2026-08-05', 'The Corner Deli', 'THE CORNER DELI', '23.77'),
+            'IMG_20260805_181233.jpg'
+        );
+
+        $this->assertSame('2026-08-05 The Corner Deli 23.77.jpg', $name);
+    }
+
+    public function testFallsBackToDescriptionWhenThereIsNoVendor(): void {
+        $name = $this->nameFor($this->transactionFor('2026-08-05', '', 'Coffee run', '4.20'), 'x.png');
+        $this->assertSame('2026-08-05 Coffee run 4.20.png', $name);
+    }
+
+    public function testStripsCharactersThatAreIllegalInAFilename(): void {
+        // Merchant names come off a receipt read by a model, so they can
+        // contain anything — including a path separator.
+        $name = $this->nameFor(
+            $this->transactionFor('2026-08-05', 'A/B: "Shop" <Ltd>|*?', 'x', '9.99'),
+            'r.jpg'
+        );
+
+        foreach (['/', '\\', ':', '*', '?', '"', '<', '>', '|'] as $illegal) {
+            $this->assertStringNotContainsString($illegal, $name);
+        }
+        $this->assertStringStartsWith('2026-08-05 ', $name);
+        $this->assertStringEndsWith('9.99.jpg', $name);
+    }
+
+    public function testStripsInvisibleCharacters(): void {
+        // A zero-width space in a filename is invisible and unsearchable.
+        $zeroWidth = "\u{200B}";
+        $name = $this->nameFor(
+            $this->transactionFor('2026-08-05', 'Cafe' . $zeroWidth . 'Nero', 'x', '3.10'),
+            'r.jpg'
+        );
+        $this->assertSame('2026-08-05 CafeNero 3.10.jpg', $name);
+    }
+
+    public function testNeverEndsInASpaceOrDotWhichWindowsRejects(): void {
+        // The amount is omitted when zero, so the merchant would otherwise be
+        // the final component and leave a trailing dot before the extension.
+        $name = $this->nameFor($this->transactionFor('2026-08-05', 'Shop.', 'x', '0'), 'r.jpg');
+        $this->assertSame('2026-08-05 Shop.jpg', $name);
+    }
+
+    public function testBoundsAVeryLongMerchantName(): void {
+        $name = $this->nameFor(
+            $this->transactionFor('2026-08-05', str_repeat('Supermarket ', 40), 'x', '12.00'),
+            'r.jpg'
+        );
+        // Comfortably inside the 255-byte filesystem limit.
+        $this->assertLessThan(120, strlen($name));
+        $this->assertStringEndsWith('12.00.jpg', $name);
+    }
+
+    public function testDerivesTheExtensionFromContentWhenTheClientSentNone(): void {
+        // The capture app can post bytes with no filename at all.
+        $transaction = $this->transactionFor('2026-08-05', 'Shop', 'x', '1.00');
+        $this->assertStringEndsWith('.png', $this->nameFor($transaction, '', 'image/png'));
+        $this->assertStringEndsWith('.webp', $this->nameFor($transaction, '', 'image/webp'));
+        $this->assertStringEndsWith('.pdf', $this->nameFor($transaction, '', 'application/pdf'));
+        // An unrecognised extension is replaced rather than trusted.
+        $this->assertStringEndsWith('.jpg', $this->nameFor($transaction, 'receipt.exe', 'image/jpeg'));
+    }
+
+    public function testNameSurvivesATransactionWithNothingUsable(): void {
+        $transaction = new Transaction();
+        $transaction->setDate('');
+        $transaction->setVendor('');
+        $transaction->setDescription('');
+        $transaction->setAmount('0');
+
+        $this->assertSame('receipt.jpg', $this->nameFor($transaction, '', 'image/jpeg'));
+    }
 }

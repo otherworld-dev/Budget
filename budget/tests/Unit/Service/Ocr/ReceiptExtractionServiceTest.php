@@ -294,8 +294,11 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertSame(['line-items-sum-mismatch'], $this->service->extract('user1', $this->pngUpload())['warnings']);
 	}
 
-	public function testSubtotalAndTaxAreNotPutOnTheWire(): void {
-		// They are reconciliation inputs, not part of the v1 draft contract.
+	public function testSubtotalAndTaxAreReportedForPerItemSplitting(): void {
+		// These began as reconciliation inputs the service kept to itself.
+		// Both consumers now need them: splits must sum exactly to the
+		// transaction, and most receipts print tax as its own line, so the
+		// items alone never reconcile. Reported internally…
 		$this->configureCustom();
 		$this->modelAnswers(json_encode([
 			'merchant' => 'Shop', 'date' => '2026-08-05',
@@ -305,8 +308,33 @@ class ReceiptExtractionServiceTest extends TestCase {
 
 		$draft = $this->service->extract('user1', $this->pngUpload());
 
-		$this->assertArrayNotHasKey('subtotal', $draft);
-		$this->assertArrayNotHasKey('tax', $draft);
+		$this->assertSame('10.00', $draft['subtotal']);
+		$this->assertSame('1.00', $draft['tax']);
+
+		// …and on the v1 wire too, so a capture app can offer the same
+		// per-item categorising the web UI does. Additive: the keys are new,
+		// nothing existing was renamed, and the exact v1 key set is pinned by
+		// ApiSerializerTest.
+		$serialized = \OCA\Budget\Api\ApiSerializer::receiptDraft($draft);
+		$this->assertSame('10.00', $serialized['subtotal']);
+		$this->assertSame('1.00', $serialized['tax']);
+	}
+
+	public function testSubtotalAndTaxAreNullWhenTheReceiptDoesNotPrintThem(): void {
+		// A tax-inclusive receipt has no separate lines; the keys must still
+		// be present so a client can rely on the shape.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-05', 'total' => 10.00,
+			'lineItems' => [['description' => 'Thing', 'amount' => 10.00]],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertArrayHasKey('subtotal', $draft);
+		$this->assertArrayHasKey('tax', $draft);
+		$this->assertNull($draft['subtotal']);
+		$this->assertNull($draft['tax']);
 	}
 
 	public function testWarnsWhenLineItemsDoNotSumToTheTotal(): void {
@@ -505,5 +533,113 @@ class ReceiptExtractionServiceTest extends TestCase {
 			'error' => UPLOAD_ERR_OK,
 			'size' => strlen($bytes),
 		];
+	}
+
+	// ── savings / discounts (the supermarket case) ───────────────────
+
+	public function testItemsMinusSavingsReconcileWithoutAWarning(): void {
+		// The receipt that used to be refused: a Clubcard line means the items
+		// legitimately sum HIGHER than what was paid. That is not a misread.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Tesco', 'date' => '2026-08-08',
+			'total' => 37.13, 'discount' => 3.50,
+			'lineItems' => [
+				['description' => 'Milk 2L', 'amount' => 1.65],
+				['description' => 'Chicken', 'amount' => 6.50],
+				['description' => 'Weekly bits', 'amount' => 32.48],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('3.50', $draft['discount']);
+		$this->assertNotContains('line-items-sum-mismatch', $draft['warnings']);
+	}
+
+	public function testItemsMinusSavingsPlusTaxReconcile(): void {
+		// Both at once: US-style sales tax on a discounted basket.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-08',
+			'total' => 10.50, 'discount' => 2.00, 'tax' => 0.50,
+			'lineItems' => [
+				['description' => 'A', 'amount' => 6.00],
+				['description' => 'B', 'amount' => 6.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNotContains('line-items-sum-mismatch', $draft['warnings']);
+	}
+
+	public function testAGapTheDiscountDoesNotExplainIsStillFlagged(): void {
+		// The warning must keep working: a discount that does not close the gap
+		// means something really was misread, and silently accepting it would
+		// hide the one case the flag exists for.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-08',
+			'total' => 20.00, 'discount' => 1.00,
+			'lineItems' => [
+				['description' => 'A', 'amount' => 5.00],
+				['description' => 'B', 'amount' => 5.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertContains('line-items-sum-mismatch', $draft['warnings']);
+	}
+
+	public function testADiscountWrittenNegativeIsReportedPositive(): void {
+		// Receipts print it "-3.50", "3.50-" or plain under a Savings label.
+		// A consumer subtracts it once, so the sign must not vary.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-08',
+			'total' => 7.00, 'discount' => -3.00,
+			'lineItems' => [
+				['description' => 'A', 'amount' => 5.00],
+				['description' => 'B', 'amount' => 5.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('3.00', $draft['discount']);
+		$this->assertNotContains('line-items-sum-mismatch', $draft['warnings']);
+	}
+
+	public function testDiscountIsNullWhenTheReceiptHasNone(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-08', 'total' => 10.00,
+			'lineItems' => [['description' => 'A', 'amount' => 10.00]],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertArrayHasKey('discount', $draft);
+		$this->assertNull($draft['discount']);
+	}
+
+	public function testDiscountReachesTheV1Wire(): void {
+		// A capture app needs it for the same reason the web UI does.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Tesco', 'date' => '2026-08-08',
+			'total' => 6.50, 'discount' => 3.50,
+			'lineItems' => [
+				['description' => 'A', 'amount' => 5.00],
+				['description' => 'B', 'amount' => 5.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+		$serialized = \OCA\Budget\Api\ApiSerializer::receiptDraft($draft);
+
+		$this->assertSame('3.50', $serialized['discount']);
 	}
 }

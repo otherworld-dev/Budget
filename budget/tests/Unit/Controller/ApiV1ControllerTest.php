@@ -96,12 +96,29 @@ class ApiV1ControllerTest extends TestCase {
 
 		$data = $this->controller->capabilities()->getData();
 
-		// The capture app's first call — three keys, exactly these names.
+		// The capture app's first call — exactly these keys, in this order.
+		// Additions are allowed (a client ignores what it doesn't know) but
+		// they belong in this list deliberately, not by accident.
 		$this->assertSame([
 			'ocr_available' => true,
+			'splits_available' => true,
 			'currency' => 'GBP',
 			'version' => '2.41.0',
 		], $data);
+	}
+
+	public function testSplitsAreAdvertisedSoClientsNeedNotParseTheVersion(): void {
+		// `version` is documented as advisory, so a client must have a boolean
+		// to gate its per-item UI on. An older server omits this key, and a
+		// client reading the absence as false behaves correctly.
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+		$this->ocrSettings->method('isConfigured')->willReturn(false);
+
+		$data = $this->controller->capabilities()->getData();
+
+		$this->assertTrue($data['splits_available']);
+		// Splits do not depend on OCR being set up — a user can split by hand.
+		$this->assertFalse($data['ocr_available']);
 	}
 
 	public function testUnauthenticatedConstructionDoesNotFatal(): void {

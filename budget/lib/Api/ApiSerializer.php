@@ -119,6 +119,16 @@ final class ApiSerializer {
             'merchant' => $draft['merchant'] ?? null,
             'date' => $draft['date'] ?? null,
             'total' => $draft['total'] ?? null,
+            // A capture app that lets the user categorise each item needs the
+            // tax line: splits must sum exactly to the transaction, and most
+            // receipts print tax separately, so items alone do not reconcile.
+            // Additive to v1 — existing clients ignore unknown keys.
+            'subtotal' => $draft['subtotal'] ?? null,
+            'tax' => $draft['tax'] ?? null,
+            // Money taken off, positive as printed. Without it a supermarket
+            // receipt's items sum higher than the total and no client can make
+            // them reconcile into splits.
+            'discount' => $draft['discount'] ?? null,
             'currency' => $draft['currency'] ?? null,
             'suggested_category_id' => $draft['suggestedCategoryId'] ?? null,
             'suggested_category_name' => $draft['suggestedCategoryName'] ?? null,
@@ -180,6 +190,34 @@ final class ApiSerializer {
      */
     private static function money(float|int|string $value): string {
         return number_format((float)$value, 2, '.', '');
+    }
+
+    /**
+     * One allocation of a split transaction.
+     *
+     * `amount` is a money string like every other figure in v1, so a client
+     * can sum the parts without a float ever entering the arithmetic.
+     */
+    public static function split(Entity|array $split): array {
+        $data = self::toArray($split);
+
+        return [
+            'id' => isset($data['id']) ? (int)$data['id'] : null,
+            'transaction_id' => isset($data['transactionId']) ? (int)$data['transactionId'] : null,
+            'amount' => self::money($data['amount'] ?? 0),
+            'category_id' => isset($data['categoryId']) ? (int)$data['categoryId'] : null,
+            'category_name' => $data['categoryName'] ?? null,
+            'description' => $data['description'] ?? null,
+        ];
+    }
+
+    /** @param iterable<Entity|array> $splits */
+    public static function splits(iterable $splits): array {
+        $out = [];
+        foreach ($splits as $split) {
+            $out[] = self::split($split);
+        }
+        return $out;
     }
 
     private static function toArray(Entity|array $value): array {

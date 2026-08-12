@@ -12,6 +12,7 @@ use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
@@ -53,6 +54,7 @@ class ApiV1TransactionController extends OCSController {
         IRequest $request,
         private TransactionService $service,
         private AttachmentService $attachmentService,
+        private TransactionSplitService $splitService,
         private ValidationService $validationService,
         GranularShareService $granularShareService,
         private IdempotencyKeyMapper $idempotencyKeys,
@@ -342,6 +344,32 @@ class ApiV1TransactionController extends OCSController {
                 }
             }
 
+            // Optional per-item splits, for a capture app that read a receipt
+            // and had the user categorise each line. Handled like the photo
+            // above: the transaction is already recorded and idempotency-keyed,
+            // so a rejected split set reports itself rather than failing the
+            // request — a retry would duplicate the very thing the key guards.
+            // The total is unaffected either way, so the fallback state is a
+            // correct unsplit transaction the user can split later.
+            $splits = $this->readSplitsParam();
+            if ($splits !== null) {
+                try {
+                    $created = $this->splitService->splitTransaction($transaction->getId(), $effectiveUserId, $splits);
+                    $out['splits'] = ApiSerializer::splits($created);
+                    // The transaction was serialised before the split ran, so
+                    // its flags are stale: splitting sets is_split and clears
+                    // the category. Correct them rather than re-reading the
+                    // row — a client trusting is_split from this response
+                    // would otherwise believe the split never happened.
+                    $out['is_split'] = true;
+                    $out['category_id'] = null;
+                } catch (\Throwable $e) {
+                    $out['splits_error'] = $e instanceof \InvalidArgumentException
+                        ? $e->getMessage()
+                        : $this->l->t('The transaction was recorded, but it could not be split');
+                }
+            }
+
             return new DataResponse($out, Http::STATUS_CREATED);
         } catch (DoesNotExistException $e) {
             return $this->notFound($this->l->t('Account not found'));
@@ -483,6 +511,105 @@ class ApiV1TransactionController extends OCSController {
                 'app' => Application::APP_ID,
             ]);
         }
+    }
+
+    /**
+     * Split a transaction into per-category allocations.
+     *
+     * Added for capture apps that read a receipt and let the user categorise
+     * each item (#537 follow-up): a receipt's line items are exactly a set of
+     * splits, and without this the API could only ever record one category
+     * for a whole shop.
+     *
+     * Replaces any existing splits — this is a PUT in spirit, kept as POST to
+     * match the web route it shares a service with. The parts must sum to the
+     * transaction amount and there must be at least two; both are the split
+     * service's rules, not this endpoint's.
+     *
+     * Body: `splits` as a JSON array, either raw JSON or a form field, each
+     * entry `{"amount": "3.40", "category_id": 12, "description": "Flat White"}`.
+     */
+    #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
+    public function createSplits(int $id): DataResponse {
+        $splits = $this->readSplitsParam();
+        if ($splits === null) {
+            return new DataResponse(
+                ['message' => $this->l->t('splits must be an array of {"amount", "category_id", "description"} objects')],
+                Http::STATUS_BAD_REQUEST
+            );
+        }
+
+        try {
+            // Splits belong to the ledger owner, like the transaction and its
+            // receipts — a write on a shared account must not scope to the
+            // acting user, or it lands in the wrong ledger (see #333/#334).
+            $transaction = $this->service->find($id, $this->getEffectiveUserId());
+            $ownerId = $this->service->findAccountById($transaction->getAccountId())->getUserId();
+            $created = $this->splitService->splitTransaction($id, $ownerId, $splits);
+
+            return new DataResponse(['splits' => ApiSerializer::splits($created)], Http::STATUS_CREATED);
+        } catch (DoesNotExistException $e) {
+            return $this->notFound();
+        } catch (\InvalidArgumentException $e) {
+            // "must equal transaction amount", "at least 2 parts" — the
+            // client's arithmetic, so the reason is safe and useful to return.
+            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to split the transaction'));
+        }
+    }
+
+    /**
+     * Read and normalise the `splits` parameter.
+     *
+     * Accepts a decoded array (JSON body) or a JSON string (multipart form,
+     * which is how a capture app posting a photo has to send it). Field names
+     * are snake_case on the wire like the rest of v1; camelCase is tolerated
+     * because the split service and the web UI already speak it.
+     *
+     * @return array|null null when the parameter is absent or unusable
+     */
+    private function readSplitsParam(): ?array {
+        $raw = $this->request->getParam('splits');
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                return null;
+            }
+            $raw = $decoded;
+        }
+
+        if (!is_array($raw) || $raw === []) {
+            return null;
+        }
+
+        $splits = [];
+        foreach ($raw as $entry) {
+            if (!is_array($entry)) {
+                return null;
+            }
+            if (!isset($entry['amount'])) {
+                return null;
+            }
+            $categoryId = $entry['category_id'] ?? $entry['categoryId'] ?? null;
+            $splits[] = [
+                // The service sums these, so they must be numeric; a
+                // non-numeric string would silently count as zero and let a
+                // set of parts "reconcile" that does not.
+                'amount' => (float)$entry['amount'],
+                'categoryId' => $categoryId === null || $categoryId === '' ? null : (int)$categoryId,
+                'description' => isset($entry['description']) && $entry['description'] !== ''
+                    ? mb_substr((string)$entry['description'], 0, 255)
+                    : null,
+            ];
+        }
+
+        return $splits;
     }
 
     /**

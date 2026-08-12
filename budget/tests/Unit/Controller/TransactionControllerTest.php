@@ -472,4 +472,55 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame('success', $response->getData()['status']);
 	}
+
+	/** This suite drives IRequest directly; there is no shared params bag. */
+	private function requestParams(array $params): void {
+		$this->request->method('getParams')->willReturn($params);
+	}
+
+	// ── negative parts: a receipt's savings line ────────────────────
+
+	public function testASplitPartMayBeNegative(): void {
+		// A savings or coupon line is a real allocation. Refusing it rejected
+		// every supermarket receipt: the parts arrived correct and summing to
+		// the total, and were turned away one at a time on their sign. The
+		// invariant is the SUM, which the service enforces — not the sign of
+		// any one part.
+		$this->requestParams([
+			'splits' => [
+				['amount' => 41.63, 'categoryId' => 3],
+				['amount' => -4.50, 'categoryId' => null, 'description' => 'Savings'],
+			],
+		]);
+		$this->splitService->expects($this->once())
+			->method('splitTransaction')
+			->willReturn([]);
+
+		$response = $this->controller->split(5);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testASplitPartOfZeroIsStillRefused(): void {
+		// An empty row is not an allocation.
+		$this->requestParams([
+			'splits' => [
+				['amount' => 10.00],
+				['amount' => 0],
+			],
+		]);
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$response = $this->controller->split(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot be zero', $response->getData()['error']);
+	}
+
+	public function testASplitPartStillNeedsANumericAmount(): void {
+		$this->requestParams(['splits' => [['amount' => 'free'], ['amount' => 10.00]]]);
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->split(5)->getStatus());
+	}
 }

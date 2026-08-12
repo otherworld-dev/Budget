@@ -249,7 +249,7 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::receiptDraft([]);
 
 		$this->assertSame([
-			'merchant', 'date', 'total', 'currency',
+			'merchant', 'date', 'total', 'subtotal', 'tax', 'discount', 'currency',
 			'suggested_category_id', 'suggested_category_name', 'line_items', 'warnings',
 		], array_keys($result));
 	}
@@ -273,6 +273,9 @@ class ApiSerializerTest extends TestCase {
 			'date' => '2026-08-01',
 			'currency' => 'GBP',
 			'total' => '9.75',
+			'subtotal' => '8.13',
+			'tax' => '1.62',
+			'discount' => '0.75',
 			'lineItems' => [['description' => 'Milk 2L', 'amount' => '1.65']],
 			'suggestedCategoryId' => 42,
 			'suggestedCategoryName' => 'Groceries',
@@ -283,6 +286,9 @@ class ApiSerializerTest extends TestCase {
 			'merchant' => 'Tesco Express',
 			'date' => '2026-08-01',
 			'total' => '9.75',
+			'subtotal' => '8.13',
+			'tax' => '1.62',
+			'discount' => '0.75',
 			'currency' => 'GBP',
 			'suggested_category_id' => 42,
 			'suggested_category_name' => 'Groceries',

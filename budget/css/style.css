@@ -12573,6 +12573,35 @@ tr.scheduled-transaction:hover {
     line-height: 1.5;
 }
 
+/* Sits on the grey result panel, in the narrow Extras column. A default
+   secondary button there is grey-on-grey and reads as disabled text rather
+   than something clickable — it has to carry its own surface and border. */
+button.receipt-scan-split-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--color-main-background);
+    border: 2px solid var(--color-primary-element);
+    border-radius: var(--border-radius-large, 8px);
+    color: var(--color-primary-element);
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button.receipt-scan-split-btn:hover:not(:disabled),
+button.receipt-scan-split-btn:focus-visible:not(:disabled) {
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text, #fff);
+}
+
+button.receipt-scan-split-btn:disabled {
+    border-color: var(--color-border-dark);
+    color: var(--color-text-maxcontrast);
+    cursor: default;
+}
+
 .attachments-list {
     display: flex;
     flex-direction: column;
