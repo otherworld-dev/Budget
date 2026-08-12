@@ -44,6 +44,7 @@ const CURRENCY_CONFIG = {
     'UAH': { symbol: '₴', position: 'prefix' },
     'ISK': { symbol: 'kr', position: 'suffix', decimals: 0 },
     'RUB': { symbol: '₽', position: 'prefix' },
+    'BYN': { symbol: 'Br', position: 'suffix' },
     'TRY': { symbol: '₺', position: 'prefix' },
     // Asia-Pacific
     'JPY': { symbol: '¥', position: 'prefix', decimals: 0 },
@@ -59,6 +60,7 @@ const CURRENCY_CONFIG = {
     'SGD': { symbol: 'S$', position: 'prefix' },
     'HKD': { symbol: 'HK$', position: 'prefix' },
     'PKR': { symbol: 'Rs', position: 'prefix' },
+    'KZT': { symbol: '₸', position: 'prefix' },
     'BDT': { symbol: '৳', position: 'prefix' },
     'AUD': { symbol: 'A$', position: 'prefix' },
     'NZD': { symbol: 'NZ$', position: 'prefix' },

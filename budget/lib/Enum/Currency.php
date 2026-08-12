@@ -43,6 +43,7 @@ enum Currency: string {
     case UAH = 'UAH';  // Ukrainian Hryvnia
     case ISK = 'ISK';  // Icelandic Krona
     case RUB = 'RUB';  // Russian Ruble
+    case BYN = 'BYN';  // Belarusian Ruble
     case TRY = 'TRY';  // Turkish Lira
 
     // Asia-Pacific
@@ -141,6 +142,7 @@ enum Currency: string {
             self::UAH => '₴',
             self::ISK => 'kr',
             self::RUB => '₽',
+            self::BYN => 'Br',
             self::TRY => '₺',
             // Asia-Pacific
             self::JPY => '¥',
@@ -265,6 +267,7 @@ enum Currency: string {
             self::UAH => 'Ukrainian Hryvnia',
             self::ISK => 'Icelandic Krona',
             self::RUB => 'Russian Ruble',
+            self::BYN => 'Belarusian Ruble',
             self::TRY => 'Turkish Lira',
             // Asia-Pacific
             self::JPY => 'Japanese Yen',

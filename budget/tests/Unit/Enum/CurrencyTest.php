@@ -28,4 +28,25 @@ class CurrencyTest extends TestCase {
     public function testDecimalsFor(?string $code, int $expected): void {
         $this->assertSame($expected, Currency::decimalsFor($code));
     }
+
+    /**
+     * symbol() and name() are exhaustive matches, so a case added without its arms
+     * is a fatal UnhandledMatchError at runtime rather than a missing label.
+     */
+    public function testEveryCaseHasASymbolAndAName(): void {
+        foreach (Currency::cases() as $currency) {
+            $this->assertNotSame('', $currency->symbol(), $currency->value . ' has no symbol');
+            $this->assertNotSame('', $currency->name(), $currency->value . ' has no name');
+        }
+    }
+
+    public function testBynIsSupported(): void {
+        $byn = Currency::tryFromString('byn');
+
+        $this->assertSame(Currency::BYN, $byn);
+        $this->assertSame('Br', $byn->symbol());
+        $this->assertSame('Belarusian Ruble', $byn->name());
+        $this->assertSame(2, $byn->decimals());
+        $this->assertFalse($byn->isCrypto());
+    }
 }
