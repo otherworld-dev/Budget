@@ -6,7 +6,6 @@ namespace OCA\Budget\Service\Import;
 
 use OCA\Budget\Service\Parser\OfxParser;
 use OCA\Budget\Service\Parser\QifParser;
-use OCP\IL10N;
 
 /**
  * Factory for creating file format parsers.
@@ -14,11 +13,6 @@ use OCP\IL10N;
 class ParserFactory {
     private ?OfxParser $ofxParser = null;
     private ?QifParser $qifParser = null;
-    private ?IL10N $l = null;
-
-    public function __construct(?IL10N $l = null) {
-        $this->l = $l;
-    }
 
     /**
      * Detect file format from filename.
@@ -139,6 +133,10 @@ class ParserFactory {
      * Sanitize raw header strings by assigning synthetic column names ('Column 1', 'Column 2', etc.)
      * to empty, blank, or duplicate header cells.
      *
+     * The names are deliberately NOT translated: they end up as the array keys of every parsed
+     * row and are stored verbatim in saved import templates, so a translated name would stop
+     * matching its template as soon as the user changes the interface language.
+     *
      * @param string[] $rawHeaders
      * @return string[] Unique, non-empty header names
      */
@@ -147,12 +145,16 @@ class ParserFactory {
         $seen = [];
 
         foreach ($rawHeaders as $i => $rawHeader) {
-            $header = trim((string) $rawHeader);
-            $candidate = $header;
+            $candidate = trim((string) $rawHeader);
 
             if ($candidate === '' || isset($seen[$candidate])) {
-                $columnNum = $i + 1;
-                $candidate = $this->l ? $this->l->t('Column %d', [$columnNum]) : ('Column ' . $columnNum);
+                // A real header may already be called 'Column 2', so keep suffixing until the
+                // name is free - duplicate keys would make array_combine() drop a column.
+                $base = 'Column ' . ($i + 1);
+                $candidate = $base;
+                for ($n = 2; isset($seen[$candidate]); $n++) {
+                    $candidate = $base . ' (' . $n . ')';
+                }
             }
 
             $seen[$candidate] = true;
