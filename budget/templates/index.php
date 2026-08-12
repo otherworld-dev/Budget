@@ -2258,15 +2258,11 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="mapping-field required" data-map-field="description">
                                     <label><?php p($l->t('Description')); ?> <span class="required">*</span></label>
-                                    <select id="map-description" required>
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <div id="map-description" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="notes">
                                     <label><?php p($l->t('Notes')); ?></label>
-                                    <select id="map-notes">
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <div id="map-notes" class="custom-multiselect"></div>
                                     <p class="hint"><?php p($l->t('Column stored in the transaction\'s notes field')); ?></p>
                                 </div>
                                 <div class="mapping-field" data-map-field="type">
@@ -2277,15 +2273,11 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="mapping-field" data-map-field="vendor">
                                     <label><?php p($l->t('Vendor/Payee')); ?></label>
-                                    <select id="map-vendor">
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <div id="map-vendor" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="reference">
                                     <label><?php p($l->t('Reference/Check Number')); ?></label>
-                                    <select id="map-reference">
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <div id="map-reference" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="category">
                                     <label><?php p($l->t('Category')); ?></label>

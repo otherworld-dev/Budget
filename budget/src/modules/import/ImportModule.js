@@ -5,6 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import MultiSelect from '../../utils/multiselect.js';
 
 /**
  * Mapping targets each format can actually resolve (#338).
@@ -63,6 +64,9 @@ export default class ImportModule {
         // User-saved import template state
         this.userTemplates = [];
         this.selectedTemplate = null;
+
+        // Multiselect component instances
+        this.multiSelects = {};
     }
 
     // ============================================
@@ -304,12 +308,70 @@ export default class ImportModule {
      * @param {object} mapping Stored mapping (target -> column name)
      * @param {string[]} fields Mapping targets this call owns
      */
+    initMultiSelects() {
+        this.multiSelects = this.multiSelects || {};
+        const textFields = [
+            { key: 'description', id: 'map-description' },
+            { key: 'notes', id: 'map-notes' },
+            { key: 'vendor', id: 'map-vendor' },
+            { key: 'reference', id: 'map-reference' }
+        ];
+        textFields.forEach(({ key, id }) => {
+            const el = document.getElementById(id);
+            if (el && !this.multiSelects[key]) {
+                this.multiSelects[key] = new MultiSelect(el, {
+                    placeholder: t('budget', 'Select column(s)...'),
+                    onChange: () => this.updatePreviewMapping()
+                });
+            }
+        });
+    }
+
+    resetImportMultiSelects() {
+        Object.values(this.multiSelects || {}).forEach(multiSelect => {
+            multiSelect.setValue([]);
+        });
+    }
+
+    getSelectValue(el) {
+        if (!el) return null;
+        const key = el.id ? el.id.replace('map-', '') : null;
+        if (key && this.multiSelects && this.multiSelects[key]) {
+            const vals = this.multiSelects[key].getValue();
+            return vals.length > 0 ? vals : null;
+        }
+        if (el.multiple) {
+            const selected = Array.from(el.selectedOptions)
+                .map(opt => opt.value)
+                .filter(val => val !== '');
+            return selected.length > 0 ? selected : null;
+        }
+        return el.value || null;
+    }
+
+    setSelectValue(el, val) {
+        if (!el) return;
+        const key = el.id ? el.id.replace('map-', '') : null;
+        if (key && this.multiSelects && this.multiSelects[key]) {
+            this.multiSelects[key].setValue(val);
+            return;
+        }
+        if (el.multiple) {
+            const targetValues = Array.isArray(val) ? val : (val ? [val] : []);
+            Array.from(el.options).forEach(opt => {
+                opt.selected = targetValues.includes(opt.value);
+            });
+        } else {
+            el.value = val ?? '';
+        }
+    }
+
     applyColumnMappingToForm(mapping, fields) {
         if (!mapping || !Object.keys(mapping).length) return;
 
         fields.forEach(field => {
             const el = document.getElementById(MAPPING_SELECT_IDS[field]);
-            if (el) el.value = mapping[field] ?? '';
+            if (el) this.setSelectValue(el, mapping[field]);
         });
     }
 
@@ -617,6 +679,8 @@ export default class ImportModule {
     // ============================================
 
     setupImportEventListeners() {
+        this.initMultiSelects();
+
         // Tab navigation
         const tabButtons = document.querySelectorAll('.import-tab-btn');
         tabButtons.forEach(button => {
@@ -826,6 +890,8 @@ export default class ImportModule {
         // Kept for highlightMappedColumns, which has to turn a select's column
         // name back into its position in the preview table.
         this.previewColumns = Array.isArray(columns) ? columns.slice() : [];
+        this.initMultiSelects();
+        this.resetImportMultiSelects();
 
         const mappingSelects = {
             'map-date': document.getElementById('map-date'),
@@ -843,18 +909,23 @@ export default class ImportModule {
         };
 
         // Clear existing options and add columns
-        Object.values(mappingSelects).forEach(select => {
+        Object.entries(mappingSelects).forEach(([id, select]) => {
             if (!select) return;
-            const firstOption = select.firstElementChild;
-            select.innerHTML = '';
-            if (firstOption) select.appendChild(firstOption);
+            const key = id.replace('map-', '');
+            if (this.multiSelects && this.multiSelects[key]) {
+                this.multiSelects[key].setOptions(columns);
+            } else {
+                const firstOption = select.firstElementChild;
+                select.innerHTML = '';
+                if (firstOption) select.appendChild(firstOption);
 
-            columns.forEach((column, _index) => {
-                const option = document.createElement('option');
-                option.value = column;
-                option.textContent = column;
-                select.appendChild(option);
-            });
+                columns.forEach((column, _index) => {
+                    const option = document.createElement('option');
+                    option.value = column;
+                    option.textContent = column;
+                    select.appendChild(option);
+                });
+            }
         });
 
         // Auto-detect common column mappings
@@ -890,7 +961,7 @@ export default class ImportModule {
             );
 
             if (matchingColumn) {
-                select.value = matchingColumn;
+                this.setSelectValue(select, matchingColumn);
             }
         });
     }
@@ -916,7 +987,7 @@ export default class ImportModule {
         Object.entries(defaults).forEach(([fieldId, column]) => {
             const select = document.getElementById(fieldId);
             if (select && columns.includes(column)) {
-                select.value = column;
+                this.setSelectValue(select, column);
             }
         });
     }
@@ -946,6 +1017,9 @@ export default class ImportModule {
 
             wrapper.querySelectorAll('select').forEach(select => {
                 select.value = '';
+            });
+            wrapper.querySelectorAll('.custom-multiselect').forEach(msEl => {
+                this.setSelectValue(msEl, null);
             });
             wrapper.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = false;
@@ -1020,11 +1094,11 @@ export default class ImportModule {
             amount: document.getElementById('map-amount')?.value || null,
             incomeColumn: document.getElementById('map-income')?.value || null,
             expenseColumn: document.getElementById('map-expense')?.value || null,
-            description: document.getElementById('map-description')?.value || null,
-            notes: document.getElementById('map-notes')?.value || null,
+            description: this.getSelectValue(document.getElementById('map-description')),
+            notes: this.getSelectValue(document.getElementById('map-notes')),
             type: document.getElementById('map-type')?.value || null,
-            vendor: document.getElementById('map-vendor')?.value || null,
-            reference: document.getElementById('map-reference')?.value || null,
+            vendor: this.getSelectValue(document.getElementById('map-vendor')),
+            reference: this.getSelectValue(document.getElementById('map-reference')),
             category: document.getElementById('map-category')?.value || null,
             account: document.getElementById('map-account')?.value || null,
             currency: document.getElementById('map-currency')?.value || null,
@@ -1046,9 +1120,13 @@ export default class ImportModule {
         // never fired for any ordinary CSV header.
         const columns = this.previewColumns || [];
         Object.values(mapping).forEach(column => {
-            if (typeof column !== 'string' || column === '') return;
-            const header = headers[columns.indexOf(column)];
-            if (header) header.classList.add('mapped-column');
+            if (!column) return;
+            const colList = Array.isArray(column) ? column : [column];
+            colList.forEach(col => {
+                if (typeof col !== 'string' || col === '') return;
+                const header = headers[columns.indexOf(col)];
+                if (header) header.classList.add('mapped-column');
+            });
         });
     }
 
@@ -1142,9 +1220,19 @@ export default class ImportModule {
 
         const mapping = this.getCurrentMapping();
 
+        const hasNonBlankSelection = (value) => {
+            if (value === null || value === undefined || value === '') {
+                return false;
+            }
+            if (Array.isArray(value)) {
+                return value.some(v => typeof v === 'string' ? v.trim() !== '' : (v !== null && v !== undefined && v !== ''));
+            }
+            return String(value).trim() !== '';
+        };
+
         // Check required fields: date and description
         const hasDate = mapping.date !== null && mapping.date !== '';
-        const hasDescription = mapping.description !== null && mapping.description !== '';
+        const hasDescription = hasNonBlankSelection(mapping.description);
 
         // Check amount: either single amount column OR both income and expense columns
         const hasAmount = mapping.amount !== null && mapping.amount !== '';

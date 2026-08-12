@@ -1275,4 +1275,102 @@ class TransactionNormalizerTest extends TestCase {
 	public function testNormalizeDescriptionEmpty(): void {
 		$this->assertSame('', $this->normalizer->normalizeDescription(''));
 	}
+
+	// ── Multi-Column Concatenation ──────────────────────────────────
+
+	public function testMapRowConcatenatesMultipleColumnsWithComma(): void {
+		$row = [
+			'date' => '2026-08-11',
+			'amount' => '100.00',
+			'merchant' => 'Supermarket',
+			'details' => 'Weekly Groceries',
+		];
+		$mapping = [
+			'date' => 'date',
+			'amount' => 'amount',
+			'description' => ['merchant', 'details'],
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Supermarket, Weekly Groceries', $result['description']);
+	}
+
+	public function testMapRowConcatenatesMultipleTextColumnsSkipsEmptyValues(): void {
+		$row = [
+			'date' => '2026-08-11',
+			'amount' => '50.00',
+			'shop' => 'Coffee Shop',
+			'location' => '   ',
+			'branch' => 'Downtown Branch',
+		];
+		$mapping = [
+			'date' => 'date',
+			'amount' => 'amount',
+			'description' => ['shop', 'location', 'branch'],
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Coffee Shop, Downtown Branch', $result['description']);
+	}
+
+	public function testMapRowConcatenatesNotesVendorReference(): void {
+		$row = [
+			'date' => '2026-08-11',
+			'amount' => '75.00',
+			'description' => 'Main Store',
+			'note_1' => 'Note Line 1',
+			'note_2' => 'Note Line 2',
+			'vendor_1' => 'Vendor Name',
+			'vendor_2' => 'Vendor Code',
+			'reference_1' => 'Ref Part 1',
+			'reference_2' => 'Ref Part 2',
+		];
+		$mapping = [
+			'date' => 'date',
+			'amount' => 'amount',
+			'description' => 'description',
+			'notes' => ['note_1', 'note_2'],
+			'vendor' => ['vendor_1', 'vendor_2'],
+			'reference' => ['reference_1', 'reference_2'],
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Note Line 1, Note Line 2', $result['notes']);
+		$this->assertSame('Vendor Name, Vendor Code', $result['vendor']);
+		$this->assertSame('Ref Part 1, Ref Part 2', $result['reference']);
+	}
+
+	public function testMapRowIgnoresArrayMappingForNonTextField(): void {
+		$row = ['2026-08-11', '40.00', 'Transaction', 'Income', 'Expense'];
+		$mapping = [
+			'date' => 0,
+			'amount' => 1,
+			'description' => 2,
+			'type' => [3, 4],
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testMapRowArrayMappingWithSingleColumn(): void {
+		$row = [
+			'date' => '2026-08-11',
+			'amount' => '25.00',
+			'payee' => 'Single Payee',
+		];
+		$mapping = [
+			'date' => 'date',
+			'amount' => 'amount',
+			'description' => ['payee'],
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Single Payee', $result['description']);
+	}
 }
