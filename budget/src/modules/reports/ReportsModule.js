@@ -7,6 +7,7 @@ import Chart from 'chart.js/auto';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import MultiSelect from '../../utils/multiselect.js';
 
 export default class ReportsModule {
     constructor(app) {
@@ -176,6 +177,9 @@ export default class ReportsModule {
 
     /** Selected report account IDs (empty = all accounts). #299 */
     getSelectedReportAccountIds() {
+        if (this.accountMultiSelect) {
+            return this.accountMultiSelect.getValue().map(v => isNaN(v) ? v : Number(v));
+        }
         return this.selectedReportAccounts ? Array.from(this.selectedReportAccounts) : [];
     }
 
@@ -193,71 +197,27 @@ export default class ReportsModule {
 
     setupReportAccountMultiselect() {
         const wrapper = document.getElementById('report-account-multiselect');
-        const toggle = document.getElementById('report-account-toggle');
-        const menu = document.getElementById('report-account-menu');
-        if (!wrapper || !toggle || !menu) return;
-
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const open = menu.style.display !== 'none';
-            menu.style.display = open ? 'none' : 'block';
-            toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
-        });
-        document.addEventListener('click', (e) => {
-            if (!wrapper.contains(e.target)) {
-                menu.style.display = 'none';
-                toggle.setAttribute('aria-expanded', 'false');
-            }
-        });
-
-        const allCb = document.getElementById('report-account-all');
-        if (allCb) {
-            allCb.addEventListener('change', () => {
-                if (allCb.checked) {
-                    this.selectedReportAccounts.clear();
-                    document.querySelectorAll('#report-account-options input[type="checkbox"]')
-                        .forEach(cb => { cb.checked = false; });
-                    this.updateReportAccountSummary();
+        if (!wrapper) return;
+        if (!this.accountMultiSelect) {
+            this.accountMultiSelect = new MultiSelect(wrapper, {
+                placeholder: t('budget', 'All Accounts'),
+                hasAllOption: true,
+                allOptionLabel: t('budget', 'All Accounts'),
+                summaryFormatter: (count, selectedValues, optionsList) => {
+                    if (count === 0) return t('budget', 'All Accounts');
+                    if (count === 1) {
+                        const val = selectedValues[0];
+                        const opt = optionsList.find(o => String(o.value) === String(val));
+                        return opt ? opt.label : t('budget', '1 account');
+                    }
+                    return t('budget', '{count} accounts', { count });
+                },
+                onChange: (selectedValues) => {
+                    this.selectedReportAccounts = new Set(selectedValues.map(v => isNaN(v) ? v : Number(v)));
                     this.generateReport();
-                } else {
-                    // "All" can't be turned off directly — re-check it.
-                    allCb.checked = true;
                 }
             });
         }
-    }
-
-    populateReportAccountDropdown() {
-        this.selectedReportAccounts = this.selectedReportAccounts || new Set();
-        const container = document.getElementById('report-account-options');
-        if (!container) return;
-
-        // Drop selected ids that no longer exist
-        this.selectedReportAccounts.forEach(id => {
-            if (!this.accounts?.some(a => a.id === id)) this.selectedReportAccounts.delete(id);
-        });
-
-        container.innerHTML = '';
-        if (Array.isArray(this.accounts)) {
-            this.accounts.forEach(account => {
-                const label = document.createElement('label');
-                label.className = 'account-multiselect-option';
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.value = account.id;
-                cb.checked = this.selectedReportAccounts.has(account.id);
-                cb.addEventListener('change', () => this.onReportAccountToggle(cb, account.id));
-                const span = document.createElement('span');
-                span.textContent = account.name;
-                label.appendChild(cb);
-                label.appendChild(span);
-                container.appendChild(label);
-            });
-        }
-        const allCb = document.getElementById('report-account-all');
-        if (allCb) allCb.checked = this.selectedReportAccounts.size === 0;
-        this.updateReportAccountSummary();
-        this.syncExcludeSharedToggle();
     }
 
     /**
@@ -273,30 +233,22 @@ export default class ReportsModule {
         if (cb) cb.checked = this.excludeShared;
     }
 
-    onReportAccountToggle(cb, accountId) {
-        if (cb.checked) {
-            this.selectedReportAccounts.add(accountId);
-        } else {
-            this.selectedReportAccounts.delete(accountId);
-        }
-        const allCb = document.getElementById('report-account-all');
-        if (allCb) allCb.checked = this.selectedReportAccounts.size === 0;
-        this.updateReportAccountSummary();
-        this.generateReport();
-    }
+    populateReportAccountDropdown() {
+        this.setupReportAccountMultiselect();
+        this.selectedReportAccounts = this.selectedReportAccounts || new Set();
 
-    updateReportAccountSummary() {
-        const summary = document.getElementById('report-account-summary');
-        if (!summary) return;
-        const ids = this.getSelectedReportAccountIds();
-        if (ids.length === 0) {
-            summary.textContent = t('budget', 'All Accounts');
-        } else if (ids.length === 1) {
-            const acc = this.accounts?.find(a => a.id === ids[0]);
-            summary.textContent = acc ? acc.name : t('budget', '1 account');
-        } else {
-            summary.textContent = t('budget', '{count} accounts', { count: ids.length });
+        // Drop selected ids that no longer exist
+        this.selectedReportAccounts.forEach(id => {
+            if (!this.accounts?.some(a => a.id === id)) this.selectedReportAccounts.delete(id);
+        });
+
+        if (this.accountMultiSelect) {
+            const options = (this.accounts || []).map(a => ({ value: a.id, label: a.name }));
+            this.accountMultiSelect.setOptions(options);
+            this.accountMultiSelect.setValue(Array.from(this.selectedReportAccounts));
         }
+
+        this.syncExcludeSharedToggle();
     }
 
     // ===== Saved reports (#299) =====

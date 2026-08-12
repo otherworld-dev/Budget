@@ -3038,20 +3038,7 @@ style('budget', 'budget-app');
 
                 <div class="control-group">
                     <label id="report-account-label"><?php p($l->t('Account')); ?></label>
-                    <div id="report-account-multiselect" class="account-multiselect">
-                        <button type="button" id="report-account-toggle" class="account-multiselect-toggle"
-                                aria-haspopup="true" aria-expanded="false" aria-labelledby="report-account-label report-account-summary">
-                            <span id="report-account-summary"><?php p($l->t('All Accounts')); ?></span>
-                            <span class="account-multiselect-caret" aria-hidden="true">▾</span>
-                        </button>
-                        <div id="report-account-menu" class="account-multiselect-menu" role="group" style="display: none;">
-                            <label class="account-multiselect-option account-multiselect-all">
-                                <input type="checkbox" id="report-account-all" checked>
-                                <span><?php p($l->t('All Accounts')); ?></span>
-                            </label>
-                            <div id="report-account-options"><!-- populated by JS --></div>
-                        </div>
-                    </div>
+                    <div id="report-account-multiselect" class="custom-multiselect"></div>
                 </div>
 
                 <div class="control-group" id="report-exclude-shared-wrap" style="display: none;">
