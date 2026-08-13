@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-13 00:33+0000\n"
-"PO-Revision-Date: 2026-06-27 18:50+0000\n"
-"Last-Translator: ssantos <ssantos@web.de>\n"
+"PO-Revision-Date: 2026-08-14 14:51+0000\n"
+"Last-Translator: Alexandre Heuschkel <alexandre@heuschkel.online>\n"
 "Language-Team: Portuguese <https://hosted.weblate.org/projects/nextcloud-"
 "budget/budget/pt/>\n"
 "Language: pt\n"
@@ -17,71 +17,55 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.7.dev0\n"
+"X-Generator: Weblate 2026.9.dev0\n"
 
 #: /app/js/budget-app.js:2
 msgid "hero"
 msgstr ""
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Budget"
 msgid "widget"
-msgstr "Orçamento"
+msgstr "widget"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "transactions"
 msgid "transaction-account"
-msgstr "transações"
+msgstr "conta-de-transações"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Failed to update account"
 msgid "transfer-to-account"
-msgstr "Falha ao atualizar a conta financeira"
+msgstr "transferir-para-conta"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Custom"
 msgid "custom"
-msgstr "Personalizado"
+msgstr "personalizado"
 
 #: /app/js/budget-app.js:2
 msgid "none"
-msgstr ""
+msgstr "nenhum"
 
 #: /app/js/budget-app.js:2
 msgid "type"
-msgstr ""
+msgstr "tipo"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Institution"
 msgid "institution"
 msgstr "Instituição"
 
 #: /app/js/budget-app.js:2
 msgid "name"
-msgstr ""
+msgstr "nome"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Balance"
 msgid "balance"
-msgstr "Saldo"
+msgstr "saldo"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Cryptocurrency"
 msgid "currency"
-msgstr "Criptomoeda"
+msgstr "moeda"
 
 #: /app/js/budget-app.js:2
-#, fuzzy
-#| msgid "Paid"
 msgid "id"
-msgstr "Pago"
+msgstr "id"
 
 #: /app/lib/Controller/AccountController.php:83
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -92,7 +76,7 @@ msgstr "Falha ao buscar as contas financeiras"
 #: /app/lib/Controller/AccountController.php:559
 #: /app/lib/Controller/ApiV1TransactionController.php:375
 msgid "Account not found"
-msgstr ""
+msgstr "Conta não encontrada"
 
 #: /app/lib/Controller/AccountController.php:104
 #: /app/lib/Controller/AccountController.php:540
@@ -200,7 +184,7 @@ msgstr "Falha ao atualizar a conta financeira"
 #: /app/src/modules/accounts/AccountsModule.js:2687
 #: /app/src/modules/accounts/AccountsModule.js:2701
 msgid "Failed to delete account"
-msgstr ""
+msgstr "falha ao deletar conta"
 
 #: /app/lib/Controller/AccountController.php:566
 msgid "This account has no sensitive banking data to reveal"
@@ -216,16 +200,16 @@ msgstr "Falha ao tentar reconciliar a conta financeira"
 
 #: /app/lib/Controller/AccountController.php:697
 msgid "Too many transactions (max 500)"
-msgstr ""
+msgstr "Muitas transações (máx 500)"
 
 #: /app/lib/Controller/AccountController.php:704
 #: /app/src/modules/transactions/TransactionsModule.js:1512
 msgid "Failed to complete reconciliation"
-msgstr ""
+msgstr "Falha ao concluir reconciliação"
 
 #: /app/lib/Controller/AccountController.php:753
 msgid "Interest rate must be between 0 and 999.9999"
-msgstr ""
+msgstr "A taxa de juros deve estar entre 0 e 999.9999"
 
 #: /app/lib/Controller/AccountController.php:758
 #: /app/src/modules/accounts/AccountsModule.js:1243
@@ -234,15 +218,15 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:762
 msgid "Invalid date format. Use YYYY-MM-DD"
-msgstr ""
+msgstr "Formato de data inválido. Use YYYY-MM-DD"
 
 #: /app/lib/Controller/AccountController.php:768
 msgid "Failed to add interest rate"
-msgstr ""
+msgstr "Falha ao adicionar taxa de juros"
 
 #: /app/lib/Controller/AccountController.php:783
 msgid "Failed to delete interest rate"
-msgstr ""
+msgstr "Falha ao deletar taxa de juros"
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
@@ -285,21 +269,23 @@ msgstr ""
 #: /app/lib/Controller/ApiV1ReceiptController.php:92
 #: /app/lib/Controller/ReceiptScanController.php:99
 msgid "Receipt scanning is not set up on this server"
-msgstr ""
+msgstr "Escaneamento de recibos não está configurado neste servidor"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:97
 msgid "The OCR provider's quota is used up. Try again later"
-msgstr ""
+msgstr "A quota do procedor de OCR está consumida. Tente novamente mais tarde"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
+"O recibo não pode ser lido - o provedor OCR falhou. Tente novamente ou "
+"adicione a transação manualmente"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:98
 msgid "Invalid date. Use the YYYY-MM-DD format"
-msgstr ""
+msgstr "Data inválida. Use o fomarto YYYY-MM-DD"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:130
 #: /app/lib/Controller/ApiV1TransactionController.php:167
@@ -356,16 +342,16 @@ msgstr "Tipo de transação inválido. Deve ser crédito ou débito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:270
 msgid "Idempotency key too long (64 characters maximum)"
-msgstr ""
+msgstr "Chave de idempotência muito longa (máximo de 64 caracteres)"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:343
 #: /app/lib/Controller/ApiV1TransactionController.php:491
 msgid "The transaction was recorded, but the photo could not be attached"
-msgstr ""
+msgstr "A transação foi gravada, mas a foto não pôde ser anexada"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:369
 msgid "The transaction was recorded, but it could not be split"
-msgstr ""
+msgstr "A transação foi gravada, mas não pôde ser dividida"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:377
 #: /app/lib/Controller/TransactionController.php:368
@@ -374,11 +360,11 @@ msgstr "Falha na criação da transação"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:456
 msgid "This idempotency key was already used for a different transaction"
-msgstr ""
+msgstr "A chave de idempotência já está em uso para outra transação"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:465
 msgid "This request is still being processed. Try again shortly"
-msgstr ""
+msgstr "A solicitação está sendo processada. Tente novamente em breve"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:538
 msgid ""
@@ -397,14 +383,14 @@ msgstr "Falha na atualização da transação"
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2369
 msgid "Failed to load attachments"
-msgstr ""
+msgstr "Falha ao carregar anexos"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:656
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2382
 #: /app/src/modules/transactions/TransactionsModule.js:2385
 msgid "Failed to upload receipt"
-msgstr ""
+msgstr "Falha ao enviar recibo"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:662
 #: /app/lib/Controller/AttachmentController.php:57
@@ -414,7 +400,7 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:3211
 #: /app/src/modules/transactions/TransactionsModule.js:3318
 msgid "Transaction not found"
-msgstr ""
+msgstr "Transação não encontrada"
 
 #: /app/lib/Controller/AssetController.php:78
 msgid "Failed to retrieve assets"
@@ -538,50 +524,50 @@ msgstr "Falha ao buscar o histórico de valor do ativo"
 
 #: /app/lib/Controller/AttachmentController.php:76
 msgid "File not found"
-msgstr ""
+msgstr "Arquivo não encontrado"
 
 #: /app/lib/Controller/AttachmentController.php:78
 #: /app/src/modules/transactions/TransactionsModule.js:2400
 #: /app/src/modules/transactions/TransactionsModule.js:2403
 msgid "Failed to attach file"
-msgstr ""
+msgstr "Falha ao anexar arquivo"
 
 #: /app/lib/Controller/AttachmentController.php:112
 msgid "Attachment removed"
-msgstr ""
+msgstr "Anexo removido"
 
 #: /app/lib/Controller/AttachmentController.php:114
 msgid "Attachment not found"
-msgstr ""
+msgstr "Anexo não encontrado"
 
 #: /app/lib/Controller/AttachmentController.php:118
 #: /app/src/modules/transactions/TransactionsModule.js:2416
 msgid "Failed to remove attachment"
-msgstr ""
+msgstr "Falha ao remover anexo"
 
 #: /app/lib/Controller/BankSyncController.php:40
 msgid "Bank sync is disabled by the administrator"
-msgstr ""
+msgstr "Sincronização bancária está desabilitada pelo administrador"
 
 #: /app/lib/Controller/BankSyncController.php:81
 msgid "This provider does not support institution listing"
-msgstr ""
+msgstr "Este provedor não suporta listagem de instituição"
 
 #: /app/lib/Controller/BankSyncController.php:87
 msgid "Invalid country code"
-msgstr ""
+msgstr "Código de país inválido"
 
 #: /app/lib/Controller/BankSyncController.php:93
 msgid "API credentials required"
-msgstr ""
+msgstr "Credenciais de API necessárias"
 
 #: /app/lib/Controller/BankSyncController.php:102
 msgid "Failed to fetch institutions"
-msgstr ""
+msgstr "Falha ao obter instituições"
 
 #: /app/lib/Controller/BankSyncController.php:129
 msgid "Provider and name are required"
-msgstr ""
+msgstr "Provedor e nome são obrigatórios"
 
 #: /app/lib/Controller/BankSyncController.php:134
 msgid "Connection name must be between 1 and 255 characters"
@@ -589,7 +575,7 @@ msgstr ""
 
 #: /app/lib/Controller/BankSyncController.php:139
 msgid "Invalid provider"
-msgstr ""
+msgstr "Provedor inválido"
 
 #: /app/lib/Controller/BankSyncController.php:163
 msgid "Failed to connect bank"
@@ -602,7 +588,7 @@ msgstr ""
 
 #: /app/lib/Controller/BankSyncController.php:208
 msgid "Failed to update connection"
-msgstr ""
+msgstr "Falha ao atualizar conexão"
 
 #: /app/lib/Controller/BankSyncController.php:224
 msgid "Failed to sync bank data"
