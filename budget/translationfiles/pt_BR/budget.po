@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-13 00:33+0000\n"
-"PO-Revision-Date: 2026-07-03 23:24+0000\n"
-"Last-Translator: Rods Kaden <services.effects831@passfwd.com>\n"
+"PO-Revision-Date: 2026-08-14 14:51+0000\n"
+"Last-Translator: Alexandre Heuschkel <alexandre@heuschkel.online>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "nextcloud-budget/budget/pt_BR/>\n"
 "Language: pt_BR\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.7.1.dev0\n"
+"X-Generator: Weblate 2026.9.dev0\n"
 
 #: /app/js/budget-app.js:2
 #, fuzzy
@@ -48,7 +48,7 @@ msgstr "Personalizado"
 
 #: /app/js/budget-app.js:2
 msgid "none"
-msgstr ""
+msgstr "nenhum"
 
 #: /app/js/budget-app.js:2
 msgid "type"
@@ -276,17 +276,19 @@ msgstr ""
 #: /app/lib/Controller/ApiV1ReceiptController.php:92
 #: /app/lib/Controller/ReceiptScanController.php:99
 msgid "Receipt scanning is not set up on this server"
-msgstr ""
+msgstr "Escaneamento de recibos não está configurado neste servidor"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:97
 msgid "The OCR provider's quota is used up. Try again later"
-msgstr ""
+msgstr "A quota do provedor de OCR está consumida. Tente novamente mais tarde"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
+"O recibo não pode ser lido - o procedor OCR falhou. Tente novamente, ou "
+"adicione a transação manualmente"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:98
 #, fuzzy
@@ -349,16 +351,16 @@ msgstr "Tipo de transação inválido. Deve ser crédito ou débito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:270
 msgid "Idempotency key too long (64 characters maximum)"
-msgstr ""
+msgstr "Chave de idempotência muito grande (máximo de 64 caracteres)"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:343
 #: /app/lib/Controller/ApiV1TransactionController.php:491
 msgid "The transaction was recorded, but the photo could not be attached"
-msgstr ""
+msgstr "A transação foi gavada, mas a foto não pôde ser anexada"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:369
 msgid "The transaction was recorded, but it could not be split"
-msgstr ""
+msgstr "A transação foi gravada, mas não pôde ser dividida"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:377
 #: /app/lib/Controller/TransactionController.php:368
@@ -367,11 +369,11 @@ msgstr "Falha na criação da transação"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:456
 msgid "This idempotency key was already used for a different transaction"
-msgstr ""
+msgstr "A chave de idempotência já está em uso por outra transação"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:465
 msgid "This request is still being processed. Try again shortly"
-msgstr ""
+msgstr "Essa solicitação ainda está sendo processada. Tente novamente em breve"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:538
 msgid ""
@@ -1634,16 +1636,21 @@ msgstr "Falha ao buscar a projeção combinada dos planos de previdência"
 #: /app/lib/Controller/ReceiptScanController.php:92
 msgid "No total could be read from this receipt. Enter the details manually"
 msgstr ""
+"Não foi possível encontrar um total para este recibo. Entre com os detalhes "
+"manualmente"
 
 #: /app/lib/Controller/ReceiptScanController.php:104
 msgid "The receipt scanning quota is used up. Try again later"
 msgstr ""
+"A quota de escaneamento de recibos está consumida. Tente novamente mais tarde"
 
 #: /app/lib/Controller/ReceiptScanController.php:109
 msgid ""
 "The receipt could not be read. Try a clearer photo, or enter the details "
 "manually"
 msgstr ""
+"O recibo não pôde ser lido. Tente uma foto mais clara, ou entre com os "
+"detalhes manualmente"
 
 #: /app/lib/Controller/ReconciliationController.php:58
 msgid "Failed to load reconciliation session"
@@ -1651,7 +1658,7 @@ msgstr "Falha ao carregar a sessão de conciliação"
 
 #: /app/lib/Controller/ReconciliationController.php:73
 msgid "A reconciliation is already in progress for this account"
-msgstr ""
+msgstr "Uma reconcialiação já está em andamento para essa conta"
 
 #: /app/lib/Controller/ReconciliationController.php:144
 #, fuzzy
@@ -2072,7 +2079,7 @@ msgstr "Falha ao carregar os contatos"
 
 #: /app/lib/Controller/SharedExpenseController.php:87
 msgid "Nextcloud user not found"
-msgstr ""
+msgstr "Usuário do Nextcloud não encontrado"
 
 #: /app/lib/Controller/SharedExpenseController.php:105
 msgid "Failed to create contact"
@@ -2110,7 +2117,7 @@ msgstr "Falha ao buscar as transações"
 #: /app/lib/Controller/SharedExpenseController.php:318
 #: /app/lib/Controller/SharedExpenseController.php:345
 msgid "This transaction is already shared with this contact"
-msgstr ""
+msgstr "Essa transação já está compartilhada com este contato"
 
 #: /app/lib/Controller/SharedExpenseController.php:327
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:750
@@ -2392,7 +2399,7 @@ msgstr "Falha ao exportar dados ano a ano"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:43
 msgid "Budget: Overview"
-msgstr ""
+msgstr "Orçamento: Visão geral"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:79
 #: /app/src/modules/dashboard/DashboardModule.js:865
@@ -2420,7 +2427,7 @@ msgstr "Saldo"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:131
 msgid "Budget this month"
-msgstr ""
+msgstr "Orçamento deste mês"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:132
 #, php-format
@@ -2436,8 +2443,8 @@ msgstr[1] ""
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:150
 msgid "%n warning"
 msgid_plural "%n warnings"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n aviso"
+msgstr[1] "%n avisos"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:153
 #, fuzzy
@@ -2587,12 +2594,12 @@ msgstr ""
 #: /app/lib/Notification/Notifier.php:364
 #: /app/lib/Service/DigestService.php:127
 msgid "Your monthly budget digest"
-msgstr ""
+msgstr "Seu resumo mensal de orçamento"
 
 #: /app/lib/Notification/Notifier.php:365
 #: /app/lib/Service/DigestService.php:126
 msgid "Your weekly budget digest"
-msgstr ""
+msgstr "Seu resumo semanal de orçamento"
 
 #: /app/lib/Notification/Notifier.php:370
 msgid ""
@@ -2655,7 +2662,7 @@ msgstr ""
 #: /app/src/modules/sharing/SharingModule.js:255 /app/templates/index.php:113
 #: /app/templates/index.php:2444 /app/templates/index.php:4549
 msgid "Bills"
-msgstr ""
+msgstr "Contas"
 
 #: /app/lib/Service/Bill/BillIcsService.php:141
 #, php-format
@@ -2678,7 +2685,7 @@ msgstr ""
 
 #: /app/lib/Service/BillService.php:178
 msgid "A transaction for this payment already exists"
-msgstr ""
+msgstr "Já existe uma transação para este pagamento"
 
 #: /app/lib/Service/BillService.php:700
 msgid "Cannot skip a one-time bill"
@@ -2758,11 +2765,11 @@ msgstr ""
 
 #: /app/lib/Service/DigestService.php:168
 msgid "Unusual spending"
-msgstr ""
+msgstr "Gasto não usual"
 
 #: /app/lib/Service/DigestService.php:173
 msgid "Savings goals"
-msgstr ""
+msgstr "Metas de economia"
 
 #: /app/lib/Service/DigestService.php:179
 msgid "Budget found %n possible recurring bill you are not tracking yet."
@@ -2795,7 +2802,7 @@ msgstr "Descrição"
 #: /app/templates/index.php:5512 /app/templates/index.php:6062
 #: /app/templates/index.php:6763 /app/templates/quick-add.php:55
 msgid "Vendor"
-msgstr ""
+msgstr "Fornecedor"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:33
 #: /app/templates/index.php:991 /app/templates/index.php:1381
@@ -2834,14 +2841,14 @@ msgstr "Quantidade"
 #: /app/templates/index.php:5006 /app/templates/index.php:5277
 #: /app/templates/index.php:5653
 msgid "Currency"
-msgstr ""
+msgstr "Moeda"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:36
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:169
 #: /app/src/modules/rules/components/CriteriaBuilder.js:155
 #: /app/templates/index.php:6063 /app/templates/index.php:6769
 msgid "Reference"
-msgstr ""
+msgstr "Referência"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:37
 #: /app/src/modules/rules/components/CriteriaBuilder.js:156
@@ -2860,7 +2867,7 @@ msgstr ""
 #: /app/templates/index.php:1548 /app/templates/index.php:2395
 #: /app/templates/index.php:2430 /app/templates/index.php:2637
 msgid "Status"
-msgstr ""
+msgstr "Status"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:100
 #: /app/src/core/KeyboardShortcuts.js:338
@@ -2884,7 +2891,7 @@ msgstr ""
 #: /app/templates/index.php:3312 /app/templates/index.php:5481
 #: /app/templates/index.php:6416 /app/templates/quick-add.php:40
 msgid "Income"
-msgstr ""
+msgstr "Renda"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:101
 #: /app/src/modules/categories/CategoriesModule.js:661
@@ -2894,7 +2901,7 @@ msgstr ""
 #: /app/templates/index.php:1542 /app/templates/index.php:5480
 #: /app/templates/index.php:6415 /app/templates/quick-add.php:39
 msgid "Expense"
-msgstr ""
+msgstr "Despesa"
 
 #: /app/lib/Service/GranularShareService.php:286
 #, fuzzy, php-format
@@ -2911,15 +2918,15 @@ msgstr "Sessão inválida"
 #: /app/lib/Service/GranularShareService.php:297
 #: /app/lib/Service/ShareService.php:167
 msgid "You are not the owner of this share"
-msgstr ""
+msgstr "Você não é o proprietário deste compartilhamento"
 
 #: /app/lib/Service/GranularShareService.php:304
 msgid "Some entities do not belong to you"
-msgstr ""
+msgstr "Algumas entidades não pertencem à você"
 
 #: /app/lib/Service/Import/FileValidator.php:69
 msgid "File too large. Maximum size is 10MB."
-msgstr ""
+msgstr "Arquivo muito grande. Tamanho máximo é de 10MB."
 
 #: /app/lib/Service/Import/FileValidator.php:83
 #, php-format
@@ -2933,16 +2940,20 @@ msgstr ""
 
 #: /app/lib/Service/Import/FileValidator.php:113
 msgid "File is empty or unreadable."
-msgstr ""
+msgstr "Arquivo está vazio ou ilegível."
 
 #: /app/lib/Service/Import/FileValidator.php:117
 msgid ""
 "File appears to be binary. Only text-based financial files are supported."
 msgstr ""
+"Arquivo parece ser binário. Apenas arquivos financeiros baseados em texto "
+"são suportados."
 
 #: /app/lib/Service/Import/FileValidator.php:152
 msgid "CSV file must contain at least a header row and one data row."
 msgstr ""
+"Arquivo CSV deve conter pelo menos uma linha de cabeçalho e uma linha de "
+"dados."
 
 #: /app/lib/Service/Import/FileValidator.php:161
 msgid ""
