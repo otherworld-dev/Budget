@@ -5,6 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
+import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { translate as t } from '@nextcloud/l10n';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
@@ -3094,38 +3095,45 @@ export default class AccountsModule {
         this.loadTransactions();
     }
 
-    exportAccountTransactions() {
+    /**
+     * Download this account's transactions as CSV.
+     *
+     * Asks the server for everything matching the current filters rather than
+     * writing out the page already on screen, which silently stopped at 50 rows
+     * and made a year-end export look complete when it wasn't (#344).
+     */
+    async exportAccountTransactions() {
+        const account = this.currentAccount;
+        if (!account) {
+            return;
+        }
+
         if (!this.accountTransactions || this.accountTransactions.length === 0) {
             OC.Notification.showTemporary(t('budget', 'No transactions to export'));
             return;
         }
 
-        const account = this.currentAccount;
-        const categories = this.app.categories || [];
-
-        const getCategoryName = (categoryId) => {
-            const cat = categories.find(c => c.id === categoryId);
-            return cat ? cat.name : '';
-        };
-
-        const rows = [[t('budget', 'Date'), t('budget', 'Description'), t('budget', 'Type'), t('budget', 'Amount'), t('budget', 'Category')]];
-        for (const t of this.accountTransactions) {
-            rows.push([
-                t.date,
-                `"${(t.description || '').replace(/"/g, '""')}"`,
-                t.type,
-                t.amount,
-                `"${getCategoryName(t.categoryId)}"`
-            ]);
+        const params = new URLSearchParams({ accountId: account.id });
+        const filters = this.accountFilters || {};
+        const passThrough = ['category', 'type', 'status', 'dateFrom', 'dateTo', 'amountMin', 'amountMax', 'search'];
+        passThrough.forEach(key => {
+            if (filters[key]) {
+                params.set(key, filters[key]);
+            }
+        });
+        if (filters.tagIds && filters.tagIds.length > 0) {
+            filters.tagIds.forEach(tagId => params.append('tagIds[]', tagId));
+        }
+        if (this.accountSort) {
+            params.set('sort', this.accountSort.field);
+            params.set('direction', this.accountSort.direction);
         }
 
-        const csv = rows.map(r => r.join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${(account?.name || 'account').replace(/[^a-zA-Z0-9]/g, '_')}_transactions.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+            await downloadTransactionsCsv(params, account.name || 'account');
+        } catch (error) {
+            console.error('Failed to export transactions:', error);
+            OC.Notification.showTemporary(t('budget', 'Failed to export transactions'));
+        }
     }
 }

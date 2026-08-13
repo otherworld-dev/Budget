@@ -1503,6 +1503,10 @@ style('budget', 'budget-app');
                         <span class="icon-link" aria-hidden="true"></span>
                         <?php p($l->t('Match All')); ?>
                     </button>
+                    <button id="transactions-export-btn" class="secondary" title="<?php p($l->t('Export every transaction matching the current filters as CSV')); ?>">
+                        <span class="icon-download" aria-hidden="true"></span>
+                        <?php p($l->t('Export')); ?>
+                    </button>
                     <button id="add-transaction-btn" class="primary" aria-label="<?php p($l->t('Add new transaction')); ?>">
                         <span class="icon-add" aria-hidden="true"></span>
                         <?php p($l->t('Add Transaction')); ?>
@@ -2991,6 +2995,7 @@ style('budget', 'budget-app');
                     <select id="report-type" class="report-select">
                         <option value="summary"><?php p($l->t('Summary Dashboard')); ?></option>
                         <option value="spending"><?php p($l->t('Spending by Category')); ?></option>
+                        <option value="income-expense"><?php p($l->t('Income & Expenses')); ?></option>
                         <option value="cashflow"><?php p($l->t('Cash Flow')); ?></option>
                         <option value="yoy"><?php p($l->t('Year over Year')); ?></option>
                         <option value="bills-calendar"><?php p($l->t('Bills Calendar')); ?></option>
@@ -3154,6 +3159,58 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Spending by Category Report -->
+                <!-- Income & Expenses: the two tables a year-end return needs (#344) -->
+                <div id="report-income-expense" class="report-section" style="display: none;">
+                    <div class="report-grid">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3><?php p($l->t('Income')); ?></h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="report-income-table" class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th><?php p($l->t('Category')); ?></th>
+                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3><?php p($l->t('Expenses')); ?></h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="report-expenses-table" class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th><?php p($l->t('Category')); ?></th>
+                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Summary')); ?></h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="report-income-expense-totals" class="data-table">
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="report-spending" class="report-section" style="display: none;">
                     <div class="report-grid">
                         <div class="dashboard-card">

@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\TransactionController;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Service\Export\TransactionCsvExporter;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
@@ -62,6 +63,7 @@ class TransactionControllerTest extends TestCase {
 			$this->tagService,
 			$this->validationService,
 			$granularShareService,
+			new TransactionCsvExporter($this->l),
 			$this->l,
 			'user1',
 			$this->logger
@@ -80,6 +82,92 @@ class TransactionControllerTest extends TestCase {
 		$data = $response->getData();
 		$this->assertSame(1, $data['total']);
 		$this->assertSame(1, $data['page']);
+	}
+
+	// ── export ──────────────────────────────────────────────────────
+
+	public function testExportStreamsEveryMatchingTransaction(): void {
+		$this->service->method('findAllForExport')->willReturnCallback(function () {
+			yield [
+				['date' => '2026-01-15', 'description' => 'Subs', 'type' => 'credit', 'amount' => 120.0],
+				['date' => '2026-01-16', 'description' => 'Kit', 'type' => 'debit', 'amount' => 57.68],
+			];
+		});
+
+		$response = $this->controller->export();
+		$csv = $response->render();
+
+		$this->assertStringContainsString('Subs', $csv);
+		$this->assertStringContainsString('120.00', $csv);
+		$this->assertStringContainsString('-57.68', $csv);
+	}
+
+	public function testExportPassesTheSameFiltersAsIndex(): void {
+		$captured = null;
+		$this->service->method('findAllForExport')->willReturnCallback(
+			function (string $userId, array $filters) use (&$captured) {
+				$captured = $filters;
+				yield [];
+			}
+		);
+
+		$this->controller->export(
+			accountId: 7,
+			search: 'kit',
+			dateFrom: '2026-01-01',
+			dateTo: '2026-12-31',
+			category: '3',
+			type: 'debit',
+			status: 'cleared'
+		);
+
+		$this->assertSame(7, $captured['accountId']);
+		$this->assertSame('kit', $captured['search']);
+		$this->assertSame('2026-01-01', $captured['dateFrom']);
+		$this->assertSame('2026-12-31', $captured['dateTo']);
+		$this->assertSame('3', $captured['category']);
+		$this->assertSame('debit', $captured['type']);
+		$this->assertSame('cleared', $captured['status']);
+	}
+
+	public function testExportOfNoRowsStillReturnsAHeaderRow(): void {
+		$this->service->method('findAllForExport')->willReturnCallback(function () {
+			yield [];
+		});
+
+		$response = $this->controller->export();
+
+		$this->assertStringContainsString('Date,Description', $response->render());
+	}
+
+	/**
+	 * The name arrives as user-entered text (an account name), so a path
+	 * separator or a quote in it must not reach the Content-Disposition header.
+	 */
+	public function testExportFilenameIsSanitisedAndDated(): void {
+		$method = new \ReflectionMethod(TransactionController::class, 'exportFilename');
+		$method->setAccessible(true);
+
+		$this->assertSame(
+			'Club_Current_AC_2026_main_' . date('Y-m-d') . '.csv',
+			$method->invoke($this->controller, 'Club Current A/C: 2026 "main"')
+		);
+	}
+
+	public function testExportFilenameFallsBackWhenNothingUsableIsLeft(): void {
+		$method = new \ReflectionMethod(TransactionController::class, 'exportFilename');
+		$method->setAccessible(true);
+
+		$this->assertSame('transactions_' . date('Y-m-d') . '.csv', $method->invoke($this->controller, '///'));
+		$this->assertSame('transactions_' . date('Y-m-d') . '.csv', $method->invoke($this->controller, null));
+	}
+
+	public function testExportHandlesError(): void {
+		$this->service->method('findAllForExport')->willThrowException(new \Exception('boom'));
+
+		$response = $this->controller->export();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
 	public function testIndexHandlesError(): void {
@@ -186,7 +274,8 @@ class TransactionControllerTest extends TestCase {
 		$granularShareService2->method('getOwnAccountIds')->willReturn([1, 2, 3]);
 		$this->controller = new TransactionController(
 			$this->request, $this->service, $this->splitService,
-			$this->tagService, $this->validationService, $granularShareService2, $this->l, 'user1', $this->logger
+			$this->tagService, $this->validationService, $granularShareService2,
+			new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger
 		);
 
 		$response = $this->controller->create(1, '2026-03-01', str_repeat('x', 1000), 100.00, 'debit');

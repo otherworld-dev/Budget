@@ -694,6 +694,9 @@ export default class ReportsModule {
                 case 'spending':
                     await this.generateSpendingReport(params);
                     break;
+                case 'income-expense':
+                    await this.generateIncomeExpenseReport(params);
+                    break;
                 case 'cashflow':
                     await this.generateCashFlowReport(params);
                     break;
@@ -996,6 +999,71 @@ export default class ReportsModule {
                 </tr>
             `;
         }).join('');
+    }
+
+    /**
+     * Income and expenses for the period, each by category, in two tables plus
+     * a net line — the shape a club treasurer needs at year end (#344).
+     */
+    async generateIncomeExpenseReport(params) {
+        const response = await fetch(OC.generateUrl(`/apps/budget/api/reports/income-expense?${params}`), {
+            headers: { 'requesttoken': OC.requestToken }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        const section = document.getElementById('report-income-expense');
+        if (section) section.style.display = 'block';
+
+        const currency = this.getPrimaryCurrency();
+        this.renderIncomeExpenseTable('#report-income-table tbody', data.income?.data || [], currency);
+        this.renderIncomeExpenseTable('#report-expenses-table tbody', data.expenses?.data || [], currency);
+
+        const totalsBody = document.querySelector('#report-income-expense-totals tbody');
+        if (totalsBody) {
+            const totals = data.totals || {};
+            const net = totals.net || 0;
+            totalsBody.innerHTML = `
+                <tr>
+                    <td>${this.escapeHtml(t('budget', 'Total Income'))}</td>
+                    <td class="text-right">${this.formatCurrency(totals.income || 0, currency)}</td>
+                </tr>
+                <tr>
+                    <td>${this.escapeHtml(t('budget', 'Total Expenses'))}</td>
+                    <td class="text-right">${this.formatCurrency(totals.expenses || 0, currency)}</td>
+                </tr>
+                <tr class="${net < 0 ? 'negative' : 'positive'}">
+                    <td><strong>${this.escapeHtml(t('budget', 'Net'))}</strong></td>
+                    <td class="text-right"><strong>${this.formatCurrency(net, currency)}</strong></td>
+                </tr>
+            `;
+        }
+    }
+
+    renderIncomeExpenseTable(selector, data, currency) {
+        const tbody = document.querySelector(selector);
+        if (!tbody) return;
+
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3">${this.escapeHtml(t('budget', 'Nothing in this period'))}</td></tr>`;
+            return;
+        }
+
+        const sorted = [...data].sort((a, b) => b.total - a.total);
+        tbody.innerHTML = sorted.map(item => `
+            <tr>
+                <td>
+                    <span class="category-color" style="background: ${this.escapeHtml(item.color || '#888')}"></span>
+                    ${this.escapeHtml(item.name || '')}
+                </td>
+                <td class="text-right">${this.formatCurrency(item.total, currency)}</td>
+                <td class="text-right">${item.count || 0}</td>
+            </tr>
+        `).join('');
     }
 
     renderReportVendorTable(data, currency) {

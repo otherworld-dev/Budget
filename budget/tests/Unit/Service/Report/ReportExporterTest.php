@@ -110,6 +110,58 @@ class ReportExporterTest extends TestCase {
         $this->assertEquals(5000.0, $decoded['totals']['totalIncome']);
     }
 
+    // ===== income & expenses CSV (#344) =====
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function incomeExpenseData(): array {
+        return [
+            'period' => ['startDate' => '2026-01-01', 'endDate' => '2026-12-31'],
+            'income' => [
+                'data' => [
+                    ['name' => 'Membership', 'total' => 4200.0, 'count' => 84],
+                    ['name' => 'Fundraising', 'total' => 800.0, 'count' => 3],
+                ],
+                'totals' => ['amount' => 5000.0, 'transactions' => 87],
+            ],
+            'expenses' => [
+                'data' => [
+                    ['name' => 'Pitch hire', 'total' => 2400.0, 'count' => 24],
+                ],
+                'totals' => ['amount' => 3000.0, 'transactions' => 40],
+            ],
+            'totals' => ['income' => 5000.0, 'expenses' => 3000.0, 'net' => 2000.0],
+        ];
+    }
+
+    public function testIncomeExpenseCsvHasBothTablesWithTheirOwnTotals(): void {
+        $result = $this->exporter->export($this->incomeExpenseData(), 'income-expense', 'csv');
+        $csv = $result['stream'];
+
+        $this->assertStringContainsString("Income\n", $csv);
+        $this->assertStringContainsString('Membership,4200,84', $csv);
+        $this->assertStringContainsString('"Total Income",5000,87', $csv);
+        $this->assertStringContainsString("Expenses\n", $csv);
+        $this->assertStringContainsString('"Pitch hire",2400,24', $csv);
+        $this->assertStringContainsString('"Total Expenses",3000,40', $csv);
+    }
+
+    public function testIncomeExpenseCsvEndsWithTheNet(): void {
+        $csv = $this->exporter->export($this->incomeExpenseData(), 'income-expense', 'csv')['stream'];
+
+        $this->assertStringContainsString('Net,2000', $csv);
+        $this->assertStringContainsString('Period,2026-01-01,2026-12-31', $csv);
+    }
+
+    public function testIncomeExpenseCsvSurvivesAnEmptyPeriod(): void {
+        $csv = $this->exporter->export([], 'income-expense', 'csv')['stream'];
+
+        $this->assertStringContainsString('Income', $csv);
+        $this->assertStringContainsString('Expenses', $csv);
+        $this->assertStringContainsString('Net,0', $csv);
+    }
+
     // ===== PDF export (without TCPDF) =====
 
     public function testExportPdfFallsBackToJsonWhenTcpdfMissing(): void {

@@ -746,6 +746,39 @@ class TransactionService {
     }
 
     /**
+     * Every transaction matching the filters, yielded a batch at a time for CSV
+     * export (#344).
+     *
+     * Deliberately not findWithFilters(): that computes a running balance and
+     * attaches split details for the page being displayed, which an export
+     * neither shows nor needs, and which would be redone for every batch. Paging
+     * is safe here because the sort always carries a secondary sort by id.
+     *
+     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+     * @return \Generator<int, array<int, array<string, mixed>>>
+     */
+    public function findAllForExport(
+        string $userId,
+        array $filters,
+        ?array $visibleAccountIds = null,
+        int $batchSize = 1000
+    ): \Generator {
+        $offset = 0;
+
+        do {
+            $result = $this->mapper->findWithFilters($userId, $filters, $batchSize, $offset, $visibleAccountIds);
+            $batch = $result['transactions'] ?? [];
+
+            if (empty($batch)) {
+                return;
+            }
+
+            yield $batch;
+            $offset += $batchSize;
+        } while ($offset < (int)($result['total'] ?? 0));
+    }
+
+    /**
      * IDs (plus bill-generated count) of all transactions matching the filters,
      * for cross-page "select all matching" bulk selection.
      *

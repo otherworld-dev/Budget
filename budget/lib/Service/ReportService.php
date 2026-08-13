@@ -212,6 +212,44 @@ class ReportService {
     }
 
     /**
+     * Income and expenses side by side, each broken down by category, for the
+     * year-end job of showing what came in and what went out (#344).
+     *
+     * Both halves come from the existing category reports, so the
+     * excluded-from-reports rules they already apply hold here too.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @return array{period: array{startDate: string, endDate: string}, income: array, expenses: array, totals: array{income: float, expenses: float, net: float}}
+     */
+    public function getIncomeExpenseReport(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
+    ): array {
+        $income = $this->getIncomeReport($userId, $startDate, $endDate, $accountId, 'category', null, null, $visibleAccountIds);
+        $expenses = $this->getSpendingReport($userId, $startDate, $endDate, $accountId, 'category', null, null, $visibleAccountIds);
+
+        $totalIncome = (float)($income['totals']['amount'] ?? 0);
+        $totalExpenses = (float)($expenses['totals']['amount'] ?? 0);
+
+        return [
+            'period' => [
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ],
+            'income' => $income,
+            'expenses' => $expenses,
+            'totals' => [
+                'income' => $totalIncome,
+                'expenses' => $totalExpenses,
+                'net' => $totalIncome - $totalExpenses,
+            ],
+        ];
+    }
+
+    /**
      * Generate a budget report with category-by-category breakdown.
      */
     public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
@@ -406,6 +444,7 @@ class ReportService {
             'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
             'budget' => $this->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
             'category-monthly' => $this->getCategoryMonthlyReport($userId, $startDate, $endDate, $accountId, 'alpha', $visibleAccountIds),
+            'income-expense' => $this->getIncomeExpenseReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
             default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
         };
 

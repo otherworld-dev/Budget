@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\Export\TransactionCsvExporter;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
@@ -16,6 +17,7 @@ use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
+use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -30,6 +32,7 @@ class TransactionController extends Controller {
     private TransactionSplitService $splitService;
     private TransactionTagService $tagService;
     private ValidationService $validationService;
+    private TransactionCsvExporter $csvExporter;
     private IL10N $l;
     private string $userId;
 
@@ -40,6 +43,7 @@ class TransactionController extends Controller {
         TransactionTagService $tagService,
         ValidationService $validationService,
         GranularShareService $granularShareService,
+        TransactionCsvExporter $csvExporter,
         IL10N $l,
         string $userId,
         LoggerInterface $logger
@@ -49,6 +53,7 @@ class TransactionController extends Controller {
         $this->splitService = $splitService;
         $this->tagService = $tagService;
         $this->validationService = $validationService;
+        $this->csvExporter = $csvExporter;
         $this->l = $l;
         $this->userId = $userId;
         $this->setLogger($logger);
@@ -173,6 +178,89 @@ class TransactionController extends Controller {
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve transactions'));
         }
+    }
+
+    /**
+     * Every transaction matching the given filters as a CSV download.
+     *
+     * Same filter semantics and account scoping as index(), minus the
+     * pagination: the list view's own export used to build its CSV from the
+     * rows already on screen, so a year-end export silently stopped at one
+     * page (#344).
+     *
+     * @NoAdminRequired
+     */
+    public function export(
+        ?int $accountId = null,
+        ?string $search = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        ?string $createdAtFrom = null,
+        ?string $createdAtTo = null,
+        ?string $category = null,
+        ?string $type = null,
+        ?float $amountMin = null,
+        ?float $amountMax = null,
+        ?string $sort = 'date',
+        ?string $direction = 'desc',
+        ?string $status = null,
+        ?array $tagIds = null,
+        ?bool $reconciled = null,
+        ?bool $excludeShared = null,
+        ?string $filename = null
+    ): DataDownloadResponse|DataResponse {
+        try {
+            $filters = [
+                'accountId' => $accountId,
+                'search' => $search,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'createdAtFrom' => $createdAtFrom,
+                'createdAtTo' => $createdAtTo,
+                'category' => $category,
+                'type' => $type,
+                'amountMin' => $amountMin,
+                'amountMax' => $amountMax,
+                'sort' => $sort,
+                'direction' => $direction,
+                'status' => $status,
+                'tagIds' => $tagIds,
+                'reconciled' => $reconciled,
+            ];
+
+            $visibleAccountIds = $this->getEffectiveAccountIds((bool)$excludeShared);
+            $batches = $this->service->findAllForExport($this->userId, $filters, $visibleAccountIds);
+
+            $handle = fopen('php://memory', 'w+');
+            $this->csvExporter->write($handle, $batches);
+            rewind($handle);
+            $csv = stream_get_contents($handle);
+            fclose($handle);
+
+            return new DataDownloadResponse(
+                $csv,
+                $this->exportFilename($filename),
+                'text/csv'
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to export transactions'));
+        }
+    }
+
+    /**
+     * A safe download filename. The caller passes the account or view name so
+     * the file is recognisable, but it reaches us as user-entered text, so
+     * everything outside a small safe set is dropped rather than escaped.
+     */
+    private function exportFilename(?string $requested): string {
+        $base = preg_replace('/[^A-Za-z0-9 _-]/', '', trim((string)$requested));
+        $base = trim(preg_replace('/\s+/', '_', (string)$base), '_');
+
+        if ($base === '') {
+            $base = 'transactions';
+        }
+
+        return mb_substr($base, 0, 60) . '_' . date('Y-m-d') . '.csv';
     }
 
     /**

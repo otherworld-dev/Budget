@@ -52,6 +52,7 @@ class ReportExporter {
             'income' => $this->writeIncomeCsv($csv, $data),
             'budget' => $this->writeBudgetCsv($csv, $data),
             'category-monthly' => $this->writeCategoryMonthlyCsv($csv, $data),
+            'income-expense' => $this->writeIncomeExpenseCsv($csv, $data),
             default => null,
         };
 
@@ -129,6 +130,7 @@ class ReportExporter {
             'income' => $this->renderIncomePdf($pdf, $data),
             'budget' => $this->renderBudgetPdf($pdf, $data),
             'category-monthly' => $this->renderCategoryMonthlyPdf($pdf, $data),
+            'income-expense' => $this->renderIncomeExpensePdf($pdf, $data),
             default => null,
         };
 
@@ -239,6 +241,50 @@ class ReportExporter {
 
         fputcsv($handle, ['']);
         fputcsv($handle, ['Total', $data['totals']['amount'] ?? 0, $data['totals']['transactions'] ?? 0]);
+    }
+
+    /**
+     * Write the income and expenses report to CSV as two labelled tables, so a
+     * year-end return can be read straight out of one file (#344).
+     */
+    private function writeIncomeExpenseCsv($handle, array $data): void {
+        $period = $data['period'] ?? [];
+        fputcsv($handle, ['Period', $period['startDate'] ?? '', $period['endDate'] ?? '']);
+        fputcsv($handle, ['']);
+
+        $this->writeIncomeExpenseSection($handle, 'Income', $data['income'] ?? []);
+        fputcsv($handle, ['']);
+        $this->writeIncomeExpenseSection($handle, 'Expenses', $data['expenses'] ?? []);
+
+        $totals = $data['totals'] ?? [];
+        fputcsv($handle, ['']);
+        fputcsv($handle, ['Summary']);
+        fputcsv($handle, ['Total Income', $totals['income'] ?? 0]);
+        fputcsv($handle, ['Total Expenses', $totals['expenses'] ?? 0]);
+        fputcsv($handle, ['Net', $totals['net'] ?? 0]);
+    }
+
+    /**
+     * One of the two tables of the income/expenses report: a heading, a header
+     * row, a row per category and the section's own total.
+     */
+    private function writeIncomeExpenseSection($handle, string $heading, array $section): void {
+        fputcsv($handle, [$heading]);
+        fputcsv($handle, ['Category', 'Amount', 'Transactions']);
+
+        foreach ($section['data'] ?? [] as $item) {
+            fputcsv($handle, [
+                $item['name'] ?? 'Unknown',
+                $item['total'] ?? 0,
+                $item['count'] ?? 0,
+            ]);
+        }
+
+        fputcsv($handle, [
+            'Total ' . $heading,
+            $section['totals']['amount'] ?? 0,
+            $section['totals']['transactions'] ?? 0,
+        ]);
     }
 
     /**
@@ -428,6 +474,48 @@ class ReportExporter {
         $pdf->Cell(70, 6, 'Total', 1, 0, 'L');
         $pdf->Cell(50, 6, $this->formatNumber($data['totals']['amount'] ?? 0), 1, 0, 'R');
         $pdf->Cell(50, 6, $data['totals']['transactions'] ?? 0, 1, 1, 'R');
+    }
+
+    /**
+     * Render the income and expenses report to PDF: the same two tables the CSV
+     * carries, then the net.
+     */
+    private function renderIncomeExpensePdf($pdf, array $data): void {
+        $this->renderIncomeExpenseSectionPdf($pdf, 'Income', $data['income'] ?? []);
+        $pdf->Ln(6);
+        $this->renderIncomeExpenseSectionPdf($pdf, 'Expenses', $data['expenses'] ?? []);
+
+        $totals = $data['totals'] ?? [];
+        $pdf->Ln(6);
+        $pdf->SetFont(self::PDF_FONT, 'B', 10);
+        $pdf->Cell(70, 6, 'Total Income', 1, 0, 'L');
+        $pdf->Cell(50, 6, $this->formatNumber($totals['income'] ?? 0), 1, 1, 'R');
+        $pdf->Cell(70, 6, 'Total Expenses', 1, 0, 'L');
+        $pdf->Cell(50, 6, $this->formatNumber($totals['expenses'] ?? 0), 1, 1, 'R');
+        $pdf->Cell(70, 6, 'Net', 1, 0, 'L');
+        $pdf->Cell(50, 6, $this->formatNumber($totals['net'] ?? 0), 1, 1, 'R');
+    }
+
+    private function renderIncomeExpenseSectionPdf($pdf, string $heading, array $section): void {
+        $pdf->SetFont(self::PDF_FONT, 'B', 12);
+        $pdf->Cell(0, 8, $heading, 0, 1);
+
+        $pdf->SetFont(self::PDF_FONT, 'B', 9);
+        $pdf->Cell(70, 6, 'Category', 1, 0, 'L');
+        $pdf->Cell(50, 6, 'Amount', 1, 0, 'R');
+        $pdf->Cell(50, 6, 'Transactions', 1, 1, 'R');
+
+        $pdf->SetFont(self::PDF_FONT, '', 9);
+        foreach ($section['data'] ?? [] as $item) {
+            $pdf->Cell(70, 6, $this->truncateText((string)($item['name'] ?? 'Unknown'), 40), 1, 0, 'L');
+            $pdf->Cell(50, 6, $this->formatNumber($item['total'] ?? 0), 1, 0, 'R');
+            $pdf->Cell(50, 6, $item['count'] ?? 0, 1, 1, 'R');
+        }
+
+        $pdf->SetFont(self::PDF_FONT, 'B', 9);
+        $pdf->Cell(70, 6, 'Total ' . $heading, 1, 0, 'L');
+        $pdf->Cell(50, 6, $this->formatNumber($section['totals']['amount'] ?? 0), 1, 0, 'R');
+        $pdf->Cell(50, 6, $section['totals']['transactions'] ?? 0, 1, 1, 'R');
     }
 
     /**

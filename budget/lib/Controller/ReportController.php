@@ -154,6 +154,40 @@ class ReportController extends Controller {
     }
 
     /**
+     * Income and expenses for a period, each broken down by category (#344).
+     *
+     * @NoAdminRequired
+     */
+    public function incomeExpense(
+        ?int $accountId = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?array $accountIds = null,
+        ?bool $excludeShared = null
+    ): DataResponse {
+        try {
+            if (!$startDate) {
+                $startDate = date('Y-01-01');
+            }
+            if (!$endDate) {
+                $endDate = date('Y-m-d');
+            }
+
+            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+            $report = $this->service->getIncomeExpenseReport(
+                $this->getEffectiveUserId(),
+                $startDate,
+                $endDate,
+                $accountId,
+                $visibleAccountIds
+            );
+            return new DataResponse($report);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to generate income and expenses report'));
+        }
+    }
+
+    /**
      * @NoAdminRequired
      */
     public function export(

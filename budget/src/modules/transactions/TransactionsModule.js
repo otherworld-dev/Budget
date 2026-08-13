@@ -14,6 +14,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
+import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -235,6 +236,12 @@ export default class TransactionsModule {
             bulkMatchBtn.addEventListener('click', () => {
                 this.showBulkMatchModal();
             });
+        }
+
+        // Export everything the current filter matches, not just this page (#344)
+        const exportBtn = document.getElementById('transactions-export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportTransactions());
         }
 
         const startReconcileBtn = document.getElementById('start-reconcile-btn');
@@ -826,6 +833,26 @@ export default class TransactionsModule {
         } catch (error) {
             console.error('Select all matching failed:', error);
             showError(t('budget', 'Failed to select all matching transactions'));
+        } finally {
+            if (btn) { btn.disabled = false; }
+        }
+    }
+
+    /**
+     * Download every transaction matching the current filters as CSV — the
+     * whole result set, not the page on screen (#344). With no filters set
+     * that is the complete ledger across every account, which is what a
+     * year-end export needs.
+     */
+    async exportTransactions() {
+        const btn = document.getElementById('transactions-export-btn');
+        if (btn) { btn.disabled = true; }
+
+        try {
+            await downloadTransactionsCsv(this.app.buildTransactionFilterParams(), 'transactions');
+        } catch (error) {
+            console.error('Failed to export transactions:', error);
+            showError(t('budget', 'Failed to export transactions'));
         } finally {
             if (btn) { btn.disabled = false; }
         }
