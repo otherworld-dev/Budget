@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-13 00:33+0000\n"
-"PO-Revision-Date: 2026-08-11 03:51+0000\n"
+"PO-Revision-Date: 2026-08-14 15:28+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -349,11 +349,8 @@ msgstr ""
 "Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:369
-#, fuzzy
-#| msgid "The transaction was recorded, but the photo could not be attached"
 msgid "The transaction was recorded, but it could not be split"
-msgstr ""
-"Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
+msgstr "Die Transaktion wurde erfasst, konnte aber nicht aufgeteilt werden"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:377
 #: /app/lib/Controller/TransactionController.php:368
@@ -377,10 +374,8 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:559
-#, fuzzy
-#| msgid "Failed to unsplit transaction"
 msgid "Failed to split the transaction"
-msgstr "Aufhebung der Buchungsaufteilung fehlgeschlagen"
+msgstr "Die Transaktion konnte nicht aufgeteilt werden"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:631
 #: /app/lib/Controller/AttachmentController.php:46
@@ -542,74 +537,54 @@ msgid "Attachment removed"
 msgstr "Anhang entfernt"
 
 #: /app/lib/Controller/AttachmentController.php:114
-#, fuzzy
-#| msgid "Account not found"
 msgid "Attachment not found"
-msgstr "Konto nicht gefunden"
+msgstr "Anhang nicht gefunden"
 
 #: /app/lib/Controller/AttachmentController.php:118
 #: /app/src/modules/transactions/TransactionsModule.js:2416
-#, fuzzy
-#| msgid "Failed to record settlement"
 msgid "Failed to remove attachment"
-msgstr "Aufzeichnen der Abrechnung fehlgeschlagen"
+msgstr "Anhang konnte nicht entfernt werden"
 
 #: /app/lib/Controller/BankSyncController.php:40
-#, fuzzy
-#| msgid "Pension provider or scheme administrator"
 msgid "Bank sync is disabled by the administrator"
-msgstr "Rentenversicherer oder Verwalter des Rentensystems"
+msgstr "Die Banksynchronisierung wurde vom Administrator deaktiviert"
 
 #: /app/lib/Controller/BankSyncController.php:81
 msgid "This provider does not support institution listing"
 msgstr "Dieser Anbieter unterstützt keine Auflistung von Finanzinstituten"
 
 #: /app/lib/Controller/BankSyncController.php:87
-#, fuzzy
-#| msgid "Invalid currency code"
 msgid "Invalid country code"
-msgstr "Ungültige Währungskennziffer"
+msgstr "Ungültiger Ländercode"
 
 #: /app/lib/Controller/BankSyncController.php:93
-#, fuzzy
-#| msgid "This field is required"
 msgid "API credentials required"
-msgstr "Dieses Feld ist erforderlich"
+msgstr "API-Zugangsdaten erforderlich"
 
 #: /app/lib/Controller/BankSyncController.php:102
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "Failed to fetch institutions"
-msgstr "Beitrag konnte nicht erstellt werden"
+msgstr "Banken und Finanzinstitute konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/BankSyncController.php:129
 msgid "Provider and name are required"
 msgstr "Anbieter und Name sind erforderlich"
 
 #: /app/lib/Controller/BankSyncController.php:134
-#, fuzzy
-#| msgid "Retirement age must be between 18 and 100"
 msgid "Connection name must be between 1 and 255 characters"
-msgstr "Das Renteneintrittsalter muss zwischen 18 und 100 liegen"
+msgstr "Der Verbindungsname muss zwischen 1 und 255 Zeichen lang sein"
 
 #: /app/lib/Controller/BankSyncController.php:139
-#, fuzzy
-#| msgid "Invalid year"
 msgid "Invalid provider"
-msgstr "Ungültiges Jahr"
+msgstr "Ungültiger Anbieter"
 
 #: /app/lib/Controller/BankSyncController.php:163
-#, fuzzy
-#| msgid "Failed to get balances"
 msgid "Failed to connect bank"
-msgstr "Salden konnten nicht abgerufen werden"
+msgstr "Die Verbindung zur Bank konnte nicht hergestellt werden"
 
 #: /app/lib/Controller/BankSyncController.php:179
 #: /app/src/modules/bank-sync/BankSyncModule.js:767
-#, fuzzy
-#| msgid "Failed to get balances"
 msgid "Failed to disconnect bank"
-msgstr "Salden konnten nicht abgerufen werden"
+msgstr "Die Verbindung zur Bank konnte nicht getrennt werden"
 
 #: /app/lib/Controller/BankSyncController.php:208
 #, fuzzy
@@ -1701,11 +1676,10 @@ msgstr ""
 "Transaktion manuell"
 
 #: /app/lib/Controller/ReceiptScanController.php:104
-#, fuzzy
-#| msgid "The OCR provider's quota is used up. Try again later"
 msgid "The receipt scanning quota is used up. Try again later"
 msgstr ""
-"Das Kontingent des OCR-Anbieters ist aufgebraucht. Versuche es später erneut"
+"Das Kontingent für die Belegerkennung ist aufgebraucht. Versuche es später "
+"erneut"
 
 #: /app/lib/Controller/ReceiptScanController.php:109
 #, fuzzy
@@ -10673,10 +10647,8 @@ msgid "No receipts yet — they are attached when you save."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2294
-#, fuzzy
-#| msgid "{amount} saved"
 msgid "on save"
-msgstr "{amount} gespart"
+msgstr "Beim Speichern"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2295
 #: /app/src/modules/transactions/TransactionsModule.js:2357
@@ -10720,11 +10692,10 @@ msgid "Transfer created successfully"
 msgstr "Umbuchung erstellt"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2644
-#, fuzzy
-#| msgid "The transaction was recorded, but the photo could not be attached"
 msgid "The transaction was saved, but {count} receipt(s) could not be attached"
 msgstr ""
-"Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
+"Die Transaktion wurde gespeichert, aber {count} Beleg(e) konnten nicht "
+"angehängt werden"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2648
 #: /app/src/modules/transactions/TransactionsModule.js:4733
@@ -10770,11 +10741,8 @@ msgstr ""
 "entsprechen."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2983
-#, fuzzy
-#| msgid "The transaction was recorded, but the photo could not be attached"
 msgid "The transaction was saved, but not split: {reason}"
-msgstr ""
-"Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
+msgstr "Die Transaktion wurde gespeichert, aber nicht aufgeteilt: {reason}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2984
 #: /app/src/modules/transactions/TransactionsModule.js:2988
