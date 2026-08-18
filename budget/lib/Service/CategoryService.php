@@ -694,9 +694,12 @@ class CategoryService extends AbstractCrudService {
         }
     }
 
-    public function createDefaultCategories(string $userId, ?float $monthlyIncome = null): array {
-        // Default budget percentages based on 50/30/20 rule
-        $defaultCategories = [
+    /**
+     * The built-in default category catalog, with suggested budget
+     * percentages based on the 50/30/20 rule.
+     */
+    public function getDefaultCategoryDefinitions(): array {
+        return [
             // Income categories
             [
                 'name' => 'Income',
@@ -823,51 +826,62 @@ class CategoryService extends AbstractCrudService {
                 ]
             ]
         ];
+    }
 
+    public function createDefaultCategories(string $userId, ?float $monthlyIncome = null): array {
         $created = [];
-        foreach ($defaultCategories as $categoryData) {
+        foreach ($this->getDefaultCategoryDefinitions() as $categoryData) {
             $budgetAmount = null;
             if ($monthlyIncome && isset($categoryData['budgetPercent'])) {
                 $budgetAmount = ($monthlyIncome * $categoryData['budgetPercent']) / 100;
             }
 
-            $parent = $this->create(
-                $userId,
-                $categoryData['name'],
-                $categoryData['type'],
-                null,
-                $categoryData['icon'],
-                $categoryData['color'],
-                $budgetAmount
-            );
+            // Reuse an existing root instead of failing on it: the seed button
+            // must fill in whatever is missing, never abort because part of the
+            // tree still exists — e.g. the income side after the user emptied
+            // the expense side (#348).
+            $parent = $this->getCategoryMapper()->findByName($userId, $categoryData['name'], $categoryData['type'], null);
+            if ($parent === null) {
+                $parent = $this->create(
+                    $userId,
+                    $categoryData['name'],
+                    $categoryData['type'],
+                    null,
+                    $categoryData['icon'],
+                    $categoryData['color'],
+                    $budgetAmount
+                );
 
-            $created[] = $parent;
+                $created[] = $parent;
+            }
 
-            if (isset($categoryData['children'])) {
-                foreach ($categoryData['children'] as $childData) {
-                    $childBudget = null;
-                    if ($monthlyIncome && isset($childData['budgetPercent'])) {
-                        $childBudget = ($monthlyIncome * $childData['budgetPercent']) / 100;
-                    }
-
-                    $child = $this->create(
-                        $userId,
-                        $childData['name'],
-                        $categoryData['type'],
-                        $parent->getId(),
-                        $childData['icon'],
-                        $parent->getColor(),
-                        $childBudget
-                    );
-
-                    // Set budget period if specified (e.g., yearly for insurance)
-                    if (isset($childData['period'])) {
-                        $child->setBudgetPeriod($childData['period']);
-                        $this->mapper->update($child);
-                    }
-
-                    $created[] = $child;
+            foreach ($categoryData['children'] ?? [] as $childData) {
+                if ($this->getCategoryMapper()->findByName($userId, $childData['name'], $categoryData['type'], $parent->getId()) !== null) {
+                    continue;
                 }
+
+                $childBudget = null;
+                if ($monthlyIncome && isset($childData['budgetPercent'])) {
+                    $childBudget = ($monthlyIncome * $childData['budgetPercent']) / 100;
+                }
+
+                $child = $this->create(
+                    $userId,
+                    $childData['name'],
+                    $categoryData['type'],
+                    $parent->getId(),
+                    $childData['icon'],
+                    $parent->getColor(),
+                    $childBudget
+                );
+
+                // Set budget period if specified (e.g., yearly for insurance)
+                if (isset($childData['period'])) {
+                    $child->setBudgetPeriod($childData['period']);
+                    $this->mapper->update($child);
+                }
+
+                $created[] = $child;
             }
         }
 

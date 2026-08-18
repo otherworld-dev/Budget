@@ -628,4 +628,92 @@ class CategoryServiceTest extends TestCase {
         $this->assertArrayHasKey('Savings', $result);
         $this->assertEquals(20, $result['Savings']);
     }
+
+    // ===== createDefaultCategories() =====
+
+    /**
+     * Wire the mocked mapper to behave like a real table seeded with $existing
+     * (keyed by "name|type|parentId"), so createDefaultCategories can be tested
+     * against partial pre-existing state (#348).
+     */
+    private function setUpDefaultCategoriesWorld(array $existing): void {
+        $store = ['byKey' => [], 'byId' => []];
+        foreach ($existing as $category) {
+            $key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? '');
+            $store['byKey'][$key] = $category;
+            $store['byId'][$category->getId()] = $category;
+        }
+        $this->defaultsStore = $store;
+
+        $this->categoryMapper->method('findByName')
+            ->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId = null) {
+                $key = $name . '|' . $type . '|' . ($parentId ?? '');
+                return $this->defaultsStore['byKey'][$key] ?? null;
+            });
+        $this->categoryMapper->method('existsDuplicate')
+            ->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId, ?int $excludeId = null) {
+                $key = $name . '|' . $type . '|' . ($parentId ?? '');
+                return isset($this->defaultsStore['byKey'][$key]);
+            });
+        $this->categoryMapper->method('find')
+            ->willReturnCallback(function (int $id, string $userId) {
+                if (!isset($this->defaultsStore['byId'][$id])) {
+                    throw new DoesNotExistException('not found');
+                }
+                return $this->defaultsStore['byId'][$id];
+            });
+        $nextId = 100;
+        $this->categoryMapper->method('insert')
+            ->willReturnCallback(function (Category $category) use (&$nextId) {
+                $category->setId(++$nextId);
+                $key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? '');
+                $this->defaultsStore['byKey'][$key] = $category;
+                $this->defaultsStore['byId'][$category->getId()] = $category;
+                return $category;
+            });
+        $this->categoryMapper->method('update')
+            ->willReturnCallback(fn (Category $category) => $category);
+    }
+
+    private array $defaultsStore = [];
+
+    public function testCreateDefaultCategoriesReusesExistingRoot(): void {
+        // The reporter's state in #348: only the Income tree's root remains.
+        $income = $this->makeCategory(['id' => 50, 'name' => 'Income', 'type' => 'income', 'color' => '#4ade80']);
+        $this->setUpDefaultCategoriesWorld([$income]);
+
+        $created = $this->service->createDefaultCategories('user1');
+
+        $names = array_map(fn (Category $c) => $c->getName() . '|' . $c->getType(), $created);
+        $this->assertNotContains('Income|income', $names, 'existing root must be reused, not recreated');
+        $this->assertContains('Salary|income', $names, 'missing children of an existing root must still be created');
+        $this->assertContains('Housing|expense', $names, 'missing roots must still be created');
+        $this->assertCount(43, $created, 'all 44 defaults minus the 1 pre-existing');
+
+        $salary = $this->defaultsStore['byKey']['Salary|income|50'] ?? null;
+        $this->assertNotNull($salary, 'Salary must be parented under the existing Income root');
+    }
+
+    public function testCreateDefaultCategoriesIsIdempotentWhenAllExist(): void {
+        $existing = [];
+        $id = 10;
+        foreach ($this->service->getDefaultCategoryDefinitions() as $rootData) {
+            $root = $this->makeCategory(['id' => ++$id, 'name' => $rootData['name'], 'type' => $rootData['type']]);
+            $existing[] = $root;
+            foreach ($rootData['children'] ?? [] as $childData) {
+                $existing[] = $this->makeCategory([
+                    'id' => ++$id,
+                    'name' => $childData['name'],
+                    'type' => $rootData['type'],
+                    'parentId' => $root->getId(),
+                ]);
+            }
+        }
+        $this->setUpDefaultCategoriesWorld($existing);
+        $this->categoryMapper->expects($this->never())->method('insert');
+
+        $created = $this->service->createDefaultCategories('user1');
+
+        $this->assertCount(0, $created, 'a fully-seeded account must create nothing');
+    }
 }

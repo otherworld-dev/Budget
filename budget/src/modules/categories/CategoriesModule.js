@@ -1339,6 +1339,12 @@ export default class CategoriesModule {
     }
 
     async createDefaultCategories() {
+        // A second click while the seed request is in flight would race the
+        // duplicate checks server-side and can create doubled categories (#348).
+        if (this._creatingDefaults) {
+            return;
+        }
+        this._creatingDefaults = true;
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/setup/initialize'), {
                 method: 'POST',
@@ -1366,6 +1372,8 @@ export default class CategoriesModule {
         } catch (error) {
             console.error('Failed to create default categories:', error);
             showError(error.message || t('budget', 'Failed to create default categories'));
+        } finally {
+            this._creatingDefaults = false;
         }
     }
 
