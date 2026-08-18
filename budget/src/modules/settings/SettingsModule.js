@@ -258,7 +258,10 @@ export default class SettingsModule {
 
             this.ocrState = {
                 apiKeySet: !!body.ocr?.apiKeySet,
-                nextcloudAiAvailable: !!body.ocr?.nextcloudAiAvailable
+                nextcloudAiAvailable: !!body.ocr?.nextcloudAiAvailable,
+                relayBillingBase: body.ocr?.relayBillingBase
+                    || this.ocrState?.relayBillingBase
+                    || 'https://ocr.otherworld.dev/billing',
             };
             document.getElementById('setting-ocr-api-key').value = '';
             this.renderOcrFields();
