@@ -642,4 +642,69 @@ class ReceiptExtractionServiceTest extends TestCase {
 
 		$this->assertSame('3.50', $serialized['discount']);
 	}
+
+	public function testAnImpossibleNegativeTaxOrSubtotalIsDropped(): void {
+		// Seen in the field: a vision model returned tax "-16.80" (and a bogus
+		// subtotal) on a Tesco Clubcard receipt. A negative tax or subtotal is
+		// never real money; letting it through reported it to the client and
+		// broke the split reconciliation. Both are treated as absent.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Tesco', 'date' => '2026-08-08',
+			'total' => 40.63, 'subtotal' => -5.00, 'tax' => -16.80, 'discount' => 6.80,
+			'lineItems' => [
+				['description' => 'Groceries', 'amount' => 29.43],
+				['description' => 'Charger', 'amount' => 18.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['tax']);
+		$this->assertNull($draft['subtotal']);
+		// items 47.43 − discount 6.80 = 40.63 = total → reconciles cleanly.
+		$this->assertNotContains('line-items-sum-mismatch', $draft['warnings']);
+	}
+
+	public function testASavingsReceiptTheModelUnderReadStillReconciles(): void {
+		// The field case: the model found *a* discount (so this is a savings
+		// receipt) but under-read it — items sum higher than the total by more
+		// than the stated saving. On a tax-inclusive receipt the true total
+		// saving is exactly items − total, so it is adopted and the receipt
+		// splits instead of being refused.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Tesco', 'date' => '2026-08-08',
+			'total' => 40.63, 'discount' => 4.80,   // really 6.80
+			'lineItems' => [
+				['description' => 'Groceries', 'amount' => 29.43],
+				['description' => 'Charger', 'amount' => 18.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		// items 47.43 − 6.80 = 40.63: the discount is corrected up to close the gap.
+		$this->assertSame('6.80', $draft['discount']);
+		$this->assertNotContains('line-items-sum-mismatch', $draft['warnings']);
+	}
+
+	public function testItemsOverTheTotalWithNoStatedDiscountStillWarns(): void {
+		// The gap-close only trusts a receipt the model already read as
+		// discounted. With no discount line found, items summing higher than the
+		// total is a misread, not a silent saving: warn, and never invent one.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-08', 'total' => 8.00,
+			'lineItems' => [
+				['description' => 'A', 'amount' => 5.00],
+				['description' => 'B', 'amount' => 5.00],
+			],
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['discount']);
+		$this->assertContains('line-items-sum-mismatch', $draft['warnings']);
+	}
 }
