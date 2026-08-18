@@ -4669,6 +4669,22 @@ style('budget', 'budget-app');
                             <button type="button" class="secondary" id="setting-ocr-clear-key" style="display: none;"><?php p($l->t('Remove key')); ?></button>
                         </div>
 
+                        <div class="setting-item" id="setting-ocr-relay-billing" style="display: none;">
+                            <label><strong><?php p($l->t('Subscription')); ?></strong></label>
+                            <div id="setting-ocr-subscribe-row">
+                                <select id="setting-ocr-plan">
+                                    <option value="budget_ocr_standard_monthly"><?php p($l->t('Standard — £2.99/month (500 scans)')); ?></option>
+                                    <option value="budget_ocr_standard_yearly"><?php p($l->t('Standard — £29/year (500 scans a month)')); ?></option>
+                                    <option value="budget_ocr_business_monthly"><?php p($l->t('Business — £7.99/month (1,500 scans)')); ?></option>
+                                    <option value="budget_ocr_business_yearly"><?php p($l->t('Business — £79/year (1,500 scans a month)')); ?></option>
+                                </select>
+                                <button type="button" class="secondary" id="setting-ocr-subscribe-btn"><?php p($l->t('Subscribe')); ?></button>
+                                <small><?php p($l->t('Checkout opens in a new tab. Your license key is shown once after payment and emailed to you — paste it into the field above.')); ?></small>
+                            </div>
+                            <button type="button" class="secondary" id="setting-ocr-portal-btn" style="display: none;"><?php p($l->t('Manage subscription')); ?></button>
+                            <small id="setting-ocr-portal-hint" style="display: none;"><?php p($l->t('Change plan, update the card, or cancel — opens Stripe in a new tab.')); ?></small>
+                        </div>
+
                         <div class="setting-item" id="setting-ocr-privacy" style="display: none;">
                             <div class="bank-sync-warning">
                                 <span class="icon-info" aria-hidden="true"></span>

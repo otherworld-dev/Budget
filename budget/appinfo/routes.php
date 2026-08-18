@@ -410,6 +410,7 @@ return [
         // Admin settings routes
         ['name' => 'adminSetting#index', 'url' => '/api/admin/settings', 'verb' => 'GET'],
         ['name' => 'adminSetting#update', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
+        ['name' => 'adminSetting#ocrPortal', 'url' => '/api/admin/settings/ocr/portal', 'verb' => 'POST'],
     ],
 
     /*

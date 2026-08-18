@@ -8,6 +8,7 @@ use OCA\Budget\Controller\AdminSettingController;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\OcrSettingsService;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 
@@ -23,11 +24,50 @@ class AdminSettingControllerTest extends TestCase {
 		$this->ocrSettings = $this->createMock(OcrSettingsService::class);
 		$this->ocrSettings->method('getSettings')->willReturn(['provider' => 'none']);
 
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(fn (string $text) => $text);
+
 		$this->controller = new AdminSettingController(
 			$this->request,
 			$this->service,
-			$this->ocrSettings
+			$this->ocrSettings,
+			$l
 		);
+	}
+
+	// ── ocrPortal ───────────────────────────────────────────────────
+
+	public function testPortalReturnsTheUrl(): void {
+		$this->ocrSettings->method('createPortalUrl')->willReturn('https://billing.stripe.com/s/1');
+
+		$response = $this->controller->ocrPortal();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['url' => 'https://billing.stripe.com/s/1'], $response->getData());
+	}
+
+	public function testPortalMapsCodesToStatusesAndProse(): void {
+		$cases = [
+			['not_relay', Http::STATUS_BAD_REQUEST],
+			['no_key', Http::STATUS_BAD_REQUEST],
+			['no_subscription', Http::STATUS_NOT_FOUND],
+			['unavailable', Http::STATUS_BAD_GATEWAY],
+		];
+		foreach ($cases as [$code, $status]) {
+			$ocr = $this->createMock(OcrSettingsService::class);
+			$ocr->method('createPortalUrl')->willThrowException(new \RuntimeException($code));
+			$l = $this->createMock(IL10N::class);
+			$l->method('t')->willReturnCallback(fn (string $text) => $text);
+			$controller = new AdminSettingController($this->request, $this->service, $ocr, $l);
+
+			$response = $controller->ocrPortal();
+
+			$this->assertSame($status, $response->getStatus(), $code);
+			$error = $response->getData()['error'];
+			$this->assertIsString($error, $code);
+			// Machine codes must never surface as the user-facing message.
+			$this->assertNotSame($code, $error, $code);
+		}
 	}
 
 	// ── index ───────────────────────────────────────────────────────

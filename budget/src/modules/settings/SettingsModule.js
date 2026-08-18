@@ -110,7 +110,11 @@ export default class SettingsModule {
         model.value = ocr.model || '';
         apiKey.value = '';
 
-        this.ocrState = { apiKeySet: !!ocr.apiKeySet, nextcloudAiAvailable: !!ocr.nextcloudAiAvailable };
+        this.ocrState = {
+            apiKeySet: !!ocr.apiKeySet,
+            nextcloudAiAvailable: !!ocr.nextcloudAiAvailable,
+            relayBillingBase: ocr.relayBillingBase || 'https://ocr.otherworld.dev/billing',
+        };
         this.renderOcrFields();
 
         // Values repopulate on every visit to Settings; listeners must not,
@@ -127,6 +131,31 @@ export default class SettingsModule {
         });
 
         saveButton.addEventListener('click', () => this.saveOcrSettings());
+
+        // Checkout is a plain redirect on the relay, so a new tab is all a
+        // subscription needs. The key comes back by success page and email.
+        document.getElementById('setting-ocr-subscribe-btn')?.addEventListener('click', () => {
+            const plan = document.getElementById('setting-ocr-plan').value;
+            window.open(`${this.ocrState.relayBillingBase}/checkout?price=${encodeURIComponent(plan)}`, '_blank', 'noopener');
+        });
+
+        // The portal URL is minted server-side from the stored key — the key
+        // itself never reaches this page.
+        document.getElementById('setting-ocr-portal-btn')?.addEventListener('click', async () => {
+            try {
+                const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings/ocr/portal'), {
+                    method: 'POST',
+                    headers: { 'requesttoken': OC.requestToken }
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.url) {
+                    throw new Error(data.error || t('budget', 'The billing portal could not be opened. Try again shortly.'));
+                }
+                window.open(data.url, '_blank', 'noopener');
+            } catch (error) {
+                showError(error.message);
+            }
+        });
     }
 
     /** Show only the fields the selected provider actually uses. */
@@ -141,6 +170,13 @@ export default class SettingsModule {
         show('setting-ocr-model-row', provider === 'custom');
         show('setting-ocr-key-row', provider === 'custom' || provider === 'relay');
         show('setting-ocr-privacy', provider !== 'none');
+
+        // Relay billing: no key yet → the way to get one; key saved → the way
+        // to manage the subscription behind it.
+        show('setting-ocr-relay-billing', provider === 'relay');
+        show('setting-ocr-subscribe-row', !this.ocrState?.apiKeySet);
+        show('setting-ocr-portal-btn', !!this.ocrState?.apiKeySet);
+        show('setting-ocr-portal-hint', !!this.ocrState?.apiKeySet);
 
         const keyLabel = document.getElementById('setting-ocr-key-label');
         if (keyLabel) {

@@ -6,6 +6,9 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Service\EncryptionService;
 use OCA\Budget\Service\OcrSettingsService;
+use OCP\Http\Client\IClient;
+use OCP\Http\Client\IClientService;
+use OCP\Http\Client\IResponse;
 use OCP\IConfig;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -21,6 +24,7 @@ class OcrSettingsServiceTest extends TestCase {
 	private IConfig $config;
 	private EncryptionService $encryption;
 	private ContainerInterface $container;
+	private IClient $httpClient;
 
 	/** Stands in for the app's config table. */
 	private array $stored = [];
@@ -50,12 +54,25 @@ class OcrSettingsServiceTest extends TestCase {
 		// No TaskProcessing in the unit environment.
 		$this->container->method('get')->willThrowException(new \RuntimeException('not available'));
 
+		$this->httpClient = $this->createMock(IClient::class);
+		$clientService = $this->createMock(IClientService::class);
+		$clientService->method('newClient')->willReturn($this->httpClient);
+
 		$this->service = new OcrSettingsService(
 			$this->config,
 			$this->encryption,
 			$this->container,
+			$clientService,
 			$this->createMock(LoggerInterface::class)
 		);
+	}
+
+	/** An IResponse the mocked client will answer with. */
+	private function relayResponse(int $status, array $body): IResponse {
+		$response = $this->createMock(IResponse::class);
+		$response->method('getStatusCode')->willReturn($status);
+		$response->method('getBody')->willReturn(json_encode($body));
+		return $response;
 	}
 
 	// ── defaults ────────────────────────────────────────────────────
@@ -177,7 +194,7 @@ class OcrSettingsServiceTest extends TestCase {
 
 	public function testSettingsKeysAreStable(): void {
 		$this->assertSame(
-			['provider', 'endpoint', 'model', 'apiKeySet', 'configured', 'nextcloudAiAvailable'],
+			['provider', 'endpoint', 'model', 'apiKeySet', 'configured', 'nextcloudAiAvailable', 'relayBillingBase'],
 			array_keys($this->service->getSettings())
 		);
 	}
@@ -236,11 +253,71 @@ class OcrSettingsServiceTest extends TestCase {
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturn($manager);
 
+		$clientService = $this->createMock(IClientService::class);
+		$clientService->method('newClient')->willReturn($this->createMock(IClient::class));
+
 		return new OcrSettingsService(
 			$this->config,
 			$this->encryption,
 			$container,
+			$clientService,
 			$this->createMock(LoggerInterface::class)
 		);
+	}
+
+	// ── billing portal (#537) ───────────────────────────────────────
+
+	public function testPortalRefusesWhenProviderIsNotRelay(): void {
+		$this->stored['ocr_provider'] = 'custom';
+
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage('not_relay');
+		$this->service->createPortalUrl();
+	}
+
+	public function testPortalRefusesWithoutAKey(): void {
+		$this->stored['ocr_provider'] = 'relay';
+
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage('no_key');
+		$this->service->createPortalUrl();
+	}
+
+	public function testPortalReturnsTheSessionUrl(): void {
+		$this->stored['ocr_provider'] = 'relay';
+		$this->service->update(['apiKey' => 'owr_live_abc']);
+
+		$this->httpClient->expects($this->once())
+			->method('post')
+			->with(
+				'https://ocr.otherworld.dev/billing/portal',
+				$this->callback(fn ($options) => $options['headers']['Authorization'] === 'Bearer owr_live_abc')
+			)
+			->willReturn($this->relayResponse(200, ['url' => 'https://billing.stripe.com/session/xyz']));
+
+		$this->assertSame('https://billing.stripe.com/session/xyz', $this->service->createPortalUrl());
+	}
+
+	public function testPortalMapsAKeyWithNoSubscription(): void {
+		$this->stored['ocr_provider'] = 'relay';
+		$this->service->update(['apiKey' => 'owr_live_trial']);
+
+		$this->httpClient->method('post')
+			->willReturn($this->relayResponse(404, ['error' => 'nothing to manage', 'code' => 'no_subscription']));
+
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage('no_subscription');
+		$this->service->createPortalUrl();
+	}
+
+	public function testPortalMapsRelayFailure(): void {
+		$this->stored['ocr_provider'] = 'relay';
+		$this->service->update(['apiKey' => 'owr_live_abc']);
+
+		$this->httpClient->method('post')->willThrowException(new \Exception('connection refused'));
+
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage('unavailable');
+		$this->service->createPortalUrl();
 	}
 }

@@ -49,7 +49,8 @@ class OcrConfigTest extends TestCase {
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willThrowException(new \RuntimeException('no TaskProcessing'));
 
-		$this->settings = new OcrSettingsService($config, $encryption, $container, $this->createMock(LoggerInterface::class));
+		$clientService = $this->createMock(\OCP\Http\Client\IClientService::class);
+		$this->settings = new OcrSettingsService($config, $encryption, $container, $clientService, $this->createMock(LoggerInterface::class));
 		$this->command = new OcrConfig($this->settings);
 	}
 

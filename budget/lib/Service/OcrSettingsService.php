@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\AppInfo\Application;
+use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -51,10 +52,14 @@ class OcrSettingsService {
     /** Sent to the relay so the hosted side can pick a backend. */
     public const RELAY_ENDPOINT = 'https://ocr.otherworld.dev/v1';
 
+    /** The relay's billing surface: checkout links and the portal (#537). */
+    public const RELAY_BILLING_BASE = 'https://ocr.otherworld.dev/billing';
+
     public function __construct(
         private IConfig $config,
         private EncryptionService $encryption,
         private ContainerInterface $container,
+        private IClientService $clientService,
         private LoggerInterface $logger,
     ) {
     }
@@ -168,7 +173,54 @@ class OcrSettingsService {
             'apiKeySet' => $this->hasApiKey(),
             'configured' => $this->isConfigured(),
             'nextcloudAiAvailable' => $this->isNextcloudAiAvailable(),
+            // So the front end never hardcodes the relay's billing URLs.
+            'relayBillingBase' => self::RELAY_BILLING_BASE,
         ];
+    }
+
+    /**
+     * A billing-portal session for the stored relay licence key (#537).
+     *
+     * The key is the credential, and it never reaches the browser: this
+     * server asks the relay for a short-lived portal URL and hands only
+     * that to the admin. Throws RuntimeException with a machine code —
+     * not_relay, no_key, no_subscription, unavailable — for the controller
+     * to translate; the codes are the contract the tests pin down.
+     */
+    public function createPortalUrl(): string {
+        if ($this->getProvider() !== self::PROVIDER_RELAY) {
+            throw new \RuntimeException('not_relay');
+        }
+        $key = $this->getApiKey();
+        if ($key === '') {
+            throw new \RuntimeException('no_key');
+        }
+
+        try {
+            $response = $this->clientService->newClient()->post(self::RELAY_BILLING_BASE . '/portal', [
+                'headers' => ['Authorization' => 'Bearer ' . $key],
+                'timeout' => 15,
+                // Statuses are handled here; an exception would drop the
+                // relay's error body, which is what distinguishes "this key
+                // has no subscription" from "the relay is down".
+                'http_errors' => false,
+            ]);
+            $status = $response->getStatusCode();
+            $body = json_decode((string)$response->getBody(), true) ?: [];
+        } catch (\Exception $e) {
+            $this->logger->warning('Budget OCR: billing portal unreachable', ['exception' => $e]);
+            throw new \RuntimeException('unavailable');
+        }
+
+        if ($status === 200 && is_string($body['url'] ?? null)) {
+            return $body['url'];
+        }
+        if (($body['code'] ?? '') === 'no_subscription') {
+            throw new \RuntimeException('no_subscription');
+        }
+
+        $this->logger->warning('Budget OCR: billing portal refused', ['status' => $status]);
+        throw new \RuntimeException('unavailable');
     }
 
     /**

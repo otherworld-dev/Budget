@@ -10,6 +10,7 @@ use OCA\Budget\Service\OcrSettingsService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 
 /**
@@ -23,9 +24,41 @@ class AdminSettingController extends Controller {
     public function __construct(
         IRequest $request,
         private AdminSettingService $service,
-        private OcrSettingsService $ocrSettings
+        private OcrSettingsService $ocrSettings,
+        private IL10N $l
     ) {
         parent::__construct(Application::APP_ID, $request);
+    }
+
+    /**
+     * A billing-portal link for the stored relay licence key (#537).
+     *
+     * The service talks to the relay server-side and throws machine codes;
+     * this is where they become sentences.
+     */
+    public function ocrPortal(): DataResponse {
+        try {
+            return new DataResponse(['url' => $this->ocrSettings->createPortalUrl()]);
+        } catch (\RuntimeException $e) {
+            return match ($e->getMessage()) {
+                'not_relay' => new DataResponse(
+                    ['error' => $this->l->t('Receipt scanning is not using the Otherworld relay.')],
+                    Http::STATUS_BAD_REQUEST
+                ),
+                'no_key' => new DataResponse(
+                    ['error' => $this->l->t('No license key is saved yet.')],
+                    Http::STATUS_BAD_REQUEST
+                ),
+                'no_subscription' => new DataResponse(
+                    ['error' => $this->l->t('This license has no subscription behind it — it was issued directly, so there is nothing to manage.')],
+                    Http::STATUS_NOT_FOUND
+                ),
+                default => new DataResponse(
+                    ['error' => $this->l->t('The billing portal could not be opened. Try again shortly.')],
+                    Http::STATUS_BAD_GATEWAY
+                ),
+            };
+        }
     }
 
     public function index(): DataResponse {
