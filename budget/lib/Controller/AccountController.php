@@ -193,6 +193,14 @@ class AccountController extends Controller {
                 $minimumPayment = (float) $data['minimumPayment'];
             }
 
+            $statementDay = null;
+            if (isset($data['statementDay']) && $data['statementDay'] !== '' && $data['statementDay'] !== null) {
+                $statementDay = (int) $data['statementDay'];
+                if ($statementDay < 1 || $statementDay > 31) {
+                    return new DataResponse(['error' => $this->l->t('Statement day must be between 1 and 31')], Http::STATUS_BAD_REQUEST);
+                }
+            }
+
             // Validate optional banking fields if provided
             $accountNumber = !empty($data['accountNumber']) ? trim($data['accountNumber']) : null;
             $routingNumber = !empty($data['routingNumber']) ? trim($data['routingNumber']) : null;
@@ -257,7 +265,8 @@ class AccountController extends Controller {
                 $overdraftLimit,
                 $minimumPayment,
                 $walletAddress,
-                $excludedFromReports
+                $excludedFromReports,
+                $statementDay
             );
 
             // Audit log the account creation
@@ -423,6 +432,13 @@ class AccountController extends Controller {
             }
             if (isset($data['minimumPayment'])) {
                 $updates['minimumPayment'] = $data['minimumPayment'] !== '' ? (float) $data['minimumPayment'] : null;
+            }
+            if (isset($data['statementDay'])) {
+                $statementDay = $data['statementDay'] !== '' && $data['statementDay'] !== null ? (int) $data['statementDay'] : null;
+                if ($statementDay !== null && ($statementDay < 1 || $statementDay > 31)) {
+                    return new DataResponse(['error' => $this->l->t('Statement day must be between 1 and 31')], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['statementDay'] = $statementDay;
             }
             if (isset($data['openingBalance']) && $data['openingBalance'] !== '') {
                 $updates['openingBalance'] = (float) $data['openingBalance'];

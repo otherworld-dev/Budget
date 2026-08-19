@@ -66,7 +66,8 @@ class AccountService extends AbstractCrudService {
         ?float $overdraftLimit = null,
         ?float $minimumPayment = null,
         ?string $walletAddress = null,
-        bool $excludedFromReports = false
+        bool $excludedFromReports = false,
+        ?int $statementDay = null
     ): Account {
         $account = new Account();
         $account->setUserId($userId);
@@ -88,6 +89,7 @@ class AccountService extends AbstractCrudService {
         $account->setCreditLimit($creditLimit);
         $account->setOverdraftLimit($overdraftLimit);
         $account->setMinimumPayment($minimumPayment);
+        $account->setStatementDay($statementDay);
         $account->setExcludedFromReports($excludedFromReports);
         $this->setTimestamps($account, true);
 

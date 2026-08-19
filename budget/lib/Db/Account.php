@@ -49,6 +49,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setOverdraftLimit(?float $overdraftLimit)
  * @method float|null getMinimumPayment()
  * @method void setMinimumPayment(?float $minimumPayment)
+ * @method int|null getStatementDay()
+ * @method void setStatementDay(?int $statementDay)
  * @method bool|null getInterestEnabled()
  * @method void setInterestEnabled(?bool $interestEnabled)
  * @method string|null getCompoundingFrequency()
@@ -97,6 +99,7 @@ class Account extends Entity implements JsonSerializable {
     protected $creditLimit;
     protected $overdraftLimit;
     protected $minimumPayment;
+    protected $statementDay;    // Day of month (1-31) the card's statement payment is due (#347)
     protected $interestEnabled;
     protected $compoundingFrequency;
     protected $accruedInterest;
@@ -117,6 +120,7 @@ class Account extends Entity implements JsonSerializable {
         $this->addType('creditLimit', 'float');
         $this->addType('overdraftLimit', 'float');
         $this->addType('minimumPayment', 'float');
+        $this->addType('statementDay', 'integer');
         $this->addType('interestEnabled', 'boolean');
         $this->addType('accruedInterest', 'float');
         $this->addType('excludedFromReports', 'boolean');
@@ -174,6 +178,7 @@ class Account extends Entity implements JsonSerializable {
             'creditLimit' => $this->getCreditLimit(),
             'overdraftLimit' => $this->getOverdraftLimit(),
             'minimumPayment' => $this->getMinimumPayment(),
+            'statementDay' => $this->getStatementDay(),
             'interestEnabled' => $this->getInterestEnabled() ?? false,
             'compoundingFrequency' => $this->getCompoundingFrequency(),
             'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
@@ -211,6 +216,7 @@ class Account extends Entity implements JsonSerializable {
             'creditLimit' => $this->getCreditLimit(),
             'overdraftLimit' => $this->getOverdraftLimit(),
             'minimumPayment' => $this->getMinimumPayment(),
+            'statementDay' => $this->getStatementDay(),
             'interestEnabled' => $this->getInterestEnabled() ?? false,
             'compoundingFrequency' => $this->getCompoundingFrequency(),
             'accruedInterest' => $this->getAccruedInterest() ?? 0.0,

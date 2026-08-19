@@ -494,4 +494,16 @@ class AccountServiceTest extends TestCase {
 
         $this->assertTrue($captured->getExcludedFromReports());
     }
+
+    public function testCreateStoresStatementDay(): void {
+        $this->accountMapper->expects($this->once())
+            ->method('insert')
+            ->willReturnCallback(function (Account $account) {
+                $this->assertSame(15, $account->getStatementDay());
+                $account->setId(1);
+                return $account;
+            });
+
+        $this->service->create('user1', 'Visa', 'credit_card', 0.0, 'USD', statementDay: 15);
+    }
 }

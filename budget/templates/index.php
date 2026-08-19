@@ -1200,6 +1200,10 @@ style('budget', 'budget-app');
                                     <label><?php p($l->t('Min Payment')); ?></label>
                                     <div id="account-minimum-payment-display" class="balance-amount"></div>
                                 </div>
+                                <div class="balance-item" id="statement-day-info" style="display: none;">
+                                    <label><?php p($l->t('Statement due day')); ?></label>
+                                    <div id="account-statement-day-display" class="balance-amount"></div>
+                                </div>
                                 <div class="balance-item" id="card-payment-info" style="display: none;">
                                     <label><?php p($l->t('Payment due')); ?></label>
                                     <div id="account-card-payment" class="balance-amount"></div>
@@ -5769,6 +5773,12 @@ style('budget', 'budget-app');
                             <label for="account-minimum-payment"><?php p($l->t('Minimum Payment')); ?></label>
                             <input type="number" id="account-minimum-payment" step="0.01" min="0" aria-describedby="account-minimum-payment-help">
                             <small id="account-minimum-payment-help" class="form-text"><?php p($l->t('Used for debt payoff calculations')); ?></small>
+                        </div>
+
+                        <div class="form-group conditional" id="statement-day-group">
+                            <label for="account-statement-day"><?php p($l->t('Statement due day')); ?></label>
+                            <input type="number" id="account-statement-day" step="1" min="1" max="31" aria-describedby="account-statement-day-help">
+                            <small id="account-statement-day-help" class="form-text"><?php p($l->t('Day of the month the statement payment is due')); ?></small>
                         </div>
 
                         <div class="form-group conditional" id="interest-enabled-group">

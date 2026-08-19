@@ -659,8 +659,8 @@ class AccountControllerTest extends TestCase {
 		$response = $this->controller->create();
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
-		// excludedFromReports is the final positional argument to AccountService::create
-		$this->assertTrue(end($captured));
+		// excludedFromReports is the 19th positional argument to AccountService::create
+		$this->assertTrue($captured[18]);
 	}
 
 	public function testUpdateServiceException(): void {
@@ -895,6 +895,41 @@ class AccountControllerTest extends TestCase {
 		$this->service->method('reconcile')->willThrowException(new \RuntimeException('error'));
 
 		$response = $this->controller->reconcile(1, 1000.00);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	// ── statementDay (#347) ─────────────────────────────────────────
+
+	public function testCreatePassesStatementDayToService(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Visa', 'type' => 'credit_card', 'statementDay' => 15,
+		]));
+		$this->service->expects($this->once())->method('create')
+			->willReturnCallback(function (...$args) {
+				$this->assertSame(15, $args[19]); // 20th positional arg
+				return $this->makeAccount();
+			});
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateRejectsOutOfRangeStatementDay(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Visa', 'type' => 'credit_card', 'statementDay' => 32,
+		]));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUpdateAcceptsAndValidatesStatementDay(): void {
+		$this->mockInput(json_encode(['statementDay' => 0]));
+
+		$response = $this->controller->update(1);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}

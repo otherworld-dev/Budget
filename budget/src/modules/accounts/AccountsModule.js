@@ -1040,6 +1040,19 @@ export default class AccountsModule {
             }
         }
 
+        // Statement due day tile for card accounts (#347)
+        const statementDayInfo = document.getElementById('statement-day-info');
+        const statementDayDisplay = document.getElementById('account-statement-day-display');
+        if (statementDayInfo && statementDayDisplay) {
+            const cardLike = ['credit_card', 'line_of_credit'].includes(account.type);
+            if (cardLike && account.statementDay) {
+                statementDayInfo.style.display = 'block';
+                statementDayDisplay.textContent = t('budget', 'Day {day} each month', { day: account.statementDay });
+            } else {
+                statementDayInfo.style.display = 'none';
+            }
+        }
+
         // Payment bill tile / setup button for card accounts (#347)
         this.updateCardPaymentInfo(account);
 
@@ -1641,6 +1654,7 @@ export default class AccountsModule {
                     name: t('budget', '{account} payment', { account: account.name }),
                     destinationAccountId: account.id,
                     amountType: 'statement',
+                    dueDay: account.statementDay || null,
                 });
             });
         }
@@ -2375,6 +2389,7 @@ export default class AccountsModule {
                 creditLimit: getFormValue('account-credit-limit', null, true),
                 overdraftLimit: getFormValue('account-overdraft-limit', null, true),
                 minimumPayment: getFormValue('account-minimum-payment', null, true),
+                statementDay: getFormValue('account-statement-day', null, true),
                 interestEnabled: document.getElementById('account-interest-enabled')?.checked || false,
                 compoundingFrequency: getFormValue('account-compounding-frequency', 'daily'),
                 excludedFromReports: document.getElementById('account-excluded-from-reports')?.checked || false
@@ -2652,6 +2667,7 @@ export default class AccountsModule {
             document.getElementById('account-credit-limit').value = account.creditLimit || '';
             document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
             document.getElementById('account-minimum-payment').value = account.minimumPayment || '';
+            document.getElementById('account-statement-day').value = account.statementDay || '';
 
             const interestEnabledEl = document.getElementById('account-interest-enabled');
             if (interestEnabledEl) interestEnabledEl.checked = account.interestEnabled || false;
@@ -2823,6 +2839,7 @@ export default class AccountsModule {
                 document.getElementById('interest-enabled-group').style.display = 'block';
                 document.getElementById('compounding-frequency-group').style.display = 'block';
                 document.getElementById('minimum-payment-group').style.display = 'block';
+                document.getElementById('statement-day-group').style.display = 'block';
                 break;
 
             case 'loan':
@@ -2833,6 +2850,10 @@ export default class AccountsModule {
                 document.getElementById('interest-enabled-group').style.display = 'block';
                 document.getElementById('compounding-frequency-group').style.display = 'block';
                 document.getElementById('minimum-payment-group').style.display = 'block';
+                if (accountType === 'line_of_credit') {
+                    // Statement cycles are card-like, not loan-like
+                    document.getElementById('statement-day-group').style.display = 'block';
+                }
                 break;
 
             case 'investment':

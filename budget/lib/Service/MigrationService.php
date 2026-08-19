@@ -508,6 +508,8 @@ class MigrationService {
             $account->setInterestRate($accData['interestRate'] ?? null);
             $account->setCreditLimit($accData['creditLimit'] ?? null);
             $account->setOverdraftLimit($accData['overdraftLimit'] ?? null);
+            $account->setMinimumPayment($accData['minimumPayment'] ?? null);
+            $account->setStatementDay(isset($accData['statementDay']) ? (int) $accData['statementDay'] : null);
             $account->setCreatedAt($accData['createdAt'] ?? date('Y-m-d H:i:s'));
             $account->setUpdatedAt($accData['updatedAt'] ?? date('Y-m-d H:i:s'));
 
