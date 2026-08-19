@@ -214,7 +214,7 @@ class BillMapper extends QBMapper {
      * @return void
      */
     private const UPDATABLE_COLUMNS = [
-        'name', 'description', 'amount', 'frequency', 'due_day', 'due_month',
+        'name', 'description', 'amount', 'amount_type', 'frequency', 'due_day', 'due_month',
         'category_id', 'account_id', 'auto_detect_pattern', 'is_active',
         'last_paid_date', 'next_due_date', 'notes', 'reminder_days',
         'last_reminder_sent', 'custom_recurrence_pattern', 'auto_pay_enabled',
