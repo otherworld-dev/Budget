@@ -66,9 +66,17 @@ psalm:
 translations:
 	php translationtool.phar create-pot-files
 
+# Weblate's msgmerge addon leaves fuzzy guesses in the .po files. They must
+# never compile into l10n/: they are wrong-language junk, and a stray %
+# placeholder in one crashes vsprintf at runtime (#305 class). Fuzzies are
+# stripped from a working copy only — the .po files themselves are Weblate's
+# and are restored untouched even if the compile fails. Requires gettext.
 .PHONY: translations-compile
 translations-compile:
-	php translationtool.phar convert-po-files
+	cp -r translationfiles .po-backup && \
+	( for po in translationfiles/*/budget.po; do msgattrib --no-fuzzy -o "$$po" "$$po"; done && \
+	  php translationtool.phar convert-po-files ); status=$$?; \
+	rm -rf translationfiles && mv .po-backup translationfiles; exit $$status
 
 # Clean
 .PHONY: clean
