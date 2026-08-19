@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.41.0] - 2026-08-19
 
 ### Added
 - **The Help & Docs page now says how to support the project.** A small section with the GitHub Sponsors and PayPal links — the same ones listed on the app store — for people who installed the app and never see either. The floating help panel carries the links too. Nothing nags: it sits in Help, and the app works fully without donating
