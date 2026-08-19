@@ -469,6 +469,75 @@ class MigrationServiceTest extends TestCase {
 
 	// ===== Helpers =====
 
+	// ===== complete coverage (#351) =====
+
+	public function testImportTransactionsReturnsIdMapAndCollectsLinks(): void {
+		$nextId = 100;
+		$this->transactionMapper->method('insert')->willReturnCallback(function (Transaction $t) use (&$nextId) {
+			$t->setId($nextId++);
+			return $t;
+		});
+
+		$rows = [
+			['accountId' => 1, 'date' => '2026-01-01', 'amount' => 50.0, 'type' => 'debit',
+				'id' => 11, 'linkedTransactionId' => 12, 'billId' => 7],
+			['accountId' => 1, 'date' => '2026-01-01', 'amount' => 50.0, 'type' => 'credit',
+				'id' => 12, 'linkedTransactionId' => 11],
+		];
+
+		$method = new \ReflectionMethod($this->service, 'importTransactions');
+		$method->setAccessible(true);
+		$result = $method->invoke($this->service, 'user1', $rows, ['accounts' => [1 => 5], 'categories' => []]);
+
+		$this->assertSame([11 => 100, 12 => 101], $result['map']);
+		$this->assertSame([100 => 12, 101 => 11], $result['links']);
+		$this->assertSame([100 => 7], $result['billRefs']);
+	}
+
+	public function testRemapRowRemapsAndDrops(): void {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$method->setAccessible(true);
+		$idMaps = ['transactions' => [11 => 100], 'categories' => [3 => 30], 'accounts' => [1 => 5]];
+
+		$spec = ['fk' => [
+			'transaction_id' => ['map' => 'transactions', 'onMissing' => 'drop'],
+			'category_id' => ['map' => 'categories', 'onMissing' => 'null'],
+		]];
+
+		// Both mappable
+		$row = $method->invoke($this->service, ['id' => 9, 'transaction_id' => 11, 'category_id' => 3, 'amount' => '5.00'], $spec, $idMaps);
+		$this->assertSame(100, $row['transaction_id']);
+		$this->assertSame(30, $row['category_id']);
+
+		// Nullable fk unmappable -> null; row survives
+		$row = $method->invoke($this->service, ['id' => 9, 'transaction_id' => 11, 'category_id' => 999], $spec, $idMaps);
+		$this->assertNull($row['category_id']);
+
+		// Required fk unmappable -> row dropped
+		$row = $method->invoke($this->service, ['id' => 9, 'transaction_id' => 999, 'category_id' => 3], $spec, $idMaps);
+		$this->assertNull($row);
+	}
+
+	public function testRemapRowHandlesJsonFks(): void {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$method->setAccessible(true);
+		$idMaps = ['accounts' => [1 => 5, 2 => 6]];
+
+		$spec = ['jsonFk' => [
+			'selected_debt_ids' => ['map' => 'accounts', 'shape' => 'idList'],
+			'rate_overrides' => ['map' => 'accounts', 'shape' => 'idKeyedObject'],
+		]];
+
+		$row = $method->invoke($this->service, [
+			'id' => 1,
+			'selected_debt_ids' => json_encode([1, 2, 999]),
+			'rate_overrides' => json_encode([1 => 4.5, 999 => 9.9]),
+		], $spec, $idMaps);
+
+		$this->assertSame([5, 6], json_decode($row['selected_debt_ids'], true));
+		$this->assertSame([5 => 4.5], json_decode($row['rate_overrides'], true));
+	}
+
 	private function createTestZip(array $files): string {
 		$tempFile = tempnam(sys_get_temp_dir(), 'test_zip_');
 		$zip = new \ZipArchive();

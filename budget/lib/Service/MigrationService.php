@@ -374,7 +374,10 @@ class MigrationService {
         $idMaps['accounts'] = $this->importAccounts($userId, $data['accounts'] ?? []);
 
         // 3. Import transactions with ID remapping
-        $this->importTransactions($userId, $data['transactions'] ?? [], $idMaps);
+        $txResult = $this->importTransactions($userId, $data['transactions'] ?? [], $idMaps);
+        $idMaps['transactions'] = $txResult['map'];
+        // Restore transfer pair links between the freshly imported rows (#351)
+        $this->fixupTransactionColumn('linked_transaction_id', $txResult['links'], $txResult['map']);
 
         // 4. Import bills with ID remapping
         $this->importBills($userId, $data['bills'] ?? [], $idMaps);
@@ -523,7 +526,18 @@ class MigrationService {
     /**
      * Import transactions with ID remapping.
      */
-    private function importTransactions(string $userId, array $transactions, array $idMaps): void {
+    /**
+     * @return array{map: array<int,int>, links: array<int,int>, billRefs: array<int,int>}
+     *   map: old id => new id; links: NEW id => OLD linkedTransactionId;
+     *   billRefs: NEW id => OLD billId. Links and bill references are
+     *   restored in a fixup pass once both sides have new ids — dropping
+     *   them unlinked every transfer pair on migration (#351), which then
+     *   counted as income/expense in reports.
+     */
+    private function importTransactions(string $userId, array $transactions, array $idMaps): array {
+        $map = [];
+        $links = [];
+        $billRefs = [];
         foreach ($transactions as $txnData) {
             // Skip if account doesn't exist in map (shouldn't happen with valid export)
             $oldAccountId = $txnData['accountId'];
@@ -555,8 +569,157 @@ class MigrationService {
                 $transaction->setCategoryId($idMaps['categories'][$oldCategoryId]);
             }
 
-            $this->transactionMapper->insert($transaction);
+            $inserted = $this->transactionMapper->insert($transaction);
+            if (isset($txnData['id'])) {
+                $map[(int) $txnData['id']] = $inserted->getId();
+            }
+            if (!empty($txnData['linkedTransactionId'])) {
+                $links[$inserted->getId()] = (int) $txnData['linkedTransactionId'];
+            }
+            if (!empty($txnData['billId'])) {
+                $billRefs[$inserted->getId()] = (int) $txnData['billId'];
+            }
         }
+
+        return ['map' => $map, 'links' => $links, 'billRefs' => $billRefs];
+    }
+
+    /**
+     * Second pass over freshly imported transactions: point linked transfer
+     * legs and bill references at the NEW ids.
+     *
+     * @param array<int,int> $refs newTransactionId => old referenced id
+     * @param array<int,int> $idMap old referenced id => new referenced id
+     */
+    private function fixupTransactionColumn(string $column, array $refs, array $idMap): void {
+        foreach ($refs as $newTxId => $oldRefId) {
+            if (!isset($idMap[$oldRefId])) {
+                continue;
+            }
+            $qb = $this->db->getQueryBuilder();
+            $qb->update('budget_transactions')
+                ->set($column, $qb->createNamedParameter($idMap[$oldRefId], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT))
+                ->where($qb->expr()->eq('id', $qb->createNamedParameter($newTxId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)));
+            $qb->executeStatement();
+        }
+    }
+
+    /**
+     * Remap a raw table row's foreign keys per its EXTRA_TABLES spec (#351).
+     * Returns the adjusted row, or null when a required reference cannot be
+     * mapped (the row would point at data that was not imported).
+     *
+     * @param array<string,mixed> $row raw column => value
+     */
+    private function remapRow(array $row, array $spec, array $idMaps): ?array {
+        foreach ($spec['fk'] ?? [] as $column => $fkSpec) {
+            $value = $row[$column] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $mapped = $idMaps[$fkSpec['map']][(int) $value] ?? null;
+            if ($mapped !== null) {
+                $row[$column] = $mapped;
+            } elseif (($fkSpec['onMissing'] ?? 'null') === 'drop') {
+                return null;
+            } else {
+                $row[$column] = null;
+            }
+        }
+
+        foreach ($spec['jsonFk'] ?? [] as $column => $fkSpec) {
+            $raw = $row[$column] ?? null;
+            if ($raw === null || $raw === '') {
+                continue;
+            }
+            $decoded = json_decode((string) $raw, true);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            $map = $idMaps[$fkSpec['map']] ?? [];
+            if (($fkSpec['shape'] ?? 'idList') === 'idKeyedObject') {
+                $remapped = [];
+                foreach ($decoded as $oldId => $v) {
+                    if (isset($map[(int) $oldId])) {
+                        $remapped[$map[(int) $oldId]] = $v;
+                    }
+                }
+            } else {
+                $remapped = [];
+                foreach ($decoded as $oldId) {
+                    if (isset($map[(int) $oldId])) {
+                        $remapped[] = $map[(int) $oldId];
+                    }
+                }
+            }
+            $row[$column] = json_encode($remapped);
+        }
+
+        return $row;
+    }
+
+    /**
+     * Export one registry table's rows for the user (raw columns, snake_case).
+     * user_id is dropped (reassigned on import); id is kept for remapping.
+     */
+    private function exportTable(string $userId, array $spec): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.*')->from($spec['table'], 't');
+        if (($spec['scope'] ?? 'user') === 'user') {
+            $qb->where($qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId)));
+        } else {
+            $join = $spec['scope'];
+            $qb->innerJoin('t', $join['join'], 'p', $qb->expr()->eq('t.' . $join['on'], 'p.id'))
+                ->where($qb->expr()->eq('p.' . ($join['parentUserColumn'] ?? 'user_id'), $qb->createNamedParameter($userId)));
+        }
+
+        $result = $qb->executeQuery();
+        $rows = [];
+        while ($row = $result->fetch()) {
+            unset($row['user_id']);
+            $rows[] = $row;
+        }
+        $result->closeCursor();
+        return $rows;
+    }
+
+    /**
+     * Import one registry table's rows: reassign user_id, remap foreign keys,
+     * drop rows whose required references were not imported, record this
+     * table's own old => new ids when later tables need them.
+     *
+     * @return int number of rows imported
+     */
+    private function importTable(string $userId, string $key, array $spec, array $rows, array &$idMaps): int {
+        $count = 0;
+        $hasUserColumn = ($spec['scope'] ?? 'user') === 'user';
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $row = $this->remapRow($row, $spec, $idMaps);
+            if ($row === null) {
+                continue;
+            }
+            $oldId = isset($row['id']) ? (int) $row['id'] : null;
+            unset($row['id'], $row['user_id']);
+            if ($hasUserColumn) {
+                $row['user_id'] = $userId;
+            }
+
+            $qb = $this->db->getQueryBuilder();
+            $qb->insert($spec['table']);
+            foreach ($row as $column => $value) {
+                $qb->setValue($column, $qb->createNamedParameter($value));
+            }
+            $qb->executeStatement();
+            $count++;
+
+            if (isset($spec['idMap']) && $oldId !== null) {
+                $idMaps[$spec['idMap']][$oldId] = (int) $this->db->lastInsertId($spec['table']);
+            }
+        }
+        return $count;
     }
 
     /**
