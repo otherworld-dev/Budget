@@ -22,8 +22,197 @@ use OCP\IDBConnection;
  * Service for exporting and importing all user data for migration between instances.
  */
 class MigrationService {
-    private const EXPORT_VERSION = '1.1.0';
+    private const EXPORT_VERSION = '1.2.0';
     private const APP_ID = 'budget';
+
+    /**
+     * Table-level round-trip specs (#351): everything beyond the five bespoke
+     * entity types (categories, accounts, transactions, bills, import rules)
+     * and settings. Each entry becomes <key>.json in the archive. Keys:
+     *   table   physical table name (without the oc_ prefix)
+     *   scope   'user' (has a user_id column), or ['joins' => [[table,
+     *           localColumn], …]] — a chain ending at a table with user_id
+     *   idMap   record this table's old => new ids under this key
+     *   fk      [column => ['map' => idMapKey, 'onMissing' => 'null'|'drop']]
+     *   jsonFk  [column => ['map' => idMapKey,
+     *           'shape' => 'idList'|'idKeyedObject'|'idValuedObject']]
+     *
+     * PRE entries import after categories/accounts, before transactions and
+     * bills (bills remap their tagIds through the tags map). POST entries
+     * import after bills. Order within each phase is dependency order.
+     *
+     * Deliberately NOT exported: audit log and idempotency keys (instance
+     * state), bank-sync connections/mappings (provider agreements and
+     * credentials are instance-specific), shares (reference other Nextcloud
+     * users), attachments (file ids do not survive), fetched exchange-rate
+     * cache (manual rates ARE exported), legacy tables nothing reads.
+     */
+    private const EXTRA_TABLES_PRE = [
+        'tag_sets' => [
+            'table' => 'budget_tag_sets',
+            'scope' => ['joins' => [['budget_categories', 'category_id']]],
+            'idMap' => 'tag_sets',
+            'fk' => ['category_id' => ['map' => 'categories', 'onMissing' => 'drop']],
+        ],
+        'tags' => [
+            'table' => 'budget_tags',
+            'scope' => 'user',
+            'idMap' => 'tags',
+            'fk' => ['tag_set_id' => ['map' => 'tag_sets', 'onMissing' => 'null']],
+        ],
+    ];
+
+    private const EXTRA_TABLES_POST = [
+        'transaction_tags' => [
+            'table' => 'budget_transaction_tags',
+            'scope' => ['joins' => [['budget_transactions', 'transaction_id'], ['budget_accounts', 'account_id']]],
+            'fk' => [
+                'transaction_id' => ['map' => 'transactions', 'onMissing' => 'drop'],
+                'tag_id' => ['map' => 'tags', 'onMissing' => 'drop'],
+            ],
+        ],
+        'tx_splits' => [
+            'table' => 'budget_tx_splits',
+            'scope' => ['joins' => [['budget_transactions', 'transaction_id'], ['budget_accounts', 'account_id']]],
+            'fk' => [
+                'transaction_id' => ['map' => 'transactions', 'onMissing' => 'drop'],
+                'category_id' => ['map' => 'categories', 'onMissing' => 'null'],
+            ],
+        ],
+        'recurring_income' => [
+            'table' => 'budget_recurring_income',
+            'scope' => 'user',
+            'fk' => [
+                'account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
+                'category_id' => ['map' => 'categories', 'onMissing' => 'null'],
+            ],
+        ],
+        'savings_goals' => [
+            'table' => 'budget_savings_goals',
+            'scope' => 'user',
+            'fk' => [
+                'account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
+                'tag_id' => ['map' => 'tags', 'onMissing' => 'null'],
+            ],
+        ],
+        'assets' => [
+            'table' => 'budget_assets',
+            'scope' => 'user',
+            'idMap' => 'assets',
+        ],
+        'asset_snaps' => [
+            'table' => 'budget_asset_snaps',
+            'scope' => 'user',
+            'fk' => ['asset_id' => ['map' => 'assets', 'onMissing' => 'drop']],
+        ],
+        'pensions' => [
+            'table' => 'budget_pensions',
+            'scope' => 'user',
+            'idMap' => 'pensions',
+        ],
+        'pen_contribs' => [
+            'table' => 'budget_pen_contribs',
+            'scope' => 'user',
+            'idMap' => 'pen_contribs',
+            'fk' => [
+                'pension_id' => ['map' => 'pensions', 'onMissing' => 'drop'],
+                'transaction_id' => ['map' => 'transactions', 'onMissing' => 'null'],
+                'source_account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
+            ],
+        ],
+        'pen_recur' => [
+            'table' => 'budget_pen_recur',
+            'scope' => 'user',
+            'fk' => [
+                'pension_id' => ['map' => 'pensions', 'onMissing' => 'drop'],
+                'source_account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
+            ],
+        ],
+        'pen_snaps' => [
+            'table' => 'budget_pen_snaps',
+            'scope' => 'user',
+            'fk' => ['pension_id' => ['map' => 'pensions', 'onMissing' => 'drop']],
+        ],
+        'interest_rates' => [
+            'table' => 'budget_interest_rates',
+            'scope' => 'user',
+            'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'drop']],
+        ],
+        'manual_rates' => [
+            'table' => 'budget_manual_rates',
+            'scope' => 'user',
+        ],
+        'import_templates' => [
+            'table' => 'budget_import_templates',
+            'scope' => 'user',
+            'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'null']],
+            'jsonFk' => ['account_mapping' => ['map' => 'accounts', 'shape' => 'idValuedObject']],
+        ],
+        'imp_links' => [
+            'table' => 'budget_imp_links',
+            'scope' => 'user',
+            'fk' => ['budget_account_id' => ['map' => 'accounts', 'onMissing' => 'drop']],
+        ],
+        'saved_reports' => [
+            'table' => 'budget_saved_reports',
+            'scope' => 'user',
+        ],
+        'nw_snaps' => [
+            'table' => 'budget_nw_snaps',
+            'scope' => 'user',
+        ],
+        'bgt_snapshots' => [
+            'table' => 'budget_bgt_snapshots',
+            'scope' => 'user',
+            'fk' => ['category_id' => ['map' => 'categories', 'onMissing' => 'drop']],
+        ],
+        'recon_sessions' => [
+            'table' => 'budget_recon_sessions',
+            'scope' => 'user',
+            'idMap' => 'recon_sessions',
+            'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'drop']],
+        ],
+        'dscn' => [
+            'table' => 'budget_dscn',
+            'scope' => 'user',
+            'jsonFk' => [
+                'selected_debt_ids' => ['map' => 'accounts', 'shape' => 'idList'],
+                'rate_overrides' => ['map' => 'accounts', 'shape' => 'idKeyedObject'],
+            ],
+        ],
+        'cat_mutes' => [
+            'table' => 'budget_cat_mutes',
+            'scope' => 'user',
+            'fk' => ['category_id' => ['map' => 'categories', 'onMissing' => 'drop']],
+        ],
+        'contacts' => [
+            'table' => 'budget_contacts',
+            'scope' => 'user',
+            'idMap' => 'contacts',
+        ],
+        'expense_shares' => [
+            'table' => 'budget_expense_shares',
+            'scope' => 'user',
+            'fk' => [
+                'transaction_id' => ['map' => 'transactions', 'onMissing' => 'drop'],
+                'contact_id' => ['map' => 'contacts', 'onMissing' => 'drop'],
+            ],
+        ],
+        'settlements' => [
+            'table' => 'budget_settlements',
+            'scope' => 'user',
+            'fk' => ['contact_id' => ['map' => 'contacts', 'onMissing' => 'drop']],
+        ],
+        'dismissed_sugg' => [
+            'table' => 'budget_dismissed_sugg',
+            'scope' => 'user',
+        ],
+        'dismiss_imp' => [
+            'table' => 'budget_dismiss_imp',
+            'scope' => ['joins' => [['budget_accounts', 'account_id']]],
+            'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'drop']],
+        ],
+    ];
 
     public function __construct(
         private AccountMapper $accountMapper,
@@ -90,14 +279,7 @@ class MigrationService {
             return [
                 'success' => true,
                 'message' => 'Import completed successfully',
-                'counts' => [
-                    'categories' => count($importData['categories'] ?? []),
-                    'accounts' => count($importData['accounts'] ?? []),
-                    'transactions' => count($importData['transactions'] ?? []),
-                    'bills' => count($importData['bills'] ?? []),
-                    'importRules' => count($importData['import_rules'] ?? []),
-                    'settings' => count($importData['settings'] ?? [])
-                ]
+                'counts' => $this->countData($importData),
             ];
         } catch (\Exception $e) {
             $this->db->rollBack();
@@ -123,16 +305,24 @@ class MigrationService {
         return [
             'valid' => true,
             'manifest' => $importData['manifest'] ?? [],
-            'counts' => [
-                'categories' => count($importData['categories'] ?? []),
-                'accounts' => count($importData['accounts'] ?? []),
-                'transactions' => count($importData['transactions'] ?? []),
-                'bills' => count($importData['bills'] ?? []),
-                'importRules' => count($importData['import_rules'] ?? []),
-                'settings' => count($importData['settings'] ?? [])
-            ],
+            'counts' => $this->countData($importData),
             'warnings' => $warnings
         ];
+    }
+
+    /**
+     * Per-data-set row counts (manifest excluded). 'importRules' keeps its
+     * historical camelCase key for the preview UI.
+     */
+    private function countData(array $data): array {
+        $counts = [];
+        foreach ($data as $key => $rows) {
+            if ($key === 'manifest') {
+                continue;
+            }
+            $counts[$key === 'import_rules' ? 'importRules' : $key] = is_array($rows) ? count($rows) : 0;
+        }
+        return $counts;
     }
 
     /**
@@ -166,26 +356,7 @@ class MigrationService {
             $settingsData[$setting->getKey()] = $setting->getValue();
         }
 
-        $manifest = [
-            'version' => self::EXPORT_VERSION,
-            'appId' => self::APP_ID,
-            'exportedAt' => date('c'),
-            'counts' => [
-                'categories' => count($categoriesData),
-                'accounts' => count($accountsData),
-                'transactions' => count($transactionsData),
-                'bills' => count($billsData),
-                'importRules' => count($importRulesData),
-                'settings' => count($settingsData)
-            ],
-            // Receipt attachments reference files in the user's Files space by
-            // instance-specific fileId — the files themselves are not part of
-            // this archive, and attachment links are not restored on import.
-            'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
-        ];
-
-        return [
-            'manifest' => $manifest,
+        $data = [
             'categories' => $categoriesData,
             'accounts' => $accountsData,
             'transactions' => $transactionsData,
@@ -193,6 +364,30 @@ class MigrationService {
             'import_rules' => $importRulesData,
             'settings' => $settingsData
         ];
+
+        // Everything else round-trips at the table level (#351)
+        foreach (self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST as $key => $spec) {
+            $data[$key] = $this->exportTable($userId, $spec);
+        }
+
+        $counts = [];
+        foreach ($data as $key => $rows) {
+            $counts[$key] = count($rows);
+        }
+
+        $manifest = [
+            'version' => self::EXPORT_VERSION,
+            'appId' => self::APP_ID,
+            'exportedAt' => date('c'),
+            'counts' => $counts,
+            // Receipt attachments reference files in the user's Files space by
+            // instance-specific fileId — the files themselves are not part of
+            // this archive, and attachment links are not restored on import.
+            'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
+            'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
+        ];
+
+        return ['manifest' => $manifest] + $data;
     }
 
     /**
@@ -206,14 +401,10 @@ class MigrationService {
             throw new \RuntimeException('Failed to create ZIP archive');
         }
 
-        // Add each data file
-        $zip->addFromString('manifest.json', json_encode($data['manifest'], JSON_PRETTY_PRINT));
-        $zip->addFromString('categories.json', json_encode($data['categories'], JSON_PRETTY_PRINT));
-        $zip->addFromString('accounts.json', json_encode($data['accounts'], JSON_PRETTY_PRINT));
-        $zip->addFromString('transactions.json', json_encode($data['transactions'], JSON_PRETTY_PRINT));
-        $zip->addFromString('bills.json', json_encode($data['bills'], JSON_PRETTY_PRINT));
-        $zip->addFromString('import_rules.json', json_encode($data['import_rules'], JSON_PRETTY_PRINT));
-        $zip->addFromString('settings.json', json_encode($data['settings'], JSON_PRETTY_PRINT));
+        // One JSON file per data set, manifest included
+        foreach ($data as $key => $payload) {
+            $zip->addFromString($key . '.json', json_encode($payload, JSON_PRETTY_PRINT));
+        }
 
         $zip->close();
 
@@ -258,6 +449,10 @@ class MigrationService {
             'import_rules' => 'import_rules.json',
             'settings' => 'settings.json'
         ];
+        // Table-level files (#351) — absent in pre-1.2 exports, treated as empty
+        foreach (array_keys(self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST) as $key) {
+            $files[$key] = $key . '.json';
+        }
 
         foreach ($files as $key => $filename) {
             $content = $zip->getFromName($filename);
@@ -320,6 +515,13 @@ class MigrationService {
     private function clearUserData(string $userId): void {
         // Delete in reverse dependency order
 
+        // Table-level extras first — the join-scoped ones (transaction tags,
+        // splits, dismissed imports, tag sets) resolve their owner through
+        // parents that are deleted further down (#351)
+        foreach (self::EXTRA_TABLES_POST + self::EXTRA_TABLES_PRE as $spec) {
+            $this->clearTable($userId, $spec);
+        }
+
         // Transactions reference accounts and categories
         $transactions = $this->transactionMapper->findAll($userId);
         foreach ($transactions as $txn) {
@@ -373,6 +575,12 @@ class MigrationService {
         // 2. Import accounts
         $idMaps['accounts'] = $this->importAccounts($userId, $data['accounts'] ?? []);
 
+        // 2b. Tag sets and tags — before transactions/bills so tag references
+        // can be remapped (#351)
+        foreach (self::EXTRA_TABLES_PRE as $key => $spec) {
+            $this->importTable($userId, $key, $spec, $data[$key] ?? [], $idMaps);
+        }
+
         // 3. Import transactions with ID remapping
         $txResult = $this->importTransactions($userId, $data['transactions'] ?? [], $idMaps);
         $idMaps['transactions'] = $txResult['map'];
@@ -380,13 +588,25 @@ class MigrationService {
         $this->fixupTransactionColumn('linked_transaction_id', $txResult['links'], $txResult['map']);
 
         // 4. Import bills with ID remapping
-        $this->importBills($userId, $data['bills'] ?? [], $idMaps);
+        $idMaps['bills'] = $this->importBills($userId, $data['bills'] ?? [], $idMaps);
 
         // 5. Import import rules with ID remapping
         $this->importImportRules($userId, $data['import_rules'] ?? [], $idMaps);
 
         // 6. Import settings
         $this->importSettings($userId, $data['settings'] ?? []);
+
+        // 7. Everything else, table-level in dependency order (#351)
+        foreach (self::EXTRA_TABLES_POST as $key => $spec) {
+            $this->importTable($userId, $key, $spec, $data[$key] ?? [], $idMaps);
+        }
+
+        // 8. Point transactions at the new ids of their late-imported
+        // references (bills come after transactions; reconciliation sessions
+        // and pension contributions only exist after step 7)
+        $this->fixupTransactionColumn('bill_id', $txResult['billRefs'], $idMaps['bills']);
+        $this->fixupTransactionColumn('recon_session_id', $txResult['reconRefs'], $idMaps['recon_sessions'] ?? []);
+        $this->fixupTransactionColumn('pension_contrib_id', $txResult['pensionRefs'], $idMaps['pen_contribs'] ?? []);
 
         return $idMaps;
     }
@@ -538,6 +758,8 @@ class MigrationService {
         $map = [];
         $links = [];
         $billRefs = [];
+        $reconRefs = [];
+        $pensionRefs = [];
         foreach ($transactions as $txnData) {
             // Skip if account doesn't exist in map (shouldn't happen with valid export)
             $oldAccountId = $txnData['accountId'];
@@ -579,9 +801,21 @@ class MigrationService {
             if (!empty($txnData['billId'])) {
                 $billRefs[$inserted->getId()] = (int) $txnData['billId'];
             }
+            if (!empty($txnData['reconSessionId'])) {
+                $reconRefs[$inserted->getId()] = (int) $txnData['reconSessionId'];
+            }
+            if (!empty($txnData['pensionContribId'])) {
+                $pensionRefs[$inserted->getId()] = (int) $txnData['pensionContribId'];
+            }
         }
 
-        return ['map' => $map, 'links' => $links, 'billRefs' => $billRefs];
+        return [
+            'map' => $map,
+            'links' => $links,
+            'billRefs' => $billRefs,
+            'reconRefs' => $reconRefs,
+            'pensionRefs' => $pensionRefs,
+        ];
     }
 
     /**
@@ -637,15 +871,21 @@ class MigrationService {
                 continue;
             }
             $map = $idMaps[$fkSpec['map']] ?? [];
-            if (($fkSpec['shape'] ?? 'idList') === 'idKeyedObject') {
-                $remapped = [];
+            $shape = $fkSpec['shape'] ?? 'idList';
+            $remapped = [];
+            if ($shape === 'idKeyedObject') {
                 foreach ($decoded as $oldId => $v) {
                     if (isset($map[(int) $oldId])) {
                         $remapped[$map[(int) $oldId]] = $v;
                     }
                 }
+            } elseif ($shape === 'idValuedObject') {
+                foreach ($decoded as $k => $oldId) {
+                    if (isset($map[(int) $oldId])) {
+                        $remapped[$k] = $map[(int) $oldId];
+                    }
+                }
             } else {
-                $remapped = [];
                 foreach ($decoded as $oldId) {
                     if (isset($map[(int) $oldId])) {
                         $remapped[] = $map[(int) $oldId];
@@ -668,9 +908,15 @@ class MigrationService {
         if (($spec['scope'] ?? 'user') === 'user') {
             $qb->where($qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId)));
         } else {
-            $join = $spec['scope'];
-            $qb->innerJoin('t', $join['join'], 'p', $qb->expr()->eq('t.' . $join['on'], 'p.id'))
-                ->where($qb->expr()->eq('p.' . ($join['parentUserColumn'] ?? 'user_id'), $qb->createNamedParameter($userId)));
+            // Chain of joins ending at a table that has user_id
+            $prev = 't';
+            $alias = 't';
+            foreach ($spec['scope']['joins'] as $i => [$joinTable, $localColumn]) {
+                $alias = 'j' . $i;
+                $qb->innerJoin($prev, $joinTable, $alias, $qb->expr()->eq($prev . '.' . $localColumn, $alias . '.id'));
+                $prev = $alias;
+            }
+            $qb->where($qb->expr()->eq($alias . '.user_id', $qb->createNamedParameter($userId)));
         }
 
         $result = $qb->executeQuery();
@@ -716,16 +962,51 @@ class MigrationService {
             $count++;
 
             if (isset($spec['idMap']) && $oldId !== null) {
-                $idMaps[$spec['idMap']][$oldId] = (int) $this->db->lastInsertId($spec['table']);
+                $idMaps[$spec['idMap']][$oldId] = (int) $this->db->lastInsertId('*PREFIX*' . $spec['table']);
             }
         }
         return $count;
     }
 
     /**
+     * Delete one registry table's rows for the user (import is
+     * wipe-then-restore). Join-scoped tables are cleared through their
+     * parent chain and must be cleared before the parents are.
+     */
+    private function clearTable(string $userId, array $spec): void {
+        if (($spec['scope'] ?? 'user') === 'user') {
+            $qb = $this->db->getQueryBuilder();
+            $qb->delete($spec['table'])
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+            $qb->executeStatement();
+            return;
+        }
+
+        $joins = $spec['scope']['joins'];
+        // Innermost select: ids of the deepest parent owned by the user
+        [$deepTable] = $joins[count($joins) - 1];
+        $sql = 'SELECT id FROM *PREFIX*' . $deepTable . ' WHERE user_id = ?';
+        // Wrap outward through the chain
+        for ($i = count($joins) - 2; $i >= 0; $i--) {
+            [$table] = $joins[$i];
+            [, $childColumn] = $joins[$i + 1];
+            $sql = 'SELECT id FROM *PREFIX*' . $table . ' WHERE ' . $childColumn . ' IN (' . $sql . ')';
+        }
+        [, $localColumn] = $joins[0];
+        $this->db->executeStatement(
+            'DELETE FROM *PREFIX*' . $spec['table'] . ' WHERE ' . $localColumn . ' IN (' . $sql . ')',
+            [$userId]
+        );
+    }
+
+    /**
      * Import bills with ID remapping.
      */
-    private function importBills(string $userId, array $bills, array $idMaps): void {
+    /**
+     * @return array<int,int> Map of old bill ID => new bill ID
+     */
+    private function importBills(string $userId, array $bills, array $idMaps): array {
+        $map = [];
         foreach ($bills as $billData) {
             $bill = new Bill();
             $bill->setUserId($userId);
@@ -752,7 +1033,15 @@ class MigrationService {
             $bill->setAutoPayFailed(filter_var($billData['autoPayFailed'] ?? false, FILTER_VALIDATE_BOOLEAN));
             $bill->setIsTransfer(filter_var($billData['isTransfer'] ?? false, FILTER_VALIDATE_BOOLEAN));
             $bill->setTransferDescriptionPattern($billData['transferDescriptionPattern'] ?? null);
-            $bill->setTagIdsArray(is_array($billData['tagIds'] ?? null) ? $billData['tagIds'] : []);
+            // Tag references remap through the freshly imported tags (#351) —
+            // they used to be carried over as ids that meant nothing here
+            $newTagIds = [];
+            foreach ((is_array($billData['tagIds'] ?? null) ? $billData['tagIds'] : []) as $oldTagId) {
+                if (isset($idMaps['tags'][(int) $oldTagId])) {
+                    $newTagIds[] = $idMaps['tags'][(int) $oldTagId];
+                }
+            }
+            $bill->setTagIdsArray($newTagIds);
             $bill->setStartDate($billData['startDate'] ?? null);
             $bill->setEndDate($billData['endDate'] ?? null);
             $bill->setRemainingPayments($billData['remainingPayments'] ?? null);
@@ -779,8 +1068,13 @@ class MigrationService {
                 $bill->setDestinationAccountId($idMaps['accounts'][$oldDestId]);
             }
 
-            $this->billMapper->insert($bill);
+            $inserted = $this->billMapper->insert($bill);
+            if (isset($billData['id'])) {
+                $map[(int) $billData['id']] = $inserted->getId();
+            }
         }
+
+        return $map;
     }
 
     /**

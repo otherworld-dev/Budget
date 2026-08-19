@@ -38,6 +38,24 @@ class MigrationServiceTest extends TestCase {
 		$this->importRuleMapper = $this->createMock(ImportRuleMapper::class);
 		$this->settingMapper = $this->createMock(SettingMapper::class);
 		$this->db = $this->createMock(IDBConnection::class);
+		// The table-level machinery (#351) runs raw query-builder statements;
+		// these tests exercise structure, not SQL — give it inert builders
+		$this->db->method('getQueryBuilder')->willReturnCallback(function () {
+			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+			$expr->method('eq')->willReturn('eq');
+			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
+				$qb->method($m)->willReturnSelf();
+			}
+			$qb->method('expr')->willReturn($expr);
+			$qb->method('createNamedParameter')->willReturn(':p');
+			$result = $this->createMock(\OCP\DB\IResult::class);
+			$result->method('fetch')->willReturn(false);
+			$qb->method('executeQuery')->willReturn($result);
+			$qb->method('executeStatement')->willReturn(0);
+			return $qb;
+		});
+		$this->db->method('executeStatement')->willReturn(0);
 
 		$this->service = new MigrationService(
 			$this->accountMapper,
@@ -341,7 +359,10 @@ class MigrationServiceTest extends TestCase {
 				$this->assertSame('HYP {month}', $b->getTransferDescriptionPattern());
 				$this->assertTrue((bool) $b->getAutoPayEnabled());
 				$this->assertSame(5, $b->getReminderDays());
-				$this->assertSame([7, 8], $b->getTagIdsArray());
+				// Tag ids remap through the imported tags (#351); this archive
+				// carries none, so unmappable references are dropped rather
+				// than kept as ids that mean nothing on this server
+				$this->assertSame([], $b->getTagIdsArray());
 				$this->assertSame('2026-01-01', $b->getStartDate());
 				$this->assertSame('2030-12-31', $b->getEndDate());
 				$this->assertSame(12, $b->getRemainingPayments());
@@ -455,7 +476,7 @@ class MigrationServiceTest extends TestCase {
 
 		$manifest = json_decode($zip->getFromName('manifest.json'), true);
 		$this->assertEquals('budget', $manifest['appId']);
-		$this->assertEquals('1.1.0', $manifest['version']);
+		$this->assertEquals('1.2.0', $manifest['version']);
 		$this->assertEquals(1, $manifest['counts']['categories']);
 		$this->assertEquals(1, $manifest['counts']['accounts']);
 
@@ -536,6 +557,88 @@ class MigrationServiceTest extends TestCase {
 
 		$this->assertSame([5, 6], json_decode($row['selected_debt_ids'], true));
 		$this->assertSame([5 => 4.5], json_decode($row['rate_overrides'], true));
+	}
+
+	public function testRemapRowHandlesIdValuedObjects(): void {
+		// ImportTemplate.account_mapping: sourceValue => accountId
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$method->setAccessible(true);
+		$idMaps = ['accounts' => [1 => 5]];
+
+		$spec = ['jsonFk' => [
+			'account_mapping' => ['map' => 'accounts', 'shape' => 'idValuedObject'],
+		]];
+
+		$row = $method->invoke($this->service, [
+			'id' => 1,
+			'account_mapping' => json_encode(['Main Account' => 1, 'Old Account' => 999]),
+		], $spec, $idMaps);
+
+		$this->assertSame(['Main Account' => 5], json_decode($row['account_mapping'], true));
+	}
+
+	public function testImportBillsReturnsIdMapAndRemapsTagIds(): void {
+		$nextId = 200;
+		$this->billMapper->method('insert')->willReturnCallback(function (Bill $b) use (&$nextId) {
+			$b->setId($nextId++);
+			return $b;
+		});
+
+		$bills = [[
+			'id' => 40, 'name' => 'Rent', 'amount' => 100.0,
+			'accountId' => 1, 'tagIds' => [3, 999],
+		]];
+		$idMaps = ['accounts' => [1 => 5], 'categories' => [], 'tags' => [3 => 30]];
+
+		$method = new \ReflectionMethod($this->service, 'importBills');
+		$method->setAccessible(true);
+		$map = $method->invoke($this->service, 'user1', $bills, $idMaps);
+
+		$this->assertSame([40 => 200], $map);
+	}
+
+	public function testExtraTablesRegistryIsInternallyConsistent(): void {
+		$refl = new \ReflectionClass(MigrationService::class);
+		$pre = $refl->getConstant('EXTRA_TABLES_PRE');
+		$post = $refl->getConstant('EXTRA_TABLES_POST');
+
+		// Maps produced before each phase's entries run
+		$produced = ['categories' => 1, 'accounts' => 1];
+		$all = [];
+		foreach ($pre as $key => $spec) {
+			$all[$key] = $spec;
+		}
+		// Bespoke imports between the phases produce these
+		$producedMid = ['transactions' => 1, 'tags' => 1, 'tag_sets' => 1, 'bills' => 1];
+		foreach ($post as $key => $spec) {
+			$all[$key] = $spec;
+		}
+
+		foreach ($pre as $key => $spec) {
+			foreach (array_merge($spec['fk'] ?? [], $spec['jsonFk'] ?? []) as $col => $fkSpec) {
+				$this->assertArrayHasKey($fkSpec['map'], $produced + ['tag_sets' => 1, 'tags' => 1],
+					"pre-phase $key.$col references map '{$fkSpec['map']}' not yet produced");
+			}
+			if (isset($spec['idMap'])) {
+				$produced[$spec['idMap']] = 1;
+			}
+		}
+		$produced += $producedMid;
+		foreach ($post as $key => $spec) {
+			foreach (array_merge($spec['fk'] ?? [], $spec['jsonFk'] ?? []) as $col => $fkSpec) {
+				$this->assertArrayHasKey($fkSpec['map'], $produced,
+					"post-phase $key.$col references map '{$fkSpec['map']}' not yet produced");
+			}
+			if (isset($spec['idMap'])) {
+				$produced[$spec['idMap']] = 1;
+			}
+		}
+
+		// Every entry names a real budget_ table and unique zip file key
+		$this->assertSame(count($all), count(array_unique(array_keys($all))));
+		foreach ($all as $key => $spec) {
+			$this->assertStringStartsWith('budget_', $spec['table'], "$key table name");
+		}
 	}
 
 	private function createTestZip(array $files): string {
