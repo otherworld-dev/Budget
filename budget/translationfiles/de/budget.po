@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-19 02:19+0000\n"
+"POT-Creation-Date: 2026-08-19 10:55+0000\n"
 "PO-Revision-Date: 2026-08-14 15:28+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -173,8 +173,8 @@ msgid "Failed to update account"
 msgstr "Konto konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/AccountController.php:542
-#: /app/src/modules/accounts/AccountsModule.js:2743
-#: /app/src/modules/accounts/AccountsModule.js:2757
+#: /app/src/modules/accounts/AccountsModule.js:2747
+#: /app/src/modules/accounts/AccountsModule.js:2761
 msgid "Failed to delete account"
 msgstr "Fehler beim Löschen des Kontos"
 
@@ -662,7 +662,7 @@ msgstr "Rechnung"
 
 #: /app/lib/Controller/BillController.php:127
 #: /app/lib/Controller/BillController.php:550
-#: /app/lib/Service/BillService.php:324 /app/lib/Service/BillService.php:428
+#: /app/lib/Service/BillService.php:75
 #, fuzzy
 #| msgid "Invalid account type"
 msgid "Invalid amount type"
@@ -673,20 +673,20 @@ msgid "Name and amount are required"
 msgstr "Name und Betrag sind erforderlich"
 
 #: /app/lib/Controller/BillController.php:176
-#: /app/lib/Service/BillService.php:310 /app/lib/Service/BillService.php:410
+#: /app/lib/Service/BillService.php:355 /app/lib/Service/BillService.php:446
 msgid "Auto-pay requires an account to be set"
 msgstr "Automatische Zahlung erfordert ein Konto"
 
 #: /app/lib/Controller/BillController.php:184
 #: /app/lib/Controller/BillController.php:569
-#: /app/lib/Service/BillService.php:315
+#: /app/lib/Service/BillService.php:360
 msgid "Transfer requires a destination account"
 msgstr "Umbuchung erfordert ein Zielkonto"
 
 #: /app/lib/Controller/BillController.php:192
 #: /app/lib/Controller/BillController.php:597
-#: /app/lib/Service/BillService.php:320
-#: /app/src/modules/transfers/TransfersModule.js:669
+#: /app/lib/Service/BillService.php:365
+#: /app/src/modules/transfers/TransfersModule.js:678
 msgid "Cannot transfer to the same account"
 msgstr "Die Umbuchung kann nicht auf das selbe Konto erfolgen"
 
@@ -942,7 +942,7 @@ msgstr "Die Anzahl an Buchungen konnte nicht ermittelt werden"
 #: /app/src/modules/reports/ReportsModule.js:1517
 #: /app/src/modules/transactions/TransactionsModule.js:2776
 #: /app/src/modules/transactions/TransactionsModule.js:3412
-#: /app/src/modules/transfers/TransfersModule.js:493
+#: /app/src/modules/transfers/TransfersModule.js:495
 #: /app/templates/index.php:1007 /app/templates/index.php:1381
 #: /app/templates/index.php:1459 /app/templates/index.php:1538
 #: /app/templates/index.php:1697 /app/templates/index.php:1751
@@ -1940,8 +1940,8 @@ msgstr "Montag"
 #: /app/src/modules/categories/CategoriesModule.js:2015
 #: /app/src/modules/income/IncomeModule.js:113
 #: /app/src/modules/transfers/TransfersModule.js:280
-#: /app/src/modules/transfers/TransfersModule.js:439
-#: /app/src/modules/transfers/TransfersModule.js:835
+#: /app/src/modules/transfers/TransfersModule.js:441
+#: /app/src/modules/transfers/TransfersModule.js:854
 #: /app/templates/index.php:4246 /app/templates/index.php:4405
 #: /app/templates/index.php:5838 /app/templates/index.php:6328
 msgid "Weekly"
@@ -1954,8 +1954,8 @@ msgstr "Wöchentlich"
 #: /app/src/modules/income/IncomeModule.js:116
 #: /app/src/modules/pensions/PensionsModule.js:1072
 #: /app/src/modules/transfers/TransfersModule.js:283
-#: /app/src/modules/transfers/TransfersModule.js:442
-#: /app/src/modules/transfers/TransfersModule.js:838
+#: /app/src/modules/transfers/TransfersModule.js:444
+#: /app/src/modules/transfers/TransfersModule.js:857
 #: /app/templates/index.php:4247 /app/templates/index.php:4406
 #: /app/templates/index.php:5215 /app/templates/index.php:5752
 #: /app/templates/index.php:5841 /app/templates/index.php:6331
@@ -1968,8 +1968,8 @@ msgstr "Monatlich"
 #: /app/src/modules/income/IncomeModule.js:117
 #: /app/src/modules/pensions/PensionsModule.js:1073
 #: /app/src/modules/transfers/TransfersModule.js:284
-#: /app/src/modules/transfers/TransfersModule.js:443
-#: /app/src/modules/transfers/TransfersModule.js:839
+#: /app/src/modules/transfers/TransfersModule.js:445
+#: /app/src/modules/transfers/TransfersModule.js:858
 #: /app/templates/index.php:4248 /app/templates/index.php:5216
 #: /app/templates/index.php:5842 /app/templates/index.php:6332
 msgid "Quarterly"
@@ -1982,8 +1982,8 @@ msgstr "Vierteljährlich"
 #: /app/src/modules/income/IncomeModule.js:119
 #: /app/src/modules/pensions/PensionsModule.js:1074
 #: /app/src/modules/transfers/TransfersModule.js:286
-#: /app/src/modules/transfers/TransfersModule.js:444
-#: /app/src/modules/transfers/TransfersModule.js:841
+#: /app/src/modules/transfers/TransfersModule.js:446
+#: /app/src/modules/transfers/TransfersModule.js:860
 #: /app/templates/index.php:4249 /app/templates/index.php:5217
 #: /app/templates/index.php:5753 /app/templates/index.php:5844
 #: /app/templates/index.php:6334
@@ -2333,7 +2333,7 @@ msgid "Failed to delete global tag"
 msgstr "Fehler beim löschen des globalen Schlagwortes"
 
 #: /app/lib/Controller/TransactionController.php:246
-#: /app/src/modules/accounts/AccountsModule.js:3192
+#: /app/src/modules/accounts/AccountsModule.js:3196
 #: /app/src/modules/transactions/TransactionsModule.js:855
 #, fuzzy
 #| msgid "Failed to search transactions"
@@ -2764,17 +2764,27 @@ msgstr "Rechnungen"
 msgid "Bill due: %1$s"
 msgstr "Rechnung fällig: %1$s"
 
-#: /app/lib/Service/BillService.php:157
+#: /app/lib/Service/BillService.php:81
+#, fuzzy
+#| msgid "Transfer requires a destination account"
+msgid "This amount type requires a transfer with a destination account"
+msgstr "Umbuchung erfordert ein Zielkonto"
+
+#: /app/lib/Service/BillService.php:85
+msgid "This amount type is only available for transfers to a credit card"
+msgstr ""
+
+#: /app/lib/Service/BillService.php:202
 #, fuzzy
 #| msgid "Transfer marked as paid"
 msgid "This bill has never been marked as paid"
 msgstr "Umbuchung wurde als bezahlt markiert"
 
-#: /app/lib/Service/BillService.php:160
+#: /app/lib/Service/BillService.php:205
 msgid "Assign an account to the bill first"
 msgstr "Weise der Rechnung zuerst ein Konto zu"
 
-#: /app/lib/Service/BillService.php:169
+#: /app/lib/Service/BillService.php:214
 msgid ""
 "The account linked to this bill no longer exists. Edit the bill and choose "
 "an account."
@@ -2782,39 +2792,29 @@ msgstr ""
 "Das mit dieser Rechnung verknüpfte Konto existiert nicht mehr. Bearbeite die "
 "Rechnung und wähle ein Konto aus."
 
-#: /app/lib/Service/BillService.php:178
+#: /app/lib/Service/BillService.php:223
 #, fuzzy
 #| msgid "A category with this name already exists at this level"
 msgid "A transaction for this payment already exists"
 msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 
-#: /app/lib/Service/BillService.php:328 /app/lib/Service/BillService.php:434
-#, fuzzy
-#| msgid "Transfer requires a destination account"
-msgid "Statement balance requires a transfer with a destination account"
-msgstr "Umbuchung erfordert ein Zielkonto"
-
-#: /app/lib/Service/BillService.php:332 /app/lib/Service/BillService.php:438
-msgid "Statement balance is only available for transfers to a credit card"
-msgstr ""
-
-#: /app/lib/Service/BillService.php:781
+#: /app/lib/Service/BillService.php:812
 msgid "Cannot skip a one-time bill"
 msgstr "Einmalige Rechnung kann nicht übersprungen werden"
 
-#: /app/lib/Service/BillService.php:785
+#: /app/lib/Service/BillService.php:816
 msgid "Cannot skip an inactive bill"
 msgstr "Ruhende Rechnung kann nicht übersprungen werden"
 
-#: /app/lib/Service/BillService.php:1198
+#: /app/lib/Service/BillService.php:1229
 msgid "Auto-pay is not enabled for this bill"
 msgstr "Automatische Zahlung ist für diese Rechnung nicht eingeschaltet"
 
-#: /app/lib/Service/BillService.php:1211
+#: /app/lib/Service/BillService.php:1242
 msgid "Bill has no account associated"
 msgstr "Rechnung ist keinem Konto zugewiesen"
 
-#: /app/lib/Service/BillService.php:1221
+#: /app/lib/Service/BillService.php:1252
 msgid "Bill auto-paid successfully"
 msgstr "Rechnung wurde automatisch bezahlt"
 
@@ -2982,7 +2982,7 @@ msgstr "Referenz"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:37
 #: /app/src/modules/rules/components/CriteriaBuilder.js:156
-#: /app/src/modules/transfers/TransfersModule.js:504
+#: /app/src/modules/transfers/TransfersModule.js:506
 #: /app/templates/index.php:2261 /app/templates/index.php:2400
 #: /app/templates/index.php:4948 /app/templates/index.php:5595
 #: /app/templates/index.php:5936 /app/templates/index.php:6088
@@ -3581,7 +3581,7 @@ msgstr "Kontoausgaben"
 #: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1213
 #: /app/src/main.js:1217 /app/src/main.js:1224 /app/src/main.js:3706
 #: /app/src/modules/accounts/AccountsModule.js:1456
-#: /app/src/modules/accounts/AccountsModule.js:1714
+#: /app/src/modules/accounts/AccountsModule.js:1718
 #: /app/src/modules/dashboard/DashboardModule.js:1079
 #: /app/src/modules/import/ImportModule.js:106
 #: /app/src/modules/import/ImportModule.js:1465
@@ -3817,7 +3817,7 @@ msgid "Categories"
 msgstr "Kategorien"
 
 #: /app/src/core/KeyboardShortcuts.js:336
-#: /app/src/modules/accounts/AccountsModule.js:1752
+#: /app/src/modules/accounts/AccountsModule.js:1756
 #: /app/src/modules/bills/BillsModule.js:1670
 #: /app/src/modules/help/HelpModule.js:26
 #: /app/src/modules/reports/ReportsModule.js:487
@@ -3826,7 +3826,7 @@ msgstr "Kategorien"
 #: /app/src/modules/tagsets/TagSetsModule.js:653
 #: /app/src/modules/transactions/TransactionsModule.js:432
 #: /app/src/modules/transactions/TransactionsModule.js:4457
-#: /app/src/modules/transfers/TransfersModule.js:875
+#: /app/src/modules/transfers/TransfersModule.js:894
 #: /app/templates/index.php:83 /app/templates/index.php:1434
 #: /app/templates/index.php:1610 /app/templates/index.php:1701
 #: /app/templates/index.php:1755 /app/templates/index.php:1993
@@ -4368,14 +4368,14 @@ msgid "Invalid export file"
 msgstr "Ungültige Exportdatei"
 
 #: /app/src/main.js:2325 /app/src/main.js:2328 /app/src/main.js:3422
-#: /app/src/modules/accounts/AccountsModule.js:3089
+#: /app/src/modules/accounts/AccountsModule.js:3093
 #: /app/src/modules/dashboard/DashboardModule.js:1931
 #: /app/src/modules/dashboard/DashboardModule.js:2004
 #: /app/src/modules/dashboard/DashboardModule.js:2121
 #: /app/src/modules/dashboard/DashboardModule.js:2260
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:173
 #: /app/src/modules/transactions/TransactionsModule.js:3272
-#: /app/src/modules/transfers/TransfersModule.js:1016
+#: /app/src/modules/transfers/TransfersModule.js:1035
 msgid "Unknown"
 msgstr "Unbekannt"
 
@@ -4846,7 +4846,7 @@ msgid "Excluded"
 msgstr "Ausgeschlossen"
 
 #: /app/src/modules/accounts/AccountsModule.js:541
-#: /app/src/modules/accounts/AccountsModule.js:2529
+#: /app/src/modules/accounts/AccountsModule.js:2533
 msgid "Edit Account"
 msgstr "Konto bearbeiten"
 
@@ -4967,177 +4967,189 @@ msgstr "Kein Fälligkeitsdatum"
 msgid "{date} (statement balance)"
 msgstr "Saldo laut Kontoauszug"
 
-#: /app/src/modules/accounts/AccountsModule.js:1637
+#: /app/src/modules/accounts/AccountsModule.js:1598
+#, fuzzy
+#| msgid "Statement Balance"
+msgid "{date} (current balance)"
+msgstr "Saldo laut Kontoauszug"
+
+#: /app/src/modules/accounts/AccountsModule.js:1599
+#, fuzzy
+#| msgid "Minimum Payment"
+msgid "{date} (minimum payment)"
+msgstr "Mindestzahlung"
+
+#: /app/src/modules/accounts/AccountsModule.js:1641
 #, fuzzy
 #| msgid "{count} left"
 msgid "{account} payment"
 msgstr "{count} verbleiben"
 
-#: /app/src/modules/accounts/AccountsModule.js:1714
+#: /app/src/modules/accounts/AccountsModule.js:1718
 #: /app/src/modules/transactions/TransactionsModule.js:372
 #: /app/templates/index.php:1383 /app/templates/index.php:1540
 msgid "All Categories"
 msgstr "Alle Kategorien"
 
-#: /app/src/modules/accounts/AccountsModule.js:1769
+#: /app/src/modules/accounts/AccountsModule.js:1773
 #: /app/src/modules/reports/ReportsModule.js:512
 #: /app/src/modules/tagsets/TagSetsModule.js:643
 #: /app/src/modules/transactions/TransactionsModule.js:449
 msgid "No tags available"
 msgstr "Keine Schlagwörter verfügbar"
 
-#: /app/src/modules/accounts/AccountsModule.js:1780
+#: /app/src/modules/accounts/AccountsModule.js:1784
 #: /app/src/modules/reports/ReportsModule.js:524
 #: /app/src/modules/transactions/TransactionsModule.js:460
 #: /app/src/modules/transactions/TransactionsModule.js:4439
 msgid "Type to filter tags..."
 msgstr "Tippe um nach Schlagwörtern zu filtern..."
 
-#: /app/src/modules/accounts/AccountsModule.js:1863
+#: /app/src/modules/accounts/AccountsModule.js:1867
 #: /app/src/modules/reports/ReportsModule.js:590
 #: /app/src/modules/transactions/TransactionsModule.js:544
 #: /app/src/modules/transactions/TransactionsModule.js:4514
 msgid "No tags found"
 msgstr "Keine Schlagwörter gefunden"
 
-#: /app/src/modules/accounts/AccountsModule.js:1987
+#: /app/src/modules/accounts/AccountsModule.js:1991
 #: /app/src/modules/transactions/TransactionsModule.js:403
 #: /app/templates/index.php:1651
 msgid "Select account to reconcile"
 msgstr "Wähle ein Konto zur Abstimmung"
 
-#: /app/src/modules/accounts/AccountsModule.js:2072
-#: /app/src/modules/accounts/AccountsModule.js:2193
+#: /app/src/modules/accounts/AccountsModule.js:2076
+#: /app/src/modules/accounts/AccountsModule.js:2197
 msgid "No accounts available. Please create an account first."
 msgstr "Kein Konto verfügbar. Bitte erstelle zuerst ein Konto."
 
-#: /app/src/modules/accounts/AccountsModule.js:2075
-#: /app/src/modules/accounts/AccountsModule.js:2196
+#: /app/src/modules/accounts/AccountsModule.js:2079
+#: /app/src/modules/accounts/AccountsModule.js:2200
 #: /app/src/modules/import/ImportModule.js:1667
 msgid "Please select an account"
 msgstr "Bitte wähle ein Konto"
 
-#: /app/src/modules/accounts/AccountsModule.js:2079
-#: /app/src/modules/accounts/AccountsModule.js:2200
+#: /app/src/modules/accounts/AccountsModule.js:2083
+#: /app/src/modules/accounts/AccountsModule.js:2204
 msgid "Please enter a date"
 msgstr "Bitte wähle ein Datum"
 
-#: /app/src/modules/accounts/AccountsModule.js:2083
-#: /app/src/modules/accounts/AccountsModule.js:2204
+#: /app/src/modules/accounts/AccountsModule.js:2087
+#: /app/src/modules/accounts/AccountsModule.js:2208
 msgid "Please select a transaction type"
 msgstr "Bitte wähle einen Buchungstyp"
 
-#: /app/src/modules/accounts/AccountsModule.js:2087
-#: /app/src/modules/accounts/AccountsModule.js:2208
+#: /app/src/modules/accounts/AccountsModule.js:2091
+#: /app/src/modules/accounts/AccountsModule.js:2212
 #: /app/src/modules/savings/SavingsModule.js:461
 msgid "Please enter a valid amount"
 msgstr "Bitte gib eine gültige Summe ein"
 
-#: /app/src/modules/accounts/AccountsModule.js:2091
-#: /app/src/modules/accounts/AccountsModule.js:2212
+#: /app/src/modules/accounts/AccountsModule.js:2095
+#: /app/src/modules/accounts/AccountsModule.js:2216
 msgid "Please enter a description"
 msgstr "Bitte geben Sie eine Beschreibung ein"
 
-#: /app/src/modules/accounts/AccountsModule.js:2135
+#: /app/src/modules/accounts/AccountsModule.js:2139
 msgid "Transaction saved successfully"
 msgstr "Buchungen wurden erfolgreich gespeichert"
 
-#: /app/src/modules/accounts/AccountsModule.js:2144
-#: /app/src/modules/accounts/AccountsModule.js:2157
+#: /app/src/modules/accounts/AccountsModule.js:2148
+#: /app/src/modules/accounts/AccountsModule.js:2161
 #: /app/src/modules/transactions/TransactionsModule.js:2662
 #: /app/src/modules/transactions/TransactionsModule.js:2666
 #: /app/templates/quick-add.php:171
 msgid "Failed to save transaction"
 msgstr "Speichern der Buchungen fehlgeschlagen"
 
-#: /app/src/modules/accounts/AccountsModule.js:2238
+#: /app/src/modules/accounts/AccountsModule.js:2242
 msgid "Transaction added successfully!"
 msgstr "Buchung erfolgreich erstellt!"
 
-#: /app/src/modules/accounts/AccountsModule.js:2249
-#: /app/src/modules/accounts/AccountsModule.js:2262
+#: /app/src/modules/accounts/AccountsModule.js:2253
+#: /app/src/modules/accounts/AccountsModule.js:2266
 msgid "Failed to add transaction"
 msgstr "Buchung konnte nicht erstellt werden"
 
-#: /app/src/modules/accounts/AccountsModule.js:2303
+#: /app/src/modules/accounts/AccountsModule.js:2307
 #: /app/templates/index.php:987
 msgid "Select account"
 msgstr "Konto auswählen"
 
-#: /app/src/modules/accounts/AccountsModule.js:2315
+#: /app/src/modules/accounts/AccountsModule.js:2319
 #: /app/src/modules/bills/BillsModule.js:792
 #: /app/src/modules/bills/BillsModule.js:855
 #: /app/src/modules/income/IncomeModule.js:425
 #: /app/src/modules/transactions/TransactionsModule.js:1640
-#: /app/src/modules/transfers/TransfersModule.js:495
+#: /app/src/modules/transfers/TransfersModule.js:497
 #: /app/templates/index.php:1009 /app/templates/index.php:5542
 #: /app/templates/index.php:5905 /app/templates/index.php:6369
 msgid "No category"
 msgstr "Keine Kategorie"
 
-#: /app/src/modules/accounts/AccountsModule.js:2334
+#: /app/src/modules/accounts/AccountsModule.js:2338
 msgid "Form error: Account name field not found"
 msgstr "Formularfehler: Feld für den Kontonamen nicht gefunden"
 
-#: /app/src/modules/accounts/AccountsModule.js:2340
+#: /app/src/modules/accounts/AccountsModule.js:2344
 msgid "Form error: Account type field not found"
 msgstr "Formularfehler: Feld für die Kontoart wurde nicht gefunden"
 
-#: /app/src/modules/accounts/AccountsModule.js:2416
+#: /app/src/modules/accounts/AccountsModule.js:2420
 msgid "Please enter an account name"
 msgstr "Bitte gib einen Kontonamen ein"
 
-#: /app/src/modules/accounts/AccountsModule.js:2423
+#: /app/src/modules/accounts/AccountsModule.js:2427
 msgid "Please select an account type"
 msgstr "Bitte wählen Sie eine Kontoart aus"
 
-#: /app/src/modules/accounts/AccountsModule.js:2430
+#: /app/src/modules/accounts/AccountsModule.js:2434
 msgid "Account name is too long (maximum 255 characters)"
 msgstr "Kontoname ist zu lang (maximal 255 Zeichen)"
 
-#: /app/src/modules/accounts/AccountsModule.js:2437
+#: /app/src/modules/accounts/AccountsModule.js:2441
 msgid "Please enter a valid balance amount"
 msgstr "Bitte gib einen gültigen Saldo ein"
 
-#: /app/src/modules/accounts/AccountsModule.js:2468
+#: /app/src/modules/accounts/AccountsModule.js:2472
 msgid "Account saved successfully"
 msgstr "Konto erfolgreich gespeichert"
 
-#: /app/src/modules/accounts/AccountsModule.js:2489
+#: /app/src/modules/accounts/AccountsModule.js:2493
 msgid "Failed to save account"
 msgstr "Konto konnte nicht gespeichert werden"
 
-#: /app/src/modules/accounts/AccountsModule.js:2512
+#: /app/src/modules/accounts/AccountsModule.js:2516
 msgid "Unknown error occurred"
 msgstr "Unbekannter Fehler aufgetreten"
 
-#: /app/src/modules/accounts/AccountsModule.js:2513
+#: /app/src/modules/accounts/AccountsModule.js:2517
 msgid "Failed to save account: {error}"
 msgstr "Konto konnte nicht gespeichert werden: {error}"
 
-#: /app/src/modules/accounts/AccountsModule.js:2539
+#: /app/src/modules/accounts/AccountsModule.js:2543
 #: /app/templates/index.php:1070
 msgid "Add Account"
 msgstr "Konto hinzufügen"
 
-#: /app/src/modules/accounts/AccountsModule.js:2575
+#: /app/src/modules/accounts/AccountsModule.js:2579
 msgid "Balance is calculated from transactions"
 msgstr "Der Saldo wird aus den Buchungen berechnet"
 
-#: /app/src/modules/accounts/AccountsModule.js:2579
+#: /app/src/modules/accounts/AccountsModule.js:2583
 #: /app/templates/index.php:1183 /app/templates/index.php:2891
 #: /app/templates/index.php:3643 /app/templates/index.php:5042
 #: /app/templates/index.php:5112
 msgid "Current Balance"
 msgstr "Aktueller Kontostand"
 
-#: /app/src/modules/accounts/AccountsModule.js:2583
+#: /app/src/modules/accounts/AccountsModule.js:2587
 #, fuzzy
 #| msgid "Balance is calculated from transactions"
 msgid "Calculated from transactions"
 msgstr "Der Saldo wird aus den Buchungen berechnet"
 
-#: /app/src/modules/accounts/AccountsModule.js:2599
+#: /app/src/modules/accounts/AccountsModule.js:2603
 msgid ""
 "Enter as negative for amount owed (e.g. -5000). Enter as positive for a "
 "credit/overpayment."
@@ -5146,37 +5158,37 @@ msgstr ""
 "Gib ihn als positiven Wert ein, wenn ein Guthaben oder eine Überzahlung "
 "vorliegt."
 
-#: /app/src/modules/accounts/AccountsModule.js:2600
+#: /app/src/modules/accounts/AccountsModule.js:2604
 #: /app/templates/index.php:5667
 msgid "The starting balance when this account was created"
 msgstr "Der Anfangssaldo bei der Eröffnung dieses Kontos"
 
-#: /app/src/modules/accounts/AccountsModule.js:2640
+#: /app/src/modules/accounts/AccountsModule.js:2644
 msgid "••••••••  (leave blank to keep current)"
 msgstr "••••••••  (leave blank to keep current)"
 
-#: /app/src/modules/accounts/AccountsModule.js:2660
+#: /app/src/modules/accounts/AccountsModule.js:2664
 msgid "Failed to load account data"
 msgstr "Kontodaten konnten nicht geladen werden"
 
-#: /app/src/modules/accounts/AccountsModule.js:2686
+#: /app/src/modules/accounts/AccountsModule.js:2690
 #: /app/templates/index.php:5671
 msgid "Starting Balance"
 msgstr "Anfangssaldo"
 
-#: /app/src/modules/accounts/AccountsModule.js:2690
+#: /app/src/modules/accounts/AccountsModule.js:2694
 #: /app/templates/index.php:5673
 msgid "The balance this account starts with"
 msgstr "Der Anfangssaldo dieses Kontos"
 
-#: /app/src/modules/accounts/AccountsModule.js:2731
+#: /app/src/modules/accounts/AccountsModule.js:2735
 msgid ""
 "Are you sure you want to delete this account? This action cannot be undone."
 msgstr ""
 "Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
 "rückgängig gemacht werden."
 
-#: /app/src/modules/accounts/AccountsModule.js:2747
+#: /app/src/modules/accounts/AccountsModule.js:2751
 msgid ""
 "This account still has {count} transaction(s). Delete them along with the "
 "account? This cannot be undone."
@@ -5184,7 +5196,7 @@ msgstr ""
 "Dieses Konto enthält noch {count} Transaktion(en). Möchtest du sie zusammen "
 "mit dem Konto löschen? Dieser Vorgang kann nicht rückgängig gemacht werden."
 
-#: /app/src/modules/accounts/AccountsModule.js:2748
+#: /app/src/modules/accounts/AccountsModule.js:2752
 #, fuzzy
 #| msgid ""
 #| "Are you sure you want to delete this account? This action cannot be "
@@ -5196,84 +5208,84 @@ msgstr ""
 "Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
 "rückgängig gemacht werden."
 
-#: /app/src/modules/accounts/AccountsModule.js:2762
+#: /app/src/modules/accounts/AccountsModule.js:2766
 #, fuzzy
 #| msgid "{count} duplicate transactions removed"
 msgid "Account and its {count} transaction(s) deleted"
 msgstr "{count} doppelte Transaktionen entfernt"
 
-#: /app/src/modules/accounts/AccountsModule.js:2763
+#: /app/src/modules/accounts/AccountsModule.js:2767
 msgid "Account deleted successfully"
 msgstr "Konto erfolgreich gelöscht“"
 
-#: /app/src/modules/accounts/AccountsModule.js:2773
+#: /app/src/modules/accounts/AccountsModule.js:2777
 msgid "Failed to delete account: {error}"
 msgstr "Fehler beim Löschen des Kontos: {error}"
 
-#: /app/src/modules/accounts/AccountsModule.js:2987
+#: /app/src/modules/accounts/AccountsModule.js:2991
 msgid "Valid"
 msgstr "Gültig"
 
-#: /app/src/modules/accounts/AccountsModule.js:3052
+#: /app/src/modules/accounts/AccountsModule.js:3056
 #: /app/templates/index.php:5652
 msgid "Checking Account"
 msgstr "Girokonto"
 
-#: /app/src/modules/accounts/AccountsModule.js:3057
+#: /app/src/modules/accounts/AccountsModule.js:3061
 #: /app/templates/index.php:5653
 msgid "Savings Account"
 msgstr "Sparkonto"
 
-#: /app/src/modules/accounts/AccountsModule.js:3062
+#: /app/src/modules/accounts/AccountsModule.js:3066
 #: /app/src/modules/dashboard/DashboardModule.js:884
 #: /app/src/utils/formatters.js:224 /app/templates/index.php:5654
 msgid "Credit Card"
 msgstr "Kreditkarte"
 
-#: /app/src/modules/accounts/AccountsModule.js:3067
+#: /app/src/modules/accounts/AccountsModule.js:3071
 #: /app/src/modules/dashboard/DashboardModule.js:885
 #: /app/src/utils/formatters.js:225
 msgid "Investment"
 msgstr "Investition"
 
-#: /app/src/modules/accounts/AccountsModule.js:3072
+#: /app/src/modules/accounts/AccountsModule.js:3076
 #: /app/src/modules/dashboard/DashboardModule.js:887
 #: /app/src/utils/formatters.js:227
 msgid "Loan"
 msgstr "Darlehen"
 
-#: /app/src/modules/accounts/AccountsModule.js:3077
+#: /app/src/modules/accounts/AccountsModule.js:3081
 #: /app/src/modules/dashboard/DashboardModule.js:886
 #: /app/src/utils/formatters.js:226 /app/templates/index.php:5659
 msgid "Cash"
 msgstr "Bargeld"
 
-#: /app/src/modules/accounts/AccountsModule.js:3082
+#: /app/src/modules/accounts/AccountsModule.js:3086
 #: /app/src/utils/formatters.js:230 /app/templates/index.php:5660
 msgid "Cryptocurrency"
 msgstr "Kryptowährung"
 
-#: /app/src/modules/accounts/AccountsModule.js:3104
+#: /app/src/modules/accounts/AccountsModule.js:3108
 msgid "Credit utilization very high"
 msgstr "Kreditauslastung sehr hoch"
 
-#: /app/src/modules/accounts/AccountsModule.js:3110
+#: /app/src/modules/accounts/AccountsModule.js:3114
 msgid "Credit utilization high"
 msgstr "Kreditauslastung hoch"
 
-#: /app/src/modules/accounts/AccountsModule.js:3120
+#: /app/src/modules/accounts/AccountsModule.js:3124
 msgid "Negative balance"
 msgstr "Negativer Kontostand"
 
-#: /app/src/modules/accounts/AccountsModule.js:3129
+#: /app/src/modules/accounts/AccountsModule.js:3133
 msgid "Exceeds overdraft limit"
 msgstr "Überschreitet den Dispositionsrahmen"
 
-#: /app/src/modules/accounts/AccountsModule.js:3136
+#: /app/src/modules/accounts/AccountsModule.js:3140
 msgid "Account is in good standing"
 msgstr "Konto ist in gutem Zustand"
 
-#: /app/src/modules/accounts/AccountsModule.js:3168
+#: /app/src/modules/accounts/AccountsModule.js:3172
 msgid "No transactions to export"
 msgstr "Keine Buchungen zum Exportieren vorhanden"
 
@@ -5726,7 +5738,7 @@ msgstr "Buchung erstellt"
 #: /app/src/modules/bills/BillsModule.js:174
 #: /app/src/modules/bills/BillsModule.js:1576
 #: /app/src/modules/income/IncomeModule.js:717
-#: /app/src/modules/transfers/TransfersModule.js:1028
+#: /app/src/modules/transfers/TransfersModule.js:1047
 #, javascript-format
 msgid "{percent}% confidence"
 msgstr "{percent} % Wahrscheinlichkeit"
@@ -5792,8 +5804,8 @@ msgstr "Demnächst"
 #: /app/src/modules/bills/BillsModule.js:311
 #: /app/src/modules/income/IncomeModule.js:114
 #: /app/src/modules/transfers/TransfersModule.js:281
-#: /app/src/modules/transfers/TransfersModule.js:440
-#: /app/src/modules/transfers/TransfersModule.js:836
+#: /app/src/modules/transfers/TransfersModule.js:442
+#: /app/src/modules/transfers/TransfersModule.js:855
 #: /app/templates/index.php:5839 /app/templates/index.php:6329
 msgid "Bi-Weekly"
 msgstr "Alle zwei Wochen"
@@ -5801,8 +5813,8 @@ msgstr "Alle zwei Wochen"
 #: /app/src/modules/bills/BillsModule.js:312
 #: /app/src/modules/income/IncomeModule.js:115
 #: /app/src/modules/transfers/TransfersModule.js:282
-#: /app/src/modules/transfers/TransfersModule.js:441
-#: /app/src/modules/transfers/TransfersModule.js:837
+#: /app/src/modules/transfers/TransfersModule.js:443
+#: /app/src/modules/transfers/TransfersModule.js:856
 #: /app/templates/index.php:5840 /app/templates/index.php:6330
 #, fuzzy
 #| msgid "Monthly"
@@ -5812,7 +5824,7 @@ msgstr "Monatlich"
 #: /app/src/modules/bills/BillsModule.js:315
 #: /app/src/modules/income/IncomeModule.js:118
 #: /app/src/modules/transfers/TransfersModule.js:285
-#: /app/src/modules/transfers/TransfersModule.js:840
+#: /app/src/modules/transfers/TransfersModule.js:859
 #: /app/templates/index.php:5843 /app/templates/index.php:6333
 msgid "Semi-Annually"
 msgstr "Halbjährlich"
@@ -5820,8 +5832,8 @@ msgstr "Halbjährlich"
 #: /app/src/modules/bills/BillsModule.js:317
 #: /app/src/modules/income/IncomeModule.js:120
 #: /app/src/modules/transfers/TransfersModule.js:279
-#: /app/src/modules/transfers/TransfersModule.js:438
-#: /app/src/modules/transfers/TransfersModule.js:842
+#: /app/src/modules/transfers/TransfersModule.js:440
+#: /app/src/modules/transfers/TransfersModule.js:861
 #: /app/templates/index.php:5845 /app/templates/index.php:6335
 msgid "One-Time"
 msgstr "Einmalig"
@@ -6182,7 +6194,7 @@ msgstr "Diese Zahlung wirkt sich NICHT auf deinen Kontostand aus."
 #: /app/src/modules/bills/BillsModule.js:1313
 #: /app/src/modules/categories/CategoriesModule.js:1587
 #: /app/src/modules/transfers/TransfersModule.js:147
-#: /app/src/modules/transfers/TransfersModule.js:540
+#: /app/src/modules/transfers/TransfersModule.js:542
 #: /app/templates/index.php:1633 /app/templates/index.php:1663
 #: /app/templates/index.php:2417 /app/templates/index.php:2568
 #: /app/templates/index.php:2766 /app/templates/index.php:4571
@@ -6242,12 +6254,12 @@ msgstr "Rückgängig"
 
 #: /app/src/modules/bills/BillsModule.js:1532
 #: /app/src/modules/income/IncomeModule.js:668
-#: /app/src/modules/transfers/TransfersModule.js:977
+#: /app/src/modules/transfers/TransfersModule.js:996
 msgid "Detecting..."
 msgstr "Wird erkannt..."
 
 #: /app/src/modules/bills/BillsModule.js:1544
-#: /app/src/modules/transfers/TransfersModule.js:989
+#: /app/src/modules/transfers/TransfersModule.js:1008
 msgid "No recurring transactions detected"
 msgstr "Keine wiederkehrenden Buchungen erkannt"
 
@@ -6271,7 +6283,7 @@ msgstr "Ausgewählte Rechnungen konnten nicht hinzugefügt werden"
 
 #: /app/src/modules/bills/BillsModule.js:1706
 #: /app/src/modules/tagsets/TagSetsModule.js:687
-#: /app/src/modules/transfers/TransfersModule.js:911
+#: /app/src/modules/transfers/TransfersModule.js:930
 msgid "No tags defined"
 msgstr "Keine Schlagwörter definiert"
 
@@ -10567,8 +10579,8 @@ msgid "Choose an account"
 msgstr "Wähle ein Konto"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1619
-#: /app/src/modules/transfers/TransfersModule.js:451
-#: /app/src/modules/transfers/TransfersModule.js:463
+#: /app/src/modules/transfers/TransfersModule.js:453
+#: /app/src/modules/transfers/TransfersModule.js:465
 #: /app/templates/index.php:2359 /app/templates/quick-add.php:29
 msgid "Select account..."
 msgstr "Konto auswählen..."
@@ -11122,7 +11134,7 @@ msgid "Detect recurring transfers"
 msgstr "Noch keine wiederkehrenden Umbuchungen"
 
 #: /app/src/modules/transfers/TransfersModule.js:62
-#: /app/src/modules/transfers/TransfersModule.js:999
+#: /app/src/modules/transfers/TransfersModule.js:1018
 msgid "Find Transfers"
 msgstr "Überweisungen suchen"
 
@@ -11132,7 +11144,7 @@ msgstr "Neue Umbuchung hinzufügen"
 
 #: /app/src/modules/transfers/TransfersModule.js:66
 #: /app/src/modules/transfers/TransfersModule.js:397
-#: /app/src/modules/transfers/TransfersModule.js:538
+#: /app/src/modules/transfers/TransfersModule.js:540
 msgid "Add Transfer"
 msgstr "Umbuchung hinzufügen"
 
@@ -11192,16 +11204,6 @@ msgstr ""
 msgid "Add Selected as Transfers"
 msgstr "Aktive wiederkehrende Umbuchungen"
 
-#: /app/src/modules/transfers/TransfersModule.js:300
-msgid "Amount is resolved from the card balance at each due date"
-msgstr ""
-
-#: /app/src/modules/transfers/TransfersModule.js:300
-#, fuzzy
-#| msgid "Statement Date"
-msgid "Statement"
-msgstr "Datum des Kontoauszugs"
-
 #: /app/src/modules/transfers/TransfersModule.js:320
 msgid "Edit transfer"
 msgstr "Umbuchung bearbeiten"
@@ -11230,198 +11232,241 @@ msgstr "Kontoart"
 msgid "Fixed amount"
 msgstr "Erwarteter Betrag"
 
-#: /app/src/modules/transfers/TransfersModule.js:432
-msgid ""
-"Statement balance pays whatever is owed on the destination card at each due "
-"date"
-msgstr ""
+#: /app/src/modules/transfers/TransfersModule.js:431
+#, fuzzy
+#| msgid "Current Balance"
+msgid "Current balance"
+msgstr "Aktueller Kontostand"
 
-#: /app/src/modules/transfers/TransfersModule.js:436
+#: /app/src/modules/transfers/TransfersModule.js:432
+#, fuzzy
+#| msgid "Minimum Payment"
+msgid "Minimum payment"
+msgstr "Mindestzahlung"
+
+#: /app/src/modules/transfers/TransfersModule.js:438
 #: /app/templates/index.php:5213 /app/templates/index.php:5836
 #: /app/templates/index.php:6326
 msgid "Frequency"
 msgstr "Häufigkeit"
 
-#: /app/src/modules/transfers/TransfersModule.js:449
+#: /app/src/modules/transfers/TransfersModule.js:451
 msgid "From Account"
 msgstr "Ursprungskonto"
 
-#: /app/src/modules/transfers/TransfersModule.js:461
+#: /app/src/modules/transfers/TransfersModule.js:463
 #: /app/templates/index.php:5510
 msgid "To Account"
 msgstr "Zielkonto"
 
-#: /app/src/modules/transfers/TransfersModule.js:473
+#: /app/src/modules/transfers/TransfersModule.js:475
 msgid "Day of Month (1-31)"
 msgstr "Tag des Monats (1-31)"
 
-#: /app/src/modules/transfers/TransfersModule.js:475
+#: /app/src/modules/transfers/TransfersModule.js:477
 msgid "e.g., 15"
 msgstr "z.B. 15"
 
-#: /app/src/modules/transfers/TransfersModule.js:477
+#: /app/src/modules/transfers/TransfersModule.js:479
 msgid "Leave empty for weekly transfers"
 msgstr "Für wöchentliche Umbuchungen leer lassen"
 
-#: /app/src/modules/transfers/TransfersModule.js:483
+#: /app/src/modules/transfers/TransfersModule.js:485
 #: /app/templates/index.php:675 /app/templates/index.php:697
 #: /app/templates/index.php:4919 /app/templates/index.php:5530
 #: /app/templates/index.php:5642 /app/templates/index.php:6430
 msgid "Details"
 msgstr "Details"
 
-#: /app/src/modules/transfers/TransfersModule.js:485
+#: /app/src/modules/transfers/TransfersModule.js:487
 msgid "Transaction Description Pattern (Optional)"
 msgstr "Muster des Buchungstextes (Optional)"
 
-#: /app/src/modules/transfers/TransfersModule.js:487
+#: /app/src/modules/transfers/TransfersModule.js:489
 msgid "e.g., Savings Transfer"
 msgstr "z.B. Sparen"
 
-#: /app/src/modules/transfers/TransfersModule.js:489
+#: /app/src/modules/transfers/TransfersModule.js:491
 msgid "Used to match imported transactions"
 msgstr "Wir benutzt, um Übereinstimmungen bei importierten Buchungen zu finden"
 
-#: /app/src/modules/transfers/TransfersModule.js:498
+#: /app/src/modules/transfers/TransfersModule.js:500
 msgid "Category for created transactions (optional)"
 msgstr "Kategorie für erstellte Buchungen (optional)"
 
-#: /app/src/modules/transfers/TransfersModule.js:506
+#: /app/src/modules/transfers/TransfersModule.js:508
 msgid "Optional notes..."
 msgstr "Optionale Notizen..."
 
-#: /app/src/modules/transfers/TransfersModule.js:513
+#: /app/src/modules/transfers/TransfersModule.js:515
 msgid "Also create transactions now"
 msgstr "Buchungen jetzt erstellen"
 
-#: /app/src/modules/transfers/TransfersModule.js:515
+#: /app/src/modules/transfers/TransfersModule.js:517
 msgid "Creates paired debit/credit transactions immediately"
 msgstr ""
 "Neue Buchungspaare werden direkt nach Abschließen des Formulars erstellt"
 
-#: /app/src/modules/transfers/TransfersModule.js:519
+#: /app/src/modules/transfers/TransfersModule.js:521
 #: /app/templates/index.php:5989
 msgid "Transaction Date"
 msgstr "Buchungsdatum"
 
-#: /app/src/modules/transfers/TransfersModule.js:521
+#: /app/src/modules/transfers/TransfersModule.js:523
 #: /app/templates/index.php:5991
 msgid "Leave empty to use next due date"
 msgstr "Leer lassen, um das nächste Fälligkeitsdatum zu verwenden"
 
-#: /app/src/modules/transfers/TransfersModule.js:528
+#: /app/src/modules/transfers/TransfersModule.js:530
 msgid "Enable auto-pay (automatically create transactions when due)"
 msgstr ""
 "Automatische Zahlung einschalten (erstellt Buchungen automatisch, sobald sie "
 "fällig sind)"
 
-#: /app/src/modules/transfers/TransfersModule.js:538
+#: /app/src/modules/transfers/TransfersModule.js:540
 msgid "Update Transfer"
 msgstr "Umbuchung aktualisieren"
 
-#: /app/src/modules/transfers/TransfersModule.js:589
-msgid "Resolved from the card balance at each due date"
+#: /app/src/modules/transfers/TransfersModule.js:583
+msgid ""
+"Pays what was owed at the due date. Later charges roll to the next payment"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:659
+#: /app/src/modules/transfers/TransfersModule.js:584
+msgid "Pays everything owed on the card at payment time"
+msgstr ""
+
+#: /app/src/modules/transfers/TransfersModule.js:585
+msgid "Pays the card's minimum payment, never more than is owed"
+msgstr ""
+
+#: /app/src/modules/transfers/TransfersModule.js:598
+#, fuzzy
+#| msgid "Failed to record settlement"
+msgid "Resolved from the card at each payment"
+msgstr "Aufzeichnen der Abrechnung fehlgeschlagen"
+
+#: /app/src/modules/transfers/TransfersModule.js:668
 msgid "Please select a source account"
 msgstr "Bitte wähle ein Ursprungskonto"
 
-#: /app/src/modules/transfers/TransfersModule.js:664
+#: /app/src/modules/transfers/TransfersModule.js:673
 msgid "Please select a destination account"
 msgstr "Bitte wähle ein Zielkonto"
 
-#: /app/src/modules/transfers/TransfersModule.js:709
-#: /app/src/modules/transfers/TransfersModule.js:722
+#: /app/src/modules/transfers/TransfersModule.js:718
+#: /app/src/modules/transfers/TransfersModule.js:731
 msgid "Failed to save transfer"
 msgstr "Fehler beim Speichern der Umbuchung"
 
-#: /app/src/modules/transfers/TransfersModule.js:713
+#: /app/src/modules/transfers/TransfersModule.js:722
 msgid "Transfer updated"
 msgstr "Umbuchung aktualisiert"
 
-#: /app/src/modules/transfers/TransfersModule.js:713
+#: /app/src/modules/transfers/TransfersModule.js:722
 msgid "Transfer added"
 msgstr "Umbuchung hinzugefügt"
 
-#: /app/src/modules/transfers/TransfersModule.js:728
+#: /app/src/modules/transfers/TransfersModule.js:737
 msgid "Are you sure you want to delete this transfer?"
 msgstr "Möchtest du diese Umbuchung wirklich löschen?"
 
-#: /app/src/modules/transfers/TransfersModule.js:738
 #: /app/src/modules/transfers/TransfersModule.js:747
+#: /app/src/modules/transfers/TransfersModule.js:756
 msgid "Failed to delete transfer"
 msgstr "Fehler beim Löschen der Umbuchung"
 
-#: /app/src/modules/transfers/TransfersModule.js:740
+#: /app/src/modules/transfers/TransfersModule.js:749
 msgid "Transfer deleted"
 msgstr "Umbuchung gelöscht"
 
-#: /app/src/modules/transfers/TransfersModule.js:767
-#: /app/src/modules/transfers/TransfersModule.js:778
+#: /app/src/modules/transfers/TransfersModule.js:776
+#: /app/src/modules/transfers/TransfersModule.js:787
 msgid "Failed to update transfer"
 msgstr "Fehler beim Aktualisieren der Umbuchung"
 
-#: /app/src/modules/transfers/TransfersModule.js:770
+#: /app/src/modules/transfers/TransfersModule.js:779
 msgid "Transfer deactivated"
 msgstr "Wiederkehrende Umbuchung deaktiviert"
 
-#: /app/src/modules/transfers/TransfersModule.js:770
+#: /app/src/modules/transfers/TransfersModule.js:779
 msgid "Transfer activated"
 msgstr "Wiederkehrende Umbuchung aktiviert"
 
-#: /app/src/modules/transfers/TransfersModule.js:804
 #: /app/src/modules/transfers/TransfersModule.js:813
+#: /app/src/modules/transfers/TransfersModule.js:822
 msgid "Failed to mark transfer as paid"
 msgstr "Fehler beim Markieren der Umbuchung als bezahlt"
 
-#: /app/src/modules/transfers/TransfersModule.js:806
+#: /app/src/modules/transfers/TransfersModule.js:815
 msgid "Transfer marked as paid"
 msgstr "Umbuchung wurde als bezahlt markiert"
 
-#: /app/src/modules/transfers/TransfersModule.js:996
+#: /app/src/modules/transfers/TransfersModule.js:829
+#, fuzzy
+#| msgid "Statement Date"
+msgid "Statement"
+msgstr "Datum des Kontoauszugs"
+
+#: /app/src/modules/transfers/TransfersModule.js:830
+#, fuzzy
+#| msgid "balance"
+msgid "Full balance"
+msgstr "saldo"
+
+#: /app/src/modules/transfers/TransfersModule.js:831
+#, fuzzy
+#| msgid "Minimum Payment"
+msgid "Minimum"
+msgstr "Mindestzahlung"
+
+#: /app/src/modules/transfers/TransfersModule.js:834
+msgid "Amount is resolved from the card at each payment"
+msgstr ""
+
+#: /app/src/modules/transfers/TransfersModule.js:1015
 #, fuzzy
 #| msgid "Failed to detect recurring income"
 msgid "Failed to detect recurring transfers"
 msgstr "Laufende Einnahme konnte nicht gefunden werden"
 
-#: /app/src/modules/transfers/TransfersModule.js:1029
+#: /app/src/modules/transfers/TransfersModule.js:1048
 msgid "From: {account}"
 msgstr "Von: {account}"
 
-#: /app/src/modules/transfers/TransfersModule.js:1032
+#: /app/src/modules/transfers/TransfersModule.js:1051
 msgid "To:"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1034
+#: /app/src/modules/transfers/TransfersModule.js:1053
 #, fuzzy
 #| msgid "Please select destination account"
 msgid "— Select destination —"
 msgstr "Bitte wähle ein Zielkonto"
 
-#: /app/src/modules/transfers/TransfersModule.js:1051
+#: /app/src/modules/transfers/TransfersModule.js:1070
 #, fuzzy
 #| msgid "Please select at least one bill to add"
 msgid "Please select at least one transfer to add"
 msgstr "Bitte wähle mindestens eine Rechnung zum Hinzufügen aus"
 
-#: /app/src/modules/transfers/TransfersModule.js:1062
+#: /app/src/modules/transfers/TransfersModule.js:1081
 #, fuzzy
 #| msgid "Please select a destination account"
 msgid "Please select a destination account for all selected transfers"
 msgstr "Bitte wähle ein Zielkonto"
 
-#: /app/src/modules/transfers/TransfersModule.js:1068
+#: /app/src/modules/transfers/TransfersModule.js:1087
 msgid "Source and destination accounts must be different"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1093
+#: /app/src/modules/transfers/TransfersModule.js:1112
 msgid "%n transfer added successfully"
 msgid_plural "%n transfers added successfully"
 msgstr[0] "%n Überweisung wurde erfolgreich hinzugefügt"
 msgstr[1] "%n Überweisungen wurden erfolgreich hinzugefügt"
 
-#: /app/src/modules/transfers/TransfersModule.js:1096
+#: /app/src/modules/transfers/TransfersModule.js:1115
 #, fuzzy
 #| msgid "Failed to delete transfer"
 msgid "Failed to add selected transfers"
