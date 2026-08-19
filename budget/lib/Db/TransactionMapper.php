@@ -1144,6 +1144,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeTransfersForAllAccounts($qb, $accountId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1178,6 +1179,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->neq('t.vendor', $qb->createNamedParameter('')));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeTransfersForAllAccounts($qb, $accountId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1215,6 +1217,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeTransfersForAllAccounts($qb, $accountId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1247,6 +1250,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeTransfersForAllAccounts($qb, $accountId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1631,6 +1635,9 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        // Per-account breakdown of the all-accounts expense report — no
+        // single-account variant, so transfers are always excluded (#349)
+        $this->excludeTransfersForAllAccounts($qb, null);
 
         $qb->groupBy('a.id', 'a.name')
             ->orderBy('total', 'DESC');
@@ -2765,6 +2772,21 @@ class TransactionMapper extends QBMapper {
         $qb->andWhere($qb->expr()->isNull("{$alias}.pension_contrib_id"));
     }
 
+    /**
+     * Drop linked transfers from an all-accounts report aggregate (#349).
+     *
+     * A linked transfer is internal money movement, never income or spending,
+     * so the all-accounts view excludes both legs — the same policy the
+     * dashboard totals and cash-flow queries apply (#262). A single-account
+     * view keeps its own legs: the money really did enter or leave that
+     * account. Pass null for aggregates that have no single-account variant.
+     */
+    private function excludeTransfersForAllAccounts(IQueryBuilder $qb, ?int $accountId): void {
+        if ($accountId === null) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
+    }
+
     // ==================== TAG-BASED REPORTING METHODS ====================
 
     /**
@@ -2832,6 +2854,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeTransfersForAllAccounts($qb, $accountId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -2893,6 +2916,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         $this->excludeScheduledFuture($qb);
+        $this->excludeTransfersForAllAccounts($qb, $accountId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));

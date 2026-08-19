@@ -1168,4 +1168,79 @@ class TransactionMapperTest extends TestCase {
         $this->assertSame(-80.0, $out[5]['2026-01']);
         $this->assertSame(3000.0, $out[1]['2026-02']);
     }
+
+    // ===== report aggregates drop linked transfers in the all-accounts view (#349) =====
+
+    /** @var string[] every column passed to expr()->isNull() during the mapper call */
+    private array $isNullColumns = [];
+
+    private function trackIsNullColumns(): void {
+        $this->isNullColumns = [];
+        $this->expr->method('isNull')->willReturnCallback(function (string $column) {
+            $this->isNullColumns[] = $column;
+            return $column . ' IS NULL';
+        });
+        $this->result->method('fetchAll')->willReturn([]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+    }
+
+    public function testGetIncomeByMonthAllAccountsExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getIncomeByMonth('user1', null, '2026-01-01', '2026-01-31');
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testGetIncomeBySourceAllAccountsExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getIncomeBySource('user1', null, '2026-01-01', '2026-01-31');
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testGetSpendingByMonthAllAccountsExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getSpendingByMonth('user1', null, '2026-01-01', '2026-01-31');
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testGetSpendingByVendorAllAccountsExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getSpendingByVendor('user1', null, '2026-01-01', '2026-01-31');
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testGetSpendingByAccountAggregatedExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getSpendingByAccountAggregated('user1', '2026-01-01', '2026-01-31');
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testGetIncomeByTagAllAccountsExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getIncomeByTag('user1', 3, '2026-01-01', '2026-01-31', null);
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testGetSpendingByTagAllAccountsExcludesLinkedTransfers(): void {
+        $this->trackIsNullColumns();
+        $this->mapper->getSpendingByTag('user1', 3, '2026-01-01', '2026-01-31', null);
+        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
+    }
+
+    public function testSingleAccountReportAggregatesKeepTransferLegs(): void {
+        $this->trackIsNullColumns();
+        $calls = [
+            'getIncomeByMonth' => fn() => $this->mapper->getIncomeByMonth('user1', 5, '2026-01-01', '2026-01-31'),
+            'getIncomeBySource' => fn() => $this->mapper->getIncomeBySource('user1', 5, '2026-01-01', '2026-01-31'),
+            'getSpendingByMonth' => fn() => $this->mapper->getSpendingByMonth('user1', 5, '2026-01-01', '2026-01-31'),
+            'getSpendingByVendor' => fn() => $this->mapper->getSpendingByVendor('user1', 5, '2026-01-01', '2026-01-31'),
+            'getIncomeByTag' => fn() => $this->mapper->getIncomeByTag('user1', 3, '2026-01-01', '2026-01-31', 5),
+            'getSpendingByTag' => fn() => $this->mapper->getSpendingByTag('user1', 3, '2026-01-01', '2026-01-31', 5),
+        ];
+        foreach ($calls as $method => $call) {
+            $this->isNullColumns = [];
+            $call();
+            $this->assertNotContains('t.linked_transaction_id', $this->isNullColumns, $method);
+        }
+    }
 }
