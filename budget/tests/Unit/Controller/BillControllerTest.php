@@ -1421,4 +1421,53 @@ class BillControllerTest extends TestCase {
 
 		$this->assertInstanceOf(DataDownloadResponse::class, $response);
 	}
+
+	// ── amountType (#347) ───────────────────────────────────────────
+
+	public function testCreatePassesAmountTypeToService(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Visa payment', 'frequency' => 'monthly', 'dueDay' => 15,
+			'accountId' => 1, 'isTransfer' => true, 'destinationAccountId' => 20,
+			'amountType' => 'statement',
+		]));
+		$this->service->expects($this->once())->method('create')
+			->willReturnCallback(function (...$args) {
+				$this->assertSame('statement', $args[25]);
+				$this->assertSame(0.0, $args[2]); // amount defaults to 0 when omitted
+				return new Bill();
+			});
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateRejectsUnknownAmountType(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Visa payment', 'amount' => 10, 'amountType' => 'wild-guess',
+		]));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateStillRequiresAmountForFixedBills(): void {
+		$this->mockInput(json_encode(['name' => 'Rent']));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUpdateAcceptsAmountType(): void {
+		$this->mockInput(json_encode(['amountType' => 'statement']));
+		$this->service->expects($this->once())->method('update')
+			->with(1, 'user1', ['amountType' => 'statement'])
+			->willReturn(new Bill());
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
 }

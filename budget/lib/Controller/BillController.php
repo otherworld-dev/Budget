@@ -121,13 +121,19 @@ class BillController extends Controller {
         try {
             $data = $this->request->getParams();
 
+            // Statement bills resolve their amount server-side — no amount needed (#347)
+            $amountType = $data['amountType'] ?? 'fixed';
+            if (!in_array($amountType, ['fixed', 'statement'], true)) {
+                return new DataResponse(['error' => $this->l->t('Invalid amount type')], Http::STATUS_BAD_REQUEST);
+            }
+
             // Extract and validate required fields
-            if (!isset($data['name']) || !isset($data['amount'])) {
+            if (!isset($data['name']) || (!isset($data['amount']) && $amountType !== 'statement')) {
                 return new DataResponse(['error' => $this->l->t('Name and amount are required')], Http::STATUS_BAD_REQUEST);
             }
 
             $name = $data['name'];
-            $amount = (float) $data['amount'];
+            $amount = (float) ($data['amount'] ?? 0);
             $frequency = $data['frequency'] ?? 'monthly';
             $dueDay = isset($data['dueDay']) ? (int) $data['dueDay'] : null;
             $dueMonth = isset($data['dueMonth']) ? (int) $data['dueMonth'] : null;
@@ -306,7 +312,8 @@ class BillController extends Controller {
                 $remainingPayments,
                 $splitTemplate,
                 $startDate,
-                $excludedFromForecast
+                $excludedFromForecast,
+                $amountType
             );
 
             return new DataResponse($bill, Http::STATUS_CREATED);
@@ -534,6 +541,15 @@ class BillController extends Controller {
             // Handle pre-create future transaction flag (#311)
             if (array_key_exists('createTransaction', $data)) {
                 $updates['createTransaction'] = filter_var($data['createTransaction'], FILTER_VALIDATE_BOOLEAN);
+            }
+
+            // Handle amount type (#347) — deep validation (transfer +
+            // card destination) happens in the service
+            if (isset($data['amountType'])) {
+                if (!in_array($data['amountType'], ['fixed', 'statement'], true)) {
+                    return new DataResponse(['error' => $this->l->t('Invalid amount type')], Http::STATUS_BAD_REQUEST);
+                }
+                $updates['amountType'] = $data['amountType'];
             }
 
             // Validate transfer constraints if being updated
